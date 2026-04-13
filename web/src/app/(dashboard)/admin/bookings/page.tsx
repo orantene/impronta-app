@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { CalendarRange, Info } from "lucide-react";
 import { AdminBookingQueue } from "@/app/(dashboard)/admin/bookings/admin-booking-queue";
 import type { BookingQueueRow } from "@/app/(dashboard)/admin/bookings/admin-booking-queue";
@@ -15,7 +16,7 @@ import {
 import { BOOKING_STATUS_VALUES } from "@/lib/admin/validation";
 import { cn } from "@/lib/utils";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 function relOne<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null;
@@ -96,6 +97,8 @@ export default async function AdminBookingsPage({
     updated_from?: string;
     updated_to?: string;
     err?: string;
+    apanel?: string;
+    aid?: string;
   }>;
 }) {
   const {
@@ -108,7 +111,7 @@ export default async function AdminBookingsPage({
     updated_to: updatedTo = "",
     err: errParam,
   } = await searchParams;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
   }
@@ -509,8 +512,14 @@ export default async function AdminBookingsPage({
         </div>
       </form>
 
-      {/* Queue table */}
-      <AdminBookingQueue rows={queueRows} currentUserId={currentUserId} staffOptions={staffOptions} />
+      {/* Queue table — Suspense: peek triggers use `useSearchParams` */}
+      <Suspense
+        fallback={
+          <div className="h-48 animate-pulse rounded-2xl border border-border/40 bg-muted/20" aria-hidden />
+        }
+      >
+        <AdminBookingQueue rows={queueRows} currentUserId={currentUserId} staffOptions={staffOptions} />
+      </Suspense>
     </div>
   );
 }

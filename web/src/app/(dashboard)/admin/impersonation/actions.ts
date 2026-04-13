@@ -18,7 +18,7 @@ import {
 } from "@/lib/impersonation/validate";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { requireAdmin } from "@/lib/server/action-guards";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 function impersonationSecret(): string | undefined {
   return process.env.IMPERSONATION_COOKIE_SECRET?.trim() || undefined;
@@ -39,7 +39,7 @@ export async function startImpersonationAsQaTalent(): Promise<void> {
     throw new Error("Impersonation is not configured (secret or QA talent id).");
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) throw new Error("Not configured.");
 
   const targetProfile = await loadProfileRowById(supabase, target);
@@ -76,7 +76,7 @@ export async function startImpersonationAsQaClient(): Promise<void> {
     throw new Error("Impersonation is not configured (secret or QA client id).");
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) throw new Error("Not configured.");
 
   const targetProfile = await loadProfileRowById(supabase, target);

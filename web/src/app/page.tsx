@@ -20,7 +20,10 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
+  const t = createTranslator(locale);
   return {
+    title: t("public.meta.homeTitle"),
+    description: t("public.meta.homeDescription"),
     ...buildPublicLocaleAlternates(locale, "/"),
   };
 }

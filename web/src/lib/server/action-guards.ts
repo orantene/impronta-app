@@ -1,8 +1,10 @@
-import { loadAccessProfile } from "@/lib/access-profile";
 import { isStaffRole } from "@/lib/auth-flow";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { assertMutationsAllowedWhileImpersonating } from "@/lib/impersonation/write-policy";
-import { createClient } from "@/lib/supabase/server";
+import {
+  getCachedActorSession,
+  getCachedServerSupabase,
+} from "@/lib/server/request-cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { User } from "@supabase/supabase-js";
 import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
@@ -18,19 +20,19 @@ type GuardFail = { ok: false; error: string };
 type GuardOk = { ok: true } & GuardedSession;
 
 export async function requireSession(): Promise<GuardOk | GuardFail> {
-  const supabase = await createClient();
-  if (!supabase) {
-    return { ok: false, error: "Not configured." };
-  }
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error || !user) {
+  const session = await getCachedActorSession();
+  if (!session.supabase || !session.user) {
+    if (!session.supabase) {
+      return { ok: false, error: "Not configured." };
+    }
     return { ok: false, error: "You must be signed in." };
   }
-  const profile = await loadAccessProfile(supabase, user.id);
-  return { ok: true, supabase, user, profile };
+  return {
+    ok: true,
+    supabase: session.supabase,
+    user: session.user,
+    profile: session.profile,
+  };
 }
 
 /** Agency staff routes (`super_admin` or `agency_staff`). */
@@ -62,7 +64,7 @@ export async function requireTalent(): Promise<GuardOk | GuardFail> {
   if (!identity) {
     return { ok: false, error: "You must be signed in." };
   }
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return { ok: false, error: "Not configured." };
   }
@@ -91,7 +93,7 @@ export async function requireClient(): Promise<GuardOk | GuardFail> {
   if (!identity) {
     return { ok: false, error: "You must be signed in." };
   }
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return { ok: false, error: "Not configured." };
   }

@@ -1,0 +1,13 @@
+---
+description: Admin panel navigation, URL state, and DashboardEditPanel usage
+globs: web/src/app/(dashboard)/admin/**/*.tsx,web/src/components/admin/**/*.tsx
+---
+
+Follow [web/docs/admin-ux-architecture.md](web/docs/admin-ux-architecture.md) for:
+
+- When to use full pages vs `DashboardEditPanel` vs modals vs popovers
+- URL params `apanel` and `aid` (and legacy Fields `edit`)
+- Closing panels must clear matching URL params; use helpers in `web/src/lib/admin/admin-panel-search-params.ts` and `useAdminPanelState` where appropriate
+- Width tokens: `web/src/lib/admin/admin-drawer-classes.ts`
+
+Before adding a new admin drawer, read the doc’s PR checklist.

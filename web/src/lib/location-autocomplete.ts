@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import {
   fetchGoogleCityPredictions,
   fetchGoogleCountryPredictions,
@@ -384,7 +384,7 @@ export async function searchCanonicalCities(input: {
 }
 
 async function searchLocalCountries(query: string): Promise<CountrySuggestion[]> {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) return [];
 
   let builder = supabase
@@ -420,7 +420,7 @@ async function searchLocalCountries(query: string): Promise<CountrySuggestion[]>
 }
 
 async function searchLocalCities(query: string, countryIso2: string): Promise<CitySuggestion[]> {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) return [];
 
   let builder = supabase

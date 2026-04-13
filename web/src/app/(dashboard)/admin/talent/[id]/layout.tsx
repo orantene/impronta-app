@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { ADMIN_PAGE_WIDTH } from "@/lib/dashboard-shell-classes";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { AdminTalentHubShell } from "@/app/(dashboard)/admin/talent/[id]/admin-talent-hub-shell";
 
 export default async function AdminTalentDetailLayout({
@@ -11,7 +11,7 @@ export default async function AdminTalentDetailLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return <div className={ADMIN_PAGE_WIDTH}>{children}</div>;
   }

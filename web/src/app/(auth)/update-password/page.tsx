@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { UpdatePasswordForm } from "./update-password-form";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 export default async function UpdatePasswordPage() {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     redirect("/login?error=config");
   }

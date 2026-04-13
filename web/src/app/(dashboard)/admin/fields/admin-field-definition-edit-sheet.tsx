@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
+import { ADMIN_DRAWER_CLASS_NARROW } from "@/lib/admin/admin-drawer-classes";
 import { updateFieldDefinitionCore, type FieldAdminActionState } from "./actions";
 
 export type FieldGroupOption = { id: string; name_en: string };
@@ -48,7 +49,7 @@ export function AdminFieldDefinitionEditSheet({
       onOpenChange={onOpenChange}
       title="Edit field"
       description="Update the field’s identity and value type. Visibility, filters, and behavior toggles stay on the Fields overview table."
-      className="lg:max-w-md"
+      className={ADMIN_DRAWER_CLASS_NARROW}
     >
       {!initial ? (
         <p className="text-sm text-muted-foreground">Select a field to edit.</p>

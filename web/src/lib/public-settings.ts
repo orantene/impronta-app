@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
 export type PublicSettings = {
@@ -14,9 +15,10 @@ export type PublicSettings = {
  *
  * When the query **succeeds** but a row is missing from the result map,
  * `asBoolean(..., fallback)` applies per key:
- * - `directory_public` and `inquiries_open` default to **true** — matches a
- *   “healthy DB, keys not yet seeded” assumption so first deploys stay open
- *   until admins set toggles in `settings`.
+ * - `directory_public` and `inquiries_open` default to **true** unless
+ *   `PUBLIC_SETTINGS_STRICT_MISSING=1` — then missing keys default to **false**
+ *   (stricter production). Otherwise “healthy DB, keys not yet seeded” keeps
+ *   surfaces open until admins seed `settings`.
  * - `watermark_enabled` defaults to **false** (safe default).
  * For stricter behavior (treat missing keys as off), seed explicit `false`
  * rows in `settings` or change those fallbacks to `false` after migration.
@@ -28,6 +30,14 @@ const UNCONFIGURED_PUBLIC_SETTINGS: PublicSettings = {
   watermarkEnabled: false,
   agencyWhatsAppNumber: null,
 };
+
+/**
+ * When `PUBLIC_SETTINGS_STRICT_MISSING=1`, rows missing from `settings` default
+ * directory/inquiries to **off** instead of on (safer first deploy).
+ */
+function publicSettingsBooleanFallback(): boolean {
+  return process.env.PUBLIC_SETTINGS_STRICT_MISSING !== "1";
+}
 
 function asBoolean(value: unknown, fallback: boolean): boolean {
   if (typeof value === "boolean") return value;
@@ -42,7 +52,7 @@ function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-export async function getPublicSettings(): Promise<PublicSettings> {
+async function fetchPublicSettings(): Promise<PublicSettings> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) {
     return UNCONFIGURED_PUBLIC_SETTINGS;
@@ -68,11 +78,16 @@ export async function getPublicSettings(): Promise<PublicSettings> {
     map.set(row.key, row.value);
   }
 
+  const openDefault = publicSettingsBooleanFallback();
+
   return {
     contactEmail: asString(map.get("contact_email")),
-    directoryPublic: asBoolean(map.get("directory_public"), true),
-    inquiriesOpen: asBoolean(map.get("inquiries_open"), true),
+    directoryPublic: asBoolean(map.get("directory_public"), openDefault),
+    inquiriesOpen: asBoolean(map.get("inquiries_open"), openDefault),
     watermarkEnabled: asBoolean(map.get("watermark_enabled"), false),
     agencyWhatsAppNumber: asString(map.get("agency_whatsapp_number")),
   };
 }
+
+/** One settings row-set read per request when multiple callers need it. */
+export const getPublicSettings = cache(fetchPublicSettings);

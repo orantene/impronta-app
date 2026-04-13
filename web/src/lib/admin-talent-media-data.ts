@@ -1,5 +1,5 @@
 import type { TalentMediaRow } from "@/lib/talent-dashboard-data";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 export type AdminTalentMediaRow = TalentMediaRow & {
   uploaded_by_user_id: string | null;
@@ -12,7 +12,7 @@ export async function loadAdminTalentMedia(
   | { ok: true; profileCode: string; displayName: string | null; media: AdminTalentMediaRow[] }
   | { ok: false; reason: "no_supabase" | "not_found" }
 > {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false, reason: "no_supabase" };
 
   const { data: profile, error: pErr } = await supabase

@@ -3,9 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, ChevronUp, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Loader2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
+import { AdminTalentBioTranslationPanel } from "@/app/(dashboard)/admin/talent/[id]/admin-talent-bio-translation-panel";
+import {
+  adminLoadBioTranslationPanelData,
+  type BioTranslationPanelPayload,
+} from "@/app/(dashboard)/admin/talent/translation-actions";
 import { adminAiRunProfileTranslationJob } from "@/app/(dashboard)/admin/translations/translations-ai-actions";
 import {
   adminAiFillMissingSpanishBio,
@@ -17,7 +22,8 @@ import {
   adminBulkMarkSpanishBioReviewed,
 } from "@/app/(dashboard)/admin/translations/translations-workflow-actions";
 import type { BioFilterKey, BioSortKey, SortDir } from "@/app/(dashboard)/admin/translations/translations-url";
-import { bioSortHref } from "@/app/(dashboard)/admin/translations/translations-url";
+import { bioSortHref, TRANSLATIONS_APANEL_BIO } from "@/app/(dashboard)/admin/translations/translations-url";
+import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -37,6 +43,8 @@ import {
   type BioEsStatus,
 } from "@/lib/translation/bio-es-status";
 import { friendlyAiFailureMessage } from "@/lib/translation/ai-user-messages";
+import { ADMIN_DRAWER_CLASS_WIDE } from "@/lib/admin/admin-drawer-classes";
+import { useAdminPanelState } from "@/hooks/use-admin-panel-state";
 import { cn } from "@/lib/utils";
 
 type RowAiPhase = "idle" | "translating" | "done" | "error";
@@ -185,6 +193,45 @@ export function TranslationsBioWorkflowTable({
   aiConfigured: boolean;
 }) {
   const router = useRouter();
+  const { apanel, aid, openPanel, closePanel } = useAdminPanelState({
+    pathname: "/admin/translations",
+  });
+  const bioDrawerOpen = apanel === TRANSLATIONS_APANEL_BIO && Boolean(aid);
+
+  const watchedRow = aid ? rows.find((r) => r.id === aid) : undefined;
+  const rowDataTick = watchedRow
+    ? `${watchedRow.bio_es ?? ""}|${watchedRow.bio_es_draft ?? ""}|${watchedRow.bio_es_status ?? ""}|${watchedRow.bio_es_updated_at ?? ""}`
+    : "";
+
+  const [panelLoading, setPanelLoading] = useState(false);
+  const [panelError, setPanelError] = useState<string | null>(null);
+  const [panelData, setPanelData] = useState<BioTranslationPanelPayload | null>(null);
+
+  useEffect(() => {
+    if (!bioDrawerOpen || !aid) {
+      setPanelData(null);
+      setPanelError(null);
+      setPanelLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setPanelLoading(true);
+    setPanelError(null);
+    void adminLoadBioTranslationPanelData({ talent_profile_id: aid }).then((res) => {
+      if (cancelled) return;
+      setPanelLoading(false);
+      if ("error" in res && res.error) {
+        setPanelError(res.error);
+        setPanelData(null);
+        return;
+      }
+      if ("data" in res && res.data) setPanelData(res.data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bioDrawerOpen, aid, rowDataTick]);
+
   const [pending, start] = useTransition();
   const [aiRunning, setAiRunning] = useState(false);
   const [aiProgressLine, setAiProgressLine] = useState<string | null>(null);
@@ -614,8 +661,16 @@ export function TranslationsBioWorkflowTable({
                       </td>
                       <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
-                          <Button asChild size="sm" variant="outline" className="h-8">
-                            <Link href={`/admin/talent/${row.id}#bio-translation`}>Open editor</Link>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => openPanel(TRANSLATIONS_APANEL_BIO, row.id)}
+                            onMouseEnter={() => router.prefetch(`/admin/talent/${row.id}`)}
+                            onFocus={() => router.prefetch(`/admin/talent/${row.id}`)}
+                          >
+                            Open editor
                           </Button>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -725,6 +780,52 @@ export function TranslationsBioWorkflowTable({
           </table>
         </div>
       </div>
+
+      <DashboardEditPanel
+        open={bioDrawerOpen}
+        onOpenChange={(next) => {
+          if (!next) closePanel();
+        }}
+        title={
+          watchedRow?.display_name?.trim() ||
+          watchedRow?.profile_code ||
+          "Spanish bio"
+        }
+        description="Edit Spanish while keeping filters and triage context. Full profile tools stay on the talent hub."
+        className={ADMIN_DRAWER_CLASS_WIDE}
+      >
+        {aid ? (
+          <p className="mb-4 text-sm">
+            <Link
+              href={`/admin/talent/${aid}`}
+              className="font-medium text-[var(--impronta-gold)] underline-offset-4 hover:underline"
+              onClick={() => closePanel()}
+            >
+              Open full talent workspace
+            </Link>
+          </p>
+        ) : null}
+        {panelLoading ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+            <Loader2 className="size-8 animate-spin" aria-hidden />
+            <span className="text-sm">Loading editor…</span>
+          </div>
+        ) : panelError ? (
+          <p className="text-sm text-destructive">{panelError}</p>
+        ) : panelData ? (
+          <AdminTalentBioTranslationPanel
+            talentProfileId={panelData.talent_profile_id}
+            bio_en={panelData.bio_en}
+            bio_es={panelData.bio_es}
+            bio_es_draft={panelData.bio_es_draft}
+            bio_es_status={panelData.bio_es_status}
+            bio_en_updated_at={panelData.bio_en_updated_at}
+            bio_es_updated_at={panelData.bio_es_updated_at}
+            short_bio={panelData.short_bio}
+            openAiAvailable={panelData.open_ai_available}
+          />
+        ) : null}
+      </DashboardEditPanel>
 
       {allMissingOpen ? (
         <div

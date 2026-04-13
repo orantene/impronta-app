@@ -14,7 +14,7 @@ import {
   type AdminTalentQueueRow,
 } from "@/app/(dashboard)/admin/talent/admin-talent-queue";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { AdminTalentHelpPopover } from "@/components/admin/admin-talent-help-popover";
 
 const TABS = [
@@ -165,7 +165,7 @@ export default async function AdminTalentListPage({
     sort: sortParam,
     page: pageParam,
   } = await searchParams;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
 
   if (!supabase) {
     return (

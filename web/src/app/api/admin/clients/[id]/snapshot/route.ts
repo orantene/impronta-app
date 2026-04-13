@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { isStaffRole } from "@/lib/auth-flow";
 
@@ -9,7 +9,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return NextResponse.json({ error: "Unavailable" }, { status: 503 });
   }

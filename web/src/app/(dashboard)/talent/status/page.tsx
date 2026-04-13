@@ -3,6 +3,8 @@ import {
   RevisionForm,
   TalentSubmitForReviewForm,
 } from "@/app/(dashboard)/talent/talent-forms";
+import { createTranslator } from "@/i18n/messages";
+import { getRequestLocale } from "@/i18n/request-locale";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { TalentDashboardLoadFallback } from "@/components/dashboard/dashboard-load-fallback";
 import {
@@ -39,6 +41,10 @@ export default async function TalentStatusPage({
   searchParams: Promise<{ revision?: string }>;
 }) {
   const { revision } = await searchParams;
+  const locale = await getRequestLocale();
+  const t = createTranslator(locale);
+  const ts = (key: string) => t(`dashboard.talentStatus.${key}`);
+
   const result = await loadTalentDashboardData();
   if (!result.ok) return <TalentDashboardLoadFallback reason={result.reason} />;
 
@@ -72,21 +78,21 @@ export default async function TalentStatusPage({
           <div className="space-y-5 p-4 sm:p-5 lg:p-8">
             <TalentPageHeader
               icon={Activity}
-              title="Status & workflow"
-              description="Where you are with the agency, what happens next, and a clear record of submissions and decisions."
+              title={ts("pageTitle")}
+              description={ts("pageDescription")}
               right={
                 <Button
                   variant="outline"
                   asChild
                   className="h-11 w-full gap-2 rounded-2xl border-border/70 bg-background/70 px-4 text-[15px] font-medium backdrop-blur-sm sm:w-auto lg:h-12"
                 >
-                  <Link href="/talent/my-profile">Profile checklist</Link>
+                  <Link href="/talent/my-profile">{ts("profileChecklistCta")}</Link>
                 </Button>
               }
             />
             <div className="border-t border-border/40 pt-5">
               <TalentInlineProgress
-                label="Profile completion (matches My Profile)"
+                label={ts("completionLabel")}
                 value={completionScore}
                 className="border-border/40 bg-background/55 shadow-none backdrop-blur-sm"
               />

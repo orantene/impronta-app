@@ -1,6 +1,8 @@
 {
   "public": {
     "meta": {
+      "homeTitle": "Agencia de modelos e imagen",
+      "homeDescription": "Descubre talento representado, guarda listas y trabaja con Impronta — descubrimiento y representación gestionados por la agencia.",
       "directoryTitle": "Directorio",
       "directoryDescription": "Explora el talento representado: guarda perfiles en tu lista y contacta a la agencia a través de Impronta.",
       "modelsTitle": "Modelos",
@@ -369,6 +371,38 @@
     "impersonationActorNote": "Sesión de admin",
     "impersonationReadOnly": "Viendo como",
     "impersonationV1ReadOnlyQa": "Modo QA v1 solo lectura: guardados y cambios están desactivados.",
-    "returnToAdmin": "Volver al admin"
+    "returnToAdmin": "Volver al admin",
+    "clientOverview": {
+      "title": "Resumen",
+      "subtitle": "Accede a cada área de tu portal — la barra superior mantiene el directorio y el carrito a un toque.",
+      "helpTitle": "Resumen",
+      "helpItem1": "El talento guardado es tu lista corta del directorio.",
+      "helpItem2": "Las solicitudes muestran el estado tras enviar desde el carrito.",
+      "helpItem3": "Los datos de cuenta rellenan futuras solicitudes.",
+      "savedTalent": "Talento guardado",
+      "savedTalentDesc": "Perfiles que marcaste al navegar.",
+      "viewSaved": "Ver guardados",
+      "browseDirectory": "Explorar directorio",
+      "requests": "Solicitudes",
+      "requestsDesc": "Consultas asociadas a este inicio de sesión.",
+      "latestPrefix": "Última:",
+      "noRequestsYet": "Aún no hay solicitudes — añade talento al carrito y envía un brief cuando quieras.",
+      "viewRequests": "Ver solicitudes",
+      "bookings": "Reservas",
+      "bookingsDesc": "Trabajos confirmados compartidos por la agencia.",
+      "bookingsFootnote": "Encargos vinculados a tu cuenta cuando una consulta avanza.",
+      "viewBookings": "Ver reservas",
+      "account": "Cuenta",
+      "accountDesc": "Nombre y empresa registrados.",
+      "accountFallback": "Cuenta de cliente",
+      "addCompanyHint": "Añade tu empresa en Ajustes de cuenta.",
+      "accountSettings": "Ajustes de cuenta"
+    },
+    "talentStatus": {
+      "pageTitle": "Estado y flujo",
+      "pageDescription": "Dónde estás con la agencia, qué sigue y un registro claro de envíos y decisiones.",
+      "profileChecklistCta": "Lista del perfil",
+      "completionLabel": "Completitud del perfil (igual que Mi perfil)"
+    }
   }
 }

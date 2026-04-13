@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import {
   ADMIN_FORM_CONTROL,
   ADMIN_LINK_PILL,
@@ -41,7 +41,7 @@ export default async function AdminLocationsPage({
   const showArchived = show === "archived";
   const filterQ = (qParam ?? "").trim();
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
   }

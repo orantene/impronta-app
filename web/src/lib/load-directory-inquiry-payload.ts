@@ -1,8 +1,8 @@
 import { getGuestSessionKey } from "@/lib/guest-session";
 import { getPublicSettings } from "@/lib/public-settings";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { createClient } from "@/lib/supabase/server";
 
 export type DirectoryInquiryOrderedTalent = {
   id: string;
@@ -41,15 +41,9 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     await pub.rpc("ensure_guest_session", { p_session_key: guestKey });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
-
-  const { data: profile } =
-    user && supabase
-      ? await supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
-      : { data: null };
+  const actor = await getCachedActorSession();
+  const user = actor.user;
+  const supabase = actor.supabase;
 
   const { data: clientProfile } =
     user && supabase
@@ -102,7 +96,7 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
 
   const defaultEmail = user?.email ?? undefined;
   const defaultName =
-    profile?.display_name ??
+    actor.profile?.display_name ??
     (user?.user_metadata?.full_name as string | undefined) ??
     (user?.user_metadata?.name as string | undefined) ??
     undefined;

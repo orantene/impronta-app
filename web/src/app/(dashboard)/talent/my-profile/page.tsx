@@ -4,12 +4,12 @@ import {
   loadTalentDashboardData,
   loadTalentTaxonomyEditorData,
 } from "@/lib/talent-dashboard-data";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { TalentMyProfileClient } from "@/app/(dashboard)/talent/my-profile/talent-my-profile-client";
 import type { CitySuggestion, CountrySuggestion } from "@/lib/location-autocomplete";
 
 export default async function TalentMyProfilePage() {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   const [result, tax] = await Promise.all([
     loadTalentDashboardData(),
     loadTalentTaxonomyEditorData(),

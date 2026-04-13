@@ -4,30 +4,25 @@ import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-heade
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { Button } from "@/components/ui/button";
 import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
-import { loadAccessProfile } from "@/lib/access-profile";
 import {
   isStaffRole,
   resolveAuthenticatedDestination,
 } from "@/lib/auth-flow";
 import { userHasEmailPasswordIdentity } from "@/lib/auth-identities";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export default async function AdminAccountPage() {
-  const supabase = await createClient();
-  if (!supabase) {
+  const session = await getCachedActorSession();
+  if (!session.supabase) {
     redirect("/login?error=config");
   }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
+  if (!session.user) {
     redirect("/login");
   }
 
-  const profile = await loadAccessProfile(supabase, user.id);
+  const { user, profile } = session;
   if (!isStaffRole(profile?.app_role)) {
     redirect(resolveAuthenticatedDestination(profile));
   }

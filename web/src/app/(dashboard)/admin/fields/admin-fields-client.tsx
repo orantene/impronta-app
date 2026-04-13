@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { FieldDefinitionRow, FieldGroupRow } from "./field-group-panel";
 import { FieldGroupPanel } from "./field-group-panel";
@@ -51,6 +51,27 @@ export function AdminFieldsClient({
   );
 
   const router = useRouter();
+  const pathname = usePathname() ?? "";
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    setEditFieldId(initialEditFieldId ?? null);
+  }, [initialEditFieldId]);
+
+  const stripEditParam = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("edit");
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  const openFieldEdit = (id: string) => {
+    setEditFieldId(id);
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("edit", id);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  };
+
   const groupOrderRefreshLock = useRef(false);
   useEffect(() => {
     if (reorderPending) groupOrderRefreshLock.current = false;
@@ -141,7 +162,7 @@ export function AdminFieldsClient({
                   <FieldGroupPanel
                     group={group}
                     fields={fields}
-                    onEditField={(id) => setEditFieldId(id)}
+                    onEditField={(id) => openFieldEdit(id)}
                     open={openGroups.has(group.id)}
                     onOpenChange={(nextOpen) => {
                       setOpenGroups((prev) => {
@@ -161,7 +182,12 @@ export function AdminFieldsClient({
 
       <AdminFieldDefinitionEditSheet
         open={Boolean(editFieldId)}
-        onOpenChange={(o) => setEditFieldId(o ? editFieldId : null)}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEditFieldId(null);
+            stripEditParam();
+          }
+        }}
         initial={initial}
         groups={groupOptions}
       />

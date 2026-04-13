@@ -32,7 +32,7 @@ import {
 } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
 import { mapRawActivityRows } from "@/lib/commercial-activity-summary";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { ChevronDown } from "lucide-react";
 import type React from "react";
 
@@ -162,7 +162,7 @@ export default async function AdminInquiryDetailPage({
 }) {
   const { id } = await params;
   const { convert_error: convertError, dup_err: dupErr } = await searchParams;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) notFound();
 
   const { data: inquiry, error } = await supabase

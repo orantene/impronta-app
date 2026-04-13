@@ -1,43 +1,34 @@
 import { Toaster } from "sonner";
+import { redirect } from "next/navigation";
 import { AdminWorkspaceShell } from "@/app/(dashboard)/admin/admin-workspace-shell";
-import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
-import { loadAccessProfile } from "@/lib/access-profile";
-import { isStaffRole } from "@/lib/auth-flow";
-import { loadAdminOverviewData } from "@/lib/dashboard/admin-dashboard-data";
-import { createClient } from "@/lib/supabase/server";
+import {
+  isStaffRole,
+  resolveAuthenticatedDestination,
+} from "@/lib/auth-flow";
+import {
+  loadAdminShellPulseCounts,
+} from "@/lib/dashboard/admin-dashboard-data";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  if (!supabase) {
-    return <div className={ADMIN_PAGE_STACK}>{children}</div>;
+  const session = await getCachedActorSession();
+  if (!session.supabase) {
+    redirect("/login?error=config");
+  }
+  if (!session.user) {
+    redirect("/login");
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return <div className={ADMIN_PAGE_STACK}>{children}</div>;
-  }
-
-  const profile = await loadAccessProfile(supabase, user.id);
+  const profile = session.profile;
   if (!isStaffRole(profile?.app_role)) {
-    return <div className={ADMIN_PAGE_STACK}>{children}</div>;
+    redirect(resolveAuthenticatedDestination(profile));
   }
 
-  const overview = await loadAdminOverviewData();
-  const pulseCounts = overview
-    ? {
-        totalTalent: overview.counts.totalTalent,
-        pendingTalent: overview.counts.pendingTalent,
-        openInquiries: overview.counts.openInquiries,
-        pendingMedia: overview.counts.pendingMedia,
-        totalClients: overview.counts.totalClients,
-      }
-    : null;
+  const pulseCounts = await loadAdminShellPulseCounts();
 
   return (
     <>

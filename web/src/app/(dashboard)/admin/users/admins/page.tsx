@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Shield } from "lucide-react";
 import { AdminUserEditButton } from "@/app/(dashboard)/admin/users/admin-user-edit-button";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +34,12 @@ export default async function AdminStaffListPage() {
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">No staff accounts found.</p>
         ) : (
-          <div className={ADMIN_TABLE_WRAP}>
+          <Suspense
+            fallback={
+              <div className="h-48 animate-pulse rounded-2xl border border-border/40 bg-muted/20" aria-hidden />
+            }
+          >
+            <div className={ADMIN_TABLE_WRAP}>
             <table className="w-full border-collapse text-sm">
               <thead className={ADMIN_TABLE_HEAD}>
                 <tr className="border-b border-border/45 text-left">
@@ -71,13 +77,17 @@ export default async function AdminStaffListPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3.5">
-                      <AdminUserEditButton userId={row.user_id} />
+                      <AdminUserEditButton
+                        userId={row.user_id}
+                        urlSync={{ pathname: "/admin/users/admins" }}
+                      />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </Suspense>
         )}
       </DashboardSectionCard>
     </div>

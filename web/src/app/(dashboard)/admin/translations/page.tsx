@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Download, FileText, Languages } from "lucide-react";
 
 import {
@@ -12,7 +13,10 @@ import {
 import {
   BIO_STATUS_FILTERS,
   TAX_LOC_STATUS_FILTERS,
+  translationsBioEditorHref,
   translationsHref,
+  translationsLocationEditorHref,
+  translationsTaxonomyEditorHref,
   VIEW_TABS,
   parseTranslationsSearchParams,
   type BioFilterKey,
@@ -25,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { ADMIN_FORM_CONTROL, ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
 import { isOpenAiConfigured } from "@/lib/translation/ai-translate-bio";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { cn } from "@/lib/utils";
 
 function TranslationsEmptyState({
@@ -174,6 +178,8 @@ export default async function AdminTranslationsPage({
     q?: string;
     sort?: string;
     dir?: string;
+    apanel?: string;
+    aid?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -188,7 +194,7 @@ export default async function AdminTranslationsPage({
     sortDir,
   } = parseTranslationsSearchParams(sp);
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return (
       <div className={ADMIN_PAGE_STACK}>
@@ -333,33 +339,42 @@ export default async function AdminTranslationsPage({
   if (firstMissingRow?.id) firstMissingId = firstMissingRow.id;
 
   const openNextMissingHref = firstMissingId
-    ? `/admin/talent/${firstMissingId}#bio-translation`
+    ? translationsBioEditorHref(
+        { status: bioStatusFilter, q, sort: bioSort, dir: sortDir },
+        firstMissingId,
+      )
     : null;
 
   const { data: firstTaxMissing } = await supabase
     .from("taxonomy_terms")
-    .select("slug")
+    .select("id")
     .is("archived_at", null)
     .or("name_es.is.null,name_es.eq.")
     .order("kind", { ascending: true })
     .order("slug", { ascending: true })
     .limit(1)
     .maybeSingle();
-  const openNextTaxonomyMissingHref = firstTaxMissing?.slug
-    ? `/admin/taxonomy?q=${encodeURIComponent(firstTaxMissing.slug as string)}`
+  const openNextTaxonomyMissingHref = firstTaxMissing?.id
+    ? translationsTaxonomyEditorHref(
+        { status: taxLocStatusFilter, q, sort: taxonomySort, dir: sortDir },
+        firstTaxMissing.id as string,
+      )
     : null;
 
   const { data: firstLocMissing } = await supabase
     .from("locations")
-    .select("city_slug")
+    .select("id")
     .is("archived_at", null)
     .or("display_name_es.is.null,display_name_es.eq.")
     .order("country_code", { ascending: true })
     .order("display_name_en", { ascending: true })
     .limit(1)
     .maybeSingle();
-  const openNextLocationMissingHref = firstLocMissing?.city_slug
-    ? `/admin/locations?q=${encodeURIComponent(firstLocMissing.city_slug as string)}`
+  const openNextLocationMissingHref = firstLocMissing?.id
+    ? translationsLocationEditorHref(
+        { status: taxLocStatusFilter, q, sort: locationSort, dir: sortDir },
+        firstLocMissing.id as string,
+      )
     : null;
 
   const aiConfigured = isOpenAiConfigured();
@@ -840,16 +855,25 @@ export default async function AdminTranslationsPage({
           </DashboardSectionCard>
 
           {talentRows.length > 0 ? (
-            <TranslationsBioWorkflowTable
-              rows={talentRows}
-              auditByTalentId={auditByTalentId}
-              statusFilter={bioStatusFilter}
-              q={q}
-              bioSort={bioSort}
-              sortDir={sortDir}
-              openNextMissingHref={openNextMissingHref}
-              aiConfigured={aiConfigured}
-            />
+            <Suspense
+              fallback={
+                <div
+                  className="h-40 animate-pulse rounded-2xl border border-border/40 bg-muted/20"
+                  aria-hidden
+                />
+              }
+            >
+              <TranslationsBioWorkflowTable
+                rows={talentRows}
+                auditByTalentId={auditByTalentId}
+                statusFilter={bioStatusFilter}
+                q={q}
+                bioSort={bioSort}
+                sortDir={sortDir}
+                openNextMissingHref={openNextMissingHref}
+                aiConfigured={aiConfigured}
+              />
+            </Suspense>
           ) : (
             <div className="px-1 py-4">
               {bioStatusFilter === "missing" && !q ? (
@@ -971,15 +995,24 @@ export default async function AdminTranslationsPage({
           </p>
 
           {taxonomyWorkflowRows.length > 0 ? (
-            <TranslationsTaxonomyWorkflowTable
-              rows={taxonomyWorkflowRows}
-              statusFilter={taxLocStatusFilter}
-              q={q}
-              taxonomySort={taxonomySort}
-              sortDir={sortDir}
-              openNextMissingHref={openNextTaxonomyMissingHref}
-              aiConfigured={aiConfigured}
-            />
+            <Suspense
+              fallback={
+                <div
+                  className="h-40 animate-pulse rounded-2xl border border-border/40 bg-muted/20"
+                  aria-hidden
+                />
+              }
+            >
+              <TranslationsTaxonomyWorkflowTable
+                rows={taxonomyWorkflowRows}
+                statusFilter={taxLocStatusFilter}
+                q={q}
+                taxonomySort={taxonomySort}
+                sortDir={sortDir}
+                openNextMissingHref={openNextTaxonomyMissingHref}
+                aiConfigured={aiConfigured}
+              />
+            </Suspense>
           ) : (
             <div className="px-1 py-4">
               {(taxLocStatusFilter === "needs_attention" || taxLocStatusFilter === "missing") && !q ? (
@@ -1092,15 +1125,24 @@ export default async function AdminTranslationsPage({
           </p>
 
           {locationWorkflowRows.length > 0 ? (
-            <TranslationsLocationWorkflowTable
-              rows={locationWorkflowRows}
-              statusFilter={taxLocStatusFilter}
-              q={q}
-              locationSort={locationSort}
-              sortDir={sortDir}
-              openNextMissingHref={openNextLocationMissingHref}
-              aiConfigured={aiConfigured}
-            />
+            <Suspense
+              fallback={
+                <div
+                  className="h-40 animate-pulse rounded-2xl border border-border/40 bg-muted/20"
+                  aria-hidden
+                />
+              }
+            >
+              <TranslationsLocationWorkflowTable
+                rows={locationWorkflowRows}
+                statusFilter={taxLocStatusFilter}
+                q={q}
+                locationSort={locationSort}
+                sortDir={sortDir}
+                openNextMissingHref={openNextLocationMissingHref}
+                aiConfigured={aiConfigured}
+              />
+            </Suspense>
           ) : (
             <div className="px-1 py-4">
               {(taxLocStatusFilter === "needs_attention" || taxLocStatusFilter === "missing") && !q ? (

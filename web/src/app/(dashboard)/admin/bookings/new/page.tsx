@@ -9,7 +9,6 @@ import {
 } from "@/lib/dashboard-shell-classes";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/server";
 import { requireStaff } from "@/lib/server/action-guards";
 
 export default async function AdminNewBookingPage({

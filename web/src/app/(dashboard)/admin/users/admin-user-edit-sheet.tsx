@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
+import { ADMIN_DRAWER_CLASS_MEDIUM } from "@/lib/admin/admin-drawer-classes";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { CanonicalLocationFieldset } from "@/components/location/canonical-location-fieldset";
 import {
@@ -851,7 +852,7 @@ export function AdminUserEditSheet({
       onOpenChange={onOpenChange}
       title="Account & login"
       description="Account access, client organization for client logins, and full public talent fields when this sheet is opened with a linked talent profile."
-      className={cn("lg:max-w-xl", className)}
+      className={cn(ADMIN_DRAWER_CLASS_MEDIUM, className)}
     >
       {inner}
     </DashboardEditPanel>

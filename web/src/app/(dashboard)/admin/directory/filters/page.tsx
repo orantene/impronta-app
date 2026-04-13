@@ -1,7 +1,7 @@
 import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { getCachedDirectoryHeightFilterConfig } from "@/lib/directory/directory-filter-catalog";
 import {
   DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY,
@@ -41,7 +41,7 @@ function isMissingDirectoryFilterVisibleColumn(err: { message?: string; code?: s
 }
 
 export default async function AdminDirectoryFiltersPage() {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
   }

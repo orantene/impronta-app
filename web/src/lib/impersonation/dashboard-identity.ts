@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadAccessProfile, type AccessProfileWithDisplayName } from "@/lib/access-profile";
+import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
 import { parseImpersonationCookie } from "@/lib/impersonation/cookie";
 import { loadProfileRowById } from "@/lib/impersonation/profile-lookup";
 import { validateImpersonationTargetProfile } from "@/lib/impersonation/validate";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 
 export type DashboardIdentity = {
   actorUser: User;
@@ -98,15 +98,10 @@ function buildNonImpersonatingIdentity(
  * Single source of truth for actor, effective user, impersonation, subject role (RSC + server actions).
  */
 export async function resolveDashboardIdentity(): Promise<DashboardIdentity | null> {
-  const supabase = await createClient();
-  if (!supabase) return null;
+  const session = await getCachedActorSession();
+  if (!session.supabase || !session.user) return null;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const actorProfile = await loadAccessProfile(supabase, user.id);
+  const { supabase, user, profile: actorProfile } = session;
   const cookieStore = await cookies();
   const raw = cookieStore.get(IMPERSONATION_COOKIE_NAME)?.value;
   const secret = impersonationSecret();

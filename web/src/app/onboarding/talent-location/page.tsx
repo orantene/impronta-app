@@ -3,7 +3,7 @@ import { completeTalentLocationOnboarding } from "@/app/onboarding/actions";
 import { TalentLocationOnboardingForm } from "./talent-location-onboarding-form";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export default async function TalentLocationOnboardingPage() {
     );
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) redirect("/");
 
   const {

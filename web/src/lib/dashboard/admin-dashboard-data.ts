@@ -23,6 +23,51 @@ export type AdminOverviewData = {
   recentActivity: AdminOverviewActivityItem[];
 };
 
+/** Header pulse chips only — shared with {@link loadAdminOverviewData} via request cache. */
+export type AdminShellPulseCounts = AdminOverviewData["counts"];
+
+export const loadAdminShellPulseCounts = cache(
+  async (): Promise<AdminShellPulseCounts | null> => {
+    const auth = await requireStaff();
+    if (!auth.ok) return null;
+
+    const { supabase } = auth;
+
+    const [talentRes, pendingTalentRes, clientsRes, inquiriesRes, mediaRes] =
+      await Promise.all([
+        supabase.from("talent_profiles").select("id", { count: "exact", head: true }),
+        supabase
+          .from("talent_profiles")
+          .select("id", { count: "exact", head: true })
+          .in("workflow_status", ["submitted", "under_review"]),
+        supabase.from("client_profiles").select("user_id", { count: "exact", head: true }),
+        supabase
+          .from("inquiries")
+          .select("id", { count: "exact", head: true })
+          .in("status", [
+            "new",
+            "reviewing",
+            "waiting_for_client",
+            "talent_suggested",
+            "in_progress",
+          ]),
+        supabase
+          .from("media_assets")
+          .select("id", { count: "exact", head: true })
+          .eq("approval_state", "pending")
+          .is("deleted_at", null),
+      ]);
+
+    return {
+      totalTalent: talentRes.count ?? 0,
+      pendingTalent: pendingTalentRes.count ?? 0,
+      totalClients: clientsRes.count ?? 0,
+      openInquiries: inquiriesRes.count ?? 0,
+      pendingMedia: mediaRes.count ?? 0,
+    };
+  },
+);
+
 /** Translation gap counts for the admin dashboard (aligned with /admin/translations hub queries). */
 export type AdminTranslationHealth = {
   profilesMissingSpanish: number;
@@ -121,41 +166,28 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
 
   const { supabase } = auth;
 
-  const [talentRes, pendingTalentRes, clientsRes, inquiriesRes, mediaRes, recentInquiries, recentTalent, recentMedia] =
-    await Promise.all([
-      supabase.from("talent_profiles").select("id", { count: "exact", head: true }),
-      supabase
-        .from("talent_profiles")
-        .select("id", { count: "exact", head: true })
-        .in("workflow_status", ["submitted", "under_review"]),
-      supabase.from("client_profiles").select("user_id", { count: "exact", head: true }),
-      supabase
-        .from("inquiries")
-        .select("id", { count: "exact", head: true })
-        .in("status", ["new", "reviewing", "waiting_for_client", "talent_suggested", "in_progress"]),
-      supabase
-        .from("media_assets")
-        .select("id", { count: "exact", head: true })
-        .eq("approval_state", "pending")
-        .is("deleted_at", null),
-      supabase
-        .from("inquiries")
-        .select("id, status, contact_name, created_at")
-        .order("created_at", { ascending: false })
-        .limit(4),
-      supabase
-        .from("talent_profiles")
-        .select("id, display_name, profile_code, workflow_status, updated_at")
-        .order("updated_at", { ascending: false })
-        .limit(4),
-      supabase
-        .from("media_assets")
-        .select("id, owner_talent_profile_id, variant_kind, created_at, talent_profiles(profile_code, display_name)")
-        .eq("approval_state", "pending")
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false })
-        .limit(4),
-    ]);
+  const counts = await loadAdminShellPulseCounts();
+  if (!counts) return null;
+
+  const [recentInquiries, recentTalent, recentMedia] = await Promise.all([
+    supabase
+      .from("inquiries")
+      .select("id, status, contact_name, created_at")
+      .order("created_at", { ascending: false })
+      .limit(4),
+    supabase
+      .from("talent_profiles")
+      .select("id, display_name, profile_code, workflow_status, updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(4),
+    supabase
+      .from("media_assets")
+      .select("id, owner_talent_profile_id, variant_kind, created_at, talent_profiles(profile_code, display_name)")
+      .eq("approval_state", "pending")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(4),
+  ]);
 
   const recentActivity: AdminOverviewActivityItem[] = [];
 
@@ -199,13 +231,7 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
   recentActivity.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
 
   return {
-    counts: {
-      totalTalent: talentRes.count ?? 0,
-      pendingTalent: pendingTalentRes.count ?? 0,
-      totalClients: clientsRes.count ?? 0,
-      openInquiries: inquiriesRes.count ?? 0,
-      pendingMedia: mediaRes.count ?? 0,
-    },
+    counts,
     recentActivity: recentActivity.slice(0, 8),
   };
 });

@@ -28,6 +28,7 @@ import {
   DIRECTORY_PAGE_SIZE_MAX,
 } from "@/lib/directory/types";
 import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { auditTime, isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
 
 /**
@@ -355,6 +356,7 @@ export async function fetchDirectoryPage(
         "directory/search-force-legacy-env",
         new Error("DIRECTORY_SEARCH_FORCE_LEGACY=1 — using legacy directory search"),
       );
+      void improntaLog("directory_search_path", { path: "legacy", reason: "force_env" });
       searchIds = await auditTime(audit, timings, "searchLegacyMs", () =>
         fetchLegacyDirectorySearchTalentIds(supabase, queryText),
       );
@@ -371,6 +373,7 @@ export async function fetchDirectoryPage(
 
       if (rpcError && isDirectorySearchRpcUnavailableError(rpcError)) {
         logServerError("directory/search-rpc-unavailable-fallback", rpcError);
+        void improntaLog("directory_search_path", { path: "legacy", reason: "rpc_unavailable" });
         searchIds = await auditTime(audit, timings, "searchLegacyMs", () =>
           fetchLegacyDirectorySearchTalentIds(supabase, queryText),
         );

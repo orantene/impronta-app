@@ -25,7 +25,7 @@ import {
   LUXURY_GOLD_BUTTON_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 function getInitials(name: string | null): string {
   if (!name?.trim()) return "?";
@@ -85,7 +85,7 @@ export default async function AdminClientDetailPage({
   const detail = await loadAdminClientDetail(id);
   if (!detail) notFound();
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   const [{ data: clientBookings }, { data: inqRowsForAccounts }] = supabase
     ? await Promise.all([
         supabase
@@ -189,7 +189,10 @@ export default async function AdminClientDetailPage({
                 Inquiries
               </Link>
             </Button>
-            <AdminUserEditButton userId={detail.profile.id} />
+            <AdminUserEditButton
+              userId={detail.profile.id}
+              urlSync={{ pathname: `/admin/clients/${id}` }}
+            />
           </div>
         </div>
 

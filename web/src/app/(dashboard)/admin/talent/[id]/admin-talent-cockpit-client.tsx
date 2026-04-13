@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { HelpTip } from "@/components/ui/help-tip";
 import { Label } from "@/components/ui/label";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
+import { ADMIN_DRAWER_CLASS_MEDIUM } from "@/lib/admin/admin-drawer-classes";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { AdminTalentIdentityForm, AdminTalentWorkflowForm, TaxonomyAssignmentForm } from "./talent-detail-forms";
 import { AdminTalentRosterActions } from "@/app/(dashboard)/admin/talent/[id]/admin-talent-roster-actions";
@@ -542,7 +543,7 @@ export function AdminTalentCockpitClient({
                 ? "Scalar field_values by group. Basic Information extras are edited in the Profile sheet with canonical fields."
                 : "Public + agency-private identity fields. Workflow/visibility live in a separate operational panel."
         }
-        className="lg:max-w-xl"
+        className={ADMIN_DRAWER_CLASS_MEDIUM}
       >
           {openSheet === "publicProfile" ? (
               <div className="space-y-2">

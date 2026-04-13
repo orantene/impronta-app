@@ -34,6 +34,19 @@ export type SortDir = "asc" | "desc";
 const TAX_SORT_VALUES: TaxonomySortKey[] = ["name_en", "name_es", "kind", "slug", "updated"];
 const LOC_SORT_VALUES: LocationSortKey[] = ["display_en", "display_es", "country", "slug", "updated"];
 
+import {
+  buildPathWithAdminPanel,
+  isAdminPanelAid,
+  type AdminPanelState,
+} from "@/lib/admin/admin-panel-search-params";
+
+/** `apanel` value for talent bio editor drawer on `/admin/translations`. */
+export const TRANSLATIONS_APANEL_BIO = "bio" as const;
+/** `apanel` for taxonomy term ES edit drawer (Phase 3). */
+export const TRANSLATIONS_APANEL_TAXONOMY_TERM = "taxonomy_term" as const;
+/** `apanel` for location ES edit drawer (Phase 3). */
+export const TRANSLATIONS_APANEL_LOCATION = "location" as const;
+
 export type TranslationsHrefStatus = BioFilterKey | TaxLocFilterKey;
 
 export function translationsHref(options: {
@@ -162,4 +175,78 @@ export function parseTranslationsSearchParams(sp: {
     locationSort: parseLocationSort(sortRaw),
     sortDir,
   };
+}
+
+/** Parse `apanel` / `aid` from translations page search params. */
+export function parseTranslationsAdminPanel(sp: {
+  apanel?: string;
+  aid?: string;
+}): AdminPanelState {
+  const apanel = sp.apanel?.trim() || null;
+  const aidRaw = sp.aid?.trim() || "";
+  const aid = isAdminPanelAid(aidRaw) ? aidRaw : null;
+  return { apanel, aid };
+}
+
+/** Full path to translations with current bio filters + bio editor drawer open. */
+export function translationsBioEditorHref(
+  filters: {
+    status: BioFilterKey;
+    q: string;
+    sort: BioSortKey;
+    dir: SortDir;
+  },
+  talentProfileId: string,
+): string {
+  const sp = new URLSearchParams();
+  if (filters.status !== "all") sp.set("status", filters.status);
+  if (filters.q.trim()) sp.set("q", filters.q.trim());
+  if (filters.sort !== "name") sp.set("sort", filters.sort);
+  if (filters.dir !== "asc") sp.set("dir", filters.dir);
+  return buildPathWithAdminPanel("/admin/translations", sp, {
+    apanel: TRANSLATIONS_APANEL_BIO,
+    aid: talentProfileId,
+  });
+}
+
+export function translationsTaxonomyEditorHref(
+  filters: {
+    status: TaxLocFilterKey;
+    q: string;
+    sort: TaxonomySortKey;
+    dir: SortDir;
+  },
+  termId: string,
+): string {
+  const sp = new URLSearchParams();
+  sp.set("view", "taxonomy");
+  if (filters.status !== "all") sp.set("status", filters.status);
+  if (filters.q.trim()) sp.set("q", filters.q.trim());
+  if (filters.sort !== "kind") sp.set("sort", filters.sort);
+  if (filters.dir !== "asc") sp.set("dir", filters.dir);
+  return buildPathWithAdminPanel("/admin/translations", sp, {
+    apanel: TRANSLATIONS_APANEL_TAXONOMY_TERM,
+    aid: termId,
+  });
+}
+
+export function translationsLocationEditorHref(
+  filters: {
+    status: TaxLocFilterKey;
+    q: string;
+    sort: LocationSortKey;
+    dir: SortDir;
+  },
+  locationId: string,
+): string {
+  const sp = new URLSearchParams();
+  sp.set("view", "locations");
+  if (filters.status !== "all") sp.set("status", filters.status);
+  if (filters.q.trim()) sp.set("q", filters.q.trim());
+  if (filters.sort !== "country") sp.set("sort", filters.sort);
+  if (filters.dir !== "asc") sp.set("dir", filters.dir);
+  return buildPathWithAdminPanel("/admin/translations", sp, {
+    apanel: TRANSLATIONS_APANEL_LOCATION,
+    aid: locationId,
+  });
 }

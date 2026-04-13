@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { UserRoundCog } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { AdminTalentAccountPage } from "@/app/(dashboard)/admin/talent/[id]/account/admin-talent-account-client";
 import { Button } from "@/components/ui/button";
 import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
@@ -17,7 +17,7 @@ export default async function AdminTalentAccountRoute({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) notFound();
 
   const { data, error } = await supabase

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type { FieldDefinitionRow, FieldGroupRow } from "@/lib/fields/types";
 import { filterOutReservedFieldDefinitions } from "@/lib/field-canonical";
 import type { CitySuggestion, CountrySuggestion } from "@/lib/location-autocomplete";
@@ -17,7 +17,7 @@ export default async function AdminTalentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
 
   if (!supabase) {
     return (

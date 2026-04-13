@@ -9,7 +9,7 @@ import { filterOutReservedFieldDefinitions } from "@/lib/field-canonical";
 import { buildTalentCompletionInput } from "@/lib/profile-completion";
 import { logDashboardLoaderFailure } from "@/lib/dashboard-loader-diagnostics";
 import { logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type { FieldDefinitionRow, FieldGroupRow } from "@/lib/fields/types";
 import { resolveTalentTermsVersion } from "@/lib/talent-submission-service";
 import { buildTalentPreviewHref } from "@/lib/talent-nav-groups";
@@ -182,7 +182,7 @@ export type TalentTaxonomyEditorLoadResult =
  */
 export const loadTalentTaxonomyEditorData = cache(
   async (): Promise<TalentTaxonomyEditorLoadResult> => {
-    const supabase = await createClient();
+    const supabase = await getCachedServerSupabase();
     if (!supabase) return { ok: false, reason: "no_supabase" };
 
     const identity = await resolveDashboardIdentity();
@@ -295,7 +295,7 @@ export const loadTalentDashboardData = cache(
 );
 
 async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult> {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false, reason: "no_supabase" };
 
   const identity = await resolveDashboardIdentity();

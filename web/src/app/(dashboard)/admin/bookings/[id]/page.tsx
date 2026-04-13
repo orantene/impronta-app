@@ -26,7 +26,7 @@ import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
 import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { mapRawActivityRows } from "@/lib/commercial-activity-summary";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { ChevronDown } from "lucide-react";
 import type React from "react";
 
@@ -113,7 +113,7 @@ export default async function AdminBookingDetailPage({
 }) {
   const { id } = await params;
   const { dup_err: dupErr } = await searchParams;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) notFound();
 
   const { data: booking, error } = await supabase

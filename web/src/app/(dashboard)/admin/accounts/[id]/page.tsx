@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatClientLocationAccountType } from "@/lib/admin/validation";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 type AdminClientAccountDetailRow = {
   id: string;
@@ -48,7 +48,7 @@ export default async function AdminClientAccountDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) notFound();
 
   const accountSelectExtended =

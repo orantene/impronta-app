@@ -12,10 +12,7 @@ import {
 } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
-import {
-  loadAccessProfile,
-  type AccessProfileWithDisplayName,
-} from "@/lib/access-profile";
+import type { AccessProfileWithDisplayName } from "@/lib/access-profile";
 import {
   isStaffRole,
   resolveAccountHref,
@@ -23,7 +20,7 @@ import {
 } from "@/lib/auth-flow";
 import { Button } from "@/components/ui/button";
 import { getSavedTalentIds } from "@/lib/public-discovery";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 
 export async function PublicHeader() {
   const locale = await getRequestLocale();
@@ -31,19 +28,9 @@ export async function PublicHeader() {
   const originalPath = h.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
   const { pathnameWithoutLocale } = stripLocaleFromPathname(originalPath);
   const t = createTranslator(locale);
-  const supabase = await createClient();
-
-  let user: { id: string } | null = null;
-  if (supabase) {
-    const { data } = await supabase.auth.getUser();
-    user = data.user;
-  }
-
-  let profile: AccessProfileWithDisplayName | null = null;
-
-  if (supabase && user) {
-    profile = await loadAccessProfile(supabase, user.id);
-  }
+  const actor = await getCachedActorSession();
+  const user = actor.user;
+  const profile: AccessProfileWithDisplayName | null = actor.profile;
 
   const accountLink = resolveAccountHref(Boolean(user), profile);
   const destination = resolveAuthenticatedDestination(profile);

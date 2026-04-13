@@ -8,7 +8,7 @@ import { buildInquiryContext } from "@/lib/inquiries";
 import { getPublicSettings } from "@/lib/public-settings";
 import { logServerError } from "@/lib/server/safe-error";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -222,7 +222,7 @@ export async function setTalentSaved(
   saved: boolean,
 ): Promise<ActionResult> {
   const guestKey = (await headers()).get(GUEST_HEADER);
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   const pub = createPublicSupabaseClient();
 
   if (supabase) {
@@ -310,7 +310,7 @@ export async function submitClientInquiry(
     return { error: t("public.forms.inquiry.inquiriesClosed") };
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return { error: t("public.forms.inquiry.supabaseNotConfigured") };
   }

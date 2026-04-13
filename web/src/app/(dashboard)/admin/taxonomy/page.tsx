@@ -1,5 +1,5 @@
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { CreateTermForm } from "./taxonomy-forms";
 import { TaxonomyKindPanel, type AdminTaxonomyTerm } from "./taxonomy-kind-panel";
 import Link from "next/link";
@@ -78,7 +78,7 @@ export default async function AdminTaxonomyPage({
   const showArchived = show === "archived";
   const filterQ = (qParam ?? "").trim();
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
 
   if (!supabase) {
     return (

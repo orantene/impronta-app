@@ -24,7 +24,10 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { publicBioForLocale, canonicalBioEn } from "@/lib/translation/public-bio";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
+import {
+  getCachedActorSession,
+  getCachedServerSupabase,
+} from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import {
   formatCityCountryLabel,
@@ -166,12 +169,11 @@ function primaryTalentType(locale: "en" | "es", rows: TaxonomyRow[]): string | n
 
 async function fetchTalentProfile(profileCode: string, preview: boolean) {
   if (preview) {
-    const supabase = await createClient();
+    const session = await getCachedActorSession();
+    const supabase =
+      session.user && session.supabase ? session.supabase : null;
     if (supabase) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const user = session.user;
       if (user) {
         const { data, error } = await supabase
           .from("talent_profiles")
@@ -506,7 +508,7 @@ export default async function PublicTalentProfilePage({
     ? (
         resolvedPreview
           ? (
-              await (await createClient())
+              await (await getCachedServerSupabase())
                 ?.from("media_assets")
                 .select("id, bucket_id, storage_path, width, height, variant_kind, sort_order")
                 .eq("owner_talent_profile_id", profile.id)

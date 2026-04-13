@@ -13,8 +13,8 @@ import {
 import { PublicHeader } from "@/components/public-header";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createClient } from "@/lib/supabase/server";
 import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
@@ -78,16 +78,13 @@ export default async function DirectoryPage({
   }
 
   const initialSavedIds = await getSavedTalentIds();
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+  const actor = await getCachedActorSession();
 
   return (
     <>
       <PublicHeader />
       <DiscoveryStateBridge savedIds={initialSavedIds} />
-      {user ? <MergeGuestFavorites /> : null}
+      {actor.user ? <MergeGuestFavorites /> : null}
       <Suspense fallback={null}>
         <DirectoryInquiryUrlSync />
       </Suspense>

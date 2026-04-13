@@ -138,8 +138,6 @@ async function DirectoryDiscoverInner({
   const t = createTranslator(locale);
   const ui = buildDirectoryUiCopy(t);
 
-  const gridKey = `${[...taxonomyTermIds].sort().join(",") || "all"}-${locale}-${sort}-${query}-${locationSlug}-${heightMinCm ?? ""}-${heightMaxCm ?? ""}-${view}`;
-
   return (
     <>
       {filterSidebar.topBarTalentType ? (
@@ -210,7 +208,15 @@ async function DirectoryDiscoverInner({
           />
 
           <DirectoryInfiniteGrid
-            key={gridKey}
+            key={`${locale}|${serializeCanonicalDirectoryListingParams({
+              query,
+              locationSlug,
+              sort,
+              taxonomyTermIds,
+              heightMinCm,
+              heightMaxCm,
+              view,
+            })}`}
             taxonomyTermIds={taxonomyTermIds}
             initialPage={firstPage}
             locale={locale}

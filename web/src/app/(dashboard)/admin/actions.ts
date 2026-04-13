@@ -15,24 +15,11 @@ import {
 import { BOOKING_AUDIT, INQUIRY_AUDIT } from "@/lib/commercial-audit-events";
 import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-audit";
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
+import type { AdminActionState } from "@/lib/admin/admin-action-state";
 import { requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 
-export type AdminActionState =
-  | {
-      error?: string;
-      /** Set when createClientAccount runs in sheet mode (no redirect). */
-      createdClientAccountId?: string;
-      /** Set when updateClientLocation runs in sheet mode (no redirect). */
-      updatedClientAccountId?: string;
-      /** Set when createClientAccountContact succeeds (for sheet UX). */
-      contactCreated?: boolean;
-      /** Manual phone / walk-in intake (sheet mode). */
-      createdInquiryId?: string;
-      createdInquiryClientAccountId?: string | null;
-      createdInquiryClientAccountName?: string | null;
-    }
-  | undefined;
+export type { AdminActionState };
 
 const updateInquirySchema = z.object({
   inquiry_id: z.string().min(1, "Missing inquiry."),

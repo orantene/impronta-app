@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type { FieldDefinitionRow, FieldGroupRow, FieldValueType } from "@/lib/fields/types";
 
 function isFieldValueType(v: string): v is FieldValueType {
@@ -32,7 +32,7 @@ export type FieldCatalog = {
 };
 
 export const loadActiveFieldCatalog = cache(async (): Promise<FieldCatalog> => {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return {
       groups: [],

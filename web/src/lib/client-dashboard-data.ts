@@ -2,7 +2,7 @@ import { cache } from "react";
 import { logDashboardLoaderFailure } from "@/lib/dashboard-loader-diagnostics";
 import { userHasEmailPasswordIdentity } from "@/lib/auth-identities";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { subjectUserId } from "@/lib/impersonation/subject-user";
 
@@ -71,7 +71,7 @@ export const loadClientDashboardData = cache(
 );
 
 async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult> {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false, reason: "no_supabase" };
 
   const identity = await resolveDashboardIdentity();

@@ -1,8 +1,11 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { AdminUserEditSheet } from "@/app/(dashboard)/admin/users/admin-user-edit-sheet";
+import { Button } from "@/components/ui/button";
+import { ADMIN_APANEL_USER } from "@/lib/admin/admin-panel-search-params";
+import { useAdminPanelState } from "@/hooks/use-admin-panel-state";
 import { cn } from "@/lib/utils";
 
 export function AdminUserEditButton({
@@ -11,6 +14,8 @@ export function AdminUserEditButton({
   label = "Account",
   className,
   title: titleAttr,
+  /** When set and the current route matches `pathname`, open/close syncs `apanel=user` and `aid` on the URL. */
+  urlSync,
 }: {
   userId: string;
   talentProfile?: { id: string; profile_code: string; display_name: string | null };
@@ -19,8 +24,16 @@ export function AdminUserEditButton({
   className?: string;
   /** Native tooltip, e.g. what this dialog edits. */
   title?: string;
+  urlSync?: { pathname: string };
 }) {
-  const [open, setOpen] = useState(false);
+  const pathname = usePathname() ?? "";
+  const sync = Boolean(urlSync && pathname === urlSync.pathname);
+  const { apanel, aid, openPanel, closePanel } = useAdminPanelState({
+    pathname: urlSync?.pathname ?? (pathname || "/admin"),
+  });
+  const urlOpen = sync && apanel === ADMIN_APANEL_USER && aid === userId;
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = sync ? urlOpen : localOpen;
 
   return (
     <>
@@ -38,15 +51,25 @@ export function AdminUserEditButton({
             ? "Open account and login settings"
             : `${label} account and login settings`
         }
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          if (sync) openPanel(ADMIN_APANEL_USER, userId);
+          else setLocalOpen(true);
+        }}
       >
         {label}
       </Button>
       {open ? (
         <AdminUserEditSheet
           key={userId}
-          open
-          onOpenChange={setOpen}
+          open={open}
+          onOpenChange={(next) => {
+            if (!next) {
+              if (sync) closePanel();
+              else setLocalOpen(false);
+            } else if (!sync) {
+              setLocalOpen(true);
+            }
+          }}
           userId={userId}
           talentProfileId={talentProfile?.id ?? null}
           profileCode={talentProfile?.profile_code ?? null}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { isStaffRole } from "@/lib/auth-flow";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 const LIMIT = 8;
 
@@ -74,7 +74,7 @@ export async function GET(request: Request) {
     } satisfies AdminSearchResponse);
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return NextResponse.json({ error: "Unavailable" }, { status: 503 });
   }

@@ -22,6 +22,8 @@
     "verify:profile-remediation": "node scripts/verify-profile-remediation.mjs",
     "verify:profile-anon-smoke": "node scripts/verify-profile-anon-smoke.mjs",
     "verify:ui-messages": "node scripts/check-ui-messages.mjs",
+    "verify:deploy-env": "node scripts/verify-deploy-env.mjs",
+    "verify:deploy-env:strict": "DEPLOY_ENV_STRICT=1 node --env-file=.env.local scripts/verify-deploy-env.mjs",
     "generate:talent-images": "node --env-file=.env.local scripts/generate-talent-portrait-images.mjs",
     "generate-talent-images-free": "IMAGE_GEN_PROVIDER=pollinations node --env-file=.env.local scripts/generate-talent-portrait-images.mjs",
     "generate-talent-images-stock": "IMAGE_GEN_PROVIDER=picsum node --env-file=.env.local scripts/generate-talent-portrait-images.mjs",

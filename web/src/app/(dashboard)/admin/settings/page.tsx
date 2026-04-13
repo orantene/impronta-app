@@ -1,7 +1,7 @@
 import { SlidersHorizontal } from "lucide-react";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
 import {
   SelectSettingForm,
@@ -85,7 +85,7 @@ const KNOWN_SETTINGS: Array<{
 ];
 
 export default async function AdminSettingsPage() {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
 
   let settingsMap: Record<string, string> = {};
 

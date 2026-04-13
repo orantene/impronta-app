@@ -15,6 +15,7 @@ import {
 } from "@/lib/directory/search-params";
 import { getPublicSettings } from "@/lib/public-settings";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
 
 export async function GET(request: Request) {
@@ -82,6 +83,7 @@ export async function GET(request: Request) {
         skipTotalCount: Boolean(cursor),
       });
     const fetchDirectoryPageMs = performance.now() - tFetch;
+    const handlerWallMs = performance.now() - wall;
     if (audit) {
       console.log(
         JSON.stringify({
@@ -89,9 +91,18 @@ export async function GET(request: Request) {
           searchParams: Object.fromEntries(searchParams.entries()),
           publicSettingsMs,
           fetchDirectoryPageMs,
-          handlerWallMs: performance.now() - wall,
+          handlerWallMs,
         }),
       );
+    }
+    if (audit || handlerWallMs >= 1200) {
+      void improntaLog("api_directory_timing", {
+        publicSettingsMs: Math.round(publicSettingsMs),
+        fetchDirectoryPageMs: Math.round(fetchDirectoryPageMs),
+        handlerWallMs: Math.round(handlerWallMs),
+        hasCursor: Boolean(cursor),
+        itemCount: body.items?.length ?? 0,
+      });
     }
     return NextResponse.json(body);
   } catch (e) {

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { assignInquiryToCurrentStaffForm } from "@/app/(dashboard)/admin/actions";
 import { AdminCommercialStatusBadge } from "@/components/admin/admin-commercial-status-badge";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
@@ -10,6 +9,9 @@ import {
   ADMIN_ACTION_TERTIARY_CLASS,
   LUXURY_GOLD_BUTTON_CLASS,
 } from "@/lib/dashboard-shell-classes";
+import { ADMIN_APANEL_PEEK } from "@/lib/admin/admin-panel-search-params";
+import { ADMIN_DRAWER_CLASS_MEDIUM } from "@/lib/admin/admin-drawer-classes";
+import { useAdminPanelState } from "@/hooks/use-admin-panel-state";
 import { cn } from "@/lib/utils";
 
 export type InquiryPeekSummary = {
@@ -45,7 +47,10 @@ export function AdminInquiryPeekTrigger({
   summary: InquiryPeekSummary;
   currentUserId: string | null;
 }) {
-  const [open, setOpen] = useState(false);
+  const { apanel, aid, openPanel, closePanel } = useAdminPanelState({
+    pathname: "/admin/inquiries",
+  });
+  const open = apanel === ADMIN_APANEL_PEEK && aid === summary.id;
   const showAssign = Boolean(currentUserId && summary.assigned_staff_id !== currentUserId);
 
   return (
@@ -55,15 +60,18 @@ export function AdminInquiryPeekTrigger({
         variant="outline"
         size="sm"
         className={cn("h-8", ADMIN_ACTION_TERTIARY_CLASS)}
-        onClick={() => setOpen(true)}
+        onClick={() => openPanel(ADMIN_APANEL_PEEK, summary.id)}
       >
         Preview
       </Button>
       <DashboardEditPanel
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          if (!next) closePanel();
+        }}
         title={summary.contact_name}
         description="Request summary — open the full page for notes, talent edits, and convert to booking."
+        className={ADMIN_DRAWER_CLASS_MEDIUM}
       >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -84,7 +92,7 @@ export function AdminInquiryPeekTrigger({
                     href={`/admin/clients/${summary.client_user_id}`}
                     scroll={false}
                     className="text-[var(--impronta-gold)] underline-offset-4 hover:underline"
-                    onClick={() => setOpen(false)}
+                    onClick={() => closePanel()}
                   >
                     {summary.platform_client_name}
                   </Link>
@@ -105,7 +113,7 @@ export function AdminInquiryPeekTrigger({
                     href={`/admin/accounts/${summary.client_account_id}`}
                     scroll={false}
                     className="text-[var(--impronta-gold)] underline-offset-4 hover:underline"
-                    onClick={() => setOpen(false)}
+                    onClick={() => closePanel()}
                   >
                     {summary.client_account_name}
                   </Link>
@@ -186,7 +194,7 @@ export function AdminInquiryPeekTrigger({
               <Link
                 href={`/admin/inquiries/${summary.id}#convert-to-booking`}
                 scroll={false}
-                onClick={() => setOpen(false)}
+                onClick={() => closePanel()}
               >
                 Convert to booking
               </Link>
@@ -195,13 +203,13 @@ export function AdminInquiryPeekTrigger({
               <Link
                 href={`/admin/inquiries/${summary.id}#duplicate-inquiry`}
                 scroll={false}
-                onClick={() => setOpen(false)}
+                onClick={() => closePanel()}
               >
                 Duplicate
               </Link>
             </Button>
             <Button size="sm" className={cn("rounded-xl", LUXURY_GOLD_BUTTON_CLASS)} asChild>
-              <Link href={`/admin/inquiries/${summary.id}`} scroll={false} onClick={() => setOpen(false)}>
+              <Link href={`/admin/inquiries/${summary.id}`} scroll={false} onClick={() => closePanel()}>
                 Open full detail
               </Link>
             </Button>

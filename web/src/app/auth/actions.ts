@@ -8,7 +8,7 @@ import {
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -24,7 +24,7 @@ export async function requestPasswordReset(
     return { error: "Enter a valid email address." };
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return { error: SUPABASE_ENV_HELP };
   }
@@ -55,7 +55,7 @@ export async function signInWithEmail(
     return { error: "Email and password are required." };
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return { error: SUPABASE_ENV_HELP };
   }
@@ -90,7 +90,7 @@ export async function signUpWithEmail(
     return { error: "Password must be at least 8 characters." };
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return { error: SUPABASE_ENV_HELP };
   }
@@ -126,7 +126,7 @@ export async function signUpWithEmail(
 }
 
 export async function signOut(): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (supabase) {
     await supabase.auth.signOut();
   }

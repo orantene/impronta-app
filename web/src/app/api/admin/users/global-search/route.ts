@@ -6,7 +6,7 @@ import type {
   GlobalUserSearchRole,
 } from "@/lib/admin/global-user-search-types";
 import { isStaffRole } from "@/lib/auth-flow";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 const MAX_ROWS = 100;
 const FETCH_CAP = 220;
@@ -120,7 +120,7 @@ export async function GET(request: Request) {
   const countryFilter = searchParams.get("country")?.trim() ?? "";
   const talentTypeTermId = searchParams.get("talent_type")?.trim() ?? "";
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return NextResponse.json({ error: "Unavailable" }, { status: 503 });
   }

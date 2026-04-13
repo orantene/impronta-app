@@ -5,7 +5,7 @@ import {
   fetchGoogleClientLocationPredictions,
   isGooglePlacesConfigured,
 } from "@/lib/google-places";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ predictions: [], configured: isGooglePlacesConfigured() });
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return NextResponse.json({ error: "Unavailable" }, { status: 503 });
   }

@@ -122,6 +122,7 @@ export function DirectoryInfiniteGrid({
   const taxKey = [...taxonomyTermIds].sort().join(",");
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const [gridUiMounted, setGridUiMounted] = useState(false);
   const [preview, setPreview] = useState<DirectoryCardDTO | null>(null);
   const [previewDetails, setPreviewDetails] =
     useState<DirectoryPreviewResponse | null>(null);
@@ -159,6 +160,10 @@ export function DirectoryInfiniteGrid({
     [discoveryState, isSaved, startTransition, ui.inquiry.flashCouldNotUpdateSaved],
   );
 
+  const previewCacheRef = useRef(
+    new Map<string, Promise<DirectoryPreviewResponse | null>>(),
+  );
+
   const openPreview = useCallback((card: DirectoryCardDTO) => {
     setPreview(card);
     setPreviewDetails(null);
@@ -166,50 +171,77 @@ export function DirectoryInfiniteGrid({
     const params = new URLSearchParams();
     if (locale !== "en") params.set("locale", locale);
     const qs = params.toString();
-    void fetch(`/api/directory/preview/${encodeURIComponent(card.id)}${qs ? `?${qs}` : ""}`, {
-      cache: "no-store",
-    })
-      .then(async (res) => {
+    const cacheKey = `${card.id}:${locale}`;
+    const map = previewCacheRef.current;
+    let req = map.get(cacheKey);
+    if (!req) {
+      req = fetch(
+        `/api/directory/preview/${encodeURIComponent(card.id)}${qs ? `?${qs}` : ""}`,
+        { cache: "no-store" },
+      ).then(async (res) => {
         if (!res.ok) return null;
         return (await res.json()) as DirectoryPreviewResponse;
-      })
-      .then((data) => {
-        if (data?.id === card.id) setPreviewDetails(data);
       });
+      map.set(cacheKey, req);
+      while (map.size > 64) {
+        const k = map.keys().next().value;
+        if (k === undefined) break;
+        map.delete(k);
+      }
+    }
+    void req.then((data) => {
+      if (data?.id === card.id) setPreviewDetails(data);
+    });
   }, [locale]);
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
-    useInfiniteQuery({
-      queryKey: [
-        "directory",
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetching,
+    isPlaceholderData,
+    isRefetching,
+    status,
+  } = useInfiniteQuery({
+    queryKey: [
+      "directory",
+      taxKey,
+      locale,
+      sort,
+      query,
+      locationSlug,
+      heightMinCm ?? "",
+      heightMaxCm ?? "",
+      view,
+    ],
+    queryFn: ({ pageParam }) =>
+      fetchDirectoryPageClient(
         taxKey,
+        pageParam,
         locale,
         sort,
         query,
         locationSlug,
-        heightMinCm ?? "",
-        heightMaxCm ?? "",
-        view,
-      ],
-      queryFn: ({ pageParam }) =>
-        fetchDirectoryPageClient(
-          taxKey,
-          pageParam,
-          locale,
-          sort,
-          query,
-          locationSlug,
-          heightMinCm ?? null,
-          heightMaxCm ?? null,
-          ui.loadResultsError,
-        ),
-      initialPageParam: null as string | null,
-      getNextPageParam: (last) => last.nextCursor,
-      initialData: {
-        pages: [initialPage],
-        pageParams: [null],
-      },
-    });
+        heightMinCm ?? null,
+        heightMaxCm ?? null,
+        ui.loadResultsError,
+      ),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
+    initialData: {
+      pages: [initialPage],
+      pageParams: [null],
+    },
+    /**
+     * SSR `initialData` gets `dataUpdatedAt: Date.now()` by default, so with the app-wide
+     * `staleTime: 60_000` the new query is not stale and TanStack Query skips the
+     * `shouldFetchOptionally` fetch after a filter navigation (`query !== prevQuery`).
+     * Mark SSR data as immediately stale so the client always reconciles with `/api/directory`
+     * once per key change, without forcing `staleTime: 0` for the whole query lifetime.
+     */
+    initialDataUpdatedAt: 0,
+  });
 
   const onIntersect = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -224,6 +256,10 @@ export function DirectoryInfiniteGrid({
     },
     [fetchNextPage, hasNextPage, isFetchingNextPage],
   );
+
+  useEffect(() => {
+    setGridUiMounted(true);
+  }, []);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -249,7 +285,7 @@ export function DirectoryInfiniteGrid({
     return <p className="text-m text-[var(--impronta-muted)]">{ui.loadResultsError}</p>;
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && !isPlaceholderData) {
     return (
       <p className="rounded-lg border border-dashed border-[var(--impronta-gold-border)] bg-black/20 px-6 py-16 text-center text-m text-[var(--impronta-muted)]">
         {ui.emptyResults}
@@ -258,9 +294,22 @@ export function DirectoryInfiniteGrid({
   }
 
   const sourcePage = discoveryState.searchContext?.sourcePage ?? "/directory";
+  /** Query fetch flags can differ on the client vs SSR HTML; gate busy UI until after mount. */
+  const filterRefetchBusy =
+    gridUiMounted &&
+    isFetching &&
+    !isFetchingNextPage &&
+    (isPlaceholderData || isRefetching);
 
   return (
     <>
+      <div
+        className={
+          filterRefetchBusy
+            ? "relative transition-opacity duration-200 after:pointer-events-none after:absolute after:inset-0 after:z-[1] after:rounded-lg after:bg-background/40"
+            : undefined
+        }
+      >
       {view === "list" ? (
         <div className="flex flex-col gap-3">
           {items.map((card, index) => (
@@ -292,6 +341,12 @@ export function DirectoryInfiniteGrid({
           ))}
         </div>
       )}
+      </div>
+      {filterRefetchBusy ? (
+        <p className="mt-2 text-center text-xs text-[var(--impronta-muted)]" role="status">
+          {ui.loadingMore}
+        </p>
+      ) : null}
       <div
         ref={sentinelRef}
         className="flex h-12 w-full items-center justify-center"

@@ -2,7 +2,7 @@ import { cache } from "react";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { subjectUserId } from "@/lib/impersonation/subject-user";
 import { logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ClientBookingListRow = {
@@ -49,7 +49,7 @@ async function clientSubjectOwnsBookingRow(
 }
 
 export const loadClientBookings = cache(async (): Promise<ClientBookingsLoadResult> => {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false, reason: "no_supabase" };
 
   const identity = await resolveDashboardIdentity();
@@ -120,7 +120,7 @@ export async function loadClientBookingDetail(bookingId: string): Promise<{
   };
   lines: ClientBookingLineRow[];
 } | { ok: false; reason: "no_supabase" | "no_user" | "not_found" | "load_failed" }> {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) return { ok: false, reason: "no_supabase" };
 
   const identity = await resolveDashboardIdentity();

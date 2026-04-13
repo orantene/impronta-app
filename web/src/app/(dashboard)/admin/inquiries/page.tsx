@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Info, MessageSquareText } from "lucide-react";
 import { AdminCommercialListIntake } from "@/components/admin/admin-commercial-list-intake";
 import { AdminInquiryQueue } from "@/app/(dashboard)/admin/inquiries/admin-inquiry-queue";
 import type { InquiryQueueRow } from "@/app/(dashboard)/admin/inquiries/admin-inquiry-queue";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import {
   ADMIN_FORM_CONTROL,
   ADMIN_HELP_TRIGGER_BUTTON,
@@ -121,6 +122,8 @@ export default async function AdminInquiriesPage({
     assigned_staff_id?: string;
     created_from?: string;
     created_to?: string;
+    apanel?: string;
+    aid?: string;
   }>;
 }) {
   const {
@@ -132,7 +135,7 @@ export default async function AdminInquiriesPage({
     created_from: createdFrom = "",
     created_to: createdTo = "",
   } = await searchParams;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
 
   if (!supabase) {
     return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
@@ -481,8 +484,14 @@ export default async function AdminInquiriesPage({
         </div>
       </form>
 
-      {/* Queue table */}
-      <AdminInquiryQueue rows={queueRows} currentUserId={currentUserId} />
+      {/* Queue table — Suspense: peek triggers use `useSearchParams` */}
+      <Suspense
+        fallback={
+          <div className="h-48 animate-pulse rounded-2xl border border-border/40 bg-muted/20" aria-hidden />
+        }
+      >
+        <AdminInquiryQueue rows={queueRows} currentUserId={currentUserId} />
+      </Suspense>
     </div>
   );
 }

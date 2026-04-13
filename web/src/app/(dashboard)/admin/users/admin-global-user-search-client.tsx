@@ -414,6 +414,7 @@ export function AdminGlobalUserSearchClient({
                                 }
                               : undefined
                           }
+                          urlSync={{ pathname: "/admin/users/search" }}
                         />
                       ) : null}
                       {r.kind === "talent" && r.userId ? (

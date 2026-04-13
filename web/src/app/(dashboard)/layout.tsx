@@ -23,7 +23,7 @@ import {
   isStaffRole,
   resolveAuthenticatedDestination,
 } from "@/lib/auth-flow";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
@@ -44,22 +44,17 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  if (!supabase) {
-    redirect("/login");
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login");
-  }
-
   const identity = await resolveDashboardIdentity();
   if (!identity) {
     redirect("/login");
   }
+
+  const supabase = await getCachedServerSupabase();
+  if (!supabase) {
+    redirect("/login");
+  }
+
+  const user = identity.actorUser;
 
   const profile = identity.effectiveProfile;
   const role = identity.subjectRole;

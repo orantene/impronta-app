@@ -1,9 +1,10 @@
+import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type { FieldDefinitionRow, FieldGroupRow } from "./field-group-panel";
 import { AdminFieldsClient } from "./admin-fields-client";
 import { HelpTip } from "@/components/ui/help-tip";
@@ -33,7 +34,7 @@ export default async function AdminFieldsPage({
   searchParams: Promise<{ edit?: string }>;
 }) {
   const { edit } = await searchParams;
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
   }
@@ -212,14 +213,20 @@ export default async function AdminFieldsPage({
       ) : (
         <section id="groups-and-fields" className="scroll-mt-28">
           <div className="rounded-3xl border border-border/45 bg-gradient-to-br from-[var(--impronta-gold)]/[0.04] via-card/80 to-muted/20 p-4 shadow-sm">
-            <AdminFieldsClient
-              groups={groupRows}
-              fieldsByGroup={groupRows.map((g) => ({
-                groupId: g.id,
-                fields: fieldsByGroup.get(g.id) ?? [],
-              }))}
-              initialEditFieldId={edit ?? null}
-            />
+            <Suspense
+              fallback={
+                <div className="h-96 animate-pulse rounded-2xl bg-muted/20" aria-hidden />
+              }
+            >
+              <AdminFieldsClient
+                groups={groupRows}
+                fieldsByGroup={groupRows.map((g) => ({
+                  groupId: g.id,
+                  fields: fieldsByGroup.get(g.id) ?? [],
+                }))}
+                initialEditFieldId={edit ?? null}
+              />
+            </Suspense>
           </div>
         </section>
       )}

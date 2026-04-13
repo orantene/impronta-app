@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { resolveAuthenticatedDestination } from "@/lib/auth-flow";
 import { isSupabaseConfigured, SUPABASE_ENV_HELP } from "@/lib/supabase/config";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -40,7 +40,7 @@ export default async function OnboardingRolePage({
     );
   }
 
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     redirect("/");
   }

@@ -151,3 +151,53 @@ export async function adminMarkSpanishBioReviewed(
   revalidatePath("/admin/translations");
   return { success: true };
 }
+
+/** Payload for `AdminTalentBioTranslationPanel` when opened from /admin/translations drawer. */
+export type BioTranslationPanelPayload = {
+  talent_profile_id: string;
+  bio_en: string | null;
+  bio_es: string | null;
+  bio_es_draft: string | null;
+  bio_es_status: string | null;
+  bio_en_updated_at: string | null;
+  bio_es_updated_at: string | null;
+  short_bio: string | null;
+  open_ai_available: boolean;
+};
+
+export async function adminLoadBioTranslationPanelData(input: z.infer<typeof idSchema>): Promise<
+  | { error: string; data?: undefined }
+  | { error?: undefined; data: BioTranslationPanelPayload }
+> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { error: auth.error };
+  const parsed = idSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid profile." };
+  const id = parsed.data.talent_profile_id;
+
+  const { isOpenAiConfigured } = await import("@/lib/translation/ai-translate-bio");
+
+  const { data: row, error: loadErr } = await auth.supabase
+    .from("talent_profiles")
+    .select(
+      "id, bio_en, bio_es, bio_es_draft, bio_es_status, bio_en_updated_at, bio_es_updated_at, short_bio",
+    )
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (loadErr || !row) return { error: "Profile not found." };
+
+  return {
+    data: {
+      talent_profile_id: row.id as string,
+      bio_en: (row as { bio_en?: string | null }).bio_en ?? null,
+      bio_es: (row as { bio_es?: string | null }).bio_es ?? null,
+      bio_es_draft: (row as { bio_es_draft?: string | null }).bio_es_draft ?? null,
+      bio_es_status: (row as { bio_es_status?: string | null }).bio_es_status ?? null,
+      bio_en_updated_at: (row as { bio_en_updated_at?: string | null }).bio_en_updated_at ?? null,
+      bio_es_updated_at: (row as { bio_es_updated_at?: string | null }).bio_es_updated_at ?? null,
+      short_bio: (row as { short_bio?: string | null }).short_bio ?? null,
+      open_ai_available: isOpenAiConfigured(),
+    },
+  };
+}

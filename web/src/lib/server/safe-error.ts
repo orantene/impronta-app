@@ -1,3 +1,5 @@
+import { improntaLog } from "@/lib/server/structured-log";
+
 /** User-facing copy — never include DB or stack details. */
 export const CLIENT_ERROR = {
   generic: "Request failed.",
@@ -39,6 +41,13 @@ function formatUnknownError(err: unknown): { line: string; stack?: string } {
 export function logServerError(context: string, err: unknown): void {
   const { line, stack } = formatUnknownError(err);
   console.error(`[${context}]`, line, stack ?? "");
+  if (process.env.NODE_ENV === "production") {
+    void improntaLog("server_error", {
+      context,
+      message: line.slice(0, 500),
+      hasStack: Boolean(stack),
+    });
+  }
 }
 
 /** True when PostgREST reports unknown columns (migration not applied yet). */

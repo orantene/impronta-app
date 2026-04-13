@@ -3,7 +3,7 @@ import { getPublicSettings } from "@/lib/public-settings";
 import { logDashboardLoaderFailure } from "@/lib/dashboard-loader-diagnostics";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { subjectUserId } from "@/lib/impersonation/subject-user";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 type DirectorySearchContext = {
   q: string | null;
@@ -88,7 +88,7 @@ export type ClientInquiryDetailLoadResult =
 
 export const loadClientInquiryDetail = cache(
   async (inquiryId: string): Promise<ClientInquiryDetailLoadResult> => {
-    const supabase = await createClient();
+    const supabase = await getCachedServerSupabase();
     if (!supabase) return { ok: false, reason: "no_supabase" };
 
     const identity = await resolveDashboardIdentity();

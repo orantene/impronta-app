@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, ChevronUp, MoreHorizontal } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Loader2, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -13,11 +13,23 @@ import {
 import {
   adminBulkMarkLocationTranslated,
   adminBulkMarkTaxonomyTranslated,
+  adminLoadLocationTranslationPanelData,
+  adminLoadTaxonomyTranslationPanelData,
   adminMarkLocationTranslated,
   adminMarkTaxonomyTranslated,
+  adminSaveLocationSpanishDisplay,
+  adminSaveTaxonomySpanishLabel,
+  type LocationTranslationPanelPayload,
+  type TaxonomyTranslationPanelPayload,
 } from "@/app/(dashboard)/admin/translations/translations-tax-loc-actions";
 import type { LocationSortKey, SortDir, TaxLocFilterKey, TaxonomySortKey } from "@/app/(dashboard)/admin/translations/translations-url";
-import { locationSortHref, taxonomySortHref } from "@/app/(dashboard)/admin/translations/translations-url";
+import {
+  locationSortHref,
+  taxonomySortHref,
+  TRANSLATIONS_APANEL_LOCATION,
+  TRANSLATIONS_APANEL_TAXONOMY_TERM,
+} from "@/app/(dashboard)/admin/translations/translations-url";
+import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -29,7 +41,11 @@ import {
 import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
 import { ADMIN_TABLE_HEAD, ADMIN_TABLE_TH } from "@/lib/dashboard-shell-classes";
 import { friendlyAiFailureMessage } from "@/lib/translation/ai-user-messages";
+import { ADMIN_DRAWER_CLASS_MEDIUM } from "@/lib/admin/admin-drawer-classes";
+import { useAdminPanelState } from "@/hooks/use-admin-panel-state";
 import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 type RowAiPhase = "idle" | "translating" | "done" | "error";
 
@@ -142,6 +158,49 @@ export function TranslationsTaxonomyWorkflowTable({
   aiConfigured: boolean;
 }) {
   const router = useRouter();
+  const { apanel, aid, openPanel, closePanel } = useAdminPanelState({
+    pathname: "/admin/translations",
+  });
+  const taxonomyDrawerOpen = apanel === TRANSLATIONS_APANEL_TAXONOMY_TERM && Boolean(aid);
+  const watchedTaxRow = aid ? rows.find((r) => r.id === aid) : undefined;
+  const taxRowTick = watchedTaxRow
+    ? `${watchedTaxRow.name_es ?? ""}|${watchedTaxRow.updated_at}`
+    : "";
+
+  const [taxPanelLoading, setTaxPanelLoading] = useState(false);
+  const [taxPanelError, setTaxPanelError] = useState<string | null>(null);
+  const [taxPanelData, setTaxPanelData] = useState<TaxonomyTranslationPanelPayload | null>(null);
+  const [taxEsDraft, setTaxEsDraft] = useState("");
+
+  useEffect(() => {
+    if (!taxonomyDrawerOpen || !aid) {
+      setTaxPanelData(null);
+      setTaxPanelError(null);
+      setTaxPanelLoading(false);
+      setTaxEsDraft("");
+      return;
+    }
+    let cancelled = false;
+    setTaxPanelLoading(true);
+    setTaxPanelError(null);
+    void adminLoadTaxonomyTranslationPanelData({ id: aid }).then((res) => {
+      if (cancelled) return;
+      setTaxPanelLoading(false);
+      if ("error" in res && res.error) {
+        setTaxPanelError(res.error);
+        setTaxPanelData(null);
+        return;
+      }
+      if ("data" in res && res.data) {
+        setTaxPanelData(res.data);
+        setTaxEsDraft((res.data.name_es ?? "").trim());
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [taxonomyDrawerOpen, aid, taxRowTick]);
+
   const [pending, start] = useTransition();
   const [aiRunning, setAiRunning] = useState(false);
   const [aiProgressLine, setAiProgressLine] = useState<string | null>(null);
@@ -482,8 +541,20 @@ export function TranslationsTaxonomyWorkflowTable({
                       </td>
                       <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
-                          <Button asChild size="sm" variant="outline" className="h-8">
-                            <Link href={`/admin/taxonomy?q=${encodeURIComponent(row.slug)}`}>Open editor</Link>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => openPanel(TRANSLATIONS_APANEL_TAXONOMY_TERM, row.id)}
+                            onMouseEnter={() =>
+                              router.prefetch(`/admin/taxonomy?q=${encodeURIComponent(row.slug)}`)
+                            }
+                            onFocus={() =>
+                              router.prefetch(`/admin/taxonomy?q=${encodeURIComponent(row.slug)}`)
+                            }
+                          >
+                            Open editor
                           </Button>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -570,6 +641,81 @@ export function TranslationsTaxonomyWorkflowTable({
         </div>
       </div>
 
+      <DashboardEditPanel
+        open={taxonomyDrawerOpen}
+        onOpenChange={(next) => {
+          if (!next) closePanel();
+        }}
+        title={watchedTaxRow?.name_en ?? "Taxonomy term"}
+        description="Edit Spanish label. Slug and full term tools stay in Taxonomy admin."
+        className={ADMIN_DRAWER_CLASS_MEDIUM}
+      >
+        {aid && (taxPanelData?.slug || watchedTaxRow?.slug) ? (
+          <p className="mb-4 text-sm">
+            <Link
+              href={`/admin/taxonomy?q=${encodeURIComponent(taxPanelData?.slug ?? watchedTaxRow?.slug ?? "")}`}
+              className="font-medium text-[var(--impronta-gold)] underline-offset-4 hover:underline"
+              onClick={() => closePanel()}
+            >
+              Open full taxonomy workspace
+            </Link>
+          </p>
+        ) : null}
+        {taxPanelLoading ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+            <Loader2 className="size-8 animate-spin" aria-hidden />
+            <span className="text-sm">Loading…</span>
+          </div>
+        ) : taxPanelError ? (
+          <p className="text-sm text-destructive">{taxPanelError}</p>
+        ) : taxPanelData ? (
+          <div className="space-y-4 text-sm">
+            <div>
+              <Label className="text-muted-foreground">Kind · slug</Label>
+              <p className="mt-1 font-mono text-xs text-foreground">
+                {taxPanelData.kind} · {taxPanelData.slug}
+              </p>
+            </div>
+            <div>
+              <Label className="text-muted-foreground">English</Label>
+              <p className="mt-1 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-foreground">
+                {taxPanelData.name_en}
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="tax-translation-es">Spanish</Label>
+              <Textarea
+                id="tax-translation-es"
+                className="mt-1 min-h-[88px] rounded-xl"
+                value={taxEsDraft}
+                onChange={(e) => setTaxEsDraft(e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={pending}
+              onClick={() => {
+                start(async () => {
+                  const res = await adminSaveTaxonomySpanishLabel({
+                    id: taxPanelData.id,
+                    name_es: taxEsDraft,
+                  });
+                  if (res.error) {
+                    toast.error(res.error);
+                    return;
+                  }
+                  toast.success("Saved");
+                  router.refresh();
+                });
+              }}
+            >
+              Save Spanish
+            </Button>
+          </div>
+        ) : null}
+      </DashboardEditPanel>
+
       {allMissingOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -624,6 +770,49 @@ export function TranslationsLocationWorkflowTable({
   aiConfigured: boolean;
 }) {
   const router = useRouter();
+  const { apanel, aid, openPanel, closePanel } = useAdminPanelState({
+    pathname: "/admin/translations",
+  });
+  const locationDrawerOpen = apanel === TRANSLATIONS_APANEL_LOCATION && Boolean(aid);
+  const watchedLocRow = aid ? rows.find((r) => r.id === aid) : undefined;
+  const locRowTick = watchedLocRow
+    ? `${watchedLocRow.display_name_es ?? ""}|${watchedLocRow.updated_at}`
+    : "";
+
+  const [locPanelLoading, setLocPanelLoading] = useState(false);
+  const [locPanelError, setLocPanelError] = useState<string | null>(null);
+  const [locPanelData, setLocPanelData] = useState<LocationTranslationPanelPayload | null>(null);
+  const [locEsDraft, setLocEsDraft] = useState("");
+
+  useEffect(() => {
+    if (!locationDrawerOpen || !aid) {
+      setLocPanelData(null);
+      setLocPanelError(null);
+      setLocPanelLoading(false);
+      setLocEsDraft("");
+      return;
+    }
+    let cancelled = false;
+    setLocPanelLoading(true);
+    setLocPanelError(null);
+    void adminLoadLocationTranslationPanelData({ id: aid }).then((res) => {
+      if (cancelled) return;
+      setLocPanelLoading(false);
+      if ("error" in res && res.error) {
+        setLocPanelError(res.error);
+        setLocPanelData(null);
+        return;
+      }
+      if ("data" in res && res.data) {
+        setLocPanelData(res.data);
+        setLocEsDraft((res.data.display_name_es ?? "").trim());
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locationDrawerOpen, aid, locRowTick]);
+
   const [pending, start] = useTransition();
   const [aiRunning, setAiRunning] = useState(false);
   const [aiProgressLine, setAiProgressLine] = useState<string | null>(null);
@@ -964,10 +1153,24 @@ export function TranslationsLocationWorkflowTable({
                       </td>
                       <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
-                          <Button asChild size="sm" variant="outline" className="h-8">
-                            <Link href={`/admin/locations?q=${encodeURIComponent(row.city_slug)}`}>
-                              Open editor
-                            </Link>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => openPanel(TRANSLATIONS_APANEL_LOCATION, row.id)}
+                            onMouseEnter={() =>
+                              router.prefetch(
+                                `/admin/locations?q=${encodeURIComponent(row.city_slug)}`,
+                              )
+                            }
+                            onFocus={() =>
+                              router.prefetch(
+                                `/admin/locations?q=${encodeURIComponent(row.city_slug)}`,
+                              )
+                            }
+                          >
+                            Open editor
                           </Button>
                           <Popover>
                             <PopoverTrigger asChild>
@@ -1055,6 +1258,81 @@ export function TranslationsLocationWorkflowTable({
           </table>
         </div>
       </div>
+
+      <DashboardEditPanel
+        open={locationDrawerOpen}
+        onOpenChange={(next) => {
+          if (!next) closePanel();
+        }}
+        title={watchedLocRow?.display_name_en ?? "Location"}
+        description="Edit Spanish display name. Full location record stays in Locations admin."
+        className={ADMIN_DRAWER_CLASS_MEDIUM}
+      >
+        {aid && (locPanelData?.city_slug || watchedLocRow?.city_slug) ? (
+          <p className="mb-4 text-sm">
+            <Link
+              href={`/admin/locations?q=${encodeURIComponent(locPanelData?.city_slug ?? watchedLocRow?.city_slug ?? "")}`}
+              className="font-medium text-[var(--impronta-gold)] underline-offset-4 hover:underline"
+              onClick={() => closePanel()}
+            >
+              Open full locations workspace
+            </Link>
+          </p>
+        ) : null}
+        {locPanelLoading ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+            <Loader2 className="size-8 animate-spin" aria-hidden />
+            <span className="text-sm">Loading…</span>
+          </div>
+        ) : locPanelError ? (
+          <p className="text-sm text-destructive">{locPanelError}</p>
+        ) : locPanelData ? (
+          <div className="space-y-4 text-sm">
+            <div>
+              <Label className="text-muted-foreground">Country · slug</Label>
+              <p className="mt-1 font-mono text-xs text-foreground">
+                {locPanelData.country_code} · {locPanelData.city_slug}
+              </p>
+            </div>
+            <div>
+              <Label className="text-muted-foreground">English</Label>
+              <p className="mt-1 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-foreground">
+                {locPanelData.display_name_en}
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="loc-translation-es">Spanish</Label>
+              <Textarea
+                id="loc-translation-es"
+                className="mt-1 min-h-[88px] rounded-xl"
+                value={locEsDraft}
+                onChange={(e) => setLocEsDraft(e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={pending}
+              onClick={() => {
+                start(async () => {
+                  const res = await adminSaveLocationSpanishDisplay({
+                    id: locPanelData.id,
+                    display_name_es: locEsDraft,
+                  });
+                  if (res.error) {
+                    toast.error(res.error);
+                    return;
+                  }
+                  toast.success("Saved");
+                  router.refresh();
+                });
+              }}
+            >
+              Save Spanish
+            </Button>
+          </div>
+        ) : null}
+      </DashboardEditPanel>
 
       {allMissingOpen ? (
         <div

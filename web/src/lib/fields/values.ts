@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type { FieldValueRow } from "@/lib/fields/types";
 
 type RawValueRow = Omit<FieldValueRow, "value_taxonomy_ids"> & {
@@ -13,7 +13,7 @@ function normalizeUuidArray(value: unknown): string[] {
 
 export const loadTalentFieldValues = cache(
   async (talentProfileId: string): Promise<FieldValueRow[]> => {
-    const supabase = await createClient();
+    const supabase = await getCachedServerSupabase();
     if (!supabase) return [];
 
     const { data, error } = await supabase

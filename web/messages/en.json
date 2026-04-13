@@ -1,6 +1,8 @@
 {
   "public": {
     "meta": {
+      "homeTitle": "Models & image agency",
+      "homeDescription": "Discover represented talent, save shortlists, and work with Impronta — agency-managed discovery and representation.",
       "directoryTitle": "Directory",
       "directoryDescription": "Browse represented talent — save profiles to your shortlist and contact the agency through Impronta.",
       "modelsTitle": "Models",
@@ -369,6 +371,38 @@
     "impersonationActorNote": "Admin session",
     "impersonationReadOnly": "Viewing as",
     "impersonationV1ReadOnlyQa": "v1 read-only QA mode — saves and mutations are disabled.",
-    "returnToAdmin": "Return to admin"
+    "returnToAdmin": "Return to admin",
+    "clientOverview": {
+      "title": "Overview",
+      "subtitle": "Jump into each area of your portal — the workspace bar above keeps directory and cart one tap away.",
+      "helpTitle": "Overview",
+      "helpItem1": "Saved talent is your shortlist from the directory.",
+      "helpItem2": "Requests show inquiry status after you submit from the cart.",
+      "helpItem3": "Account details prefill future requests.",
+      "savedTalent": "Saved talent",
+      "savedTalentDesc": "Profiles you bookmarked while browsing.",
+      "viewSaved": "View saved",
+      "browseDirectory": "Browse directory",
+      "requests": "Requests",
+      "requestsDesc": "Inquiries tied to this login.",
+      "latestPrefix": "Latest:",
+      "noRequestsYet": "No requests yet — add talent to your cart and submit a brief when you’re ready.",
+      "viewRequests": "View requests",
+      "bookings": "Bookings",
+      "bookingsDesc": "Confirmed work shared by the agency.",
+      "bookingsFootnote": "Jobs linked to your account after an inquiry moves forward.",
+      "viewBookings": "View bookings",
+      "account": "Account",
+      "accountDesc": "Name and company on file.",
+      "accountFallback": "Client account",
+      "addCompanyHint": "Add your company in Account settings.",
+      "accountSettings": "Account settings"
+    },
+    "talentStatus": {
+      "pageTitle": "Status & workflow",
+      "pageDescription": "Where you are with the agency, what happens next, and a clear record of submissions and decisions.",
+      "profileChecklistCta": "Profile checklist",
+      "completionLabel": "Profile completion (matches My Profile)"
+    }
   }
 }

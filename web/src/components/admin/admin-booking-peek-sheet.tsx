@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import {
   assignBookingToCurrentStaffForm,
   quickUpdateBookingPeek,
@@ -14,6 +14,9 @@ import { Button } from "@/components/ui/button";
 import { ADMIN_FORM_CONTROL, ADMIN_ACTION_TERTIARY_CLASS } from "@/lib/dashboard-shell-classes";
 import { BOOKING_STATUS_VALUES } from "@/lib/admin/validation";
 import { LUXURY_GOLD_BUTTON_CLASS } from "@/lib/dashboard-shell-classes";
+import { ADMIN_APANEL_PEEK } from "@/lib/admin/admin-panel-search-params";
+import { ADMIN_DRAWER_CLASS_MEDIUM } from "@/lib/admin/admin-drawer-classes";
+import { useAdminPanelState } from "@/hooks/use-admin-panel-state";
 import { cn } from "@/lib/utils";
 
 export type BookingPeekSummary = {
@@ -49,7 +52,10 @@ export function AdminBookingPeekTrigger({
   currentUserId: string | null;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const { apanel, aid, openPanel, closePanel } = useAdminPanelState({
+    pathname: "/admin/bookings",
+  });
+  const open = apanel === ADMIN_APANEL_PEEK && aid === summary.id;
   const [peekState, peekAction] = useActionState(
     async (_prev: BookingActionState | undefined, formData: FormData) => {
       const next = await quickUpdateBookingPeek(formData);
@@ -66,15 +72,18 @@ export function AdminBookingPeekTrigger({
         variant="outline"
         size="sm"
         className={cn("h-8", ADMIN_ACTION_TERTIARY_CLASS)}
-        onClick={() => setOpen(true)}
+        onClick={() => openPanel(ADMIN_APANEL_PEEK, summary.id)}
       >
         Preview
       </Button>
       <DashboardEditPanel
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          if (!next) closePanel();
+        }}
         title={summary.title}
         description="Booking summary — change status or manager here, or open the workspace for lineup and pricing."
+        className={ADMIN_DRAWER_CLASS_MEDIUM}
       >
         <div className="space-y-4">
           {peekState?.error ? (
@@ -151,7 +160,7 @@ export function AdminBookingPeekTrigger({
                     href={`/admin/accounts/${summary.client_account_id}`}
                     scroll={false}
                     className="text-[var(--impronta-gold)] underline-offset-4 hover:underline"
-                    onClick={() => setOpen(false)}
+                    onClick={() => closePanel()}
                   >
                     {summary.account_name}
                   </Link>
@@ -200,13 +209,13 @@ export function AdminBookingPeekTrigger({
               </form>
             ) : null}
             <Button size="sm" className={cn("rounded-xl", LUXURY_GOLD_BUTTON_CLASS)} asChild>
-              <Link href={`/admin/bookings/${summary.id}`} scroll={false} onClick={() => setOpen(false)}>
+              <Link href={`/admin/bookings/${summary.id}`} scroll={false} onClick={() => closePanel()}>
                 Open booking
               </Link>
             </Button>
             {summary.source_inquiry_id ? (
               <Button size="sm" variant="outline" asChild>
-                <Link href={`/admin/inquiries/${summary.source_inquiry_id}`} scroll={false} onClick={() => setOpen(false)}>
+                <Link href={`/admin/inquiries/${summary.source_inquiry_id}`} scroll={false} onClick={() => closePanel()}>
                   Source request
                 </Link>
               </Button>
@@ -215,7 +224,7 @@ export function AdminBookingPeekTrigger({
               <Link
                 href={`/admin/bookings/${summary.id}#duplicate-booking`}
                 scroll={false}
-                onClick={() => setOpen(false)}
+                onClick={() => closePanel()}
               >
                 Duplicate
               </Link>

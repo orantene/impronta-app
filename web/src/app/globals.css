@@ -1,4 +1,6 @@
-@import "tailwindcss";
+/* Tailwind v4 auto-scan follows parent `.gitignore`; without a repo boundary it can skip `src/`. */
+@import "tailwindcss" source(none);
+@source "../**/*.{js,ts,jsx,tsx,mdx}";
 
 :root {
   /* Brand aliases (used by directory + legacy utilities) */

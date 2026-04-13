@@ -18,12 +18,11 @@ export async function getHomepageData() {
 
   /**
    * Product exception — marketing / curated discovery:
-   * Featured strip, role shortcuts, fit-label pills, and location boxes read profiles, taxonomy, and media
-   * directly. They intentionally do not consult Admin → Fields visibility (unlike directory cards and public
-   * profile detail). Rationale: the homepage is agency-controlled promotion; aligning it with field toggles would
-   * require defining which toggles apply to which marketing widgets and risks hiding featured talent entirely.
-   * Smallest future alignment would be per-widget (e.g. hide a featured card if profile is non-public) — not
-   * field-definition-driven copy of directory rules.
+   * Featured strip uses the same **talent row** gates as public directory listings (`workflow_status=approved`,
+   * `visibility=public`, `deleted_at` null). Role shortcuts, fit-label pills, and location boxes read taxonomy
+   * and locations directly. Widgets do **not** mirror Admin → Fields visibility for card attributes (unlike
+   * directory cards / public profile field rules). Rationale: homepage is agency-controlled promotion; full
+   * field-definition parity would risk hiding featured talent entirely. Future alignment can be per-widget.
    */
   const [typesRes, featuredRes, fitRes, locationsRes] = await Promise.all([
     supabase

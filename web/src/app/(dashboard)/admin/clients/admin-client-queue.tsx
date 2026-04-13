@@ -219,6 +219,7 @@ export function AdminClientQueue({ rows }: { rows: AdminClientListRow[] }) {
                           ADMIN_OUTLINE_CONTROL_CLASS,
                         )}
                         title="Side panel: login & password, role, account status, company and contact fields."
+                        urlSync={{ pathname: "/admin/clients" }}
                       />
                     </div>
                     <AdminClientInquiriesPanelTrigger

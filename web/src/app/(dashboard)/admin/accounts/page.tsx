@@ -7,7 +7,7 @@ import {
 } from "@/lib/dashboard-shell-classes";
 import { formatClientLocationAccountType } from "@/lib/admin/validation";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedServerSupabase } from "@/lib/server/request-cache";
 
 type ClientAccountListRow = {
   id: string;
@@ -38,7 +38,7 @@ function tallyByAccountId(rows: { client_account_id: string | null }[] | null): 
 }
 
 export default async function AdminClientAccountsPage() {
-  const supabase = await createClient();
+  const supabase = await getCachedServerSupabase();
   if (!supabase) {
     return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
   }

@@ -1,9 +1,10 @@
+import { cache } from "react";
 import { getGuestSessionKey } from "@/lib/guest-session";
-import { createPublicSupabaseClient } from "@/lib/supabase/public";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
 
-export async function getSavedTalentIds(): Promise<string[]> {
+async function loadSavedTalentIds(): Promise<string[]> {
   if (!isSupabaseConfigured()) return [];
 
   const pub = createPublicSupabaseClient();
@@ -14,19 +15,14 @@ export async function getSavedTalentIds(): Promise<string[]> {
     await pub.rpc("ensure_guest_session", { p_session_key: guestKey });
   }
 
-  const supabase = await createClient();
-  if (supabase) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const { data: saves } = await supabase
-        .from("saved_talent")
-        .select("talent_profile_id")
-        .eq("client_user_id", user.id)
-        .order("created_at", { ascending: false });
-      return saves?.map((save) => save.talent_profile_id) ?? [];
-    }
+  const actor = await getCachedActorSession();
+  if (actor.user && actor.supabase) {
+    const { data: saves } = await actor.supabase
+      .from("saved_talent")
+      .select("talent_profile_id")
+      .eq("client_user_id", actor.user.id)
+      .order("created_at", { ascending: false });
+    return saves?.map((save) => save.talent_profile_id) ?? [];
   }
 
   if (!guestKey) return [];
@@ -41,3 +37,6 @@ export async function getSavedTalentIds(): Promise<string[]> {
     ) ?? []
   );
 }
+
+/** One guest ensure + saved list resolution per RSC request when reused. */
+export const getSavedTalentIds = cache(loadSavedTalentIds);
