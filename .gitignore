@@ -1,0 +1,4 @@
+.DS_Store
+
+# Supabase CLI local cache (project ref, versions)
+supabase/.temp/

@@ -1,0 +1,14 @@
+-- Optional: run in SQL editor as postgres (bypasses RLS) to preview the directory.
+-- INSERT INTO public.talent_profiles (
+--   profile_code, display_name, short_bio, workflow_status, visibility, public_slug_part
+-- ) VALUES (
+--   'TAL-90001',
+--   'Demo talent',
+--   'Sample approved profile for local UI testing.',
+--   'approved',
+--   'public',
+--   'demo-talent'
+-- );
+--
+-- Promote your user to staff (replace UUID):
+-- UPDATE public.profiles SET app_role = 'super_admin' WHERE id = 'YOUR_AUTH_USER_UUID';

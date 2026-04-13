@@ -1,0 +1,374 @@
+{
+  "public": {
+    "meta": {
+      "directoryTitle": "Directorio",
+      "directoryDescription": "Explora el talento representado: guarda perfiles en tu lista y contacta a la agencia a través de Impronta.",
+      "modelsTitle": "Modelos",
+      "modelsDescription": "Explora modelos y talento representado por Impronta: descubrimiento y representación gestionados por la agencia.",
+      "contactTitle": "Contacto",
+      "contactDescription": "Contacta con Impronta: consultas y representación de la agencia."
+    },
+    "header": {
+      "searchTalentAria": "Buscar talento",
+      "signOutAria": "Cerrar sesión",
+      "dashboard": "Panel",
+      "setup": "Configuración",
+      "inquiries": "Consultas",
+      "myProfile": "Mi perfil",
+      "finishSetup": "Completar configuración",
+      "accountFallback": "Cuenta",
+      "signedInRole": "sesión iniciada",
+      "savedDirectoryAria": "Ir al directorio y talento guardado",
+      "directoryShortlistAria": "Abrir lista y consulta",
+      "directoryShortlistTooltipEmpty": "Guarda talento desde la cuadrícula y abre tu lista aquí",
+      "directoryShortlistTooltipWithCount": "{count} guardados — abre tu lista",
+      "directoryInquirySparklesAriaEmpty": "Iniciar una consulta",
+      "directoryInquirySparklesAriaWithShortlist": "Contactar a la agencia sobre tu lista",
+      "directoryInquiryTooltipEmpty": "Abre el formulario de consulta: añade talento con la búsqueda o guardando desde el directorio",
+      "directoryInquiryTooltipWithShortlist": "Contacta ahora — tu lista está lista para enviar"
+    },
+    "profile": {
+      "about": "Acerca de",
+      "portfolio": "Portafolio",
+      "basicInfo": "Información básica",
+      "details": "Detalles",
+      "previewModeBanner": "Modo vista previa",
+      "livesInLabel": "Vive en",
+      "heightCm": "{height} cm",
+      "profileImageAlt": "Foto de perfil de {name}",
+      "sidebarAgencyTitle": "Representación de agencia",
+      "sidebarAgencyBody": "Las reservas y consultas se gestionan solo a través de Impronta, no desde este perfil.",
+      "refCodePrefix": "ref:",
+      "ctaSectionAria": "Llamada a la acción",
+      "footerCtaTitle": "¿Listo para trabajar con {firstName}?",
+      "footerCtaBody": "Añade este talento a tu lista de consulta, explora más talento representado o contacta directamente a la agencia.",
+      "cta": {
+        "addToMyList": "Añadir a mi lista",
+        "savedToMyList": "Guardado en mi lista",
+        "contactAboutTalent": "Contactar sobre este talento",
+        "openInquiryCart": "Abrir carrito de consulta",
+        "browseMoreTalent": "Ver más talento",
+        "contactImpronta": "Contactar a Impronta"
+      }
+    },
+    "common": {
+      "brand": "Impronta"
+    },
+    "home": {
+      "hero": {
+        "kicker": "Agencia de modelos e imagen",
+        "titleBefore": "Encuentra el",
+        "titleHighlight": "talento adecuado",
+        "titleAfter": "para tu evento",
+        "subtitle": "Busca en el directorio por rol, ubicación o encaje con lenguaje natural. Gestionado por la agencia, sin contacto directo.",
+        "searchPlaceholder": "Describe tu evento o el talento que necesitas…",
+        "searchAria": "Buscar en el directorio",
+        "searchSubmit": "Buscar",
+        "typedExamples": [
+          "Anfitrionas bilingües para un evento resort en Cancún",
+          "3 modelos para el lanzamiento de una marca de lujo en Playa del Carmen",
+          "Anfitrión VIP para gala corporativa — inglés y español",
+          "Modelos promocionales para la apertura de un beach club",
+          "Embajadores de marca para una activación de hospitalidad"
+        ]
+      },
+      "footer": {
+        "tagline": "Modelos y talento · Descubrimiento y representación gestionados por la agencia",
+        "copyright": "© {year} Impronta. Todos los derechos reservados."
+      },
+      "featured": {
+        "sectionKicker": "Talento destacado",
+        "sectionTitle": "Seleccionado por la agencia",
+        "viewAll": "Ver todo",
+        "viewAllMobile": "Ver todo el talento"
+      },
+      "bestFor": {
+        "sectionKicker": "Ideal para",
+        "sectionTitle": "Encuentra talento por caso de uso"
+      },
+      "browseByType": {
+        "sectionKicker": "Explorar por tipo"
+      },
+      "location": {
+        "sectionKicker": "Explorar por ubicación",
+        "sectionTitle": "Dónde operamos",
+        "talentCountOne": "1 talento",
+        "talentCountMany": "{count} talentos"
+      }
+    },
+    "howItWorks": {
+      "sectionKicker": "Cómo funciona",
+      "sectionTitle": "Tres pasos hacia el talento adecuado",
+      "step1Title": "Descubre",
+      "step1Body": "Busca de forma natural o explora por tipo, ubicación y caso de uso. Cada perfil está curado por la agencia.",
+      "step2Title": "Guarda y lista",
+      "step2Body": "Añade talento a tu lista. No necesitas cuenta para empezar — regístrate cuando quieras.",
+      "step3Title": "Brief a la agencia",
+      "step3Body": "Envía los detalles de tu evento y el talento seleccionado. La agencia coordina y gestiona la reserva."
+    },
+    "cta": {
+      "title": "¿Listo para encontrar el talento adecuado?",
+      "body": "Cuéntanos tu evento y la agencia te emparejará con el talento perfecto para cada ocasión.",
+      "searchTalent": "Buscar talento",
+      "createAccount": "Crear una cuenta"
+    },
+    "directory": {
+      "configMissingTitle": "Directorio",
+      "configMissingBody": "Conecta Supabase (ver .env.example) para cargar el talento publicado.",
+      "pausedTitle": "Directorio no disponible",
+      "pausedBody": "El descubrimiento público está pausado. Contacta directamente a la agencia para disponibilidad.",
+      "pageTitle": "Descubre talento",
+      "pageDescription": "Explora el talento representado: guarda perfiles en tu lista y abre el panel de consulta en el encabezado para escribir a la agencia.",
+      "discoverLoadError": "No se pudo cargar el directorio ahora. Actualiza la página o inténtalo de nuevo en un momento.",
+      "loadResultsError": "No se pudieron cargar los resultados del directorio. Comprueba tu conexión e inténtalo de nuevo.",
+      "emptyResults": "Aún no hay talento que coincida con estos filtros. Prueba a limpiar filtros o vuelve pronto.",
+      "loadingMore": "Cargando…",
+      "fallbackPrimaryTalentType": "Talento",
+      "inquiry": {
+        "saveThisTalent": "Guardar este talento",
+        "savedToInquiryCart": "Guardado en el carrito de consulta",
+        "contactAboutTalent": "Contactar sobre este talento",
+        "openInquiry": "Abrir consulta",
+        "flashCouldNotUpdateSaved": "No se pudo actualizar la lista guardada",
+        "flashSavedTitle": "Guardado",
+        "flashRemovedTitle": "Quitado",
+        "flashAddedShortlist": "Añadido a tu lista — abre el panel de consulta cuando quieras.",
+        "flashRemovedShortlist": "Quitado de tu lista.",
+        "flashCouldNotSaveTalent": "No se pudo guardar el talento"
+      },
+      "ui": {
+        "mobile": {
+          "filters": "Filtros",
+          "sheetTitle": "Filtros",
+          "sheetDescription": "Filtra talento por tipo, habilidades, industria y más."
+        },
+        "toolbar": {
+          "resultLayoutAria": "Disposición de resultados",
+          "gridViewAria": "Vista de cuadrícula",
+          "listViewAria": "Vista de lista",
+          "resultsOne": "1 resultado",
+          "resultsMany": "{count} resultados"
+        },
+        "sort": {
+          "aria": "Ordenar talento",
+          "recommended": "Destacados + recientes",
+          "featured": "Destacados",
+          "recent": "Añadidos recientemente",
+          "updated": "Actualizados recientemente"
+        },
+        "filters": {
+          "locationSearchLabel": "Buscar ciudad",
+          "locationPlaceholder": "Toca para listar ciudades y escribe para filtrar…",
+          "clearCityAria": "Quitar filtro de ciudad",
+          "noCitiesYet": "Aún no hay ciudades disponibles para filtrar.",
+          "noCitiesMatch": "Ninguna ciudad coincide.",
+          "searchFiltersLabel": "Buscar en filtros",
+          "searchFiltersPlaceholder": "Buscar en filtros…",
+          "clearFilterSearchAria": "Borrar búsqueda de filtros",
+          "showLess": "Ver menos",
+          "showAll": "Ver todo ({count})",
+          "resetHeight": "Restablecer altura",
+          "minCm": "Mín. cm",
+          "maxCm": "Máx. cm",
+          "gridProfileAriaOne": "{label}, 1 perfil",
+          "gridProfileAriaMany": "{label}, {count} perfiles",
+          "sidebarTitle": "Filtros",
+          "clearAll": "Borrar todo",
+          "radioMore": "+{count} más",
+          "emptyAsideTitle": "Filtros",
+          "emptyAsideBody": "Aún no hay grupos de filtros. El directorio solo muestra secciones con opciones (términos de taxonomía o ciudades).",
+          "emptyAsideBulletAdmin": "Admin → Filtros del directorio: activa y ordena facetas (taxonomía, ciudad, altura).",
+          "emptyAsideBulletMigration": "Aplica la migración de Supabase 20260411220000_directory_facet_count_rpcs.sql para conteos por opción.",
+          "emptyAsideLink": "Abrir filtros del directorio",
+          "filterMatchesOne": "1 coincidencia",
+          "filterMatchesMany": "{count} coincidencias",
+          "filterGroupsOne": "1 grupo",
+          "filterGroupsMany": "{count} grupos",
+          "filterMatchesAcross": "{matches} en {groups}",
+          "filterNoLabelsMatch": "Ninguna etiqueta de filtro coincide — prueba otra palabra.",
+          "filterNothingMatches": "Nada coincide con «{q}». Borra la búsqueda para ver todos los grupos otra vez.",
+          "citySectionLabel": "Ciudad"
+        },
+        "chips": {
+          "height": "Altura",
+          "searchPrefix": "Búsqueda:",
+          "clearTaxonomy": "Borrar filtros",
+          "heightMinPart": " · mín. {cm} cm",
+          "heightMaxPart": " · máx. {cm} cm"
+        },
+        "talentType": {
+          "barAria": "Tipo de talento",
+          "all": "TODOS"
+        },
+        "taxonomyBarAria": "Filtrar por taxonomía",
+        "card": {
+          "available": "Disponible",
+          "saveAria": "Guardar",
+          "removeSaveAria": "Quitar de guardados",
+          "shareAria": "Compartir perfil",
+          "featuredAria": "Perfil destacado",
+          "featuredLabel": "Destacado",
+          "livesInTitle": "Vive en: {location}",
+          "viewPortfolio": "Ver portafolio",
+          "inquire": "Consultar",
+          "quickPreview": "Vista rápida",
+          "footerTalent": "Talento",
+          "linkCopiedTitle": "Enlace copiado",
+          "linkCopiedMessage": "El enlace del perfil está en el portapapeles.",
+          "linkCopyFailedTitle": "No se pudo copiar el enlace",
+          "linkCopyFailedMessage": "Abre el perfil y copia la URL desde la barra de direcciones.",
+          "srOnlyProfileCode": "Perfil {code}",
+          "imageAltTalentPhoto": "{name} — foto del talento",
+          "shareNativeText": "{name} — {brand}"
+        },
+        "list": {
+          "view": "Ver",
+          "preview": "Vista previa"
+        },
+        "preview": {
+          "originallyFrom": "Origen",
+          "editorialOnly": "Vista editorial solo. Abre el perfil completo para la galería y el contexto de reserva.",
+          "languagesPrefix": "Idiomas:",
+          "skillsPrefix": "Habilidades:",
+          "viewFullProfile": "Ver perfil completo",
+          "close": "Cerrar",
+          "saveThisTalent": "Guardar este talento",
+          "savedToCart": "Guardado en el carrito de consulta",
+          "imageAlt": "{name} — vista previa",
+          "dialogAria": "{name} — vista rápida"
+        },
+        "lightbox": {
+          "dialogAria": "Galería de portafolio",
+          "closeAria": "Cerrar galería",
+          "prevAria": "Imagen anterior",
+          "nextAria": "Imagen siguiente"
+        },
+        "flash": {
+          "dismissAria": "Cerrar mensaje"
+        }
+      }
+    },
+    "forms": {
+      "inquiry": {
+        "inquiriesClosed": "Las consultas están cerradas por ahora.",
+        "supabaseNotConfigured": "Supabase no está configurado.",
+        "mustBeSignedIn": "Debes iniciar sesión.",
+        "selectAtLeastOneTalent": "Selecciona al menos un talento.",
+        "nameAndEmailRequired": "El nombre y el correo son obligatorios.",
+        "sessionUnavailable": "Sesión no disponible — actualiza e inténtalo de nuevo.",
+        "unableToSaveTrySignIn": "No se pudo guardar — inténtalo de nuevo o inicia sesión.",
+        "directoryNotConfigured": "El directorio no está configurado.",
+        "thankYou": "Gracias",
+        "contactAgency": "Contactar a la agencia",
+        "startInquiry": "Iniciar una consulta",
+        "messageInGoodHands": "Tu mensaje está en buenas manos.",
+        "preparedClientAccount": "También preparamos tu cuenta de cliente.",
+        "activateAccountAnyTime": "Puedes activar una cuenta en cualquier momento.",
+        "talentFallbackName": "Talento",
+        "quickAddPlaceholder": "Buscar por nombre o código de perfil…",
+        "quickAddCouldNotAdd": "No se pudo añadir el talento",
+        "quickAddAdded": "Añadido",
+        "cartCouldNotRemove": "No se pudo quitar",
+        "cartRemovedTitle": "Quitado",
+        "cartRemovedMessage": "Quitado del carrito de consulta.",
+        "sheetDescWithShortlist": "Tienes talento en tu lista — añade detalles y te responderemos.",
+        "sheetDescEmptyShortlist": "Cuéntanos qué necesitas, añade talento con la búsqueda de abajo y envía un solo brief a la agencia.",
+        "sheetLoading": "Cargando…",
+        "shortlistTitle": "Lista",
+        "shortlistEmptyDescription": "Añade al menos un perfil publicado para enviar una consulta a la agencia.",
+        "shortlistEmptyHintBefore": "Usa la búsqueda de arriba o toca ",
+        "shortlistSaveWord": "Guardar",
+        "shortlistEmptyHintAfter": " en cualquier ficha del directorio y luego completa el formulario de abajo.",
+        "yourShortlistTitle": "Tu lista",
+        "profilesInRequestOne": "1 perfil en esta solicitud",
+        "profilesInRequestMany": "{count} perfiles en esta solicitud",
+        "messageDetailsTitle": "Mensaje y detalles",
+        "messageDetailsPaused": "Las consultas están pausadas. Tu lista se mantiene guardada.",
+        "messageDetailsClient": "Sesión iniciada — tu cuenta queda vinculada a esta consulta.",
+        "messageDetailsGuest": "Consulta como invitado — puedes crear una cuenta después para hacer seguimiento.",
+        "inquiriesPausedNotice": "El envío de consultas está cerrado por ahora. Puedes seguir guardando talento y volver cuando la agencia lo reabra.",
+        "guestCtaCreateAccount": "Crear una cuenta",
+        "guestCtaAfterCreateLink": " para hacer seguimiento a las consultas, o ",
+        "guestCtaLogIn": "inicia sesión",
+        "guestCtaAfterLoginLink": " para vincular esto a tu perfil de cliente.",
+        "backToDirectory": "Volver al directorio",
+        "successInquirySentTitle": "Consulta enviada",
+        "successInquirySentDescription": "Tu solicitud llegó a la agencia y el talento seleccionado sigue vinculado a esta consulta.",
+        "successFollowUpNoEmail": "Te contactaremos por correo.",
+        "successFollowUpWithEmail": "Te contactaremos por correo a {email}.",
+        "activationEmailMatched": "Este correo ya coincide con una cuenta de cliente.",
+        "activationBenefits": "Activa o inicia sesión para hacer seguimiento, ver reservas, guardar favoritos, reutilizar tus datos y gestionar varias ubicaciones con más rapidez.",
+        "activateAccountButton": "Activar cuenta",
+        "logInTrackRequestButton": "Iniciar sesión para seguimiento",
+        "quickAddLabel": "Añadir talento desde el directorio",
+        "quickAddSearching": "Buscando…",
+        "quickAddNoMatches": "Aún no hay coincidencias.",
+        "quickAddMinCharsHint": "Escribe al menos dos caracteres para buscar talento publicado.",
+        "quickAddAdd": "Añadir",
+        "cartRemove": "Quitar",
+        "cartRemoveAria": "Quitar {name} de guardados",
+        "formSending": "Enviando…",
+        "formSubmitInquiry": "Enviar consulta",
+        "formWhatsAppCompose": "Redactar en WhatsApp",
+        "formWhatsAppTitleOn": "Abre un mensaje prellenado a Impronta en WhatsApp.",
+        "formWhatsAppTitleOff": "WhatsApp aún no está configurado por la agencia.",
+        "formLabelYourName": "Tu nombre",
+        "formLabelEmail": "Correo",
+        "formLabelPhone": "Teléfono (opcional)",
+        "formLabelCompany": "Empresa / marca (opcional)",
+        "formLabelLookingFor": "¿Qué buscas? (opcional)",
+        "formPlaceholderLookingFor": "Ej.: modelos promocionales bilingües para un lanzamiento hotelero de lujo en Cancún",
+        "formEventTypeNone": "—",
+        "formLabelEventType": "Tipo de evento (opcional)",
+        "formLabelEventDate": "Fecha del evento (opcional)",
+        "formLabelEventLocation": "Ubicación (opcional)",
+        "formPlaceholderEventLocation": "Cancún, MX",
+        "formLabelQuantity": "Cantidad (opcional)",
+        "formPlaceholderQuantity": "2",
+        "formLabelBrief": "Brief para la agencia",
+        "formPlaceholderBrief": "Fechas, ubicación, código de vestimenta, idiomas necesarios…",
+        "formPrivacyNotice": "Al enviar esto, contactas solo a Impronta. El talento no recibe una notificación directa ni tus datos."
+      }
+    },
+    "errors": {
+      "saveTalent": "No se pudo actualizar el talento guardado.",
+      "inquiry": "No se pudo enviar la consulta. Inténtalo de nuevo.",
+      "directoryLoad": "No se pudo cargar el directorio.",
+      "generic": "La solicitud falló."
+    },
+    "models": {
+      "title": "Modelos",
+      "body": "El directorio y los filtros se conectarán aquí a medida que avance la plataforma."
+    },
+    "contact": {
+      "title": "Contacto",
+      "body": "Los flujos de consulta y el contacto con la agencia vivirán aquí."
+    }
+  },
+  "dashboard": {
+    "loadingNav": "Cargando menú…",
+    "signOut": "Cerrar sesión",
+    "exitToSite": "Salir al sitio",
+    "exit": "Salir",
+    "sheetDashboardTitle": "Panel",
+    "menuButton": "Menú",
+    "agencyWorkspace": "Espacio de la agencia",
+    "agencyStaffFallback": "Equipo de la agencia",
+    "clientPortalLine": "Portal del cliente · talento guardado y solicitudes",
+    "roleAdmin": "Admin",
+    "roleTalent": "Talento",
+    "roleClient": "Cliente",
+    "roleDashboard": "Panel",
+    "noEmail": "Sin correo",
+    "accountFallback": "Cuenta",
+    "yourAccount": "Tu cuenta",
+    "switchWorkspace": "Cambiar espacio",
+    "workspaceTalentQa": "Usuario QA talento",
+    "workspaceClientQa": "Usuario QA cliente",
+    "workspaceSwitcherHint": "Vista previa QA — solo lectura",
+    "impersonationActorNote": "Sesión de admin",
+    "impersonationReadOnly": "Viendo como",
+    "impersonationV1ReadOnlyQa": "Modo QA v1 solo lectura: guardados y cambios están desactivados.",
+    "returnToAdmin": "Volver al admin"
+  }
+}

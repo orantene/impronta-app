@@ -1,0 +1,374 @@
+{
+  "public": {
+    "meta": {
+      "directoryTitle": "Directory",
+      "directoryDescription": "Browse represented talent — save profiles to your shortlist and contact the agency through Impronta.",
+      "modelsTitle": "Models",
+      "modelsDescription": "Explore models and talent represented by Impronta — agency-managed discovery and representation.",
+      "contactTitle": "Contact",
+      "contactDescription": "Get in touch with Impronta — agency inquiries and representation."
+    },
+    "header": {
+      "searchTalentAria": "Search talent",
+      "signOutAria": "Sign out",
+      "dashboard": "Dashboard",
+      "setup": "Setup",
+      "inquiries": "Inquiries",
+      "myProfile": "My profile",
+      "finishSetup": "Finish setup",
+      "accountFallback": "Account",
+      "signedInRole": "signed in",
+      "savedDirectoryAria": "Go to directory and saved talent",
+      "directoryShortlistAria": "Open shortlist and inquiry",
+      "directoryShortlistTooltipEmpty": "Save talent from the grid, then open your shortlist here",
+      "directoryShortlistTooltipWithCount": "{count} saved — open your shortlist",
+      "directoryInquirySparklesAriaEmpty": "Start an inquiry",
+      "directoryInquirySparklesAriaWithShortlist": "Contact agency about your shortlist",
+      "directoryInquiryTooltipEmpty": "Open the inquiry form — add talent with search or save from the directory",
+      "directoryInquiryTooltipWithShortlist": "Contact now — your shortlist is ready to send"
+    },
+    "profile": {
+      "about": "About",
+      "portfolio": "Portfolio",
+      "basicInfo": "Basic information",
+      "details": "Details",
+      "previewModeBanner": "Preview mode",
+      "livesInLabel": "Lives in",
+      "heightCm": "{height} cm",
+      "profileImageAlt": "{name} profile photo",
+      "sidebarAgencyTitle": "Agency represented",
+      "sidebarAgencyBody": "Bookings and inquiries are handled exclusively through Impronta — not via this profile.",
+      "refCodePrefix": "ref:",
+      "ctaSectionAria": "Call to action",
+      "footerCtaTitle": "Ready to work with {firstName}?",
+      "footerCtaBody": "Add this talent to your inquiry list, browse more represented talent, or reach out to the agency directly.",
+      "cta": {
+        "addToMyList": "Add to My List",
+        "savedToMyList": "Saved to My List",
+        "contactAboutTalent": "Contact About Talent",
+        "openInquiryCart": "Open Inquiry Cart",
+        "browseMoreTalent": "Browse More Talent",
+        "contactImpronta": "Contact Impronta"
+      }
+    },
+    "common": {
+      "brand": "Impronta"
+    },
+    "home": {
+      "hero": {
+        "kicker": "Models & image agency",
+        "titleBefore": "Find the",
+        "titleHighlight": "right talent",
+        "titleAfter": "for your event",
+        "subtitle": "Search the directory by role, location, or fit using natural language. Agency-managed, no direct contact.",
+        "searchPlaceholder": "Describe your event or talent needs…",
+        "searchAria": "Search directory",
+        "searchSubmit": "Search",
+        "typedExamples": [
+          "Bilingual hostesses for a resort event in Cancún",
+          "3 models for a luxury brand launch in Playa del Carmen",
+          "VIP host for a corporate gala — English and Spanish",
+          "Promotional models for a beach club opening",
+          "Brand ambassadors for a hospitality activation"
+        ]
+      },
+      "footer": {
+        "tagline": "Models & Talent · Agency-managed discovery and representation",
+        "copyright": "© {year} Impronta. All rights reserved."
+      },
+      "featured": {
+        "sectionKicker": "Featured talent",
+        "sectionTitle": "Handpicked by the agency",
+        "viewAll": "View all",
+        "viewAllMobile": "View all talent"
+      },
+      "bestFor": {
+        "sectionKicker": "Best for",
+        "sectionTitle": "Find talent by use case"
+      },
+      "browseByType": {
+        "sectionKicker": "Browse by type"
+      },
+      "location": {
+        "sectionKicker": "Explore by location",
+        "sectionTitle": "Where we operate",
+        "talentCountOne": "1 talent",
+        "talentCountMany": "{count} talents"
+      }
+    },
+    "howItWorks": {
+      "sectionKicker": "How it works",
+      "sectionTitle": "Three steps to the right talent",
+      "step1Title": "Discover",
+      "step1Body": "Search naturally or browse by type, location, and use case. Every profile is agency-curated.",
+      "step2Title": "Save & shortlist",
+      "step2Body": "Add talent to your list. No account required to start — sign up when you're ready.",
+      "step3Title": "Brief the agency",
+      "step3Body": "Submit your event details and selected talent. The agency handles coordination and booking."
+    },
+    "cta": {
+      "title": "Ready to find the right talent?",
+      "body": "Tell us about your event, and the agency will match you with the perfect talent for any occasion.",
+      "searchTalent": "Search talent",
+      "createAccount": "Create an account"
+    },
+    "directory": {
+      "configMissingTitle": "Directory",
+      "configMissingBody": "Connect Supabase (see .env.example) to load published talent.",
+      "pausedTitle": "Directory unavailable",
+      "pausedBody": "Public discovery is currently paused. Please contact the agency directly for availability.",
+      "pageTitle": "Discover talent",
+      "pageDescription": "Browse represented talent — save profiles to your shortlist, then open the inquiry panel from the header to message the agency.",
+      "discoverLoadError": "The directory could not be loaded right now. Please refresh or try again shortly.",
+      "loadResultsError": "Could not load directory results right now. Check your connection and try again.",
+      "emptyResults": "No talent matches these filters yet. Try clearing filters or check back soon.",
+      "loadingMore": "Loading…",
+      "fallbackPrimaryTalentType": "Talent",
+      "inquiry": {
+        "saveThisTalent": "Save This Talent",
+        "savedToInquiryCart": "Saved to Inquiry Cart",
+        "contactAboutTalent": "Contact About Talent",
+        "openInquiry": "Open inquiry",
+        "flashCouldNotUpdateSaved": "Could not update saved list",
+        "flashSavedTitle": "Saved",
+        "flashRemovedTitle": "Removed",
+        "flashAddedShortlist": "Added to your shortlist — open the inquiry panel when you’re ready.",
+        "flashRemovedShortlist": "Removed from your shortlist.",
+        "flashCouldNotSaveTalent": "Could not save talent"
+      },
+      "ui": {
+        "mobile": {
+          "filters": "Filters",
+          "sheetTitle": "Filters",
+          "sheetDescription": "Filter talent by type, skills, industry, and more."
+        },
+        "toolbar": {
+          "resultLayoutAria": "Result layout",
+          "gridViewAria": "Grid view",
+          "listViewAria": "List view",
+          "resultsOne": "1 result",
+          "resultsMany": "{count} results"
+        },
+        "sort": {
+          "aria": "Sort talent",
+          "recommended": "Featured + recent",
+          "featured": "Featured",
+          "recent": "Recently added",
+          "updated": "Recently updated"
+        },
+        "filters": {
+          "locationSearchLabel": "Search city",
+          "locationPlaceholder": "Click to list cities, then type to filter…",
+          "clearCityAria": "Clear city filter",
+          "noCitiesYet": "No cities are available for filtering yet.",
+          "noCitiesMatch": "No cities match.",
+          "searchFiltersLabel": "Search filters",
+          "searchFiltersPlaceholder": "Search filters…",
+          "clearFilterSearchAria": "Clear filter search",
+          "showLess": "Show less",
+          "showAll": "Show all ({count})",
+          "resetHeight": "Reset height",
+          "minCm": "Min cm",
+          "maxCm": "Max cm",
+          "gridProfileAriaOne": "{label}, 1 profile",
+          "gridProfileAriaMany": "{label}, {count} profiles",
+          "sidebarTitle": "Filters",
+          "clearAll": "Clear all",
+          "radioMore": "+{count} more",
+          "emptyAsideTitle": "Filters",
+          "emptyAsideBody": "No filter groups are available yet. The directory only shows sections that have options (taxonomy terms or cities).",
+          "emptyAsideBulletAdmin": "Admin → Directory filters: enable and order facets (taxonomy, city, height).",
+          "emptyAsideBulletMigration": "Apply Supabase migration 20260411220000_directory_facet_count_rpcs.sql for per-option counts.",
+          "emptyAsideLink": "Open directory filters",
+          "filterMatchesOne": "1 match",
+          "filterMatchesMany": "{count} matches",
+          "filterGroupsOne": "1 group",
+          "filterGroupsMany": "{count} groups",
+          "filterMatchesAcross": "{matches} across {groups}",
+          "filterNoLabelsMatch": "No filter labels match — try another word.",
+          "filterNothingMatches": "Nothing matches \"{q}\". Clear the search to see every group again.",
+          "citySectionLabel": "City"
+        },
+        "chips": {
+          "height": "Height",
+          "searchPrefix": "Search:",
+          "clearTaxonomy": "Clear filters",
+          "heightMinPart": " · ≥ {cm} cm",
+          "heightMaxPart": " · ≤ {cm} cm"
+        },
+        "talentType": {
+          "barAria": "Talent type",
+          "all": "ALL"
+        },
+        "taxonomyBarAria": "Filter by taxonomy",
+        "card": {
+          "available": "Available",
+          "saveAria": "Save",
+          "removeSaveAria": "Remove from saved",
+          "shareAria": "Share profile",
+          "featuredAria": "Featured profile",
+          "featuredLabel": "Featured",
+          "livesInTitle": "Lives in: {location}",
+          "viewPortfolio": "View portfolio",
+          "inquire": "Inquire",
+          "quickPreview": "Quick preview",
+          "footerTalent": "Talent",
+          "linkCopiedTitle": "Link copied",
+          "linkCopiedMessage": "Profile link is on your clipboard.",
+          "linkCopyFailedTitle": "Could not copy link",
+          "linkCopyFailedMessage": "Select the profile and copy the URL from the address bar.",
+          "srOnlyProfileCode": "Profile {code}",
+          "imageAltTalentPhoto": "{name} — talent photo",
+          "shareNativeText": "{name} — {brand}"
+        },
+        "list": {
+          "view": "View",
+          "preview": "Preview"
+        },
+        "preview": {
+          "originallyFrom": "Originally from",
+          "editorialOnly": "Editorial preview only. Open the full profile for the complete gallery and booking context.",
+          "languagesPrefix": "Languages:",
+          "skillsPrefix": "Skills:",
+          "viewFullProfile": "View full profile",
+          "close": "Close",
+          "saveThisTalent": "Save This Talent",
+          "savedToCart": "Saved to Inquiry Cart",
+          "imageAlt": "{name} — preview",
+          "dialogAria": "{name} — quick preview"
+        },
+        "lightbox": {
+          "dialogAria": "Portfolio lightbox",
+          "closeAria": "Close lightbox",
+          "prevAria": "Previous image",
+          "nextAria": "Next image"
+        },
+        "flash": {
+          "dismissAria": "Dismiss message"
+        }
+      }
+    },
+    "forms": {
+      "inquiry": {
+        "inquiriesClosed": "Inquiries are currently closed.",
+        "supabaseNotConfigured": "Supabase is not configured.",
+        "mustBeSignedIn": "You must be signed in.",
+        "selectAtLeastOneTalent": "Select at least one talent.",
+        "nameAndEmailRequired": "Name and email are required.",
+        "sessionUnavailable": "Session unavailable — refresh and try again.",
+        "unableToSaveTrySignIn": "Unable to save — try again or sign in.",
+        "directoryNotConfigured": "Directory is not configured.",
+        "thankYou": "Thank you",
+        "contactAgency": "Contact the agency",
+        "startInquiry": "Start an inquiry",
+        "messageInGoodHands": "Your message is in good hands.",
+        "preparedClientAccount": "We also prepared your client account.",
+        "activateAccountAnyTime": "You can activate an account any time.",
+        "talentFallbackName": "Talent",
+        "quickAddPlaceholder": "Search by name or profile code…",
+        "quickAddCouldNotAdd": "Could not add talent",
+        "quickAddAdded": "Added",
+        "cartCouldNotRemove": "Could not remove",
+        "cartRemovedTitle": "Removed",
+        "cartRemovedMessage": "Removed from your inquiry cart.",
+        "sheetDescWithShortlist": "You have talent on your shortlist — add details and we’ll come back to you.",
+        "sheetDescEmptyShortlist": "Tell us what you need, add talent from search below, and send a single brief to the agency.",
+        "sheetLoading": "Loading…",
+        "shortlistTitle": "Shortlist",
+        "shortlistEmptyDescription": "Add at least one published profile to send an inquiry to the agency.",
+        "shortlistEmptyHintBefore": "Use search above or tap ",
+        "shortlistSaveWord": "Save",
+        "shortlistEmptyHintAfter": " on any card in the directory — then complete the form below.",
+        "yourShortlistTitle": "Your shortlist",
+        "profilesInRequestOne": "1 profile in this request",
+        "profilesInRequestMany": "{count} profiles in this request",
+        "messageDetailsTitle": "Message & details",
+        "messageDetailsPaused": "Inquiries are currently paused. Your shortlist stays saved.",
+        "messageDetailsClient": "Signed in — your account is attached to this inquiry.",
+        "messageDetailsGuest": "Guest inquiry — you can create an account later to track requests.",
+        "inquiriesPausedNotice": "New inquiry submissions are temporarily closed. You can keep saving talent and return when the agency reopens requests.",
+        "guestCtaCreateAccount": "Create an account",
+        "guestCtaAfterCreateLink": " to track inquiries, or ",
+        "guestCtaLogIn": "log in",
+        "guestCtaAfterLoginLink": " to attach this to your client profile.",
+        "backToDirectory": "Back to directory",
+        "successInquirySentTitle": "Inquiry sent",
+        "successInquirySentDescription": "Your request reached the agency and the selected talent stayed attached to this inquiry.",
+        "successFollowUpNoEmail": "We’ll follow up by email.",
+        "successFollowUpWithEmail": "We’ll follow up by email at {email}.",
+        "activationEmailMatched": "This email already matches a client account.",
+        "activationBenefits": "Activate or sign in to track requests, view bookings, save favorites, reuse your details next time, and manage multiple client locations faster.",
+        "activateAccountButton": "Activate account",
+        "logInTrackRequestButton": "Log in to track request",
+        "quickAddLabel": "Add talent from the directory",
+        "quickAddSearching": "Searching…",
+        "quickAddNoMatches": "No matches yet.",
+        "quickAddMinCharsHint": "Type at least two characters to search published talent.",
+        "quickAddAdd": "Add",
+        "cartRemove": "Remove",
+        "cartRemoveAria": "Remove {name} from saved",
+        "formSending": "Sending…",
+        "formSubmitInquiry": "Submit inquiry",
+        "formWhatsAppCompose": "Compose in WhatsApp",
+        "formWhatsAppTitleOn": "Open a pre-filled message to Impronta on WhatsApp.",
+        "formWhatsAppTitleOff": "WhatsApp is not configured by the agency yet.",
+        "formLabelYourName": "Your name",
+        "formLabelEmail": "Email",
+        "formLabelPhone": "Phone (optional)",
+        "formLabelCompany": "Company / brand (optional)",
+        "formLabelLookingFor": "What are you looking for? (optional)",
+        "formPlaceholderLookingFor": "Example: bilingual promo models for a luxury hotel launch in Cancun",
+        "formEventTypeNone": "—",
+        "formLabelEventType": "Event type (optional)",
+        "formLabelEventDate": "Event date (optional)",
+        "formLabelEventLocation": "Location (optional)",
+        "formPlaceholderEventLocation": "Cancun, MX",
+        "formLabelQuantity": "Quantity (optional)",
+        "formPlaceholderQuantity": "2",
+        "formLabelBrief": "Brief for the agency",
+        "formPlaceholderBrief": "Dates, location, dress code, languages needed…",
+        "formPrivacyNotice": "By sending this, you contact Impronta only. Talent is not notified directly and does not receive your details."
+      }
+    },
+    "errors": {
+      "saveTalent": "Unable to update saved talent.",
+      "inquiry": "Could not submit inquiry. Try again.",
+      "directoryLoad": "Unable to load directory.",
+      "generic": "Request failed."
+    },
+    "models": {
+      "title": "Models",
+      "body": "Directory and filters will connect here as the platform is built."
+    },
+    "contact": {
+      "title": "Contact",
+      "body": "Inquiry flows and agency contact will live here."
+    }
+  },
+  "dashboard": {
+    "loadingNav": "Loading nav…",
+    "signOut": "Sign out",
+    "exitToSite": "Exit to site",
+    "exit": "Exit",
+    "sheetDashboardTitle": "Dashboard",
+    "menuButton": "Menu",
+    "agencyWorkspace": "Agency workspace",
+    "agencyStaffFallback": "Agency staff",
+    "clientPortalLine": "Client portal · saved talent & requests",
+    "roleAdmin": "Admin",
+    "roleTalent": "Talent",
+    "roleClient": "Client",
+    "roleDashboard": "Dashboard",
+    "noEmail": "No email available",
+    "accountFallback": "Account",
+    "yourAccount": "Your account",
+    "switchWorkspace": "Switch workspace",
+    "workspaceTalentQa": "Talent QA user",
+    "workspaceClientQa": "Client QA user",
+    "workspaceSwitcherHint": "QA preview — read-only",
+    "impersonationActorNote": "Admin session",
+    "impersonationReadOnly": "Viewing as",
+    "impersonationV1ReadOnlyQa": "v1 read-only QA mode — saves and mutations are disabled.",
+    "returnToAdmin": "Return to admin"
+  }
+}

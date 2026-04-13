@@ -1,0 +1,2371 @@
+[
+  {
+    "index": 1,
+    "code": "TAL-91001",
+    "slug": "lucia-navarro",
+    "account_id": "70000000-0000-0000-0000-000000000001",
+    "display_name": "Lucia Navarro",
+    "first_name": "Lucia",
+    "last_name": "Navarro",
+    "short_bio": "Bilingual commercial model based in Cancun with polished hospitality, lifestyle, and resort campaign experience across premium guest-facing events.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-02-01T10:00:00Z",
+    "profile_completeness_score": 100,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "female",
+    "height_cm": 176,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "hazel",
+      "hair_color": "dark_brown",
+      "hair_length": "long",
+      "body_type": "slim",
+      "clothing_size": "s",
+      "shoe_size": "39",
+      "experience_level": "professional",
+      "years_experience": 6,
+      "notable_work": "Resortwear launch campaigns, luxury retail pop-ups, and bilingual hospitality activations in Cancun and Riviera Maya.",
+      "professional_highlights": "Trusted by premium hotel and beauty clients for polished on-camera delivery and guest engagement.",
+      "availability_status": "available_now",
+      "willing_to_travel": true,
+      "travel_scope": "national",
+      "available_for": "Commercial shoots, resort campaigns, bilingual activations, and corporate hospitality work.",
+      "instagram_url": "https://instagram.com/lucia.navarro.demo",
+      "website_url": "https://lucianavarro.demo",
+      "height_cm": 176
+    },
+    "taxonomies": {
+      "talent_type": [
+        "commercial-model"
+      ],
+      "tags": [
+        "bilingual",
+        "professional",
+        "camera-ready"
+      ],
+      "skills": [
+        "modeling",
+        "product-demo",
+        "brand-activation"
+      ],
+      "languages": [
+        "es",
+        "en"
+      ],
+      "industries": [
+        "fashion",
+        "hospitality",
+        "tourism",
+        "beauty"
+      ],
+      "event_types": [
+        "brand-activation",
+        "product-launch",
+        "photoshoot",
+        "corporate-event"
+      ],
+      "fit_labels": [
+        "best-for-events",
+        "best-for-luxury",
+        "best-for-promotions"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 245000,
+        "metadata": {
+          "role": "primary-card"
+        }
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 412000,
+        "metadata": {
+          "role": "hero-banner"
+        }
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 388000,
+        "metadata": {
+          "role": "portfolio"
+        }
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 3,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 401000,
+        "metadata": {
+          "role": "portfolio"
+        }
+      },
+      {
+        "variant_kind": "public_watermarked",
+        "approval_state": "approved",
+        "sort_order": 4,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 275000,
+        "metadata": {
+          "role": "public-proof"
+        }
+      }
+    ],
+    "qa_focus": "Fully complete commercial model with bilingual taxonomy mix, public card/banner/gallery coverage, and high completion baseline.",
+    "coverage_target": "commercial model, bilingual female, fully complete"
+  },
+  {
+    "index": 2,
+    "code": "TAL-91002",
+    "slug": "mateo-silva",
+    "account_id": "70000000-0000-0000-0000-000000000002",
+    "display_name": "Mateo Silva",
+    "first_name": "Mateo",
+    "last_name": "Silva",
+    "short_bio": "Fitness-focused male talent with multilingual booking experience in wellness campaigns, hospitality partnerships, and branded live events.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-02-10T10:00:00Z",
+    "profile_completeness_score": 96,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "playa-del-carmen"
+    ],
+    "gender": "male",
+    "height_cm": 183,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "green",
+      "hair_color": "brown",
+      "hair_length": "short",
+      "body_type": "athletic",
+      "clothing_size": "m",
+      "shoe_size": "43",
+      "experience_level": "experienced",
+      "years_experience": 5,
+      "notable_work": "Fitness apparel launches, beach club content shoots, and wellness retreat campaigns.",
+      "professional_highlights": "Comfortable in Spanish, English, and Portuguese for on-site guest interaction and social content.",
+      "availability_status": "available_this_week",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Fitness campaigns, resort shoots, wellness partnerships, and active lifestyle events.",
+      "instagram_url": "https://instagram.com/mateo.silva.demo",
+      "tiktok_url": "https://tiktok.com/@mateo.silva.demo",
+      "height_cm": 183
+    },
+    "taxonomies": {
+      "talent_type": [
+        "fitness-model"
+      ],
+      "tags": [
+        "multilingual",
+        "travel-ready",
+        "camera-ready"
+      ],
+      "skills": [
+        "fitness",
+        "modeling",
+        "social-media"
+      ],
+      "languages": [
+        "es",
+        "en",
+        "pt"
+      ],
+      "industries": [
+        "fitness",
+        "tourism",
+        "hospitality"
+      ],
+      "event_types": [
+        "photoshoot",
+        "commercial-shoot",
+        "brand-activation"
+      ],
+      "fit_labels": [
+        "best-for-events",
+        "best-for-luxury"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 251000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 390000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 402000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Multilingual fitness profile with strong public readiness, no banner, and travel-heavy availability.",
+    "coverage_target": "fitness male, multilingual"
+  },
+  {
+    "index": 3,
+    "code": "TAL-91003",
+    "slug": "valentina-ruiz",
+    "account_id": "70000000-0000-0000-0000-000000000003",
+    "display_name": "Valentina Ruiz",
+    "first_name": "Valentina",
+    "last_name": "Ruiz",
+    "short_bio": "Actor and host balancing scripted commercial work with elegant bilingual emceeing for launches, panels, and branded guest experiences.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-01-20T10:00:00Z",
+    "profile_completeness_score": 98,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "female",
+    "height_cm": 173,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "brown",
+      "hair_color": "black",
+      "hair_length": "medium",
+      "body_type": "average",
+      "clothing_size": "s",
+      "shoe_size": "38",
+      "experience_level": "professional",
+      "years_experience": 8,
+      "notable_work": "Hosted private luxury dinners and appeared in hospitality commercials and destination content pieces.",
+      "professional_highlights": "Combines on-camera acting with confident live moderation and scripted presentation.",
+      "availability_status": "by_request",
+      "willing_to_travel": true,
+      "travel_scope": "national",
+      "available_for": "Hosting, brand storytelling, interviews, commercial shoots, and live guest-facing events.",
+      "instagram_url": "https://instagram.com/valentina.ruiz.demo",
+      "website_url": "https://valentinaruiz.demo",
+      "youtube_url": "https://youtube.com/@valentinaruizdemo",
+      "height_cm": 173
+    },
+    "taxonomies": {
+      "talent_type": [
+        "actor"
+      ],
+      "tags": [
+        "bilingual",
+        "professional",
+        "premium"
+      ],
+      "skills": [
+        "acting",
+        "hosting",
+        "public-speaking"
+      ],
+      "languages": [
+        "es",
+        "en"
+      ],
+      "industries": [
+        "hospitality",
+        "luxury-events",
+        "entertainment"
+      ],
+      "event_types": [
+        "corporate-event",
+        "private-party",
+        "commercial-shoot",
+        "vip-event"
+      ],
+      "fit_labels": [
+        "best-for-hosting",
+        "best-for-acting",
+        "best-for-events"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 248000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2200,
+        "height": 1100,
+        "file_size": 367000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 365000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "lightbox",
+        "approval_state": "approved",
+        "sort_order": 3,
+        "bucket_id": "media-public",
+        "width": 2048,
+        "height": 2560,
+        "file_size": 520000,
+        "metadata": {
+          "derived_from": "gallery"
+        }
+      }
+    ],
+    "qa_focus": "Actor-plus-host persona exercising mixed entertainment taxonomy, public video links, and richer approved media variants.",
+    "coverage_target": "actor + host"
+  },
+  {
+    "index": 4,
+    "code": "TAL-91004",
+    "slug": "nina-hart",
+    "account_id": "70000000-0000-0000-0000-000000000004",
+    "display_name": "Nina Hart",
+    "first_name": "Nina",
+    "last_name": "Hart",
+    "short_bio": "Social-first influencer talent with strong short-form presence, polished travel content, and conversion-focused branded collaboration experience.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "featured",
+    "membership_status": "active",
+    "is_featured": true,
+    "featured_level": 4,
+    "featured_position": 6,
+    "featured_until": "2026-08-01T00:00:00Z",
+    "listing_started_at": "2026-03-01T10:00:00Z",
+    "profile_completeness_score": 94,
+    "manual_rank_override": null,
+    "location": [
+      "ES",
+      "ibiza"
+    ],
+    "gender": "female",
+    "height_cm": 170,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "blue",
+      "hair_color": "blonde",
+      "hair_length": "long",
+      "body_type": "slim",
+      "clothing_size": "s",
+      "shoe_size": "38",
+      "experience_level": "experienced",
+      "years_experience": 4,
+      "notable_work": "Lifestyle brand reels, beach club partnerships, and travel content collaborations across Ibiza and Mexico.",
+      "professional_highlights": "Delivers creator briefs quickly with strong organic storytelling and social-first pacing.",
+      "availability_status": "available_now",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Influencer campaigns, travel partnerships, launches, and creator-led activations.",
+      "instagram_url": "https://instagram.com/nina.hart.demo",
+      "tiktok_url": "https://tiktok.com/@nina.hart.demo",
+      "website_url": "https://ninahart.demo",
+      "youtube_url": "https://youtube.com/@ninahartdemo",
+      "height_cm": 170
+    },
+    "taxonomies": {
+      "talent_type": [
+        "influencer"
+      ],
+      "tags": [
+        "international",
+        "premium",
+        "camera-ready"
+      ],
+      "skills": [
+        "social-media",
+        "influencer-marketing",
+        "brand-activation"
+      ],
+      "languages": [
+        "en",
+        "es",
+        "it"
+      ],
+      "industries": [
+        "beauty",
+        "fashion",
+        "tourism"
+      ],
+      "event_types": [
+        "product-launch",
+        "promotional-campaign",
+        "vip-event"
+      ],
+      "fit_labels": [
+        "best-for-luxury",
+        "best-for-promotions"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 233000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 421000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 355000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 3,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 362000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "public_watermarked",
+        "approval_state": "approved",
+        "sort_order": 4,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 260000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Social-heavy influencer case with all external links populated and featured/public discovery behavior.",
+    "coverage_target": "influencer, social-heavy"
+  },
+  {
+    "index": 5,
+    "code": "TAL-91005",
+    "slug": "chiara-moretti",
+    "account_id": "70000000-0000-0000-0000-000000000005",
+    "display_name": "Chiara Moretti",
+    "first_name": "Chiara",
+    "last_name": "Moretti",
+    "short_bio": "Runway specialist with editorial polish, clean measurements, and disciplined backstage experience for fashion week, lookbooks, and premium fittings.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-01-15T10:00:00Z",
+    "profile_completeness_score": 97,
+    "manual_rank_override": null,
+    "location": [
+      "ES",
+      "ibiza"
+    ],
+    "gender": "female",
+    "height_cm": 179,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "green",
+      "hair_color": "dark_blonde",
+      "hair_length": "long",
+      "body_type": "slim",
+      "clothing_size": "xs",
+      "shoe_size": "40",
+      "experience_level": "highly_experienced",
+      "years_experience": 9,
+      "notable_work": "Resort runway shows, editorial lookbooks, and designer capsule presentations.",
+      "professional_highlights": "Strong fit-session discipline and fast adaptation for premium styling teams.",
+      "availability_status": "available_this_month",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Runway, fittings, lookbooks, fashion campaigns, and editorial shoots.",
+      "instagram_url": "https://instagram.com/chiara.moretti.demo",
+      "website_url": "https://chiaramoretti.demo",
+      "height_cm": 179
+    },
+    "taxonomies": {
+      "talent_type": [
+        "runway-model"
+      ],
+      "tags": [
+        "premium",
+        "experienced",
+        "camera-ready"
+      ],
+      "skills": [
+        "runway",
+        "modeling"
+      ],
+      "languages": [
+        "it",
+        "en",
+        "es"
+      ],
+      "industries": [
+        "fashion",
+        "luxury-events",
+        "beauty"
+      ],
+      "event_types": [
+        "photoshoot",
+        "luxury-event",
+        "product-launch"
+      ],
+      "fit_labels": [
+        "best-for-fashion",
+        "best-for-luxury"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 239000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 417000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 370000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 3,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 366000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Runway-focused profile with fashion-biased taxonomy and premium public presentation.",
+    "coverage_target": "runway specialist"
+  },
+  {
+    "index": 6,
+    "code": "TAL-91006",
+    "slug": "camila-ortega",
+    "account_id": "70000000-0000-0000-0000-000000000006",
+    "display_name": "Camila Ortega",
+    "first_name": "Camila",
+    "last_name": "Ortega",
+    "short_bio": "Emerging talent building her first polished agency profile with early promo event experience and room for coaching.",
+    "workflow_status": "draft",
+    "visibility": "hidden",
+    "membership_tier": "free",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": null,
+    "profile_completeness_score": 58,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "female",
+    "height_cm": 168,
+    "account_status": "onboarding",
+    "field_values": {
+      "eye_color": "brown",
+      "hair_color": "brown",
+      "hair_length": "medium",
+      "body_type": "average",
+      "clothing_size": "s",
+      "shoe_size": "38",
+      "experience_level": "beginner",
+      "years_experience": 1,
+      "availability_status": "available_now",
+      "willing_to_travel": false,
+      "travel_scope": "local",
+      "available_for": "Intro promotional work and entry-level shoots.",
+      "instagram_url": "https://instagram.com/camila.ortega.demo",
+      "height_cm": 168
+    },
+    "taxonomies": {
+      "talent_type": [
+        "promotional-model"
+      ],
+      "tags": [
+        "new-face",
+        "local-talent"
+      ],
+      "skills": [
+        "promotions"
+      ],
+      "languages": [
+        "es"
+      ],
+      "industries": [
+        "hospitality"
+      ],
+      "event_types": [
+        "brand-activation"
+      ],
+      "fit_labels": [
+        "best-for-promotions"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "pending",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 210000,
+        "metadata": {
+          "staff_notes": "Awaiting final crop approval"
+        }
+      }
+    ],
+    "qa_focus": "Beginner incomplete draft with minimal scalar coverage and pending-only media for submit gating.",
+    "coverage_target": "beginner incomplete"
+  },
+  {
+    "index": 7,
+    "code": "TAL-91007",
+    "slug": "isabella-flores",
+    "account_id": "70000000-0000-0000-0000-000000000007",
+    "display_name": "Isabella Flores",
+    "first_name": "Isabella",
+    "last_name": "Flores",
+    "short_bio": "Premium commercial and luxury-event talent with refined guest-facing presence, consistent delivery, and a fully merchandised profile.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "featured",
+    "membership_status": "active",
+    "is_featured": true,
+    "featured_level": 7,
+    "featured_position": 2,
+    "featured_until": "2026-12-31T00:00:00Z",
+    "listing_started_at": "2026-01-05T10:00:00Z",
+    "profile_completeness_score": 100,
+    "manual_rank_override": 10,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "female",
+    "height_cm": 177,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "hazel",
+      "hair_color": "dark_brown",
+      "hair_length": "long",
+      "body_type": "slim",
+      "clothing_size": "s",
+      "shoe_size": "39",
+      "experience_level": "highly_experienced",
+      "years_experience": 10,
+      "notable_work": "Luxury hotel openings, fine jewelry launches, and VIP brand receptions in Mexico and Spain.",
+      "professional_highlights": "One of the strongest premium presentation benchmarks for hospitality-facing QA demos.",
+      "availability_status": "by_request",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Luxury events, hotel openings, premium campaigns, and executive hosting support.",
+      "instagram_url": "https://instagram.com/isabella.flores.demo",
+      "website_url": "https://isabellaflores.demo",
+      "height_cm": 177
+    },
+    "taxonomies": {
+      "talent_type": [
+        "commercial-model"
+      ],
+      "tags": [
+        "premium",
+        "vip",
+        "featured",
+        "luxury"
+      ],
+      "skills": [
+        "modeling",
+        "hosting",
+        "brand-activation"
+      ],
+      "languages": [
+        "es",
+        "en",
+        "fr"
+      ],
+      "industries": [
+        "luxury-events",
+        "hospitality",
+        "fashion"
+      ],
+      "event_types": [
+        "luxury-event",
+        "vip-event",
+        "product-launch",
+        "private-party"
+      ],
+      "fit_labels": [
+        "best-for-luxury",
+        "best-for-events",
+        "best-for-hosting"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 241000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 430000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 381000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 3,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 389000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "original",
+        "approval_state": "approved",
+        "sort_order": 4,
+        "bucket_id": "media-originals",
+        "width": 3000,
+        "height": 4000,
+        "file_size": 890000,
+        "metadata": {
+          "role": "source-original"
+        }
+      }
+    ],
+    "qa_focus": "Premium complete featured profile with manual rank override and original asset coverage.",
+    "coverage_target": "premium complete / featured"
+  },
+  {
+    "index": 8,
+    "code": "TAL-91008",
+    "slug": "diego-rios",
+    "account_id": "70000000-0000-0000-0000-000000000008",
+    "display_name": "Diego Rios",
+    "first_name": "Diego",
+    "last_name": "Rios",
+    "short_bio": "Draft entertainer profile paused before submission while media and positioning are still being reviewed internally.",
+    "workflow_status": "draft",
+    "visibility": "hidden",
+    "membership_tier": "free",
+    "membership_status": "pending",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": null,
+    "profile_completeness_score": 49,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "playa-del-carmen"
+    ],
+    "gender": "male",
+    "height_cm": 181,
+    "account_status": "onboarding",
+    "field_values": {
+      "eye_color": "dark_brown",
+      "hair_color": "black",
+      "hair_length": "short",
+      "body_type": "athletic",
+      "clothing_size": "m",
+      "shoe_size": "43",
+      "experience_level": "intermediate",
+      "years_experience": 2,
+      "availability_status": "limited",
+      "willing_to_travel": true,
+      "travel_scope": "region",
+      "available_for": "Entertainment support and live event appearances.",
+      "height_cm": 181
+    },
+    "taxonomies": {
+      "talent_type": [
+        "entertainer"
+      ],
+      "tags": [
+        "high-energy"
+      ],
+      "skills": [
+        "stage-performance"
+      ],
+      "languages": [
+        "es"
+      ],
+      "industries": [
+        "entertainment"
+      ],
+      "event_types": [
+        "festival"
+      ],
+      "fit_labels": [
+        "best-for-events"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "pending",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 221000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "rejected",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 350000,
+        "metadata": {
+          "staff_notes": "Motion blur and poor lighting"
+        }
+      }
+    ],
+    "qa_focus": "Hidden draft with a rejected asset to exercise admin media review and non-public preview flows.",
+    "coverage_target": "hidden draft"
+  },
+  {
+    "index": 9,
+    "code": "TAL-91009",
+    "slug": "sara-levy",
+    "account_id": "70000000-0000-0000-0000-000000000009",
+    "display_name": "Sara Levy",
+    "first_name": "Sara",
+    "last_name": "Levy",
+    "short_bio": "Rich under-review profile with strong hospitality and event credentials, prepared for admin cockpit validation before approval.",
+    "workflow_status": "under_review",
+    "visibility": "hidden",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": null,
+    "profile_completeness_score": 91,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "female",
+    "height_cm": 175,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "brown",
+      "hair_color": "dark_brown",
+      "hair_length": "long",
+      "body_type": "athletic",
+      "clothing_size": "s",
+      "shoe_size": "39",
+      "experience_level": "professional",
+      "years_experience": 7,
+      "notable_work": "Corporate receptions, luxury yacht hospitality, and multilingual guest experience projects.",
+      "professional_highlights": "Profile intentionally parked in review with strong completion and broad taxonomy mapping.",
+      "availability_status": "available_this_week",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Luxury hospitality events, corporate receptions, and premium hosting support.",
+      "instagram_url": "https://instagram.com/sara.levy.demo",
+      "website_url": "https://saralevy.demo",
+      "height_cm": 175
+    },
+    "taxonomies": {
+      "talent_type": [
+        "hostess"
+      ],
+      "tags": [
+        "professional",
+        "experienced",
+        "international"
+      ],
+      "skills": [
+        "hosting",
+        "event-support",
+        "public-speaking"
+      ],
+      "languages": [
+        "en",
+        "es",
+        "he"
+      ],
+      "industries": [
+        "hospitality",
+        "luxury-events",
+        "corporate"
+      ],
+      "event_types": [
+        "corporate-event",
+        "vip-event",
+        "luxury-event"
+      ],
+      "fit_labels": [
+        "best-for-hosting",
+        "best-for-corporate",
+        "best-for-luxury"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 247000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "pending",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 418000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 374000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Under-review hidden profile with strong data richness, mixed approval media states, and preview-only access.",
+    "coverage_target": "under review rich profile"
+  },
+  {
+    "index": 10,
+    "code": "TAL-91010",
+    "slug": "adriana-vega",
+    "account_id": "70000000-0000-0000-0000-000000000010",
+    "display_name": "Adriana Vega",
+    "first_name": "Adriana",
+    "last_name": "Vega",
+    "short_bio": "Featured spotlight talent curated for premium homepage and directory placement with high polish across fashion, luxury, and event work.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "featured",
+    "membership_status": "manual_override",
+    "is_featured": true,
+    "featured_level": 9,
+    "featured_position": 1,
+    "featured_until": "2026-09-30T00:00:00Z",
+    "listing_started_at": "2025-12-15T10:00:00Z",
+    "profile_completeness_score": 99,
+    "manual_rank_override": 1,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "female",
+    "height_cm": 178,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "green",
+      "hair_color": "brown",
+      "hair_length": "long",
+      "body_type": "slim",
+      "clothing_size": "s",
+      "shoe_size": "39",
+      "experience_level": "highly_experienced",
+      "years_experience": 11,
+      "notable_work": "Lead talent for luxury brand openings, fashion editorials, and destination resort hero campaigns.",
+      "professional_highlights": "Configured as the top featured spotlight benchmark for card ordering and homepage strips.",
+      "availability_status": "by_request",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Editorials, premium activations, resort campaigns, and executive-facing launches.",
+      "instagram_url": "https://instagram.com/adriana.vega.demo",
+      "website_url": "https://adrianavega.demo",
+      "height_cm": 178
+    },
+    "taxonomies": {
+      "talent_type": [
+        "fashion-model"
+      ],
+      "tags": [
+        "featured",
+        "premium",
+        "luxury",
+        "camera-ready"
+      ],
+      "skills": [
+        "modeling",
+        "runway"
+      ],
+      "languages": [
+        "es",
+        "en",
+        "fr"
+      ],
+      "industries": [
+        "fashion",
+        "luxury-events",
+        "beauty"
+      ],
+      "event_types": [
+        "luxury-event",
+        "photoshoot",
+        "product-launch"
+      ],
+      "fit_labels": [
+        "best-for-fashion",
+        "best-for-luxury"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 243000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 440000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 390000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 3,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 396000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "public_watermarked",
+        "approval_state": "approved",
+        "sort_order": 4,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 268000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Featured spotlight profile for homepage order, directory sort precedence, and premium badge behavior.",
+    "coverage_target": "featured spotlight"
+  },
+  {
+    "index": 11,
+    "code": "TAL-91011",
+    "slug": "eric-watson",
+    "account_id": "70000000-0000-0000-0000-000000000011",
+    "display_name": "Eric Watson",
+    "first_name": "Eric",
+    "last_name": "Watson",
+    "short_bio": "Trade show and corporate presentation talent with polished lead capture habits, product demo fluency, and dependable event stamina.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-02-18T10:00:00Z",
+    "profile_completeness_score": 95,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "male",
+    "height_cm": 182,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "blue",
+      "hair_color": "light_brown",
+      "hair_length": "short",
+      "body_type": "athletic",
+      "clothing_size": "l",
+      "shoe_size": "44",
+      "experience_level": "professional",
+      "years_experience": 6,
+      "notable_work": "Technology expos, corporate summits, and automotive demo floors in Mexico City and Cancun.",
+      "professional_highlights": "Strong CRM lead-capture discipline and professional floor presence for high-volume event settings.",
+      "availability_status": "available_now",
+      "willing_to_travel": true,
+      "travel_scope": "national",
+      "available_for": "Trade shows, conferences, product demos, and corporate launches.",
+      "instagram_url": "https://instagram.com/eric.watson.demo",
+      "height_cm": 182
+    },
+    "taxonomies": {
+      "talent_type": [
+        "trade-show-model"
+      ],
+      "tags": [
+        "corporate-friendly",
+        "professional",
+        "event-specialist"
+      ],
+      "skills": [
+        "product-demo",
+        "sales",
+        "public-speaking",
+        "event-support"
+      ],
+      "languages": [
+        "en",
+        "es"
+      ],
+      "industries": [
+        "corporate",
+        "trade-shows",
+        "technology",
+        "automotive"
+      ],
+      "event_types": [
+        "trade-show",
+        "conference",
+        "expo",
+        "product-launch"
+      ],
+      "fit_labels": [
+        "best-for-trade-shows",
+        "best-for-corporate",
+        "best-for-events"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 232000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 361000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 359000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Corporate and expo use case for directory filtering, event taxonomy, and pragmatic public profile completeness.",
+    "coverage_target": "trade show / corporate talent"
+  },
+  {
+    "index": 12,
+    "code": "TAL-91012",
+    "slug": "luca-ferrari",
+    "account_id": "70000000-0000-0000-0000-000000000012",
+    "display_name": "Luca Ferrari",
+    "first_name": "Luca",
+    "last_name": "Ferrari",
+    "short_bio": "Nightlife DJ talent with crowd-reading instincts, stage comfort, and premium club event experience across destination venues.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-02-22T10:00:00Z",
+    "profile_completeness_score": 92,
+    "manual_rank_override": null,
+    "location": [
+      "ES",
+      "ibiza"
+    ],
+    "gender": "male",
+    "height_cm": 180,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "hazel",
+      "hair_color": "black",
+      "hair_length": "medium",
+      "body_type": "slim",
+      "clothing_size": "m",
+      "shoe_size": "43",
+      "experience_level": "experienced",
+      "years_experience": 7,
+      "notable_work": "Sunset club residencies, boutique hotel pool sets, and branded nightlife launches.",
+      "professional_highlights": "Best suited for nightlife and luxury entertainment programming with strong stage presence.",
+      "availability_status": "by_request",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Club appearances, private parties, luxury nightlife, and music-driven brand events.",
+      "instagram_url": "https://instagram.com/luca.ferrari.demo",
+      "youtube_url": "https://youtube.com/@lucaferraridemo",
+      "height_cm": 180
+    },
+    "taxonomies": {
+      "talent_type": [
+        "dj"
+      ],
+      "tags": [
+        "high-energy",
+        "international",
+        "premium"
+      ],
+      "skills": [
+        "stage-performance",
+        "crowd-engagement"
+      ],
+      "languages": [
+        "it",
+        "en",
+        "es"
+      ],
+      "industries": [
+        "nightlife",
+        "music",
+        "luxury-events"
+      ],
+      "event_types": [
+        "nightclub-event",
+        "festival",
+        "private-party",
+        "vip-event"
+      ],
+      "fit_labels": [
+        "best-for-nightlife",
+        "best-for-events"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 230000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 410000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 352000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Nightlife and DJ taxonomy coverage with performance-oriented media and cross-market languages.",
+    "coverage_target": "nightlife / DJ"
+  },
+  {
+    "index": 13,
+    "code": "TAL-91013",
+    "slug": "mariana-costa",
+    "account_id": "70000000-0000-0000-0000-000000000013",
+    "display_name": "Mariana Costa",
+    "first_name": "Mariana",
+    "last_name": "Costa",
+    "short_bio": "Event hostess with polished guest welcome, registration, and VIP service experience for premium corporate and hospitality settings.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-02-14T10:00:00Z",
+    "profile_completeness_score": 93,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "playa-del-carmen"
+    ],
+    "gender": "female",
+    "height_cm": 174,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "brown",
+      "hair_color": "dark_brown",
+      "hair_length": "long",
+      "body_type": "average",
+      "clothing_size": "s",
+      "shoe_size": "38",
+      "experience_level": "experienced",
+      "years_experience": 5,
+      "notable_work": "Hotel conferences, guest list management, and branded welcome desks for tourism and finance events.",
+      "professional_highlights": "Reliable bilingual hostess profile with practical event-support skills and strong public presentation.",
+      "availability_status": "available_this_week",
+      "willing_to_travel": true,
+      "travel_scope": "region",
+      "available_for": "Conferences, receptions, hospitality desks, and corporate guest support.",
+      "instagram_url": "https://instagram.com/mariana.costa.demo",
+      "height_cm": 174
+    },
+    "taxonomies": {
+      "talent_type": [
+        "hostess"
+      ],
+      "tags": [
+        "bilingual",
+        "professional",
+        "corporate-friendly"
+      ],
+      "skills": [
+        "hosting",
+        "event-support",
+        "public-speaking"
+      ],
+      "languages": [
+        "es",
+        "en",
+        "pt"
+      ],
+      "industries": [
+        "hospitality",
+        "corporate",
+        "tourism"
+      ],
+      "event_types": [
+        "corporate-event",
+        "conference",
+        "vip-event"
+      ],
+      "fit_labels": [
+        "best-for-hosting",
+        "best-for-corporate",
+        "best-for-events"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 228000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 344000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "pending",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 347000,
+        "metadata": {
+          "staff_notes": "Awaiting final retouch"
+        }
+      }
+    ],
+    "qa_focus": "Hostess/events case with mixed approved-pending gallery assets and corporate-friendly taxonomy set.",
+    "coverage_target": "hostess / events"
+  },
+  {
+    "index": 14,
+    "code": "TAL-91014",
+    "slug": "jasmine-brooks",
+    "account_id": "70000000-0000-0000-0000-000000000014",
+    "display_name": "Jasmine Brooks",
+    "first_name": "Jasmine",
+    "last_name": "Brooks",
+    "short_bio": "Dancer and live performer with strong musicality, rehearsed stage discipline, and dynamic festival-to-brand activation range.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-01-28T10:00:00Z",
+    "profile_completeness_score": 94,
+    "manual_rank_override": null,
+    "location": [
+      "ES",
+      "ibiza"
+    ],
+    "gender": "female",
+    "height_cm": 171,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "brown",
+      "hair_color": "black",
+      "hair_length": "long",
+      "body_type": "athletic",
+      "clothing_size": "s",
+      "shoe_size": "39",
+      "experience_level": "professional",
+      "years_experience": 7,
+      "notable_work": "Festival stage sets, residency performances, and choreography support for brand launches.",
+      "professional_highlights": "Combines high-energy performance with professional rehearsal reliability.",
+      "availability_status": "available_this_month",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Stage shows, dance-led brand activations, festivals, and entertainment productions.",
+      "instagram_url": "https://instagram.com/jasmine.brooks.demo",
+      "tiktok_url": "https://tiktok.com/@jasmine.brooks.demo",
+      "youtube_url": "https://youtube.com/@jasminebrooksdemo",
+      "height_cm": 171
+    },
+    "taxonomies": {
+      "talent_type": [
+        "dancer"
+      ],
+      "tags": [
+        "high-energy",
+        "professional",
+        "international"
+      ],
+      "skills": [
+        "dancing",
+        "stage-performance",
+        "crowd-engagement"
+      ],
+      "languages": [
+        "en",
+        "es"
+      ],
+      "industries": [
+        "entertainment",
+        "music",
+        "nightlife"
+      ],
+      "event_types": [
+        "festival",
+        "nightclub-event",
+        "brand-activation"
+      ],
+      "fit_labels": [
+        "best-for-dancing",
+        "best-for-events",
+        "best-for-nightlife"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 235000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 399000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 358000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 3,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 361000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Performer profile for dance- and entertainment-heavy taxonomy plus social/video link surfaces.",
+    "coverage_target": "dancer / performer"
+  },
+  {
+    "index": 15,
+    "code": "TAL-91015",
+    "slug": "noah-klein",
+    "account_id": "70000000-0000-0000-0000-000000000015",
+    "display_name": "Noah Klein",
+    "first_name": "Noah",
+    "last_name": "Klein",
+    "short_bio": "Approved private listing reserved for direct client curation, with full data quality but no public discovery exposure.",
+    "workflow_status": "approved",
+    "visibility": "private",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-02-25T10:00:00Z",
+    "profile_completeness_score": 93,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "male",
+    "height_cm": 184,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "gray",
+      "hair_color": "dark_blonde",
+      "hair_length": "short",
+      "body_type": "athletic",
+      "clothing_size": "l",
+      "shoe_size": "44",
+      "experience_level": "professional",
+      "years_experience": 6,
+      "notable_work": "Curated private hospitality and executive brand events with select agency placement.",
+      "professional_highlights": "Useful for testing approved-but-private access and preview contract behavior.",
+      "availability_status": "limited",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Private bookings, VIP hospitality, executive events, and select campaign work.",
+      "instagram_url": "https://instagram.com/noah.klein.demo",
+      "website_url": "https://noahklein.demo",
+      "height_cm": 184
+    },
+    "taxonomies": {
+      "talent_type": [
+        "brand-ambassador"
+      ],
+      "tags": [
+        "vip",
+        "professional",
+        "travel-ready"
+      ],
+      "skills": [
+        "hosting",
+        "brand-activation",
+        "sales"
+      ],
+      "languages": [
+        "en",
+        "de",
+        "es"
+      ],
+      "industries": [
+        "corporate",
+        "luxury-events",
+        "hospitality"
+      ],
+      "event_types": [
+        "vip-event",
+        "corporate-event",
+        "private-party"
+      ],
+      "fit_labels": [
+        "best-for-corporate",
+        "best-for-luxury"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 229000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 340000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Approved private profile to verify admin/talent access without public directory eligibility.",
+    "coverage_target": "private approved listing"
+  },
+  {
+    "index": 16,
+    "code": "TAL-91016",
+    "slug": "elena-petrov",
+    "account_id": "70000000-0000-0000-0000-000000000016",
+    "display_name": "Elena Petrov",
+    "first_name": "Elena",
+    "last_name": "Petrov",
+    "short_bio": "Archived alum profile kept for historical QA coverage and administrative reference without active discovery.",
+    "workflow_status": "archived",
+    "visibility": "hidden",
+    "membership_tier": "premium",
+    "membership_status": "expired",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2025-04-10T10:00:00Z",
+    "profile_completeness_score": 88,
+    "manual_rank_override": null,
+    "location": [
+      "ES",
+      "ibiza"
+    ],
+    "gender": "female",
+    "height_cm": 176,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "blue",
+      "hair_color": "blonde",
+      "hair_length": "medium",
+      "body_type": "slim",
+      "clothing_size": "s",
+      "shoe_size": "39",
+      "experience_level": "highly_experienced",
+      "years_experience": 12,
+      "notable_work": "Long-running catalog, hospitality, and destination event career archived after alumni transition.",
+      "professional_highlights": "Archived state preserves rich data for admin history and non-live QA paths.",
+      "availability_status": "unavailable",
+      "willing_to_travel": false,
+      "travel_scope": "local",
+      "available_for": "Historical reference only.",
+      "height_cm": 176
+    },
+    "taxonomies": {
+      "talent_type": [
+        "fashion-model"
+      ],
+      "tags": [
+        "experienced",
+        "premium"
+      ],
+      "skills": [
+        "modeling"
+      ],
+      "languages": [
+        "ru",
+        "en",
+        "es"
+      ],
+      "industries": [
+        "fashion",
+        "hospitality"
+      ],
+      "event_types": [
+        "photoshoot"
+      ],
+      "fit_labels": [
+        "best-for-fashion"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 227000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 338000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Archived alum profile for workflow-history, exclusion from discovery, and expired membership handling.",
+    "coverage_target": "archived alum"
+  },
+  {
+    "index": 17,
+    "code": "TAL-91017",
+    "slug": "rafael-ibarra",
+    "account_id": "70000000-0000-0000-0000-000000000017",
+    "display_name": "Rafael Ibarra",
+    "first_name": "Rafael",
+    "last_name": "Ibarra",
+    "short_bio": "Travel-ready international talent comfortable with fast-turn deployments, multilingual guest interaction, and destination event logistics.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-03-05T10:00:00Z",
+    "profile_completeness_score": 95,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "male",
+    "height_cm": 185,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "brown",
+      "hair_color": "black",
+      "hair_length": "short",
+      "body_type": "athletic",
+      "clothing_size": "l",
+      "shoe_size": "44",
+      "experience_level": "professional",
+      "years_experience": 8,
+      "notable_work": "International roadshows, destination launches, and luxury tourism activations across LATAM and Europe.",
+      "professional_highlights": "Strong candidate for travel filters, international tags, and multi-language support.",
+      "availability_status": "available_now",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Roadshows, destination campaigns, travel-heavy events, and international launches.",
+      "instagram_url": "https://instagram.com/rafael.ibarra.demo",
+      "website_url": "https://rafaelibarra.demo",
+      "height_cm": 185
+    },
+    "taxonomies": {
+      "talent_type": [
+        "brand-ambassador"
+      ],
+      "tags": [
+        "international",
+        "travel-ready",
+        "professional"
+      ],
+      "skills": [
+        "brand-activation",
+        "public-speaking",
+        "sales"
+      ],
+      "languages": [
+        "es",
+        "en",
+        "fr",
+        "pt"
+      ],
+      "industries": [
+        "tourism",
+        "luxury-events",
+        "corporate"
+      ],
+      "event_types": [
+        "product-launch",
+        "conference",
+        "vip-event",
+        "promotional-campaign"
+      ],
+      "fit_labels": [
+        "best-for-events",
+        "best-for-luxury",
+        "best-for-corporate"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 236000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 408000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 351000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "International travel-ready profile stressing availability, language breadth, and destination suitability.",
+    "coverage_target": "travel-ready international"
+  },
+  {
+    "index": 18,
+    "code": "TAL-91018",
+    "slug": "alexa-mendez",
+    "account_id": "70000000-0000-0000-0000-000000000018",
+    "display_name": "Alexa Mendez",
+    "first_name": "Alexa",
+    "last_name": "Mendez",
+    "short_bio": "New face talent with a clean starter profile intended to exercise minimal public media and low-density directory cards.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "free_trial",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": "2026-03-20T10:00:00Z",
+    "profile_completeness_score": 74,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "playa-del-carmen"
+    ],
+    "gender": "female",
+    "height_cm": 169,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "hazel",
+      "hair_color": "brown",
+      "hair_length": "medium",
+      "body_type": "slim",
+      "clothing_size": "s",
+      "shoe_size": "38",
+      "experience_level": "beginner",
+      "years_experience": 1,
+      "availability_status": "available_now",
+      "willing_to_travel": false,
+      "travel_scope": "local",
+      "available_for": "Starter shoots, promo support, and local activation work.",
+      "instagram_url": "https://instagram.com/alexa.mendez.demo",
+      "height_cm": 169
+    },
+    "taxonomies": {
+      "talent_type": [
+        "commercial-model"
+      ],
+      "tags": [
+        "new-face",
+        "camera-ready",
+        "local-talent"
+      ],
+      "skills": [
+        "modeling"
+      ],
+      "languages": [
+        "es",
+        "en"
+      ],
+      "industries": [
+        "beauty",
+        "tourism"
+      ],
+      "event_types": [
+        "photoshoot",
+        "brand-activation"
+      ],
+      "fit_labels": [
+        "best-for-promotions"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 218000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "New-face minimal-media profile to validate directory eligibility with card-only coverage.",
+    "coverage_target": "new face, minimal media"
+  },
+  {
+    "index": 19,
+    "code": "TAL-91019",
+    "slug": "daniela-mizrahi",
+    "account_id": "70000000-0000-0000-0000-000000000019",
+    "display_name": "Daniela Mizrahi",
+    "first_name": "Daniela",
+    "last_name": "Mizrahi",
+    "short_bio": "Admin QA profile carrying internal date-of-birth data alongside otherwise standard premium hospitality and event readiness.",
+    "workflow_status": "submitted",
+    "visibility": "hidden",
+    "membership_tier": "premium",
+    "membership_status": "active",
+    "is_featured": false,
+    "featured_level": 0,
+    "featured_position": 0,
+    "featured_until": null,
+    "listing_started_at": null,
+    "profile_completeness_score": 89,
+    "manual_rank_override": null,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "female",
+    "height_cm": 172,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "brown",
+      "hair_color": "dark_brown",
+      "hair_length": "long",
+      "body_type": "average",
+      "clothing_size": "s",
+      "shoe_size": "38",
+      "experience_level": "professional",
+      "years_experience": 6,
+      "notable_work": "Hospitality and private event bookings with multilingual client support.",
+      "professional_highlights": "Includes internal DOB to validate admin-only field behavior and non-public visibility.",
+      "availability_status": "available_this_week",
+      "willing_to_travel": true,
+      "travel_scope": "national",
+      "available_for": "Hospitality, hosting, and premium client-facing events.",
+      "instagram_url": "https://instagram.com/daniela.mizrahi.demo",
+      "date_of_birth": "1996-04-18",
+      "height_cm": 172
+    },
+    "taxonomies": {
+      "talent_type": [
+        "hostess"
+      ],
+      "tags": [
+        "professional",
+        "bilingual"
+      ],
+      "skills": [
+        "hosting",
+        "event-support"
+      ],
+      "languages": [
+        "es",
+        "en",
+        "he"
+      ],
+      "industries": [
+        "hospitality",
+        "luxury-events"
+      ],
+      "event_types": [
+        "vip-event",
+        "private-party",
+        "corporate-event"
+      ],
+      "fit_labels": [
+        "best-for-hosting",
+        "best-for-luxury"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 226000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "pending",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 342000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Admin-only DOB case in submitted state for internal field visibility and review workflows.",
+    "coverage_target": "internal DOB/admin QA case"
+  },
+  {
+    "index": 20,
+    "code": "TAL-91020",
+    "slug": "omar-haddad",
+    "account_id": "70000000-0000-0000-0000-000000000020",
+    "display_name": "Omar Haddad",
+    "first_name": "Omar",
+    "last_name": "Haddad",
+    "short_bio": "Taxonomy stress-test profile intentionally loaded with broad cross-category coverage to pressure filters, previews, and admin editing surfaces.",
+    "workflow_status": "approved",
+    "visibility": "public",
+    "membership_tier": "featured",
+    "membership_status": "active",
+    "is_featured": true,
+    "featured_level": 5,
+    "featured_position": 8,
+    "featured_until": "2026-10-01T00:00:00Z",
+    "listing_started_at": "2026-03-08T10:00:00Z",
+    "profile_completeness_score": 100,
+    "manual_rank_override": 25,
+    "location": [
+      "MX",
+      "cancun"
+    ],
+    "gender": "male",
+    "height_cm": 186,
+    "account_status": "active",
+    "field_values": {
+      "eye_color": "dark_brown",
+      "hair_color": "black",
+      "hair_length": "short",
+      "body_type": "muscular",
+      "clothing_size": "l",
+      "shoe_size": "45",
+      "experience_level": "highly_experienced",
+      "years_experience": 13,
+      "notable_work": "Large-format expos, international roadshows, stage hosting, fashion shoots, nightlife programming, and creator-led campaigns.",
+      "professional_highlights": "Designed to maximize taxonomy density for admin cockpit and directory filter QA.",
+      "availability_status": "available_now",
+      "willing_to_travel": true,
+      "travel_scope": "international",
+      "available_for": "Trade shows, nightlife, hosting, fashion work, campaigns, and multi-market activations.",
+      "instagram_url": "https://instagram.com/omar.haddad.demo",
+      "tiktok_url": "https://tiktok.com/@omar.haddad.demo",
+      "website_url": "https://omarhaddad.demo",
+      "youtube_url": "https://youtube.com/@omarhaddaddemo",
+      "date_of_birth": "1991-11-02",
+      "height_cm": 186
+    },
+    "taxonomies": {
+      "talent_type": [
+        "brand-ambassador"
+      ],
+      "tags": [
+        "international",
+        "travel-ready",
+        "featured",
+        "professional",
+        "camera-ready",
+        "event-specialist"
+      ],
+      "skills": [
+        "hosting",
+        "modeling",
+        "brand-activation",
+        "public-speaking",
+        "product-demo",
+        "sales",
+        "social-media"
+      ],
+      "languages": [
+        "en",
+        "es",
+        "fr",
+        "de",
+        "he"
+      ],
+      "industries": [
+        "corporate",
+        "technology",
+        "trade-shows",
+        "fashion",
+        "luxury-events",
+        "tourism",
+        "entertainment"
+      ],
+      "event_types": [
+        "trade-show",
+        "conference",
+        "product-launch",
+        "vip-event",
+        "promotional-campaign",
+        "photoshoot",
+        "brand-activation"
+      ],
+      "fit_labels": [
+        "best-for-corporate",
+        "best-for-events",
+        "best-for-luxury",
+        "best-for-hosting",
+        "best-for-trade-shows"
+      ]
+    },
+    "media": [
+      {
+        "variant_kind": "card",
+        "approval_state": "approved",
+        "sort_order": 0,
+        "bucket_id": "media-public",
+        "width": 1080,
+        "height": 1350,
+        "file_size": 244000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "banner",
+        "approval_state": "approved",
+        "sort_order": 1,
+        "bucket_id": "media-public",
+        "width": 2400,
+        "height": 1350,
+        "file_size": 425000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 2,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 376000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "gallery",
+        "approval_state": "approved",
+        "sort_order": 3,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 379000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "public_watermarked",
+        "approval_state": "approved",
+        "sort_order": 4,
+        "bucket_id": "media-public",
+        "width": 1600,
+        "height": 2000,
+        "file_size": 271000,
+        "metadata": {}
+      },
+      {
+        "variant_kind": "original",
+        "approval_state": "approved",
+        "sort_order": 5,
+        "bucket_id": "media-originals",
+        "width": 3000,
+        "height": 4000,
+        "file_size": 910000,
+        "metadata": {}
+      }
+    ],
+    "qa_focus": "Taxonomy density stress-test with the broadest set of public/admin-facing data and multiple media variants.",
+    "coverage_target": "taxonomy stress-test profile"
+  }
+]

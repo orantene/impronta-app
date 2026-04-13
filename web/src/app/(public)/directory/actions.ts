@@ -1,0 +1,619 @@
+"use server";
+
+import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { randomBytes } from "crypto";
+import { buildInquiryContext } from "@/lib/inquiries";
+import { getPublicSettings } from "@/lib/public-settings";
+import { logServerError } from "@/lib/server/safe-error";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { createTranslator } from "@/i18n/messages";
+import { getRequestLocale } from "@/i18n/request-locale";
+
+const GUEST_HEADER = "x-impronta-guest";
+
+export type ActionResult = { ok: true } | { ok: false; error: string };
+
+export type InquiryFormState = { error?: string } | undefined;
+
+type GuestClientProvisionResult =
+  | { status: "matched"; clientUserId: string }
+  | { status: "created"; clientUserId: string }
+  | { status: "unlinked"; clientUserId: null };
+
+function generateGuestClientPassword() {
+  return randomBytes(18).toString("base64url");
+}
+
+async function ensureGuestClientByEmail(args: {
+  email: string;
+  name: string;
+  company: string;
+  phone: string;
+}): Promise<GuestClientProvisionResult> {
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  const normalizedEmail = args.email.trim().toLowerCase();
+  const { data: matchRows, error: matchErr } = await admin.rpc("find_auth_user_identity_by_email", {
+    p_email: normalizedEmail,
+  });
+
+  if (matchErr) {
+    logServerError("directory/ensureGuestClientByEmail/find", matchErr);
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  const match = Array.isArray(matchRows) ? matchRows[0] : null;
+  if (match?.user_id) {
+    const role = match.app_role as string | null;
+    if (role === "super_admin" || role === "agency_staff" || role === "talent") {
+      return { status: "unlinked", clientUserId: null };
+    }
+
+    const userId = match.user_id as string;
+    const nextDisplayName = (match.display_name as string | null)?.trim() || args.name;
+    const profilePatch: Record<string, unknown> = {
+      display_name: nextDisplayName,
+      app_role: "client",
+      account_status:
+        match.account_status === "active" ? "active" : "onboarding",
+      updated_at: new Date().toISOString(),
+    };
+    if (match.account_status !== "active") {
+      profilePatch.onboarding_completed_at = null;
+    }
+
+    const { error: profileErr } = await admin
+      .from("profiles")
+      .update(profilePatch)
+      .eq("id", userId);
+
+    if (profileErr) {
+      logServerError("directory/ensureGuestClientByEmail/profileUpdate", profileErr);
+      return { status: "unlinked", clientUserId: null };
+    }
+
+    const { error: clientProfileErr } = await admin
+      .from("client_profiles")
+      .upsert(
+        {
+          user_id: userId,
+          company_name: args.company || null,
+          phone: args.phone || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+
+    if (clientProfileErr) {
+      logServerError("directory/ensureGuestClientByEmail/clientProfileUpsert", clientProfileErr);
+      return { status: "unlinked", clientUserId: null };
+    }
+
+    return { status: "matched", clientUserId: userId };
+  }
+
+  const created = await admin.auth.admin.createUser({
+    email: normalizedEmail,
+    password: generateGuestClientPassword(),
+    email_confirm: true,
+    user_metadata: {
+      full_name: args.name,
+      name: args.name,
+    },
+  });
+
+  if (created.error || !created.data.user?.id) {
+    logServerError("directory/ensureGuestClientByEmail/createUser", created.error);
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  const userId = created.data.user.id;
+
+  const { error: profileErr } = await admin
+    .from("profiles")
+    .update({
+      display_name: args.name,
+      app_role: "client",
+      account_status: "onboarding",
+      onboarding_completed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (profileErr) {
+    logServerError("directory/ensureGuestClientByEmail/profileCreatePatch", profileErr);
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  const { error: clientProfileErr } = await admin
+    .from("client_profiles")
+    .upsert(
+      {
+        user_id: userId,
+        company_name: args.company || null,
+        phone: args.phone || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+
+  if (clientProfileErr) {
+    logServerError("directory/ensureGuestClientByEmail/clientProfileCreate", clientProfileErr);
+    return { status: "unlinked", clientUserId: null };
+  }
+
+  return { status: "created", clientUserId: userId };
+}
+
+function parseInquiryFields(formData: FormData) {
+  const contact_name = String(formData.get("contact_name") ?? "").trim();
+  const contact_email = String(formData.get("contact_email") ?? "").trim();
+  const contact_phone = String(formData.get("contact_phone") ?? "").trim();
+  const company = String(formData.get("company") ?? "").trim();
+  const raw_query = String(formData.get("raw_query") ?? "").trim();
+  const directory_context_raw = String(formData.get("directory_context") ?? "").trim();
+  const event_type_raw = String(formData.get("event_type_id") ?? "").trim();
+  const event_type_id = event_type_raw.length > 0 ? event_type_raw : null;
+  const event_date_raw = String(formData.get("event_date") ?? "").trim();
+  const event_date = event_date_raw.length > 0 ? event_date_raw : null;
+  const event_location = String(formData.get("event_location") ?? "").trim();
+  const quantity_raw = String(formData.get("quantity") ?? "").trim();
+  const quantity_value = Number.parseInt(quantity_raw, 10);
+  const quantity =
+    Number.isFinite(quantity_value) && quantity_value > 0 ? quantity_value : null;
+  const message = String(formData.get("message") ?? "").trim();
+  const source_page = String(formData.get("source_page") ?? "").trim();
+
+  let directory_context:
+    | {
+        q: string | null;
+        locationSlug: string | null;
+        sort: string | null;
+        taxonomyTermIds: string[];
+      }
+    | null = null;
+
+  if (directory_context_raw) {
+    try {
+      const parsed = JSON.parse(directory_context_raw) as {
+        q?: string;
+        locationSlug?: string;
+        sort?: string;
+        taxonomyTermIds?: string[];
+      };
+      directory_context = {
+        q: parsed.q?.trim() || null,
+        locationSlug: parsed.locationSlug?.trim() || null,
+        sort: parsed.sort?.trim() || null,
+        taxonomyTermIds: Array.isArray(parsed.taxonomyTermIds)
+          ? parsed.taxonomyTermIds.filter((item): item is string => typeof item === "string")
+          : [],
+      };
+    } catch {
+      directory_context = null;
+    }
+  }
+
+  return {
+    company,
+    contact_email,
+    contact_name,
+    contact_phone,
+    directory_context,
+    event_date,
+    event_location,
+    event_type_id,
+    message,
+    quantity,
+    raw_query,
+    source_page,
+  };
+}
+
+export async function setTalentSaved(
+  talentProfileId: string,
+  saved: boolean,
+): Promise<ActionResult> {
+  const guestKey = (await headers()).get(GUEST_HEADER);
+  const supabase = await createClient();
+  const pub = createPublicSupabaseClient();
+
+  if (supabase) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      if (saved) {
+        const { error } = await supabase.from("saved_talent").upsert(
+          {
+            client_user_id: user.id,
+            talent_profile_id: talentProfileId,
+          },
+          {
+            onConflict: "client_user_id,talent_profile_id",
+            ignoreDuplicates: true,
+          },
+        );
+        if (error) {
+          logServerError("directory/setTalentSaved/client-insert", error);
+          const t = createTranslator(await getRequestLocale());
+          return { ok: false, error: t("public.errors.saveTalent") };
+        }
+      } else {
+        const { error } = await supabase
+          .from("saved_talent")
+          .delete()
+          .eq("client_user_id", user.id)
+          .eq("talent_profile_id", talentProfileId);
+        if (error) {
+          logServerError("directory/setTalentSaved/client-delete", error);
+          const t = createTranslator(await getRequestLocale());
+          return { ok: false, error: t("public.errors.saveTalent") };
+        }
+      }
+      revalidatePath("/directory");
+      revalidatePath("/client");
+      revalidatePath("/client/saved");
+      return { ok: true };
+    }
+  }
+
+  if (!pub || !guestKey) {
+    const t = createTranslator(await getRequestLocale());
+    return {
+      ok: false,
+      error: t("public.forms.inquiry.unableToSaveTrySignIn"),
+    };
+  }
+
+  if (saved) {
+    const { error } = await pub.rpc("guest_add_saved_talent", {
+      p_session_key: guestKey,
+      p_talent_profile_id: talentProfileId,
+    });
+    if (error) {
+      logServerError("directory/setTalentSaved/guest-add", error);
+      const t = createTranslator(await getRequestLocale());
+      return { ok: false, error: t("public.errors.saveTalent") };
+    }
+  } else {
+    const { error } = await pub.rpc("guest_remove_saved_talent", {
+      p_session_key: guestKey,
+      p_talent_profile_id: talentProfileId,
+    });
+    if (error) {
+      logServerError("directory/setTalentSaved/guest-remove", error);
+      const t = createTranslator(await getRequestLocale());
+      return { ok: false, error: t("public.errors.saveTalent") };
+    }
+  }
+
+  revalidatePath("/directory");
+  revalidatePath("/client/saved");
+  return { ok: true };
+}
+
+export async function submitClientInquiry(
+  _prev: InquiryFormState,
+  formData: FormData,
+): Promise<InquiryFormState> {
+  const t = createTranslator(await getRequestLocale());
+  const publicSettings = await getPublicSettings();
+  if (!publicSettings.inquiriesOpen) {
+    return { error: t("public.forms.inquiry.inquiriesClosed") };
+  }
+
+  const supabase = await createClient();
+  if (!supabase) {
+    return { error: t("public.forms.inquiry.supabaseNotConfigured") };
+  }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: t("public.forms.inquiry.mustBeSignedIn") };
+  }
+
+  const rawIds = formData.get("talent_ids");
+  const talentIds = String(rawIds ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (talentIds.length === 0) {
+    return { error: t("public.forms.inquiry.selectAtLeastOneTalent") };
+  }
+
+  const {
+    company,
+    contact_email,
+    contact_name,
+    contact_phone,
+    directory_context,
+    event_date,
+    event_location,
+    event_type_id,
+    message,
+    quantity,
+    raw_query,
+    source_page,
+  } = parseInquiryFields(formData);
+
+  if (!contact_name || !contact_email) {
+    return { error: t("public.forms.inquiry.nameAndEmailRequired") };
+  }
+
+  const [{ data: talentRows }, { data: eventTypeRow }] = await Promise.all([
+    supabase
+      .from("talent_profiles")
+      .select("id, profile_code, display_name")
+      .in("id", talentIds),
+    event_type_id
+      ? supabase
+          .from("taxonomy_terms")
+          .select("id, name_en")
+          .eq("id", event_type_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const interpreted_query = buildInquiryContext({
+    eventDate: event_date,
+    eventLocation: event_location,
+    eventTypeId: event_type_id,
+    eventTypeName: eventTypeRow?.name_en ?? null,
+    quantity,
+    rawQuery: raw_query,
+    directorySearch: directory_context
+      ? {
+          q: directory_context.q,
+          locationSlug: directory_context.locationSlug,
+          sort: directory_context.sort,
+          taxonomyTermIds: directory_context.taxonomyTermIds,
+        }
+      : null,
+    selectedTalents: (talentRows ?? []).map((talent) => ({
+      id: talent.id,
+      profileCode: talent.profile_code,
+      displayName: talent.display_name,
+    })),
+    sourcePage: source_page || "/directory",
+    submittedVia: "client",
+  });
+
+  const { data: inquiry, error: insErr } = await supabase
+    .from("inquiries")
+    .insert({
+      client_user_id: user.id,
+      contact_name,
+      contact_email,
+      contact_phone: contact_phone || null,
+      company: company || null,
+      event_date,
+      event_location: event_location || null,
+      quantity,
+      message: message || null,
+      event_type_id,
+      raw_ai_query: raw_query || null,
+      interpreted_query,
+      source_page: source_page || "/directory",
+      source_channel: "directory_client" as never,
+      status: "new",
+    })
+    .select("id")
+    .single();
+
+  if (insErr || !inquiry) {
+    if (insErr) logServerError("directory/submitClientInquiry/insert", insErr);
+    return { error: t("public.errors.inquiry") };
+  }
+
+  const rows = talentIds.map((talent_profile_id) => ({
+    inquiry_id: inquiry.id,
+    talent_profile_id,
+  }));
+
+  const { error: linkErr } = await supabase.from("inquiry_talent").insert(rows);
+  if (linkErr) {
+    logServerError("directory/submitClientInquiry/link", linkErr);
+    return { error: t("public.errors.inquiry") };
+  }
+
+  await supabase
+    .from("saved_talent")
+    .delete()
+    .eq("client_user_id", user.id)
+    .in("talent_profile_id", talentIds);
+
+  revalidatePath("/client");
+  revalidatePath("/directory");
+  redirect("/directory?inquiry=submitted");
+}
+
+export async function submitGuestInquiry(
+  _prev: InquiryFormState,
+  formData: FormData,
+): Promise<InquiryFormState> {
+  const t = createTranslator(await getRequestLocale());
+  const publicSettings = await getPublicSettings();
+  if (!publicSettings.inquiriesOpen) {
+    return { error: t("public.forms.inquiry.inquiriesClosed") };
+  }
+
+  const guestKey = (await headers()).get(GUEST_HEADER);
+  const pub = createPublicSupabaseClient();
+  const admin = createServiceRoleClient();
+  if (!pub || !guestKey) {
+    return { error: t("public.forms.inquiry.sessionUnavailable") };
+  }
+
+  const rawIds = formData.get("talent_ids");
+  const talentIds = String(rawIds ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const {
+    company,
+    contact_email,
+    contact_name,
+    contact_phone,
+    directory_context,
+    event_date,
+    event_location,
+    event_type_id,
+    message,
+    quantity,
+    raw_query,
+    source_page,
+  } = parseInquiryFields(formData);
+
+  if (talentIds.length === 0) {
+    return { error: t("public.forms.inquiry.selectAtLeastOneTalent") };
+  }
+
+  if (!contact_name || !contact_email) {
+    return { error: t("public.forms.inquiry.nameAndEmailRequired") };
+  }
+
+  const [{ data: talentRows }, { data: eventTypeRow }] = await Promise.all([
+    pub
+      .from("talent_profiles")
+      .select("id, profile_code, display_name")
+      .in("id", talentIds),
+    event_type_id
+      ? pub
+          .from("taxonomy_terms")
+          .select("id, name_en")
+          .eq("id", event_type_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const interpreted_query = buildInquiryContext({
+    eventDate: event_date,
+    eventLocation: event_location,
+    eventTypeId: event_type_id,
+    eventTypeName: eventTypeRow?.name_en ?? null,
+    quantity,
+    rawQuery: raw_query,
+    directorySearch: directory_context
+      ? {
+          q: directory_context.q,
+          locationSlug: directory_context.locationSlug,
+          sort: directory_context.sort,
+          taxonomyTermIds: directory_context.taxonomyTermIds,
+        }
+      : null,
+    selectedTalents: (talentRows ?? []).map((talent) => ({
+      id: talent.id,
+      profileCode: talent.profile_code,
+      displayName: talent.display_name,
+    })),
+    sourcePage: source_page || "/directory",
+    submittedVia: "guest",
+  });
+
+  if (!admin) {
+    const { data: inquiryId, error } = await pub.rpc("guest_submit_inquiry", {
+      p_session_key: guestKey,
+      p_contact_name: contact_name,
+      p_contact_email: contact_email,
+      p_contact_phone: contact_phone || null,
+      p_company: company || null,
+      p_event_type_id: event_type_id,
+      p_event_date: event_date,
+      p_event_location: event_location || null,
+      p_quantity: quantity,
+      p_message: message || null,
+      p_raw_ai_query: raw_query || null,
+      p_interpreted_query: interpreted_query,
+      p_source_page: source_page || "/directory",
+      p_talent_ids: talentIds,
+    });
+
+    if (error) {
+      logServerError("directory/submitGuestInquiry/rpc", error);
+      return { error: t("public.errors.inquiry") };
+    }
+
+    if (!inquiryId) {
+      return { error: t("public.errors.inquiry") };
+    }
+
+    revalidatePath("/directory");
+    redirect(
+      `/directory?inquiry=submitted&activation=unlinked&email=${encodeURIComponent(contact_email.toLowerCase())}`,
+    );
+  }
+
+  const { data: guestSession, error: guestErr } = await admin
+    .from("guest_sessions")
+    .select("id")
+    .eq("session_key", guestKey)
+    .maybeSingle();
+
+  if (guestErr || !guestSession?.id) {
+    logServerError("directory/submitGuestInquiry/guestSession", guestErr);
+    return { error: t("public.errors.inquiry") };
+  }
+
+  const guestClient = await ensureGuestClientByEmail({
+    email: contact_email,
+    name: contact_name,
+    company,
+    phone: contact_phone,
+  });
+
+  const { data: inquiry, error: inquiryErr } = await admin
+    .from("inquiries")
+    .insert({
+      guest_session_id: guestSession.id,
+      client_user_id: guestClient.clientUserId,
+      contact_name,
+      contact_email: contact_email.toLowerCase(),
+      contact_phone: contact_phone || null,
+      company: company || null,
+      event_date,
+      event_location: event_location || null,
+      quantity,
+      message: message || null,
+      event_type_id,
+      raw_ai_query: raw_query || null,
+      interpreted_query,
+      source_page: source_page || "/directory",
+      source_channel: "directory_guest" as never,
+      status: "new",
+    })
+    .select("id")
+    .single();
+
+  if (inquiryErr || !inquiry) {
+    logServerError("directory/submitGuestInquiry/insert", inquiryErr);
+    return { error: t("public.errors.inquiry") };
+  }
+
+  const linkRows = talentIds.map((talent_profile_id, index) => ({
+    inquiry_id: inquiry.id,
+    talent_profile_id,
+    sort_order: index,
+  }));
+
+  const { error: linkErr } = await admin.from("inquiry_talent").insert(linkRows);
+  if (linkErr) {
+    logServerError("directory/submitGuestInquiry/link", linkErr);
+    return { error: t("public.errors.inquiry") };
+  }
+
+  revalidatePath("/directory");
+  redirect(
+    `/directory?inquiry=submitted&activation=${guestClient.status}&email=${encodeURIComponent(contact_email.toLowerCase())}`,
+  );
+}

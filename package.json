@@ -1,0 +1,14 @@
+{
+  "name": "impronta-app",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "build": "npm --prefix web run build",
+    "start": "npm --prefix web run start",
+    "lint": "npm --prefix web run lint",
+    "typecheck": "npm --prefix web run typecheck",
+    "ci": "npm --prefix web run ci",
+    "test:auth-routing": "npm --prefix web run test:auth-routing",
+    "create:test-clients": "npm --prefix web run create:test-clients"
+  }
+}

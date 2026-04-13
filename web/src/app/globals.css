@@ -1,0 +1,233 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand aliases (used by directory + legacy utilities) */
+  --impronta-black: #0a0a0a;
+  --impronta-surface: #0f0f0f;
+  --impronta-gold: #c9a227;
+  --impronta-gold-bright: #d4af37;
+  --impronta-gold-dim: #9a7b2c;
+  --impronta-gold-border: rgba(201, 162, 39, 0.18);
+  --impronta-foreground: #f4f4f5;
+  --impronta-muted: #a1a1aa;
+
+  /* shadcn semantic */
+  --background: var(--impronta-black);
+  --foreground: var(--impronta-foreground);
+
+  --card: var(--impronta-surface);
+  --card-foreground: #f4f4f5;
+
+  /* Elevated surfaces (menus, sheets): warmer + lighter than page so they don’t read as a void */
+  --popover: #3d3932;
+  --popover-foreground: #f4f4f5;
+
+  --primary: var(--impronta-gold);
+  --primary-foreground: #0a0a0a;
+
+  --secondary: #18181b;
+  --secondary-foreground: #f4f4f5;
+
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+
+  --accent: rgba(201, 162, 39, 0.09);
+  --accent-foreground: #fafafa;
+
+  --destructive: #991b1b;
+  --destructive-foreground: #fef2f2;
+
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.07);
+  --ring: var(--impronta-gold-bright);
+
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-body-sans);
+  --font-display: var(--font-cinzel);
+  --font-mono: var(--font-geist-mono);
+
+  --text-m: 1rem;
+  --text-m--line-height: 1.5rem;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body-sans), system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  letter-spacing: -0.01em;
+}
+
+@layer utilities {
+  .site-theme-dark {
+    --impronta-black: #0a0a0a;
+    --impronta-surface: #0f0f0f;
+    --impronta-gold: #c9a227;
+    --impronta-gold-bright: #d4af37;
+    --impronta-gold-dim: #9a7b2c;
+    --impronta-gold-border: rgba(201, 162, 39, 0.18);
+    --impronta-foreground: #f4f4f5;
+    --impronta-muted: #a1a1aa;
+    --background: var(--impronta-black);
+    --foreground: var(--impronta-foreground);
+    --card: var(--impronta-surface);
+    --card-foreground: #f4f4f5;
+    --popover: #3d3932;
+    --popover-foreground: #f4f4f5;
+    --primary: var(--impronta-gold);
+    --primary-foreground: #0a0a0a;
+    --secondary: #18181b;
+    --secondary-foreground: #f4f4f5;
+    --muted: #18181b;
+    --muted-foreground: #a1a1aa;
+    --accent: rgba(201, 162, 39, 0.09);
+    --accent-foreground: #fafafa;
+    --destructive: #991b1b;
+    --destructive-foreground: #fef2f2;
+    --border: rgba(255, 255, 255, 0.06);
+    --input: rgba(255, 255, 255, 0.07);
+    --ring: var(--impronta-gold-bright);
+  }
+
+  .site-theme-light {
+    --impronta-black: #faf7f0;
+    --impronta-surface: #fffdf9;
+    --impronta-gold: #96731a;
+    --impronta-gold-bright: #b3891d;
+    --impronta-gold-dim: #826827;
+    --impronta-gold-border: rgba(150, 115, 26, 0.18);
+    --impronta-foreground: #231d10;
+    --impronta-muted: #746957;
+    --background: var(--impronta-black);
+    --foreground: var(--impronta-foreground);
+    --card: var(--impronta-surface);
+    --card-foreground: #231d10;
+    --popover: #fffdf9;
+    --popover-foreground: #231d10;
+    --primary: #8d6f1d;
+    --primary-foreground: #fffaf0;
+    --secondary: #eee7d8;
+    --secondary-foreground: #231d10;
+    --muted: #f2ede2;
+    --muted-foreground: #746957;
+    --accent: rgba(150, 115, 26, 0.1);
+    --accent-foreground: #231d10;
+    --destructive: #b42318;
+    --destructive-foreground: #fff5f5;
+    --border: rgba(35, 29, 16, 0.08);
+    --input: rgba(35, 29, 16, 0.08);
+    --ring: #b3891d;
+  }
+
+  .dashboard-theme-dark {
+    --impronta-black: #0a0a0a;
+    --impronta-surface: #0f0f0f;
+    --impronta-gold: #c9a227;
+    --impronta-gold-bright: #d4af37;
+    --impronta-gold-dim: #9a7b2c;
+    --impronta-gold-border: rgba(201, 162, 39, 0.18);
+    --impronta-foreground: #f4f4f5;
+    --impronta-muted: #a1a1aa;
+    --background: var(--impronta-black);
+    --foreground: var(--impronta-foreground);
+    --card: var(--impronta-surface);
+    --card-foreground: #f4f4f5;
+    --popover: #3d3932;
+    --popover-foreground: #f4f4f5;
+    --primary: var(--impronta-gold);
+    --primary-foreground: #0a0a0a;
+    --secondary: #18181b;
+    --secondary-foreground: #f4f4f5;
+    --muted: #18181b;
+    --muted-foreground: #a1a1aa;
+    --accent: rgba(201, 162, 39, 0.09);
+    --accent-foreground: #fafafa;
+    --destructive: #991b1b;
+    --destructive-foreground: #fef2f2;
+    --border: rgba(255, 255, 255, 0.06);
+    --input: rgba(255, 255, 255, 0.07);
+    --ring: var(--impronta-gold-bright);
+  }
+
+  .dashboard-theme-light {
+    --impronta-black: #f7f4ec;
+    --impronta-surface: #fffdf8;
+    --impronta-gold: #9b7a21;
+    --impronta-gold-bright: #b18a24;
+    --impronta-gold-dim: #7b6424;
+    --impronta-gold-border: rgba(155, 122, 33, 0.18);
+    --impronta-foreground: #231d10;
+    --impronta-muted: #7a6f58;
+    --background: var(--impronta-black);
+    --foreground: var(--impronta-foreground);
+    --card: var(--impronta-surface);
+    --card-foreground: #231d10;
+    --popover: rgba(255, 253, 248, 1);
+    --popover-foreground: #231d10;
+    --primary: #8d6f1d;
+    --primary-foreground: #fffaf0;
+    --secondary: #efe9da;
+    --secondary-foreground: #231d10;
+    --muted: #f2ede2;
+    --muted-foreground: #7a6f58;
+    --accent: rgba(155, 122, 33, 0.1);
+    --accent-foreground: #231d10;
+    --destructive: #b42318;
+    --destructive-foreground: #fff5f5;
+    --border: rgba(35, 29, 16, 0.09);
+    --input: rgba(35, 29, 16, 0.08);
+    --ring: #b18a24;
+  }
+
+  .font-display {
+    font-family: var(--font-cinzel), ui-serif, Georgia, serif;
+  }
+}
+
+/* Subtle motion only — never start from opacity:0 + fill-mode:both (can leave content invisible). */
+@keyframes dashboard-segment-in {
+  from {
+    transform: translateY(6px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-dashboard-segment-in {
+  animation: dashboard-segment-in 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-dashboard-segment-in {
+    animation: none;
+  }
+}
