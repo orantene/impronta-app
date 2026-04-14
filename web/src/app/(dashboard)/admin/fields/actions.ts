@@ -16,6 +16,7 @@ export type FieldAdminActionState = { error?: string; success?: boolean } | unde
 
 function revalidateFieldAdminSurfaces() {
   revalidatePath("/admin/fields");
+  revalidatePath("/admin/directory/filters");
   revalidatePath("/talent/my-profile");
   revalidatePath("/talent/overview");
   revalidatePath("/talent/status");
@@ -574,6 +575,7 @@ export async function updateFieldDefinition(
     "preview_visible",
     "profile_visible",
     "filterable",
+    "directory_filter_visible",
     "searchable",
     "ai_visible",
     "editable_by_talent",

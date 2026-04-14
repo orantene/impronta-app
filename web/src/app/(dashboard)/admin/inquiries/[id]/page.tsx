@@ -535,7 +535,7 @@ export default async function AdminInquiryDetailPage({
 
         {/* Location */}
         <DashboardSectionCard
-          title="Client Location"
+          title="Work Location"
           description="Place or business this work is for."
           titleClassName={ADMIN_SECTION_TITLE_CLASS}
         >

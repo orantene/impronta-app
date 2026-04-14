@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impronta – Home Page Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design tokens (mirrors globals.css) ── */
+    :root {
+      --impronta-gold: #c9a227;
+      --impronta-gold-dim: rgba(201,162,39,0.55);
+      --impronta-gold-border: rgba(201,162,39,0.18);
+      --impronta-surface: #1a1a1a;
+      --impronta-muted: rgba(244,244,245,0.45);
+      --foreground: #f4f4f5;
+      --background: #0f0f0f;
+      --border: rgba(255,255,255,0.08);
+      --radius: 0.75rem;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Raleway', sans-serif;
+      background: var(--background);
+      color: var(--foreground);
+      min-height: 100vh;
+    }
+
+    .font-display { font-family: 'Cinzel', serif; }
+    .gold { color: var(--impronta-gold); }
+    .gold-dim { color: var(--impronta-gold-dim); }
+    .muted { color: var(--impronta-muted); }
+
+    /* ── Improvement badges ── */
+    .improvement-badge {
+      display: inline-block;
+      background: rgba(201,162,39,0.15);
+      border: 1px solid rgba(201,162,39,0.35);
+      color: var(--impronta-gold);
+      font-family: 'Raleway', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(16px);
+      background: rgba(15,15,15,0.85);
+      border-bottom: 1px solid var(--impronta-gold-border);
+      padding: 0 1.5rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    nav .brand { font-family: 'Cinzel', serif; font-size: 1.1rem; letter-spacing: 0.25em; color: var(--foreground); text-decoration: none; }
+    nav .nav-right { display: flex; align-items: center; gap: 1rem; }
+    nav .nav-right a { color: var(--impronta-muted); font-size: 0.85rem; text-decoration: none; transition: color 0.2s; }
+    nav .nav-right a:hover { color: var(--foreground); }
+    .btn-nav {
+      border: 1px solid var(--impronta-gold-border);
+      background: transparent;
+      color: var(--foreground);
+      font-family: 'Raleway', sans-serif;
+      font-size: 0.8rem;
+      padding: 0.35rem 0.9rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-nav:hover { border-color: var(--impronta-gold); color: var(--impronta-gold); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 5rem 1.5rem 3rem;
+      text-align: center;
+    }
+    .hero-gradient {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(212,175,55,0.12), transparent);
+      pointer-events: none;
+    }
+    .hero-kicker {
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--impronta-gold-dim);
+    }
+    .hero-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 400;
+      line-height: 1.25;
+      letter-spacing: 0.06em;
+      margin-top: 1.25rem;
+      max-width: 680px;
+    }
+    .hero-subtitle {
+      margin-top: 1rem;
+      font-size: 1rem;
+      color: var(--impronta-muted);
+      max-width: 480px;
+      line-height: 1.6;
+    }
+
+    /* ── SEARCH ── IMPROVEMENT: icon-only button on mobile ── */
+    .search-wrap {
+      margin-top: 2.5rem;
+      width: 100%;
+      max-width: 600px;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      height: 56px;
+      border-radius: 0.75rem;
+      border: 1px solid var(--impronta-gold-border);
+      background: var(--impronta-surface);
+      color: var(--foreground);
+      font-family: 'Raleway', sans-serif;
+      font-size: 1rem;
+      padding: 0 3.5rem 0 3rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--impronta-gold);
+      box-shadow: 0 0 0 3px rgba(201,162,39,0.12);
+    }
+    .search-input::placeholder { color: var(--impronta-muted); }
+    .search-icon {
+      position: absolute;
+      left: 0.875rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--impronta-gold-dim);
+      width: 18px;
+    }
+    /* Mobile: icon-only button; Desktop: text + icon */
+    .search-btn {
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--impronta-gold);
+      color: #0f0f0f;
+      font-family: 'Raleway', sans-serif;
+      font-weight: 600;
+      border: none;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .search-btn:hover { opacity: 0.9; }
+    .search-btn .btn-text-label { display: none; }
+    .search-btn { padding: 0.5rem 0.65rem; }
+    @media (min-width: 480px) {
+      .search-btn { padding: 0.5rem 1.1rem; }
+      .search-btn .btn-text-label { display: inline; font-size: 0.875rem; }
+      .search-input { padding-right: 7rem; }
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      max-width: 1152px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+    .divider hr { border: none; border-top: 1px solid var(--impronta-gold-border); }
+
+    /* ── SECTION SHELL ── */
+    .section {
+      width: 100%;
+      padding: 2.5rem 1.25rem;
+      max-width: 1152px;
+      margin: 0 auto;
+    }
+    @media (min-width: 640px) {
+      .section { padding: 4rem 1.5rem; }
+    }
+    .section-kicker {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--impronta-gold-dim);
+    }
+    .section-kicker.center { text-align: center; }
+    .section-title {
+      font-size: clamp(1.35rem, 3vw, 1.85rem);
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      color: var(--foreground);
+      margin-top: 0.5rem;
+    }
+    .section-title.center { text-align: center; }
+
+    /* ── IMPROVEMENT 3: TALENT TYPE SHORTCUTS – horizontal scroll on mobile ── */
+    .shortcuts-outer {
+      margin: 1.75rem -1.25rem 0;
+      overflow-x: auto;
+      padding: 0 1.25rem 0.5rem;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .shortcuts-outer::-webkit-scrollbar { display: none; }
+    .shortcuts-inner {
+      display: flex;
+      gap: 0.65rem;
+      width: max-content;
+    }
+    @media (min-width: 640px) {
+      .shortcuts-outer {
+        overflow-x: visible;
+        margin: 1.75rem 0 0;
+        padding: 0;
+      }
+      .shortcuts-inner {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: auto;
+        gap: 0.85rem;
+      }
+    }
+    .shortcut-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      border: 1px solid var(--impronta-gold-border);
+      background: var(--impronta-surface);
+      color: var(--foreground);
+      padding: 0.55rem 1.1rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .shortcut-pill:hover {
+      border-color: rgba(201,162,39,0.4);
+      background: rgba(201,162,39,0.05);
+      color: var(--impronta-gold);
+    }
+    .shortcut-pill svg { color: var(--impronta-gold-dim); }
+    .shortcut-pill:hover svg { color: var(--impronta-gold); }
+
+    /* ── IMPROVEMENT 4: FEATURED – hide cards 5-8 on mobile ── */
+    .featured-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin-top: 2rem;
+    }
+    @media (min-width: 768px) { .featured-grid { grid-template-columns: repeat(3, 1fr); gap: 1rem; } }
+    @media (min-width: 1024px) { .featured-grid { grid-template-columns: repeat(4, 1fr); } }
+
+    .talent-card {
+      border-radius: 0.625rem;
+      overflow: hidden;
+      background: var(--impronta-surface);
+      text-decoration: none;
+      display: block;
+      position: relative;
+    }
+    /* Hide cards 5-8 on mobile */
+    .talent-card.mobile-hidden { display: none; }
+    @media (min-width: 640px) { .talent-card.mobile-hidden { display: block; } }
+
+    .talent-card-img {
+      aspect-ratio: 3/4;
+      background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      color: var(--impronta-muted);
+      position: relative;
+      overflow: hidden;
+    }
+    .talent-avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .talent-card-body { padding: 0.75rem 0.875rem; }
+    .talent-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.825rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      color: var(--foreground);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .talent-meta { font-size: 0.775rem; color: var(--impronta-muted); margin-top: 2px; }
+
+    .featured-row-below {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1.25rem;
+    }
+    .view-all-btn {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      color: var(--impronta-muted);
+      background: transparent;
+      border: none;
+      font-family: 'Raleway', sans-serif;
+      font-size: 0.825rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .view-all-btn:hover { color: var(--impronta-gold); }
+    @media (min-width: 640px) { .view-all-btn { display: flex; } }
+    .view-all-mobile {
+      display: block;
+      margin: 1.25rem auto 0;
+      border: 1px solid var(--impronta-gold-border);
+      background: transparent;
+      color: var(--foreground);
+      font-family: 'Raleway', sans-serif;
+      font-size: 0.825rem;
+      padding: 0.5rem 1.25rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .view-all-mobile:hover { border-color: var(--impronta-gold); color: var(--impronta-gold); }
+    @media (min-width: 640px) { .view-all-mobile { display: none; } }
+
+    /* ── IMPROVEMENT 1: BEST FOR – collapse after 6 ── */
+    .best-for-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.625rem;
+      margin-top: 2rem;
+    }
+    @media (min-width: 640px) { .best-for-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 1024px) { .best-for-grid { grid-template-columns: repeat(3, 1fr); } }
+
+    .best-for-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid var(--impronta-gold-border);
+      background: var(--impronta-surface);
+      padding: 1.1rem 1.25rem;
+      border-radius: 0.625rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .best-for-card:hover {
+      border-color: rgba(201,162,39,0.4);
+      background: rgba(201,162,39,0.05);
+    }
+    .best-for-card:hover .bf-label { color: var(--impronta-gold); }
+    .best-for-card:hover .bf-arrow { color: var(--impronta-gold); transform: translateX(3px); }
+    .bf-label { font-size: 0.9rem; font-weight: 500; color: var(--foreground); transition: color 0.2s; }
+    .bf-arrow { color: var(--impronta-gold-dim); transition: all 0.2s; flex-shrink: 0; }
+
+    /* Hidden rows when collapsed */
+    .best-for-card.hidden-row { display: none; }
+    .best-for-card.hidden-row.expanded { display: flex; }
+
+    .show-more-btn {
+      display: block;
+      margin: 1.25rem auto 0;
+      background: transparent;
+      border: 1px solid var(--impronta-gold-border);
+      color: var(--impronta-muted);
+      font-family: 'Raleway', sans-serif;
+      font-size: 0.825rem;
+      padding: 0.5rem 1.5rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 1.25rem auto 0;
+    }
+    .show-more-btn:hover { border-color: var(--impronta-gold); color: var(--impronta-gold); }
+
+    /* ── IMPROVEMENT 2: LOCATION – horizontal scroll on mobile ── */
+    .location-scroll-outer {
+      margin: 2rem -1.25rem 0;
+      overflow-x: auto;
+      padding: 0 1.25rem 0.75rem;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .location-scroll-outer::-webkit-scrollbar { display: none; }
+    .location-scroll-inner {
+      display: flex;
+      gap: 0.65rem;
+      width: max-content;
+    }
+    @media (min-width: 640px) {
+      .location-scroll-outer {
+        overflow-x: visible;
+        margin: 2rem 0 0;
+        padding: 0;
+      }
+      .location-scroll-inner {
+        flex-wrap: wrap;
+        justify-content: center;
+        width: auto;
+        gap: 1rem;
+      }
+    }
+    .location-card {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      border: 1px solid var(--impronta-gold-border);
+      background: var(--impronta-surface);
+      padding: 0.7rem 1.1rem;
+      border-radius: 0.75rem;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .location-card:hover {
+      border-color: rgba(201,162,39,0.4);
+      background: rgba(201,162,39,0.05);
+    }
+    .location-card:hover .loc-name { color: var(--impronta-gold); }
+    .loc-name { font-size: 0.875rem; font-weight: 500; transition: color 0.2s; }
+    .loc-count { font-size: 0.75rem; color: var(--impronta-muted); margin-top: 1px; }
+
+    /* ── IMPROVEMENT 6: HOW IT WORKS – step numbers ── */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      margin-top: 2.5rem;
+    }
+    @media (min-width: 640px) { .steps-grid { grid-template-columns: repeat(3, 1fr); } }
+    .step { text-align: center; }
+    .step-number {
+      font-family: 'Cinzel', serif;
+      font-size: 0.65rem;
+      letter-spacing: 0.3em;
+      color: var(--impronta-gold-dim);
+      margin-bottom: 0.625rem;
+    }
+    .step-icon-wrap {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 1px solid var(--impronta-gold-border);
+      background: rgba(201,162,39,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+      color: var(--impronta-gold);
+    }
+    .step-title { margin-top: 1.1rem; font-size: 0.95rem; font-weight: 600; color: var(--foreground); }
+    .step-body { margin-top: 0.5rem; font-size: 0.875rem; color: var(--impronta-muted); line-height: 1.6; }
+
+    /* ── CTA ── */
+    .cta-section {
+      width: 100%;
+      padding: 4rem 1.5rem 5rem;
+      text-align: center;
+    }
+    .cta-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.3rem, 3vw, 1.75rem);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      color: var(--foreground);
+    }
+    .cta-body { margin-top: 0.875rem; font-size: 0.9rem; color: var(--impronta-muted); }
+    .cta-btns { margin-top: 2rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--impronta-gold);
+      color: #0f0f0f;
+      border: none;
+      padding: 0.75rem 2rem;
+      border-radius: 0.5rem;
+      font-family: 'Raleway', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-outline {
+      background: transparent;
+      color: var(--foreground);
+      border: 1px solid var(--impronta-gold-border);
+      padding: 0.75rem 2rem;
+      border-radius: 0.5rem;
+      font-family: 'Raleway', sans-serif;
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--impronta-gold); color: var(--impronta-gold); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      color: var(--impronta-muted);
+      font-size: 0.825rem;
+    }
+    footer .footer-brand {
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.25em;
+      font-size: 1rem;
+      color: var(--foreground);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── Annotation tooltip ── */
+    .annotation {
+      background: rgba(201,162,39,0.1);
+      border: 1px dashed rgba(201,162,39,0.3);
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.7rem;
+      color: var(--impronta-gold);
+      margin-bottom: 1rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ── SVG icons (inline) ── */
+    svg { display: inline-block; }
+
+    /* ── Scroll hint arrow ── */
+    .scroll-hint {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.7rem;
+      color: var(--impronta-gold-dim);
+      margin-top: 0.4rem;
+    }
+    @media (min-width: 640px) { .scroll-hint { display: none; } }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <a class="brand" href="#">IMPRONTA</a>
+  <div class="nav-right">
+    <a href="#">Directory</a>
+    <a href="#">EN</a>
+    <button class="btn-nav">Login</button>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-gradient"></div>
+  <p class="hero-kicker font-display">Premium Talent Agency</p>
+  <h1 class="hero-title font-display">
+    Book the <span class="gold">Perfect Talent</span> for Your Event
+  </h1>
+  <p class="hero-subtitle">
+    Discover professional models, hostesses, brand ambassadors, and more — curated for every occasion.
+  </p>
+
+  <!-- IMPROVEMENT 6: Icon-only search button on mobile -->
+  <div class="search-wrap">
+    <div class="annotation">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      Improvement: icon-only submit button on mobile → full text on ≥480px
+    </div>
+    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input class="search-input" type="text" placeholder="e.g. Bilingual hostesses in Miami for a product launch…" />
+    <button class="search-btn">
+      <!-- Icon always shown -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <!-- Text only on ≥480px -->
+      <span class="btn-text-label">Search</span>
+    </button>
+  </div>
+</section>
+
+<!-- ── TALENT TYPE SHORTCUTS ── -->
+<div class="section">
+  <p class="section-kicker center font-display">
+    Browse by Type
+    <span class="improvement-badge">Improvement</span>
+  </p>
+
+  <div class="annotation" style="margin: 0.75rem auto 0; display: flex; width: fit-content;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    Horizontal scroll on mobile — swipe right to see all types. Wraps on desktop.
+  </div>
+  <div class="scroll-hint" style="justify-content: center;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    Swipe to see more
+  </div>
+
+  <div class="shortcuts-outer">
+    <div class="shortcuts-inner">
+      <a class="shortcut-pill" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        Models
+      </a>
+      <a class="shortcut-pill" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Hostesses
+      </a>
+      <a class="shortcut-pill" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Promotional Models
+      </a>
+      <a class="shortcut-pill" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+        Brand Ambassadors
+      </a>
+      <a class="shortcut-pill" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Dancers
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="divider"><hr /></div>
+
+<!-- ── FEATURED TALENT ── -->
+<div class="section">
+  <div style="display:flex; align-items:flex-end; justify-content:space-between;">
+    <div>
+      <p class="section-kicker font-display">
+        Featured
+        <span class="improvement-badge">Improvement</span>
+      </p>
+      <p class="section-title">Handpicked Talent</p>
+    </div>
+    <button class="view-all-btn">
+      View All
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+
+  <div class="annotation" style="margin-top: 0.75rem;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    Cards 5–8 hidden on mobile (4 cards = 2 rows). All 8 visible on tablet+.
+  </div>
+
+  <div class="featured-grid">
+    <!-- Cards 1-4 always visible -->
+    <a class="talent-card" href="#">
+      <div class="talent-card-img" style="background: linear-gradient(160deg,#1e1a14,#2e2618);">
+        <span style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;color:rgba(201,162,39,0.3);">IMPRONTA</span>
+      </div>
+      <div class="talent-card-body"><p class="talent-name">Sofia Reyes</p><p class="talent-meta">Model · Miami</p></div>
+    </a>
+    <a class="talent-card" href="#">
+      <div class="talent-card-img" style="background: linear-gradient(160deg,#14191e,#182026);">
+        <span style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;color:rgba(201,162,39,0.3);">IMPRONTA</span>
+      </div>
+      <div class="talent-card-body"><p class="talent-name">Valentina Cruz</p><p class="talent-meta">Hostess · New York</p></div>
+    </a>
+    <a class="talent-card" href="#">
+      <div class="talent-card-img" style="background: linear-gradient(160deg,#191414,#261818);">
+        <span style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;color:rgba(201,162,39,0.3);">IMPRONTA</span>
+      </div>
+      <div class="talent-card-body"><p class="talent-name">Isabella Mora</p><p class="talent-meta">Brand Ambassador · LA</p></div>
+    </a>
+    <a class="talent-card" href="#">
+      <div class="talent-card-img" style="background: linear-gradient(160deg,#141e18,#182618);">
+        <span style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;color:rgba(201,162,39,0.3);">IMPRONTA</span>
+      </div>
+      <div class="talent-card-body"><p class="talent-name">Camila Torres</p><p class="talent-meta">Dancer · Chicago</p></div>
+    </a>
+    <!-- Cards 5-8 hidden on mobile -->
+    <a class="talent-card mobile-hidden" href="#">
+      <div class="talent-card-img" style="background: linear-gradient(160deg,#1a1418,#281c24);">
+        <span style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;color:rgba(201,162,39,0.3);">IMPRONTA</span>
+      </div>
+      <div class="talent-card-body"><p class="talent-name">Gabriela Vega</p><p class="talent-meta">Model · Houston</p></div>
+    </a>
+    <a class="talent-card mobile-hidden" href="#">
+      <div class="talent-card-img" style="background: linear-gradient(160deg,#14181a,#182028);">
+        <span style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;color:rgba(201,162,39,0.3);">IMPRONTA</span>
+      </div>
+      <div class="talent-card-body"><p class="talent-name">Andrea López</p><p class="talent-meta">Hostess · Dallas</p></div>
+    </a>
+    <a class="talent-card mobile-hidden" href="#">
+      <div class="talent-card-img" style="background: linear-gradient(160deg,#191a14,#262814);">
+        <span style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;color:rgba(201,162,39,0.3);">IMPRONTA</span>
+      </div>
+      <div class="talent-card-body"><p class="talent-name">Natalia Ruiz</p><p class="talent-meta">Promo Model · Vegas</p></div>
+    </a>
+    <a class="talent-card mobile-hidden" href="#">
+      <div class="talent-card-img" style="background: linear-gradient(160deg,#1a1514,#281e1c);">
+        <span style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;color:rgba(201,162,39,0.3);">IMPRONTA</span>
+      </div>
+      <div class="talent-card-body"><p class="talent-name">Daniela Fuentes</p><p class="talent-meta">Dancer · Orlando</p></div>
+    </a>
+  </div>
+
+  <button class="view-all-mobile">View All Talent →</button>
+</div>
+
+<!-- ── BEST FOR ── -->
+<div class="section">
+  <p class="section-kicker center font-display">
+    Best For
+    <span class="improvement-badge">Improvement</span>
+  </p>
+  <p class="section-title center">Find Talent for Any Occasion</p>
+
+  <div class="annotation" style="margin: 0.75rem auto; display: flex; width: fit-content;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    Shows 6 items. "Show more" expands the rest — no endless list.
+  </div>
+
+  <div class="best-for-grid" id="bestForGrid">
+    <a class="best-for-card" href="#"><span class="bf-label">Corporate Events</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    <a class="best-for-card" href="#"><span class="bf-label">Product Launches</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    <a class="best-for-card" href="#"><span class="bf-label">Trade Shows & Expos</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    <a class="best-for-card" href="#"><span class="bf-label">Fashion & Runway</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    <a class="best-for-card" href="#"><span class="bf-label">Nightlife & Clubs</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    <a class="best-for-card" href="#"><span class="bf-label">Sports & Racing</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    <!-- Hidden rows -->
+    <a class="best-for-card hidden-row" href="#"><span class="bf-label">Photo & Video Shoots</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    <a class="best-for-card hidden-row" href="#"><span class="bf-label">Conventions</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+    <a class="best-for-card hidden-row" href="#"><span class="bf-label">Galas & Fundraisers</span><svg class="bf-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+  </div>
+
+  <button class="show-more-btn" id="showMoreBtn" onclick="toggleBestFor()">
+    <svg id="showMoreIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    <span id="showMoreLabel">Show 3 more</span>
+  </button>
+</div>
+
+<div class="divider"><hr /></div>
+
+<!-- ── LOCATIONS ── -->
+<div class="section">
+  <p class="section-kicker center font-display">
+    Browse by Location
+    <span class="improvement-badge">Improvement</span>
+  </p>
+  <p class="section-title center">Talent Near You</p>
+
+  <div class="annotation" style="margin: 0.75rem auto; display: flex; width: fit-content;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    Horizontal scroll strip on mobile. Compact height. Wraps on desktop.
+  </div>
+  <div class="scroll-hint" style="justify-content: center;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    Swipe to explore cities
+  </div>
+
+  <div class="location-scroll-outer">
+    <div class="location-scroll-inner">
+      <a class="location-card" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="1.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><p class="loc-name">Miami</p><p class="loc-count">48 talent</p></div>
+      </a>
+      <a class="location-card" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="1.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><p class="loc-name">New York</p><p class="loc-count">72 talent</p></div>
+      </a>
+      <a class="location-card" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="1.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><p class="loc-name">Los Angeles</p><p class="loc-count">61 talent</p></div>
+      </a>
+      <a class="location-card" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="1.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><p class="loc-name">Las Vegas</p><p class="loc-count">39 talent</p></div>
+      </a>
+      <a class="location-card" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="1.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><p class="loc-name">Chicago</p><p class="loc-count">27 talent</p></div>
+      </a>
+      <a class="location-card" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="1.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><p class="loc-name">Houston</p><p class="loc-count">22 talent</p></div>
+      </a>
+      <a class="location-card" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="1.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><p class="loc-name">Dallas</p><p class="loc-count">18 talent</p></div>
+      </a>
+      <a class="location-card" href="#">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c9a227" stroke-width="1.75"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        <div><p class="loc-name">Orlando</p><p class="loc-count">15 talent</p></div>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ── HOW IT WORKS ── -->
+<div class="section" style="max-width: 900px;">
+  <p class="section-kicker center font-display">
+    How It Works
+    <span class="improvement-badge">Improvement</span>
+  </p>
+  <p class="section-title center">Book in Three Steps</p>
+
+  <div class="annotation" style="margin: 0.75rem auto; display: flex; width: fit-content;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    Added 01 / 02 / 03 sequence markers above icons — clearer flow on mobile.
+  </div>
+
+  <div class="steps-grid">
+    <div class="step">
+      <p class="step-number font-display">01</p>
+      <div class="step-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </div>
+      <h3 class="step-title">Search</h3>
+      <p class="step-body">Use our smart search to describe exactly what you need — by type, location, or event.</p>
+    </div>
+    <div class="step">
+      <p class="step-number font-display">02</p>
+      <div class="step-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+      </div>
+      <h3 class="step-title">Save</h3>
+      <p class="step-body">Shortlist your favorites to build a curated selection before reaching out.</p>
+    </div>
+    <div class="step">
+      <p class="step-number font-display">03</p>
+      <div class="step-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </div>
+      <h3 class="step-title">Send Inquiry</h3>
+      <p class="step-body">Submit your booking request and our team will coordinate the details.</p>
+    </div>
+  </div>
+</div>
+
+<div class="divider"><hr /></div>
+
+<!-- ── CTA ── -->
+<div class="cta-section">
+  <h2 class="cta-title font-display">Ready to Find Your Talent?</h2>
+  <p class="cta-body">Browse our curated roster and submit an inquiry today.</p>
+  <div class="cta-btns">
+    <button class="btn-primary">Search Talent</button>
+    <button class="btn-outline">Create Account</button>
+  </div>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <p class="footer-brand font-display">IMPRONTA</p>
+  <p>The standard in premium talent booking.</p>
+  <p style="margin-top: 0.5rem; font-size: 0.75rem;">© 2026 Impronta. All rights reserved.</p>
+</footer>
+
+<script>
+  let expanded = false;
+
+  function toggleBestFor() {
+    expanded = !expanded;
+    const hiddenRows = document.querySelectorAll('.best-for-card.hidden-row');
+    const label = document.getElementById('showMoreLabel');
+    const icon = document.getElementById('showMoreIcon');
+
+    hiddenRows.forEach(row => {
+      if (expanded) row.classList.add('expanded');
+      else row.classList.remove('expanded');
+    });
+
+    if (expanded) {
+      label.textContent = 'Show less';
+      icon.innerHTML = '<path d="M18 15l-6-6-6 6"/>';
+    } else {
+      label.textContent = 'Show 3 more';
+      icon.innerHTML = '<path d="M6 9l6 6 6-6"/>';
+    }
+  }
+</script>
+</body>
+</html>

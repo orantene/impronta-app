@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
+import { ADMIN_FORM_CONTROL, ADMIN_FORM_FIELD_STACK, ADMIN_FORM_GRID_GAP } from "@/lib/dashboard-shell-classes";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,8 +35,8 @@ export function CreateTermForm() {
 
   return (
     <form action={action} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="space-y-1.5">
+      <div className={cn("grid sm:grid-cols-2 lg:grid-cols-3", ADMIN_FORM_GRID_GAP)}>
+        <div className={ADMIN_FORM_FIELD_STACK}>
           <Label htmlFor="kind">Kind</Label>
           <select
             id="kind"
@@ -51,33 +52,36 @@ export function CreateTermForm() {
             ))}
           </select>
         </div>
-        <div className="space-y-1.5">
+        <div className={ADMIN_FORM_FIELD_STACK}>
           <Label htmlFor="slug">Slug</Label>
           <Input
             id="slug"
             name="slug"
             placeholder="e.g. fashion-model"
             required
+            className={ADMIN_FORM_CONTROL}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className={ADMIN_FORM_FIELD_STACK}>
           <Label htmlFor="name_en">Name (EN)</Label>
           <Input
             id="name_en"
             name="name_en"
             placeholder="English label"
             required
+            className={ADMIN_FORM_CONTROL}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className={ADMIN_FORM_FIELD_STACK}>
           <Label htmlFor="name_es">Name (ES)</Label>
           <Input
             id="name_es"
             name="name_es"
             placeholder="Spanish label (optional)"
+            className={ADMIN_FORM_CONTROL}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className={ADMIN_FORM_FIELD_STACK}>
           <Label htmlFor="sort_order">Sort order</Label>
           <Input
             id="sort_order"
@@ -85,6 +89,7 @@ export function CreateTermForm() {
             type="number"
             defaultValue={0}
             min={0}
+            className={ADMIN_FORM_CONTROL}
           />
         </div>
       </div>

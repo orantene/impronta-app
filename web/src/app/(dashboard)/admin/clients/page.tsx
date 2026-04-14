@@ -4,9 +4,10 @@ import { AdminNewClientSheet } from "@/app/(dashboard)/admin/clients/admin-new-c
 import { AdminClientQueue } from "@/app/(dashboard)/admin/clients/admin-client-queue";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { DashboardSegmentedNav } from "@/components/dashboard/dashboard-segmented-nav";
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
+import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { loadAdminClientsData } from "@/lib/dashboard/admin-dashboard-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -77,10 +78,12 @@ export default async function AdminClientsPage({
   const statuses = ["all", "registered", "onboarding", "active", "suspended"];
 
   const hasActiveFilters = q || status !== "all" || sort !== "latest_activity";
+  const filterActiveCount =
+    (q.trim() ? 1 : 0) + (status !== "all" ? 1 : 0) + (sort !== "latest_activity" ? 1 : 0);
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+      <AdminPageHeader
         icon={UserRound}
         title="Clients"
         description="Portal login users — not the billing entity. For villas, brands, and who you invoice, use Accounts."
@@ -121,8 +124,7 @@ export default async function AdminClientsPage({
         }
       />
 
-      {/* Status tabs */}
-      <DashboardSegmentedNav
+      <AdminPageTabs
         ariaLabel="Client status"
         items={statuses.map((s) => {
           const sp = new URLSearchParams();
@@ -141,10 +143,9 @@ export default async function AdminClientsPage({
         })}
       />
 
-      {/* Search + sort controls */}
-      <DashboardSectionCard
+      <AdminFilterBar
         title="Search & sort"
-        titleClassName={ADMIN_SECTION_TITLE_CLASS}
+        activeCount={filterActiveCount}
       >
         <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px_auto] sm:items-end">
           <div className="space-y-1.5">
@@ -189,9 +190,8 @@ export default async function AdminClientsPage({
             ) : null}
           </div>
         </form>
-      </DashboardSectionCard>
+      </AdminFilterBar>
 
-      {/* Results */}
       <DashboardSectionCard
         title={
           sortedRows.length === rows.length

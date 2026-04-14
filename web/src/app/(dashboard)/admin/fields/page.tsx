@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import type { FieldDefinitionRow, FieldGroupRow } from "./field-group-panel";
@@ -11,6 +11,7 @@ import { HelpTip } from "@/components/ui/help-tip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Info, LayoutList } from "lucide-react";
 import {
+  ADMIN_GROUP_LIST_STAGE,
   ADMIN_HELP_TRIGGER_BUTTON,
   ADMIN_PAGE_STACK,
   ADMIN_POPOVER_CONTENT_CLASS,
@@ -26,6 +27,12 @@ function isMissingPreviewVisibleColumn(error: { code?: string; message?: string 
   if (!error) return false;
   const text = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
   return text.includes("preview_visible");
+}
+
+function isMissingDirectoryFilterVisibleColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const text = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
+  return text.includes("directory_filter_visible");
 }
 
 export default async function AdminFieldsPage({
@@ -50,7 +57,7 @@ export default async function AdminFieldsPage({
   const fieldsPromise = supabase
     .from("field_definitions")
     .select(
-      "id, field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, preview_visible, profile_visible, filterable, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, archived_at",
+      "id, field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, preview_visible, profile_visible, filterable, directory_filter_visible, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, archived_at",
     )
     .is("archived_at", null)
     .order("field_group_id")
@@ -65,10 +72,9 @@ export default async function AdminFieldsPage({
   let fErr = initialFields.error;
   let previewVisibilityFallback = false;
 
-  if (isMissingPreviewVisibleColumn(fErr)) {
-    // Compatibility: older DBs won't have `field_definitions.preview_visible` yet.
-    // This is expected in local/dev when migrations haven't been applied, so avoid noisy error logs.
-    previewVisibilityFallback = true;
+  if (isMissingPreviewVisibleColumn(fErr) || isMissingDirectoryFilterVisibleColumn(fErr)) {
+    // Compatibility: older DBs may omit `preview_visible` or `directory_filter_visible`.
+    previewVisibilityFallback = isMissingPreviewVisibleColumn(fErr);
     const fallbackFields = await supabase
       .from("field_definitions")
       .select(
@@ -77,10 +83,15 @@ export default async function AdminFieldsPage({
       .is("archived_at", null)
       .order("field_group_id")
       .order("sort_order");
-    fields = (fallbackFields.data ?? []).map((row) => ({
-      ...row,
-      preview_visible: Boolean((row as { profile_visible?: boolean }).profile_visible ?? true),
-    }));
+    fields = (fallbackFields.data ?? []).map((row) => {
+      const r = row as Record<string, unknown>;
+      // Reduced select omits preview_visible + directory_filter_visible — derive from legacy columns.
+      return {
+        ...row,
+        preview_visible: Boolean((r.profile_visible as boolean | undefined) ?? true),
+        directory_filter_visible: Boolean(r.filterable === true),
+      };
+    });
     fErr = fallbackFields.error;
   }
 
@@ -111,6 +122,9 @@ export default async function AdminFieldsPage({
       preview_visible: f.preview_visible,
       profile_visible: f.profile_visible,
       filterable: f.filterable,
+      directory_filter_visible: Boolean(
+        (f as { directory_filter_visible?: boolean | null }).directory_filter_visible ?? false,
+      ),
       searchable: f.searchable,
       ai_visible: f.ai_visible,
       editable_by_talent: f.editable_by_talent,
@@ -131,10 +145,10 @@ export default async function AdminFieldsPage({
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+      <AdminPageHeader
         icon={LayoutList}
         title="Fields"
-        description="Visibility is layered: public exposure, profile page, then directory card traits. Other icons control filters, hover preview, partial search, and a reserved AI flag—see tooltips on each field row."
+        description="Each field has labeled toggles: public, profile, card, preview, filters, search, and AI. Tooltips explain how each flag flows to the directory, classic search, and AI document."
         right={
           <Popover>
             <PopoverTrigger
@@ -158,19 +172,19 @@ export default async function AdminFieldsPage({
                     <span className="font-mono text-[11px]">directory-card-display-catalog.ts</span>).
                   </li>
                   <li>
-                    <span className="font-medium text-foreground">Directory sidebar facets</span> are managed under{" "}
-                    <span className="font-medium text-foreground">Directory / Talent Data → Directory filters</span>{" "}
-                    (order, show/hide, search-within-filters). Not on this screen.
+                    <span className="font-medium text-foreground">Filters</span> toggles whether the field is
+                    eligible for the public directory sidebar and listed under{" "}
+                    <span className="font-medium text-foreground">Directory → Directory filters</span> for ordering and
+                    visibility. Facet UI depends on value type (taxonomy, location, boolean, text options, etc.).
                   </li>
                   <li>
-                    <span className="font-medium text-foreground">Search indexing</span> only adds{" "}
-                    <span className="font-mono text-[11px]">field_values</span> text/textarea hits for fields that
-                    are public + profile-visible; names, bio, taxonomy, and cities are always searched separately.
+                    <span className="font-medium text-foreground">Search</span> adds{" "}
+                    <span className="font-mono text-[11px]">field_values</span> text/textarea hits for public +
+                    profile-visible fields; names, bio, taxonomy, and cities use other search paths.
                   </li>
                   <li>
-                    <span className="font-medium text-foreground">Telescope</span> = hover quick preview (limited
-                    keys today). <span className="font-medium text-foreground">Sparkles</span> = reserved; not read
-                    by production yet.
+                    <span className="font-medium text-foreground">AI</span> includes the field in the AI search
+                    document for semantic / vector search when data exists.
                   </li>
                   <li>Archive fields instead of deleting to preserve history.</li>
                   <li>Reorder controls grouping in admin and profile editors.</li>
@@ -212,7 +226,7 @@ export default async function AdminFieldsPage({
         />
       ) : (
         <section id="groups-and-fields" className="scroll-mt-28">
-          <div className="rounded-3xl border border-border/45 bg-gradient-to-br from-[var(--impronta-gold)]/[0.04] via-card/80 to-muted/20 p-4 shadow-sm">
+          <div className={ADMIN_GROUP_LIST_STAGE}>
             <Suspense
               fallback={
                 <div className="h-96 animate-pulse rounded-2xl bg-muted/20" aria-hidden />

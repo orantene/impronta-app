@@ -7,7 +7,9 @@ import {
 } from "@/lib/directory/types";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import {
+  parseDirectoryFieldFacets,
   parseDirectoryHeightRange,
+  parseDirectoryAgeRange,
   parseDirectoryLocation,
   parseDirectoryQuery,
   parseDirectorySort,
@@ -17,6 +19,9 @@ import { getPublicSettings } from "@/lib/public-settings";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
+import { logSearchQuery } from "@/lib/search-queries/log-search-query";
+import { normalizeSearchQueryForEmbedding } from "@/lib/ai/normalize-search-query";
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 
 export async function GET(request: Request) {
   const audit = isDirectoryApiAudit();
@@ -60,6 +65,11 @@ export async function GET(request: Request) {
     hmin: searchParams.get("hmin") ?? undefined,
     hmax: searchParams.get("hmax") ?? undefined,
   });
+  const { ageMin, ageMax } = parseDirectoryAgeRange({
+    amin: searchParams.get("amin") ?? undefined,
+    amax: searchParams.get("amax") ?? undefined,
+  });
+  const fieldFacetFilters = parseDirectoryFieldFacets(searchParams.getAll("ff"));
 
   try {
     const supabase = createPublicSupabaseClient();
@@ -80,6 +90,9 @@ export async function GET(request: Request) {
         locationSlug,
         heightMinCm,
         heightMaxCm,
+        ageMin,
+        ageMax,
+        fieldFacetFilters,
         skipTotalCount: Boolean(cursor),
       });
     const fetchDirectoryPageMs = performance.now() - tFetch;
@@ -104,6 +117,28 @@ export async function GET(request: Request) {
         itemCount: body.items?.length ?? 0,
       });
     }
+
+    void getAiFeatureFlags().then((flags) =>
+      logSearchQuery({
+        query: query ? normalizeSearchQueryForEmbedding(query) : null,
+        filters: {
+          taxonomyTermIds,
+          locationSlug,
+          sort,
+          heightMinCm,
+          heightMaxCm,
+          locale,
+        },
+        resultsCount: body.items?.length ?? 0,
+        source: "directory",
+        searchMode: "classic",
+        aiEnabled: flags.ai_search_enabled,
+        rerankEnabled: flags.ai_rerank_enabled,
+        explanationEnabled: flags.ai_explanations_enabled,
+        flagSnapshot: { ...flags },
+      }),
+    );
+
     return NextResponse.json(body);
   } catch (e) {
     logServerError("api/directory", e);

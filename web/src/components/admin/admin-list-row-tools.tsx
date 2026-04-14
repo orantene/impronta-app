@@ -56,7 +56,7 @@ export function AdminClientRowTools({
         open={open}
         onOpenChange={setOpen}
         title={displayName ?? "Client"}
-        description="Portal Client (login) — not a Client Location."
+        description="Portal Client (login) — not a Work Location."
       >
         <dl className="space-y-2 text-sm text-muted-foreground">
           <div>

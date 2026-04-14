@@ -6,31 +6,21 @@ import { HelpTip } from "@/components/ui/help-tip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import {
   ADMIN_FORM_CONTROL,
+  ADMIN_FORM_FIELD_STACK,
+  ADMIN_FORM_GRID_GAP,
   ADMIN_LINK_PILL,
   ADMIN_PAGE_STACK,
   ADMIN_SECTION_TITLE_CLASS,
-  ADMIN_TABLE_HEAD,
-  ADMIN_TABLE_ROW_INTERACTIVE,
-  ADMIN_TABLE_TH,
-  ADMIN_TABLE_WRAP,
   LUXURY_GOLD_BUTTON_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
-import { archiveLocationForm, createLocationForm, restoreLocationForm, updateLocationForm } from "./actions";
-
-type LocationRow = {
-  id: string;
-  country_code: string;
-  city_slug: string;
-  display_name_en: string;
-  display_name_es: string | null;
-  archived_at: string | null;
-};
+import { createLocationForm } from "./actions";
+import { LocationRowsTable, type LocationRow } from "./location-rows-table";
 
 export default async function AdminLocationsPage({
   searchParams,
@@ -69,7 +59,7 @@ export default async function AdminLocationsPage({
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+      <AdminPageHeader
         icon={MapPin}
         title={
           <span className="inline-flex flex-wrap items-center gap-2">
@@ -136,8 +126,8 @@ export default async function AdminLocationsPage({
         description="Adding or updating locations automatically syncs location_country / location_city taxonomy terms."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
-          <form action={createLocationForm} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1.5">
+          <form action={createLocationForm} className={cn("grid sm:grid-cols-2 lg:grid-cols-4", ADMIN_FORM_GRID_GAP)}>
+            <div className={ADMIN_FORM_FIELD_STACK}>
               <Label htmlFor="country_code">Country code</Label>
               <Input
                 id="country_code"
@@ -147,7 +137,7 @@ export default async function AdminLocationsPage({
                 className={ADMIN_FORM_CONTROL}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className={ADMIN_FORM_FIELD_STACK}>
               <Label htmlFor="city_slug">City slug</Label>
               <Input
                 id="city_slug"
@@ -157,7 +147,7 @@ export default async function AdminLocationsPage({
                 className={ADMIN_FORM_CONTROL}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className={ADMIN_FORM_FIELD_STACK}>
               <Label htmlFor="display_name_en">Name (EN)</Label>
               <Input
                 id="display_name_en"
@@ -167,7 +157,7 @@ export default async function AdminLocationsPage({
                 className={ADMIN_FORM_CONTROL}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className={ADMIN_FORM_FIELD_STACK}>
               <Label htmlFor="display_name_es">Name (ES)</Label>
               <Input id="display_name_es" name="display_name_es" placeholder="Cancún" className={ADMIN_FORM_CONTROL} />
             </div>
@@ -189,110 +179,7 @@ export default async function AdminLocationsPage({
           description={`${locations.length} location${locations.length !== 1 ? "s" : ""}`}
           titleClassName={ADMIN_SECTION_TITLE_CLASS}
         >
-          <div className={ADMIN_TABLE_WRAP}>
-            <table className="w-full border-collapse text-sm">
-              <thead className={ADMIN_TABLE_HEAD}>
-                <tr className="border-b border-border/45 text-left">
-                  <th className={ADMIN_TABLE_TH}>Country</th>
-                  <th className={ADMIN_TABLE_TH}>City slug</th>
-                  <th className={ADMIN_TABLE_TH}>Name (EN)</th>
-                  <th className={ADMIN_TABLE_TH}>Name (ES)</th>
-                  <th className={ADMIN_TABLE_TH}>Status</th>
-                  <th className="px-4 py-3.5" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/25">
-                  {locations.map((loc) => (
-                    <tr key={loc.id} className={ADMIN_TABLE_ROW_INTERACTIVE}>
-                      <td className="px-4 py-3 align-top">
-                        {loc.archived_at ? (
-                          <span className="font-mono text-[12px] text-muted-foreground">{loc.country_code}</span>
-                        ) : (
-                          <form id={`update-location-${loc.id}`} action={updateLocationForm}>
-                            <input type="hidden" name="location_id" value={loc.id} />
-                            <Input
-                              name="country_code"
-                              defaultValue={loc.country_code}
-                              required
-                              className={cn(ADMIN_FORM_CONTROL, "h-9 font-mono text-[12px]")}
-                            />
-                          </form>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        {loc.archived_at ? (
-                          <span className="font-mono text-[12px] text-muted-foreground">{loc.city_slug}</span>
-                        ) : (
-                          <Input
-                            form={`update-location-${loc.id}`}
-                            name="city_slug"
-                            defaultValue={loc.city_slug}
-                            required
-                            className={cn(ADMIN_FORM_CONTROL, "h-9 font-mono text-[12px]")}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3 align-top">
-                        {loc.archived_at ? (
-                          loc.display_name_en
-                        ) : (
-                          <Input
-                            form={`update-location-${loc.id}`}
-                            name="display_name_en"
-                            defaultValue={loc.display_name_en}
-                            required
-                            className={cn(ADMIN_FORM_CONTROL, "h-9")}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3 align-top text-muted-foreground">
-                        {loc.archived_at ? (
-                          loc.display_name_es ?? "—"
-                        ) : (
-                          <Input
-                            form={`update-location-${loc.id}`}
-                            name="display_name_es"
-                            defaultValue={loc.display_name_es ?? ""}
-                            className={cn(ADMIN_FORM_CONTROL, "h-9")}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {loc.archived_at ? <Badge variant="muted">Archived</Badge> : <Badge variant="success">Active</Badge>}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {loc.archived_at ? (
-                          <form action={restoreLocationForm}>
-                            <input type="hidden" name="location_id" value={loc.id} />
-                            <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-emerald-400">
-                              Restore
-                            </Button>
-                          </form>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              type="submit"
-                              form={`update-location-${loc.id}`}
-                              variant="ghost"
-                              size="sm"
-                              className="text-muted-foreground hover:text-[var(--impronta-gold)]"
-                            >
-                              Save
-                            </Button>
-                            <form action={archiveLocationForm}>
-                              <input type="hidden" name="location_id" value={loc.id} />
-                              <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
-                                Archive
-                              </Button>
-                            </form>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-          </div>
+          <LocationRowsTable locations={locations} />
         </DashboardSectionCard>
       )}
     </div>

@@ -1,14 +1,22 @@
 -- TYPE B: profile bio multilingual fields, translation audit (no triggers for business logic)
+-- Version split from 20260413120000: that timestamp was shared with analytics_internal_tables (duplicate PK in schema_migrations).
 
 BEGIN;
 
-CREATE TYPE public.bio_es_status AS ENUM (
-  'missing',
-  'auto',
-  'reviewed',
-  'approved',
-  'stale'
-);
+-- Idempotent: remote may already have this type from a prior partial apply / manual DDL.
+DO $do$
+BEGIN
+  CREATE TYPE public.bio_es_status AS ENUM (
+    'missing',
+    'auto',
+    'reviewed',
+    'approved',
+    'stale'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END
+$do$;
 
 ALTER TABLE public.talent_profiles
   ADD COLUMN IF NOT EXISTS bio_en TEXT,
@@ -44,10 +52,12 @@ CREATE INDEX IF NOT EXISTS idx_translation_audit_entity
 
 ALTER TABLE public.translation_audit_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS translation_audit_staff_select ON public.translation_audit_events;
 CREATE POLICY translation_audit_staff_select ON public.translation_audit_events
   FOR SELECT TO authenticated
   USING (public.is_agency_staff());
 
+DROP POLICY IF EXISTS translation_audit_service_insert ON public.translation_audit_events;
 CREATE POLICY translation_audit_service_insert ON public.translation_audit_events
   FOR INSERT TO authenticated
   WITH CHECK (public.is_agency_staff());

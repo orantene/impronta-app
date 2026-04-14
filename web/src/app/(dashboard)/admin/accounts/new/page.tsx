@@ -9,10 +9,10 @@ export default function AdminNewClientAccountPage() {
     <div className={ADMIN_PAGE_STACK}>
       <Button variant="outline" size="sm" className={cn("w-fit rounded-full", ADMIN_OUTLINE_CONTROL_CLASS)} asChild>
         <Link href="/admin/accounts" scroll={false}>
-          ← Client Locations
+          ← Work Locations
         </Link>
       </Button>
-      <h1 className="font-display text-2xl font-medium text-foreground">New Client Location</h1>
+      <h1 className="font-display text-2xl font-medium text-foreground">New Work Location</h1>
       <p className="text-sm text-muted-foreground">
         The place or business unit the work is for (villa, club, restaurant, etc.). One client can have several
         locations. You can also create from the list using the side sheet — this page is the full-page fallback.

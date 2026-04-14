@@ -6,9 +6,11 @@ import {
 } from "@/lib/dashboard-shell-classes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { DashboardSegmentedNav } from "@/components/dashboard/dashboard-segmented-nav";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
 import {
   AdminTalentQueue,
   type AdminTalentQueueRow,
@@ -324,17 +326,19 @@ export default async function AdminTalentListPage({
   const tabCounts = Object.fromEntries(tabCountsEntries) as Record<(typeof TABS)[number]["key"], number>;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const currentSortLabel = SORT_OPTIONS.find((option) => option.key === activeSort)?.label ?? "Newest first";
+  const filterActiveCount =
+    (q.trim() ? 1 : 0) + (activeSort !== "newest" ? 1 : 0);
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+      <AdminPageHeader
         icon={Users}
         title="Talent"
         description="Triage → open a hub → review workflow, then profile, then media. Pending uploads also appear on the global Media page."
         right={<AdminTalentHelpPopover />}
       />
 
-      <DashboardSegmentedNav
+      <AdminPageTabs
         ariaLabel="Talent status"
         items={TABS.map((tab) => ({
           href: talentListHref(tab.key, activeMediaTab, { q, sort: activeSort }),
@@ -352,10 +356,10 @@ export default async function AdminTalentListPage({
         }))}
       />
 
-      <DashboardSectionCard
+      <AdminFilterBar
         title="Queue controls"
         description="Search, sort, and paginate from the URL so this roster stays shareable and scalable."
-        titleClassName={ADMIN_SECTION_TITLE_CLASS}
+        activeCount={filterActiveCount}
       >
         <form className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_auto] lg:items-end">
           <div className="space-y-1.5">
@@ -393,7 +397,7 @@ export default async function AdminTalentListPage({
             ) : null}
           </div>
         </form>
-      </DashboardSectionCard>
+      </AdminFilterBar>
 
       <DashboardSectionCard
         title="Talent queue"

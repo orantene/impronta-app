@@ -7,6 +7,8 @@ import { AdminUserEditButton } from "@/app/(dashboard)/admin/users/admin-user-ed
 import type { AdminClientListRow } from "@/lib/dashboard/admin-dashboard-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { UsersRound } from "lucide-react";
 import { ADMIN_OUTLINE_CONTROL_CLASS } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
 
@@ -50,9 +52,12 @@ export function AdminClientQueue({ rows }: { rows: AdminClientListRow[] }) {
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-border/60 bg-muted/[0.04] px-4 py-8 text-center text-sm text-muted-foreground">
-        No clients match this view.
-      </p>
+      <EmptyState
+        icon={UsersRound}
+        title="No clients match this view"
+        description="Adjust search or status filters."
+        className="rounded-2xl border-dashed py-8"
+      />
     );
   }
 

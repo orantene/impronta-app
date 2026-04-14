@@ -12,6 +12,8 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -432,6 +434,20 @@ export async function submitClientInquiry(
     .eq("client_user_id", user.id)
     .in("talent_profile_id", talentIds);
 
+  const locale = await getRequestLocale();
+  await logAnalyticsEventServer({
+    name: PRODUCT_ANALYTICS_EVENTS.submit_inquiry,
+    payload: {
+      locale,
+      talent_id: talentIds[0],
+      inquiry_type: "directory_client",
+      source_page: source_page || "/directory",
+    },
+    userId: user.id,
+    path: source_page || "/directory",
+    locale,
+  });
+
   revalidatePath("/client");
   revalidatePath("/directory");
   redirect("/directory?inquiry=submitted");
@@ -548,6 +564,19 @@ export async function submitGuestInquiry(
       return { error: t("public.errors.inquiry") };
     }
 
+    const localeGuest = await getRequestLocale();
+    await logAnalyticsEventServer({
+      name: PRODUCT_ANALYTICS_EVENTS.submit_inquiry,
+      payload: {
+        locale: localeGuest,
+        talent_id: talentIds[0],
+        inquiry_type: "directory_guest",
+        source_page: source_page || "/directory",
+      },
+      path: source_page || "/directory",
+      locale: localeGuest,
+    });
+
     revalidatePath("/directory");
     redirect(
       `/directory?inquiry=submitted&activation=unlinked&email=${encodeURIComponent(contact_email.toLowerCase())}`,
@@ -611,6 +640,19 @@ export async function submitGuestInquiry(
     logServerError("directory/submitGuestInquiry/link", linkErr);
     return { error: t("public.errors.inquiry") };
   }
+
+  const localeGuest = await getRequestLocale();
+  await logAnalyticsEventServer({
+    name: PRODUCT_ANALYTICS_EVENTS.submit_inquiry,
+    payload: {
+      locale: localeGuest,
+      talent_id: talentIds[0],
+      inquiry_type: "directory_guest",
+      source_page: source_page || "/directory",
+    },
+    path: source_page || "/directory",
+    locale: localeGuest,
+  });
 
   revalidatePath("/directory");
   redirect(

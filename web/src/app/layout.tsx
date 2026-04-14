@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Cinzel, Geist_Mono, Raleway } from "next/font/google";
+import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
+import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { getLocaleMetadata } from "@/i18n/config";
@@ -62,8 +64,10 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`site-theme-${siteTheme} flex min-h-full flex-col bg-background text-foreground`}
       >
+        <AnalyticsScripts />
         <WebVitalsReporter />
         <CspViolationReporter />
+        <AnalyticsConsentBanner />
         {children}
       </body>
     </html>

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { restoreTalentProfile, softDeleteTalentProfile, type TalentActionState } from "@/app/(dashboard)/admin/talent/actions";
 import { Button } from "@/components/ui/button";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
+import { ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
 
 export function AdminTalentRosterActions({
   talentId,
@@ -50,6 +51,7 @@ export function AdminTalentRosterActions({
     <DashboardSectionCard
       title="Roster hygiene"
       description="Soft-remove hides the profile from normal admin and public lists. Restore anytime."
+      titleClassName={ADMIN_SECTION_TITLE_CLASS}
     >
       <div className="space-y-3">
         {removeState?.error ? (

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, Images, Languages, LayoutDashboard, LayoutList, UserRound } from "lucide-react";
 import { translationsHref } from "@/app/(dashboard)/admin/translations/translations-url";
-import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
 import { Button } from "@/components/ui/button";
 import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
@@ -46,120 +47,19 @@ export default async function AdminDashboardPage() {
     {
       href: "/admin/clients",
       title: "Clients",
-      description: "Portal login users — not billing entities (see Client Locations).",
+      description: "Portal login users — not billing entities (see Work Locations).",
       meta: `${overview?.counts.totalClients ?? 0} profiles`,
       icon: <UserRound className="size-4" aria-hidden />,
     },
   ];
 
-  const modules = [
-    {
-      href: "/admin/users/search",
-      title: "Search",
-      description: "Find any user globally — talent, clients, and staff.",
-    },
-    {
-      href: "/admin/talent",
-      title: "Talents",
-      description: "Review, edit, approve, hide, or archive talent profiles.",
-    },
-    {
-      href: "/admin/clients",
-      title: "Clients",
-      description: "Registered client-side users — profiles, requests, saved talent.",
-    },
-    {
-      href: "/admin/accounts",
-      title: "Client Locations",
-      description: "Billing entities (villas, brands, venues) linked to inquiries and bookings.",
-    },
-    {
-      href: "/admin/users/admins",
-      title: "Admins",
-      description: "Agency staff and super-admin access.",
-    },
-    {
-      href: "/admin/inquiries",
-      title: "Inquiries",
-      description: "Leads and requests on the path to a confirmed booking.",
-    },
-    {
-      href: "/admin/bookings",
-      title: "Bookings",
-      description: "Confirmed jobs, talent lineup, and commercial terms.",
-    },
-    {
-      href: "/admin/media?tab=library",
-      title: "Media Library",
-      description: "Browse recently approved uploads; open a talent for full gallery control.",
-    },
-    {
-      href: "/admin/media",
-      title: "Pending Approvals",
-      description: "Moderation queue before assets go live on profiles.",
-    },
-    {
-      href: "/admin/fields",
-      title: "Fields",
-      description: "What appears on profiles, cards, filters, and search.",
-    },
-    {
-      href: "/admin/taxonomy",
-      title: "Taxonomy",
-      description: "Tags, skills, languages, filters, and categories — no duplicate pages needed.",
-    },
-    {
-      href: "/admin/locations",
-      title: "Locations",
-      description: "Canonical cities and countries; taxonomy mirrors sync from here.",
-    },
-    {
-      href: "/admin/translations",
-      title: "Translations",
-      description: "Spanish coverage across bios, taxonomy, and locations — health, CSV export, and workflows.",
-    },
-    {
-      href: "/admin/settings",
-      title: "Settings",
-      description: "Operational values and public feature toggles.",
-    },
-    {
-      href: "/admin/account",
-      title: "Account",
-      description: "Your staff profile and sign-in security.",
-    },
-    {
-      href: "/directory",
-      title: "Public directory",
-      description: "Browse the live talent listing as visitors see it.",
-    },
-  ];
-
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <section
-        className="overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-br from-[var(--impronta-gold)]/[0.06] via-card to-card p-6 shadow-sm sm:p-8"
-        aria-labelledby="admin-overview-heading"
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--impronta-gold)]/15 text-[var(--impronta-gold)] ring-1 ring-[var(--impronta-gold)]/20 sm:h-14 sm:w-14 sm:rounded-3xl">
-              <LayoutDashboard className="size-6 sm:size-7" aria-hidden />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <h1
-                id="admin-overview-heading"
-                className="font-display text-base font-medium tracking-wide text-foreground sm:text-lg"
-              >
-                Agency overview
-              </h1>
-              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-                Control center for inquiries, talent operations, and merchandising.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <AdminPageHeader
+        icon={LayoutDashboard}
+        title="Agency overview"
+        description="Control center for inquiries, talent operations, and merchandising."
+      />
 
       {translationAttentionTotal > 0 ? (
         <div
@@ -253,37 +153,6 @@ export default async function AdminDashboardPage() {
         </div>
       </section>
 
-      <DashboardSectionCard
-        title="Modules"
-        description="Each card opens that area of the admin — same destinations as the sidebar, with short context."
-        titleClassName="font-display text-base font-medium tracking-wide"
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          {modules.map((module) => (
-            <Link
-              key={module.href}
-              href={module.href}
-              scroll={false}
-              className={cn(
-                "group block rounded-2xl border border-border/60 bg-muted/10 p-4 shadow-sm outline-none",
-                "transition-all duration-200",
-                "hover:border-[var(--impronta-gold-border)]/55 hover:bg-[var(--impronta-gold)]/[0.03] hover:shadow-md",
-                "focus-visible:border-[var(--impronta-gold-border)] focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/35",
-              )}
-            >
-              <p className="font-display text-sm font-medium tracking-wide text-foreground group-hover:text-[var(--impronta-gold)]">
-                {module.title}
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{module.description}</p>
-              <p className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground group-hover:text-foreground">
-                Open
-                <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
-              </p>
-            </Link>
-          ))}
-        </div>
-      </DashboardSectionCard>
-
       <section>
         <h2 className="mb-4 font-display text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Control center
@@ -294,7 +163,7 @@ export default async function AdminDashboardPage() {
               key={item.href}
               title={item.title}
               description={item.description}
-              titleClassName="font-display text-base font-medium tracking-wide"
+              titleClassName={ADMIN_SECTION_TITLE_CLASS}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -323,7 +192,7 @@ export default async function AdminDashboardPage() {
           <DashboardSectionCard
             title="Recent activity"
             description="Latest operational changes across inquiries, talent, and media."
-            titleClassName="font-display text-base font-medium tracking-wide"
+            titleClassName={ADMIN_SECTION_TITLE_CLASS}
           >
             <ul className="space-y-3">
               {overview.recentActivity.map((item) => (

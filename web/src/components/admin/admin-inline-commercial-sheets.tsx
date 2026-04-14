@@ -23,7 +23,7 @@ export function InquiryCommercialCrmSheets({
       {!clientAccountId ? (
         <>
           <Button type="button" variant="secondary" size="sm" onClick={() => setAccountOpen(true)}>
-            Create Client Location
+            Create Work Location
           </Button>
           <CreateClientAccountSheet open={accountOpen} onOpenChange={setAccountOpen} linkInquiryId={inquiryId} />
         </>
@@ -59,7 +59,7 @@ export function BookingCommercialCrmSheets({
       {!clientAccountId ? (
         <>
           <Button type="button" variant="secondary" size="sm" onClick={() => setAccountOpen(true)}>
-            Create Client Location
+            Create Work Location
           </Button>
           <CreateClientAccountSheet open={accountOpen} onOpenChange={setAccountOpen} linkBookingId={bookingId} />
         </>
@@ -82,9 +82,9 @@ export function ManualBookingCommercialTools({ accountOptions }: { accountOption
   const [accountOpen, setAccountOpen] = useState(false);
   return (
     <div className="mb-6 flex flex-wrap items-center gap-2 rounded-lg border border-border/45 bg-muted/15 px-3 py-3 text-sm">
-      <span className="text-muted-foreground">Need CRM records? Client = portal login. Client Location = venue / business.</span>
+      <span className="text-muted-foreground">Need CRM records? Client = portal login. Work Location = venue / business.</span>
       <Button type="button" size="sm" variant="secondary" onClick={() => setAccountOpen(true)}>
-        New Client Location
+        New Work Location
       </Button>
       <CreateClientContactSheetTrigger
         accountOptions={accountOptions}

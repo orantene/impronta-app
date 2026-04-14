@@ -4,6 +4,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   CalendarRange,
   FolderTree,
+  Globe,
   LayoutDashboard,
   LayoutGrid,
   ListFilter,
@@ -71,13 +72,13 @@ const NAV_LINKS: NavLink[] = [
     href: "/admin/clients",
     label: "Clients",
     category: "People",
-    hint: "Login users on the client portal — not the billing entity (use Client Locations for that)",
+    hint: "Login users on the client portal — not the billing entity (use Work Locations for that)",
     keywords: "login user platform profile person display_name uuid customer client portal",
     icon: <UserRound className="size-4" />,
   },
   {
     href: "/admin/accounts",
-    label: "Client Locations (billing)",
+    label: "Work Locations (billing)",
     category: "People",
     hint: "Commercial / billing entities — villa, brand, venue (not portal login users)",
     keywords: "billing entity business villa resort company commercial invoice account location",
@@ -156,6 +157,22 @@ const NAV_LINKS: NavLink[] = [
     icon: <MapPin className="size-4" />,
   },
   {
+    href: "/admin/site-settings",
+    label: "Site Settings",
+    category: "Site & AI",
+    hint: "CMS hub — content, SEO, structure (Phase 8.6)",
+    keywords: "cms pages posts redirects navigation seo sitemap site content",
+    icon: <Globe className="size-4" />,
+  },
+  {
+    href: "/admin/ai-workspace",
+    label: "AI Workspace",
+    category: "Site & AI",
+    hint: "Admin AI tools, logs, and rollout shells",
+    keywords: "ai agent assistant embeddings search analytics",
+    icon: <Sparkles className="size-4" />,
+  },
+  {
     href: "/admin/settings",
     label: "Settings",
     category: "System",
@@ -207,7 +224,12 @@ function shortId(id: string) {
   return `${id.slice(0, 8)}…${id.slice(-4)}`;
 }
 
-export function AdminCommandPalette() {
+export function AdminCommandPalette({
+  variant = "strip",
+}: {
+  /** `strip` = compact (legacy workspace strip). `header` = top bar — larger, admin tokens, AI affordance. */
+  variant?: "strip" | "header";
+} = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -283,13 +305,20 @@ export function AdminCommandPalette() {
         type="button"
         onClick={() => handleOpenChange(true)}
         className={cn(
-          "inline-flex h-9 w-full max-w-[220px] items-center gap-2 rounded-full border border-border/60 bg-muted/25 px-3 text-left text-sm text-muted-foreground shadow-sm transition-colors",
-          "hover:border-border hover:bg-muted/40 hover:text-foreground",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40",
+          "inline-flex w-full items-center gap-2 border px-3 text-left text-sm shadow-sm transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2",
+          variant === "header"
+            ? "min-h-12 max-w-none rounded-xl border-[var(--admin-gold-border)]/50 bg-[var(--admin-workspace-surface)] py-2.5 pl-3 pr-2 text-[var(--admin-workspace-fg)] shadow-[inset_0_0_0_1px_var(--admin-gold-border)]/25 hover:border-[var(--admin-gold-border)] hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-workspace-fg)] focus-visible:ring-[var(--admin-gold)]/35"
+            : "h-9 max-w-[220px] rounded-full border-border/60 bg-muted/25 text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground focus-visible:ring-[var(--impronta-gold)]/40",
         )}
       >
+        {variant === "header" ? (
+          <Sparkles className="size-4 shrink-0 text-[var(--admin-gold)] opacity-90" aria-hidden />
+        ) : null}
         <Search className="size-4 shrink-0 opacity-70" aria-hidden />
-        <span className="truncate">Search…</span>
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {variant === "header" ? "Search anything…" : "Search…"}
+        </span>
         <kbd className="ml-auto hidden shrink-0 rounded border border-border/60 bg-background/80 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline-block">
           ⌘K
         </kbd>

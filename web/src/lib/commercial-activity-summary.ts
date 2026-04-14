@@ -69,7 +69,7 @@ export function summarizeCommercialEvent(
     case BOOKING_AUDIT.CLIENT_ACCOUNT_CHANGED: {
       lines.push(`Account link: ${idSnippet(p.from)} → ${idSnippet(p.to)}.`);
       if (p.refresh_account_snapshot === true) lines.push("Account snapshots refreshed from CRM.");
-      return { label: "Client Location link changed", summary_lines: lines };
+      return { label: "Work Location link changed", summary_lines: lines };
     }
     case BOOKING_AUDIT.CLIENT_CONTACT_CHANGED: {
       lines.push(`Contact link: ${idSnippet(p.from)} → ${idSnippet(p.to)}.`);

@@ -3,23 +3,30 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { Bookmark, Share2, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ContactTalentButton } from "@/components/directory/directory-inquiry-actions";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
-import type { DirectoryCardAttributeDTO, DirectoryCardDTO } from "@/lib/directory/types";
+import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
+import { TalentCardAiMatchDrawer } from "@/components/directory/talent-card-ai-match-drawer";
+import type {
+  DirectoryAiCardOverlay,
+  DirectoryCardAttributeDTO,
+  DirectoryCardDTO,
+} from "@/lib/directory/types";
 import { MAX_CARD_FIT_LABELS } from "@/lib/directory/talent-card-dto";
 import { cn } from "@/lib/utils";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import {
   formatCardImageAlt,
-  formatShareNativeText,
   formatSrOnlyProfileCode,
 } from "@/lib/directory/directory-ui-copy";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import { trackProductEvent } from "@/lib/analytics/track-client";
 
 function talentProfileHref(pathname: string, profileCode: string): string {
   return clientLocaleHref(pathname, `/t/${encodeURIComponent(profileCode)}`);
@@ -63,6 +70,8 @@ export type TalentCardProps = {
   /** Passed through to inquiry actions (search context). */
   sourcePage?: string;
   ui: DirectoryUiCopy;
+  /** When present (hybrid AI listing), show compact match explanations + optional confidence line. */
+  aiOverlay?: DirectoryAiCardOverlay | null;
 };
 
 /**
@@ -78,9 +87,17 @@ export function TalentCard({
   className,
   sourcePage = "/directory",
   ui,
+  aiOverlay = null,
 }: TalentCardProps) {
   const pathname = usePathname();
   const { setFlash } = usePublicDiscoveryState();
+
+  useEffect(() => {
+    trackProductEvent(PRODUCT_ANALYTICS_EVENTS.view_talent_card, {
+      talent_id: card.id,
+      source_page: sourcePage,
+    });
+  }, [card.id, sourcePage]);
   const c = ui.card;
   const brand = ui.common.brand;
   const profileHref = talentProfileHref(pathname, card.profileCode);
@@ -105,6 +122,10 @@ export function TalentCard({
           text: `${card.displayName} — Impronta`,
           url,
         });
+        trackProductEvent(PRODUCT_ANALYTICS_EVENTS.share_profile, {
+          talent_id: card.id,
+          source_page: sourcePage,
+        });
         return;
       } catch {
         /* user dismissed share sheet */
@@ -112,6 +133,10 @@ export function TalentCard({
     }
     try {
       await navigator.clipboard.writeText(url);
+      trackProductEvent(PRODUCT_ANALYTICS_EVENTS.share_profile, {
+        talent_id: card.id,
+        source_page: sourcePage,
+      });
       setFlash({
         tone: "success",
         title: c.linkCopiedTitle,
@@ -124,7 +149,7 @@ export function TalentCard({
         message: c.linkCopyFailedMessage,
       });
     }
-  }, [card, setFlash, c, brand, pathname]);
+  }, [card, setFlash, c, pathname, sourcePage]);
 
   return (
     <Card
@@ -264,6 +289,58 @@ export function TalentCard({
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {card.filterMatchLabels &&
+        card.filterMatchLabels.length > 0 &&
+        !aiOverlay ? (
+          <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2">
+            <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-muted)]">
+              {c.matchWhyPrefix}
+            </p>
+            <ul className="mt-1.5 space-y-1 text-xs text-[var(--impronta-foreground)]/90">
+              {card.filterMatchLabels.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {aiOverlay &&
+        (aiOverlay.explanationLines.length > 0 ||
+          aiOverlay.confidenceNote ||
+          (aiOverlay.vectorSimilarity != null &&
+            Number.isFinite(aiOverlay.vectorSimilarity))) ? (
+          <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2">
+            <div className="mb-1.5 flex items-start justify-between gap-2">
+              <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-muted)]">
+                {c.matchWhyPrefix}
+              </p>
+              <TalentCardAiMatchDrawer
+                displayName={card.displayName}
+                overlay={aiOverlay}
+                copy={{
+                  openDetailsAria: c.aiDetailsOpenAria,
+                  drawerTitle: c.aiDetailsDrawerTitle,
+                  drawerDescription: c.aiDetailsDrawerDescription,
+                  vectorScoreLabel: c.aiDetailsVectorScore,
+                  matchWhyAria: c.aiMatchWhyAria,
+                }}
+              />
+            </div>
+            {aiOverlay.explanationLines.length > 0 ? (
+              <AIMatchExplanation
+                items={aiOverlay.explanationLines}
+                className="text-xs text-[var(--impronta-muted)] [&_span]:text-[var(--impronta-foreground)]/90"
+                ariaLabel={c.aiMatchWhyAria}
+              />
+            ) : null}
+            {aiOverlay.confidenceNote ? (
+              <p className="mt-1.5 text-[10px] leading-snug text-[var(--impronta-muted)]">
+                {aiOverlay.confidenceNote}
+              </p>
+            ) : null}
+          </div>
         ) : null}
 
         {gridAttrs.length > 0 ? (

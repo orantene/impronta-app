@@ -59,7 +59,7 @@ export function AddContactForm({
           <input type="hidden" name="client_account_id" value={clientAccountId} />
           {lockedAccountName ? (
             <div className="sm:col-span-2 rounded-md border border-border/45 bg-muted/20 px-3 py-2 text-sm">
-              <span className="text-muted-foreground">Client Location </span>
+              <span className="text-muted-foreground">Work Location </span>
               <span className="font-medium text-foreground">{lockedAccountName}</span>
             </div>
           ) : null}
@@ -68,7 +68,7 @@ export function AddContactForm({
 
       {showAccountSelect ? (
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="client_account_id_select">Client Location</Label>
+          <Label htmlFor="client_account_id_select">Work Location</Label>
           <select
             id="client_account_id_select"
             name="client_account_id"
@@ -90,7 +90,7 @@ export function AddContactForm({
 
       {!accountLocked && !showAccountSelect ? (
         <p className="sm:col-span-2 text-sm text-muted-foreground">
-          Choose a Client Location on this record first, or open this form from a location that is already linked.
+          Choose a Work Location on this record first, or open this form from a location that is already linked.
         </p>
       ) : null}
 

@@ -1,12 +1,19 @@
-import { SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import { SlidersHorizontal, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
+import {
+  ADMIN_PAGE_STACK,
+  ADMIN_SECTION_TITLE_CLASS,
+  ADMIN_TABLE_HEAD,
+  ADMIN_TABLE_TH,
+} from "@/lib/dashboard-shell-classes";
 import {
   SelectSettingForm,
+  ToggleSettingTableRow,
   UpsertSettingForm,
-  ToggleSettingForm,
 } from "./settings-forms";
 
 type Setting = { key: string; value: unknown };
@@ -113,7 +120,7 @@ export default async function AdminSettingsPage() {
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+      <AdminPageHeader
         icon={SlidersHorizontal}
         title="Settings"
         description="Site-wide configuration and feature toggles."
@@ -124,6 +131,49 @@ export default async function AdminSettingsPage() {
           Supabase not configured — settings cannot be loaded or saved.
         </p>
       )}
+
+      <DashboardSectionCard
+        title="AI settings"
+        description="Chat provider, hybrid search flags, embeddings readout, and quality v2 toggles now live under the AI workspace."
+        titleClassName={ADMIN_SECTION_TITLE_CLASS}
+      >
+        <Link
+          href="/admin/ai-workspace/settings"
+          className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card/40 px-4 py-3 text-sm font-medium text-primary shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/20"
+        >
+          <Sparkles className="size-4 shrink-0" aria-hidden />
+          Open AI Settings
+        </Link>
+      </DashboardSectionCard>
+
+      <DashboardSectionCard
+        title="Content & navigation"
+        description="Edit posts and header/footer links shown on the public site when configured."
+        titleClassName={ADMIN_SECTION_TITLE_CLASS}
+      >
+        <ul className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-6 sm:gap-y-2">
+          <li>
+            <Link
+              href="/admin/site-settings/content/posts"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Posts
+            </Link>
+            <span className="hidden sm:inline"> — </span>
+            <span className="block sm:inline">editorial and landing copy</span>
+          </li>
+          <li>
+            <Link
+              href="/admin/site-settings/content/navigation"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Navigation
+            </Link>
+            <span className="hidden sm:inline"> — </span>
+            <span className="block sm:inline">header and footer links per locale</span>
+          </li>
+        </ul>
+      </DashboardSectionCard>
 
       {/* Site settings */}
       <DashboardSectionCard
@@ -147,20 +197,38 @@ export default async function AdminSettingsPage() {
       {/* Feature toggles */}
       <DashboardSectionCard
         title="Feature toggles"
-        description="Enable or disable site features without a deployment."
+        description="Enable or disable site features without a deployment. Each row is one flag in the database."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
-        <div className="divide-y divide-border/40">
-          {toggleSettings.map((s) => (
-            <div key={s.key} className="py-4 first:pt-0 last:pb-0">
-              <ToggleSettingForm
-                settingKey={s.key}
-                currentValue={settingsMap[s.key] ?? "false"}
-                label={s.label}
-                description={s.description}
-              />
-            </div>
-          ))}
+        <div className="overflow-hidden rounded-xl border border-border/50 bg-card/25 shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[min(100%,520px)] text-sm">
+              <caption className="sr-only">
+                Site feature flags. First column describes the feature; second column is an on-off switch.
+              </caption>
+              <thead className={ADMIN_TABLE_HEAD}>
+                <tr className="border-b border-border/45 text-left">
+                  <th scope="col" className={ADMIN_TABLE_TH}>
+                    Feature
+                  </th>
+                  <th scope="col" className={cn(ADMIN_TABLE_TH, "w-[10rem] text-right")}>
+                    Enabled
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {toggleSettings.map((s) => (
+                  <ToggleSettingTableRow
+                    key={s.key}
+                    settingKey={s.key}
+                    currentValue={settingsMap[s.key] ?? "false"}
+                    label={s.label}
+                    description={s.description}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </DashboardSectionCard>
 

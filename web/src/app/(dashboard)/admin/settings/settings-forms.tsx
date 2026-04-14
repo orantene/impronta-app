@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { upsertSetting, type SettingsActionState } from "./actions";
 
 /* ------------------------------------------------------------------ */
@@ -56,9 +57,9 @@ export function UpsertSettingForm({
 }
 
 /* ------------------------------------------------------------------ */
-/* Toggle (boolean) setting                                             */
+/* Toggle (boolean) — table row (Settings → Feature toggles)            */
 /* ------------------------------------------------------------------ */
-export function ToggleSettingForm({
+export function ToggleSettingTableRow({
   settingKey,
   currentValue,
   label,
@@ -75,43 +76,55 @@ export function ToggleSettingForm({
   );
 
   const isEnabled = currentValue === "true" || currentValue === "1";
+  const formRef = useRef<HTMLFormElement>(null);
+  const valueRef = useRef<HTMLInputElement>(null);
+  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const checked = optimistic !== null ? optimistic : isEnabled;
+
+  useEffect(() => {
+    setOptimistic(null);
+  }, [isEnabled]);
+
+  useEffect(() => {
+    if (state?.error || state?.success) setOptimistic(null);
+  }, [state?.error, state?.success]);
+
+  function onCheckedChange(next: boolean) {
+    setOptimistic(next);
+    if (valueRef.current) valueRef.current.value = next ? "true" : "false";
+    formRef.current?.requestSubmit();
+  }
 
   return (
-    <form action={action} className="flex flex-wrap items-center justify-between gap-4">
-      <input type="hidden" name="key" value={settingKey} />
-      <input
-        type="hidden"
-        name="value"
-        value={isEnabled ? "false" : "true"}
-      />
-      <div>
-        <p className="text-sm font-medium">{label}</p>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
-        {state?.error && (
-          <p className="text-sm text-destructive">{state.error}</p>
-        )}
-      </div>
-      <div className="flex items-center gap-2">
-        <span
-          className={
-            "text-sm font-medium " +
-            (isEnabled ? "text-emerald-400" : "text-muted-foreground")
-          }
-        >
-          {isEnabled ? "Enabled" : "Disabled"}
-        </span>
-        <Button
-          type="submit"
-          variant={isEnabled ? "default" : "outline"}
-          size="sm"
-          disabled={pending}
-        >
-          {pending ? "…" : isEnabled ? "Disable" : "Enable"}
-        </Button>
-      </div>
-    </form>
+    <tr className="border-b border-border/40 transition-colors last:border-0 hover:bg-[var(--impronta-gold)]/[0.04]">
+      <td className="px-4 py-3 align-top">
+        <div className="max-w-2xl space-y-1">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          {description ? (
+            <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+          ) : null}
+          {state?.error ? (
+            <p className="text-sm text-destructive">{state.error}</p>
+          ) : null}
+          {state?.success ? (
+            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Saved</p>
+          ) : null}
+        </div>
+      </td>
+      <td className="w-[10rem] whitespace-nowrap px-4 py-3 align-middle">
+        <form ref={formRef} action={action} className="flex items-center justify-end gap-3">
+          <input type="hidden" name="key" value={settingKey} />
+          <input ref={valueRef} type="hidden" name="value" defaultValue={isEnabled ? "true" : "false"} />
+          <span className="text-xs font-medium tabular-nums text-muted-foreground">{checked ? "On" : "Off"}</span>
+          <Switch
+            checked={checked}
+            disabled={pending}
+            onCheckedChange={onCheckedChange}
+            aria-label={`${label}. ${checked ? "On" : "Off"}. Toggle to change.`}
+          />
+        </form>
+      </td>
+    </tr>
   );
 }
 

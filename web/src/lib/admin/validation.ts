@@ -73,7 +73,7 @@ export const CLIENT_ACCOUNT_TYPE_VALUES = [
   "other",
 ] as const;
 
-/** Values shown when creating a client location (legacy `brand` / `agency` omitted). */
+/** Values shown when creating a work location (legacy `brand` / `agency` omitted). */
 export const CLIENT_LOCATION_CREATE_TYPE_VALUES = [
   "villa",
   "resort",

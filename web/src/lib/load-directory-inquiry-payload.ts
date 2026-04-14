@@ -1,5 +1,6 @@
 import { getGuestSessionKey } from "@/lib/guest-session";
 import { getPublicSettings } from "@/lib/public-settings";
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
@@ -15,6 +16,8 @@ export type DirectoryInquiryPayload =
   | {
       kind: "ready";
       inquiriesOpen: boolean;
+      /** Phase 13 — `ai_draft_enabled` + OpenAI; UI shows inline draft assistant. */
+      aiInquiryDraftEnabled: boolean;
       agencyWhatsAppNumber?: string;
       mode: "client" | "guest";
       defaultEmail?: string;
@@ -94,6 +97,10 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     .is("archived_at", null)
     .order("sort_order", { ascending: true });
 
+  const aiFlags = await getAiFeatureFlags();
+  const aiInquiryDraftEnabled =
+    Boolean(aiFlags.ai_draft_enabled && process.env.OPENAI_API_KEY?.trim());
+
   const defaultEmail = user?.email ?? undefined;
   const defaultName =
     actor.profile?.display_name ??
@@ -104,6 +111,7 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
   return {
     kind: "ready",
     inquiriesOpen: publicSettings.inquiriesOpen,
+    aiInquiryDraftEnabled,
     agencyWhatsAppNumber: publicSettings.agencyWhatsAppNumber ?? undefined,
     mode: user ? "client" : "guest",
     defaultEmail,

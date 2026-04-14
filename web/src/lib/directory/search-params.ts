@@ -1,5 +1,6 @@
 import {
   DIRECTORY_SORT_VALUES,
+  type DirectoryFieldFacetSelection,
   type DirectorySortValue,
 } from "@/lib/directory/types";
 
@@ -58,8 +59,25 @@ export function parseDirectoryView(
   return value === "list" ? "list" : "grid";
 }
 
-const HEIGHT_ABS_MIN = 140;
-const HEIGHT_ABS_MAX = 220;
+/** Short URL param for AI normalized summary (UTF-8, length-capped by client). */
+export function parseDirectoryAiSummary(
+  raw: string | string[] | undefined,
+): string {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value || typeof value !== "string") return "";
+  try {
+    return decodeURIComponent(value.trim());
+  } catch {
+    return value.trim();
+  }
+}
+
+/** Directory height filter bounds (cm); shared with interpret + listing. */
+export const DIRECTORY_HEIGHT_CM_MIN = 140;
+export const DIRECTORY_HEIGHT_CM_MAX = 220;
+
+const HEIGHT_ABS_MIN = DIRECTORY_HEIGHT_CM_MIN;
+const HEIGHT_ABS_MAX = DIRECTORY_HEIGHT_CM_MAX;
 
 function parseIntParam(raw: string | string[] | undefined): number | null {
   const value = Array.isArray(raw) ? raw[0] : raw;
@@ -70,6 +88,80 @@ function parseIntParam(raw: string | string[] | undefined): number | null {
 }
 
 /** Clamp directory height query params to a safe cm band. */
+function parseFfSegment(segment: string): { fieldKey: string; values: string[] } | null {
+  const s = segment.trim();
+  const idx = s.indexOf(":");
+  if (idx <= 0) return null;
+  const fieldKey = s.slice(0, idx).trim();
+  if (!fieldKey) return null;
+  const rest = s.slice(idx + 1);
+  const values = rest
+    .split(",")
+    .map((v) => {
+      try {
+        return decodeURIComponent(v.trim());
+      } catch {
+        return v.trim();
+      }
+    })
+    .filter(Boolean);
+  if (values.length === 0) return null;
+  return { fieldKey, values };
+}
+
+/**
+ * Directory `ff` params: repeat `ff=key:v1,v2` (OR within a key, AND across keys).
+ * Values may be `encodeURIComponent`’d when they contain commas.
+ */
+export function parseDirectoryFieldFacets(
+  raw: string | string[] | undefined,
+): DirectoryFieldFacetSelection[] {
+  const parts: string[] = [];
+  if (Array.isArray(raw)) {
+    for (const p of raw) {
+      if (typeof p === "string" && p.trim()) parts.push(p.trim());
+    }
+  } else if (typeof raw === "string" && raw.trim()) {
+    parts.push(raw.trim());
+  }
+  const byKey = new Map<string, Set<string>>();
+  for (const p of parts) {
+    const parsed = parseFfSegment(p);
+    if (!parsed) continue;
+    const set = byKey.get(parsed.fieldKey) ?? new Set<string>();
+    for (const v of parsed.values) set.add(v);
+    byKey.set(parsed.fieldKey, set);
+  }
+  return [...byKey.entries()]
+    .map(([fieldKey, set]) => ({ fieldKey, values: [...set].sort() }))
+    .sort((a, b) => a.fieldKey.localeCompare(b.fieldKey));
+}
+
+export function serializeDirectoryFieldFacetParams(
+  facets: DirectoryFieldFacetSelection[] | undefined,
+): string[] {
+  if (!facets?.length) return [];
+  const out: string[] = [];
+  for (const { fieldKey, values } of [...facets].sort((a, b) =>
+    a.fieldKey.localeCompare(b.fieldKey),
+  )) {
+    if (!fieldKey.trim() || !values.length) continue;
+    const enc = [...values]
+      .sort()
+      .map((v) => encodeURIComponent(v.trim()))
+      .filter(Boolean)
+      .join(",");
+    if (enc) out.push(`${fieldKey.trim()}:${enc}`);
+  }
+  return out;
+}
+
+export function parseDirectoryFieldFacetsFromSearchParams(
+  sp: URLSearchParams,
+): DirectoryFieldFacetSelection[] {
+  return parseDirectoryFieldFacets(sp.getAll("ff"));
+}
+
 export function parseDirectoryHeightRange(raw: {
   hmin?: string | string[] | undefined;
   hmax?: string | string[] | undefined;
@@ -84,6 +176,26 @@ export function parseDirectoryHeightRange(raw: {
     max = t;
   }
   return { heightMinCm: min, heightMaxCm: max };
+}
+
+export const DIRECTORY_AGE_MIN = 18;
+export const DIRECTORY_AGE_MAX = 70;
+
+/** Parse `amin`/`amax` age params (integer years). */
+export function parseDirectoryAgeRange(raw: {
+  amin?: string | string[] | undefined;
+  amax?: string | string[] | undefined;
+}): { ageMin: number | null; ageMax: number | null } {
+  let min = parseIntParam(raw.amin);
+  let max = parseIntParam(raw.amax);
+  if (min != null) min = Math.min(DIRECTORY_AGE_MAX, Math.max(DIRECTORY_AGE_MIN, min));
+  if (max != null) max = Math.min(DIRECTORY_AGE_MAX, Math.max(DIRECTORY_AGE_MIN, max));
+  if (min != null && max != null && min > max) {
+    const t = min;
+    min = max;
+    max = t;
+  }
+  return { ageMin: min, ageMax: max };
 }
 
 /**
@@ -104,6 +216,19 @@ export function canonicalizeDirectorySearchParams(params: URLSearchParams): void
   if (!q) params.delete("q");
   const loc = params.get("location")?.trim();
   if (!loc) params.delete("location");
+  const ai = params.get("ai_sum")?.trim();
+  if (!ai) params.delete("ai_sum");
+  const hmin = params.get("hmin")?.trim();
+  if (!hmin) params.delete("hmin");
+  const hmax = params.get("hmax")?.trim();
+  if (!hmax) params.delete("hmax");
+  const amin = params.get("amin")?.trim();
+  if (!amin) params.delete("amin");
+  const amax = params.get("amax")?.trim();
+  if (!amax) params.delete("amax");
+  if (params.getAll("ff").length === 0) {
+    params.delete("ff");
+  }
 }
 
 /**
@@ -117,7 +242,12 @@ export function serializeCanonicalDirectoryListingParams(opts: {
   taxonomyTermIds?: string[];
   heightMinCm?: number | null;
   heightMaxCm?: number | null;
+  ageMin?: number | null;
+  ageMax?: number | null;
+  fieldFacets?: DirectoryFieldFacetSelection[];
   view?: DirectoryViewMode;
+  /** Optional AI strip headline (stored URL-encoded in `ai_sum`). */
+  aiSummary?: string;
 }): string {
   const params = new URLSearchParams();
   const q = opts.query?.trim() ?? "";
@@ -130,7 +260,16 @@ export function serializeCanonicalDirectoryListingParams(opts: {
   if (tax.length > 0) params.set("tax", [...tax].sort().join(","));
   if (opts.heightMinCm != null) params.set("hmin", String(opts.heightMinCm));
   if (opts.heightMaxCm != null) params.set("hmax", String(opts.heightMaxCm));
+  if (opts.ageMin != null) params.set("amin", String(opts.ageMin));
+  if (opts.ageMax != null) params.set("amax", String(opts.ageMax));
+  for (const seg of serializeDirectoryFieldFacetParams(opts.fieldFacets)) {
+    params.append("ff", seg);
+  }
   if (opts.view === "list") params.set("view", "list");
+  const sum = opts.aiSummary?.trim() ?? "";
+  if (sum) {
+    params.set("ai_sum", sum.slice(0, 400));
+  }
   canonicalizeDirectorySearchParams(params);
   return params.toString();
 }
@@ -149,6 +288,7 @@ export function applyCanonicalDirectoryFetchSearchParams(
     locationSlug: string;
     heightMinCm: number | null;
     heightMaxCm: number | null;
+    fieldFacets?: DirectoryFieldFacetSelection[];
   },
 ): void {
   const tax = [...input.taxonomyTermIds].filter(Boolean).sort().join(",");
@@ -161,5 +301,9 @@ export function applyCanonicalDirectoryFetchSearchParams(
   if (sl) params.set("location", sl);
   if (input.heightMinCm != null) params.set("hmin", String(input.heightMinCm));
   if (input.heightMaxCm != null) params.set("hmax", String(input.heightMaxCm));
+  params.delete("ff");
+  for (const seg of serializeDirectoryFieldFacetParams(input.fieldFacets)) {
+    params.append("ff", seg);
+  }
   canonicalizeDirectorySearchParams(params);
 }

@@ -84,7 +84,7 @@ export function ManualBookingForm({
           <Input id="mb_currency" name="currency_code" defaultValue="MXN" />
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="mb_account">Client Location</Label>
+          <Label htmlFor="mb_account">Work Location</Label>
           <select
             id="mb_account"
             name="client_account_id"
@@ -128,7 +128,7 @@ export function ManualBookingForm({
               ))}
             </select>
             <p className="text-xs text-muted-foreground">
-              Portal Client only. Use this when the person also has a login; the Client Location above still controls the commercial side.
+              Portal Client only. Use this when the person also has a login; the Work Location above still controls the commercial side.
             </p>
           </div>
         ) : null}

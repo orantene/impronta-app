@@ -76,6 +76,9 @@ const CardFooter = React.forwardRef<
 ));
 CardFooter.displayName = "CardFooter";
 
+/** Alias for design-system docs that call the body region `CardBody`. */
+const CardBody = CardContent;
+
 export {
   Card,
   CardHeader,
@@ -83,4 +86,5 @@ export {
   CardTitle,
   CardDescription,
   CardContent,
+  CardBody,
 };

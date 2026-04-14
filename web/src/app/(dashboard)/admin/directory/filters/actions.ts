@@ -59,11 +59,20 @@ export async function saveDirectorySidebarLayout(
     if (v === true) collapsedClean[k] = true;
   }
 
+  // Sanitize field visibility overrides — only keep explicit `false` values to keep the
+  // JSONB compact (missing key = visible by default).
+  const visibilityOverrides: Record<string, boolean> = {};
+  for (const [key, visible] of Object.entries(field_visibility)) {
+    if (key === DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY) continue;
+    if (visible === false) visibilityOverrides[key] = false;
+  }
+
   const layoutRow: Record<string, unknown> = {
     id: 1,
     item_order,
     filter_option_search_visible: filter_search_visible,
     section_collapsed_defaults: collapsedClean,
+    field_visibility_overrides: visibilityOverrides,
     updated_at: new Date().toISOString(),
   };
   if (talent_type_top_bar_visible !== undefined) {
@@ -76,6 +85,12 @@ export async function saveDirectorySidebarLayout(
 
   if (layoutErr) {
     const le = `${layoutErr.message ?? ""} ${layoutErr.code ?? ""}`.toLowerCase();
+    if (le.includes("field_visibility_overrides")) {
+      return {
+        error:
+          "Database is missing field_visibility_overrides. Apply migration 20260429100000_directory_sidebar_field_visibility_overrides.sql.",
+      };
+    }
     if (le.includes("talent_type_top_bar_visible")) {
       return {
         error:
@@ -96,33 +111,6 @@ export async function saveDirectorySidebarLayout(
     }
     logServerError("admin/directory-filters/layout", layoutErr);
     return { error: CLIENT_ERROR.update };
-  }
-
-  for (const [key, visible] of Object.entries(field_visibility)) {
-    if (key === DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY) continue;
-    const { error: upErr } = await supabase
-      .from("field_definitions")
-      .update({
-        directory_filter_visible: visible,
-        filterable: visible,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("key", key)
-      .is("archived_at", null);
-
-    if (upErr) {
-      if (
-        `${upErr.message ?? ""}`.toLowerCase().includes("directory_filter_visible") ||
-        `${upErr.code ?? ""}`.includes("42703")
-      ) {
-        return {
-          error:
-            "Database is missing directory_filter_visible. Apply migration 20260411230000_directory_sidebar_filter_layout.sql.",
-        };
-      }
-      logServerError(`admin/directory-filters/field/${key}`, upErr);
-      return { error: CLIENT_ERROR.update };
-    }
   }
 
   revalidatePath("/admin/directory/filters");

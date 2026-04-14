@@ -49,8 +49,8 @@ export function CreateClientAccountSheet({
     <DashboardEditPanel
       open={open}
       onOpenChange={onOpenChange}
-      title="New Client Location"
-      description="This is the place or business unit the work is for — a villa, venue, hotel, etc. One client (person) can have many client locations. This is not a portal login; see Clients in the admin nav for people."
+      title="New Work Location"
+      description="This is the place or business unit the work is for — a villa, venue, hotel, etc. One client (person) can have many work locations. This is not a portal login; see Clients in the admin nav for people."
     >
       <div className="space-y-4">
         <NewAccountForm
@@ -59,7 +59,7 @@ export function CreateClientAccountSheet({
           linkInquiryId={linkInquiryId ?? undefined}
           linkBookingId={linkBookingId ?? undefined}
           onSheetSuccess={(id) => {
-            toast.success("Client location created", {
+            toast.success("Work location created", {
               action: {
                 label: "Open location",
                 onClick: () => {
@@ -106,7 +106,7 @@ export function EditClientAccountSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={`Edit ${account.name}`}
-      description="Update this Client Location in place. Google Places can refresh the address details, and you can still edit everything manually before saving."
+      description="Update this Work Location in place. Google Places can refresh the address details, and you can still edit everything manually before saving."
     >
       <div className="space-y-4">
         <NewAccountForm
@@ -116,7 +116,7 @@ export function EditClientAccountSheet({
           clientAccountId={account.id}
           initialValues={account}
           onSheetSuccess={() => {
-            toast.success("Client location updated");
+            toast.success("Work location updated");
             router.refresh();
             onOpenChange(false);
           }}

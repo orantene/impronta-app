@@ -7,6 +7,7 @@ export function DashboardSectionCard({
   children,
   className,
   titleClassName,
+  id,
 }: {
   title?: React.ReactNode;
   description?: React.ReactNode;
@@ -15,9 +16,12 @@ export function DashboardSectionCard({
   className?: string;
   /** Optional title typography override (e.g. talent dashboard cards). */
   titleClassName?: string;
+  /** Anchor id for in-page links (e.g. admin settings sections). */
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       className={cn(
         "rounded-2xl border border-border/60 bg-card/40 shadow-sm",
         "transition-[border-color,box-shadow] duration-200",
@@ -26,7 +30,7 @@ export function DashboardSectionCard({
       )}
     >
       {title || description || right ? (
-        <div className="flex flex-col gap-3 border-b border-border/50 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-border/50 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-1">
             {title ? (
               <h2
@@ -45,7 +49,7 @@ export function DashboardSectionCard({
           {right ? <div className="shrink-0">{right}</div> : null}
         </div>
       ) : null}
-      <div className="px-5 py-4">{children}</div>
+      <div className="px-6 py-5">{children}</div>
     </section>
   );
 }

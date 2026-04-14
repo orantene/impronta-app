@@ -1,6 +1,10 @@
 import { Suspense } from "react";
-import { getCachedDirectoryFirstPage } from "@/lib/directory/cache";
+import { getPublicDirectoryFirstPage } from "@/lib/directory/cache";
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import {
+  parseDirectoryAgeRange,
+  parseDirectoryAiSummary,
+  parseDirectoryFieldFacets,
   parseDirectoryHeightRange,
   parseDirectoryLocation,
   parseDirectoryQuery,
@@ -19,15 +23,20 @@ import { DiscoveryStateBridge } from "./public-discovery-state";
 import { DirectoryFiltersSidebar } from "./directory-filters-sidebar";
 import { DirectoryInfiniteGrid } from "./directory-infinite";
 import { DirectoryMobileFilters } from "./directory-mobile-filters";
+import { collectFitSlugsFromCards } from "@/lib/directory/collect-fit-slugs-from-cards";
+import { DirectoryMatchFitProvider } from "./directory-match-fit-context";
+import { DirectoryRefineSuggestions } from "./directory-refine-suggestions";
+import { DirectoryUnderstandingStrip } from "./directory-understanding-strip";
 import { DirectoryResultsToolbar } from "./directory-results-toolbar";
 import { DirectoryTalentTypeBar } from "./directory-talent-type-bar";
-import type { DirectorySortValue } from "@/lib/directory/types";
+import type { DirectoryFieldFacetSelection, DirectorySortValue } from "@/lib/directory/types";
 import type { Locale } from "@/i18n/config";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocalePath } from "@/i18n/pathnames";
 import { logServerError } from "@/lib/server/safe-error";
 import { createTranslator } from "@/i18n/messages";
 import { buildDirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
+import { buildDirectoryInterpretedSummaryLine } from "@/lib/directory/build-directory-interpreted-summary";
 
 function buildDirectorySourcePage({
   locale,
@@ -37,7 +46,9 @@ function buildDirectorySourcePage({
   taxonomyTermIds,
   heightMinCm,
   heightMaxCm,
+  fieldFacets,
   view,
+  aiSummary,
 }: {
   locale: Locale;
   query: string;
@@ -46,7 +57,9 @@ function buildDirectorySourcePage({
   taxonomyTermIds: string[];
   heightMinCm: number | null;
   heightMaxCm: number | null;
+  fieldFacets: DirectoryFieldFacetSelection[];
   view: "grid" | "list";
+  aiSummary?: string;
 }) {
   const qs = serializeCanonicalDirectoryListingParams({
     query,
@@ -55,7 +68,9 @@ function buildDirectorySourcePage({
     taxonomyTermIds,
     heightMinCm,
     heightMaxCm,
+    fieldFacets,
     view,
+    aiSummary,
   });
   const path = qs ? `/directory?${qs}` : "/directory";
   return withLocalePath(path, locale);
@@ -69,7 +84,11 @@ async function DirectoryDiscoverInner({
   locationSlug,
   heightMinCm,
   heightMaxCm,
+  ageMin,
+  ageMax,
+  fieldFacets,
   view,
+  aiSummary,
   initialSavedIds,
 }: {
   taxonomyTermIds: string[];
@@ -79,7 +98,11 @@ async function DirectoryDiscoverInner({
   locationSlug: string;
   heightMinCm: number | null;
   heightMaxCm: number | null;
+  ageMin: number | null;
+  ageMax: number | null;
+  fieldFacets: DirectoryFieldFacetSelection[];
   view: "grid" | "list";
+  aiSummary: string;
   initialSavedIds: string[];
 }) {
   let loadError = false;
@@ -89,13 +112,15 @@ async function DirectoryDiscoverInner({
   let taxonomyOptions: Awaited<
     ReturnType<typeof getCachedTaxonomyFilterOptions>
   > = [];
-  let firstPage: Awaited<ReturnType<typeof getCachedDirectoryFirstPage>> | null =
+  let firstPage: Awaited<ReturnType<typeof getPublicDirectoryFirstPage>> | null =
     null;
+  let aiFlags: Awaited<ReturnType<typeof getAiFeatureFlags>> | null = null;
 
   try {
-    [taxonomyOptions, firstPage] = await Promise.all([
+    [aiFlags, taxonomyOptions, firstPage] = await Promise.all([
+      getAiFeatureFlags(),
       getCachedTaxonomyFilterOptions(locale),
-      getCachedDirectoryFirstPage({
+      getPublicDirectoryFirstPage({
         taxonomyTermIds,
         locale,
         sort,
@@ -103,6 +128,7 @@ async function DirectoryDiscoverInner({
         locationSlug,
         heightMinCm,
         heightMaxCm,
+        fieldFacetFilters: fieldFacets,
       }),
     ]);
   } catch (e) {
@@ -117,7 +143,10 @@ async function DirectoryDiscoverInner({
         locationSlug,
         heightMinCm,
         heightMaxCm,
+        ageMin,
+        ageMax,
         query,
+        fieldFacets,
       });
     } catch (e) {
       logServerError("directory/discover-filter-sections", e);
@@ -138,6 +167,15 @@ async function DirectoryDiscoverInner({
   const t = createTranslator(locale);
   const ui = buildDirectoryUiCopy(t);
 
+  const interpretedStructuredLine = buildDirectoryInterpretedSummaryLine({
+    taxonomyOptions,
+    selectedTaxonomyIds: taxonomyTermIds,
+    locationSlug,
+    heightMinCm,
+    heightMaxCm,
+    heightUnitLabel: ui.intent.heightUnitCm,
+  });
+
   return (
     <>
       {filterSidebar.topBarTalentType ? (
@@ -155,7 +193,7 @@ async function DirectoryDiscoverInner({
             locationSlug,
             sort,
             taxonomyTermIds,
-            sourcePage: buildDirectorySourcePage({
+              sourcePage: buildDirectorySourcePage({
               locale,
               query,
               locationSlug,
@@ -163,7 +201,9 @@ async function DirectoryDiscoverInner({
               taxonomyTermIds,
               heightMinCm,
               heightMaxCm,
+              fieldFacets,
               view,
+              aiSummary: aiSummary.trim() || undefined,
             }),
           }}
         />
@@ -176,6 +216,9 @@ async function DirectoryDiscoverInner({
               locationSlug={locationSlug}
               heightMinCm={heightMinCm}
               heightMaxCm={heightMaxCm}
+              ageMin={ageMin}
+              ageMax={ageMax}
+              fieldFacets={fieldFacets}
               ui={ui}
             />
           </div>
@@ -190,45 +233,74 @@ async function DirectoryDiscoverInner({
               locationSlug={locationSlug}
               heightMinCm={heightMinCm}
               heightMaxCm={heightMaxCm}
+              ageMin={ageMin}
+              ageMax={ageMax}
+              fieldFacets={fieldFacets}
               ui={ui}
             />
           </div>
 
-          <DirectoryResultsToolbar
-            totalCount={firstPage.totalCount ?? 0}
-            taxonomyOptions={taxonomyOptions}
-            selectedIds={taxonomyTermIds}
-            query={query}
-            locationSlug={locationSlug}
-            sort={sort}
-            heightMinCm={heightMinCm}
-            heightMaxCm={heightMaxCm}
-            view={view}
-            ui={ui}
-          />
+          <DirectoryMatchFitProvider
+            initialSlugs={collectFitSlugsFromCards(firstPage.items)}
+          >
+            <DirectoryUnderstandingStrip
+              aiSummary={aiSummary}
+              showSummary={Boolean(aiFlags?.ai_search_enabled)}
+              interpretedStructuredLine={interpretedStructuredLine}
+              taxonomyOptions={taxonomyOptions}
+              selectedIds={taxonomyTermIds}
+              query={query}
+              locationSlug={locationSlug}
+              heightMinCm={heightMinCm}
+              heightMaxCm={heightMaxCm}
+              ui={ui}
+            />
+            <DirectoryResultsToolbar
+              totalCount={firstPage.totalCount ?? 0}
+              sort={sort}
+              view={view}
+              ui={ui}
+            />
 
-          <DirectoryInfiniteGrid
-            key={`${locale}|${serializeCanonicalDirectoryListingParams({
-              query,
-              locationSlug,
-              sort,
-              taxonomyTermIds,
-              heightMinCm,
-              heightMaxCm,
-              view,
-            })}`}
-            taxonomyTermIds={taxonomyTermIds}
-            initialPage={firstPage}
-            locale={locale}
-            sort={sort}
-            query={query}
-            locationSlug={locationSlug}
-            heightMinCm={heightMinCm}
-            heightMaxCm={heightMaxCm}
-            view={view}
-            initialSavedIds={initialSavedIds}
-            ui={ui}
-          />
+            {aiFlags?.ai_refine_enabled ? (
+              <DirectoryRefineSuggestions
+                locale={locale}
+                query={query}
+                locationSlug={locationSlug}
+                selectedTaxonomyIds={taxonomyTermIds}
+                heightMinCm={heightMinCm}
+                heightMaxCm={heightMaxCm}
+                ui={ui}
+              />
+            ) : null}
+
+            <DirectoryInfiniteGrid
+              key={`${locale}|${serializeCanonicalDirectoryListingParams({
+                query,
+                locationSlug,
+                sort,
+                taxonomyTermIds,
+                heightMinCm,
+                heightMaxCm,
+                fieldFacets,
+                view,
+                aiSummary,
+              })}`}
+              taxonomyTermIds={taxonomyTermIds}
+              initialPage={firstPage}
+              locale={locale}
+              sort={sort}
+              query={query}
+              locationSlug={locationSlug}
+              heightMinCm={heightMinCm}
+              heightMaxCm={heightMaxCm}
+              fieldFacets={fieldFacets}
+              view={view}
+              initialSavedIds={initialSavedIds}
+              ui={ui}
+              directorySearchViaAi={Boolean(aiFlags?.ai_search_enabled)}
+            />
+          </DirectoryMatchFitProvider>
         </div>
       </div>
     </>
@@ -251,7 +323,13 @@ export async function DirectoryDiscoverSection({
     hmin: searchParams.hmin,
     hmax: searchParams.hmax,
   });
+  const { ageMin, ageMax } = parseDirectoryAgeRange({
+    amin: searchParams.amin,
+    amax: searchParams.amax,
+  });
   const view = parseDirectoryView(searchParams);
+  const aiSummary = parseDirectoryAiSummary(searchParams.ai_sum);
+  const fieldFacets = parseDirectoryFieldFacets(searchParams.ff);
 
   return (
     <Suspense
@@ -274,7 +352,11 @@ export async function DirectoryDiscoverSection({
         locationSlug={locationSlug}
         heightMinCm={heightMinCm}
         heightMaxCm={heightMaxCm}
+        ageMin={ageMin}
+        ageMax={ageMax}
+        fieldFacets={fieldFacets}
         view={view}
+        aiSummary={aiSummary}
         initialSavedIds={initialSavedIds}
       />
     </Suspense>

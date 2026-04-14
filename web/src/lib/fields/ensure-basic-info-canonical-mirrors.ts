@@ -24,6 +24,8 @@ type CanonicalMirrorSeed = {
   editable_by_staff: boolean;
   editable_by_admin: boolean;
   sort_order: number;
+  /** Merged into `field_definitions.config` on insert (e.g. text facet options). */
+  config?: Record<string, unknown>;
 };
 
 /**
@@ -106,7 +108,7 @@ const BASIC_INFO_CANONICAL_SEEDS: CanonicalMirrorSeed[] = [
     profile_visible: false,
     filterable: false,
     searchable: false,
-    ai_visible: true,
+    ai_visible: false,
     editable_by_talent: true,
     editable_by_staff: true,
     editable_by_admin: true,
@@ -116,21 +118,24 @@ const BASIC_INFO_CANONICAL_SEEDS: CanonicalMirrorSeed[] = [
     key: "gender",
     label_en: "Gender",
     label_es: "Género",
-    help_en: "Stored on the talent profile for internal use.",
-    help_es: "Guardado en el perfil del talento (uso interno).",
+    help_en: "Stored on the talent profile. Can be exposed as a directory facet when enabled under Filters.",
+    help_es: "Guardado en el perfil del talento. Puede mostrarse como faceta del directorio si se activa.",
     value_type: "text",
     required_level: "optional",
     public_visible: false,
     internal_only: true,
     card_visible: false,
     profile_visible: false,
-    filterable: false,
+    filterable: true,
     searchable: false,
     ai_visible: true,
     editable_by_talent: true,
     editable_by_staff: true,
     editable_by_admin: true,
     sort_order: 50,
+    config: {
+      filter_options: ["Female", "Male", "Non-binary", "Other", "Prefer not to say"],
+    },
   },
   {
     key: "date_of_birth",
@@ -361,7 +366,7 @@ export async function ensureBasicInfoCanonicalMirrors(
       active: true,
       sort_order: seed.sort_order,
       taxonomy_kind: null,
-      config: {},
+      config: seed.config ?? {},
       updated_at: new Date().toISOString(),
     });
 

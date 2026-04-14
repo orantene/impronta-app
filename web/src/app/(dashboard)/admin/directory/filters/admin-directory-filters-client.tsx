@@ -21,6 +21,13 @@ import { GripVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { startTransition, useActionState, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  ADMIN_ALERT_SUCCESS,
+  ADMIN_DRAGGABLE_SETTING_ROW,
+  ADMIN_EMBEDDED_SURFACE,
+  ADMIN_ERROR_CARD,
+  ADMIN_GROUP_LIST_GAP,
+} from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
 import { DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY } from "@/lib/directory/directory-sidebar-layout";
 import { saveDirectorySidebarLayout, type DirectoryFiltersActionState } from "./actions";
@@ -65,7 +72,7 @@ function SortableFilterRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex flex-wrap items-center gap-3 rounded-xl border border-border/50 bg-card/40 px-3 py-3",
+        ADMIN_DRAGGABLE_SETTING_ROW,
         isDragging && "z-10 border-[var(--impronta-gold)]/40 bg-[var(--impronta-gold)]/5",
         !visible && "opacity-60",
       )}
@@ -239,18 +246,12 @@ export function AdminDirectoryFiltersClient({
 
   return (
     <div className="space-y-4">
-      {state?.error ? (
-        <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {state.error}
-        </p>
-      ) : null}
+      {state?.error ? <p className={ADMIN_ERROR_CARD}>{state.error}</p> : null}
       {state?.success ? (
-        <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200">
-          Saved. Public directory sidebar will update on next load.
-        </p>
+        <p className={ADMIN_ALERT_SUCCESS}>Saved. Public directory sidebar will update on next load.</p>
       ) : null}
 
-      <div className="rounded-xl border border-border/50 bg-card/40 px-3 py-3">
+      <div className={ADMIN_EMBEDDED_SURFACE}>
         <label className="flex cursor-pointer items-start gap-3 text-sm">
           <input
             type="checkbox"
@@ -272,7 +273,7 @@ export function AdminDirectoryFiltersClient({
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
-          <div className={cn("space-y-2", pending && "pointer-events-none opacity-60")}>
+          <div className={cn(ADMIN_GROUP_LIST_GAP, pending && "pointer-events-none opacity-60")}>
             {orderedRows.map((row) => (
               <SortableFilterRow
                 key={row.key}

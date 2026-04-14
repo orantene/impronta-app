@@ -22,6 +22,9 @@ export type ApiDirectoryCardRpcRow = {
   created_at: string;
   is_featured: boolean;
   featured_level: number;
+  featured_position: number;
+  profile_completeness_score: number | string | null;
+  manual_rank_override: number | null;
   thumb_width: number | null;
   thumb_height: number | null;
   thumb_bucket_id: string | null;
@@ -35,6 +38,8 @@ export type ApiDirectoryCardRpcRow = {
   height_cm: number | null;
   /** Serialized `CardAttributeRpc[]` from server */
   card_attributes_jsonb: unknown;
+  /** Deterministic overlap between active directory filters and profile (classic listing). */
+  filter_match_labels_jsonb?: unknown;
 };
 
 function pickLocalizedName(
@@ -141,6 +146,11 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
 
   const cardAttributes = parseCardAttributes(row.card_attributes_jsonb, locale);
 
+  const rawMatch = row.filter_match_labels_jsonb;
+  const filterMatchLabels = Array.isArray(rawMatch)
+    ? rawMatch.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+    : [];
+
   return {
     id: row.id,
     profileCode: row.profile_code,
@@ -155,11 +165,16 @@ export function mapApiDirectoryRpcRowToDirectoryCardDTO(
     createdAt: row.created_at,
     isFeatured: row.is_featured,
     featuredLevel: row.featured_level,
+    featuredPosition: Number(row.featured_position ?? 0),
+    profileCompletenessScore: Number(row.profile_completeness_score ?? 0),
+    manualRankOverride:
+      row.manual_rank_override == null ? null : Number(row.manual_rank_override),
     heightCm: row.height_cm,
     thumbnail: {
       url: thumbUrl,
       width: row.thumb_width,
       height: row.thumb_height,
     },
+    ...(filterMatchLabels.length > 0 ? { filterMatchLabels } : {}),
   };
 }

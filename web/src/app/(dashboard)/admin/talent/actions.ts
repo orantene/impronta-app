@@ -32,6 +32,7 @@ import {
   buildBioEnEditExtras,
   type TalentBioRow,
 } from "@/lib/translation/talent-bio-translation-service";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 
 export type TalentActionState = { error?: string; success?: boolean } | undefined;
 
@@ -285,6 +286,8 @@ export async function updateTalentProfile(
     logServerError("admin/updateTalentProfile/workflowEvents", e);
   }
 
+  await scheduleRebuildAiSearchDocument(supabase, id);
+
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
@@ -358,6 +361,8 @@ export async function updateTalentWorkflowVisibilityInline(input: {
   } catch (e) {
     logServerError("admin/updateTalentWorkflowVisibilityInline/workflowEvents", e);
   }
+
+  await scheduleRebuildAiSearchDocument(supabase, id);
 
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
@@ -474,6 +479,8 @@ export async function saveAdminTalentScalarFieldValues(
       if (!m.ok) return { error: CLIENT_ERROR.update };
     }
   }
+
+  await scheduleRebuildAiSearchDocument(supabase, talent_profile_id);
 
   revalidatePath(`/admin/talent/${talent_profile_id}`);
   return { success: true, message: "Field values saved." };
@@ -680,6 +687,9 @@ export async function adminBulkTalentAction(
 
   revalidatePath("/admin/talent");
   for (const id of eligibleIds) revalidatePath(`/admin/talent/${id}`);
+  for (const id of eligibleIds) {
+    await scheduleRebuildAiSearchDocument(supabase, id);
+  }
   return { ok: true, updated: eligibleIds.length };
 }
 
@@ -709,6 +719,8 @@ export async function restoreTalentProfile(
     logServerError("admin/restoreTalentProfile", error);
     return { error: "Could not restore profile." };
   }
+
+  await scheduleRebuildAiSearchDocument(supabase, id);
 
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);

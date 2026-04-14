@@ -5,6 +5,7 @@ import { requireTalent } from "@/lib/server/action-guards";
 import { isReservedTalentProfileFieldKey } from "@/lib/field-canonical";
 import { readBooleanFromFormData } from "@/lib/field-form-boolean";
 import { mirrorHeightCmToTalentProfile } from "@/lib/field-values-height-mirror";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 export type TalentFieldValuesState = { error?: string; success?: boolean; message?: string } | undefined;
@@ -149,6 +150,8 @@ export async function saveTalentScalarFieldValues(
       if (!m.ok) return { error: CLIENT_ERROR.update };
     }
   }
+
+  await scheduleRebuildAiSearchDocument(supabase, talent_profile_id);
 
   revalidatePath("/talent", "layout");
   return { success: true, message: "Fields saved." };

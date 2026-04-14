@@ -1,4 +1,6 @@
 import { MapPinned } from "lucide-react";
+import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminAccountQueue } from "@/app/(dashboard)/admin/accounts/admin-account-queue";
 import type { AccountQueueRow } from "@/app/(dashboard)/admin/accounts/admin-account-queue";
 import { AdminAccountsToolbar } from "@/components/admin/create-client-account-sheet";
@@ -180,28 +182,24 @@ export default async function AdminClientAccountsPage() {
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--impronta-gold)]/25 bg-[var(--impronta-gold)]/10">
-            <MapPinned className="size-5 text-[var(--impronta-gold)]" aria-hidden />
-          </div>
-          <div>
-            <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">
-              Client Locations
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {queueRows.length > 0
-                ? `${queueRows.length} location${queueRows.length === 1 ? "" : "s"}`
-                : "No locations yet"}{" "}
-              · villas, venues, hotels linked to jobs
-            </p>
-          </div>
-        </div>
-        <AdminAccountsToolbar />
-      </div>
+      <AdminPageHeader
+        icon={MapPinned}
+        title="Work Locations"
+        description={
+          queueRows.length > 0
+            ? `${queueRows.length} location${queueRows.length === 1 ? "" : "s"} · villas, venues, hotels linked to jobs`
+            : "No locations yet · villas, venues, hotels linked to jobs"
+        }
+      />
 
-      {/* Queue table */}
+      <AdminFilterBar
+        title="Quick actions"
+        description="Create a billing entity or open the full form for more fields."
+        activeCount={0}
+      >
+        <AdminAccountsToolbar />
+      </AdminFilterBar>
+
       <AdminAccountQueue rows={queueRows} />
     </div>
   );

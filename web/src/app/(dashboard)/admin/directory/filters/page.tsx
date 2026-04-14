@@ -1,14 +1,12 @@
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { getCachedDirectoryHeightFilterConfig } from "@/lib/directory/directory-filter-catalog";
 import {
   DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY,
   fetchDirectorySidebarLayout,
   mergeSidebarItemOrder,
 } from "@/lib/directory/directory-sidebar-layout";
-import { isDirectoryFilterEligibleField } from "@/lib/directory/directory-filter-admin-eligibility";
 import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
 import { ListFilter } from "lucide-react";
 import {
@@ -46,14 +44,11 @@ export default async function AdminDirectoryFiltersPage() {
     return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
   }
 
-  const heightCatalog = await getCachedDirectoryHeightFilterConfig();
-
   const primaryFields = await supabase
     .from("field_definitions")
     .select(FIELD_DEF_SELECT_FULL)
     .eq("active", true)
-    .is("archived_at", null)
-    .eq("internal_only", false);
+    .is("archived_at", null);
 
   let fieldsRaw: FieldRow[] | null = primaryFields.data as FieldRow[] | null;
   let fErr = primaryFields.error;
@@ -65,8 +60,7 @@ export default async function AdminDirectoryFiltersPage() {
       .from("field_definitions")
       .select(FIELD_DEF_SELECT_FALLBACK)
       .eq("active", true)
-      .is("archived_at", null)
-      .eq("internal_only", false);
+      .is("archived_at", null);
     fieldsRaw = retry.data as FieldRow[] | null;
     fErr = retry.error;
   }
@@ -78,12 +72,14 @@ export default async function AdminDirectoryFiltersPage() {
 
   const fields = (fieldsRaw ?? []) as FieldRow[];
 
-  const facetFields = fields.filter((f) =>
-    isDirectoryFilterEligibleField(
-      { key: f.key, value_type: f.value_type, taxonomy_kind: f.taxonomy_kind },
-      heightCatalog.enabled,
-    ),
-  );
+  /** All fields opted into directory filters from Admin → Fields (`directory_filter_visible`, else legacy `filterable`). */
+  const facetFields = fields.filter((f) => {
+    const vis =
+      f.directory_filter_visible !== undefined && f.directory_filter_visible !== null
+        ? f.directory_filter_visible
+        : f.filterable === true;
+    return vis === true;
+  });
 
   const facetKeys = facetFields.map((f) => f.key);
 
@@ -110,11 +106,12 @@ export default async function AdminDirectoryFiltersPage() {
   const fieldVisibility: Record<string, boolean> = {};
 
   for (const f of facetFields) {
-    const vis =
-      f.directory_filter_visible !== undefined && f.directory_filter_visible !== null
-        ? f.directory_filter_visible
-        : f.filterable === true;
-    fieldVisibility[f.key] = vis;
+    // Visibility on the Filters page is a sidebar layout override stored in
+    // directory_sidebar_layout.field_visibility_overrides. Missing key = visible (default).
+    // We do NOT read back from field_definitions.directory_filter_visible here, because
+    // that column controls whether the field participates in filtering at all (set from
+    // the Fields page). The Visible toggle on this page is purely a display override.
+    fieldVisibility[f.key] = sidebarLayout.field_visibility_overrides[f.key] !== false;
     rowsByKey[f.key] = {
       key: f.key,
       label: f.label_en,
@@ -126,7 +123,7 @@ export default async function AdminDirectoryFiltersPage() {
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+      <AdminPageHeader
         icon={ListFilter}
         title="Directory filters"
         description="Control which facets appear in the public directory sidebar, and drag to set their order. This replaces the old “filterable” toggle on Fields."

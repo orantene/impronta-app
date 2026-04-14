@@ -73,7 +73,7 @@ export function AdminNewClientSheet({
           if (!next) setOpen(false);
         }}
         title="New Client"
-        description="Create a portal login for a Client person. This is not a Client Location or billing record."
+        description="Create a portal login for a Client person. This is not a Work Location or billing record."
       >
         {state?.success ? (
           <div className="space-y-4">
@@ -111,7 +111,7 @@ export function AdminNewClientSheet({
             {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
             <div className="rounded-md border border-border/45 bg-muted/15 px-3 py-3 text-xs leading-relaxed text-muted-foreground">
               <span className="font-medium text-foreground">Client</span> here means the portal login person. Create
-              their Client Location separately under Admin → Client Locations when you need the business or venue record.
+              their Work Location separately under Admin → Work Locations when you need the business or venue record.
             </div>
             <div className="space-y-2">
               <Label htmlFor="new_client_display_name">Client name</Label>

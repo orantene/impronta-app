@@ -21,7 +21,7 @@ export default async function PublicLayout({
       <DirectoryInquiryModalProvider>
         <PublicFlashHost dismissAria={dismissFlashAria} />
         {children}
-        <DirectoryInquirySheet ui={directoryUi} />
+        <DirectoryInquirySheet ui={directoryUi} locale={locale} />
       </DirectoryInquiryModalProvider>
     </PublicDiscoveryStateProvider>
   );

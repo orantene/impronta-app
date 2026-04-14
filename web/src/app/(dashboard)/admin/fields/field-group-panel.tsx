@@ -24,6 +24,7 @@ import {
   EyeOff,
   GripVertical,
   LayoutGrid,
+  ListFilter,
   Pencil,
   Plus,
   Search,
@@ -49,6 +50,12 @@ import {
   partitionBasicInformationGroupFields,
   reservedTalentProfileFieldKeysHint,
 } from "@/lib/field-canonical";
+import {
+  ADMIN_EMBEDDED_SURFACE,
+  ADMIN_EXPANDABLE_GROUP_CARD,
+  ADMIN_GROUP_SECTION_TITLE,
+  ADMIN_GROUP_TOOLBAR_BUTTON,
+} from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
 import {
   createFieldDefinition,
@@ -95,8 +102,9 @@ function ValueTypePill({
   );
 }
 
-function ToggleIconButton({
+function ToggleLabeledButton({
   label,
+  shortLabel,
   active,
   disabled,
   onClick,
@@ -104,6 +112,7 @@ function ToggleIconButton({
   hint,
 }: {
   label: string;
+  shortLabel: string;
   active: boolean;
   disabled: boolean;
   onClick: () => void;
@@ -116,10 +125,10 @@ function ToggleIconButton({
         <span className="inline-flex shrink-0">
           <Button
             type="button"
-            size="icon"
+            size="sm"
             variant={active ? "default" : "outline"}
             className={cn(
-              "h-8 w-8 shrink-0 transition-colors",
+              "h-auto min-h-8 shrink-0 gap-1 px-1.5 py-1 transition-colors",
               active
                 ? "border-2 border-primary shadow-md [&_svg]:text-primary-foreground"
                 : "border-2 border-border/80 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
@@ -133,7 +142,12 @@ function ToggleIconButton({
             aria-label={`${label}${active ? ", on" : ", off"}`}
             aria-pressed={active}
           >
-            {icon}
+            <span className="flex flex-col items-center gap-0.5">
+              <span className="inline-flex shrink-0">{icon}</span>
+              <span className="max-w-[4.5rem] text-center text-[9px] font-semibold uppercase leading-tight tracking-tight text-current">
+                {shortLabel}
+              </span>
+            </span>
           </Button>
         </span>
       </TooltipTrigger>
@@ -169,6 +183,8 @@ export type FieldDefinitionRow = {
   preview_visible: boolean;
   profile_visible: boolean;
   filterable: boolean;
+  /** When true, field is eligible to appear in public directory sidebar + admin Directory filters layout. */
+  directory_filter_visible: boolean;
   searchable: boolean;
   ai_visible: boolean;
   editable_by_talent: boolean;
@@ -439,9 +455,10 @@ function FieldRowShell({
       </td>
       <td className="py-2 pr-4 align-middle">
         <TooltipProvider delayDuration={250}>
-          <div className="flex flex-wrap gap-1.5">
-          <ToggleIconButton
+          <div className="flex max-w-[min(100vw,520px)] flex-wrap gap-1.5">
+          <ToggleLabeledButton
             label="Public exposure"
+            shortLabel="Public"
             active={field.public_visible}
             disabled={pending}
             onClick={() => onToggle("public_visible", !field.public_visible)}
@@ -454,53 +471,67 @@ function FieldRowShell({
             }
             hint={
               field.public_visible
-                ? "Gate for anonymous/public data: when off, values stay out of public APIs and most public UIs. Profile page and directory card traits still require their own toggles (person + grid icons). Internal-only fields never leak."
+                ? "Gate for anonymous/public data: when off, values stay out of public APIs and most public UIs. Profile page and directory card traits still require their own toggles. Internal-only fields never leak."
                 : "Off: not treated as publicly releasable. Staff/talent dashboards may still show the field where the product allows."
             }
           />
-          <ToggleIconButton
+          <ToggleLabeledButton
             label="Profile page"
+            shortLabel="Profile"
             active={field.profile_visible}
             disabled={pending}
             onClick={() => onToggle("profile_visible", !field.profile_visible)}
             icon={<UserRound className="size-4" aria-hidden />}
             hint={
               field.profile_visible
-                ? "On: may appear on the public talent profile (detail sections) when public exposure is on and the field is not internal-only. Directory card trait catalog also requires this for most fields."
+                ? "Show on profile: may appear on the public talent profile when public exposure is on and the field is not internal-only. Directory card traits also require profile visibility for most fields."
                 : "Off: hidden from public profile sections even when public exposure is on."
             }
           />
-          <ToggleIconButton
+          <ToggleLabeledButton
             label="Directory card traits"
+            shortLabel="Card"
             active={field.card_visible}
             disabled={pending}
             onClick={() => onToggle("card_visible", !field.card_visible)}
             icon={<LayoutGrid className="size-4" aria-hidden />}
-            hint="Extra trait lines under fit labels on directory cards (not page grid density). Runtime requires public exposure + profile page + this toggle, including fit_labels chips. Name, primary role, and city on the card come from profile columns, not field definitions."
+            hint="Show on card: extra trait lines under fit labels on directory cards. Runtime requires public exposure + profile + this toggle. Name, primary role, and city on the card come from profile columns, not field definitions."
           />
-          <ToggleIconButton
+          <ToggleLabeledButton
             label="Quick preview (hover)"
+            shortLabel="Preview"
             active={field.preview_visible}
             disabled={pending}
             onClick={() => onToggle("preview_visible", !field.preview_visible)}
             icon={<Telescope className="size-4" aria-hidden />}
-            hint="Directory hover preview API only: today wired for fit_labels, skills, and languages, together with public exposure and profile page visibility."
+            hint="Directory hover preview API: wired for fit_labels, skills, and languages together with public exposure and profile visibility."
           />
-          <ToggleIconButton
+          <ToggleLabeledButton
+            label="Show in directory filters"
+            shortLabel="Filters"
+            active={field.directory_filter_visible}
+            disabled={pending}
+            onClick={() => onToggle("directory_filter_visible", !field.directory_filter_visible)}
+            icon={<ListFilter className="size-4" aria-hidden />}
+            hint="When on, this field can appear in the admin Directory filters list and (for supported types) as a public directory sidebar facet. Reorder and hide blocks under Admin → Directory → Directory filters. Unsupported value types may appear in admin only until the facet UI supports them."
+          />
+          <ToggleLabeledButton
             label="Search indexing (field values)"
+            shortLabel="Search"
             active={field.searchable}
             disabled={pending}
             onClick={() => onToggle("searchable", !field.searchable)}
             icon={<Search className="size-4" aria-hidden />}
-            hint="Adds this field’s text/textarea rows in field_values to directory search (q) when the field is also public + profile-visible. Display name, short bio, taxonomy term names, and city names are always searched separately—turning this off does not disable those paths."
+            hint="Searchable: adds this field’s text/textarea values in field_values to classic directory keyword search (q) when the field is public + profile-visible. Names, bios, taxonomy, and cities are searched via other paths—canonical profile columns do not use field_values, so this toggle does not affect them."
           />
-          <ToggleIconButton
-            label="AI / future tooling (reserved)"
+          <ToggleLabeledButton
+            label="Use for AI matching"
+            shortLabel="AI"
             active={field.ai_visible}
             disabled={pending}
             onClick={() => onToggle("ai_visible", !field.ai_visible)}
             icon={<Sparkles className="size-4" aria-hidden />}
-            hint="Reserved for future AI or ranking features. No production reader uses this flag yet; safe to leave off until those pipelines exist."
+            hint="AI signal: includes this field in the AI search document used for semantic / vector search and related tooling when values exist. Canonical columns (name, bio, location, gender, etc.) are merged by the document builder separately from field_values."
           />
           </div>
         </TooltipProvider>
@@ -712,11 +743,11 @@ export function FieldGroupPanel({
     groupDelState?.error;
 
   return (
-    <div className="space-y-3 rounded-2xl border border-border/60 bg-[var(--impronta-surface)] p-4 shadow-sm">
+    <div className={ADMIN_EXPANDABLE_GROUP_CARD}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-[var(--impronta-gold)]">
+            <h2 className={ADMIN_GROUP_SECTION_TITLE}>
               {group.name_en}
             </h2>
             <Badge variant="secondary" className="h-6">
@@ -731,7 +762,7 @@ export function FieldGroupPanel({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 gap-2 border-border/60 bg-background/40 text-xs"
+            className={ADMIN_GROUP_TOOLBAR_BUTTON}
             disabled={busy}
             onClick={() => setEditingGroup((v) => !v)}
           >
@@ -743,7 +774,7 @@ export function FieldGroupPanel({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 gap-2 border-border/60 bg-background/40 text-xs"
+            className={ADMIN_GROUP_TOOLBAR_BUTTON}
             disabled={busy}
             onClick={() => {
               setAddFieldOpen((prev) => {
@@ -762,7 +793,7 @@ export function FieldGroupPanel({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 gap-2 border-border/60 bg-background/40 text-xs text-muted-foreground hover:text-destructive"
+            className={cn(ADMIN_GROUP_TOOLBAR_BUTTON, "text-muted-foreground hover:text-destructive")}
             disabled={busy}
             onClick={() => setConfirmOpen(true)}
           >
@@ -774,7 +805,7 @@ export function FieldGroupPanel({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 gap-2 border-border/60 bg-background/40 text-xs"
+            className={ADMIN_GROUP_TOOLBAR_BUTTON}
             onClick={() => onOpenChange(!open)}
             aria-expanded={open}
           >
@@ -788,7 +819,7 @@ export function FieldGroupPanel({
       </div>
 
       {editingGroup ? (
-        <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+        <div className={ADMIN_EMBEDDED_SURFACE}>
           <form action={groupUpdAction} className="grid gap-3 sm:grid-cols-3">
             <input type="hidden" name="group_id" value={group.id} />
             <div className="space-y-1.5">
@@ -869,7 +900,7 @@ export function FieldGroupPanel({
             )}
           </p>
           {addFieldOpen ? (
-            <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+            <div className={ADMIN_EMBEDDED_SURFACE}>
               <form action={createAction} className="grid gap-3 sm:grid-cols-4">
                 <input type="hidden" name="field_group_id" value={group.id} />
                 <div className="space-y-1.5">
@@ -933,7 +964,7 @@ export function FieldGroupPanel({
             </div>
           ) : null}
 
-          <div className="flex items-end gap-2 rounded-xl border border-border/60 bg-background/40 p-3">
+          <div className={cn("flex items-end gap-2", ADMIN_EMBEDDED_SURFACE)}>
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" aria-hidden />
               <Input

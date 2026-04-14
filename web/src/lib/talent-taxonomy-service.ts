@@ -3,6 +3,7 @@
  * Kept UI-free so it can back server actions today and MCP tools later.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { logServerError } from "@/lib/server/safe-error";
 
 const TALENT_TYPE_KIND = "talent_type";
@@ -108,6 +109,7 @@ export async function assignTaxonomyTermToProfile(
     logServerError("talent-taxonomy/assign", error);
     return { ok: false, error: "Could not save taxonomy." };
   }
+  await scheduleRebuildAiSearchDocument(supabase, params.talentProfileId);
   return { ok: true };
 }
 
@@ -155,11 +157,15 @@ export async function removeTaxonomyTermFromProfile(
 
     if (remErr) {
       logServerError("talent-taxonomy/remove/remaining", remErr);
+      await scheduleRebuildAiSearchDocument(supabase, params.talentProfileId);
       return { ok: true };
     }
 
     const ids = (remaining ?? []).map((r) => r.taxonomy_term_id);
-    if (ids.length === 0) return { ok: true };
+    if (ids.length === 0) {
+      await scheduleRebuildAiSearchDocument(supabase, params.talentProfileId);
+      return { ok: true };
+    }
 
     const { data: tt, error: ttErr } = await supabase
       .from("taxonomy_terms")
@@ -178,5 +184,6 @@ export async function removeTaxonomyTermFromProfile(
     }
   }
 
+  await scheduleRebuildAiSearchDocument(supabase, params.talentProfileId);
   return { ok: true };
 }

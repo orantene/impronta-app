@@ -214,6 +214,93 @@ body {
   }
 }
 
+/**
+ * Admin dashboard shell (sidebar, drawer, chrome) — Impronta gold navigation.
+ * Workspace chrome theme: [data-admin-prototype-theme="dark"] | "light" (localStorage + toggle).
+ * DB dashboard theme: .dashboard-theme-{dark|light} on the same root (settings row).
+ */
+[data-admin-prototype="1"][data-admin-prototype-theme="dark"] {
+  --admin-gold: #c9a227;
+  --admin-gold-bright: #d4af37;
+  --admin-gold-soft: rgba(201, 162, 39, 0.16);
+  --admin-gold-border: rgba(201, 162, 39, 0.22);
+  --admin-sidebar-bg: #0f0d0a;
+  --admin-sidebar-hover: rgba(201, 162, 39, 0.1);
+  --admin-gold-muted: rgba(212, 175, 55, 0.55);
+  --admin-nav-active-label: #fafafa;
+  --admin-nav-idle: rgba(228, 228, 231, 0.58);
+  --admin-nav-hover-fg: #f4f4f5;
+  --admin-workspace-bg: #0c0c0c;
+  --admin-workspace-fg: #f4f4f5;
+  --admin-workspace-surface: rgba(255, 255, 255, 0.07);
+  --admin-workspace-elevated: rgba(12, 12, 12, 0.96);
+  --admin-panel-bg: rgba(24, 24, 27, 0.96);
+  --admin-code-bg: rgba(255, 255, 255, 0.08);
+}
+
+[data-admin-prototype="1"][data-admin-prototype-theme="light"] {
+  --admin-gold: #9b7a21;
+  --admin-gold-bright: #b18a24;
+  --admin-gold-soft: rgba(155, 122, 33, 0.14);
+  --admin-gold-border: rgba(155, 122, 33, 0.24);
+  --admin-sidebar-bg: #faf7f2;
+  --admin-sidebar-hover: rgba(155, 122, 33, 0.11);
+  --admin-gold-muted: rgba(90, 70, 22, 0.62);
+  --admin-nav-active-label: #1c1810;
+  --admin-nav-idle: #6b5f4a;
+  --admin-nav-hover-fg: #231d10;
+  --admin-workspace-bg: #f2ede3;
+  --admin-workspace-fg: #1a1508;
+  --admin-workspace-surface: #fffdf8;
+  --admin-workspace-elevated: rgba(255, 253, 248, 0.97);
+  --admin-panel-bg: #fffdf8;
+  --admin-code-bg: rgba(35, 29, 16, 0.06);
+}
+
+/**
+ * Main column: remap shadcn semantic colors so workspace light/dark match the shell
+ * (independent of site body theme).
+ */
+[data-admin-prototype="1"][data-admin-prototype-theme="light"] .admin-prototype-main {
+  --background: #f2ede3;
+  --foreground: #1a1508;
+  --card: #fffefb;
+  --card-foreground: #1a1508;
+  --muted: #e6dfd1;
+  --muted-foreground: #5c5346;
+  --border: rgba(155, 122, 33, 0.16);
+  --input: rgba(35, 29, 16, 0.07);
+  --primary: var(--admin-gold);
+  --primary-foreground: #fffdf8;
+  --secondary: #e8e0d2;
+  --secondary-foreground: #2a2418;
+  --accent: rgba(155, 122, 33, 0.1);
+  --accent-foreground: #1a1508;
+  --ring: var(--admin-gold-bright);
+  --popover: #fffefb;
+  --popover-foreground: #1a1508;
+}
+
+[data-admin-prototype="1"][data-admin-prototype-theme="dark"] .admin-prototype-main {
+  --background: #0c0c0c;
+  --foreground: #f4f4f5;
+  --card: #14120e;
+  --card-foreground: #f4f4f5;
+  --muted: rgba(255, 255, 255, 0.06);
+  --muted-foreground: rgba(200, 200, 205, 0.72);
+  --border: rgba(201, 162, 39, 0.14);
+  --input: rgba(255, 255, 255, 0.08);
+  --primary: var(--admin-gold);
+  --primary-foreground: #0a0a0a;
+  --secondary: rgba(255, 255, 255, 0.07);
+  --secondary-foreground: #f4f4f5;
+  --accent: rgba(201, 162, 39, 0.12);
+  --accent-foreground: #fafafa;
+  --ring: var(--admin-gold-bright);
+  --popover: #1a1814;
+  --popover-foreground: #f4f4f5;
+}
+
 /* Subtle motion only — never start from opacity:0 + fill-mode:both (can leave content invisible). */
 @keyframes dashboard-segment-in {
   from {

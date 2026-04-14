@@ -2,18 +2,24 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
+  Images,
   MapPin,
   User,
 } from "lucide-react";
 
+import { ProfileViewAnalytics } from "@/components/analytics/profile-view-analytics";
 import {
   DiscoveryStateBridge,
   PublicDiscoveryStateProvider,
 } from "@/components/directory/public-discovery-state";
+import { ProfileAiStrip } from "@/components/directory/profile-ai-strip";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicHeader } from "@/components/public-header";
+import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicProfileFieldVisibility } from "@/lib/public-profile-field-visibility";
 import { getOrderedPublicProfileSections } from "@/lib/public-profile-field-order";
@@ -434,12 +440,12 @@ export default async function PublicTalentProfilePage({
 
   if (!isSupabaseConfigured()) {
     return (
-      <>
+      <PublicDiscoveryStateProvider>
         <PublicHeader />
         <div className="mx-auto max-w-lg flex-1 px-4 py-20 text-center text-m text-muted-foreground">
           {t("public.forms.inquiry.supabaseNotConfigured")}
         </div>
-      </>
+      </PublicDiscoveryStateProvider>
     );
   }
 
@@ -586,6 +592,8 @@ export default async function PublicTalentProfilePage({
   return (
     <PublicDiscoveryStateProvider>
       <PublicFlashHost dismissAria={ui.flash.dismissAria} />
+      <ProfileViewAnalytics talentId={profile.id} locale={locale} />
+
       <PublicHeader />
       <DiscoveryStateBridge savedIds={initialSavedIds} />
 
@@ -719,6 +727,10 @@ export default async function PublicTalentProfilePage({
 
             {/* Divider */}
             <div className="mt-10 border-t border-[var(--impronta-gold-border)]" />
+            <ProfileAiStrip
+              title={t("public.profile.aiPanelTitle")}
+              body={t("public.profile.aiPanelBody")}
+            />
           </div>
         </div>
 
@@ -742,7 +754,12 @@ export default async function PublicTalentProfilePage({
                     closeLabel={ui.preview.close}
                   />
                 ) : (
-                  <GalleryPlaceholder name={name} />
+                  <EmptyState
+                    icon={Images}
+                    title={t("public.profile.portfolioEmptyTitle")}
+                    description={t("public.profile.portfolioEmptyDescription")}
+                    className="mt-6 border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/30"
+                  />
                 )}
               </section>
 
@@ -769,19 +786,21 @@ export default async function PublicTalentProfilePage({
                   <SectionLabel id="basic-info-heading">
                     {t("public.profile.basicInfo")}
                   </SectionLabel>
-                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     {basicInfoDetailRows.map((r) => (
-                      <div
+                      <Card
                         key={r.key}
-                        className="rounded-xl border border-border/60 bg-[var(--impronta-surface)] px-4 py-3"
+                        className="border-border/60 bg-[var(--impronta-surface)] shadow-none"
                       >
-                        <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--impronta-muted)]">
-                          {r.label}
-                        </dt>
-                        <dd className="mt-1 text-sm text-foreground">{r.value}</dd>
-                      </div>
+                        <CardContent className="px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--impronta-muted)]">
+                            {r.label}
+                          </p>
+                          <p className="mt-1 text-sm text-foreground">{r.value}</p>
+                        </CardContent>
+                      </Card>
                     ))}
-                  </dl>
+                  </div>
                 </section>
               ) : null}
 
@@ -789,19 +808,21 @@ export default async function PublicTalentProfilePage({
               {otherDetailRows.length > 0 ? (
                 <section aria-labelledby="details-heading">
                   <SectionLabel id="details-heading">{t("public.profile.details")}</SectionLabel>
-                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     {otherDetailRows.map((r) => (
-                      <div
+                      <Card
                         key={r.key}
-                        className="rounded-xl border border-border/60 bg-[var(--impronta-surface)] px-4 py-3"
+                        className="border-border/60 bg-[var(--impronta-surface)] shadow-none"
                       >
-                        <dt className="text-xs font-semibold uppercase tracking-wider text-[var(--impronta-muted)]">
-                          {r.label}
-                        </dt>
-                        <dd className="mt-1 text-sm text-foreground">{r.value}</dd>
-                      </div>
+                        <CardContent className="px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--impronta-muted)]">
+                            {r.label}
+                          </p>
+                          <p className="mt-1 text-sm text-foreground">{r.value}</p>
+                        </CardContent>
+                      </Card>
                     ))}
-                  </dl>
+                  </div>
                 </section>
               ) : null}
 
@@ -980,6 +1001,11 @@ export default async function PublicTalentProfilePage({
           </div>
         </section>
       </main>
+      <footer className="border-t border-[var(--impronta-gold-border)]/40 bg-[var(--impronta-black)] px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center text-sm text-[var(--impronta-muted)]">
+          <PublicCmsFooterNav locale={locale} />
+        </div>
+      </footer>
     </PublicDiscoveryStateProvider>
   );
 }
@@ -1005,25 +1031,3 @@ function SectionLabel({
   );
 }
 
-function GalleryPlaceholder({ name }: { name: string }) {
-  return (
-    <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="relative overflow-hidden rounded bg-[var(--impronta-surface)]"
-          style={{ aspectRatio: i % 3 === 0 ? "3/4" : "4/3" }}
-        >
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,rgba(201,162,39,0.05),transparent_70%)]" />
-          {i === 2 ? (
-            <div className="flex h-full items-center justify-center">
-              <span className="font-[family-name:var(--font-cinzel)] text-[10px] tracking-[0.2em] text-[var(--impronta-muted)] opacity-30">
-                {name.split(" ")[0]}
-              </span>
-            </div>
-          ) : null}
-        </div>
-      ))}
-    </div>
-  );
-}

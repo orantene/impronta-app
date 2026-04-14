@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "default_k": 10,
+  "cases": [
+    {
+      "id": "empty-skip",
+      "q": "",
+      "k": 10,
+      "expected_in_top_k": [],
+      "skip": true,
+      "note": "Placeholder — fill UUIDs from your staging DB; un-skip when curated."
+    },
+    {
+      "id": "short-query-classic",
+      "q": "a",
+      "k": 10,
+      "expected_in_top_k": [],
+      "skip": true,
+      "note": "Too short for embedding; expect classic path. Curate if you assert specific IDs."
+    },
+    {
+      "id": "sample-semantic-1",
+      "q": "fashion model editorial",
+      "k": 10,
+      "expected_in_top_k": [],
+      "skip": true,
+      "note": "Replace with real talent UUIDs from eval DB after hybrid is on."
+    },
+    {
+      "id": "sample-semantic-2",
+      "q": "commercial talent lifestyle",
+      "k": 10,
+      "expected_in_top_k": [],
+      "skip": true,
+      "note": "Replace with real talent UUIDs from eval DB."
+    },
+    {
+      "id": "sample-semantic-3",
+      "q": "portrait photographer beauty",
+      "k": 10,
+      "expected_in_top_k": [],
+      "skip": true,
+      "note": "Replace with real talent UUIDs from eval DB."
+    }
+  ]
+}

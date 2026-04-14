@@ -12,12 +12,14 @@ import {
   FolderKanban,
   Images,
   LayoutDashboard,
+  Globe,
   Languages,
   LayoutGrid,
   ListFilter,
   MapPinned,
   Search,
   Settings,
+  Sparkles,
   Shield,
   ShieldCheck,
   SlidersHorizontal,
@@ -130,6 +132,10 @@ function NavIcon({ icon }: { icon: DashboardNavIconKey }) {
       return <Shield className="size-4" aria-hidden />;
     case "translations":
       return <Languages className="size-4" aria-hidden />;
+    case "siteSettings":
+      return <Globe className="size-4" aria-hidden />;
+    case "aiWorkspace":
+      return <Sparkles className="size-4" aria-hidden />;
     default:
       return <LayoutDashboard className="size-4" aria-hidden />;
   }

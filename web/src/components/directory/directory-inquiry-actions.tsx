@@ -9,6 +9,8 @@ import { useOptionalDirectoryInquiryModal } from "@/components/directory/directo
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { cn } from "@/lib/utils";
 import { clientLocaleHref } from "@/i18n/client-directory-href";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import { trackProductEvent } from "@/lib/analytics/track-client";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 
 type TalentSummary = {
@@ -100,6 +102,10 @@ export function SaveTalentButton({
             });
             if (nextSaved) {
               inquiryModal?.bumpSaveCue();
+              trackProductEvent(PRODUCT_ANALYTICS_EVENTS.save_talent, {
+                talent_id: talent.id,
+                source_page: sourcePage,
+              });
             }
           }
         });
@@ -182,6 +188,10 @@ export function ContactTalentButton({
             inquiryModal?.bumpSaveCue();
           }
           if (inquiryModal) {
+            trackProductEvent(PRODUCT_ANALYTICS_EVENTS.start_inquiry, {
+              talent_id: talent.id,
+              source_page: sourcePage,
+            });
             inquiryModal.openInquiry();
           } else {
             router.push(clientLocaleHref(pathname, "/directory"));

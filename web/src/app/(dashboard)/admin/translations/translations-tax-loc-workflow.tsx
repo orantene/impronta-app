@@ -119,8 +119,8 @@ function StatusBadge({ status }: { status: ComputedStatus }) {
       : "Spanish label is set — compare with English in the expanded row.";
   const cls =
     status === "missing"
-      ? "border-red-600/55 bg-red-600/15 text-red-50"
-      : "border-emerald-600/60 bg-emerald-600/15 text-emerald-100";
+      ? "border-rose-600/50 bg-rose-500/12 text-rose-900 dark:text-rose-50"
+      : "border-emerald-600/50 bg-emerald-600/12 text-emerald-900 dark:text-emerald-100";
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -374,8 +374,8 @@ export function TranslationsTaxonomyWorkflowTable({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="rounded-xl border border-border/60 bg-card/30">
-        <div className="flex flex-col gap-3 border-b border-border/50 px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-border/45 bg-card/50 shadow-[0_12px_40px_-28px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-col gap-3 border-b border-border/50 px-5 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <p className="text-sm text-muted-foreground">
               Showing {rows.length} term{rows.length === 1 ? "" : "s"}
@@ -439,40 +439,55 @@ export function TranslationsTaxonomyWorkflowTable({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <caption className="sr-only">
+              Taxonomy terms translation queue: select rows, expand for detail, sort columns, open editor or run AI
+              from the actions column.
+            </caption>
             <thead className={cn("border-b border-border/50 text-xs uppercase tracking-wider", ADMIN_TABLE_HEAD)}>
               <tr>
-                <th className={cn(ADMIN_TABLE_TH, "w-10 py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "w-10 py-3")}>
                   <input
                     ref={headerCheckboxRef}
                     type="checkbox"
-                    className="size-4 rounded border-border accent-primary"
+                    className="size-4 rounded border-border accent-[var(--impronta-gold)]"
                     checked={allSelected}
                     onChange={(e) => toggleAll(e.target.checked)}
                     aria-label="Select all on this page"
                   />
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "w-8 py-2.5")} aria-hidden />
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "w-8 py-3")} aria-label="Expand row" />
+                <th className={cn(ADMIN_TABLE_TH, "py-3")}>
                   <SortHeader
-                    label="Name EN"
+                    label="English"
                     titleAttr="Sort by English name"
                     href={taxonomySortHref("name_en", taxonomySort, sortDir, statusFilter, q)}
                     active={taxonomySort === "name_en"}
                     ascending={sortDir === "asc"}
                   />
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Label + kind · slug
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "py-3")}>
                   <SortHeader
-                    label="Name ES"
+                    label="Spanish"
                     titleAttr="Sort by Spanish name"
                     href={taxonomySortHref("name_es", taxonomySort, sortDir, statusFilter, q)}
                     active={taxonomySort === "name_es"}
                     ascending={sortDir === "asc"}
                   />
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Display label (ES)
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")}>Status</th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "py-3")}>
+                  <span className="block">Status</span>
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Missing / OK
+                  </span>
+                </th>
+                <th className={cn(ADMIN_TABLE_TH, "py-3")}>
                   <SortHeader
                     label="Updated"
                     titleAttr="Sort by last update"
@@ -481,7 +496,7 @@ export function TranslationsTaxonomyWorkflowTable({
                     ascending={sortDir === "asc"}
                   />
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5 text-right")}>Actions</th>
+                <th className={cn(ADMIN_TABLE_TH, "py-3 text-right")}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -497,16 +512,16 @@ export function TranslationsTaxonomyWorkflowTable({
                       )}
                       onClick={() => setExpanded((prev) => (prev === row.id ? null : row.id))}
                     >
-                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          className="size-4 rounded border-border accent-primary"
+                          className="size-4 rounded border-border accent-[var(--impronta-gold)]"
                           checked={selected.has(row.id)}
                           onChange={(e) => toggleOne(row.id, e.target.checked)}
                           aria-label={`Select ${row.slug}`}
                         />
                       </td>
-                      <td className="px-1 py-2.5 text-muted-foreground">
+                      <td className="px-1 py-2 text-muted-foreground">
                         <div className="flex items-center gap-1">
                           {rowAiPhase[row.id] === "translating" ? (
                             <span className="size-2 animate-pulse rounded-full bg-amber-400" title="Translating" />
@@ -524,22 +539,22 @@ export function TranslationsTaxonomyWorkflowTable({
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-4 py-2">
                         <div className="font-medium text-foreground">{row.name_en}</div>
                         <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
                           {row.kind} · {row.slug}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">
+                      <td className="px-4 py-2 text-muted-foreground">
                         {(row.name_es ?? "").trim() || "—"}
                       </td>
-                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                         <StatusBadge status={status} />
                       </td>
-                      <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
+                      <td className="px-4 py-2 tabular-nums text-muted-foreground">
                         {formatAdminTimestamp(row.updated_at)}
                       </td>
-                      <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <Button
                             type="button"
@@ -986,8 +1001,8 @@ export function TranslationsLocationWorkflowTable({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="rounded-xl border border-border/60 bg-card/30">
-        <div className="flex flex-col gap-3 border-b border-border/50 px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-border/45 bg-card/50 shadow-[0_12px_40px_-28px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-col gap-3 border-b border-border/50 px-5 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <p className="text-sm text-muted-foreground">
               Showing {rows.length} location{rows.length === 1 ? "" : "s"}
@@ -1051,40 +1066,55 @@ export function TranslationsLocationWorkflowTable({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <caption className="sr-only">
+              Locations translation queue: English and Spanish display names per city, status, last update, and
+              actions.
+            </caption>
             <thead className={cn("border-b border-border/50 text-xs uppercase tracking-wider", ADMIN_TABLE_HEAD)}>
               <tr>
-                <th className={cn(ADMIN_TABLE_TH, "w-10 py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "w-10 py-3")}>
                   <input
                     ref={headerCheckboxRef}
                     type="checkbox"
-                    className="size-4 rounded border-border accent-primary"
+                    className="size-4 rounded border-border accent-[var(--impronta-gold)]"
                     checked={allSelected}
                     onChange={(e) => toggleAll(e.target.checked)}
                     aria-label="Select all on this page"
                   />
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "w-8 py-2.5")} aria-hidden />
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "w-8 py-3")} aria-label="Expand row" />
+                <th className={cn(ADMIN_TABLE_TH, "py-3")}>
                   <SortHeader
-                    label="Name EN"
+                    label="English"
                     titleAttr="Sort by English display name"
                     href={locationSortHref("display_en", locationSort, sortDir, statusFilter, q)}
                     active={locationSort === "display_en"}
                     ascending={sortDir === "asc"}
                   />
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Canonical city name
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "py-3")}>
                   <SortHeader
-                    label="Name ES"
+                    label="Spanish"
                     titleAttr="Sort by Spanish display name"
                     href={locationSortHref("display_es", locationSort, sortDir, statusFilter, q)}
                     active={locationSort === "display_es"}
                     ascending={sortDir === "asc"}
                   />
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Display name (ES)
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")}>Status</th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "py-3")}>
+                  <span className="block">Status</span>
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Missing / OK
+                  </span>
+                </th>
+                <th className={cn(ADMIN_TABLE_TH, "py-3")}>
                   <SortHeader
                     label="Updated"
                     titleAttr="Sort by last update"
@@ -1093,7 +1123,7 @@ export function TranslationsLocationWorkflowTable({
                     ascending={sortDir === "asc"}
                   />
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5 text-right")}>Actions</th>
+                <th className={cn(ADMIN_TABLE_TH, "py-3 text-right")}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1109,16 +1139,16 @@ export function TranslationsLocationWorkflowTable({
                       )}
                       onClick={() => setExpanded((prev) => (prev === row.id ? null : row.id))}
                     >
-                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          className="size-4 rounded border-border accent-primary"
+                          className="size-4 rounded border-border accent-[var(--impronta-gold)]"
                           checked={selected.has(row.id)}
                           onChange={(e) => toggleOne(row.id, e.target.checked)}
                           aria-label={`Select ${row.city_slug}`}
                         />
                       </td>
-                      <td className="px-1 py-2.5 text-muted-foreground">
+                      <td className="px-1 py-2 text-muted-foreground">
                         <div className="flex items-center gap-1">
                           {rowAiPhase[row.id] === "translating" ? (
                             <span className="size-2 animate-pulse rounded-full bg-amber-400" title="Translating" />
@@ -1136,22 +1166,22 @@ export function TranslationsLocationWorkflowTable({
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-4 py-2">
                         <div className="font-medium text-foreground">{row.display_name_en}</div>
                         <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
                           {row.country_code} · {row.city_slug}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">
+                      <td className="px-4 py-2 text-muted-foreground">
                         {(row.display_name_es ?? "").trim() || "—"}
                       </td>
-                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                         <StatusBadge status={status} />
                       </td>
-                      <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
+                      <td className="px-4 py-2 tabular-nums text-muted-foreground">
                         {formatAdminTimestamp(row.updated_at)}
                       </td>
-                      <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <Button
                             type="button"

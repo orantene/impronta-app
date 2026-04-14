@@ -41,5 +41,7 @@ export async function upsertSetting(
     return { error: CLIENT_ERROR.update };
   }
   revalidatePath("/admin/settings");
+  revalidatePath("/admin/ai-workspace/settings");
+  revalidatePath("/admin/ai-workspace");
   return { success: true };
 }

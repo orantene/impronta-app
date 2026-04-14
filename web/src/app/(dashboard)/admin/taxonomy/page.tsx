@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Info, Tags } from "lucide-react";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import {
   ADMIN_FORM_CONTROL,
+  ADMIN_GROUP_LIST_GAP,
   ADMIN_HELP_TRIGGER_BUTTON,
   ADMIN_LINK_PILL,
   ADMIN_PAGE_STACK,
@@ -134,7 +135,7 @@ export default async function AdminTaxonomyPage({
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+      <AdminPageHeader
         icon={Tags}
         title="Taxonomy"
         description={
@@ -226,7 +227,7 @@ export default async function AdminTaxonomyPage({
           {showArchived ? "No archived terms." : "No terms yet. Add one above."}
         </p>
       ) : userKindsWithTerms.length > 0 ? (
-        <div className="space-y-4">
+        <div className={ADMIN_GROUP_LIST_GAP}>
           <p className="px-0.5 font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Taxonomy groups
           </p>

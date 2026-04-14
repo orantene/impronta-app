@@ -1,6 +1,6 @@
 import { StaffAccountPasswordForm } from "@/app/(dashboard)/admin/account/staff-account-password-form";
 import { signOut } from "@/app/auth/actions";
-import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-header";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { Button } from "@/components/ui/button";
 import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
@@ -11,6 +11,7 @@ import {
 import { userHasEmailPasswordIdentity } from "@/lib/auth-identities";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import Link from "next/link";
+import { UserRound } from "lucide-react";
 import { redirect } from "next/navigation";
 
 export default async function AdminAccountPage() {
@@ -31,7 +32,8 @@ export default async function AdminAccountPage() {
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <DashboardPageHeader
+      <AdminPageHeader
+        icon={UserRound}
         eyebrow="Admin"
         title="Account"
         description={

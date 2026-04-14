@@ -388,7 +388,7 @@ export default async function AdminClientDetailPage({
               )}
             </span>
           }
-          description="Client Locations (villas, venues, brands) attached via this client's inquiries."
+          description="Work Locations (villas, venues, brands) attached via this client's inquiries."
           titleClassName={ADMIN_SECTION_TITLE_CLASS}
         >
           {linkedAccounts.length === 0 ? (

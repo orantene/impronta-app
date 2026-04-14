@@ -54,17 +54,44 @@ export const ADMIN_OUTLINE_CONTROL_CLASS =
 export const ADMIN_PAGE_WIDTH = "mx-auto max-w-6xl";
 
 /** Max width + rhythm for admin inner pages (matches talent/media polish). */
-export const ADMIN_PAGE_STACK = `${ADMIN_PAGE_WIDTH} space-y-8`;
+export const ADMIN_PAGE_STACK = `${ADMIN_PAGE_WIDTH} space-y-8 pb-8`;
 
-/** “How it works” / help triggers on list pages. */
+/** “How it works” / help triggers on list pages (44px min tap target on mobile). */
 export const ADMIN_HELP_TRIGGER_BUTTON =
-  "h-9 gap-2 rounded-2xl border-border/55 bg-background/85 px-3.5 shadow-sm transition-[border-color,box-shadow] " +
-  "hover:border-[var(--impronta-gold)]/40 hover:shadow-md";
+  "min-h-[44px] h-10 gap-2 rounded-2xl border-border/55 bg-background/85 px-3.5 shadow-sm transition-[border-color,box-shadow] " +
+  "hover:border-[var(--impronta-gold)]/40 hover:shadow-md sm:h-9 sm:min-h-0";
 
 export const ADMIN_POPOVER_CONTENT_CLASS = "w-[360px] rounded-2xl border-border/50 p-4 shadow-lg";
 
 /** Section card titles across admin (serif / display). */
 export const ADMIN_SECTION_TITLE_CLASS = "font-display text-base font-medium tracking-wide";
+
+/**
+ * Unified admin page tab bar — attached strip above main content (rounded top, shared border).
+ * Use with {@link ADMIN_TAB_BAR_SCROLL} + {@link ADMIN_TAB_ITEM} / active / idle.
+ */
+export const ADMIN_TAB_BAR =
+  "w-full min-w-0 overflow-hidden rounded-t-2xl border border-border/60 bg-card/40 shadow-sm";
+
+/** Horizontal scroll row inside the tab bar (scrollbar hidden; snap on mobile). */
+export const ADMIN_TAB_BAR_SCROLL =
+  "flex w-full min-w-0 snap-x snap-mandatory gap-0 overflow-x-auto border-b border-border/50 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
+/** Base classes for each tab link (min 44px tap target on mobile). */
+export const ADMIN_TAB_ITEM =
+  "inline-flex shrink-0 snap-start select-none items-center justify-center whitespace-nowrap border-b-2 border-transparent px-4 py-3 text-sm font-medium transition-[color,background-color,border-color] duration-200 " +
+  "min-h-[44px] sm:min-h-0 sm:py-2.5 " +
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+export const ADMIN_TAB_ITEM_ACTIVE =
+  "border-[var(--impronta-gold)] bg-[var(--impronta-gold)]/[0.07] text-foreground";
+
+export const ADMIN_TAB_ITEM_IDLE =
+  "text-muted-foreground hover:bg-muted/35 hover:text-foreground";
+
+/** Consistent destructive / error surface for admin pages (alerts, load failures). */
+export const ADMIN_ERROR_CARD =
+  "rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive";
 
 /** Client portal main column widths — keep list + detail pages visually aligned. */
 export const CLIENT_PAGE_STACK_WIDE = "mx-auto w-full max-w-6xl space-y-8 pb-12";
@@ -99,6 +126,66 @@ export const ADMIN_FORM_CONTROL =
   "h-11 w-full rounded-xl border border-border/55 bg-background/90 px-3.5 text-sm shadow-sm " +
   "transition-[border-color,box-shadow] focus-visible:border-[var(--impronta-gold)]/45 focus-visible:outline-none " +
   "focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/20";
+
+/**
+ * Directory admin defaults (Fields, Taxonomy, Locations, Directory filters).
+ * Use these tokens on new admin list/hub pages so cards, group rows, and forms stay aligned.
+ */
+
+/**
+ * Default rhythm for admin “label + control” stacks (Fields, Taxonomy, Locations add forms).
+ * Matches Directory / Fields / Tax / Filters screens.
+ */
+export const ADMIN_FORM_FIELD_STACK = "space-y-1.5";
+
+/** Horizontal + vertical gap for responsive admin form grids (`grid … gap-4`). */
+export const ADMIN_FORM_GRID_GAP = "gap-4";
+
+/** Vertical gap between stacked expandable groups (field groups, taxonomy kinds). */
+export const ADMIN_GROUP_LIST_GAP = "space-y-3";
+
+/**
+ * Stage behind grouped admin lists (Fields) — subtle frame without stealing focus from rows.
+ */
+export const ADMIN_GROUP_LIST_STAGE =
+  "rounded-3xl border border-border/45 bg-gradient-to-br from-[var(--impronta-gold)]/[0.04] via-card/80 to-muted/20 p-4 shadow-sm";
+
+/**
+ * Primary white “row card” for expandable groups (Fields group panel).
+ * Use inside a stage or standalone; pairs with {@link ADMIN_GROUP_SECTION_TITLE}.
+ */
+export const ADMIN_EXPANDABLE_GROUP_CARD =
+  "space-y-3 rounded-2xl border border-border/60 bg-[var(--impronta-surface)] p-4 shadow-sm";
+
+export const ADMIN_GROUP_SECTION_TITLE =
+  "text-sm font-semibold uppercase tracking-widest text-[var(--impronta-gold)]";
+
+/** Outline icon+text actions in group headers (Edit group, Add field, Expand, …). */
+export const ADMIN_GROUP_TOOLBAR_BUTTON =
+  "h-8 gap-2 border-border/60 bg-background/40 text-xs";
+
+/** Muted inset panel for helper copy or read-only blocks inside a group. */
+export const ADMIN_MUTED_INLINE_SURFACE = "rounded-lg border border-border/60 bg-muted/10 p-3";
+
+/** Slightly stronger inset for inline forms / search bars inside a group. */
+export const ADMIN_EMBEDDED_SURFACE = "rounded-xl border border-border/60 bg-background/40 p-3";
+
+/**
+ * Draggable configuration row (Directory filters, similar list tiles).
+ * ~40px+ touch-friendly padding; aligns with group card corner radius.
+ */
+export const ADMIN_DRAGGABLE_SETTING_ROW =
+  "flex flex-wrap items-center gap-3 rounded-2xl border border-border/50 bg-card/40 px-4 py-3 shadow-sm";
+
+/** Success flash under forms (Directory filters save, etc.). */
+export const ADMIN_ALERT_SUCCESS =
+  "rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-200";
+
+/** Compact reorder handle strip above a sortable group card. */
+export const ADMIN_REORDER_HANDLE_ROW = "mb-2 flex items-center justify-end gap-2";
+
+export const ADMIN_REORDER_HANDLE_BUTTON =
+  "h-7 gap-2 border-border/60 bg-background/40 text-xs text-muted-foreground hover:text-foreground";
 
 /** Action hierarchy: gold primary, outline secondary, muted tertiary (Phase 14). */
 export const ADMIN_ACTION_PRIMARY_CLASS = LUXURY_GOLD_BUTTON_CLASS;

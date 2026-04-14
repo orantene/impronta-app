@@ -175,7 +175,7 @@ export async function adminLoadBioTranslationPanelData(input: z.infer<typeof idS
   if (!parsed.success) return { error: "Invalid profile." };
   const id = parsed.data.talent_profile_id;
 
-  const { isOpenAiConfigured } = await import("@/lib/translation/ai-translate-bio");
+  const { isResolvedAiChatConfigured } = await import("@/lib/ai/resolve-provider");
 
   const { data: row, error: loadErr } = await auth.supabase
     .from("talent_profiles")
@@ -197,7 +197,7 @@ export async function adminLoadBioTranslationPanelData(input: z.infer<typeof idS
       bio_en_updated_at: (row as { bio_en_updated_at?: string | null }).bio_en_updated_at ?? null,
       bio_es_updated_at: (row as { bio_es_updated_at?: string | null }).bio_es_updated_at ?? null,
       short_bio: (row as { short_bio?: string | null }).short_bio ?? null,
-      open_ai_available: isOpenAiConfigured(),
+      open_ai_available: await isResolvedAiChatConfigured(),
     },
   };
 }

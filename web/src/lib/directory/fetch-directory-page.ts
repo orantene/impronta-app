@@ -30,6 +30,10 @@ import {
 import { logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { auditTime, isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
+import {
+  applyDirectoryFieldFacetFilters,
+  loadDirectoryFacetDefinitionsByKey,
+} from "@/lib/directory/apply-directory-field-facet-filters";
 
 /**
  * Directory `q`: primary path is Postgres RPC `directory_search_public_talent_ids` (FTS + ILIKE + similarity).
@@ -62,31 +66,27 @@ type TalentProfileRow = {
   is_featured: boolean;
   featured_level: number;
   featured_position: number;
+  profile_completeness_score: number | string | null;
+  manual_rank_override: number | null;
   height_cm: number | null;
   location_id: string | null;
   residence_city: LocationRow | LocationRow[] | null;
   legacy_location: LocationRow | LocationRow[] | null;
 };
 
+type TaxonomyTermNested = {
+  id: string;
+  kind: string;
+  slug: string;
+  name_en: string;
+  name_es: string | null;
+  sort_order: number;
+};
+
 type TaxonomyAssignmentRow = {
   talent_profile_id: string;
   is_primary: boolean;
-  taxonomy_terms:
-    | {
-        kind: string;
-        slug: string;
-        name_en: string;
-        name_es: string | null;
-        sort_order: number;
-      }
-    | {
-        kind: string;
-        slug: string;
-        name_en: string;
-        name_es: string | null;
-        sort_order: number;
-      }[]
-    | null;
+  taxonomy_terms: TaxonomyTermNested | TaxonomyTermNested[] | null;
 };
 
 type MediaRow = {
@@ -104,6 +104,59 @@ function cardResidenceLocation(profile: TalentProfileRow): LocationRow | null {
   const pick = (value: LocationRow | LocationRow[] | null): LocationRow | null =>
     Array.isArray(value) ? (value[0] ?? null) : value;
   return pick(profile.residence_city) ?? pick(profile.legacy_location);
+}
+
+function pickLocalizedTermName(
+  loc: "en" | "es",
+  en: string | null,
+  es: string | null,
+): string {
+  if (loc === "es" && es?.trim()) return es.trim();
+  if (en?.trim()) return en.trim();
+  if (es?.trim()) return es.trim();
+  return "";
+}
+
+function buildClassicFilterMatchLabels(
+  locale: "en" | "es",
+  locationSlug: string,
+  taxonomyTermIds: string[],
+  termMetaById: Map<string, { kind: string; slug: string; label: string }>,
+  profileTermIds: Set<string>,
+  residence: LocationRow | null,
+): string[] {
+  const labels: string[] = [];
+  const seen = new Set<string>();
+
+  if (locationSlug && residence?.city_slug === locationSlug) {
+    const cityLabel =
+      pickLocalizedTermName(
+        locale,
+        residence.display_name_en,
+        residence.display_name_es,
+      ) || residence.city_slug;
+    const line =
+      locale === "es" ? `En ${cityLabel}` : `${cityLabel} based`;
+    labels.push(line);
+    seen.add(line.toLowerCase());
+  }
+
+  for (const tid of taxonomyTermIds) {
+    if (!profileTermIds.has(tid)) continue;
+    const meta = termMetaById.get(tid);
+    if (!meta) continue;
+    if (meta.kind === "location_city" && locationSlug && meta.slug === locationSlug) {
+      continue;
+    }
+    if (meta.kind === "location_country") continue;
+    const lab = meta.label;
+    if (!lab || seen.has(lab.toLowerCase())) continue;
+    seen.add(lab.toLowerCase());
+    labels.push(lab);
+    if (labels.length >= 6) break;
+  }
+
+  return labels;
 }
 
 function orResidenceOrLegacyLocationMatches(locationIds: string[]): string {
@@ -231,6 +284,10 @@ export async function fetchDirectoryPage(
   };
   /** Non-location taxonomy kinds → selected term UUIDs (OR within kind, AND across kinds). */
   const taxonomyByKind = new Map<string, string[]>();
+  let termMetaById = new Map<
+    string,
+    { kind: string; slug: string; label: string }
+  >();
   if (taxonomyTermIds.length > 0) {
     const { data: termRows, error: termErr } = await auditTime(
       audit,
@@ -239,7 +296,7 @@ export async function fetchDirectoryPage(
       () =>
         supabase
           .from("taxonomy_terms")
-          .select("id, kind, slug")
+          .select("id, kind, slug, name_en, name_es")
           .in("id", taxonomyTermIds)
           .is("archived_at", null),
     );
@@ -248,7 +305,22 @@ export async function fetchDirectoryPage(
       throw new Error(`[directory] taxonomy term lookup: ${termErr.message}`);
     }
 
-    for (const row of (termRows ?? []) as { id: string; kind: string; slug: string }[]) {
+    const nextMeta = new Map<
+      string,
+      { kind: string; slug: string; label: string }
+    >();
+    for (const row of (termRows ?? []) as {
+      id: string;
+      kind: string;
+      slug: string;
+      name_en: string;
+      name_es: string | null;
+    }[]) {
+      nextMeta.set(row.id, {
+        kind: row.kind,
+        slug: row.slug,
+        label: pickLocalizedTermName(locale, row.name_en, row.name_es),
+      });
       if (row.kind === "location_city") locationTaxonomy.citySlugs.push(row.slug);
       else if (row.kind === "location_country") locationTaxonomy.countrySlugs.push(row.slug);
       else {
@@ -257,6 +329,7 @@ export async function fetchDirectoryPage(
         taxonomyByKind.set(row.kind, arr);
       }
     }
+    termMetaById = nextMeta;
 
     if (taxonomyTermIds.length > 0 && (termRows?.length ?? 0) === 0) {
       return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
@@ -394,6 +467,29 @@ export async function fetchDirectoryPage(
     }
   }
 
+  const fieldFacetFilters =
+    params.fieldFacetFilters?.filter((f) => f.fieldKey.trim() && f.values.some((v) => v.trim())) ?? [];
+  if (fieldFacetFilters.length > 0) {
+    const facetKeys = fieldFacetFilters.map((f) => f.fieldKey);
+    const defsByKey = await auditTime(audit, timings, "facetDefinitionsMs", () =>
+      loadDirectoryFacetDefinitionsByKey(supabase, facetKeys),
+    );
+    const facetOutcome = await auditTime(audit, timings, "scalarFacetFilterMs", () =>
+      applyDirectoryFieldFacetFilters(supabase, fieldFacetFilters, defsByKey, {
+        locationId,
+        heightFilterActive,
+        heightMinApplied,
+        heightMaxApplied,
+        orResidenceOrLegacyLocationEq,
+        filteredTalentIds,
+      }),
+    );
+    if (facetOutcome.isEmpty) {
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+    }
+    filteredTalentIds = facetOutcome.filteredTalentIds;
+  }
+
   let totalCount: number | undefined;
   if (!skipTotalCount) {
     let countQuery = supabase
@@ -410,6 +506,21 @@ export async function fetchDirectoryPage(
     if (heightFilterActive) {
       if (heightMinApplied != null) countQuery = countQuery.gte("height_cm", heightMinApplied);
       if (heightMaxApplied != null) countQuery = countQuery.lte("height_cm", heightMaxApplied);
+    }
+
+    if (params.ageMin != null || params.ageMax != null) {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const day = today.getDate();
+      if (params.ageMin != null) {
+        const dobMax = new Date(year - params.ageMin, month, day).toISOString().slice(0, 10);
+        countQuery = countQuery.lte("date_of_birth", dobMax);
+      }
+      if (params.ageMax != null) {
+        const dobMin = new Date(year - params.ageMax, month, day).toISOString().slice(0, 10);
+        countQuery = countQuery.gte("date_of_birth", dobMin);
+      }
     }
 
     if (filteredTalentIds) {
@@ -444,6 +555,8 @@ export async function fetchDirectoryPage(
       is_featured,
       featured_level,
       featured_position,
+      profile_completeness_score,
+      manual_rank_override,
       height_cm,
       location_id,
       residence_city:locations!residence_city_id (
@@ -473,6 +586,24 @@ export async function fetchDirectoryPage(
   if (heightFilterActive) {
     if (heightMinApplied != null) query = query.gte("height_cm", heightMinApplied);
     if (heightMaxApplied != null) query = query.lte("height_cm", heightMaxApplied);
+  }
+
+  // Age filter: convert age range to date_of_birth range
+  if (params.ageMin != null || params.ageMax != null) {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+    if (params.ageMin != null) {
+      // Min age → born on or before this date (older end)
+      const dobMax = new Date(year - params.ageMin, month, day).toISOString().slice(0, 10);
+      query = query.lte("date_of_birth", dobMax);
+    }
+    if (params.ageMax != null) {
+      // Max age → born on or after this date (younger end)
+      const dobMin = new Date(year - params.ageMax, month, day).toISOString().slice(0, 10);
+      query = query.gte("date_of_birth", dobMin);
+    }
   }
 
   if (filteredTalentIds) {
@@ -597,7 +728,7 @@ export async function fetchDirectoryPage(
             `
         talent_profile_id,
         is_primary,
-        taxonomy_terms ( kind, slug, name_en, name_es, sort_order )
+        taxonomy_terms ( id, kind, slug, name_en, name_es, sort_order )
       `,
           )
           .in("talent_profile_id", profileIds),
@@ -704,6 +835,30 @@ export async function fetchDirectoryPage(
       }
     }
 
+    const profileTermIds = new Set<string>();
+    for (const taxonomyRow of taxonomyRows) {
+      const terms = taxonomyRow.taxonomy_terms
+        ? Array.isArray(taxonomyRow.taxonomy_terms)
+          ? taxonomyRow.taxonomy_terms
+          : [taxonomyRow.taxonomy_terms]
+        : [];
+      for (const term of terms) {
+        if (typeof term.id === "string" && term.id) profileTermIds.add(term.id);
+      }
+    }
+
+    const matchLabels =
+      locationSlug.length > 0 || taxonomyTermIds.length > 0
+        ? buildClassicFilterMatchLabels(
+            locale,
+            locationSlug,
+            taxonomyTermIds,
+            termMetaById,
+            profileTermIds,
+            location,
+          )
+        : [];
+
     const chosenMedia =
       mediaRows.find((row) => row.variant_kind === "card") ??
       mediaRows.find((row) => row.variant_kind === "public_watermarked") ??
@@ -731,6 +886,9 @@ export async function fetchDirectoryPage(
       created_at: profile.created_at,
       is_featured: profile.is_featured,
       featured_level: profile.featured_level,
+      featured_position: profile.featured_position,
+      profile_completeness_score: profile.profile_completeness_score,
+      manual_rank_override: profile.manual_rank_override,
       thumb_width: chosenMedia?.width ?? null,
       thumb_height: chosenMedia?.height ?? null,
       thumb_bucket_id: chosenMedia?.bucket_id ?? null,
@@ -748,6 +906,8 @@ export async function fetchDirectoryPage(
       // Omit canonical height from the DTO when `height_cm` is not card-visible (admin grid toggle).
       height_cm: heightCardDef ? profile.height_cm : null,
       card_attributes_jsonb: cardAttributes,
+      filter_match_labels_jsonb:
+        matchLabels.length > 0 ? matchLabels : undefined,
     };
   });
 

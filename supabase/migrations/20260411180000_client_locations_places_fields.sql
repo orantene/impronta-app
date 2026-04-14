@@ -1,4 +1,4 @@
--- Client location (client_accounts): richer place intake + Google metadata.
+-- Work location (client_accounts): richer place intake + Google metadata.
 
 BEGIN;
 -- New commercial location kinds (keep existing enum values for legacy rows).

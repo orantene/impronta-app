@@ -1,6 +1,8 @@
 import glossary from "@/i18n/glossary.json";
-
-const MODEL = "gpt-4o-mini";
+import {
+  isResolvedAiChatConfigured,
+  resolveAiChatAdapter,
+} from "@/lib/ai/resolve-provider";
 
 export type BioTranslateFailureCode = "no_key" | "quota" | "api_error" | "empty_response";
 
@@ -14,12 +16,17 @@ export function glossaryPromptBlock(): string {
   return `Keep these brand/product terms unchanged (do not translate): ${terms.join(", ")}.`;
 }
 
+/**
+ * @deprecated Use {@link isResolvedAiChatConfigured} (async). Kept for rare sync checks: true if any provider key exists.
+ */
 export function isOpenAiConfigured(): boolean {
-  return Boolean(process.env.OPENAI_API_KEY?.trim());
+  return Boolean(
+    process.env.OPENAI_API_KEY?.trim() || process.env.ANTHROPIC_API_KEY?.trim(),
+  );
 }
 
 /**
- * Translate EN bio → ES via OpenAI. Never throws; maps SDK/network failures to {@link BioTranslateResult}.
+ * Translate EN bio → ES via configured chat provider. Never throws.
  */
 export async function translateBioEnToEs(text: string): Promise<BioTranslateResult> {
   const trimmed = text.trim();
@@ -27,57 +34,51 @@ export async function translateBioEnToEs(text: string): Promise<BioTranslateResu
     return { ok: true, text: "" };
   }
 
-  if (!isOpenAiConfigured()) {
+  if (!(await isResolvedAiChatConfigured())) {
     return {
       ok: false,
       code: "no_key",
-      message: "OpenAI is not configured (missing OPENAI_API_KEY). Add a key or translate manually.",
+      message:
+        "AI chat is not configured for the selected provider (missing API key). Add OPENAI_API_KEY or ANTHROPIC_API_KEY, or translate manually.",
     };
   }
 
-  try {
-    const { default: OpenAI } = await import("openai");
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const adapter = await resolveAiChatAdapter();
+  const result = await adapter.chatCompletion({
+    systemPrompt: `You translate short professional talent bios from English to Spanish for a fashion/modeling agency site. ${glossaryPromptBlock()} Output only the Spanish translation, no quotes or preamble.`,
+    userMessage: trimmed,
+    temperature: 0.3,
+  });
 
-    const completion = await client.chat.completions.create({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content: `You translate short professional talent bios from English to Spanish for a fashion/modeling agency site. ${glossaryPromptBlock()} Output only the Spanish translation, no quotes or preamble.`,
-        },
-        { role: "user", content: trimmed },
-      ],
-      temperature: 0.3,
-    });
-
-    const out = completion.choices[0]?.message?.content?.trim() ?? "";
-    if (!out) {
-      return {
-        ok: false,
-        code: "empty_response",
-        message: "The model returned no text. Try again or translate manually.",
-      };
-    }
-    return { ok: true, text: out };
-  } catch (e: unknown) {
-    const err = e as { status?: number; code?: string; message?: string };
-    const status = typeof err.status === "number" ? err.status : undefined;
-    if (status === 429) {
+  if (!result.ok) {
+    if (result.code === "quota") {
       return {
         ok: false,
         code: "quota",
-        message: "OpenAI rate limit or quota exceeded. Try again later or translate manually.",
+        message: "AI rate limit or quota exceeded. Try again later or translate manually.",
       };
     }
-    const line =
-      typeof err.message === "string" && err.message.trim()
-        ? err.message.trim()
-        : "Translation request failed.";
+    if (result.code === "no_key") {
+      return {
+        ok: false,
+        code: "no_key",
+        message: result.message,
+      };
+    }
     return {
       ok: false,
       code: "api_error",
-      message: line,
+      message: result.message || "Translation request failed.",
     };
   }
+
+  const out = result.text.trim();
+  if (!out) {
+    return {
+      ok: false,
+      code: "empty_response",
+      message: "The model returned no text. Try again or translate manually.",
+    };
+  }
+  return { ok: true, text: out };
 }

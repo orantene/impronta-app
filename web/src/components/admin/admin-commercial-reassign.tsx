@@ -19,7 +19,7 @@ function SnapshotRefreshFields() {
     <div className="space-y-2 rounded-md border border-border/40 bg-muted/15 p-3 text-xs">
       <label className="flex cursor-pointer items-start gap-2">
         <input type="checkbox" name="refresh_account_snapshot" value="true" defaultChecked className="mt-0.5 size-4 rounded border-border" />
-        <span>Refresh company / location name on this record from the linked Client Location</span>
+        <span>Refresh company / location name on this record from the linked Work Location</span>
       </label>
       <label className="flex cursor-pointer items-start gap-2">
         <input type="checkbox" name="refresh_contact_snapshot" value="true" defaultChecked className="mt-0.5 size-4 rounded border-border" />
@@ -71,7 +71,7 @@ export function InquiryCommercialReassignBar({
         Change Client
       </Button>
       <Button type="button" size="sm" variant="outline" className={cn(ADMIN_OUTLINE_CONTROL_CLASS)} onClick={() => setOpen("account")}>
-        Change Client Location
+        Change Work Location
       </Button>
       <Button type="button" size="sm" variant="outline" className={cn(ADMIN_OUTLINE_CONTROL_CLASS)} onClick={() => setOpen("contact")}>
         Change contact
@@ -81,7 +81,7 @@ export function InquiryCommercialReassignBar({
         open={open === "client"}
         onOpenChange={(o) => setOpen(o ? "client" : null)}
         title="Change Client (portal login)"
-        description="The Client is the portal login person tied to this request. This does not change the billed Client Location."
+        description="The Client is the portal login person tied to this request. This does not change the billed Work Location."
       >
         <form action={inqAction} className="space-y-4">
           <input type="hidden" name="inquiry_id" value={inquiryId} />
@@ -111,8 +111,8 @@ export function InquiryCommercialReassignBar({
       <DashboardEditPanel
         open={open === "account"}
         onOpenChange={(o) => setOpen(o ? "account" : null)}
-        title="Change Client Location"
-        description="The Client Location is the villa, venue, brand, or business unit the work is for. If the current contact does not belong to the new location, it will be cleared."
+        title="Change Work Location"
+        description="The Work Location is the villa, venue, brand, or business unit the work is for. If the current contact does not belong to the new location, it will be cleared."
       >
         <form action={inqAction} className="space-y-4">
           <input type="hidden" name="inquiry_id" value={inquiryId} />
@@ -122,7 +122,7 @@ export function InquiryCommercialReassignBar({
           {inqState?.error ? <p className="text-sm text-destructive">{inqState.error}</p> : null}
           <div className="space-y-2">
             <label htmlFor={`inq-acc-${inquiryId}`} className="text-sm font-medium">
-              Client Location
+              Work Location
             </label>
             <select id={`inq-acc-${inquiryId}`} name="client_account_id" className={ADMIN_FORM_CONTROL} defaultValue={clientAccountId ?? ""}>
               <option value="">— None —</option>
@@ -144,7 +144,7 @@ export function InquiryCommercialReassignBar({
         open={open === "contact"}
         onOpenChange={(o) => setOpen(o ? "contact" : null)}
         title="Change contact"
-        description="Person at this Client Location. Link a Client Location first if none is set."
+        description="Person at this Work Location. Link a Work Location first if none is set."
       >
         <form action={inqAction} className="space-y-4">
           <input type="hidden" name="inquiry_id" value={inquiryId} />
@@ -153,7 +153,7 @@ export function InquiryCommercialReassignBar({
           <input type="hidden" name="client_account_id" value="" />
           {inqState?.error ? <p className="text-sm text-destructive">{inqState.error}</p> : null}
           {!clientAccountId ? (
-            <p className="text-sm text-muted-foreground">Link a Client Location first, or use Change Client Location above.</p>
+            <p className="text-sm text-muted-foreground">Link a Work Location first, or use Change Work Location above.</p>
           ) : (
             <>
               <div className="space-y-2">
@@ -226,7 +226,7 @@ export function BookingCommercialReassignBar({
         Change Client
       </Button>
       <Button type="button" size="sm" variant="outline" className={cn(ADMIN_OUTLINE_CONTROL_CLASS)} onClick={() => setOpen("account")}>
-        Change Client Location
+        Change Work Location
       </Button>
       <Button type="button" size="sm" variant="outline" className={cn(ADMIN_OUTLINE_CONTROL_CLASS)} onClick={() => setOpen("contact")}>
         Change contact
@@ -239,7 +239,7 @@ export function BookingCommercialReassignBar({
         open={open === "client"}
         onOpenChange={(o) => setOpen(o ? "client" : null)}
         title="Change Client (portal login)"
-        description="The Client is the portal login person associated with this booking. This does not change the billed Client Location."
+        description="The Client is the portal login person associated with this booking. This does not change the billed Work Location."
       >
         <form action={bkAction} className="space-y-4">
           <input type="hidden" name="booking_id" value={bookingId} />
@@ -265,8 +265,8 @@ export function BookingCommercialReassignBar({
       <DashboardEditPanel
         open={open === "account"}
         onOpenChange={(o) => setOpen(o ? "account" : null)}
-        title="Change Client Location"
-        description="The Client Location is the villa, venue, brand, or business unit the booking is for. If the current contact does not belong to the new Client Location, it will be cleared."
+        title="Change Work Location"
+        description="The Work Location is the villa, venue, brand, or business unit the booking is for. If the current contact does not belong to the new Work Location, it will be cleared."
       >
         <form action={bkAction} className="space-y-4">
           <input type="hidden" name="booking_id" value={bookingId} />
@@ -294,7 +294,7 @@ export function BookingCommercialReassignBar({
         open={open === "contact"}
         onOpenChange={(o) => setOpen(o ? "contact" : null)}
         title="Change contact"
-        description="Person at this Client Location."
+        description="Person at this Work Location."
       >
         <form action={bkAction} className="space-y-4">
           <input type="hidden" name="booking_id" value={bookingId} />
@@ -304,7 +304,7 @@ export function BookingCommercialReassignBar({
           <input type="hidden" name="source_inquiry_id" value="" />
           {bkState?.error ? <p className="text-sm text-destructive">{bkState.error}</p> : null}
           {!clientAccountId ? (
-            <p className="text-sm text-muted-foreground">Link a Client Location first.</p>
+            <p className="text-sm text-muted-foreground">Link a Work Location first.</p>
           ) : (
             <>
               <select name="client_contact_id" className={ADMIN_FORM_CONTROL} defaultValue={clientContactId ?? ""}>
@@ -395,7 +395,7 @@ export function InquiryAccountContactReassignInline({
         className={cn("h-8 px-2 text-xs", ADMIN_OUTLINE_CONTROL_CLASS)}
         onClick={() => setOpen("account")}
       >
-        Change Client Location
+        Change Work Location
       </Button>
       <Button
         type="button"
@@ -410,8 +410,8 @@ export function InquiryAccountContactReassignInline({
       <DashboardEditPanel
         open={open === "account"}
         onOpenChange={(o) => setOpen(o ? "account" : null)}
-        title="Change Client Location"
-        description="Client Location you invoice. If the current contact does not belong to the new location, it will be cleared."
+        title="Change Work Location"
+        description="Work Location you invoice. If the current contact does not belong to the new location, it will be cleared."
       >
         <form action={inqAction} className="space-y-4">
           <input type="hidden" name="inquiry_id" value={inquiryId} />
@@ -421,7 +421,7 @@ export function InquiryAccountContactReassignInline({
           {inqState?.error ? <p className="text-sm text-destructive">{inqState.error}</p> : null}
           <div className="space-y-2">
             <label htmlFor={`inq-h-acc-${inquiryId}`} className="text-sm font-medium">
-              Client Location
+              Work Location
             </label>
             <select id={`inq-h-acc-${inquiryId}`} name="client_account_id" className={ADMIN_FORM_CONTROL} defaultValue={clientAccountId ?? ""}>
               <option value="">— None —</option>
@@ -443,7 +443,7 @@ export function InquiryAccountContactReassignInline({
         open={open === "contact"}
         onOpenChange={(o) => setOpen(o ? "contact" : null)}
         title="Change contact"
-        description="Person at this Client Location. Link a Client Location first if none is set."
+        description="Person at this Work Location. Link a Work Location first if none is set."
       >
         <form action={inqAction} className="space-y-4">
           <input type="hidden" name="inquiry_id" value={inquiryId} />
@@ -452,7 +452,7 @@ export function InquiryAccountContactReassignInline({
           <input type="hidden" name="client_account_id" value="" />
           {inqState?.error ? <p className="text-sm text-destructive">{inqState.error}</p> : null}
           {!clientAccountId ? (
-            <p className="text-sm text-muted-foreground">Link a Client Location first, or use Change Client Location.</p>
+            <p className="text-sm text-muted-foreground">Link a Work Location first, or use Change Work Location.</p>
           ) : (
             <>
               <div className="space-y-2">
@@ -521,7 +521,7 @@ export function BookingAccountContactReassignInline({
         className={cn("h-8 px-2 text-xs", ADMIN_OUTLINE_CONTROL_CLASS)}
         onClick={() => setOpen("account")}
       >
-        Change Client Location
+        Change Work Location
       </Button>
       <Button
         type="button"
@@ -536,8 +536,8 @@ export function BookingAccountContactReassignInline({
       <DashboardEditPanel
         open={open === "account"}
         onOpenChange={(o) => setOpen(o ? "account" : null)}
-        title="Change Client Location"
-        description="If the current contact does not belong to the new Client Location, it will be cleared."
+        title="Change Work Location"
+        description="If the current contact does not belong to the new Work Location, it will be cleared."
       >
         <form action={bkAction} className="space-y-4">
           <input type="hidden" name="booking_id" value={bookingId} />
@@ -565,7 +565,7 @@ export function BookingAccountContactReassignInline({
         open={open === "contact"}
         onOpenChange={(o) => setOpen(o ? "contact" : null)}
         title="Change contact"
-        description="Person at this Client Location."
+        description="Person at this Work Location."
       >
         <form action={bkAction} className="space-y-4">
           <input type="hidden" name="booking_id" value={bookingId} />
@@ -575,7 +575,7 @@ export function BookingAccountContactReassignInline({
           <input type="hidden" name="source_inquiry_id" value="" />
           {bkState?.error ? <p className="text-sm text-destructive">{bkState.error}</p> : null}
           {!clientAccountId ? (
-            <p className="text-sm text-muted-foreground">Link a Client Location first.</p>
+            <p className="text-sm text-muted-foreground">Link a Work Location first.</p>
           ) : (
             <>
               <select name="client_contact_id" className={ADMIN_FORM_CONTROL} defaultValue={clientContactId ?? ""}>

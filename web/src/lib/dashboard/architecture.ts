@@ -23,7 +23,9 @@ export type DashboardNavIconKey =
   | "requests"
   | "search"
   | "admins"
-  | "translations";
+  | "translations"
+  | "siteSettings"
+  | "aiWorkspace";
 
 export type DashboardNavItem = {
   /** Stable key for React lists (defaults to href). */
@@ -229,7 +231,7 @@ export const ADMIN_DASHBOARD_GROUPS: DashboardNavGroup[] = [
       {
         id: "admin-client-accounts",
         href: "/admin/accounts",
-        label: "Client Locations",
+        label: "Work Locations",
         match: "prefix",
         icon: "locations",
       },
@@ -273,6 +275,27 @@ export const ADMIN_DASHBOARD_GROUPS: DashboardNavGroup[] = [
       },
       { href: "/admin/taxonomy", label: "Taxonomy", match: "prefix", icon: "taxonomy" },
       { href: "/admin/locations", label: "Locations", match: "prefix", icon: "locations" },
+    ],
+  },
+  {
+    id: "admin-site-platform",
+    label: "Site & AI",
+    collapsible: true,
+    items: [
+      {
+        id: "admin-site-settings",
+        href: "/admin/site-settings",
+        label: "Site Settings",
+        match: "prefix",
+        icon: "siteSettings",
+      },
+      {
+        id: "admin-ai-workspace",
+        href: "/admin/ai-workspace",
+        label: "AI Workspace",
+        match: "prefix",
+        icon: "aiWorkspace",
+      },
     ],
   },
   {

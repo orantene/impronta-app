@@ -51,7 +51,7 @@ export const loadActiveFieldCatalog = cache(async (): Promise<FieldCatalog> => {
     supabase
       .from("field_definitions")
       .select(
-        "id, field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, profile_visible, filterable, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, config, archived_at",
+        "id, field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, profile_visible, filterable, directory_filter_visible, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, config, archived_at",
       )
       .is("archived_at", null)
       .order("field_group_id")
@@ -64,8 +64,12 @@ export const loadActiveFieldCatalog = cache(async (): Promise<FieldCatalog> => {
     .filter((d) => isFieldValueType(d.value_type))
     .map((d): FieldDefinitionRow => {
       const { value_type, config, ...rest } = d;
+      const r = rest as Omit<FieldDefinitionRow, "value_type" | "config"> & {
+        directory_filter_visible?: boolean | null;
+      };
       return {
-        ...(rest as Omit<FieldDefinitionRow, "value_type" | "config">),
+        ...r,
+        directory_filter_visible: Boolean(r.directory_filter_visible ?? r.filterable === true),
         value_type: value_type as FieldValueType,
         config: normalizeConfig(config),
       };

@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bookmark } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { DirectoryCardDTO } from "@/lib/directory/types";
+import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
+import { TalentCardAiMatchDrawer } from "@/components/directory/talent-card-ai-match-drawer";
+import type { DirectoryAiCardOverlay, DirectoryCardDTO } from "@/lib/directory/types";
 import { ContactTalentButton } from "@/components/directory/directory-inquiry-actions";
 import { cn } from "@/lib/utils";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
@@ -23,6 +25,7 @@ export function TalentDirectoryListRow({
   priority,
   sourcePage = "/directory",
   ui,
+  aiOverlay = null,
 }: {
   card: DirectoryCardDTO;
   saved: boolean;
@@ -31,9 +34,11 @@ export function TalentDirectoryListRow({
   priority?: boolean;
   sourcePage?: string;
   ui: DirectoryUiCopy;
+  aiOverlay?: DirectoryAiCardOverlay | null;
 }) {
   const pathname = usePathname();
   const lc = ui.list;
+  const c = ui.card;
   const brand = ui.common.brand;
   const profileHref = talentProfileHref(pathname, card.profileCode);
   return (
@@ -77,6 +82,42 @@ export function TalentDirectoryListRow({
               </>
             ) : null}
           </p>
+          {aiOverlay &&
+          (aiOverlay.explanationLines.length > 0 ||
+            aiOverlay.confidenceNote ||
+            (aiOverlay.vectorSimilarity != null &&
+              Number.isFinite(aiOverlay.vectorSimilarity))) ? (
+            <div className="mt-2 rounded-md border border-white/[0.06] bg-black/25 px-2 py-1.5">
+              <div className="mb-1 flex items-start justify-between gap-2">
+                <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-muted)]">
+                  {c.matchWhyPrefix}
+                </p>
+                <TalentCardAiMatchDrawer
+                  displayName={card.displayName}
+                  overlay={aiOverlay}
+                  copy={{
+                    openDetailsAria: c.aiDetailsOpenAria,
+                    drawerTitle: c.aiDetailsDrawerTitle,
+                    drawerDescription: c.aiDetailsDrawerDescription,
+                    vectorScoreLabel: c.aiDetailsVectorScore,
+                    matchWhyAria: c.aiMatchWhyAria,
+                  }}
+                />
+              </div>
+              {aiOverlay.explanationLines.length > 0 ? (
+                <AIMatchExplanation
+                  items={aiOverlay.explanationLines}
+                  className="text-[11px] text-[var(--impronta-muted)] [&_span]:text-[var(--impronta-foreground)]/90"
+                  ariaLabel={c.aiMatchWhyAria}
+                />
+              ) : null}
+              {aiOverlay.confidenceNote ? (
+                <p className="mt-1 text-[9px] leading-snug text-[var(--impronta-muted)]">
+                  {aiOverlay.confidenceNote}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button

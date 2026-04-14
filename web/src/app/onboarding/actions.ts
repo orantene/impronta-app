@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { SUPABASE_ENV_HELP } from "@/lib/supabase/config";
 import { logServerError } from "@/lib/server/safe-error";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { requireSession } from "@/lib/server/action-guards";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -56,7 +57,7 @@ export async function completeTalentLocationOnboarding(
         auth.error === "Not configured." ? SUPABASE_ENV_HELP : auth.error,
     };
   }
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   // --- Identity fields ---
   const display_name = String(formData.get("display_name") ?? "").trim();
@@ -96,6 +97,15 @@ export async function completeTalentLocationOnboarding(
   }
   if (!data) {
     return { error: "We couldn't finish onboarding. Please try again." };
+  }
+
+  const { data: tp } = await supabase
+    .from("talent_profiles")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (tp?.id) {
+    await scheduleRebuildAiSearchDocument(supabase, tp.id);
   }
 
   revalidatePath("/", "layout");

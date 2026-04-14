@@ -3,6 +3,9 @@ import { Suspense } from "react";
 import { CalendarRange, Info } from "lucide-react";
 import { AdminBookingQueue } from "@/app/(dashboard)/admin/bookings/admin-booking-queue";
 import type { BookingQueueRow } from "@/app/(dashboard)/admin/bookings/admin-booking-queue";
+import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { AdminCommercialListIntake } from "@/components/admin/admin-commercial-list-intake";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -264,6 +267,13 @@ export default async function AdminBookingsPage({
   const hasActiveFilters = Boolean(
     trimmedQuery || ownerStaffId || updatedFrom || updatedTo || clientAccountIdFilter || clientUserIdFilter,
   );
+  const filterActiveCount =
+    (trimmedQuery ? 1 : 0) +
+    (ownerStaffId ? 1 : 0) +
+    (updatedFrom ? 1 : 0) +
+    (updatedTo ? 1 : 0) +
+    (clientAccountIdFilter ? 1 : 0) +
+    (clientUserIdFilter ? 1 : 0);
 
   const manualFormKey = `${(intakeAccountsRes.data ?? []).map((a) => a.id).sort().join("-")}`;
 
@@ -279,24 +289,15 @@ export default async function AdminBookingsPage({
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--impronta-gold)]/25 bg-[var(--impronta-gold)]/10">
-            <CalendarRange className="size-5 text-[var(--impronta-gold)]" aria-hidden />
-          </div>
-          <div>
-            <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">
-              Bookings
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {queueRows.length > 0
-                ? `${queueRows.length} booking${queueRows.length === 1 ? "" : "s"}`
-                : "No bookings"}{" "}
-              in this view
-            </p>
-          </div>
-        </div>
+      <AdminPageHeader
+        icon={CalendarRange}
+        title="Bookings"
+        description={
+          queueRows.length > 0
+            ? `${queueRows.length} booking${queueRows.length === 1 ? "" : "s"} in this view`
+            : "No bookings in this view"
+        }
+        right={
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" className={ADMIN_HELP_TRIGGER_BUTTON} asChild>
             <Link href="/admin/bookings/new" scroll={false}>
@@ -332,7 +333,8 @@ export default async function AdminBookingsPage({
             </PopoverContent>
           </Popover>
         </div>
-      </div>
+        }
+      />
 
       {decodedErr && (
         <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
@@ -340,33 +342,20 @@ export default async function AdminBookingsPage({
         </p>
       )}
 
-      {/* Status tabs */}
-      <div className="flex flex-wrap gap-1.5">
-        {STATUS_TABS.map((tab) => {
-          const isActive =
+      <AdminStatusTabs
+        ariaLabel="Booking status"
+        items={STATUS_TABS.map((tab) => ({
+          href: buildAdminBookingsHref({
+            ...bookingNavBase,
+            status: tab.key === "all" ? undefined : tab.key,
+          }),
+          label: tab.label,
+          active:
             tab.key === "all"
               ? !statusFilter || statusFilter === "all"
-              : statusFilter === tab.key;
-          return (
-            <Link
-              key={tab.key}
-              href={buildAdminBookingsHref({
-                ...bookingNavBase,
-                status: tab.key === "all" ? undefined : tab.key,
-              })}
-              scroll={false}
-              className={cn(
-                "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
-                isActive
-                  ? "border-[var(--impronta-gold)]/50 bg-[var(--impronta-gold)]/10 text-foreground"
-                  : "border-border/55 text-muted-foreground hover:border-[var(--impronta-gold)]/35 hover:text-foreground",
-              )}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </div>
+              : statusFilter === tab.key,
+        }))}
+      />
 
       {/* Scope banners */}
       {clientAccountIdFilter && (
@@ -406,7 +395,7 @@ export default async function AdminBookingsPage({
         </div>
       )}
 
-      {/* Filter bar */}
+      <AdminFilterBar title="Search & filters" activeCount={filterActiveCount}>
       <form
         className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_150px_150px_auto] md:items-end"
         method="get"
@@ -511,6 +500,7 @@ export default async function AdminBookingsPage({
           ) : null}
         </div>
       </form>
+      </AdminFilterBar>
 
       {/* Queue table — Suspense: peek triggers use `useSearchParams` */}
       <Suspense

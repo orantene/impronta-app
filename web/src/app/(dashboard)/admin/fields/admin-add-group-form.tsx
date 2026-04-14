@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { HelpTip } from "@/components/ui/help-tip";
+import {
+  ADMIN_FORM_CONTROL,
+  ADMIN_FORM_FIELD_STACK,
+  ADMIN_FORM_GRID_GAP,
+} from "@/lib/dashboard-shell-classes";
+import { cn } from "@/lib/utils";
 import { createFieldGroup, type FieldAdminActionState } from "./actions";
 
 export function AdminAddGroupForm() {
@@ -20,24 +26,31 @@ export function AdminAddGroupForm() {
   }, [state?.success]);
 
   return (
-    <form ref={formRef} action={action} className="grid gap-4 sm:grid-cols-3">
-      <div className="space-y-1.5">
+    <form ref={formRef} action={action} className={cn("grid sm:grid-cols-3", ADMIN_FORM_GRID_GAP)}>
+      <div className={ADMIN_FORM_FIELD_STACK}>
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="name_en">Name (EN)</Label>
           <HelpTip content="Groups define sections in the talent profile builder." />
         </div>
-        <Input id="name_en" name="name_en" placeholder="e.g. Measurements" required disabled={pending} />
+        <Input
+          id="name_en"
+          name="name_en"
+          placeholder="e.g. Measurements"
+          required
+          disabled={pending}
+          className={ADMIN_FORM_CONTROL}
+        />
       </div>
-      <div className="space-y-1.5">
+      <div className={ADMIN_FORM_FIELD_STACK}>
         <Label htmlFor="name_es">Name (ES)</Label>
-        <Input id="name_es" name="name_es" placeholder="Optional" disabled={pending} />
+        <Input id="name_es" name="name_es" placeholder="Optional" disabled={pending} className={ADMIN_FORM_CONTROL} />
       </div>
-      <div className="space-y-1.5">
+      <div className={ADMIN_FORM_FIELD_STACK}>
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="slug">Slug</Label>
           <HelpTip content="Auto-generated from name if blank. Lowercase, no spaces." />
         </div>
-        <Input id="slug" name="slug" placeholder="auto from name" disabled={pending} />
+        <Input id="slug" name="slug" placeholder="auto from name" disabled={pending} className={ADMIN_FORM_CONTROL} />
       </div>
       <div className="sm:col-span-3 flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={pending}>

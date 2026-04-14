@@ -26,6 +26,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { HelpTip } from "@/components/ui/help-tip";
+import {
+  ADMIN_EMBEDDED_SURFACE,
+  ADMIN_FORM_CONTROL,
+  ADMIN_GROUP_SECTION_TITLE,
+  ADMIN_GROUP_TOOLBAR_BUTTON,
+  ADMIN_MUTED_INLINE_SURFACE,
+} from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
 import {
   archiveAllTermsInKind,
@@ -310,7 +317,7 @@ export function TaxonomyKindPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-[var(--impronta-gold)]">
+            <h2 className={ADMIN_GROUP_SECTION_TITLE}>
               {title}
             </h2>
             <Badge variant="secondary" className="h-6">
@@ -354,7 +361,7 @@ export function TaxonomyKindPanel({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 gap-2 border-border/60 bg-background/40 text-xs"
+                className={ADMIN_GROUP_TOOLBAR_BUTTON}
                 disabled={busy}
                 onClick={() => {
                   setEditingGroupMeta((v) => {
@@ -371,7 +378,7 @@ export function TaxonomyKindPanel({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 gap-2 border-border/60 bg-background/40 text-xs"
+                className={ADMIN_GROUP_TOOLBAR_BUTTON}
                 disabled={busy}
                 onClick={() => {
                   setAddTermOpen((prev) => {
@@ -389,7 +396,7 @@ export function TaxonomyKindPanel({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 gap-2 border-border/60 bg-background/40 text-xs text-muted-foreground hover:text-destructive"
+                className={cn(ADMIN_GROUP_TOOLBAR_BUTTON, "text-muted-foreground hover:text-destructive")}
                 disabled={busy || (!showArchived && activeTermCount === 0) || (showArchived && archivedTermCount === 0)}
                 onClick={() => setConfirmGroupOpen(true)}
               >
@@ -419,7 +426,7 @@ export function TaxonomyKindPanel({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 gap-2 border-border/60 bg-background/40 text-xs"
+            className={ADMIN_GROUP_TOOLBAR_BUTTON}
             onClick={() => setCollapsed((v) => !v)}
             aria-expanded={!collapsed}
           >
@@ -432,7 +439,7 @@ export function TaxonomyKindPanel({
       {!collapsed ? (
         <>
           {!systemManaged && editingGroupMeta ? (
-            <div className="rounded-xl border border-border/60 bg-background/40 p-3 text-sm text-muted-foreground">
+            <div className={cn(ADMIN_EMBEDDED_SURFACE, "text-sm text-muted-foreground")}>
               <p className="font-medium text-foreground">Group details</p>
               <p className="mt-2">
                 <span className="text-foreground">Display title:</span> {title}
@@ -449,7 +456,7 @@ export function TaxonomyKindPanel({
           ) : null}
 
           {systemManaged ? (
-            <div className="rounded-lg border border-border/60 bg-muted/10 p-3 text-sm text-muted-foreground">
+            <div className={cn(ADMIN_MUTED_INLINE_SURFACE, "text-sm text-muted-foreground")}>
               <span className="font-medium text-foreground">Managed from Locations.</span>
               {" "}
               Use
@@ -466,16 +473,16 @@ export function TaxonomyKindPanel({
             {!systemManaged && addTermOpen ? (
               <form
                 action={createAction}
-                className="flex flex-wrap items-end gap-2 rounded-lg border border-border/60 bg-muted/10 p-3"
+                className={cn("flex flex-wrap items-end gap-2", ADMIN_MUTED_INLINE_SURFACE)}
               >
                 <input type="hidden" name="kind" value={kind} />
                 <div className="min-w-[220px] flex-1 space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Name (EN)</label>
-                  <Input name="name_en" placeholder="Add term…" required disabled={busy} />
+                  <Input name="name_en" placeholder="Add term…" required disabled={busy} className={ADMIN_FORM_CONTROL} />
                 </div>
                 <div className="min-w-[200px] flex-1 space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Name (ES)</label>
-                  <Input name="name_es" placeholder="Optional" disabled={busy} />
+                  <Input name="name_es" placeholder="Optional" disabled={busy} className={ADMIN_FORM_CONTROL} />
                 </div>
                 <div className="min-w-[200px] flex-1 space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Slug</label>
@@ -483,6 +490,7 @@ export function TaxonomyKindPanel({
                     name="slug"
                     placeholder="auto from name"
                     disabled={busy}
+                    className={ADMIN_FORM_CONTROL}
                     onBlur={(e) => {
                       const slug = e.currentTarget.value.trim();
                       if (slug) return;
@@ -495,7 +503,14 @@ export function TaxonomyKindPanel({
                 </div>
                 <div className="w-[120px] space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Sort</label>
-                  <Input name="sort_order" type="number" min={0} defaultValue={0} disabled={busy} />
+                  <Input
+                    name="sort_order"
+                    type="number"
+                    min={0}
+                    defaultValue={0}
+                    disabled={busy}
+                    className={ADMIN_FORM_CONTROL}
+                  />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="submit" size="sm" disabled={busy}>
@@ -522,7 +537,7 @@ export function TaxonomyKindPanel({
               </div>
             )}
 
-            <div className="flex items-end gap-2 rounded-lg border border-border/60 bg-muted/10 p-3">
+            <div className={cn("flex items-end gap-2", ADMIN_MUTED_INLINE_SURFACE)}>
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" aria-hidden />
                 <Input

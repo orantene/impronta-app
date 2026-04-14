@@ -7,6 +7,8 @@ import { AdminCommercialStatusBadge } from "@/components/admin/admin-commercial-
 import { AdminInquiryListRowActions } from "@/components/admin/admin-inquiry-list-row-actions";
 import { AdminInquiryPeekTrigger } from "@/components/admin/admin-inquiry-peek-sheet";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -83,9 +85,12 @@ export function AdminInquiryQueue({
 
   if (rows.length === 0) {
     return (
-      <p className="rounded-2xl border border-dashed border-border/60 bg-muted/[0.04] px-4 py-10 text-center text-sm text-muted-foreground">
-        No requests match this view.
-      </p>
+      <EmptyState
+        icon={Inbox}
+        title="No requests match this view"
+        description="Try another status tab or clear filters."
+        className="rounded-2xl border-dashed py-10"
+      />
     );
   }
 

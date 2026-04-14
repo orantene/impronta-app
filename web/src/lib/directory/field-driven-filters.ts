@@ -15,8 +15,12 @@ import {
   mergeSidebarItemOrder,
   type DirectorySidebarLayoutRow,
 } from "@/lib/directory/directory-sidebar-layout";
+import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
+import {
+  DIRECTORY_CANONICAL_GENDER_FIELD_KEY,
+} from "@/lib/directory/apply-directory-field-facet-filters";
 
-export type DirectoryFilterPresentation = "chips" | "radio" | "grid" | "location" | "height_range";
+export type DirectoryFilterPresentation = "chips" | "radio" | "grid" | "location" | "height_range" | "age_range";
 
 export type DirectoryFilterOption = {
   id: string;
@@ -47,6 +51,38 @@ export type DirectoryFilterSection =
       presentation: "height_range";
       sliderMinCm: number;
       sliderMaxCm: number;
+    }
+  | {
+      fieldKey: "date_of_birth";
+      label: string;
+      kind: "age_range";
+      presentation: "age_range";
+      sliderMinAge: number;
+      sliderMaxAge: number;
+    }
+  | {
+      fieldKey: string;
+      fieldDefinitionId: string;
+      label: string;
+      kind: "profile_gender";
+      presentation: "chips" | "radio";
+      options: DirectoryFilterOption[];
+    }
+  | {
+      fieldKey: string;
+      fieldDefinitionId: string;
+      label: string;
+      kind: "field_boolean";
+      presentation: "chips";
+      options: DirectoryFilterOption[];
+    }
+  | {
+      fieldKey: string;
+      fieldDefinitionId: string;
+      label: string;
+      kind: "field_text_enum";
+      presentation: "chips" | "radio";
+      options: DirectoryFilterOption[];
     };
 
 export type DirectoryFilterSidebarBlock =
@@ -73,7 +109,10 @@ export type DirectoryFilterRequestContext = {
   locationSlug: string;
   heightMinCm: number | null;
   heightMaxCm: number | null;
+  ageMin: number | null;
+  ageMax: number | null;
   query: string;
+  fieldFacets?: DirectoryFieldFacetSelection[];
 };
 
 type FieldDefinitionRow = {
@@ -82,6 +121,7 @@ type FieldDefinitionRow = {
   label_es: string | null;
   value_type: string;
   filterable: boolean;
+  directory_filter_visible?: boolean | null;
   active: boolean;
   archived_at: string | null;
   taxonomy_kind: string | null;
@@ -90,6 +130,8 @@ type FieldDefinitionRow = {
 
 /** Loaded row includes group embed for ordering (matches admin Fields / talent dashboard). */
 type FieldDefinitionQueryRow = FieldDefinitionRow & {
+  id?: string;
+  config?: Record<string, unknown> | null;
   field_group_id?: string | null;
   field_groups?: { sort_order: number } | { sort_order: number }[] | null;
 };
@@ -131,10 +173,10 @@ function taxonomyPresentation(f: FieldDefinitionRow): "radio" | "grid" | "chips"
 }
 
 const FILTERABLE_FIELD_DEF_SELECT =
-  "key, label_en, label_es, value_type, filterable, active, archived_at, taxonomy_kind, sort_order, field_group_id, field_groups(sort_order)";
+  "id, key, label_en, label_es, value_type, filterable, config, active, archived_at, taxonomy_kind, sort_order, field_group_id, field_groups(sort_order)";
 
 const DIRECTORY_FILTER_FIELD_DEF_SELECT =
-  "key, label_en, label_es, value_type, filterable, directory_filter_visible, active, archived_at, taxonomy_kind, sort_order, field_group_id, field_groups(sort_order)";
+  "id, key, label_en, label_es, value_type, filterable, directory_filter_visible, config, active, archived_at, taxonomy_kind, sort_order, field_group_id, field_groups(sort_order)";
 
 function isMissingDirectoryFilterMigration(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -143,7 +185,14 @@ function isMissingDirectoryFilterMigration(error: { code?: string; message?: str
 }
 
 async function fetchDirectoryFilterCatalogRows(supabase: SupabaseClient): Promise<FieldDefinitionQueryRow[]> {
-  const modern = await supabase
+  // Prefer service-role client: `internal_only=true` fields (e.g. gender, date_of_birth) must be
+  // readable here so their filter categories appear in the public sidebar. The anon RLS policy
+  // restricts `internal_only=true` rows, but `directory_filter_visible` is an independent flag
+  // that controls sidebar visibility regardless of profile-page visibility.
+  const svc = createServiceRoleClient();
+  const client = svc ?? supabase;
+
+  const modern = await client
     .from("field_definitions")
     .select(DIRECTORY_FILTER_FIELD_DEF_SELECT)
     .eq("directory_filter_visible", true)
@@ -151,7 +200,7 @@ async function fetchDirectoryFilterCatalogRows(supabase: SupabaseClient): Promis
     .is("archived_at", null);
 
   if (modern.error && isMissingDirectoryFilterMigration(modern.error)) {
-    const legacy = await supabase
+    const legacy = await client
       .from("field_definitions")
       .select(FILTERABLE_FIELD_DEF_SELECT)
       .eq("filterable", true)
@@ -172,17 +221,114 @@ async function fetchDirectoryFilterCatalogRows(supabase: SupabaseClient): Promis
 }
 
 function serializeFilterContextKey(ctx: DirectoryFilterRequestContext): string {
+  const ff = [...(ctx.fieldFacets ?? [])]
+    .map((f) => ({
+      k: f.fieldKey.trim(),
+      v: [...new Set(f.values.map((x) => x.trim()).filter(Boolean))].sort(),
+    }))
+    .filter((x) => x.k && x.v.length)
+    .sort((a, b) => a.k.localeCompare(b.k));
   return JSON.stringify({
     t: [...ctx.taxonomyTermIds].sort(),
     l: (ctx.locationSlug ?? "").trim(),
     a: ctx.heightMinCm ?? null,
     b: ctx.heightMaxCm ?? null,
     q: (ctx.query ?? "").trim(),
+    ff,
   });
 }
 
 function sanitizeSearchForRpc(q: string): string {
   return q.trim().replaceAll("%", "").replaceAll("_", "").trim();
+}
+
+function textEnumOptionsFromConfigRow(row: FieldDefinitionQueryRow): string[] | null {
+  // Prefer explicit filter_options (set by admin for directory filtering).
+  const filterOpts = row.config?.filter_options;
+  if (Array.isArray(filterOpts)) {
+    const out = filterOpts
+      .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      .map((x) => x.trim());
+    if (out.length) return out;
+  }
+  // Fall back to config.options[].value — the form-select format used by fields like
+  // hair_color, body_type, eye_color, experience_level, etc.
+  const opts = row.config?.options;
+  if (Array.isArray(opts)) {
+    const out = opts
+      .filter(
+        (o): o is { value: string } =>
+          o !== null && typeof o === "object" && typeof (o as { value?: unknown }).value === "string" && (o as { value: string }).value.trim().length > 0,
+      )
+      .map((o) => (o as { value: string }).value.trim());
+    if (out.length) return out;
+  }
+  return null;
+}
+
+function parseBoolFacetValues(values: string[]): boolean[] {
+  const out = new Set<boolean>();
+  for (const v of values) {
+    const t = v.trim().toLowerCase();
+    if (t === "true" || t === "1" || t === "yes") out.add(true);
+    else if (t === "false" || t === "0" || t === "no") out.add(false);
+  }
+  return [...out];
+}
+
+function buildRpcScalarFilters(
+  fieldFacets: DirectoryFieldFacetSelection[] | undefined,
+  catalogRows: FieldDefinitionQueryRow[],
+  exclude: { omitGender?: boolean; omitBooleanDefId?: string; omitTextDefId?: string },
+): {
+  genderKeys: string[];
+  booleanPayload: { id: string; v: boolean[] }[];
+  textPayload: { id: string; v: string[] }[];
+} {
+  const keyToRow = new Map(catalogRows.map((r) => [r.key, r]));
+  const genderKeys: string[] = [];
+  const booleanPayload: { id: string; v: boolean[] }[] = [];
+  const textPayload: { id: string; v: string[] }[] = [];
+
+  for (const facet of fieldFacets ?? []) {
+    const row = keyToRow.get(facet.fieldKey);
+    const id = row?.id;
+    if (!row || !id) continue;
+    const vt = row.value_type;
+    const opts = textEnumOptionsFromConfigRow(row);
+
+    if (
+      facet.fieldKey === DIRECTORY_CANONICAL_GENDER_FIELD_KEY &&
+      (vt === "text" || vt === "textarea") &&
+      opts?.length &&
+      !exclude.omitGender
+    ) {
+      const allowed = new Set(opts);
+      for (const v of facet.values) {
+        if (allowed.has(v)) genderKeys.push(v);
+      }
+      continue;
+    }
+
+    if (vt === "boolean" && exclude.omitBooleanDefId !== id) {
+      const bs = parseBoolFacetValues(facet.values);
+      if (bs.length) booleanPayload.push({ id, v: bs });
+      continue;
+    }
+
+    if (
+      (vt === "text" || vt === "textarea") &&
+      opts?.length &&
+      facet.fieldKey !== DIRECTORY_CANONICAL_GENDER_FIELD_KEY &&
+      exclude.omitTextDefId !== id
+    ) {
+      const allowed = new Set(opts);
+      const vs = facet.values.filter((x) => allowed.has(x));
+      if (vs.length) textPayload.push({ id, v: vs });
+    }
+  }
+
+  return { genderKeys, booleanPayload, textPayload };
 }
 
 type FacetTaxRow = { taxonomy_term_id: string; profile_count: number | string };
@@ -248,6 +394,120 @@ async function rpcFacetLocation(
   return (data ?? []) as FacetLocRow[];
 }
 
+type FacetGenderRow = { gender_value: string; profile_count: number | string };
+type FacetBoolRow = { value_bool: boolean; profile_count: number | string };
+type FacetTextRow = { value_text: string; profile_count: number | string };
+
+async function rpcFacetGenderCounts(
+  supabase: SupabaseClient,
+  args: {
+    p_location_city_slug: string | null;
+    p_height_min: number | null;
+    p_height_max: number | null;
+    p_selected_taxonomy_ids: string[];
+    p_search: string | null;
+    p_boolean_filters: unknown;
+    p_text_filters: unknown;
+  },
+): Promise<FacetGenderRow[] | null> {
+  const { data, error } = await supabase.rpc("directory_facet_gender_value_counts", {
+    p_location_city_slug: args.p_location_city_slug,
+    p_height_min: args.p_height_min,
+    p_height_max: args.p_height_max,
+    p_selected_taxonomy_ids: args.p_selected_taxonomy_ids,
+    p_search: args.p_search,
+    p_boolean_filters: args.p_boolean_filters,
+    p_text_filters: args.p_text_filters,
+  });
+  if (error) {
+    if (isPostgrestMissingColumnError(error)) {
+      console.warn(
+        "[directory/facet-gender-rpc] Missing RPC directory_facet_gender_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
+      );
+    } else {
+      logServerError("directory/facet-gender-rpc", error);
+    }
+    return null;
+  }
+  return (data ?? []) as FacetGenderRow[];
+}
+
+async function rpcFacetBooleanFieldCounts(
+  supabase: SupabaseClient,
+  args: {
+    p_field_definition_id: string;
+    p_location_city_slug: string | null;
+    p_height_min: number | null;
+    p_height_max: number | null;
+    p_selected_taxonomy_ids: string[];
+    p_search: string | null;
+    p_gender_filter: string[];
+    p_boolean_filters: unknown;
+    p_text_filters: unknown;
+  },
+): Promise<FacetBoolRow[] | null> {
+  const { data, error } = await supabase.rpc("directory_facet_boolean_field_value_counts", {
+    p_field_definition_id: args.p_field_definition_id,
+    p_location_city_slug: args.p_location_city_slug,
+    p_height_min: args.p_height_min,
+    p_height_max: args.p_height_max,
+    p_selected_taxonomy_ids: args.p_selected_taxonomy_ids,
+    p_search: args.p_search,
+    p_gender_filter: args.p_gender_filter,
+    p_boolean_filters: args.p_boolean_filters,
+    p_text_filters: args.p_text_filters,
+  });
+  if (error) {
+    if (isPostgrestMissingColumnError(error)) {
+      console.warn(
+        "[directory/facet-boolean-rpc] Missing RPC directory_facet_boolean_field_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
+      );
+    } else {
+      logServerError("directory/facet-boolean-rpc", error);
+    }
+    return null;
+  }
+  return (data ?? []) as FacetBoolRow[];
+}
+
+async function rpcFacetTextFieldCounts(
+  supabase: SupabaseClient,
+  args: {
+    p_field_definition_id: string;
+    p_location_city_slug: string | null;
+    p_height_min: number | null;
+    p_height_max: number | null;
+    p_selected_taxonomy_ids: string[];
+    p_search: string | null;
+    p_gender_filter: string[];
+    p_boolean_filters: unknown;
+    p_text_filters: unknown;
+  },
+): Promise<FacetTextRow[] | null> {
+  const { data, error } = await supabase.rpc("directory_facet_text_field_value_counts", {
+    p_field_definition_id: args.p_field_definition_id,
+    p_location_city_slug: args.p_location_city_slug,
+    p_height_min: args.p_height_min,
+    p_height_max: args.p_height_max,
+    p_selected_taxonomy_ids: args.p_selected_taxonomy_ids,
+    p_search: args.p_search,
+    p_gender_filter: args.p_gender_filter,
+    p_boolean_filters: args.p_boolean_filters,
+    p_text_filters: args.p_text_filters,
+  });
+  if (error) {
+    if (isPostgrestMissingColumnError(error)) {
+      console.warn(
+        "[directory/facet-text-rpc] Missing RPC directory_facet_text_field_value_counts (apply migration 20260413180000_directory_scalar_facet_counts.sql).",
+      );
+    } else {
+      logServerError("directory/facet-text-rpc", error);
+    }
+    return null;
+  }
+  return (data ?? []) as FacetTextRow[];
+}
+
 function toBigIntCount(v: number | string): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   const n = Number(v);
@@ -272,6 +532,9 @@ function buildDirectoryFilterBlocks(
       blocks.push({ kind: "filter_search" });
       continue;
     }
+    // Respect per-field visibility overrides set on the admin Filters page.
+    // Missing key = visible by default; explicit false = hidden from public sidebar.
+    if (layout.field_visibility_overrides[key] === false) continue;
     const s = byKey.get(key);
     if (s) {
       const defaultCollapsed = layout.section_collapsed_defaults[key] === true;
@@ -333,6 +596,7 @@ async function loadDirectoryFilterSectionsUncached(
     label_es: r.label_es,
     value_type: r.value_type,
     filterable: r.filterable,
+    directory_filter_visible: r.directory_filter_visible,
     active: r.active,
     archived_at: r.archived_at,
     taxonomy_kind: r.taxonomy_kind,
@@ -435,6 +699,70 @@ async function loadDirectoryFilterSectionsUncached(
       continue;
     }
 
+    if (raw.key === "date_of_birth" && f.value_type === "date") {
+      sections.push({
+        fieldKey: "date_of_birth",
+        label: pickLabel(locale, f.label_en, f.label_es),
+        kind: "age_range",
+        presentation: "age_range",
+        sliderMinAge: 18,
+        sliderMaxAge: 70,
+      });
+      continue;
+    }
+
+    const enumOpts = textEnumOptionsFromConfigRow(raw);
+    const defId = raw.id?.trim();
+
+    if (
+      defId &&
+      f.key === DIRECTORY_CANONICAL_GENDER_FIELD_KEY &&
+      (f.value_type === "text" || f.value_type === "textarea") &&
+      enumOpts?.length
+    ) {
+      sections.push({
+        fieldKey: f.key,
+        fieldDefinitionId: defId,
+        label: pickLabel(locale, f.label_en, f.label_es),
+        kind: "profile_gender",
+        presentation: "chips",
+        options: enumOpts.map((label) => ({ id: label, label })),
+      });
+      continue;
+    }
+
+    if (defId && f.value_type === "boolean") {
+      sections.push({
+        fieldKey: f.key,
+        fieldDefinitionId: defId,
+        label: pickLabel(locale, f.label_en, f.label_es),
+        kind: "field_boolean",
+        presentation: "chips",
+        options: [
+          { id: "true", label: locale === "es" ? "Sí" : "Yes" },
+          { id: "false", label: locale === "es" ? "No" : "No" },
+        ],
+      });
+      continue;
+    }
+
+    if (
+      defId &&
+      (f.value_type === "text" || f.value_type === "textarea") &&
+      enumOpts?.length &&
+      f.key !== DIRECTORY_CANONICAL_GENDER_FIELD_KEY
+    ) {
+      sections.push({
+        fieldKey: f.key,
+        fieldDefinitionId: defId,
+        label: pickLabel(locale, f.label_en, f.label_es),
+        kind: "field_text_enum",
+        presentation: enumOpts.length <= 6 ? "chips" : "radio",
+        options: enumOpts.map((label) => ({ id: label, label })),
+      });
+      continue;
+    }
+
     if (!supportedValueType(f.value_type)) continue;
     if (f.value_type === "taxonomy_single" || f.value_type === "taxonomy_multi") {
       if (!f.taxonomy_kind) continue;
@@ -512,12 +840,84 @@ async function loadDirectoryFilterSectionsUncached(
       })()
     : Promise.resolve();
 
-  await Promise.all([...taxRpcTasks, locTask]);
+  const fieldFacets = ctx.fieldFacets ?? [];
 
-  const needsSvcRetry = sections.some(
-    (s) =>
-      (s.kind === "taxonomy" || s.kind === "location") && s.options.some((o) => o.count === undefined),
-  );
+  const genderSection = sections.find((s) => s.kind === "profile_gender");
+  const genderTask = genderSection
+    ? (async () => {
+        const { booleanPayload, textPayload } = buildRpcScalarFilters(fieldFacets, catalogRows, {
+          omitGender: true,
+        });
+        const rows = await rpcFacetGenderCounts(rpcClient, {
+          ...taxArgsBase,
+          p_boolean_filters: booleanPayload,
+          p_text_filters: textPayload,
+        });
+        if (!rows || genderSection.kind !== "profile_gender") return;
+        const byVal = new Map(rows.map((r) => [r.gender_value, toBigIntCount(r.profile_count)]));
+        for (const opt of genderSection.options) {
+          opt.count = byVal.get(opt.id) ?? 0;
+        }
+      })()
+    : Promise.resolve();
+
+  const boolTasks = sections
+    .filter((s): s is Extract<DirectoryFilterSection, { kind: "field_boolean" }> => s.kind === "field_boolean")
+    .map(async (s) => {
+      const { genderKeys, booleanPayload, textPayload } = buildRpcScalarFilters(fieldFacets, catalogRows, {
+        omitBooleanDefId: s.fieldDefinitionId,
+      });
+      const rows = await rpcFacetBooleanFieldCounts(rpcClient, {
+        p_field_definition_id: s.fieldDefinitionId,
+        ...taxArgsBase,
+        p_gender_filter: genderKeys,
+        p_boolean_filters: booleanPayload,
+        p_text_filters: textPayload,
+      });
+      if (!rows) return;
+      const by = new Map<boolean, number>();
+      for (const r of rows) {
+        by.set(r.value_bool, toBigIntCount(r.profile_count));
+      }
+      for (const opt of s.options) {
+        const b = opt.id === "true";
+        opt.count = by.get(b) ?? 0;
+      }
+    });
+
+  const textEnumTasks = sections
+    .filter((s): s is Extract<DirectoryFilterSection, { kind: "field_text_enum" }> => s.kind === "field_text_enum")
+    .map(async (s) => {
+      const { genderKeys, booleanPayload, textPayload } = buildRpcScalarFilters(fieldFacets, catalogRows, {
+        omitTextDefId: s.fieldDefinitionId,
+      });
+      const rows = await rpcFacetTextFieldCounts(rpcClient, {
+        p_field_definition_id: s.fieldDefinitionId,
+        ...taxArgsBase,
+        p_gender_filter: genderKeys,
+        p_boolean_filters: booleanPayload,
+        p_text_filters: textPayload,
+      });
+      if (!rows) return;
+      const by = new Map(rows.map((r) => [r.value_text, toBigIntCount(r.profile_count)]));
+      for (const opt of s.options) {
+        opt.count = by.get(opt.id) ?? 0;
+      }
+    });
+
+  await Promise.all([
+    ...taxRpcTasks,
+    locTask,
+    genderTask,
+    ...boolTasks,
+    ...textEnumTasks,
+  ]);
+
+  const needsSvcRetry = sections.some((s) => {
+    if (s.kind === "height_range" || s.kind === "age_range") return false;
+    if (!("options" in s)) return false;
+    return s.options.some((o) => o.count === undefined);
+  });
   if (needsSvcRetry) {
     const svc = createServiceRoleClient();
     if (svc) {
@@ -548,14 +948,107 @@ async function loadDirectoryFilterSectionsUncached(
             if (opt.count === undefined) opt.count = bySlug.get(opt.id) ?? 0;
           }
         })();
-      await Promise.all([...retryTax, retryLoc ?? Promise.resolve()]);
+
+      const retryGender =
+        genderSection &&
+        genderSection.kind === "profile_gender" &&
+        genderSection.options.some((o) => o.count === undefined) &&
+        (async () => {
+          const { booleanPayload, textPayload } = buildRpcScalarFilters(fieldFacets, catalogRows, {
+            omitGender: true,
+          });
+          const rows = await rpcFacetGenderCounts(svc, {
+            ...taxArgsBase,
+            p_boolean_filters: booleanPayload,
+            p_text_filters: textPayload,
+          });
+          if (!rows) return;
+          const byVal = new Map(rows.map((r) => [r.gender_value, toBigIntCount(r.profile_count)]));
+          for (const opt of genderSection.options) {
+            if (opt.count === undefined) opt.count = byVal.get(opt.id) ?? 0;
+          }
+        })();
+
+      const retryBool = sections
+        .filter((s): s is Extract<DirectoryFilterSection, { kind: "field_boolean" }> => s.kind === "field_boolean")
+        .map(async (s) => {
+          if (!s.options.some((o) => o.count === undefined)) return;
+          const { genderKeys, booleanPayload, textPayload } = buildRpcScalarFilters(fieldFacets, catalogRows, {
+            omitBooleanDefId: s.fieldDefinitionId,
+          });
+          const rows = await rpcFacetBooleanFieldCounts(svc, {
+            p_field_definition_id: s.fieldDefinitionId,
+            ...taxArgsBase,
+            p_gender_filter: genderKeys,
+            p_boolean_filters: booleanPayload,
+            p_text_filters: textPayload,
+          });
+          if (!rows) return;
+          const by = new Map<boolean, number>();
+          for (const r of rows) {
+            by.set(r.value_bool, toBigIntCount(r.profile_count));
+          }
+          for (const opt of s.options) {
+            if (opt.count === undefined) {
+              const b = opt.id === "true";
+              opt.count = by.get(b) ?? 0;
+            }
+          }
+        });
+
+      const retryText = sections
+        .filter((s): s is Extract<DirectoryFilterSection, { kind: "field_text_enum" }> => s.kind === "field_text_enum")
+        .map(async (s) => {
+          if (!s.options.some((o) => o.count === undefined)) return;
+          const { genderKeys, booleanPayload, textPayload } = buildRpcScalarFilters(fieldFacets, catalogRows, {
+            omitTextDefId: s.fieldDefinitionId,
+          });
+          const rows = await rpcFacetTextFieldCounts(svc, {
+            p_field_definition_id: s.fieldDefinitionId,
+            ...taxArgsBase,
+            p_gender_filter: genderKeys,
+            p_boolean_filters: booleanPayload,
+            p_text_filters: textPayload,
+          });
+          if (!rows) return;
+          const by = new Map(rows.map((r) => [r.value_text, toBigIntCount(r.profile_count)]));
+          for (const opt of s.options) {
+            if (opt.count === undefined) opt.count = by.get(opt.id) ?? 0;
+          }
+        });
+
+      await Promise.all([
+        ...retryTax,
+        retryLoc ?? Promise.resolve(),
+        retryGender ?? Promise.resolve(),
+        ...retryBool,
+        ...retryText,
+      ]);
     }
   }
 
   const selectedTaxIds = new Set(ctx.taxonomyTermIds);
+  const scalarSelected = new Map<string, Set<string>>();
+  for (const facet of fieldFacets) {
+    if (!facet.fieldKey.trim() || !facet.values.length) continue;
+    const set = scalarSelected.get(facet.fieldKey) ?? new Set<string>();
+    for (const v of facet.values) {
+      if (v.trim()) set.add(v.trim());
+    }
+    scalarSelected.set(facet.fieldKey, set);
+  }
 
   function stripZeroCountOptions(s: DirectoryFilterSection): DirectoryFilterSection {
-    if (s.kind === "height_range") return s;
+    if (s.kind === "height_range" || s.kind === "age_range") return s;
+    if (s.kind === "profile_gender" || s.kind === "field_boolean" || s.kind === "field_text_enum") {
+      const sel = scalarSelected.get(s.fieldKey);
+      return {
+        ...s,
+        options: s.options.filter(
+          (o) => sel?.has(o.id) || typeof o.count !== "number" || o.count > 0,
+        ),
+      };
+    }
     return {
       ...s,
       options: s.options.filter(
@@ -568,7 +1061,7 @@ async function loadDirectoryFilterSectionsUncached(
   let workingSections = sections.map(stripZeroCountOptions);
 
   const filteredSections = workingSections.filter((s) => {
-    if (s.kind === "height_range") return true;
+    if (s.kind === "height_range" || s.kind === "age_range") return true;
     return s.options.length > 0;
   });
 
@@ -610,7 +1103,7 @@ export function getCachedDirectoryFilterSidebarModel(
   const key = serializeFilterContextKey(ctx);
   return unstable_cache(
     () => loadDirectoryFilterSectionsUncached(locale, ctx),
-    ["directory-filter-sidebar", "v9-topbar-zerocount", locale, key],
+    ["directory-filter-sidebar", "v12-visibility-overrides", locale, key],
     { tags: [CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY], revalidate: 90 },
   )();
 }

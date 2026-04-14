@@ -22,7 +22,14 @@ function setLocaleCookie(locale: Locale) {
 }
 
 /** Dashboard UI language only (URL stays /admin | /talent | /client). Plan §2. */
-export function DashboardLocaleToggle({ className }: { className?: string }) {
+export function DashboardLocaleToggle({
+  className,
+  variant = "default",
+}: {
+  className?: string;
+  /** Matches admin prototype gold chrome (uses --admin-* tokens on an ancestor). */
+  variant?: "default" | "prototype";
+}) {
   const [locale, setLocale] = useState<Locale>("en");
 
   useEffect(() => {
@@ -36,10 +43,15 @@ export function DashboardLocaleToggle({ className }: { className?: string }) {
     window.location.reload();
   }, []);
 
+  const isProto = variant === "prototype";
+
   return (
     <div
       className={cn(
-        "flex items-center gap-1 rounded-md border border-border/60 bg-background/80 px-1 py-0.5 text-xs font-medium",
+        "flex items-center gap-0.5 text-xs font-medium",
+        isProto
+          ? "rounded-xl border border-[var(--admin-gold-border)]/55 bg-[var(--admin-workspace-surface)]/95 px-1 py-0.5 shadow-sm backdrop-blur-sm"
+          : "gap-1 rounded-md border border-border/60 bg-background/80 px-1 py-0.5",
         className,
       )}
       role="group"
@@ -49,25 +61,36 @@ export function DashboardLocaleToggle({ className }: { className?: string }) {
         type="button"
         onClick={() => pick("en")}
         className={cn(
-          "rounded px-2 py-0.5 transition-colors",
-          locale === "en"
-            ? "bg-muted text-foreground"
-            : "text-muted-foreground hover:text-foreground",
+          "rounded-md px-2 py-0.5 transition-colors duration-150",
+          isProto && locale === "en"
+            ? "bg-[var(--admin-gold-soft)] text-[var(--admin-nav-active-label)] shadow-[inset_0_0_0_1px_var(--admin-gold-border)]"
+            : isProto
+              ? "text-[var(--admin-nav-idle)] hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-nav-hover-fg)]"
+              : locale === "en"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground",
         )}
       >
         EN
       </button>
-      <span className="text-border" aria-hidden>
+      <span
+        className={cn("select-none", isProto ? "text-[var(--admin-gold-border)]" : "text-border")}
+        aria-hidden
+      >
         |
       </span>
       <button
         type="button"
         onClick={() => pick("es")}
         className={cn(
-          "rounded px-2 py-0.5 transition-colors",
-          locale === "es"
-            ? "bg-muted text-foreground"
-            : "text-muted-foreground hover:text-foreground",
+          "rounded-md px-2 py-0.5 transition-colors duration-150",
+          isProto && locale === "es"
+            ? "bg-[var(--admin-gold-soft)] text-[var(--admin-nav-active-label)] shadow-[inset_0_0_0_1px_var(--admin-gold-border)]"
+            : isProto
+              ? "text-[var(--admin-nav-idle)] hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-nav-hover-fg)]"
+              : locale === "es"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground",
         )}
       >
         ES

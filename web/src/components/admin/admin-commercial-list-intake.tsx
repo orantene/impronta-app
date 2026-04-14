@@ -78,7 +78,7 @@ export function AdminCommercialListIntake(props: Props) {
         </>
       )}
       <Button type="button" variant="outline" size="sm" className={cn("rounded-full")} onClick={() => setClientOpen(true)}>
-        New Client Location
+        New Work Location
       </Button>
       <CreateClientAccountSheet open={clientOpen} onOpenChange={setClientOpen} />
     </div>

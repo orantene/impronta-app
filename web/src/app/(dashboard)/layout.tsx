@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { Home, LogOut, UserRound } from "lucide-react";
@@ -24,7 +25,8 @@ import {
   resolveAuthenticatedDestination,
 } from "@/lib/auth-flow";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { getRequestLocale } from "@/i18n/request-locale";
+import { stripLocaleFromPathname } from "@/i18n/pathnames";
+import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
@@ -81,6 +83,23 @@ export default async function DashboardLayout({
 
   if (!role) {
     redirect("/onboarding/role");
+  }
+
+  /**
+   * Real `/admin` uses its own shell in `admin/layout.tsx`. Only skip the shared dashboard
+   * chrome for staff **on `/admin` routes** — otherwise client/talent dashboards break (no
+   * theme wrapper, no sidebar) when a staff account hits those URLs.
+   */
+  const headerList = await headers();
+  const rawPath = headerList.get(ORIGINAL_PATHNAME_HEADER) ?? "";
+  const pathOnly = rawPath.split("?")[0]?.split("#")[0] ?? "";
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(pathOnly);
+  const normalizedPath =
+    pathnameWithoutLocale.replace(/\/+$/, "") || "/";
+  const staffOnAdminRoute =
+    normalizedPath === "/admin" || normalizedPath.startsWith("/admin/");
+  if (staff && staffOnAdminRoute) {
+    return <>{children}</>;
   }
 
   let navGroups = dashboardGroupsForRole(

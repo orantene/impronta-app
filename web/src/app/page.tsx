@@ -1,4 +1,5 @@
 import { PublicHeader } from "@/components/public-header";
+import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { HeroSearch } from "@/components/home/hero-search";
 import { TalentTypeShortcuts } from "@/components/home/talent-type-shortcuts";
 import { FeaturedTalentSection } from "@/components/home/featured-talent-section";
@@ -12,7 +13,10 @@ import { PublicFlashHost } from "@/components/directory/public-flash-host";
 import type { Locale } from "@/i18n/config";
 import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getPublicSettings } from "@/lib/public-settings";
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 
 /** PublicHeader uses Supabase server client (cookies); must not be statically prerendered. */
@@ -34,11 +38,20 @@ export default async function HomePage() {
   const { talentTypes, featuredTalent, fitLabels, locations } =
     await getHomepageData();
 
+  const [aiFlags, publicSettings] = await Promise.all([getAiFeatureFlags(), getPublicSettings()]);
+  /** Home hero must match `/api/ai/interpret-search` gate (`directory_public`). */
+  const aiHeroSearchEnabled = aiFlags.ai_search_enabled && publicSettings.directoryPublic;
   const heroSearchCopy = {
     placeholder: t("public.home.hero.searchPlaceholder"),
     ariaLabel: t("public.home.hero.searchAria"),
     searchSubmit: t("public.home.hero.searchSubmit"),
     typedExamples: getMessageStringArray(locale, "public.home.hero.typedExamples"),
+    interpreting: t("public.directory.ui.hero.interpreting"),
+    interpretErrorTitle: t("public.directory.ui.hero.interpretErrorTitle"),
+    interpretError: t("public.directory.ui.hero.interpretError"),
+    interpretErrorDirectoryClosed: t("public.directory.ui.hero.interpretErrorDirectoryClosed"),
+    interpretErrorAiDisabled: t("public.directory.ui.hero.interpretErrorAiDisabled"),
+    interpretErrorService: t("public.directory.ui.hero.interpretErrorService"),
   };
 
   const howItWorksCopy = {
@@ -106,7 +119,19 @@ export default async function HomePage() {
               {t("public.home.hero.subtitle")}
             </p>
             <div className="mt-10">
-              <HeroSearch copy={heroSearchCopy} />
+              <Suspense
+                fallback={
+                  <div className="mx-auto w-full max-w-2xl">
+                    <div className="relative h-14 rounded-xl border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 sm:h-16" />
+                  </div>
+                }
+              >
+                <HeroSearch
+                  copy={heroSearchCopy}
+                  aiSearchEnabled={aiHeroSearchEnabled}
+                  locale={locale === "es" ? "es" : "en"}
+                />
+              </Suspense>
             </div>
           </div>
         </section>
@@ -145,6 +170,7 @@ export default async function HomePage() {
 
         <footer className="border-t border-border px-4 py-10 sm:px-6 lg:px-8">
           <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-center text-sm text-[var(--impronta-muted)]">
+            <PublicCmsFooterNav locale={locale} />
             <p className="font-display text-m tracking-[0.2em] text-foreground">
               IMPRONTA
             </p>

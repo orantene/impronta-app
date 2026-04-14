@@ -35,4 +35,30 @@ function Badge({ className, variant, ...props }: BadgeProps) {
   );
 }
 
-export { Badge, badgeVariants };
+function StatusBadge({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <Badge
+      variant="muted"
+      className={cn("text-xs font-normal capitalize", className)}
+      {...props}
+    />
+  );
+}
+
+function TagBadge({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn("text-xs font-normal", className)}
+      {...props}
+    />
+  );
+}
+
+export { Badge, badgeVariants, StatusBadge, TagBadge };

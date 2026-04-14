@@ -13,9 +13,12 @@ import type {
 } from "@/lib/directory/field-driven-filters";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { FilterChip, FilterChips } from "@/components/ui/filter-chips";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { formatFilterSearchSummary } from "@/lib/directory/directory-ui-copy";
+import type { DirectoryFieldFacetSelection } from "@/lib/directory/types";
+import { serializeDirectoryFieldFacetParams } from "@/lib/directory/search-params";
 
 const COLLAPSE_CHIPS = 6;
 const COLLAPSE_RADIO = 8;
@@ -551,6 +554,14 @@ type VisibleFilterSection = {
   matchHintCount?: number;
 };
 
+function scalarFacetHasSelection(
+  fieldKey: string,
+  fieldFacets: DirectoryFieldFacetSelection[],
+): boolean {
+  const row = fieldFacets.find((f) => f.fieldKey === fieldKey);
+  return Boolean(row?.values.some((v) => v.trim()));
+}
+
 /** Sections with any active URL selection bubble up right after the search block (stable among active / inactive). */
 function reorderFilterBlocksWithActiveFirst(
   blocks: DirectoryFilterSidebarBlock[],
@@ -558,6 +569,9 @@ function reorderFilterBlocksWithActiveFirst(
   locationSlug: string,
   heightMinCm: number | null,
   heightMaxCm: number | null,
+  fieldFacets: DirectoryFieldFacetSelection[],
+  ageMin: number | null = null,
+  ageMax: number | null = null,
 ): DirectoryFilterSidebarBlock[] {
   const selectedSet = new Set(selectedIds);
   const loc = locationSlug.trim();
@@ -566,11 +580,21 @@ function reorderFilterBlocksWithActiveFirst(
     if (section.kind === "height_range") {
       return heightMinCm != null || heightMaxCm != null;
     }
+    if (section.kind === "age_range") {
+      return ageMin != null || ageMax != null;
+    }
     if (section.kind === "location") {
       return loc.length > 0;
     }
     if (section.kind === "taxonomy") {
       return section.options.some((o) => selectedSet.has(o.id));
+    }
+    if (
+      section.kind === "profile_gender" ||
+      section.kind === "field_boolean" ||
+      section.kind === "field_text_enum"
+    ) {
+      return scalarFacetHasSelection(section.fieldKey, fieldFacets);
     }
     return false;
   };
@@ -596,12 +620,33 @@ function reorderFilterBlocksWithActiveFirst(
   return [...head, ...active, ...inactive];
 }
 
+function mergeFacetSelections(
+  current: DirectoryFieldFacetSelection[],
+  fieldKey: string,
+  mutate: (prev: Set<string>) => void,
+): DirectoryFieldFacetSelection[] {
+  const byKey = new Map<string, Set<string>>();
+  for (const f of current) {
+    byKey.set(f.fieldKey, new Set(f.values.map((v) => v.trim()).filter(Boolean)));
+  }
+  const s = byKey.get(fieldKey) ?? new Set<string>();
+  mutate(s);
+  if (s.size === 0) byKey.delete(fieldKey);
+  else byKey.set(fieldKey, s);
+  return [...byKey.entries()]
+    .map(([k, vs]) => ({ fieldKey: k, values: [...vs].sort() }))
+    .sort((a, b) => a.fieldKey.localeCompare(b.fieldKey));
+}
+
 export function DirectoryFiltersSidebar({
   blocks,
   selectedIds,
   locationSlug,
   heightMinCm,
   heightMaxCm,
+  ageMin = null,
+  ageMax = null,
+  fieldFacets,
   ui,
 }: {
   blocks: DirectoryFilterSidebarBlock[];
@@ -609,6 +654,9 @@ export function DirectoryFiltersSidebar({
   locationSlug: string;
   heightMinCm: number | null;
   heightMaxCm: number | null;
+  ageMin?: number | null;
+  ageMax?: number | null;
+  fieldFacets: DirectoryFieldFacetSelection[];
   ui: DirectoryUiCopy;
 }) {
   const fc = ui.filters;
@@ -631,8 +679,11 @@ export function DirectoryFiltersSidebar({
         locationSlug,
         heightMinCm,
         heightMaxCm,
+        fieldFacets,
+        ageMin,
+        ageMax,
       ),
-    [blocks, selectedIds, locationSlug, heightMinCm, heightMaxCm],
+    [blocks, selectedIds, locationSlug, heightMinCm, heightMaxCm, fieldFacets, ageMin, ageMax],
   );
 
   const facetSections = useMemo(
@@ -649,12 +700,12 @@ export function DirectoryFiltersSidebar({
     if (!hasFilterSearch) {
       return facetSections.map((section) => ({
         section,
-        options: section.kind === "height_range" ? [] : section.options,
+        options: (section.kind === "height_range" || section.kind === "age_range") ? [] : section.options,
       }));
     }
     const out: VisibleFilterSection[] = [];
     for (const section of facetSections) {
-      if (section.kind === "height_range") {
+      if (section.kind === "height_range" || section.kind === "age_range") {
         if (heightSectionMatchesQuery(section.label, qNorm)) {
           out.push({ section, options: [] });
         }
@@ -665,6 +716,17 @@ export function DirectoryFiltersSidebar({
           out.push({ section, options: section.options, matchHintCount: 1 });
           continue;
         }
+        const filtered = section.options.filter((o) => labelMatchesQuery(o.label, qNorm));
+        if (filtered.length > 0) {
+          out.push({ section, options: filtered });
+        }
+        continue;
+      }
+      if (
+        section.kind === "profile_gender" ||
+        section.kind === "field_boolean" ||
+        section.kind === "field_text_enum"
+      ) {
         const filtered = section.options.filter((o) => labelMatchesQuery(o.label, qNorm));
         if (filtered.length > 0) {
           out.push({ section, options: filtered });
@@ -736,6 +798,49 @@ export function DirectoryFiltersSidebar({
     [pushParams],
   );
 
+  const pushAge = useCallback(
+    (min: number | null, max: number | null) => {
+      pushParams((params) => {
+        if (min != null) params.set("amin", String(min));
+        else params.delete("amin");
+        if (max != null) params.set("amax", String(max));
+        else params.delete("amax");
+      });
+    },
+    [pushParams],
+  );
+
+  const pushFieldFacets = useCallback(
+    (next: DirectoryFieldFacetSelection[]) => {
+      pushParams((params) => {
+        params.delete("ff");
+        for (const seg of serializeDirectoryFieldFacetParams(next)) {
+          params.append("ff", seg);
+        }
+      });
+    },
+    [pushParams],
+  );
+
+  const toggleScalarChip = useCallback(
+    (fieldKey: string, valueId: string) => {
+      const next = mergeFacetSelections(fieldFacets, fieldKey, (set) => {
+        if (set.has(valueId)) set.delete(valueId);
+        else set.add(valueId);
+      });
+      pushFieldFacets(next);
+    },
+    [fieldFacets, pushFieldFacets],
+  );
+
+  const selectScalarRadio = useCallback(
+    (fieldKey: string, valueId: string) => {
+      const next = mergeFacetSelections(fieldFacets, fieldKey, () => new Set([valueId]));
+      pushFieldFacets(next);
+    },
+    [fieldFacets, pushFieldFacets],
+  );
+
   const toggleChip = (id: string) => {
     const next = new Set(selectedSet);
     if (next.has(id)) next.delete(id);
@@ -756,12 +861,21 @@ export function DirectoryFiltersSidebar({
       params.delete("location");
       params.delete("hmin");
       params.delete("hmax");
+      params.delete("amin");
+      params.delete("amax");
+      params.delete("ff");
     });
   };
 
   const hasHeightFilter = heightMinCm != null || heightMaxCm != null;
+  const hasAgeFilter = ageMin != null || ageMax != null;
+  const hasScalarFilters = fieldFacets.some((f) => f.values.some((v) => v.trim()));
   const hasFilters =
-    selectedIds.length > 0 || Boolean(locationSelected) || hasHeightFilter;
+    selectedIds.length > 0 ||
+    Boolean(locationSelected) ||
+    hasHeightFilter ||
+    hasAgeFilter ||
+    hasScalarFilters;
 
   if (facetSections.length === 0) {
     return (
@@ -888,8 +1002,28 @@ export function DirectoryFiltersSidebar({
           );
         }
 
+        if (section.kind === "age_range") {
+          return (
+            <AgeRangeSection
+              key={`${section.fieldKey}-${hasFilterSearch ? "f" : "a"}`}
+              section={section}
+              ageMin={ageMin}
+              ageMax={ageMax}
+              onCommit={pushAge}
+              forceAccordionOpen={hasFilterSearch}
+              defaultCollapsed={defaultCollapsed}
+              fc={fc}
+            />
+          );
+        }
+
         const optionSource = hasFilterSearch ? opts : section.options;
         const forceExpandLists = hasFilterSearch;
+
+        const scalarSelected = (() => {
+          const row = fieldFacets.find((f) => f.fieldKey === section.fieldKey);
+          return new Set((row?.values ?? []).map((v) => v.trim()).filter(Boolean));
+        })();
 
         return (
           <SectionAccordion
@@ -906,7 +1040,80 @@ export function DirectoryFiltersSidebar({
                 filterSidebarQuery={hasFilterSearch ? filterQuery : ""}
                 fc={fc}
               />
-            ) : section.presentation === "radio" ? (
+            ) : section.kind === "field_text_enum" && section.presentation === "radio" ? (
+              <ExpandableRadioList
+                options={optionSource}
+                forceExpanded={forceExpandLists}
+                fc={fc}
+                renderRow={(opt) => {
+                  const on = scalarSelected.has(opt.id);
+                  const c = opt.count;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => selectScalarRadio(section.fieldKey, opt.id)}
+                      className={cn(
+                        "flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-left text-sm transition-colors",
+                        on ? "text-[var(--impronta-gold)]" : "text-zinc-300 hover:text-zinc-100",
+                      )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "inline-flex size-3.5 shrink-0 rounded-full border-2",
+                            on
+                              ? "border-[var(--impronta-gold)] bg-[var(--impronta-gold)]"
+                              : "border-zinc-500",
+                          )}
+                          aria-hidden
+                        />
+                        <HighlightMatch text={opt.label} query={filterQuery} />
+                      </span>
+                      {c !== undefined ? (
+                        <span className={cn("tabular-nums text-xs", on ? "" : "text-[var(--impronta-muted)]")}>
+                          {c}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                }}
+              />
+            ) : section.kind === "profile_gender" ||
+              section.kind === "field_boolean" ||
+              (section.kind === "field_text_enum" && section.presentation === "chips") ? (
+              <ExpandableChips
+                optionCount={optionSource.length}
+                forceExpanded={forceExpandLists}
+                fc={fc}
+              >
+                <div className="flex flex-wrap gap-1.5">
+                  {optionSource.map((opt) => {
+                    const on = scalarSelected.has(opt.id);
+                    const c = opt.count;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => toggleScalarChip(section.fieldKey, opt.id)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors",
+                          on
+                            ? "border-[var(--impronta-gold)] bg-[rgba(212,175,55,0.12)] text-[var(--impronta-gold)]"
+                            : "border-[var(--impronta-gold-border)] text-[var(--impronta-muted)] hover:border-[var(--impronta-gold-dim)] hover:text-zinc-200",
+                        )}
+                      >
+                        <span>
+                          <HighlightMatch text={opt.label} query={filterQuery} />
+                        </span>
+                        {c !== undefined ? (
+                          <span className={cn("ml-1 tabular-nums", on ? "" : "opacity-70")}>({c})</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </ExpandableChips>
+            ) : section.kind === "taxonomy" && section.presentation === "radio" ? (
               <ExpandableRadioList
                 options={optionSource}
                 forceExpanded={forceExpandLists}
@@ -944,7 +1151,7 @@ export function DirectoryFiltersSidebar({
                   );
                 }}
               />
-            ) : section.presentation === "grid" ? (
+            ) : section.kind === "taxonomy" && section.presentation === "grid" ? (
               <ExpandableGrid
                 optionCount={optionSource.length}
                 forceExpanded={forceExpandLists}
@@ -1150,6 +1357,116 @@ function HeightRangeSection({
   );
 }
 
+function AgeRangeSection({
+  section,
+  ageMin,
+  ageMax,
+  onCommit,
+  forceAccordionOpen,
+  defaultCollapsed = false,
+  fc,
+}: {
+  section: Extract<DirectoryFilterSection, { kind: "age_range" }>;
+  ageMin: number | null;
+  ageMax: number | null;
+  onCommit: (min: number | null, max: number | null) => void;
+  forceAccordionOpen?: boolean;
+  defaultCollapsed?: boolean;
+  fc: DirectoryUiCopy["filters"];
+}) {
+  const lo = section.sliderMinAge;
+  const hi = section.sliderMaxAge;
+  const effMin = ageMin ?? lo;
+  const effMax = ageMax ?? hi;
+
+  const [minV, setMinV] = useState(effMin);
+  const [maxV, setMaxV] = useState(effMax);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMinV(ageMin ?? lo);
+    setMaxV(ageMax ?? hi);
+  }, [ageMin, ageMax, lo, hi]);
+
+  const scheduleAge = useCallback(
+    (a: number, b: number) => {
+      const x = Math.min(a, b);
+      const y = Math.max(a, b);
+      const atMin = x <= lo;
+      const atMax = y >= hi;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        onCommit(atMin ? null : x, atMax ? null : y);
+      }, 380);
+    },
+    [lo, hi, onCommit],
+  );
+
+  return (
+    <SectionAccordion
+      title={section.label}
+      defaultOpen={!defaultCollapsed}
+      forceOpen={forceAccordionOpen}
+    >
+      <div className="space-y-3 px-0.5">
+        <div className="flex items-center justify-between text-[11px] text-[var(--impronta-muted)]">
+          <span className="tabular-nums">{minV} yrs</span>
+          <span className="tabular-nums">{maxV} yrs</span>
+        </div>
+        <div className="space-y-2">
+          <label className="block text-[10px] uppercase tracking-wide text-[var(--impronta-muted)]">
+            {fc.minAge}
+            <input
+              type="range"
+              min={lo}
+              max={hi}
+              value={Math.min(minV, maxV)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                const nextMin = Math.min(v, maxV);
+                setMinV(nextMin);
+                scheduleAge(nextMin, maxV);
+              }}
+              className="mt-1 w-full accent-[var(--impronta-gold)]"
+            />
+          </label>
+          <label className="block text-[10px] uppercase tracking-wide text-[var(--impronta-muted)]">
+            {fc.maxAge}
+            <input
+              type="range"
+              min={lo}
+              max={hi}
+              value={Math.max(minV, maxV)}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                const nextMax = Math.max(v, minV);
+                setMaxV(nextMax);
+                scheduleAge(minV, nextMax);
+              }}
+              className="mt-1 w-full accent-[var(--impronta-gold)]"
+            />
+          </label>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-7 w-full text-[11px] text-[var(--impronta-muted)] hover:text-foreground"
+          onClick={() => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            setMinV(lo);
+            setMaxV(hi);
+            onCommit(null, null);
+          }}
+        >
+          {fc.resetAge}
+        </Button>
+      </div>
+    </SectionAccordion>
+  );
+}
+
 function prettyChipLabel(label: string): string {
   const t = label.trim();
   if (!t) return t;
@@ -1190,6 +1507,7 @@ export function AppliedFilterChips({
       next.delete(id);
       startTransition(() => {
         commitDirectoryListingUrl(router, pathname, searchParams.toString(), (params) => {
+          params.delete("ai_sum");
           if (next.size > 0) {
             params.set("tax", [...next].sort().join(","));
           } else {
@@ -1205,6 +1523,7 @@ export function AppliedFilterChips({
     (name: string) => {
       startTransition(() => {
         commitDirectoryListingUrl(router, pathname, searchParams.toString(), (params) => {
+          params.delete("ai_sum");
           params.delete(name);
         });
       });
@@ -1225,27 +1544,27 @@ export function AppliedFilterChips({
     .join(" ");
 
   const chipClass =
-    "flex items-center gap-1.5 rounded-lg border border-[var(--impronta-gold-border)] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--impronta-gold)] transition-colors hover:bg-[rgba(212,175,55,0.08)]";
+    "rounded-lg border-[var(--impronta-gold-border)] bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--impronta-gold)] shadow-none hover:bg-[rgba(212,175,55,0.08)] hover:!text-[var(--impronta-gold)]";
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <FilterChips className="items-center">
       {selected.map((opt) => (
-        <button
+        <FilterChip
           key={opt.id}
-          type="button"
+          label={prettyChipLabel(opt.name)}
           onClick={() => remove(opt.id)}
           className={chipClass}
         >
-          {prettyChipLabel(opt.name)}
-          <X className="size-3.5 shrink-0 opacity-80" />
-        </button>
+          <X className="size-3.5 shrink-0 opacity-80" aria-hidden />
+        </FilterChip>
       ))}
       {hasHeight ? (
-        <button
-          type="button"
+        <FilterChip
+          label={`${chips.height}${heightMinCm != null ? chips.heightMinPart.replace("{cm}", String(heightMinCm)) : ""}${heightMaxCm != null ? chips.heightMaxPart.replace("{cm}", String(heightMaxCm)) : ""}`}
           onClick={() => {
             startTransition(() => {
               commitDirectoryListingUrl(router, pathname, searchParams.toString(), (params) => {
+                params.delete("ai_sum");
                 params.delete("hmin");
                 params.delete("hmax");
               });
@@ -1253,24 +1572,27 @@ export function AppliedFilterChips({
           }}
           className={chipClass}
         >
-          {chips.height}
-          {heightMinCm != null ? chips.heightMinPart.replace("{cm}", String(heightMinCm)) : ""}
-          {heightMaxCm != null ? chips.heightMaxPart.replace("{cm}", String(heightMaxCm)) : ""}
-          <X className="size-3.5 shrink-0 opacity-80" />
-        </button>
+          <X className="size-3.5 shrink-0 opacity-80" aria-hidden />
+        </FilterChip>
       ) : null}
       {query ? (
-        <button type="button" onClick={() => removeParam("q")} className={chipClass}>
-          {chips.searchPrefix} {query}
-          <X className="size-3.5 shrink-0 opacity-80" />
-        </button>
+        <FilterChip
+          label={`${chips.searchPrefix} ${query}`}
+          onClick={() => removeParam("q")}
+          className={chipClass}
+        >
+          <X className="size-3.5 shrink-0 opacity-80" aria-hidden />
+        </FilterChip>
       ) : null}
       {locationSlug ? (
-        <button type="button" onClick={() => removeParam("location")} className={chipClass}>
-          {prettyLocation || locationSlug}
-          <X className="size-3.5 shrink-0 opacity-80" />
-        </button>
+        <FilterChip
+          label={prettyLocation || locationSlug}
+          onClick={() => removeParam("location")}
+          className={chipClass}
+        >
+          <X className="size-3.5 shrink-0 opacity-80" aria-hidden />
+        </FilterChip>
       ) : null}
-    </div>
+    </FilterChips>
   );
 }

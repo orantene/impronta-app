@@ -72,7 +72,7 @@ export function BookingHeaderForm({
         <Input id="b_title" name="title" defaultValue={booking.title} required />
       </div>
       <div className="space-y-2 sm:col-span-2">
-        <Label htmlFor="b_client_account">Client Location</Label>
+        <Label htmlFor="b_client_account">Work Location</Label>
         <select
           id="b_client_account"
           name="client_account_id"
@@ -108,7 +108,7 @@ export function BookingHeaderForm({
           ))}
         </select>
         <p className="text-xs text-muted-foreground">
-          Contact at the selected Client Location. If you change the location, only matching contacts stay available.
+          Contact at the selected Work Location. If you change the location, only matching contacts stay available.
         </p>
       </div>
       <div className="space-y-3 sm:col-span-2 rounded-md border border-border/40 bg-muted/15 p-3">

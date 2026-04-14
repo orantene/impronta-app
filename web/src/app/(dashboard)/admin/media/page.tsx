@@ -1,9 +1,9 @@
-import { Images, ShieldCheck, Users } from "lucide-react";
+import { Images, ShieldCheck } from "lucide-react";
 import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
 import { AdminApprovedMediaLibrary } from "@/app/(dashboard)/admin/media/admin-approved-media-library";
 import { AdminMediaTabNav } from "@/app/(dashboard)/admin/media/admin-media-tab-nav";
 import { AdminPendingMediaQueue } from "@/app/(dashboard)/admin/media/admin-pending-media-queue";
-import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-header";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { HelpTip } from "@/components/ui/help-tip";
 import {
@@ -29,7 +29,8 @@ export default async function AdminMediaPage({
   if (isLibrary) {
     return (
       <div className={ADMIN_PAGE_STACK}>
-        <DashboardPageHeader
+        <AdminPageHeader
+          icon={Images}
           eyebrow="Admin · Media"
           title="Media Library"
           description="Browse recently approved assets. Editing, ordering, and primary selection stay on each talent’s media workspace."
@@ -53,7 +54,8 @@ export default async function AdminMediaPage({
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <DashboardPageHeader
+      <AdminPageHeader
+        icon={ShieldCheck}
         eyebrow="Admin · Media"
         title="Pending Approvals"
         description="Review pending uploads before they become part of the approved talent portfolio."
@@ -103,47 +105,6 @@ export default async function AdminMediaPage({
           </div>
         </div>
       </section>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <DashboardSectionCard
-          title="Pending assets"
-          description="Awaiting moderation"
-          titleClassName={ADMIN_SECTION_TITLE_CLASS}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--impronta-gold)]/12 text-[var(--impronta-gold)] ring-1 ring-[var(--impronta-gold)]/20">
-              <Images className="size-5" aria-hidden />
-            </div>
-            <p className="font-display text-3xl font-medium tabular-nums tracking-tight text-[var(--impronta-gold)]">
-              {pendingRows.length}
-            </p>
-          </div>
-        </DashboardSectionCard>
-        <DashboardSectionCard
-          title="Talent affected"
-          description="Profiles with pending uploads"
-          titleClassName={ADMIN_SECTION_TITLE_CLASS}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/40 text-muted-foreground ring-1 ring-border/60">
-              <Users className="size-5" aria-hidden />
-            </div>
-            <p className="font-display text-3xl font-medium tabular-nums tracking-tight text-foreground">
-              {talentCount}
-            </p>
-          </div>
-        </DashboardSectionCard>
-        <DashboardSectionCard
-          title="Moderation flow"
-          description="Staff-owned publication gate"
-          titleClassName={ADMIN_SECTION_TITLE_CLASS}
-        >
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Review the preview, approve or reject from each card, then open the full talent media workspace when
-            you need crops, ordering, or more context.
-          </p>
-        </DashboardSectionCard>
-      </div>
 
       <DashboardSectionCard
         title="Pending uploads"

@@ -10,6 +10,7 @@ import {
   useDirectoryInquiryModal,
 } from "@/components/directory/directory-inquiry-modal-context";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
+import { InquiryAiStrip } from "@/components/directory/inquiry-ai-strip";
 import { InquiryTalentQuickAdd } from "@/components/directory/inquiry-talent-quick-add";
 import { SavedTalentCartList } from "@/components/directory/saved-talent-cart-list";
 import { Button } from "@/components/ui/button";
@@ -21,22 +22,24 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
+import type { Locale } from "@/i18n/config";
 import { formatProfilesInRequest } from "@/lib/directory/directory-ui-copy";
 import type { DirectoryInquiryPayload } from "@/lib/load-directory-inquiry-payload";
 import Link from "next/link";
 
 type DirectoryInquirySheetProps = {
   ui: DirectoryUiCopy;
+  locale: Locale;
 };
 
-export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
+export function DirectoryInquirySheet({ ui, locale }: DirectoryInquirySheetProps) {
   const s = ui.inquirySheet;
   const { open, setOpen, success, clearSuccess } = useDirectoryInquiryModal();
   const { savedIds, savedCount } = usePublicDiscoveryState();
@@ -93,28 +96,28 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
   const shortlistDescription = formatProfilesInRequest(s, savedCount);
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent
+    <Drawer open={open} onOpenChange={handleOpenChange}>
+      <DrawerContent
         side="right"
         className="flex w-full max-w-lg flex-col border-l border-border/80 bg-background p-0 sm:max-w-xl"
       >
         <div className="border-b border-border/60 px-6 pb-4 pt-6 pr-14">
-          <SheetHeader className="space-y-1 p-0 text-left">
-            <SheetTitle className="font-display text-xl tracking-wide">
+          <DrawerHeader className="space-y-1 p-0 text-left">
+            <DrawerTitle className="font-display text-xl tracking-wide">
               {success
                 ? s.titleThankYou
                 : savedCount > 0
                   ? s.titleContactAgency
                   : s.titleStartInquiry}
-            </SheetTitle>
-            <SheetDescription className="text-m text-muted-foreground">
+            </DrawerTitle>
+            <DrawerDescription className="text-m text-muted-foreground">
               {success
                 ? s.descThankYou
                 : savedCount > 0
                   ? s.descWithShortlist
                   : s.descEmptyShortlist}
-            </SheetDescription>
-          </SheetHeader>
+            </DrawerDescription>
+          </DrawerHeader>
         </div>
 
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-6">
@@ -130,6 +133,10 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
             <p className="text-sm text-muted-foreground">{s.loading}</p>
           ) : (
             <>
+              <InquiryAiStrip
+                title={ui.inquirySheet.aiAssistTitle}
+                body={ui.inquirySheet.aiAssistBody}
+              />
               <InquiryTalentQuickAdd
                 disabled={!ready.inquiriesOpen}
                 copy={ui.inquiryQuickAdd}
@@ -185,6 +192,8 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
                       eventTypes={ready.eventTypes}
                       selectedTalent={selectedTalent}
                       formCopy={ui.inquiryForm}
+                      inquiryDraftEnabled={ready.aiInquiryDraftEnabled}
+                      locale={locale}
                     />
                   ) : (
                     <p className="rounded-md border border-border/70 bg-muted/30 px-4 py-3 text-m text-muted-foreground">
@@ -214,7 +223,7 @@ export function DirectoryInquirySheet({ ui }: DirectoryInquirySheetProps) {
             </Button>
           ) : null}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }

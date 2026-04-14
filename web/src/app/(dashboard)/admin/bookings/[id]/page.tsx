@@ -460,7 +460,7 @@ export default async function AdminBookingDetailPage({
       {/* ── CRM reassign ─────────────────────────────────────── */}
       <SecondarySection
         title="Reassign links"
-        description="Change Client Location, contact, portal client, or source request. Snapshots can be refreshed on save."
+        description="Change Work Location, contact, portal client, or source request. Snapshots can be refreshed on save."
         icon={CalendarRange}
         defaultOpen={false}
       >

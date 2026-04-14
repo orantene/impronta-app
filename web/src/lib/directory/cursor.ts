@@ -15,17 +15,38 @@ function fromBase64Url(s: string): string {
 }
 
 export function encodeDirectoryCursor(c: DirectoryCursor): string {
-  return toBase64Url(JSON.stringify({ o: c.offset }));
+  const payload =
+    c.mode === "classic_after_hybrid"
+      ? {
+          v: 2 as const,
+          o: c.offset,
+          m: "h1" as const,
+          ...(c.hybridContextStamp ? { h: c.hybridContextStamp } : {}),
+        }
+      : { o: c.offset };
+  return toBase64Url(JSON.stringify(payload));
 }
 
 export function decodeDirectoryCursor(token: string): DirectoryCursor | null {
   try {
     const raw = fromBase64Url(token);
-    const o = JSON.parse(raw) as { o?: number };
-    if (typeof o.o === "number" && Number.isFinite(o.o) && o.o >= 0) {
-      return { offset: o.o };
+    const p = JSON.parse(raw) as {
+      v?: number;
+      o?: number;
+      m?: string;
+      h?: string;
+    };
+    if (typeof p.o !== "number" || !Number.isFinite(p.o) || p.o < 0) {
+      return null;
     }
-    return null;
+    const mode = p.m === "h1" ? ("classic_after_hybrid" as const) : undefined;
+    const hybridContextStamp =
+      typeof p.h === "string" && p.h.length > 0 ? p.h : undefined;
+    return {
+      offset: p.o,
+      ...(mode ? { mode } : {}),
+      ...(hybridContextStamp ? { hybridContextStamp } : {}),
+    };
   } catch {
     return null;
   }

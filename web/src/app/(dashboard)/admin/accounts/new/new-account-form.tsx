@@ -79,7 +79,7 @@ export function NewAccountForm({
   }, [mode, onSheetSuccess, state?.createdClientAccountId, state?.updatedClientAccountId]);
 
   const showTypeDetail = accountType === "other";
-  const submitLabel = formMode === "edit" ? "Save location changes" : "Create client location";
+  const submitLabel = formMode === "edit" ? "Save location changes" : "Create work location";
 
   return (
     <form action={formAction} className="max-w-lg space-y-5">

@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useMemo, useRef } from "react";
+
+import { InquiryDraftAssistant } from "@/components/directory/inquiry-draft-assistant";
 import { useFormStatus } from "react-dom";
 import {
   submitClientInquiry,
@@ -104,6 +106,9 @@ function FormFields({
   talentIds,
   state,
   form,
+  inquiryDraftEnabled,
+  locale,
+  formId,
 }: {
   agencyWhatsAppNumber?: string;
   defaultEmail?: string;
@@ -115,7 +120,11 @@ function FormFields({
   talentIds: string[];
   state: InquiryFormState;
   form: DirectoryUiCopy["inquiryForm"];
+  inquiryDraftEnabled?: boolean;
+  locale?: "en" | "es";
+  formId?: string;
 }) {
+  const messageRef = useRef<HTMLTextAreaElement>(null);
   const { searchContext } = usePublicDiscoveryState();
   const directoryContext = useMemo(
     () =>
@@ -127,6 +136,17 @@ function FormFields({
       }),
     [searchContext],
   );
+
+  const draftTalentNames = useMemo(
+    () =>
+      selectedTalent
+        .map((t) => (t.display_name?.trim() ? t.display_name.trim() : t.profile_code))
+        .filter(Boolean),
+    [selectedTalent],
+  );
+
+  const effFormId = formId ?? "inquiry-cart-form";
+  const effLocale = locale ?? "en";
 
   return (
     <>
@@ -242,7 +262,17 @@ function FormFields({
       </div>
       <div className="space-y-2">
         <Label htmlFor="message">{form.labelBrief}</Label>
+        {inquiryDraftEnabled ? (
+          <InquiryDraftAssistant
+            formId={effFormId}
+            locale={effLocale}
+            talentNames={draftTalentNames}
+            formCopy={form}
+            messageTextareaRef={messageRef}
+          />
+        ) : null}
         <Textarea
+          ref={messageRef}
           id="message"
           name="message"
           placeholder={form.placeholderBrief}
@@ -272,6 +302,8 @@ export function ClientInquiryForm({
   eventTypes,
   selectedTalent,
   formCopy,
+  inquiryDraftEnabled,
+  locale,
 }: {
   agencyWhatsAppNumber?: string;
   defaultCompany?: string;
@@ -282,10 +314,12 @@ export function ClientInquiryForm({
   eventTypes: { id: string; name_en: string }[];
   selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
   formCopy: DirectoryUiCopy["inquiryForm"];
+  inquiryDraftEnabled?: boolean;
+  locale?: "en" | "es";
 }) {
   const [state, formAction] = useActionState(submitClientInquiry, undefined);
   return (
-    <form action={formAction} className="space-y-4">
+    <form id="inquiry-cart-form" action={formAction} className="space-y-4">
       <FormFields
         agencyWhatsAppNumber={agencyWhatsAppNumber}
         talentIds={talentIds}
@@ -297,6 +331,9 @@ export function ClientInquiryForm({
         selectedTalent={selectedTalent}
         state={state}
         form={formCopy}
+        inquiryDraftEnabled={inquiryDraftEnabled}
+        locale={locale}
+        formId="inquiry-cart-form"
       />
     </form>
   );
@@ -308,16 +345,20 @@ export function GuestInquiryForm({
   eventTypes,
   selectedTalent,
   formCopy,
+  inquiryDraftEnabled,
+  locale,
 }: {
   agencyWhatsAppNumber?: string;
   talentIds: string[];
   eventTypes: { id: string; name_en: string }[];
   selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
   formCopy: DirectoryUiCopy["inquiryForm"];
+  inquiryDraftEnabled?: boolean;
+  locale?: "en" | "es";
 }) {
   const [state, formAction] = useActionState(submitGuestInquiry, undefined);
   return (
-    <form action={formAction} className="space-y-4">
+    <form id="inquiry-cart-form" action={formAction} className="space-y-4">
       <FormFields
         agencyWhatsAppNumber={agencyWhatsAppNumber}
         talentIds={talentIds}
@@ -325,6 +366,9 @@ export function GuestInquiryForm({
         selectedTalent={selectedTalent}
         state={state}
         form={formCopy}
+        inquiryDraftEnabled={inquiryDraftEnabled}
+        locale={locale}
+        formId="inquiry-cart-form"
       />
     </form>
   );
@@ -341,6 +385,8 @@ export function InquiryForm({
   eventTypes,
   selectedTalent,
   formCopy,
+  inquiryDraftEnabled,
+  locale,
 }: {
   agencyWhatsAppNumber?: string;
   defaultCompany?: string;
@@ -352,6 +398,8 @@ export function InquiryForm({
   eventTypes: { id: string; name_en: string }[];
   selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
   formCopy: DirectoryUiCopy["inquiryForm"];
+  inquiryDraftEnabled?: boolean;
+  locale?: "en" | "es";
 }) {
   if (mode === "client") {
     return (
@@ -365,6 +413,8 @@ export function InquiryForm({
         eventTypes={eventTypes}
         selectedTalent={selectedTalent}
         formCopy={formCopy}
+        inquiryDraftEnabled={inquiryDraftEnabled}
+        locale={locale}
       />
     );
   }
@@ -375,6 +425,8 @@ export function InquiryForm({
       eventTypes={eventTypes}
       selectedTalent={selectedTalent}
       formCopy={formCopy}
+      inquiryDraftEnabled={inquiryDraftEnabled}
+      locale={locale}
     />
   );
 }

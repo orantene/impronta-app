@@ -1,10 +1,10 @@
 "use client";
 
-import { DashboardSegmentedNav } from "@/components/dashboard/dashboard-segmented-nav";
+import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 
 export function AdminMediaTabNav({ mode }: { mode: "pending" | "library" }) {
   return (
-    <DashboardSegmentedNav
+    <AdminPageTabs
       ariaLabel="Media workspace"
       items={[
         { href: "/admin/media", label: "Pending Approvals", active: mode === "pending" },

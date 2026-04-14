@@ -7,7 +7,6 @@ import type { DirectorySortValue } from "@/lib/directory/types";
 import type { DirectoryViewMode } from "@/lib/directory/search-params";
 import { cn } from "@/lib/utils";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
-import { AppliedFilterChips } from "./directory-filters-sidebar";
 import { DirectorySort } from "./directory-sort";
 import type { TaxonomyFilterOption } from "@/lib/directory/taxonomy-filters";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
@@ -15,24 +14,12 @@ import { formatResultsCount } from "@/lib/directory/directory-ui-copy";
 
 export function DirectoryResultsToolbar({
   totalCount,
-  taxonomyOptions,
-  selectedIds,
-  query,
-  locationSlug,
   sort,
-  heightMinCm,
-  heightMaxCm,
   view,
   ui,
 }: {
   totalCount: number;
-  taxonomyOptions: TaxonomyFilterOption[];
-  selectedIds: string[];
-  query: string;
-  locationSlug: string;
   sort: DirectorySortValue;
-  heightMinCm: number | null;
-  heightMaxCm: number | null;
   view: DirectoryViewMode;
   ui: DirectoryUiCopy;
 }) {
@@ -57,15 +44,6 @@ export function DirectoryResultsToolbar({
     <div className="mb-4 space-y-3">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
-          <AppliedFilterChips
-            options={taxonomyOptions}
-            selectedIds={selectedIds}
-            query={query}
-            locationSlug={locationSlug}
-            heightMinCm={heightMinCm}
-            heightMaxCm={heightMaxCm}
-            chips={ui.chips}
-          />
           <span className="text-sm tabular-nums text-[var(--impronta-muted)]">
             {formatResultsCount(ui, totalCount)}
           </span>

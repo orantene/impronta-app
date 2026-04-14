@@ -12,6 +12,7 @@ import {
   LOCALE_HEADER,
   ORIGINAL_PATHNAME_HEADER,
 } from "@/i18n/request-locale";
+import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
 import { rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
 
@@ -57,6 +58,30 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  if (pathname === "/api/ai/search" && request.method === "POST") {
+    if (!tryConsumeRateLimit(`dir-ai-search:${ip}`, 180, 60_000)) {
+      return rateLimitJsonResponse();
+    }
+  }
+
+  if (pathname === "/api/admin/ai/search-debug" && request.method === "POST") {
+    if (!tryConsumeRateLimit(`admin-ai-search-debug:${ip}`, 45, 60_000)) {
+      return rateLimitJsonResponse();
+    }
+  }
+
+  if (pathname === "/api/ai/refine-suggestions" && request.method === "POST") {
+    if (!tryConsumeRateLimit(`dir-ai-refine:${ip}`, 90, 60_000)) {
+      return rateLimitJsonResponse();
+    }
+  }
+
+  if (pathname === "/api/ai/inquiry-draft" && request.method === "POST") {
+    if (!tryConsumeRateLimit(`dir-ai-inquiry-draft:${ip}`, 24, 60_000)) {
+      return rateLimitJsonResponse();
+    }
+  }
+
   if (
     (pathname.startsWith("/api/location-place-details") ||
       pathname.startsWith("/api/location-country-details")) &&
@@ -96,6 +121,12 @@ export async function middleware(request: NextRequest) {
       url.pathname = inner;
       return NextResponse.redirect(url, 308);
     }
+  }
+
+  const cmsRedirect = await tryCmsRedirectResponse(request, originalPathname);
+  if (cmsRedirect) {
+    syncLocaleCookieForPath(cmsRedirect, originalPathname);
+    return cmsRedirect;
   }
 
   /**

@@ -7,19 +7,29 @@ import { usePathname } from "next/navigation";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
   useTransition,
 } from "react";
 
+import type { SearchResult } from "@/lib/ai/search-result";
+import { AI_SEARCH_DEBOUNCE_MS_DEFAULT } from "@/lib/ai/search-debounce";
+import { buildDirectoryAiOverlayByTalentId } from "@/lib/directory/directory-ai-overlay";
+
 import { setTalentSaved } from "@/app/(public)/directory/actions";
 import { Button } from "@/components/ui/button";
-import type { DirectoryCardDTO } from "@/lib/directory/types";
-import type { DirectoryPageResponse } from "@/lib/directory/types";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Search } from "lucide-react";
+import type {
+  DirectoryAiCardOverlay,
+  DirectoryCardDTO,
+  DirectoryPageResponse,
+} from "@/lib/directory/types";
 import { DIRECTORY_PAGE_SIZE_DEFAULT } from "@/lib/directory/types";
 import { MAX_CARD_FIT_LABELS } from "@/lib/directory/talent-card-dto";
-import type { DirectorySortValue } from "@/lib/directory/types";
+import type { DirectoryFieldFacetSelection, DirectorySortValue } from "@/lib/directory/types";
 
 import { ContactTalentButton, SaveTalentButton } from "./directory-inquiry-actions";
 import { TalentCard } from "./talent-card";
@@ -27,8 +37,12 @@ import { TalentDirectoryListRow } from "./talent-directory-list-row";
 import { usePublicDiscoveryState } from "./public-discovery-state";
 import {
   applyCanonicalDirectoryFetchSearchParams,
+  parseTaxonomyParam,
+  serializeDirectoryFieldFacetParams,
   type DirectoryViewMode,
 } from "@/lib/directory/search-params";
+import { collectFitSlugsFromCards } from "@/lib/directory/collect-fit-slugs-from-cards";
+import { useDirectoryMatchFitOptional } from "@/components/directory/directory-match-fit-context";
 import {
   formatPreviewDialogAria,
   formatPreviewImageAlt,
@@ -65,6 +79,7 @@ async function fetchDirectoryPageClient(
   locationSlug: string,
   heightMinCm: number | null,
   heightMaxCm: number | null,
+  fieldFacets: DirectoryFieldFacetSelection[],
   loadErrorMessage: string,
 ): Promise<DirectoryPageResponse> {
   const params = new URLSearchParams();
@@ -80,6 +95,7 @@ async function fetchDirectoryPageClient(
     locationSlug,
     heightMinCm,
     heightMaxCm,
+    fieldFacets,
   });
   if (cursor) params.set("cursor", cursor);
   const res = await fetch(`/api/directory?${params.toString()}`, {
@@ -93,6 +109,60 @@ async function fetchDirectoryPageClient(
   return res.json() as Promise<DirectoryPageResponse>;
 }
 
+type AiSearchPageJson = {
+  results: SearchResult[];
+  next_cursor: string | null;
+  taxonomy_term_ids: string[];
+  error?: string;
+};
+
+async function fetchAiSearchDirectoryPageClient(
+  taxKey: string,
+  cursor: string | null,
+  locale: "en" | "es",
+  sort: DirectorySortValue,
+  query: string,
+  locationSlug: string,
+  heightMinCm: number | null,
+  heightMaxCm: number | null,
+  fieldFacets: DirectoryFieldFacetSelection[],
+  loadErrorMessage: string,
+): Promise<DirectoryPageResponse> {
+  const taxonomyTermIds = parseTaxonomyParam(taxKey || undefined);
+  const res = await fetch("/api/ai/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      q: query.trim() ? query : null,
+      taxonomyTermIds: taxonomyTermIds.length ? taxonomyTermIds : undefined,
+      locationSlug: locationSlug.trim() ? locationSlug : null,
+      sort,
+      locale,
+      limit: DIRECTORY_PAGE_SIZE_DEFAULT,
+      heightMinCm,
+      heightMaxCm,
+      cursor: cursor || null,
+      fieldFacets: fieldFacets.length ? fieldFacets : undefined,
+      analyticsSource: "directory",
+    }),
+  });
+  const body = (await res.json()) as AiSearchPageJson;
+  if (!res.ok) {
+    throw new Error(body.error ?? loadErrorMessage);
+  }
+  const aiOverlayByTalentId = buildDirectoryAiOverlayByTalentId(
+    body.results,
+    locale,
+  );
+  return {
+    items: body.results.map((r) => r.card),
+    nextCursor: body.next_cursor,
+    taxonomyTermIds: body.taxonomy_term_ids,
+    ...(aiOverlayByTalentId ? { aiOverlayByTalentId } : {}),
+  };
+}
+
 export function DirectoryInfiniteGrid({
   taxonomyTermIds,
   initialPage,
@@ -102,9 +172,11 @@ export function DirectoryInfiniteGrid({
   locationSlug,
   heightMinCm = null,
   heightMaxCm = null,
+  fieldFacets = [],
   view = "grid",
   initialSavedIds = [],
   ui,
+  directorySearchViaAi = false,
 }: {
   taxonomyTermIds: string[];
   initialPage: DirectoryPageResponse;
@@ -114,12 +186,17 @@ export function DirectoryInfiniteGrid({
   locationSlug: string;
   heightMinCm?: number | null;
   heightMaxCm?: number | null;
+  fieldFacets?: DirectoryFieldFacetSelection[];
   view?: DirectoryViewMode;
   initialSavedIds?: string[];
   ui: DirectoryUiCopy;
+  /** When true, listing pages use `POST /api/ai/search` (hybrid when configured). */
+  directorySearchViaAi?: boolean;
 }) {
   const pathname = usePathname();
   const taxKey = [...taxonomyTermIds].sort().join(",");
+  const ffKey = serializeDirectoryFieldFacetParams(fieldFacets).join("|");
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const [gridUiMounted, setGridUiMounted] = useState(false);
@@ -128,11 +205,25 @@ export function DirectoryInfiniteGrid({
     useState<DirectoryPreviewResponse | null>(null);
   const [, startTransition] = useTransition();
   const discoveryState = usePublicDiscoveryState();
+  const matchFitCtx = useDirectoryMatchFitOptional();
   const hydrated = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
+
+  useEffect(() => {
+    if (!directorySearchViaAi) {
+      setDebouncedQuery(query);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      setDebouncedQuery(query);
+    }, AI_SEARCH_DEBOUNCE_MS_DEFAULT);
+    return () => window.clearTimeout(t);
+  }, [query, directorySearchViaAi]);
+
+  const effectiveQuery = directorySearchViaAi ? debouncedQuery : query;
 
   const isSaved = useCallback(
     (id: string) =>
@@ -206,27 +297,46 @@ export function DirectoryInfiniteGrid({
   } = useInfiniteQuery({
     queryKey: [
       "directory",
+      directorySearchViaAi ? "ai" : "classic",
       taxKey,
+      ffKey,
       locale,
       sort,
-      query,
+      effectiveQuery,
       locationSlug,
       heightMinCm ?? "",
       heightMaxCm ?? "",
       view,
     ],
     queryFn: ({ pageParam }) =>
-      fetchDirectoryPageClient(
-        taxKey,
-        pageParam,
-        locale,
-        sort,
-        query,
-        locationSlug,
-        heightMinCm ?? null,
-        heightMaxCm ?? null,
-        ui.loadResultsError,
-      ),
+      directorySearchViaAi
+        ? fetchAiSearchDirectoryPageClient(
+            taxKey,
+            pageParam,
+            locale,
+            sort,
+            effectiveQuery,
+            locationSlug,
+            heightMinCm ?? null,
+            heightMaxCm ?? null,
+            fieldFacets,
+            ui.loadResultsError,
+          )
+        : fetchDirectoryPageClient(
+            taxKey,
+            pageParam,
+            locale,
+            sort,
+            effectiveQuery,
+            locationSlug,
+            heightMinCm ?? null,
+            heightMaxCm ?? null,
+            fieldFacets,
+            ui.loadResultsError,
+          ),
+    /** Reconcile-after-navigation refetch can fail transiently; keep SSR first page instead of blanking the grid. */
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     initialData: {
@@ -273,23 +383,48 @@ export function DirectoryInfiniteGrid({
     return () => obs.disconnect();
   }, [onIntersect]);
 
-  const items =
-    data?.pages.flatMap((p) => p.items) ?? initialPage.items;
+  const items = useMemo(
+    () => data?.pages.flatMap((p) => p.items) ?? initialPage.items,
+    [data?.pages, initialPage.items],
+  );
+
+  const fitSlugsForCards = useMemo(
+    () => collectFitSlugsFromCards(items),
+    [items],
+  );
+
+  useEffect(() => {
+    if (!matchFitCtx) return;
+    matchFitCtx.setFitSlugs(fitSlugsForCards);
+  }, [fitSlugsForCards, matchFitCtx]);
+
+  const aiOverlayByTalentId = useMemo(() => {
+    const map: Record<string, DirectoryAiCardOverlay> = {};
+    const pages = data?.pages ?? [initialPage];
+    for (const p of pages) {
+      if (p.aiOverlayByTalentId) {
+        Object.assign(map, p.aiOverlayByTalentId);
+      }
+    }
+    return map;
+  }, [data?.pages, initialPage]);
 
   const previewFit =
     previewDetails?.fitLabels.slice(0, MAX_CARD_FIT_LABELS) ??
     preview?.fitLabels.slice(0, MAX_CARD_FIT_LABELS).map((fit) => fit.label) ??
     [];
 
-  if (status === "error") {
+  if (status === "error" && items.length === 0) {
     return <p className="text-m text-[var(--impronta-muted)]">{ui.loadResultsError}</p>;
   }
 
   if (items.length === 0 && !isPlaceholderData) {
     return (
-      <p className="rounded-lg border border-dashed border-[var(--impronta-gold-border)] bg-black/20 px-6 py-16 text-center text-m text-[var(--impronta-muted)]">
-        {ui.emptyResults}
-      </p>
+      <EmptyState
+        icon={Search}
+        title={ui.emptyResults}
+        className="border-[var(--impronta-gold-border)] bg-black/20 py-16"
+      />
     );
   }
 
@@ -322,6 +457,7 @@ export function DirectoryInfiniteGrid({
               priority={index < 4}
               sourcePage={sourcePage}
               ui={ui}
+              aiOverlay={aiOverlayByTalentId[card.id] ?? null}
             />
           ))}
         </div>
@@ -337,6 +473,7 @@ export function DirectoryInfiniteGrid({
               priority={index < 4}
               sourcePage={sourcePage}
               ui={ui}
+              aiOverlay={aiOverlayByTalentId[card.id] ?? null}
             />
           ))}
         </div>

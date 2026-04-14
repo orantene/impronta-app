@@ -987,7 +987,7 @@ export async function updateClientLocation(
   const { supabase } = auth;
 
   const client_account_id = trimmedString(formData, "client_account_id");
-  if (!client_account_id) return { error: "Missing client location." };
+  if (!client_account_id) return { error: "Missing work location." };
 
   const parsed = parseWithSchema(createClientAccountSchema, {
     name: trimmedString(formData, "name"),

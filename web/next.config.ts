@@ -74,15 +74,16 @@ function connectSrcDirectives(): string[] {
 }
 
 function contentSecurityPolicy(): string {
+  const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
   const directives = [
     "default-src 'self'",
     isProd
-      ? "script-src 'self' 'unsafe-inline'"
-      : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      ? `script-src 'self' 'unsafe-inline' ${googleTag}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleTag}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "img-src 'self' data: blob: https:",
-    `connect-src ${connectSrcDirectives().join(" ")}`,
+    `img-src 'self' data: blob: https: https://www.google-analytics.com`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com`,
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",

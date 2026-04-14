@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { redirect } from "next/navigation";
 import { AdminWorkspaceShell } from "@/app/(dashboard)/admin/admin-workspace-shell";
+import { AdminDashboardShell } from "@/components/prototype/admin-prototype-shell";
 import {
   isStaffRole,
   resolveAuthenticatedDestination,
@@ -8,6 +10,7 @@ import {
 import {
   loadAdminShellPulseCounts,
 } from "@/lib/dashboard/admin-dashboard-data";
+import { getDashboardTheme } from "@/lib/dashboard-theme";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 export default async function AdminLayout({
@@ -29,10 +32,21 @@ export default async function AdminLayout({
   }
 
   const pulseCounts = await loadAdminShellPulseCounts();
+  const dashboardTheme = await getDashboardTheme(session.supabase);
 
   return (
     <>
-      <AdminWorkspaceShell pulseCounts={pulseCounts}>{children}</AdminWorkspaceShell>
+      <Suspense
+        fallback={
+          <div className="flex min-h-[100dvh] items-center justify-center bg-[var(--admin-workspace-bg)] text-[var(--admin-workspace-fg)]">
+            <span className="text-sm text-[var(--admin-nav-idle)]">Loading…</span>
+          </div>
+        }
+      >
+        <AdminDashboardShell dashboardTheme={dashboardTheme}>
+          <AdminWorkspaceShell pulseCounts={pulseCounts}>{children}</AdminWorkspaceShell>
+        </AdminDashboardShell>
+      </Suspense>
       <Toaster
         position="top-center"
         toastOptions={{

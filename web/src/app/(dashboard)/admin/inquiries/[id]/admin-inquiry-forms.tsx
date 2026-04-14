@@ -177,7 +177,7 @@ export function InquiryLocationCardForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="client_account_id">Client Location</Label>
+        <Label htmlFor="client_account_id">Work Location</Label>
         <select
           id="client_account_id"
           name="client_account_id"
@@ -250,9 +250,9 @@ export function InquiryRequestDetailsForm({
       <div className="grid gap-4 sm:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-2">
           <Label htmlFor="event_location">Event location / setup detail</Label>
-          <Input id="event_location" name="event_location" defaultValue={inquiry.event_location ?? ""} placeholder="Only if the exact event spot differs from the Client Location above" />
+          <Input id="event_location" name="event_location" defaultValue={inquiry.event_location ?? ""} placeholder="Only if the exact event spot differs from the Work Location above" />
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Use this for the exact on-site spot, room, or setup note when it is more specific than the main Client Location.
+            Use this for the exact on-site spot, room, or setup note when it is more specific than the main Work Location.
           </p>
         </div>
         <div className="space-y-2 rounded-2xl border border-border/45 bg-muted/10 p-3">

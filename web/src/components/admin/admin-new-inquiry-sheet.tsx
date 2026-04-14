@@ -309,7 +309,7 @@ function AdminNewInquirySheetBody({
       </SectionCard>
 
       <SectionCard
-        title="2. Client Location"
+        title="2. Work Location"
         description="The place or business the work is for. One client can have many locations."
       >
         <div className="flex flex-wrap gap-2">
@@ -328,7 +328,7 @@ function AdminNewInquirySheetBody({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="ni_account">Client Location</Label>
+          <Label htmlFor="ni_account">Work Location</Label>
           <select
             id="ni_account"
             name="client_account_id"
@@ -354,7 +354,7 @@ function AdminNewInquirySheetBody({
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">This stays scoped to the selected Client Location.</p>
+          <p className="text-xs text-muted-foreground">This stays scoped to the selected Work Location.</p>
         </div>
       </SectionCard>
 
@@ -433,7 +433,7 @@ export function AdminNewInquirySheet({
         open={open}
         onOpenChange={setOpen}
         title="New inquiry"
-        description="Create a request around the same four anchors used on the inquiry workspace: client, client location, requested talent, and details."
+        description="Create a request around the same four anchors used on the inquiry workspace: client, work location, requested talent, and details."
         className="max-w-[860px]"
       >
         {open ? (

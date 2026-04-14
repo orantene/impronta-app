@@ -19,6 +19,7 @@ import {
 } from "@/lib/canonical-location";
 import { requireAdmin, requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import { appendTranslationAudit } from "@/lib/translation/audit";
 import {
   buildBioEnEditExtras,
@@ -302,6 +303,8 @@ export async function adminUpdateUser(
     } catch (e) {
       logServerError("admin/users/update/workflowEvents", e);
     }
+
+    await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
   }
 
   revalidatePath("/admin/talent");

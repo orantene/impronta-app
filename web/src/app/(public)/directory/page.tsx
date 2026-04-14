@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 
 import { MergeGuestFavorites } from "@/app/(dashboard)/client/merge-guest";
+import { DirectoryAnalyticsMount } from "@/components/analytics/directory-analytics-mount";
 import { DirectoryDiscoverSection } from "@/components/directory/directory-discover-section";
 import { DirectoryInquiryUrlSync } from "@/components/directory/directory-inquiry-url-sync";
 import { HeroSearch } from "@/components/home/hero-search";
@@ -11,6 +12,7 @@ import {
   DirectoryGridSkeleton,
 } from "@/components/directory/directory-skeleton";
 import { PublicHeader } from "@/components/public-header";
+import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { getCachedActorSession } from "@/lib/server/request-cache";
@@ -19,6 +21,7 @@ import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { parseDirectoryQuery } from "@/lib/directory/search-params";
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
@@ -44,6 +47,12 @@ export default async function DirectoryPage({
     ariaLabel: t("public.home.hero.searchAria"),
     searchSubmit: t("public.home.hero.searchSubmit"),
     typedExamples: getMessageStringArray(locale, "public.home.hero.typedExamples"),
+    interpreting: t("public.directory.ui.hero.interpreting"),
+    interpretErrorTitle: t("public.directory.ui.hero.interpretErrorTitle"),
+    interpretError: t("public.directory.ui.hero.interpretError"),
+    interpretErrorDirectoryClosed: t("public.directory.ui.hero.interpretErrorDirectoryClosed"),
+    interpretErrorAiDisabled: t("public.directory.ui.hero.interpretErrorAiDisabled"),
+    interpretErrorService: t("public.directory.ui.hero.interpretErrorService"),
   };
 
   if (!isSupabaseConfigured()) {
@@ -58,6 +67,11 @@ export default async function DirectoryPage({
             {t("public.directory.configMissingBody")}
           </p>
         </div>
+        <footer className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
+            <PublicCmsFooterNav locale={locale} />
+          </div>
+        </footer>
       </>
     );
   }
@@ -73,16 +87,23 @@ export default async function DirectoryPage({
             {t("public.directory.pausedBody")}
           </p>
         </div>
+        <footer className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
+            <PublicCmsFooterNav locale={locale} />
+          </div>
+        </footer>
       </>
     );
   }
 
   const initialSavedIds = await getSavedTalentIds();
   const actor = await getCachedActorSession();
+  const aiFlags = await getAiFeatureFlags();
 
   return (
     <>
       <PublicHeader />
+      <DirectoryAnalyticsMount locale={locale} />
       <DiscoveryStateBridge savedIds={initialSavedIds} />
       {actor.user ? <MergeGuestFavorites /> : null}
       <Suspense fallback={null}>
@@ -97,11 +118,22 @@ export default async function DirectoryPage({
             {t("public.directory.pageDescription")}
           </p>
           <div className="pt-1">
-            <HeroSearch
-              copy={heroSearchCopy}
-              directoryUrlSync
-              initialDirectoryQuery={parseDirectoryQuery(sp.q)}
-            />
+            {/* HeroSearch uses useSearchParams — needs Suspense (Next.js CSR bailout). */}
+            <Suspense
+              fallback={
+                <div className="mx-auto w-full max-w-2xl">
+                  <div className="relative h-14 rounded-xl border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 sm:h-16" />
+                </div>
+              }
+            >
+              <HeroSearch
+                copy={heroSearchCopy}
+                directoryUrlSync
+                initialDirectoryQuery={parseDirectoryQuery(sp.q)}
+                aiSearchEnabled={aiFlags.ai_search_enabled}
+                locale={locale === "es" ? "es" : "en"}
+              />
+            </Suspense>
           </div>
         </header>
 
@@ -123,6 +155,11 @@ export default async function DirectoryPage({
           />
         </Suspense>
       </div>
+      <footer className="mt-auto border-t border-border px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
+          <PublicCmsFooterNav locale={locale} />
+        </div>
+      </footer>
     </>
   );
 }

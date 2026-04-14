@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 import {
   appendTranslationAudit,
   type TranslationAuditInput,
@@ -128,6 +129,8 @@ export async function aiFillMissingSpanishBio(
     meta: { model: "gpt-4o-mini" },
   });
 
+  await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
+
   return { error: null };
 }
 
@@ -176,6 +179,8 @@ export async function aiRefreshSpanishBioDraft(
     nextStatus: status,
     meta: { model: "gpt-4o-mini" },
   });
+
+  await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
 
   return { error: null };
 }
@@ -230,6 +235,8 @@ export async function aiRefreshSpanishBioPublishedWhenNotApproved(
     meta: { model: "gpt-4o-mini" },
   });
 
+  await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
+
   return { error: null };
 }
 
@@ -275,6 +282,8 @@ export async function saveManualSpanishBio(
     meta: {},
   });
 
+  await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
+
   return { error: null };
 }
 
@@ -316,6 +325,8 @@ export async function approveSpanishBioDraft(
     nextStatus: "approved",
     meta: {},
   });
+
+  await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
 
   return { error: null };
 }
@@ -361,6 +372,8 @@ export async function markSpanishBioReviewed(
     meta: {},
   });
 
+  await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
+
   return { error: null };
 }
 
@@ -399,6 +412,8 @@ export async function markSpanishBioApproved(
     nextStatus: "approved",
     meta: {},
   });
+
+  await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
 
   return { error: null };
 }

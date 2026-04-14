@@ -24,6 +24,7 @@ import {
   buildBioEnEditExtras,
   type TalentBioRow,
 } from "@/lib/translation/talent-bio-translation-service";
+import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 
 export type TalentFormState =
   | { error?: string; success?: boolean; message?: string }
@@ -140,6 +141,9 @@ export async function updateTalentProfile(
   if (bioExtras.audit) {
     await appendTranslationAudit(supabase, bioExtras.audit);
   }
+
+  await scheduleRebuildAiSearchDocument(supabase, profileRow.id);
+
   revalidatePath("/talent", "layout");
   return {
     success: true,
@@ -286,6 +290,8 @@ export async function submitTalentForReview(
           : CLIENT_ERROR.update,
     };
   }
+
+  await scheduleRebuildAiSearchDocument(supabase, profile.id);
 
   revalidatePath("/talent", "layout");
   return {

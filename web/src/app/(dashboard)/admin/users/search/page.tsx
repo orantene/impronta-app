@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import { AdminGlobalUserSearchClient } from "@/app/(dashboard)/admin/users/admin-global-user-search-client";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
 import {
   loadTaxonomyTalentTypesForFilters,
 } from "@/lib/dashboard/admin-dashboard-data";
@@ -15,7 +15,7 @@ export default async function AdminGlobalUserSearchPage() {
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+      <AdminPageHeader
         icon={Search}
         title="User search"
         description="Search across talent, clients, and staff. Combine text with role, account status, location, and taxonomy filters."

@@ -184,11 +184,11 @@ export default async function AdminClientAccountDetailPage({
     <div className={ADMIN_PAGE_STACK}>
       <Button variant="outline" size="sm" className={cn("w-fit rounded-full", ADMIN_OUTLINE_CONTROL_CLASS)} asChild>
         <Link href="/admin/accounts" scroll={false}>
-          ← Client Locations
+          ← Work Locations
         </Link>
       </Button>
 
-      <AdminParentTrail items={[{ label: "Client Locations", href: "/admin/accounts" }, { label: "This location" }]} />
+      <AdminParentTrail items={[{ label: "Work Locations", href: "/admin/accounts" }, { label: "This location" }]} />
 
       <TalentPageHeader
         icon={Building2}
@@ -343,12 +343,12 @@ export default async function AdminClientAccountDetailPage({
       <div id="contacts" className="scroll-mt-20" />
       <DashboardSectionCard
         title="Contacts"
-        description="People who coordinate with Impronta for this Client Location."
+        description="People who coordinate with Impronta for this Work Location."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
         {!contacts?.length ? (
           <p className="text-sm text-muted-foreground">
-            No contacts yet — people who represent this Client Location (not portal Client logins).
+            No contacts yet — people who represent this Work Location (not portal Client logins).
           </p>
         ) : (
           <ul className="mb-6 space-y-3 text-sm">
@@ -370,7 +370,7 @@ export default async function AdminClientAccountDetailPage({
           </ul>
         )}
         <p className="mb-3 text-sm text-muted-foreground">
-          Add someone who coordinates with Impronta for this Client Location without leaving the page.
+          Add someone who coordinates with Impronta for this Work Location without leaving the page.
         </p>
         <CreateClientContactSheetTrigger
           accountOptions={[{ id: acc.id as string, name: acc.name as string }]}
@@ -383,7 +383,7 @@ export default async function AdminClientAccountDetailPage({
 
       <DashboardSectionCard
         title="Inquiries on this location"
-        description="Client requests linked to this Client Location."
+        description="Client requests linked to this Work Location."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
         {!accountInquiries?.length ? (
@@ -409,7 +409,7 @@ export default async function AdminClientAccountDetailPage({
 
       <DashboardSectionCard
         title="Bookings on this location"
-        description="Confirmed jobs tied to this Client Location."
+        description="Confirmed jobs tied to this Work Location."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
         {!accountBookings?.length ? (

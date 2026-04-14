@@ -380,7 +380,7 @@ export type GooglePlaceClientLocationDetails = {
 };
 
 /**
- * Autocomplete for client locations: businesses and street addresses.
+ * Autocomplete for work locations: businesses and street addresses.
  * Intentionally does not set `types` so results include establishments and geocodable addresses.
  */
 export async function fetchGoogleClientLocationPredictions(
@@ -409,7 +409,7 @@ export async function fetchGoogleClientLocationPredictions(
   };
 
   if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-    warnGooglePlaces("Client location autocomplete", data.status, data.error_message);
+    warnGooglePlaces("Work location autocomplete", data.status, data.error_message);
     return [];
   }
 
@@ -427,7 +427,7 @@ export async function fetchGoogleClientLocationPredictions(
 }
 
 /**
- * Full place details for a client location row (name, address, contact, coords).
+ * Full place details for a work location row (name, address, contact, coords).
  */
 export async function fetchGooglePlaceDetailsForClientLocation(
   placeId: string,
@@ -466,7 +466,7 @@ export async function fetchGooglePlaceDetailsForClientLocation(
 
   if (data.status !== "OK" || !data.result) {
     if (data.status && data.status !== "OK") {
-      warnGooglePlaces("Client location Place Details", data.status, data.error_message);
+      warnGooglePlaces("Work location Place Details", data.status, data.error_message);
     }
     return null;
   }

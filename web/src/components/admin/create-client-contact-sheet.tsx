@@ -45,8 +45,8 @@ export function CreateClientContactSheet({
       title="Create client contact"
       description={
         accountLocked
-          ? "A person at this Client Location (not a portal login). They can be linked to this inquiry or booking when you save."
-          : "Pick the Client Location, then add the contact — without leaving this page."
+          ? "A person at this Work Location (not a portal login). They can be linked to this inquiry or booking when you save."
+          : "Pick the Work Location, then add the contact — without leaving this page."
       }
     >
       <div className="space-y-4">
@@ -69,7 +69,7 @@ export function CreateClientContactSheet({
           />
         ) : (
           <p className="text-sm text-muted-foreground">
-            No Client Locations available. Create a Client Location first, then add contacts.
+            No Work Locations available. Create a Work Location first, then add contacts.
           </p>
         )}
       </div>

@@ -153,7 +153,7 @@ export function AdminBookingPeekTrigger({
               <dd className="tabular-nums text-muted-foreground">{summary.talent_count} talent on booking</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Client Location</dt>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Work Location</dt>
               <dd className="text-muted-foreground">
                 {summary.client_account_id ? (
                   <Link

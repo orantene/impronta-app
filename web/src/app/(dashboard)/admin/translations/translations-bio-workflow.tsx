@@ -79,15 +79,15 @@ const STATUS_TOOLTIPS: Record<BioEsStatus, string> = {
 function statusBadgeClass(status: BioEsStatus): string {
   switch (status) {
     case "approved":
-      return "border-emerald-600/60 bg-emerald-600/15 text-emerald-100";
+      return "border-emerald-600/50 bg-emerald-600/12 text-emerald-900 dark:text-emerald-100";
     case "stale":
-      return "border-orange-500/55 bg-orange-500/15 text-orange-50";
+      return "border-orange-500/50 bg-orange-500/12 text-orange-950 dark:text-orange-50";
     case "missing":
-      return "border-red-600/55 bg-red-600/15 text-red-50";
+      return "border-rose-600/50 bg-rose-500/12 text-rose-900 dark:text-rose-50";
     case "auto":
-      return "border-sky-500/55 bg-sky-500/15 text-sky-50";
+      return "border-sky-600/50 bg-sky-500/12 text-sky-950 dark:text-sky-50";
     case "reviewed":
-      return "border-violet-500/55 bg-violet-500/15 text-violet-100";
+      return "border-violet-600/50 bg-violet-500/12 text-violet-950 dark:text-violet-100";
     default:
       return "border-border/60 bg-muted/25 text-muted-foreground";
   }
@@ -432,8 +432,8 @@ export function TranslationsBioWorkflowTable({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="rounded-xl border border-border/60 bg-card/30">
-        <div className="flex flex-col gap-3 border-b border-border/50 px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className="rounded-2xl border border-border/45 bg-card/50 shadow-[0_12px_40px_-28px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-col gap-3 border-b border-border/50 px-5 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <p className="text-sm text-muted-foreground">
               Showing {rows.length} profile{rows.length === 1 ? "" : "s"}
@@ -511,21 +511,25 @@ export function TranslationsBioWorkflowTable({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] text-left text-sm">
+          <table className="w-full min-w-[920px] text-left text-sm">
+            <caption className="sr-only">
+              Talent bios translation queue. Columns: select, expand for audit trail, name, profile code, Spanish
+              workflow status, draft state, when published Spanish and English bios last changed, and row actions.
+            </caption>
             <thead className={cn("border-b border-border/50 text-xs uppercase tracking-wider", ADMIN_TABLE_HEAD)}>
               <tr>
-                <th className={cn(ADMIN_TABLE_TH, "w-10 py-2.5")}>
+                <th className={cn(ADMIN_TABLE_TH, "w-10 py-3")}>
                   <input
                     ref={headerCheckboxRef}
                     type="checkbox"
-                    className="size-4 rounded border-border accent-primary"
+                    className="size-4 rounded border-border accent-[var(--impronta-gold)]"
                     checked={allSelected}
                     onChange={(e) => toggleAll(e.target.checked)}
                     aria-label="Select all on this page"
                   />
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "w-8 py-2.5")} aria-hidden />
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")} title="Display name">
+                <th className={cn(ADMIN_TABLE_TH, "w-8 py-3")} aria-label="Expand row for audit history" />
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Display name">
                   <SortHeader
                     label="Talent"
                     titleAttr="Sort by display name"
@@ -533,41 +537,59 @@ export function TranslationsBioWorkflowTable({
                     active={bioSort === "name"}
                     ascending={sortDir === "asc"}
                   />
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Display name
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")} title="Public profile code">
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Public profile code">
                   <SortHeader
-                    label="Profile code"
+                    label="Code"
                     titleAttr="Sort by profile code"
                     href={bioSortHref("code", bioSort, sortDir, statusFilter, q)}
                     active={bioSort === "code"}
                     ascending={sortDir === "asc"}
                   />
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    TAL-… ID
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")} title="Spanish bio workflow status">
-                  ES status
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Spanish bio workflow status">
+                  <span className="block">ES status</span>
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Missing / stale / …
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")} title="Unpublished Spanish draft">
-                  Draft
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Unpublished Spanish draft">
+                  <span className="block">Draft</span>
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Unpublished ES
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")} title="Published Spanish bio (en-GB)">
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Published Spanish bio (en-GB)">
                   <SortHeader
-                    label="Spanish updated"
+                    label="ES live"
                     titleAttr="Published ES bio — en-GB format"
                     href={bioSortHref("es_at", bioSort, sortDir, statusFilter, q)}
                     active={bioSort === "es_at"}
                     ascending={sortDir === "asc"}
                   />
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    Published updated
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5")} title="English source bio (en-GB)">
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="English source bio (en-GB)">
                   <SortHeader
-                    label="English updated"
+                    label="EN source"
                     titleAttr="English bio — en-GB format"
                     href={bioSortHref("en_at", bioSort, sortDir, statusFilter, q)}
                     active={bioSort === "en_at"}
                     ascending={sortDir === "asc"}
                   />
+                  <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
+                    English updated
+                  </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-2.5 text-right")}>Actions</th>
+                <th className={cn(ADMIN_TABLE_TH, "py-3 text-right")}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -590,18 +612,18 @@ export function TranslationsBioWorkflowTable({
                       onClick={() => setExpanded((prev) => (prev === row.id ? null : row.id))}
                     >
                       <td
-                        className="px-4 py-2.5"
+                        className="px-4 py-2"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
                           type="checkbox"
-                          className="size-4 rounded border-border accent-primary"
+                          className="size-4 rounded border-border accent-[var(--impronta-gold)]"
                           checked={selected.has(row.id)}
                           onChange={(e) => toggleOne(row.id, e.target.checked)}
                           aria-label={`Select ${row.display_name?.trim() || row.profile_code}`}
                         />
                       </td>
-                      <td className="px-1 py-2.5 text-muted-foreground">
+                      <td className="px-1 py-2 text-muted-foreground">
                         <div className="flex items-center gap-1">
                           {rowAiPhase[row.id] === "translating" ? (
                             <span className="size-2 animate-pulse rounded-full bg-amber-400" title="Translating" />
@@ -619,15 +641,15 @@ export function TranslationsBioWorkflowTable({
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5">
-                        <div className="font-medium text-foreground">
+                      <td className="px-4 py-2">
+                        <div className="text-sm font-medium leading-snug text-foreground">
                           {row.display_name?.trim() || "—"}
                         </div>
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-[11px] text-muted-foreground">
+                      <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
                         {row.profile_code}
                       </td>
-                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2" onClick={(e) => e.stopPropagation()}>
                         {unset ? (
                           <span
                             className={cn(
@@ -644,22 +666,22 @@ export function TranslationsBioWorkflowTable({
                           />
                         )}
                       </td>
-                      <td className="px-4 py-2.5">
+                      <td className="px-4 py-2">
                         {hasDraft ? (
-                          <span className="inline-flex rounded-md border border-amber-500/45 bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-50">
+                          <span className="inline-flex rounded-md border border-amber-500/45 bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-950 dark:text-amber-50">
                             Draft pending
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground">No draft</span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
+                      <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums leading-snug">
                         {row.bio_es_updated_at ? formatAdminTimestamp(row.bio_es_updated_at) : "—"}
                       </td>
-                      <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
+                      <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums leading-snug">
                         {row.bio_en_updated_at ? formatAdminTimestamp(row.bio_en_updated_at) : "—"}
                       </td>
-                      <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-1">
                           <Button
                             type="button"

@@ -38,6 +38,10 @@
       "livesInLabel": "Vive en",
       "heightCm": "{height} cm",
       "profileImageAlt": "Foto de perfil de {name}",
+      "portfolioEmptyTitle": "Aún no hay imágenes en el portafolio",
+      "portfolioEmptyDescription": "El perfil puede estar actualizándose — vuelve más tarde o contacta a la agencia.",
+      "aiPanelTitle": "Asistencia IA",
+      "aiPanelBody": "Perfiles similares y resúmenes inteligentes aparecerán aquí cuando las funciones de IA estén activadas.",
       "sidebarAgencyTitle": "Representación de agencia",
       "sidebarAgencyBody": "Las reservas y consultas se gestionan solo a través de Impronta, no desde este perfil.",
       "refCodePrefix": "ref:",
@@ -121,6 +125,8 @@
       "pausedBody": "El descubrimiento público está pausado. Contacta directamente a la agencia para disponibilidad.",
       "pageTitle": "Descubre talento",
       "pageDescription": "Explora el talento representado: guarda perfiles en tu lista y abre el panel de consulta en el encabezado para escribir a la agencia.",
+      "aiPanelTitle": "Asistencia IA",
+      "aiPanelBody": "La búsqueda semántica y los refinamientos aparecerán aquí cuando las funciones de IA estén activadas.",
       "discoverLoadError": "No se pudo cargar el directorio ahora. Actualiza la página o inténtalo de nuevo en un momento.",
       "loadResultsError": "No se pudieron cargar los resultados del directorio. Comprueba tu conexión e inténtalo de nuevo.",
       "emptyResults": "Aún no hay talento que coincida con estos filtros. Prueba a limpiar filtros o vuelve pronto.",
@@ -151,6 +157,22 @@
           "resultsOne": "1 resultado",
           "resultsMany": "{count} resultados"
         },
+        "refine": {
+          "suggestionsTitle": "Afinar búsqueda"
+        },
+        "intent": {
+          "showingForPrefix": "Mostrando talento para:",
+          "interpretedAsPrefix": "Interpretado como:",
+          "heightUnitCm": "cm"
+        },
+        "hero": {
+          "interpreting": "Entendiendo tu búsqueda…",
+          "interpretErrorTitle": "Búsqueda inteligente no disponible",
+          "interpretError": "No pudimos interpretar tu búsqueda. Mostramos resultados por texto.",
+          "interpretErrorDirectoryClosed": "El directorio de talento no está abierto al público, así que la búsqueda en lenguaje natural no está disponible. En Admin → Ajustes del sitio, activa «Directorio público» e inténtalo de nuevo.",
+          "interpretErrorAiDisabled": "La búsqueda con IA está desactivada. En Admin → IA → Ajustes de IA, activa «Búsqueda con IA (vector / híbrida)».",
+          "interpretErrorService": "El servicio de búsqueda no está disponible ahora. Comprueba la conexión o inténtalo más tarde."
+        },
         "sort": {
           "aria": "Ordenar talento",
           "recommended": "Destacados + recientes",
@@ -172,6 +194,9 @@
           "resetHeight": "Restablecer altura",
           "minCm": "Mín. cm",
           "maxCm": "Máx. cm",
+          "resetAge": "Restablecer edad",
+          "minAge": "Edad mín.",
+          "maxAge": "Edad máx.",
           "gridProfileAriaOne": "{label}, 1 perfil",
           "gridProfileAriaMany": "{label}, {count} perfiles",
           "sidebarTitle": "Filtros",
@@ -214,6 +239,12 @@
           "viewPortfolio": "Ver portafolio",
           "inquire": "Consultar",
           "quickPreview": "Vista rápida",
+          "aiMatchWhyAria": "Por qué coincide",
+          "aiDetailsOpenAria": "Abrir detalles completos del encaje IA",
+          "aiDetailsDrawerTitle": "Detalles del encaje IA",
+          "aiDetailsDrawerDescription": "Perfil",
+          "aiDetailsVectorScore": "Similitud vectorial: {score}",
+          "matchWhyPrefix": "Por qué coincide",
           "footerTalent": "Talento",
           "linkCopiedTitle": "Enlace copiado",
           "linkCopiedMessage": "El enlace del perfil está en el portapapeles.",
@@ -293,6 +324,8 @@
         "guestCtaAfterCreateLink": " para hacer seguimiento a las consultas, o ",
         "guestCtaLogIn": "inicia sesión",
         "guestCtaAfterLoginLink": " para vincular esto a tu perfil de cliente.",
+        "aiAssistTitle": "Asistencia IA",
+        "aiAssistBody": "Si el borrador con IA está activo, abre el asistente bajo «Brief para la agencia» para generar o pulir tu mensaje.",
         "backToDirectory": "Volver al directorio",
         "successInquirySentTitle": "Consulta enviada",
         "successInquirySentDescription": "Tu solicitud llegó a la agencia y el talento seleccionado sigue vinculado a esta consulta.",
@@ -329,6 +362,12 @@
         "formPlaceholderQuantity": "2",
         "formLabelBrief": "Brief para la agencia",
         "formPlaceholderBrief": "Fechas, ubicación, código de vestimenta, idiomas necesarios…",
+        "formDraftGenerate": "Generar brief",
+        "formDraftPolish": "Pulir texto",
+        "formDraftWorking": "Trabajando…",
+        "formDraftError": "No se pudo generar un borrador. Inténtalo de nuevo o escribe tu propio brief.",
+        "formDraftPolishNeedText": "Añade texto en el brief antes de pulirlo.",
+        "formDraftHint": "La IA sugiere texto que puedes editar antes de enviar. La agencia revisa cada consulta.",
         "formPrivacyNotice": "Al enviar esto, contactas solo a Impronta. El talento no recibe una notificación directa ni tus datos."
       }
     },

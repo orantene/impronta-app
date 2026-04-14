@@ -41,11 +41,11 @@ export function DuplicateInquiryForm({
           onChange={(e) => setKeepAcc(e.target.checked)}
           className="size-4 rounded border-border"
         />
-        Keep Client Location link
+        Keep Work Location link
       </label>
       {!keepAcc ? (
         <div className="space-y-2 border-l-2 border-border/45 pl-3">
-          <Label htmlFor="dup_i_acc">New Client Location</Label>
+          <Label htmlFor="dup_i_acc">New Work Location</Label>
           <select
             id="dup_i_acc"
             name="new_client_account_id"

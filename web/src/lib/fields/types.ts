@@ -37,12 +37,14 @@ export type FieldDefinitionRow = {
   /** Public talent profile sections + part of directory trait catalog. */
   profile_visible: boolean;
   filterable: boolean;
+  /** Eligible for directory sidebar + admin Directory filters layout (with supported facet types). */
+  directory_filter_visible: boolean;
   /**
    * Adds text/textarea `field_values` to directory `q` when public_visible and profile_visible are on.
    * Does not enable or disable name / short_bio / taxonomy / location baseline search.
    */
   searchable: boolean;
-  /** Reserved; no production consumer yet. */
+  /** Included in AI search document / semantic pipeline when values exist. */
   ai_visible: boolean;
   editable_by_talent: boolean;
   editable_by_staff: boolean;

@@ -13,6 +13,18 @@ export type DirectoryUiCopy = {
     resultsOne: string;
     resultsMany: string;
   };
+  refine: {
+    suggestionsTitle: string;
+  };
+  intent: {
+    showingForPrefix: string;
+    interpretedAsPrefix: string;
+    heightUnitCm: string;
+  };
+  hero: {
+    interpreting: string;
+    interpretError: string;
+  };
   sort: { aria: string; recommended: string; featured: string; recent: string; updated: string };
   filters: {
     locationSearchLabel: string;
@@ -28,6 +40,9 @@ export type DirectoryUiCopy = {
     resetHeight: string;
     minCm: string;
     maxCm: string;
+    resetAge: string;
+    minAge: string;
+    maxAge: string;
     gridProfileAriaOne: string;
     gridProfileAriaMany: string;
     sidebarTitle: string;
@@ -66,6 +81,14 @@ export type DirectoryUiCopy = {
     viewPortfolio: string;
     inquire: string;
     quickPreview: string;
+    /** Accessible label for optional AI “why this match” list on directory cards. */
+    aiMatchWhyAria: string;
+    aiDetailsOpenAria: string;
+    aiDetailsDrawerTitle: string;
+    aiDetailsDrawerDescription: string;
+    aiDetailsVectorScore: string;
+    /** Classic directory filter overlap heading. */
+    matchWhyPrefix: string;
     footerTalent: string;
     linkCopiedTitle: string;
     linkCopiedMessage: string;
@@ -149,6 +172,8 @@ export type DirectoryUiCopy = {
     guestCtaAfterLoginLink: string;
     backToDirectory: string;
     talentFallbackName: string;
+    aiAssistTitle: string;
+    aiAssistBody: string;
   };
   inquirySuccess: {
     inquirySentTitle: string;
@@ -201,6 +226,12 @@ export type DirectoryUiCopy = {
     labelBrief: string;
     placeholderBrief: string;
     privacyNotice: string;
+    draftGenerate: string;
+    draftPolish: string;
+    draftWorking: string;
+    draftError: string;
+    draftPolishNeedText: string;
+    draftHint: string;
   };
 };
 
@@ -229,6 +260,18 @@ export function buildDirectoryUiCopy(t: T): DirectoryUiCopy {
       resultsOne: t("public.directory.ui.toolbar.resultsOne"),
       resultsMany: t("public.directory.ui.toolbar.resultsMany"),
     },
+    refine: {
+      suggestionsTitle: t("public.directory.ui.refine.suggestionsTitle"),
+    },
+    intent: {
+      showingForPrefix: t("public.directory.ui.intent.showingForPrefix"),
+      interpretedAsPrefix: t("public.directory.ui.intent.interpretedAsPrefix"),
+      heightUnitCm: t("public.directory.ui.intent.heightUnitCm"),
+    },
+    hero: {
+      interpreting: t("public.directory.ui.hero.interpreting"),
+      interpretError: t("public.directory.ui.hero.interpretError"),
+    },
     sort: {
       aria: t("public.directory.ui.sort.aria"),
       recommended: t("public.directory.ui.sort.recommended"),
@@ -250,6 +293,9 @@ export function buildDirectoryUiCopy(t: T): DirectoryUiCopy {
       resetHeight: t("public.directory.ui.filters.resetHeight"),
       minCm: t("public.directory.ui.filters.minCm"),
       maxCm: t("public.directory.ui.filters.maxCm"),
+      resetAge: t("public.directory.ui.filters.resetAge"),
+      minAge: t("public.directory.ui.filters.minAge"),
+      maxAge: t("public.directory.ui.filters.maxAge"),
       gridProfileAriaOne: t("public.directory.ui.filters.gridProfileAriaOne"),
       gridProfileAriaMany: t("public.directory.ui.filters.gridProfileAriaMany"),
       sidebarTitle: t("public.directory.ui.filters.sidebarTitle"),
@@ -291,6 +337,12 @@ export function buildDirectoryUiCopy(t: T): DirectoryUiCopy {
       viewPortfolio: t("public.directory.ui.card.viewPortfolio"),
       inquire: t("public.directory.ui.card.inquire"),
       quickPreview: t("public.directory.ui.card.quickPreview"),
+      aiMatchWhyAria: t("public.directory.ui.card.aiMatchWhyAria"),
+      aiDetailsOpenAria: t("public.directory.ui.card.aiDetailsOpenAria"),
+      aiDetailsDrawerTitle: t("public.directory.ui.card.aiDetailsDrawerTitle"),
+      aiDetailsDrawerDescription: t("public.directory.ui.card.aiDetailsDrawerDescription"),
+      aiDetailsVectorScore: t("public.directory.ui.card.aiDetailsVectorScore"),
+      matchWhyPrefix: t("public.directory.ui.card.matchWhyPrefix"),
       footerTalent: t("public.directory.ui.card.footerTalent"),
       linkCopiedTitle: t("public.directory.ui.card.linkCopiedTitle"),
       linkCopiedMessage: t("public.directory.ui.card.linkCopiedMessage"),
@@ -376,6 +428,8 @@ export function buildDirectoryUiCopy(t: T): DirectoryUiCopy {
       guestCtaAfterLoginLink: t("public.forms.inquiry.guestCtaAfterLoginLink"),
       backToDirectory: t("public.forms.inquiry.backToDirectory"),
       talentFallbackName: t("public.forms.inquiry.talentFallbackName"),
+      aiAssistTitle: t("public.forms.inquiry.aiAssistTitle"),
+      aiAssistBody: t("public.forms.inquiry.aiAssistBody"),
     },
     inquirySuccess: {
       inquirySentTitle: t("public.forms.inquiry.successInquirySentTitle"),
@@ -428,6 +482,12 @@ export function buildDirectoryUiCopy(t: T): DirectoryUiCopy {
       labelBrief: t("public.forms.inquiry.formLabelBrief"),
       placeholderBrief: t("public.forms.inquiry.formPlaceholderBrief"),
       privacyNotice: t("public.forms.inquiry.formPrivacyNotice"),
+      draftGenerate: t("public.forms.inquiry.formDraftGenerate"),
+      draftPolish: t("public.forms.inquiry.formDraftPolish"),
+      draftWorking: t("public.forms.inquiry.formDraftWorking"),
+      draftError: t("public.forms.inquiry.formDraftError"),
+      draftPolishNeedText: t("public.forms.inquiry.formDraftPolishNeedText"),
+      draftHint: t("public.forms.inquiry.formDraftHint"),
     },
   };
 }

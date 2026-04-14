@@ -35,7 +35,7 @@ export async function resolveClientAccountContactForSave(
   if (accountId !== contact.client_account_id) {
     return {
       ok: false,
-      error: "Selected contact does not belong to the selected Client Location.",
+      error: "Selected contact does not belong to the selected Work Location.",
     };
   }
 

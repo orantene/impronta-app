@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Info, MessageSquareText } from "lucide-react";
+import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { AdminCommercialListIntake } from "@/components/admin/admin-commercial-list-intake";
 import { AdminInquiryQueue } from "@/app/(dashboard)/admin/inquiries/admin-inquiry-queue";
 import type { InquiryQueueRow } from "@/app/(dashboard)/admin/inquiries/admin-inquiry-queue";
@@ -297,24 +300,23 @@ export default async function AdminInquiriesPage({
   });
 
   const hasActiveFilters = Boolean(trimmedQuery || assignedStaffId || createdFrom || createdTo);
+  const filterActiveCount =
+    (trimmedQuery ? 1 : 0) +
+    (assignedStaffId ? 1 : 0) +
+    (createdFrom ? 1 : 0) +
+    (createdTo ? 1 : 0);
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--impronta-gold)]/25 bg-[var(--impronta-gold)]/10">
-            <MessageSquareText className="size-5 text-[var(--impronta-gold)]" aria-hidden />
-          </div>
-          <div>
-            <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">
-              Requests
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {queueRows.length > 0 ? `${queueRows.length} request${queueRows.length === 1 ? "" : "s"}` : "No requests"} in this view
-            </p>
-          </div>
-        </div>
+      <AdminPageHeader
+        icon={MessageSquareText}
+        title="Requests"
+        description={
+          queueRows.length > 0
+            ? `${queueRows.length} request${queueRows.length === 1 ? "" : "s"} in this view`
+            : "No requests in this view"
+        }
+        right={
         <div className="flex flex-wrap items-center gap-2">
           <AdminCommercialListIntake
             variant="inquiries"
@@ -341,32 +343,20 @@ export default async function AdminInquiriesPage({
             </PopoverContent>
           </Popover>
         </div>
-      </div>
+        }
+      />
 
-      {/* Status tabs */}
-      <div className="flex flex-wrap gap-1.5">
-        {STATUS_TABS.map((tab) => {
-          const isActive = tab.key === "all" ? !statusFilter : statusFilter === tab.key;
-          return (
-            <Link
-              key={tab.key}
-              href={buildAdminInquiriesHref({
-                ...inquiryNavBase,
-                status: tab.key === "all" ? undefined : tab.key,
-              })}
-              scroll={false}
-              className={cn(
-                "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
-                isActive
-                  ? "border-[var(--impronta-gold)]/50 bg-[var(--impronta-gold)]/10 text-foreground"
-                  : "border-border/55 text-muted-foreground hover:border-[var(--impronta-gold)]/35 hover:text-foreground",
-              )}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </div>
+      <AdminStatusTabs
+        ariaLabel="Request status"
+        items={STATUS_TABS.map((tab) => ({
+          href: buildAdminInquiriesHref({
+            ...inquiryNavBase,
+            status: tab.key === "all" ? undefined : tab.key,
+          }),
+          label: tab.label,
+          active: tab.key === "all" ? !statusFilter : statusFilter === tab.key,
+        }))}
+      />
 
       {/* Scope banners */}
       {clientUserId && (
@@ -392,7 +382,7 @@ export default async function AdminInquiriesPage({
         </div>
       )}
 
-      {/* Filter bar */}
+      <AdminFilterBar title="Search & filters" activeCount={filterActiveCount}>
       <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_160px_160px_auto] md:items-end">
         <div className="space-y-1.5">
           <label htmlFor="q" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -483,6 +473,7 @@ export default async function AdminInquiriesPage({
           ) : null}
         </div>
       </form>
+      </AdminFilterBar>
 
       {/* Queue table — Suspense: peek triggers use `useSearchParams` */}
       <Suspense

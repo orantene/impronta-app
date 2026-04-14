@@ -21,13 +21,21 @@ import {
   parseTranslationsSearchParams,
   type BioFilterKey,
 } from "@/app/(dashboard)/admin/translations/translations-url";
+import { AdminCollapsibleSection } from "@/components/admin/admin-collapsible-section";
+import { AdminErrorState } from "@/components/admin/admin-error-state";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { TalentPageHeader } from "@/components/talent/talent-dashboard-primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ADMIN_FORM_CONTROL, ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
-import { isOpenAiConfigured } from "@/lib/translation/ai-translate-bio";
+import {
+  ADMIN_FORM_CONTROL,
+  ADMIN_PAGE_STACK,
+  ADMIN_PAGE_WIDTH,
+  ADMIN_SECTION_TITLE_CLASS,
+} from "@/lib/dashboard-shell-classes";
+import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { cn } from "@/lib/utils";
@@ -377,7 +385,7 @@ export default async function AdminTranslationsPage({
       )
     : null;
 
-  const aiConfigured = isOpenAiConfigured();
+  const aiConfigured = await isResolvedAiChatConfigured();
 
   try {
     if (view === "bio") {
@@ -517,7 +525,7 @@ export default async function AdminTranslationsPage({
     loadError = CLIENT_ERROR.loadPage;
   }
 
-  let auditByTalentId: Record<string, AuditPreviewRow[]> = {};
+  const auditByTalentId: Record<string, AuditPreviewRow[]> = {};
   if (view === "bio" && talentRows.length > 0) {
     const ids = talentRows.map((r) => r.id);
     const { data: auditRows, error: auditErr } = await supabase
@@ -545,7 +553,7 @@ export default async function AdminTranslationsPage({
             .map((e) => e.actor_id as string),
         ),
       ];
-      let actorNames: Record<string, string> = {};
+      const actorNames: Record<string, string> = {};
       if (actorIds.length > 0) {
         const { data: profs } = await supabase
           .from("profiles")
@@ -574,8 +582,8 @@ export default async function AdminTranslationsPage({
 
   if (loadError) {
     return (
-      <div className={ADMIN_PAGE_STACK}>
-        <p className="text-sm text-destructive">{loadError}</p>
+      <div className={`${ADMIN_PAGE_WIDTH} space-y-6 pb-8`}>
+        <AdminErrorState title="Could not load translations" description={loadError} />
       </div>
     );
   }
@@ -587,17 +595,18 @@ export default async function AdminTranslationsPage({
   const locationMissingCount = countLocationGaps ?? 0;
 
   return (
-    <div className={ADMIN_PAGE_STACK}>
-      <TalentPageHeader
+    <div className={`${ADMIN_PAGE_WIDTH} space-y-6 pb-8`}>
+      <AdminPageHeader
         icon={Languages}
         title="Translations"
         description="Spanish across bios, taxonomy, and locations. Tabs pick the surface; health cards and the table below follow your choice."
       />
 
-      <DashboardSectionCard
+      <AdminCollapsibleSection
         title="Translation tools"
         description="AI status for this hub. Row and bulk actions use OpenAI when configured."
-        titleClassName={ADMIN_SECTION_TITLE_CLASS}
+        toggleLabelShow="Show tools"
+        toggleLabelHide="Hide tools"
       >
         <div className="space-y-4">
           <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-gradient-to-br from-[var(--impronta-gold)]/[0.06] to-transparent px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
@@ -635,48 +644,28 @@ export default async function AdminTranslationsPage({
             </Button>
           </div>
         </div>
-      </DashboardSectionCard>
+      </AdminCollapsibleSection>
 
-      <DashboardSectionCard
-        title="Workspace"
-        description="Switch surface — filters and the table below apply to the tab you choose."
-        titleClassName={ADMIN_SECTION_TITLE_CLASS}
-      >
-        <div className="flex flex-wrap gap-2 rounded-xl bg-muted/30 p-2 ring-1 ring-border/45">
-          {VIEW_TABS.map((tab) => (
-            <Button
-              key={tab.key}
-              asChild
-              variant={view === tab.key ? "default" : "ghost"}
-              size="sm"
-              className={cn(
-                "h-9 rounded-lg px-4 text-xs font-medium sm:text-sm",
-                view === tab.key ? "shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Link
-                href={translationsHref({
-                  view: tab.key,
-                  status:
-                    tab.key === "bio"
-                      ? bioStatusFilter
-                      : taxLocStatusFilter,
-                  q,
-                  sort:
-                    tab.key === "bio"
-                      ? bioSort
-                      : tab.key === "taxonomy"
-                        ? taxonomySort
-                        : locationSort,
-                  dir: sortDir,
-                })}
-              >
-                {tab.label}
-              </Link>
-            </Button>
-          ))}
-        </div>
-      </DashboardSectionCard>
+      <AdminPageTabs
+        ariaLabel="Translation workspace"
+        items={VIEW_TABS.map((tab) => ({
+          href: translationsHref({
+            view: tab.key,
+            status:
+              tab.key === "bio" ? bioStatusFilter : taxLocStatusFilter,
+            q,
+            sort:
+              tab.key === "bio"
+                ? bioSort
+                : tab.key === "taxonomy"
+                  ? taxonomySort
+                  : locationSort,
+            dir: sortDir,
+          }),
+          label: tab.label,
+          active: view === tab.key,
+        }))}
+      />
 
       <DashboardSectionCard
         title="Translation health"

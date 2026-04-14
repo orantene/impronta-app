@@ -10,6 +10,13 @@ export type DirectorySidebarLayoutRow = {
   section_collapsed_defaults: Record<string, boolean>;
   /** When true, talent type uses the top pill row instead of a sidebar section. */
   talent_type_top_bar_visible: boolean;
+  /**
+   * Per-field visibility overrides for the public sidebar.
+   * `false` = hidden from visitors. Missing key = visible (default).
+   * This is independent of `field_definitions.directory_filter_visible`, which
+   * controls whether a field participates in filtering at all.
+   */
+  field_visibility_overrides: Record<string, boolean>;
 };
 
 const DEFAULT_LAYOUT: DirectorySidebarLayoutRow = {
@@ -17,6 +24,7 @@ const DEFAULT_LAYOUT: DirectorySidebarLayoutRow = {
   filter_option_search_visible: true,
   section_collapsed_defaults: {},
   talent_type_top_bar_visible: true,
+  field_visibility_overrides: {},
 };
 
 export function parseSectionCollapsedDefaults(raw: unknown): Record<string, boolean> {
@@ -24,6 +32,17 @@ export function parseSectionCollapsedDefaults(raw: unknown): Record<string, bool
   const out: Record<string, boolean> = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof k === "string" && k.length > 0 && v === true) out[k] = true;
+  }
+  return out;
+}
+
+export function parseFieldVisibilityOverrides(raw: unknown): Record<string, boolean> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof k === "string" && k.length > 0 && typeof v === "boolean") {
+      out[k] = v;
+    }
   }
   return out;
 }
@@ -46,7 +65,7 @@ export async function fetchDirectorySidebarLayout(
   const { data, error } = await supabase
     .from("directory_sidebar_layout")
     .select(
-      "item_order, filter_option_search_visible, section_collapsed_defaults, talent_type_top_bar_visible",
+      "item_order, filter_option_search_visible, section_collapsed_defaults, talent_type_top_bar_visible, field_visibility_overrides",
     )
     .eq("id", 1)
     .maybeSingle();
@@ -74,6 +93,7 @@ export async function fetchDirectorySidebarLayout(
         filter_option_search_visible: Boolean(d.filter_option_search_visible ?? true),
         section_collapsed_defaults: parseSectionCollapsedDefaults(d.section_collapsed_defaults),
         talent_type_top_bar_visible: DEFAULT_LAYOUT.talent_type_top_bar_visible,
+        field_visibility_overrides: {},
       };
     }
     if (msg.includes("section_collapsed_defaults")) {
@@ -93,6 +113,7 @@ export async function fetchDirectorySidebarLayout(
         filter_option_search_visible: Boolean(d.filter_option_search_visible ?? true),
         section_collapsed_defaults: {},
         talent_type_top_bar_visible: DEFAULT_LAYOUT.talent_type_top_bar_visible,
+        field_visibility_overrides: {},
       };
     }
     if (isMissingDirectoryFilterColumns(error)) return DEFAULT_LAYOUT;
@@ -110,6 +131,7 @@ export async function fetchDirectorySidebarLayout(
     filter_option_search_visible?: boolean;
     section_collapsed_defaults?: unknown;
     talent_type_top_bar_visible?: boolean;
+    field_visibility_overrides?: unknown;
   };
 
   return {
@@ -120,6 +142,7 @@ export async function fetchDirectorySidebarLayout(
       row.talent_type_top_bar_visible !== undefined
         ? Boolean(row.talent_type_top_bar_visible)
         : DEFAULT_LAYOUT.talent_type_top_bar_visible,
+    field_visibility_overrides: parseFieldVisibilityOverrides(row.field_visibility_overrides),
   };
 }
 

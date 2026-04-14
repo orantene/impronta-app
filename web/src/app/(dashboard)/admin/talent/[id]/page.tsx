@@ -9,7 +9,8 @@ import {
   countTalentFacingScalarCompletion,
 } from "@/lib/profile-completion";
 import { AdminTalentCockpitClient } from "./admin-talent-cockpit-client";
-import { isOpenAiConfigured } from "@/lib/translation/ai-translate-bio";
+import { AdminTalentAiSearchDebug } from "./admin-talent-ai-search-debug";
+import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 
 export default async function AdminTalentDetailPage({
   params,
@@ -273,9 +274,10 @@ export default async function AdminTalentDetailPage({
   type TalentProfileSelect = typeof profile;
   if (!profile) notFound();
 
-  const openAiBioAvailable = isOpenAiConfigured();
+  const openAiBioAvailable = await isResolvedAiChatConfigured();
 
   return (
+    <>
     <AdminTalentCockpitClient
       id={id}
       openAiBioAvailable={openAiBioAvailable}
@@ -314,5 +316,7 @@ export default async function AdminTalentDetailPage({
       }}
       fieldValues={fieldValues as unknown as Parameters<typeof AdminTalentCockpitClient>[0]["fieldValues"]}
     />
+    <AdminTalentAiSearchDebug talentId={id} />
+    </>
   );
 }

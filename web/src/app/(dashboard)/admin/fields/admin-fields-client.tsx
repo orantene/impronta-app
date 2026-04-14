@@ -28,6 +28,7 @@ import {
   type FieldGroupOption,
 } from "./admin-field-definition-edit-sheet";
 import { Button } from "@/components/ui/button";
+import { ADMIN_GROUP_LIST_GAP, ADMIN_REORDER_HANDLE_BUTTON, ADMIN_REORDER_HANDLE_ROW } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
 import { reorderFieldGroups, type FieldAdminActionState } from "./actions";
 
@@ -139,7 +140,7 @@ export function AdminFieldsClient({
   };
 
   return (
-    <div className="space-y-5">
+    <div className={ADMIN_GROUP_LIST_GAP}>
       {reorderState?.error ? (
         <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive-foreground">
           {reorderState.error}
@@ -153,7 +154,7 @@ export function AdminFieldsClient({
         onDragEnd={onGroupDragEnd}
       >
         <SortableContext items={orderedGroupIds} strategy={verticalListSortingStrategy}>
-          <div className={cn("space-y-5", reorderPending && "opacity-70")}>
+          <div className={cn(ADMIN_GROUP_LIST_GAP, reorderPending && "opacity-70")}>
             {groups.map((group) => {
               const bucket = fieldsByGroup.find((b) => b.groupId === group.id);
               const fields = bucket?.fields ?? [];
@@ -216,12 +217,12 @@ function SortableGroupShell({
 
   return (
     <div ref={setNodeRef} style={style} className={cn(isDragging && "ring-2 ring-ring/40 rounded-2xl")}>
-      <div className="mb-2 flex items-center justify-end gap-2">
+      <div className={ADMIN_REORDER_HANDLE_ROW}>
         <Button
           type="button"
           size="sm"
           variant="outline"
-          className="h-7 gap-2 border-border/60 bg-background/40 text-xs text-muted-foreground hover:text-foreground"
+          className={ADMIN_REORDER_HANDLE_BUTTON}
           disabled={disabled}
           aria-label="Drag group to reorder"
           {...attributes}

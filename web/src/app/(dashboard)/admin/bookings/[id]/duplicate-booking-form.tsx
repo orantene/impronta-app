@@ -48,12 +48,12 @@ export function DuplicateBookingForm({
           onChange={(e) => setKeepLinks(e.target.checked)}
           className="size-4 rounded border-border"
         />
-        Keep same Client Location &amp; contact links
+        Keep same Work Location &amp; contact links
       </label>
       {!keepLinks ? (
         <div className="grid gap-3 border-l-2 border-border/45 pl-3 sm:grid-cols-2">
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="dup_new_acc">New Client Location</Label>
+            <Label htmlFor="dup_new_acc">New Work Location</Label>
             <select
               id="dup_new_acc"
               name="new_client_account_id"

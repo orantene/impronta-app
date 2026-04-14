@@ -20,6 +20,7 @@ import {
 } from "@/lib/auth-flow";
 import { Button } from "@/components/ui/button";
 import { getSavedTalentIds } from "@/lib/public-discovery";
+import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 
 export async function PublicHeader() {
@@ -45,6 +46,7 @@ export async function PublicHeader() {
           : { href: "/client/overview", label: t("public.header.dashboard") };
 
   const savedIds = await getSavedTalentIds();
+  const cmsHeaderLinks = await getPublicCmsNavigationLinks(locale, "header");
 
   const directoryHeaderCopy = {
     shortlistAria: t("public.header.directoryShortlistAria"),
@@ -61,7 +63,7 @@ export async function PublicHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
       <div className="relative flex h-16 w-full items-center justify-between px-4 sm:h-[4.25rem] sm:px-6 lg:px-8">
-        <div className="flex min-w-0 flex-1 justify-start">
+        <div className="flex min-w-0 flex-1 items-center justify-start gap-1 sm:gap-2">
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link
               href={withLocalePath("/directory", locale)}
@@ -70,6 +72,22 @@ export async function PublicHeader() {
               <Search className="size-5" />
             </Link>
           </Button>
+          {cmsHeaderLinks.length > 0 ? (
+            <nav
+              className="hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
+              aria-label="Site links"
+            >
+              {cmsHeaderLinks.map((l) => (
+                <Link
+                  key={`${l.href}:${l.label}`}
+                  href={l.href}
+                  className="shrink-0 whitespace-nowrap text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
         </div>
 
         <Link
