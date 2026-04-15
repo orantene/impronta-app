@@ -47,6 +47,14 @@ export const INQUIRY_STATUS_LABELS: Record<string, string> = {
   closed: "Closed",
   closed_lost: "Closed (lost)",
   archived: "Archived",
+  draft: "Draft",
+  submitted: "Submitted",
+  coordination: "Coordination",
+  offer_pending: "Offer pending",
+  approved: "Approved",
+  booked: "Booked",
+  rejected: "Rejected",
+  expired: "Expired",
 };
 
 function normalizePhone(phone?: string | null): string {

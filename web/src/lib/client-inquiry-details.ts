@@ -4,6 +4,7 @@ import { logDashboardLoaderFailure } from "@/lib/dashboard-loader-diagnostics";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { subjectUserId } from "@/lib/impersonation/subject-user";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { loadInquiryRoster } from "@/lib/inquiry/inquiry-workspace-data";
 
 type DirectorySearchContext = {
   q: string | null;
@@ -42,9 +43,38 @@ export type ClientInquiryDetailTalentRow = {
   } | null;
 };
 
+export type ClientInquiryOfferRow = {
+  id: string;
+  inquiry_id: string;
+  status: string;
+  version: number;
+  total_client_price: number;
+  currency_code: string;
+  notes: string | null;
+  sent_at: string | null;
+  accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ClientInquiryOfferLineItemRow = {
+  id: string;
+  offer_id: string;
+  talent_profile_id: string | null;
+  label: string | null;
+  pricing_unit: string;
+  units: number;
+  unit_price: number;
+  total_price: number;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
 export type ClientInquiryDetailRow = {
   id: string;
   status: string;
+  uses_new_engine?: boolean;
   created_at: string;
   updated_at: string;
   guest_session_id: string | null;
@@ -60,6 +90,7 @@ export type ClientInquiryDetailRow = {
   raw_ai_query: string | null;
   interpreted_query: Record<string, unknown> | null;
   source_page: string | null;
+  current_offer_id?: string | null;
   inquiry_talent: ClientInquiryDetailTalentRow[] | null;
 };
 
@@ -82,6 +113,8 @@ export type ClientInquiryDetailLoadResult =
         } | null;
         agencyWhatsAppNumber: string | null;
         agencyContactEmail: string | null;
+        currentOffer: ClientInquiryOfferRow | null;
+        currentOfferLineItems: ClientInquiryOfferLineItemRow[];
       };
     }
   | { ok: false; reason: "no_supabase" | "no_user" | "not_found" };
@@ -102,6 +135,7 @@ export const loadClientInquiryDetail = cache(
           `
           id,
           status,
+          uses_new_engine,
           created_at,
           updated_at,
           guest_session_id,
@@ -117,14 +151,8 @@ export const loadClientInquiryDetail = cache(
           raw_ai_query,
           interpreted_query,
           source_page,
-          inquiry_talent (
-            talent_profile_id,
-            talent_profiles (
-              id,
-              profile_code,
-              display_name
-            )
-          )
+          current_offer_id,
+          client_user_id
         `,
         )
         .eq("id", inquiryId)
@@ -201,10 +229,60 @@ export const loadClientInquiryDetail = cache(
         filtersByKind.location.push({ id: directory.location_slug, label: locationLabel });
       }
 
+      // Canonical roster contract: for v2 inquiries, replace inquiry_talent with participants-based roster.
+      const typedInquiry = inquiry as unknown as ClientInquiryDetailRow;
+      if ((typedInquiry as { uses_new_engine?: boolean }).uses_new_engine) {
+        const roster = await loadInquiryRoster(supabase, inquiryId);
+        typedInquiry.inquiry_talent = roster.map((r) => ({
+          talent_profile_id: r.talentProfileId,
+          talent_profiles: {
+            id: r.talentProfileId,
+            profile_code: r.profileCode,
+            display_name: r.displayName,
+          },
+        }));
+      } else {
+        const { data: legacy } = await supabase
+          .from("inquiry_talent")
+          .select(
+            `
+            talent_profile_id,
+            talent_profiles ( id, profile_code, display_name )
+          `,
+          )
+          .eq("inquiry_id", inquiryId)
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true });
+        typedInquiry.inquiry_talent = (legacy ?? []) as unknown as ClientInquiryDetailTalentRow[];
+      }
+
+      // Client-safe offer visibility: use views to avoid internal economics columns.
+      const offerId = (typedInquiry as { current_offer_id?: string | null }).current_offer_id ?? null;
+      const [{ data: currentOffer }, { data: currentOfferLineItems }] = await Promise.all([
+        offerId
+          ? supabase
+              .from("inquiry_offers_client_view")
+              .select(
+                "id, inquiry_id, status, version, total_client_price, currency_code, notes, sent_at, accepted_at, created_at, updated_at",
+              )
+              .eq("id", offerId)
+              .maybeSingle()
+          : Promise.resolve({ data: null as ClientInquiryOfferRow | null }),
+        offerId
+          ? supabase
+              .from("inquiry_offer_line_items_client_view")
+              .select(
+                "id, offer_id, talent_profile_id, label, pricing_unit, units, unit_price, total_price, notes, sort_order, created_at",
+              )
+              .eq("offer_id", offerId)
+              .order("sort_order", { ascending: true })
+          : Promise.resolve({ data: [] as ClientInquiryOfferLineItemRow[] }),
+      ]);
+
       return {
         ok: true,
         data: {
-          inquiry: inquiry as unknown as ClientInquiryDetailRow,
+          inquiry: typedInquiry,
           eventTypeName: eventTypeRow?.name_en ?? null,
           resolvedDirectoryContext: directory
             ? {
@@ -218,6 +296,8 @@ export const loadClientInquiryDetail = cache(
             : null,
           agencyWhatsAppNumber: settings.agencyWhatsAppNumber,
           agencyContactEmail: settings.contactEmail,
+          currentOffer: (currentOffer ?? null) as unknown as ClientInquiryOfferRow | null,
+          currentOfferLineItems: (currentOfferLineItems ?? []) as unknown as ClientInquiryOfferLineItemRow[],
         },
       };
     } catch (err) {

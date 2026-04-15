@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useActionState, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ExternalLink, Plus, Search, Trash2 } from "lucide-react";
 import { addInquiryTalent, type AdminActionState, moveInquiryTalent, removeInquiryTalent } from "@/app/(dashboard)/admin/actions";
+import {
+  rosterAddTalent,
+  rosterMoveParticipant,
+  rosterRemoveParticipant,
+} from "@/app/(dashboard)/admin/inquiries/[id]/roster-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -196,14 +201,22 @@ export function InquiryTalentEditor({
   inquiryId,
   allTalents,
   rows,
+  engineV2 = false,
+  inquiryVersion = 1,
 }: {
   inquiryId: string;
   allTalents: TalentOption[];
   rows: InquiryTalentRow[];
+  engineV2?: boolean;
+  inquiryVersion?: number;
 }) {
   const [query, setQuery] = useState("");
   const [selectedTalentId, setSelectedTalentId] = useState("");
   const [state, addAction, addPending] = useActionState<AdminActionState, FormData>(addInquiryTalent, undefined);
+  const [stateV2, addActionV2, addPendingV2] = useActionState(
+    async (_prev: { error?: string } | undefined, formData: FormData) => rosterAddTalent(formData),
+    undefined,
+  );
 
   const selectedIds = useMemo(() => new Set(rows.map((row) => row.talent_profile_id)), [rows]);
   const filtered = useMemo(
@@ -215,10 +228,14 @@ export function InquiryTalentEditor({
     [allTalents, query, selectedIds],
   );
 
+  const addFormAction = engineV2 ? addActionV2 : addAction;
+  const addPendingState = engineV2 ? addPendingV2 : addPending;
+  const addError = engineV2 ? stateV2?.error : state?.error;
+
   return (
     <div className="space-y-4">
       <form
-        action={addAction}
+        action={addFormAction}
         className="space-y-4 rounded-[1.5rem] border border-border/50 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.55))] p-4 shadow-sm"
         onSubmit={() => {
           setQuery("");
@@ -227,6 +244,7 @@ export function InquiryTalentEditor({
       >
         <input type="hidden" name="inquiry_id" value={inquiryId} />
         <input type="hidden" name="talent_profile_id" value={selectedTalentId} />
+        {engineV2 ? <input type="hidden" name="expected_version" value={String(inquiryVersion)} /> : null}
         <div className="space-y-1">
           <p className="text-sm font-medium text-foreground">Add to shortlist</p>
           <p className="text-xs text-muted-foreground">Search represented talent by profile code or name, then add them to this inquiry.</p>
@@ -267,9 +285,9 @@ export function InquiryTalentEditor({
             <p className="px-3 py-3 text-sm text-muted-foreground">Search to add talent to this inquiry.</p>
           )}
         </div>
-        {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
-        <Button type="submit" size="sm" className="rounded-full px-4" disabled={!selectedTalentId || addPending}>
-          {addPending ? "Adding…" : "Add talent"}
+        {addError ? <p className="text-sm text-destructive">{addError}</p> : null}
+        <Button type="submit" size="sm" className="rounded-full px-4" disabled={!selectedTalentId || addPendingState}>
+          {addPendingState ? "Adding…" : "Add talent"}
         </Button>
       </form>
 
@@ -320,27 +338,30 @@ export function InquiryTalentEditor({
                 <div className="mr-1 rounded-full border border-[var(--impronta-gold-border)]/65 bg-[var(--impronta-gold-muted)] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--impronta-gold)]">
                   {index + 1}
                 </div>
-                <form action={moveInquiryTalent}>
+                <form action={engineV2 ? rosterMoveParticipant : moveInquiryTalent}>
                   <input type="hidden" name="inquiry_id" value={inquiryId} />
-                  <input type="hidden" name="inquiry_talent_id" value={row.id} />
+                  <input type="hidden" name={engineV2 ? "participant_id" : "inquiry_talent_id"} value={row.id} />
                   <input type="hidden" name="direction" value="up" />
+                  {engineV2 ? <input type="hidden" name="expected_version" value={String(inquiryVersion)} /> : null}
                   <Button type="submit" variant="outline" size="sm" className="h-9 w-9 rounded-full p-0" disabled={index === 0}>
                     <ArrowUp className="h-4 w-4" />
                     <span className="sr-only">Move up</span>
                   </Button>
                 </form>
-                <form action={moveInquiryTalent}>
+                <form action={engineV2 ? rosterMoveParticipant : moveInquiryTalent}>
                   <input type="hidden" name="inquiry_id" value={inquiryId} />
-                  <input type="hidden" name="inquiry_talent_id" value={row.id} />
+                  <input type="hidden" name={engineV2 ? "participant_id" : "inquiry_talent_id"} value={row.id} />
                   <input type="hidden" name="direction" value="down" />
+                  {engineV2 ? <input type="hidden" name="expected_version" value={String(inquiryVersion)} /> : null}
                   <Button type="submit" variant="outline" size="sm" className="h-9 w-9 rounded-full p-0" disabled={index === rows.length - 1}>
                     <ArrowDown className="h-4 w-4" />
                     <span className="sr-only">Move down</span>
                   </Button>
                 </form>
-                <form action={removeInquiryTalent}>
+                <form action={engineV2 ? rosterRemoveParticipant : removeInquiryTalent}>
                   <input type="hidden" name="inquiry_id" value={inquiryId} />
-                  <input type="hidden" name="inquiry_talent_id" value={row.id} />
+                  <input type="hidden" name={engineV2 ? "participant_id" : "inquiry_talent_id"} value={row.id} />
+                  {engineV2 ? <input type="hidden" name="expected_version" value={String(inquiryVersion)} /> : null}
                   <Button type="submit" variant="outline" size="sm" className="h-9 rounded-full border-destructive/35 px-3 text-destructive hover:bg-destructive/5">
                     <Trash2 className="mr-1 h-4 w-4" />
                     Remove

@@ -33,6 +33,12 @@ import {
 import { cn } from "@/lib/utils";
 import { mapRawActivityRows } from "@/lib/commercial-activity-summary";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { loadInquiryRoster } from "@/lib/inquiry/inquiry-workspace-data";
+import type { OfferLineDraft } from "@/lib/inquiry/inquiry-engine";
+import { InquiryMessageThread } from "@/components/inquiry/inquiry-message-thread";
+import { InquiryV2OfferEditor } from "@/app/(dashboard)/admin/inquiries/[id]/inquiry-v2-offer-editor";
+import { actionCreateDraftOffer } from "@/app/(dashboard)/admin/inquiries/[id]/offer-actions";
+import { actionSendInquiryMessage } from "@/app/(dashboard)/admin/inquiries/[id]/messaging-actions";
 import { ChevronDown } from "lucide-react";
 import type React from "react";
 
@@ -188,7 +194,13 @@ export default async function AdminInquiryDetailPage({
       staff_notes,
       assigned_staff_id,
       created_at,
-      updated_at
+      updated_at,
+      uses_new_engine,
+      version,
+      coordinator_id,
+      next_action_by,
+      current_offer_id,
+      booked_at
     `,
     )
     .eq("id", id)
@@ -196,72 +208,70 @@ export default async function AdminInquiryDetailPage({
 
   if (error || !inquiry) notFound();
 
-  const [
-    { data: inquiryTalentRows },
-    { data: staff },
-    { data: bookings },
-    { data: accounts },
-    { data: contactRows },
-    { data: linkedAccount },
-    { data: linkedContact },
-    { data: inqLogs },
-    { data: platformClientProfile },
-    { data: allTalents },
-  ] = await Promise.all([
-    supabase
-      .from("inquiry_talent")
-      .select(`id, talent_profile_id, sort_order, talent_profiles (id, profile_code, display_name)`)
-      .eq("inquiry_id", id)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true }),
-    supabase.from("profiles").select("id, display_name").in("app_role", ["super_admin", "agency_staff"]),
-    supabase
-      .from("agency_bookings")
-      .select(
-        `id, title, status, starts_at, ends_at, notes, internal_notes, payment_status, total_client_revenue, gross_profit,
-         booking_talent (id, talent_profile_id, talent_name_snapshot, profile_code_snapshot, talent_profiles (profile_code, display_name))`,
-      )
-      .eq("source_inquiry_id", id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("client_accounts")
-      .select(
-        "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, country, city, location_text, address_notes, google_place_id, latitude, longitude",
-      )
-      .is("archived_at", null)
-      .order("name", { ascending: true }),
-    supabase
-      .from("client_account_contacts")
-      .select("id, client_account_id, full_name, email, phone, client_accounts(name)")
-      .is("archived_at", null)
-      .order("full_name", { ascending: true }),
-    inquiry.client_account_id
-      ? supabase
-          .from("client_accounts")
-          .select(
-            "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, country, city, location_text, address_notes, google_place_id, latitude, longitude",
-          )
-          .eq("id", inquiry.client_account_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    inquiry.client_contact_id
-      ? supabase
-          .from("client_account_contacts")
-          .select("id, full_name, email, phone")
-          .eq("id", inquiry.client_contact_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase
-      .from("inquiry_activity_log")
-      .select("id, event_type, payload, created_at, actor_user_id")
-      .eq("inquiry_id", id)
-      .order("created_at", { ascending: false })
-      .limit(100),
-    inquiry.client_user_id
-      ? supabase.from("profiles").select("id, display_name").eq("id", inquiry.client_user_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase.from("talent_profiles").select("id, profile_code, display_name").is("deleted_at", null).order("profile_code", { ascending: true }).limit(500),
-  ]);
+  const engineV2 = Boolean((inquiry as { uses_new_engine?: boolean }).uses_new_engine);
+
+  const [{ data: staff }, { data: bookings }, { data: accounts }, { data: contactRows }, { data: linkedAccount }, { data: linkedContact }, { data: inqLogs }, { data: platformClientProfile }, { data: allTalents }] =
+    await Promise.all([
+      supabase.from("profiles").select("id, display_name").in("app_role", ["super_admin", "agency_staff"]),
+      supabase
+        .from("agency_bookings")
+        .select(
+          `id, title, status, starts_at, ends_at, notes, internal_notes, payment_status, total_client_revenue, gross_profit,
+           booking_talent (id, talent_profile_id, talent_name_snapshot, profile_code_snapshot, talent_profiles (profile_code, display_name))`,
+        )
+        .eq("source_inquiry_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("client_accounts")
+        .select(
+          "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, country, city, location_text, address_notes, google_place_id, latitude, longitude",
+        )
+        .is("archived_at", null)
+        .order("name", { ascending: true }),
+      supabase
+        .from("client_account_contacts")
+        .select("id, client_account_id, full_name, email, phone, client_accounts(name)")
+        .is("archived_at", null)
+        .order("full_name", { ascending: true }),
+      inquiry.client_account_id
+        ? supabase
+            .from("client_accounts")
+            .select(
+              "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, country, city, location_text, address_notes, google_place_id, latitude, longitude",
+            )
+            .eq("id", inquiry.client_account_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      inquiry.client_contact_id
+        ? supabase
+            .from("client_account_contacts")
+            .select("id, full_name, email, phone")
+            .eq("id", inquiry.client_contact_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from("inquiry_activity_log")
+        .select("id, event_type, payload, created_at, actor_user_id")
+        .eq("inquiry_id", id)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      inquiry.client_user_id
+        ? supabase.from("profiles").select("id, display_name").eq("id", inquiry.client_user_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase.from("talent_profiles").select("id, profile_code, display_name").is("deleted_at", null).order("profile_code", { ascending: true }).limit(500),
+    ]);
+
+  // Legacy-only shortlist read. v2 paths do not include inquiry_talent queries.
+  const inquiryTalentRows = engineV2
+    ? null
+    : (
+        await supabase
+          .from("inquiry_talent")
+          .select(`id, talent_profile_id, sort_order, talent_profiles (id, profile_code, display_name)`)
+          .eq("inquiry_id", id)
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true })
+      ).data;
 
   const inquiryTalentProfileIds = [
     ...new Set(
@@ -316,17 +326,95 @@ export default async function AdminInquiryDetailPage({
     }
   }
 
-  const typedInquiryTalents = ((inquiryTalentRows ?? []) as unknown as InquiryTalentRow[])
-    .filter((r) => r.talent_profiles)
-    .map((r) => ({
-      id: r.id,
-      talent_profile_id: r.talent_profile_id,
-      sort_order: r.sort_order,
-      profile_code: r.talent_profiles!.profile_code,
-      display_name: r.talent_profiles!.display_name,
-      image_url: thumbnailMap.get(r.talent_profile_id) ?? null,
-      tag_label: talentTagMap.get(r.talent_profile_id) ?? null,
-    }));
+  let v2Offer: {
+    id: string;
+    version: number;
+    status: string;
+    total_client_price: number;
+    coordinator_fee: number;
+    currency_code: string;
+    notes: string | null;
+  } | null = null;
+  let v2OfferLines: OfferLineDraft[] = [];
+  let v2Approvals: { id: string; status: string; participant_id: string; offer_id: string | null }[] = [];
+  let v2PrivateMessages: {
+    id: string;
+    body: string;
+    created_at: string;
+    sender_user_id: string | null;
+    metadata: Record<string, unknown>;
+  }[] = [];
+
+  if (engineV2) {
+    const { data: msgs } = await supabase
+      .from("inquiry_messages")
+      .select("id, body, created_at, sender_user_id, metadata")
+      .eq("inquiry_id", id)
+      .eq("thread_type", "private")
+      .order("created_at", { ascending: true })
+      .limit(200);
+    v2PrivateMessages = (msgs ?? []) as typeof v2PrivateMessages;
+
+    const cid = (inquiry as { current_offer_id?: string | null }).current_offer_id;
+    if (cid) {
+      const [{ data: offer }, { data: lines }, { data: approvals }] = await Promise.all([
+        supabase
+          .from("inquiry_offers")
+          .select("id, version, status, total_client_price, coordinator_fee, currency_code, notes")
+          .eq("id", cid)
+          .maybeSingle(),
+        supabase.from("inquiry_offer_line_items").select("*").eq("offer_id", cid).order("sort_order", { ascending: true }),
+        supabase.from("inquiry_approvals").select("id, status, participant_id, offer_id").eq("offer_id", cid),
+      ]);
+      if (offer) {
+        v2Offer = {
+          id: offer.id as string,
+          version: offer.version as number,
+          status: offer.status as string,
+          total_client_price: Number(offer.total_client_price),
+          coordinator_fee: Number(offer.coordinator_fee),
+          currency_code: String(offer.currency_code ?? "MXN"),
+          notes: (offer.notes as string | null) ?? null,
+        };
+        v2OfferLines = ((lines ?? []) as Record<string, unknown>[]).map((row, i) => ({
+          talent_profile_id: (row.talent_profile_id as string | null) ?? null,
+          label: (row.label as string | null) ?? null,
+          pricing_unit: (["hour", "day", "week", "event"].includes(String(row.pricing_unit))
+            ? row.pricing_unit
+            : "event") as OfferLineDraft["pricing_unit"],
+          units: Number(row.units) || 1,
+          unit_price: Number(row.unit_price) || 0,
+          total_price: Number(row.total_price) || 0,
+          talent_cost: Number(row.talent_cost) || 0,
+          notes: (row.notes as string | null) ?? null,
+          sort_order: Number(row.sort_order) ?? i,
+        }));
+        v2Approvals = (approvals ?? []) as typeof v2Approvals;
+      }
+    }
+  }
+
+  const typedInquiryTalents = engineV2
+    ? (await loadInquiryRoster(supabase, id)).map((r) => ({
+        id: r.id,
+        talent_profile_id: r.talentProfileId,
+        sort_order: r.sortOrder,
+        profile_code: r.profileCode,
+        display_name: r.displayName,
+        image_url: r.imageUrl,
+        tag_label: r.tagLabel,
+      }))
+    : ((inquiryTalentRows ?? []) as unknown as InquiryTalentRow[])
+        .filter((r) => r.talent_profiles)
+        .map((r) => ({
+          id: r.id,
+          talent_profile_id: r.talent_profile_id,
+          sort_order: r.sort_order,
+          profile_code: r.talent_profiles!.profile_code,
+          display_name: r.talent_profiles!.display_name,
+          image_url: thumbnailMap.get(r.talent_profile_id) ?? null,
+          tag_label: talentTagMap.get(r.talent_profile_id) ?? null,
+        }));
 
   const contactOptions = (
     (contactRows ?? []) as {
@@ -581,6 +669,8 @@ export default async function AdminInquiryDetailPage({
             inquiryId={inquiry.id}
             allTalents={(allTalents ?? []) as { id: string; profile_code: string; display_name: string | null }[]}
             rows={typedInquiryTalents}
+            engineV2={engineV2}
+            inquiryVersion={(inquiry as { version?: number }).version ?? 1}
           />
         </DashboardSectionCard>
 
@@ -602,6 +692,76 @@ export default async function AdminInquiryDetailPage({
             }}
           />
         </DashboardSectionCard>
+
+        {engineV2 ? (
+          <>
+            <DashboardSectionCard
+              title="Messages (private)"
+              description="Client ↔ coordinator thread for this inquiry."
+              titleClassName={ADMIN_SECTION_TITLE_CLASS}
+              className="xl:col-span-2"
+            >
+              <InquiryMessageThread
+                inquiryId={inquiry.id}
+                threadType="private"
+                initialMessages={v2PrivateMessages}
+                sendAction={actionSendInquiryMessage}
+              />
+            </DashboardSectionCard>
+
+            <DashboardSectionCard
+              title="Structured offer"
+              description="Draft line items, save, then send to the client."
+              titleClassName={ADMIN_SECTION_TITLE_CLASS}
+              className="xl:col-span-2"
+            >
+              {v2Offer ? (
+                <InquiryV2OfferEditor
+                  inquiryId={inquiry.id}
+                  inquiryVersion={(inquiry as { version?: number }).version ?? 1}
+                  offer={v2Offer}
+                  initialLines={v2OfferLines}
+                />
+              ) : (
+                <form action={actionCreateDraftOffer} className="flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="inquiry_id" value={inquiry.id} />
+                  <input
+                    type="hidden"
+                    name="expected_version"
+                    value={String((inquiry as { version?: number }).version ?? 1)}
+                  />
+                  <Button type="submit" variant="secondary">
+                    Create draft offer
+                  </Button>
+                  <p className="text-xs text-muted-foreground">Creates an empty draft and links it as the current offer.</p>
+                </form>
+              )}
+            </DashboardSectionCard>
+
+            <DashboardSectionCard
+              title="Approvals"
+              description="Per-offer confirmations (client + active talents)."
+              titleClassName={ADMIN_SECTION_TITLE_CLASS}
+              className="xl:col-span-2"
+            >
+              {v2Approvals.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No approval rows yet — they are created when an offer is sent.</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {v2Approvals.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex flex-wrap justify-between gap-2 rounded-xl border border-border/40 bg-muted/10 px-3 py-2"
+                    >
+                      <span className="font-mono text-xs text-muted-foreground">{a.participant_id.slice(0, 8)}…</span>
+                      <span className="font-medium capitalize">{a.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </DashboardSectionCard>
+          </>
+        ) : null}
       </div>
 
       {/* ── Operations — open by default so status is always visible ── */}
@@ -721,6 +881,8 @@ export default async function AdminInquiryDetailPage({
             defaultTitle={defaultBookingTitle}
             talents={convertTalents}
             existingBookings={existingBookingsForConvert}
+            engineV2={engineV2}
+            inquiryVersion={(inquiry as { version?: number }).version ?? 1}
           />
         </div>
       </SecondarySection>

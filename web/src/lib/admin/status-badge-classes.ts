@@ -20,9 +20,19 @@ export function adminInquiryStatusBadgeClass(status: string): string {
     case "qualified":
       return INQUIRY_PURPLE;
     case "converted":
+    case "booked":
+    case "approved":
       return INQUIRY_GREEN;
+    case "coordination":
+    case "offer_pending":
+    case "submitted":
+      return INQUIRY_BLUE;
+    case "rejected":
+    case "expired":
     case "closed_lost":
       return INQUIRY_RED;
+    case "draft":
+      return INQUIRY_MUTED;
     case "closed":
     case "archived":
       return INQUIRY_MUTED;

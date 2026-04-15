@@ -422,6 +422,15 @@ export async function addInquiryTalent(
   if ("error" in parsed) return { error: parsed.error };
   const { inquiry_id, talent_profile_id } = parsed.data;
 
+  const { data: inq } = await supabase
+    .from("inquiries")
+    .select("uses_new_engine")
+    .eq("id", inquiry_id)
+    .maybeSingle();
+  if (inq?.uses_new_engine) {
+    return { error: "This inquiry uses the v2 engine. Use the roster actions (participants) instead of inquiry_talent." };
+  }
+
   const { data: existing } = await supabase
     .from("inquiry_talent")
     .select("id")
@@ -470,6 +479,16 @@ export async function removeInquiryTalent(formData: FormData): Promise<void> {
   if ("error" in parsed) return;
   const { inquiry_id, inquiry_talent_id } = parsed.data;
 
+  const { data: inq } = await supabase
+    .from("inquiries")
+    .select("uses_new_engine")
+    .eq("id", inquiry_id)
+    .maybeSingle();
+  if (inq?.uses_new_engine) {
+    logServerError("admin/removeInquiryTalent/v2_guard", new Error("Attempted inquiry_talent delete on v2 inquiry"));
+    return;
+  }
+
   const { error } = await supabase.from("inquiry_talent").delete().eq("id", inquiry_talent_id).eq("inquiry_id", inquiry_id);
   if (error) {
     logServerError("admin/removeInquiryTalent", error);
@@ -495,6 +514,16 @@ export async function moveInquiryTalent(formData: FormData): Promise<void> {
   if (direction !== "up" && direction !== "down") return;
 
   const { inquiry_id, inquiry_talent_id } = parsed.data;
+
+  const { data: inq } = await supabase
+    .from("inquiries")
+    .select("uses_new_engine")
+    .eq("id", inquiry_id)
+    .maybeSingle();
+  if (inq?.uses_new_engine) {
+    logServerError("admin/moveInquiryTalent/v2_guard", new Error("Attempted inquiry_talent reorder on v2 inquiry"));
+    return;
+  }
 
   const { data: rows, error } = await supabase
     .from("inquiry_talent")

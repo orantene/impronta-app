@@ -54,6 +54,15 @@ export const INQUIRY_STATUS_VALUES = [
   "closed",
   "closed_lost",
   "archived",
+  /** Phase 2 canonical workflow */
+  "draft",
+  "submitted",
+  "coordination",
+  "offer_pending",
+  "approved",
+  "booked",
+  "rejected",
+  "expired",
 ] as const;
 
 export const CLIENT_ACCOUNT_TYPE_VALUES = [

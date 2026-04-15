@@ -104,7 +104,7 @@ export function ClientInquiryList({
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{formatInquiryStatus(inquiry.status)}</Badge>
                 <Button size="sm" variant="outline" asChild>
-                  <Link href={`/client/requests/${inquiry.id}`} scroll={false}>
+                  <Link href={`/client/inquiries/${inquiry.id}`} scroll={false}>
                     View
                   </Link>
                 </Button>

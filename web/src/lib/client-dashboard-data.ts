@@ -5,6 +5,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { subjectUserId } from "@/lib/impersonation/subject-user";
+import { loadInquiryRosterPeekMany } from "@/lib/inquiry/inquiry-workspace-data";
 
 export type ClientSaveRow = {
   talent_profile_id: string;
@@ -25,6 +26,7 @@ export type InquiryTalentRow = {
 export type ClientInquiryRow = {
   id: string;
   status: string;
+  uses_new_engine?: boolean;
   created_at: string;
   updated_at: string;
   guest_session_id: string | null;
@@ -40,6 +42,9 @@ export type ClientInquiryRow = {
   raw_ai_query: string | null;
   source_page: string | null;
   inquiry_talent: InquiryTalentRow[] | null;
+  /** Canonical roster preview line (v2 uses inquiry_participants, legacy uses inquiry_talent). */
+  roster_peek_line?: string;
+  roster_count?: number;
 };
 
 export type ClientDashboardData = {
@@ -111,6 +116,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
             `
           id,
           status,
+          uses_new_engine,
           created_at,
           updated_at,
           guest_session_id,
@@ -124,14 +130,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
           quantity,
           message,
           raw_ai_query,
-          source_page,
-          inquiry_talent (
-            talent_profile_id,
-            talent_profiles (
-              profile_code,
-              display_name
-            )
-          )
+          source_page
         `,
           )
           .eq("client_user_id", subjectId)
@@ -139,6 +138,81 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
       ]);
 
     const inquiryRows = (inquiries ?? []) as unknown as ClientInquiryRow[];
+    const legacyIds = inquiryRows.filter((r) => !r.uses_new_engine).map((r) => r.id);
+    const v2Ids = inquiryRows.filter((r) => Boolean(r.uses_new_engine)).map((r) => r.id);
+
+    const legacyMap = new Map<string, InquiryTalentRow[]>();
+    if (legacyIds.length) {
+      const { data: rows } = await supabase
+        .from("inquiry_talent")
+        .select(
+          `
+          inquiry_id,
+          talent_profile_id,
+          talent_profiles ( profile_code, display_name )
+        `,
+        )
+        .in("inquiry_id", legacyIds)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      for (const row of (rows ?? []) as Array<Record<string, unknown>>) {
+        const inquiryId = String(row.inquiry_id ?? "");
+        if (!inquiryId) continue;
+        const list = legacyMap.get(inquiryId) ?? [];
+        const tpRaw = row.talent_profiles as unknown;
+        const tp = (Array.isArray(tpRaw) ? tpRaw[0] : tpRaw) as { profile_code: string; display_name: string | null } | null;
+        list.push({
+          talent_profile_id: String(row.talent_profile_id ?? ""),
+          talent_profiles: tp,
+        });
+        legacyMap.set(inquiryId, list);
+      }
+    }
+
+    const v2Map = new Map<string, InquiryTalentRow[]>();
+    if (v2Ids.length) {
+      const { data: parts } = await supabase
+        .from("inquiry_participants")
+        .select(
+          `
+          inquiry_id,
+          talent_profile_id,
+          sort_order,
+          talent_profiles ( profile_code, display_name )
+        `,
+        )
+        .in("inquiry_id", v2Ids)
+        .eq("role", "talent")
+        .order("inquiry_id", { ascending: true })
+        .order("sort_order", { ascending: true });
+      for (const row of (parts ?? []) as Array<Record<string, unknown>>) {
+        const inquiryId = String(row.inquiry_id ?? "");
+        if (!inquiryId) continue;
+        const list = v2Map.get(inquiryId) ?? [];
+        const tpRaw = row.talent_profiles as unknown;
+        const tp = (Array.isArray(tpRaw) ? tpRaw[0] : tpRaw) as { profile_code: string; display_name: string | null } | null;
+        list.push({
+          talent_profile_id: String(row.talent_profile_id ?? ""),
+          talent_profiles: tp,
+        });
+        v2Map.set(inquiryId, list);
+      }
+    }
+
+    for (const row of inquiryRows) {
+      const roster = row.uses_new_engine ? v2Map.get(row.id) : legacyMap.get(row.id);
+      row.inquiry_talent = roster ?? [];
+    }
+
+    const peek = await loadInquiryRosterPeekMany(
+      supabase,
+      inquiryRows.map((r) => r.id),
+    );
+    for (const row of inquiryRows) {
+      const p = peek.get(row.id);
+      row.roster_peek_line = p?.labelLine ?? "No talent on shortlist";
+      row.roster_count = p?.count ?? 0;
+    }
     const eventTypeIds = Array.from(
       new Set(inquiryRows.map((inquiry) => inquiry.event_type_id).filter(Boolean)),
     ) as string[];

@@ -29,31 +29,7 @@ function relOne<T>(x: T | T[] | null | undefined): T | null {
   return Array.isArray(x) ? (x[0] ?? null) : x;
 }
 
-function talentPeekLine(row: {
-  inquiry_talent?:
-    | {
-        talent_profiles:
-          | { profile_code: string; display_name: string | null }
-          | { profile_code: string; display_name: string | null }[]
-          | null;
-      }[]
-    | null;
-}): string {
-  const rows = row.inquiry_talent ?? [];
-  if (rows.length === 0) return "No talent listed";
-  const labels = rows
-    .slice(0, 2)
-    .map((r) => {
-      const tp = relOne(r.talent_profiles);
-      if (!tp) return null;
-      return tp.display_name?.trim()
-        ? `${tp.profile_code} · ${tp.display_name}`
-        : tp.profile_code;
-    })
-    .filter(Boolean) as string[];
-  const extra = rows.length > 2 ? ` +${rows.length - 2}` : "";
-  return `${labels.join(", ")}${extra}`;
-}
+type RosterPeekMap = Record<string, { count: number; labelLine: string }>;
 
 type FetchedRow = {
   id: string;
@@ -63,14 +39,8 @@ type FetchedRow = {
   event_date: string | null;
   event_location: string | null;
   created_at: string;
-  inquiry_talent:
-    | {
-        talent_profiles:
-          | { profile_code: string; display_name: string | null }
-          | { profile_code: string; display_name: string | null }[]
-          | null;
-      }[]
-    | null;
+  roster_peek_line?: string;
+  roster_count?: number;
 };
 
 type LoadState =
@@ -130,10 +100,7 @@ export function AdminClientInquiriesPanelTrigger({
         company,
         event_date,
         event_location,
-        created_at,
-        inquiry_talent (
-          talent_profiles ( profile_code, display_name )
-        )
+        created_at
       `,
       )
       .eq("client_user_id", userId)
@@ -144,7 +111,20 @@ export function AdminClientInquiriesPanelTrigger({
       setLoad({ status: "error", message: error.message });
       return;
     }
-    setLoad({ status: "ready", rows: (data ?? []) as FetchedRow[] });
+    const baseRows = (data ?? []) as FetchedRow[];
+    const ids = baseRows.map((r) => r.id);
+    try {
+      const res = await fetch(`/api/admin/inquiries/roster-peek?ids=${encodeURIComponent(ids.join(","))}`);
+      const json = (await res.json()) as { map?: RosterPeekMap };
+      const peek = json.map ?? {};
+      for (const row of baseRows) {
+        row.roster_peek_line = peek[row.id]?.labelLine ?? "No talent on shortlist";
+        row.roster_count = peek[row.id]?.count ?? 0;
+      }
+    } catch {
+      // best-effort, panel remains functional without peek
+    }
+    setLoad({ status: "ready", rows: baseRows });
   }, [userId]);
 
   useEffect(() => {
@@ -242,7 +222,9 @@ export function AdminClientInquiriesPanelTrigger({
                         {[r.event_date, r.event_location?.trim()].filter(Boolean).join(" · ")}
                       </p>
                     ) : null}
-                    <p className="mt-1.5 text-[11px] text-muted-foreground">{talentPeekLine(r)}</p>
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      {r.roster_peek_line ?? "No talent on shortlist"}
+                    </p>
                   </Link>
                 </li>
               );

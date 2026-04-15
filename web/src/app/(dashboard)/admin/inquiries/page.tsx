@@ -20,41 +20,21 @@ import {
 import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { loadInquiryRosterPeekMany } from "@/lib/inquiry/inquiry-workspace-data";
 
 function relOne<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null;
   return Array.isArray(x) ? (x[0] ?? null) : x;
 }
 
-function inquiryTalentPeek(row: {
-  inquiry_talent?:
-    | {
-        talent_profile_id: string;
-        talent_profiles:
-          | { profile_code: string; display_name: string | null }
-          | { profile_code: string; display_name: string | null }[]
-          | null;
-      }[]
-    | null;
-}): { line: string; count: number } {
-  const rows = row.inquiry_talent ?? [];
-  const count = rows.length;
-  if (count === 0) return { line: "No talent on shortlist", count: 0 };
-  const labels = rows
-    .slice(0, 3)
-    .map((r) => {
-      const tp = relOne(r.talent_profiles);
-      if (!tp) return null;
-      return `${tp.profile_code}${tp.display_name ? ` · ${tp.display_name}` : ""}`;
-    })
-    .filter(Boolean) as string[];
-  const extra = count > 3 ? ` (+${count - 3} more)` : "";
-  return { line: `${labels.join(", ")}${extra}`, count };
+function inquiryTalentPeekFallback(): { line: string; count: number } {
+  return { line: "No talent on shortlist", count: 0 };
 }
 
 type RawInquiryRow = {
   id: string;
   status: string;
+  uses_new_engine: boolean;
   contact_name: string;
   contact_email: string;
   company: string | null;
@@ -69,15 +49,6 @@ type RawInquiryRow = {
   client_account_id: string | null;
   client_accounts: { name: string } | { name: string }[] | null;
   client_account_contacts: { full_name: string } | { full_name: string }[] | null;
-  inquiry_talent:
-    | {
-        talent_profile_id: string;
-        talent_profiles:
-          | { profile_code: string; display_name: string | null }
-          | { profile_code: string; display_name: string | null }[]
-          | null;
-      }[]
-    | null;
   agency_bookings: { id: string }[] | null;
 };
 
@@ -148,16 +119,12 @@ export default async function AdminInquiriesPage({
     .from("inquiries")
     .select(
       `
-      id, status, contact_name, contact_email, company,
+      id, status, uses_new_engine, contact_name, contact_email, company,
       event_date, event_location, quantity, guest_session_id,
       created_at, updated_at, assigned_staff_id,
       client_user_id, client_account_id, client_contact_id,
       client_accounts ( name ),
       client_account_contacts ( full_name ),
-      inquiry_talent (
-        talent_profile_id,
-        talent_profiles ( profile_code, display_name )
-      ),
       agency_bookings ( id )
     `,
     )
@@ -221,6 +188,10 @@ export default async function AdminInquiriesPage({
   }
 
   const rowList = (rawRows ?? []) as RawInquiryRow[];
+  const rosterPeek = await loadInquiryRosterPeekMany(
+    supabase,
+    rowList.map((r) => r.id),
+  );
 
   // Resolve platform client names
   const platformClientIds = [
@@ -271,7 +242,10 @@ export default async function AdminInquiriesPage({
 
   // Shape rows for the queue component
   const queueRows: InquiryQueueRow[] = rowList.map((row) => {
-    const talentPeek = inquiryTalentPeek(row);
+    const peek = rosterPeek.get(row.id);
+    const talentPeek = peek
+      ? { line: peek.labelLine, count: peek.count }
+      : inquiryTalentPeekFallback();
     return {
       id: row.id,
       status: row.status,

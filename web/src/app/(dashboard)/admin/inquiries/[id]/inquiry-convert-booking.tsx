@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { convertInquiryToBooking } from "@/app/(dashboard)/admin/bookings/actions";
+import { actionEngineConvertToBooking } from "@/app/(dashboard)/admin/inquiries/[id]/convert-booking-actions";
 import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
 import { BOOKING_STATUS_VALUES } from "@/lib/admin/validation";
 import { Button } from "@/components/ui/button";
@@ -23,14 +24,35 @@ export function InquiryConvertBookingPanel({
   defaultTitle,
   talents,
   existingBookings,
+  engineV2,
+  inquiryVersion = 1,
 }: {
   inquiryId: string;
   defaultTitle: string;
   talents: InquiryTalent[];
   existingBookings: ExistingBooking[];
+  engineV2?: boolean;
+  inquiryVersion?: number;
 }) {
   const [mode, setMode] = useState<"new" | "attach">("new");
   const talentListRef = useRef<HTMLUListElement>(null);
+
+  if (engineV2) {
+    return (
+      <form action={actionEngineConvertToBooking} className="space-y-4">
+        <p className="rounded-md border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Engine conversion</span> — requires status{" "}
+          <strong>approved</strong>, an <strong>accepted</strong> offer, and matching roster. Snapshot pricing into the
+          booking.
+        </p>
+        <input type="hidden" name="inquiry_id" value={inquiryId} />
+        <input type="hidden" name="expected_version" value={String(inquiryVersion)} />
+        <Button type="submit" className="w-full sm:w-auto">
+          Convert to booking
+        </Button>
+      </form>
+    );
+  }
 
   const setAllTalentChecks = (on: boolean) => {
     talentListRef.current?.querySelectorAll<HTMLInputElement>('input[name="talent_profile_ids"]').forEach((el) => {

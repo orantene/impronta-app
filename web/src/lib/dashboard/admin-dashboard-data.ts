@@ -1,4 +1,9 @@
 import { cache } from "react";
+import { loadTranslationCenterBootstrap } from "@/lib/translation-center/bootstrap";
+import {
+  mapBootstrapToAdminPulse,
+  type AdminTranslationHealth,
+} from "@/lib/translation-center/admin-pulse";
 import { requireStaff } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 
@@ -12,6 +17,12 @@ export type AdminOverviewActivityItem = {
   status: string;
 };
 
+export type InquiryEngineHealth = {
+  failedEffects: number;
+  needsCoordinator: number;
+  frozenInquiries: number;
+};
+
 export type AdminOverviewData = {
   counts: {
     totalTalent: number;
@@ -21,6 +32,7 @@ export type AdminOverviewData = {
     pendingMedia: number;
   };
   recentActivity: AdminOverviewActivityItem[];
+  inquiryEngineHealth?: InquiryEngineHealth | null;
 };
 
 /** Header pulse chips only — shared with {@link loadAdminOverviewData} via request cache. */
@@ -68,57 +80,15 @@ export const loadAdminShellPulseCounts = cache(
   },
 );
 
-/** Translation gap counts for the admin dashboard (aligned with /admin/translations hub queries). */
-export type AdminTranslationHealth = {
-  profilesMissingSpanish: number;
-  profilesStale: number;
-  profilesDraftPending: number;
-  taxonomyMissingSpanish: number;
-  locationsMissingSpanish: number;
-};
+export type { AdminTranslationHealth } from "@/lib/translation-center/admin-pulse";
 
 export const loadAdminTranslationHealth = cache(async (): Promise<AdminTranslationHealth | null> => {
   const auth = await requireStaff();
   if (!auth.ok) return null;
 
   const { supabase } = auth;
-
-  const [cMissing, cStale, cDraft, cTaxGaps, cLocGaps] = await Promise.all([
-    supabase
-      .from("talent_profiles")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .eq("bio_es_status", "missing"),
-    supabase
-      .from("talent_profiles")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .eq("bio_es_status", "stale"),
-    supabase
-      .from("talent_profiles")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .not("bio_es_draft", "is", null)
-      .neq("bio_es_draft", ""),
-    supabase
-      .from("taxonomy_terms")
-      .select("id", { count: "exact", head: true })
-      .is("archived_at", null)
-      .or("name_es.is.null,name_es.eq."),
-    supabase
-      .from("locations")
-      .select("id", { count: "exact", head: true })
-      .is("archived_at", null)
-      .or("display_name_es.is.null,display_name_es.eq."),
-  ]);
-
-  return {
-    profilesMissingSpanish: cMissing.error ? 0 : (cMissing.count ?? 0),
-    profilesStale: cStale.error ? 0 : (cStale.count ?? 0),
-    profilesDraftPending: cDraft.error ? 0 : (cDraft.count ?? 0),
-    taxonomyMissingSpanish: cTaxGaps.error ? 0 : (cTaxGaps.count ?? 0),
-    locationsMissingSpanish: cLocGaps.error ? 0 : (cLocGaps.count ?? 0),
-  };
+  const bootstrap = await loadTranslationCenterBootstrap(supabase);
+  return mapBootstrapToAdminPulse(bootstrap);
 });
 
 export type AdminClientListRow = {
@@ -169,7 +139,30 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
   const counts = await loadAdminShellPulseCounts();
   if (!counts) return null;
 
-  const [recentInquiries, recentTalent, recentMedia] = await Promise.all([
+  const [engineHealth, recentInquiries, recentTalent, recentMedia] = await Promise.all([
+    (async (): Promise<InquiryEngineHealth | null> => {
+      const [failed, needs, froz] = await Promise.all([
+        supabase
+          .from("inquiries")
+          .select("id", { count: "exact", head: true })
+          .eq("has_failed_effects", true),
+        supabase
+          .from("inquiries")
+          .select("id", { count: "exact", head: true })
+          .eq("uses_new_engine", true)
+          .is("coordinator_id", null)
+          .eq("status", "submitted" as never),
+        supabase
+          .from("inquiries")
+          .select("id", { count: "exact", head: true })
+          .eq("is_frozen", true),
+      ]);
+      return {
+        failedEffects: failed.count ?? 0,
+        needsCoordinator: needs.count ?? 0,
+        frozenInquiries: froz.count ?? 0,
+      };
+    })(),
     supabase
       .from("inquiries")
       .select("id, status, contact_name, created_at")
@@ -233,6 +226,7 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
   return {
     counts,
     recentActivity: recentActivity.slice(0, 8),
+    inquiryEngineHealth: engineHealth,
   };
 });
 

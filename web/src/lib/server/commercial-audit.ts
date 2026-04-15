@@ -25,7 +25,7 @@ export async function logInquiryActivity(
   supabase: SupabaseClient,
   args: {
     inquiryId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     eventType: string;
     payload?: Record<string, unknown>;
   },

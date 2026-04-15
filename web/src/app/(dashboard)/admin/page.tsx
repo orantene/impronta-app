@@ -17,17 +17,21 @@ export default async function AdminDashboardPage() {
 
   const th = translationHealth ?? {
     profilesMissingSpanish: 0,
-    profilesStale: 0,
-    profilesDraftPending: 0,
+    profilesNeedsAttention: 0,
     taxonomyMissingSpanish: 0,
     locationsMissingSpanish: 0,
+    cmsMissingSpanish: 0,
+    messagesMissingEs: 0,
+    profileFieldsMissingEs: 0,
   };
   const translationAttentionTotal =
     th.profilesMissingSpanish +
-    th.profilesStale +
-    th.profilesDraftPending +
+    th.profilesNeedsAttention +
     th.taxonomyMissingSpanish +
-    th.locationsMissingSpanish;
+    th.locationsMissingSpanish +
+    th.cmsMissingSpanish +
+    th.messagesMissingEs +
+    th.profileFieldsMissingEs;
 
   const overviewLinks = [
     {
@@ -73,14 +77,39 @@ export default async function AdminDashboardPage() {
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Translations need attention</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                {translationAttentionTotal} open item{translationAttentionTotal === 1 ? "" : "s"} across bios,
-                taxonomy, and locations.
+                {translationAttentionTotal} open item{translationAttentionTotal === 1 ? "" : "s"} across the
+                Translation Center registry (bios, taxonomy, locations, CMS, UI strings, profile fields).
               </p>
             </div>
           </div>
           <Button asChild size="sm" className="shrink-0 rounded-xl">
             <Link href="/admin/translations" scroll={false}>
               Open translations
+              <ArrowRight className="ml-1 size-4" aria-hidden />
+            </Link>
+          </Button>
+        </div>
+      ) : null}
+
+      {overview?.inquiryEngineHealth &&
+      (overview.inquiryEngineHealth.failedEffects > 0 ||
+        overview.inquiryEngineHealth.needsCoordinator > 0 ||
+        overview.inquiryEngineHealth.frozenInquiries > 0) ? (
+        <div
+          className="flex flex-col gap-2 rounded-2xl border border-sky-500/35 bg-sky-500/[0.06] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+          role="status"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Inquiry engine (v2) signals</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Failed effects: {overview.inquiryEngineHealth.failedEffects} · Needs coordinator:{" "}
+              {overview.inquiryEngineHealth.needsCoordinator} · Frozen:{" "}
+              {overview.inquiryEngineHealth.frozenInquiries}
+            </p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="shrink-0 rounded-xl">
+            <Link href="/admin/inquiries" scroll={false}>
+              Open inquiries
               <ArrowRight className="ml-1 size-4" aria-hidden />
             </Link>
           </Button>
@@ -94,7 +123,7 @@ export default async function AdminDashboardPage() {
         >
           Translation health
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
           {(
             [
               {
@@ -104,28 +133,41 @@ export default async function AdminDashboardPage() {
                 description: "Talent profiles with no Spanish bio.",
               },
               {
-                title: "Bios stale",
-                count: th.profilesStale,
-                href: translationsHref({ view: "bio", status: "stale" }),
-                description: "English changed after Spanish was published.",
-              },
-              {
-                title: "Draft pending",
-                count: th.profilesDraftPending,
-                href: translationsHref({ view: "bio", status: "draft" }),
-                description: "Unpublished Spanish drafts waiting in the hub.",
+                title: "Bios: needs attention",
+                count: th.profilesNeedsAttention,
+                href: translationsHref({ view: "bio", status: "needs_attention" }),
+                description:
+                  "Stale flags, buffer copies, identical EN/ES, or other non-blocking checks — not profile approval.",
               },
               {
                 title: "Taxonomy gaps",
                 count: th.taxonomyMissingSpanish,
-                href: translationsHref({ view: "taxonomy", status: "needs_attention" }),
+                href: translationsHref({ view: "taxonomy", status: "missing" }),
                 description: "Terms without Spanish labels.",
               },
               {
                 title: "Location gaps",
                 count: th.locationsMissingSpanish,
-                href: translationsHref({ view: "locations", status: "needs_attention" }),
+                href: translationsHref({ view: "locations", status: "missing" }),
                 description: "Cities without Spanish display names.",
+              },
+              {
+                title: "CMS page title gaps",
+                count: th.cmsMissingSpanish,
+                href: translationsHref({ view: "cms", status: "missing" }),
+                description: "English CMS page titles without Spanish peer title.",
+              },
+              {
+                title: "UI string gaps",
+                count: th.messagesMissingEs,
+                href: translationsHref({ view: "messages", status: "missing" }),
+                description: "Message keys missing in es.json.",
+              },
+              {
+                title: "Profile field (i18n) gaps",
+                count: th.profileFieldsMissingEs,
+                href: translationsHref({ view: "profile_fields", status: "missing" }),
+                description: "Translatable custom fields missing Spanish text.",
               },
             ] as const
           ).map((card) => (

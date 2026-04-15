@@ -14,6 +14,8 @@ import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
+import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
+import { getInquiryEngineV2Enabled } from "@/lib/inquiry/inquiry-settings";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -390,6 +392,59 @@ export async function submitClientInquiry(
     submittedVia: "client",
   });
 
+  const v2Enabled = await getInquiryEngineV2Enabled(supabase);
+  if (v2Enabled) {
+    const admin = createServiceRoleClient();
+    if (!admin) {
+      return { error: t("public.forms.inquiry.supabaseNotConfigured") };
+    }
+    const v2 = await submitInquiry(admin, {
+      contact_name,
+      contact_email,
+      contact_phone: contact_phone || null,
+      company: company || null,
+      event_date: event_date || null,
+      event_location: event_location || null,
+      quantity: quantity ?? null,
+      message: message || null,
+      event_type_id: event_type_id ?? null,
+      raw_ai_query: raw_query || null,
+      interpreted_query,
+      source_page: source_page || "/directory",
+      source_channel: "directory_client",
+      client_user_id: user.id,
+      talent_profile_ids: talentIds,
+      actorUserId: user.id,
+    });
+    if (!v2.success) {
+      logServerError("directory/submitClientInquiry/v2", new Error(JSON.stringify(v2)));
+      return { error: t("public.errors.inquiry") };
+    }
+    await supabase
+      .from("saved_talent")
+      .delete()
+      .eq("client_user_id", user.id)
+      .in("talent_profile_id", talentIds);
+
+    const locale = await getRequestLocale();
+    await logAnalyticsEventServer({
+      name: PRODUCT_ANALYTICS_EVENTS.submit_inquiry,
+      payload: {
+        locale,
+        talent_id: talentIds[0],
+        inquiry_type: "directory_client_v2",
+        source_page: source_page || "/directory",
+      },
+      userId: user.id,
+      path: source_page || "/directory",
+      locale,
+    });
+
+    revalidatePath("/client");
+    revalidatePath("/directory");
+    redirect("/directory?inquiry=submitted");
+  }
+
   const { data: inquiry, error: insErr } = await supabase
     .from("inquiries")
     .insert({
@@ -620,6 +675,8 @@ export async function submitGuestInquiry(
       source_page: source_page || "/directory",
       source_channel: "directory_guest" as never,
       status: "new",
+      // Explicit legacy isolation: guest submissions do not create v2 inquiries yet.
+      uses_new_engine: false,
     })
     .select("id")
     .single();
@@ -634,6 +691,16 @@ export async function submitGuestInquiry(
     talent_profile_id,
     sort_order: index,
   }));
+
+  const { data: engineFlagRow } = await admin
+    .from("inquiries")
+    .select("uses_new_engine")
+    .eq("id", inquiry.id)
+    .maybeSingle();
+  if (engineFlagRow?.uses_new_engine) {
+    logServerError("directory/submitGuestInquiry/v2_guard", new Error("Guest inquiry unexpectedly marked uses_new_engine=true"));
+    return { error: t("public.errors.inquiry") };
+  }
 
   const { error: linkErr } = await admin.from("inquiry_talent").insert(linkRows);
   if (linkErr) {

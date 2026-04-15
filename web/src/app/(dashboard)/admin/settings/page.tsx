@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SlidersHorizontal, Sparkles } from "lucide-react";
+import { Languages, SlidersHorizontal, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
@@ -70,6 +70,37 @@ const KNOWN_SETTINGS: Array<{
     type: "toggle",
   },
   {
+    key: "inquiry_engine_v2_enabled",
+    label: "Inquiry engine v2 (Phase 2)",
+    description:
+      "When on, new inquiries created through v2 paths use the workflow engine (participants, offers, messaging).",
+    type: "toggle",
+  },
+  {
+    key: "default_coordinator_user_id",
+    label: "Default coordinator (agency)",
+    description: "Profile UUID for auto-assigned coordinator on agency-sourced inquiries.",
+    type: "text",
+  },
+  {
+    key: "platform_coordinator_user_id",
+    label: "Platform coordinator (hub)",
+    description: "Profile UUID used when source_type is hub.",
+    type: "text",
+  },
+  {
+    key: "coordinator_timeout_hours",
+    label: "Coordinator acceptance timeout (hours)",
+    description: "How long to wait before timing out a pending coordinator assignment.",
+    type: "text",
+  },
+  {
+    key: "inquiry_expiry_hours",
+    label: "Default inquiry expiry window (hours)",
+    description: "Used when setting expires_at on new inquiries (app logic).",
+    type: "text",
+  },
+  {
     key: "dashboard_theme",
     label: "Dashboard theme",
     description: "Switch the internal dashboard between dark and light appearance.",
@@ -131,6 +162,20 @@ export default async function AdminSettingsPage() {
           Supabase not configured — settings cannot be loaded or saved.
         </p>
       )}
+
+      <DashboardSectionCard
+        title="Languages & locales"
+        description="Add locales, defaults, public visibility, and translation inventory refresh."
+        titleClassName={ADMIN_SECTION_TITLE_CLASS}
+      >
+        <Link
+          href="/admin/settings/languages"
+          className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card/40 px-4 py-3 text-sm font-medium text-primary shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/20"
+        >
+          <Languages className="size-4 shrink-0" aria-hidden />
+          Language settings
+        </Link>
+      </DashboardSectionCard>
 
       <DashboardSectionCard
         title="AI settings"

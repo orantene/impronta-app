@@ -24,6 +24,8 @@ import {
   buildBioEnEditExtras,
   type TalentBioRow,
 } from "@/lib/translation/talent-bio-translation-service";
+import { assertLocaleConsistency } from "@/lib/translation-center/save/assert-locale-consistency";
+import type { Locale } from "@/i18n/config";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 
 export type TalentFormState =
@@ -40,7 +42,7 @@ export async function updateTalentProfile(
 
   const { data: profileRow, error: profileError } = await supabase
     .from("talent_profiles")
-    .select("id, bio_en, bio_es, bio_es_draft, bio_es_status, short_bio")
+    .select("id, bio_en, bio_es, bio_es_draft, bio_es_status, bio_en_draft, bio_en_status, short_bio")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -50,6 +52,12 @@ export async function updateTalentProfile(
   const first_name = String(formData.get("first_name") ?? "").trim();
   const last_name = String(formData.get("last_name") ?? "").trim();
   const short_bio = String(formData.get("short_bio") ?? "").trim();
+  const editedLocaleRaw = String(formData.get("edited_locale") ?? "en");
+  const editedLocale: Locale = editedLocaleRaw === "es" ? "es" : "en";
+  const localeGate = assertLocaleConsistency(short_bio, editedLocale);
+  if (!localeGate.ok) {
+    return { error: localeGate.message };
+  }
   const phone = String(formData.get("phone") ?? "").trim();
   const gender = String(formData.get("gender") ?? "").trim();
   const date_of_birth = String(formData.get("date_of_birth") ?? "").trim();
