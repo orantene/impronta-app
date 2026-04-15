@@ -9,10 +9,8 @@ import {
 import type { EngineErr } from "@/lib/inquiry/inquiry-engine.types";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireStaff } from "@/lib/server/action-guards";
-import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { sendEmail } from "@/lib/email";
-import { talentInvitedEmail } from "@/lib/email/templates";
-import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { CLIENT_ERROR } from "@/lib/server/safe-error";
+import { sendTalentInvitedNotification } from "@/lib/email/inquiry-notifications";
 
 function mapRosterEngineFailure(res: EngineErr): ActionResult {
   if (res.forbidden) {
@@ -58,42 +56,7 @@ export async function rosterAddTalent(formData: FormData): Promise<ActionResult>
   }
 
   revalidatePath(`/admin/inquiries/${inquiryId}`);
-
-  // Fire-and-forget invitation email to the talent
-  void (async () => {
-    try {
-      const adminClient = createServiceRoleClient();
-      const { data: tp } = await supabase
-        .from("talent_profiles")
-        .select("user_id, display_name")
-        .eq("id", talentProfileId)
-        .maybeSingle();
-
-      if (tp?.user_id && adminClient) {
-        const { data: authUser } = await adminClient.auth.admin.getUserById(tp.user_id as string);
-        const talentEmail = authUser?.user?.email;
-        if (talentEmail) {
-          const { data: inq } = await supabase
-            .from("inquiries")
-            .select("contact_name, event_date, event_location")
-            .eq("id", inquiryId)
-            .maybeSingle();
-          const tmpl = talentInvitedEmail({
-            talentName: (tp.display_name as string | null) ?? null,
-            talentEmail,
-            inquiryId,
-            contactName: (inq?.contact_name as string | null) ?? null,
-            eventDate: (inq?.event_date as string | null) ?? null,
-            eventLocation: (inq?.event_location as string | null) ?? null,
-          });
-          await sendEmail({ to: talentEmail, ...tmpl });
-        }
-      }
-    } catch (err) {
-      logServerError("rosterAddTalent/email", err);
-    }
-  })();
-
+  void sendTalentInvitedNotification({ supabase, inquiryId, talentProfileId });
   return { ok: true, message: "Talent added to shortlist." };
 }
 
