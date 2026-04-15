@@ -16,6 +16,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
@@ -40,7 +41,8 @@ export default async function HomePage() {
 
   const [aiFlags, publicSettings] = await Promise.all([getAiFeatureFlags(), getPublicSettings()]);
   /** Home hero must match `/api/ai/interpret-search` gate (`directory_public`). */
-  const aiHeroSearchEnabled = aiFlags.ai_search_enabled && publicSettings.directoryPublic;
+  const aiHeroSearchEnabled =
+    aiFlags.ai_master_enabled && aiFlags.ai_search_enabled && publicSettings.directoryPublic;
   const heroSearchCopy = {
     placeholder: t("public.home.hero.searchPlaceholder"),
     ariaLabel: t("public.home.hero.searchAria"),
@@ -83,6 +85,8 @@ export default async function HomePage() {
   const bestForCopy = {
     sectionKicker: t("public.home.bestFor.sectionKicker"),
     sectionTitle: t("public.home.bestFor.sectionTitle"),
+    showMore: t("public.home.bestFor.showMore"),
+    showLess: t("public.home.bestFor.showLess"),
   };
 
   const locationCopy = {
@@ -90,16 +94,26 @@ export default async function HomePage() {
     sectionTitle: t("public.home.location.sectionTitle"),
     talentCountOne: t("public.home.location.talentCountOne"),
     talentCountMany: t("public.home.location.talentCountMany"),
+    viewTalents: t("public.home.location.viewTalents"),
+    mapLoadErrorTitle: t("public.home.location.mapLoadErrorTitle"),
+    mapLoadErrorBody: t("public.home.location.mapLoadErrorBody"),
+    mapLoadErrorOpenConsole: t("public.home.location.mapLoadErrorOpenConsole"),
+    mapPinPreviewAria: t("public.home.location.mapPinPreviewAria"),
+    mapPinPreviewPhotoAlt: t("public.home.location.mapPinPreviewPhotoAlt"),
   };
+
+  /** Same GCP key as Places is fine if Maps JavaScript API is enabled; public var overrides when set. */
+  const mapsApiKey = readGoogleMapsBrowserKey();
 
   const year = new Date().getFullYear();
 
   return (
+    <div className="flex min-h-full flex-1 flex-col bg-background">
     <PublicDiscoveryStateProvider>
       <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
       <PublicHeader />
       <main className="flex flex-1 flex-col">
-        <section className="relative flex flex-col items-center justify-center px-4 pb-8 pt-20 sm:px-6 sm:pb-12 sm:pt-28 lg:px-8">
+        <section className="relative flex flex-col items-center justify-center px-4 pb-6 pt-16 sm:px-6 sm:pb-12 sm:pt-28 lg:px-8">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(212,175,55,0.12),transparent)]"
@@ -158,7 +172,12 @@ export default async function HomePage() {
           <hr className="border-[var(--impronta-gold-border)]" />
         </div>
 
-        <LocationSection locations={locations} locale={locale} copy={locationCopy} />
+        <LocationSection
+          locations={locations}
+          locale={locale}
+          copy={locationCopy}
+          mapsApiKey={mapsApiKey}
+        />
 
         <HowItWorks copy={howItWorksCopy} />
 
@@ -182,5 +201,6 @@ export default async function HomePage() {
         </footer>
       </main>
     </PublicDiscoveryStateProvider>
+    </div>
   );
 }

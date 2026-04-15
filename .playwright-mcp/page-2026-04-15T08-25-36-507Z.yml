@@ -1,0 +1,930 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: Impronta
+        - button "Collapse sidebar" [ref=e6]:
+          - img
+      - navigation [ref=e7]:
+        - generic [ref=e8]:
+          - generic [ref=e9]:
+            - button "Dashboard" [ref=e10]:
+              - img [ref=e11]
+              - generic [ref=e13]: Dashboard
+            - region "Dashboard":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin
+                      - img
+                      - generic: Overview
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e14]:
+            - button "Operations" [expanded] [ref=e15]:
+              - img [ref=e16]
+              - generic [ref=e18]: Operations
+            - region "Operations" [ref=e19]:
+              - generic [ref=e21]:
+                - generic [ref=e23]:
+                  - link "Inquiries" [ref=e24] [cursor=pointer]:
+                    - /url: /admin/inquiries
+                    - img [ref=e25]
+                    - generic [ref=e28]: Inquiries
+                  - generic [ref=e29]:
+                    - button "Pin to sidebar top" [ref=e30]:
+                      - img [ref=e31]
+                    - button "Show in top shortcuts bar" [ref=e33]:
+                      - img [ref=e34]
+                - generic [ref=e37]:
+                  - link "Bookings" [ref=e38] [cursor=pointer]:
+                    - /url: /admin/bookings
+                    - img [ref=e39]
+                    - generic [ref=e42]: Bookings
+                  - generic [ref=e43]:
+                    - button "Pin to sidebar top" [ref=e44]:
+                      - img [ref=e45]
+                    - button "Show in top shortcuts bar" [ref=e47]:
+                      - img [ref=e48]
+                - generic [ref=e51]:
+                  - link "Work locations" [ref=e52] [cursor=pointer]:
+                    - /url: /admin/accounts
+                    - img [ref=e53]
+                    - generic [ref=e57]: Work locations
+                  - generic [ref=e58]:
+                    - button "Pin to sidebar top" [ref=e59]:
+                      - img [ref=e60]
+                    - button "Show in top shortcuts bar" [ref=e62]:
+                      - img [ref=e63]
+          - generic [ref=e65]:
+            - button "Talent" [ref=e66]:
+              - img [ref=e67]
+              - generic [ref=e69]: Talent
+            - region "Talent":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/talent
+                      - img
+                      - generic: All talent
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/talent
+                      - img
+                      - generic: Applications
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/talent
+                      - img
+                      - generic: Featured
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/talent
+                      - img
+                      - generic: Hidden
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e70]:
+            - button "Clients" [ref=e71]:
+              - img [ref=e72]
+              - generic [ref=e74]: Clients
+            - region "Clients":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/clients
+                      - img
+                      - generic: Clients
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e75]:
+            - button "Media" [ref=e76]:
+              - img [ref=e77]
+              - generic [ref=e79]: Media
+            - region "Media":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/media
+                      - img
+                      - generic: Pending approvals
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/media?tab=library
+                      - img
+                      - generic: Library
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e80]:
+            - button "Website" [ref=e81]:
+              - img [ref=e82]
+              - generic [ref=e84]: Website
+            - region "Website":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/content/pages
+                      - img
+                      - generic: Pages
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/content/navigation
+                      - img
+                      - generic: Navigation
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/content/posts
+                      - img
+                      - generic: Posts
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/content/redirects
+                      - img
+                      - generic: Redirects
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/seo
+                      - img
+                      - generic: SEO
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e85]:
+            - button "Directory" [ref=e86]:
+              - img [ref=e87]
+              - generic [ref=e89]: Directory
+            - region "Directory":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/fields
+                      - img
+                      - generic: Fields
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/directory/filters
+                      - img
+                      - generic: Filters
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/taxonomy
+                      - img
+                      - generic: Taxonomy
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/locations
+                      - img
+                      - generic: Locations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e90]:
+            - button "Docs" [ref=e91]:
+              - img [ref=e92]
+              - generic [ref=e94]: Docs
+            - region "Docs":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs
+                      - img
+                      - generic: Overview
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/ai
+                      - img
+                      - generic: AI Documentation
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/search
+                      - img
+                      - generic: Search & Ranking
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/talent
+                      - img
+                      - generic: Talent System
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/clients
+                      - img
+                      - generic: Clients & Inquiries
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/directory
+                      - img
+                      - generic: Directory & Filters
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/taxonomy
+                      - img
+                      - generic: Taxonomy & Attributes
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/featured
+                      - img
+                      - generic: Featured & Visibility
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/analytics
+                      - img
+                      - generic: Analytics
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/translations
+                      - img
+                      - generic: Translations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/permissions
+                      - img
+                      - generic: Permissions & Roles
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/api
+                      - img
+                      - generic: API & Integrations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/settings
+                      - img
+                      - generic: Settings & Feature Flags
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/troubleshooting
+                      - img
+                      - generic: Troubleshooting
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/release-notes
+                      - img
+                      - generic: Release Notes
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e95]:
+            - button "AI" [ref=e96]:
+              - img [ref=e97]
+              - generic [ref=e99]: AI
+            - region "AI":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace
+                      - img
+                      - generic: AI workspace
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace/settings
+                      - img
+                      - generic: AI Settings
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace/logs
+                      - img
+                      - generic: Search logs
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace/match-preview
+                      - img
+                      - generic: Match preview
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace/console
+                      - img
+                      - generic: Console
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e100]:
+            - button "Analytics" [ref=e101]:
+              - img [ref=e102]
+              - generic [ref=e104]: Analytics
+            - region "Analytics":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/overview
+                      - img
+                      - generic: Executive
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/acquisition
+                      - img
+                      - generic: Traffic
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/funnels
+                      - img
+                      - generic: Funnels
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/talent
+                      - img
+                      - generic: Marketplace
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/search
+                      - img
+                      - generic: AI / Search
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/seo
+                      - img
+                      - generic: SEO
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e105]:
+            - button "System" [ref=e106]:
+              - img [ref=e107]
+              - generic [ref=e109]: System
+            - region "System":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/translations
+                      - img
+                      - generic: Translations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/settings
+                      - img
+                      - generic: Site settings
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/users/search
+                      - img
+                      - generic: Users — search
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/users/admins
+                      - img
+                      - generic: Users — admins
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/account
+                      - img
+                      - generic: Account
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+      - generic [ref=e110]:
+        - button "Sign out" [ref=e112]:
+          - img
+          - text: Sign out
+        - link "Exit to site" [ref=e113] [cursor=pointer]:
+          - /url: /
+          - img
+          - text: Exit to site
+    - generic [ref=e114]:
+      - banner [ref=e115]:
+        - 'button "Search anything… ⌘K Opens search. Keyboard shortcut: Command K or Control K." [ref=e117]':
+          - img [ref=e118]
+          - img [ref=e121]
+          - generic [ref=e124]: Search anything…
+          - generic [ref=e125]: ⌘K
+          - generic [ref=e126]: "Opens search. Keyboard shortcut: Command K or Control K."
+        - generic [ref=e127]:
+          - group "Language" [ref=e128]:
+            - button "EN" [ref=e129]
+            - generic [ref=e130]: "|"
+            - button "ES" [ref=e131]
+          - button "Use light workspace" [ref=e132]:
+            - img
+          - button "Panel" [ref=e133]:
+            - img
+            - text: Panel
+          - button "Sign out" [ref=e135]:
+            - img
+            - text: Sign out
+      - main [ref=e137]:
+        - generic [ref=e140]:
+          - generic [ref=e141]:
+            - generic [ref=e142]:
+              - img [ref=e144]
+              - generic [ref=e146]:
+                - heading "Requests" [level=1] [ref=e147]
+                - generic [ref=e148]: 4 requests in this view
+            - generic [ref=e150]:
+              - generic [ref=e151]:
+                - button "New inquiry" [ref=e152]
+                - button "New Work Location" [ref=e153]
+              - button "How it works" [ref=e154]:
+                - img
+                - text: How it works
+          - navigation "Request status" [ref=e155]:
+            - generic [ref=e156]:
+              - link "All" [ref=e157] [cursor=pointer]:
+                - /url: /admin/inquiries
+              - link "New" [ref=e158] [cursor=pointer]:
+                - /url: /admin/inquiries?status=new
+              - link "Reviewing" [ref=e159] [cursor=pointer]:
+                - /url: /admin/inquiries?status=reviewing
+              - link "In progress" [ref=e160] [cursor=pointer]:
+                - /url: /admin/inquiries?status=in_progress
+              - link "Waiting" [ref=e161] [cursor=pointer]:
+                - /url: /admin/inquiries?status=waiting_for_client
+              - link "Suggested" [ref=e162] [cursor=pointer]:
+                - /url: /admin/inquiries?status=talent_suggested
+              - link "Converted" [ref=e163] [cursor=pointer]:
+                - /url: /admin/inquiries?status=converted
+              - link "Closed" [ref=e164] [cursor=pointer]:
+                - /url: /admin/inquiries?status=closed
+              - link "Archived" [ref=e165] [cursor=pointer]:
+                - /url: /admin/inquiries?status=archived
+          - generic [ref=e166]:
+            - heading "Search & filters" [level=2] [ref=e169]:
+              - generic [ref=e171]: Search & filters
+            - generic [ref=e174]:
+              - generic [ref=e175]:
+                - text: Search
+                - textbox "Search" [ref=e176]:
+                  - /placeholder: Contact, company, location…
+              - generic [ref=e177]:
+                - text: Assigned to
+                - combobox "Assigned to" [ref=e178]:
+                  - option "All staff" [selected]
+                  - option "Dev Staff"
+                  - option "Oran Tene"
+              - generic [ref=e179]:
+                - text: From
+                - textbox "From" [ref=e180]
+              - generic [ref=e181]:
+                - text: To
+                - textbox "To" [ref=e182]
+              - generic [ref=e183]:
+                - button "Apply" [ref=e184]
+                - link "Mine" [ref=e185] [cursor=pointer]:
+                  - /url: /admin/inquiries?assigned_staff_id=191c2760-9893-4dbf-b7da-89807bf5857d
+          - table [ref=e187]:
+            - rowgroup [ref=e188]:
+              - row "Contact Status Client / Location Talent Bookings Actions" [ref=e189]:
+                - columnheader "Contact" [ref=e190]
+                - columnheader "Status" [ref=e191]
+                - columnheader "Client / Location" [ref=e192]
+                - columnheader "Talent" [ref=e193]
+                - columnheader "Bookings" [ref=e194]
+                - columnheader "Actions" [ref=e195]
+            - rowgroup [ref=e196]:
+              - button "Open inquiry from test name" [ref=e197] [cursor=pointer]:
+                - cell "test name wr51351@gmail.com" [ref=e198]:
+                  - generic [ref=e199]:
+                    - generic [ref=e200]: TN
+                    - generic [ref=e201]:
+                      - paragraph [ref=e202]: test name
+                      - paragraph [ref=e203]: wr51351@gmail.com
+                - cell "New Oran Tene" [ref=e204]:
+                  - generic [ref=e205]: New
+                  - paragraph [ref=e206]: Oran Tene
+                - cell "Mamita's Beach Club" [ref=e207]:
+                  - paragraph [ref=e208]: Mamita's Beach Club
+                - cell "2models" [ref=e209]:
+                  - generic [ref=e211]: 2models
+                - cell "—" [ref=e212]
+                - cell "Open inquiry Preview Status New Take ownership Open Duplicate Same account" [ref=e213]:
+                  - generic [ref=e214]:
+                    - link "Open inquiry" [ref=e215]:
+                      - /url: /admin/inquiries/3c310940-9460-4121-bd90-ed6213eddfb1
+                      - img
+                    - button "Preview" [ref=e216]
+                    - generic [ref=e217]:
+                      - generic [ref=e218]:
+                        - generic [ref=e219]: Status
+                        - combobox "Status" [ref=e220]:
+                          - option "New" [selected]
+                          - option "Under review"
+                          - option "Waiting for you"
+                          - option "Talent suggested"
+                          - option "In progress"
+                          - option "Qualified"
+                          - option "Converted"
+                          - option "Closed"
+                          - option "Closed (lost)"
+                          - option "Archived"
+                          - option "Draft"
+                          - option "Submitted"
+                          - option "Coordination"
+                          - option "Offer pending"
+                          - option "Approved"
+                          - option "Booked"
+                          - option "Rejected"
+                          - option "Expired"
+                      - button "Take ownership" [ref=e222]
+                      - link "Open" [ref=e223]:
+                        - /url: /admin/inquiries/3c310940-9460-4121-bd90-ed6213eddfb1
+                      - link "Duplicate" [ref=e224]:
+                        - /url: /admin/inquiries/3c310940-9460-4121-bd90-ed6213eddfb1#duplicate-inquiry
+                      - link "Same account" [ref=e225]:
+                        - /url: /admin/inquiries?client_account_id=bd9638c8-2d7f-4a5f-ad80-b74dc58ca664
+              - button "Open inquiry from Test" [ref=e226] [cursor=pointer]:
+                - cell "Test orantene@awfasfaasfa.hddg" [ref=e227]:
+                  - generic [ref=e228]:
+                    - generic [ref=e229]: T
+                    - generic [ref=e230]:
+                      - paragraph [ref=e231]: Test
+                      - paragraph [ref=e232]: orantene@awfasfaasfa.hddg
+                - cell "New Oran Tene" [ref=e233]:
+                  - generic [ref=e234]: New
+                  - paragraph [ref=e235]: Oran Tene
+                - cell "Mamita's Beach Club" [ref=e236]:
+                  - paragraph [ref=e237]: Mamita's Beach Club
+                - cell "1model" [ref=e238]:
+                  - generic [ref=e240]: 1model
+                - cell "—" [ref=e241]
+                - cell "Open inquiry Preview Status New Take ownership Open Duplicate Same account" [ref=e242]:
+                  - generic [ref=e243]:
+                    - link "Open inquiry" [ref=e244]:
+                      - /url: /admin/inquiries/668fc765-ea9a-4f15-8f56-706a6843b34a
+                      - img
+                    - button "Preview" [ref=e245]
+                    - generic [ref=e246]:
+                      - generic [ref=e247]:
+                        - generic [ref=e248]: Status
+                        - combobox "Status" [ref=e249]:
+                          - option "New" [selected]
+                          - option "Under review"
+                          - option "Waiting for you"
+                          - option "Talent suggested"
+                          - option "In progress"
+                          - option "Qualified"
+                          - option "Converted"
+                          - option "Closed"
+                          - option "Closed (lost)"
+                          - option "Archived"
+                          - option "Draft"
+                          - option "Submitted"
+                          - option "Coordination"
+                          - option "Offer pending"
+                          - option "Approved"
+                          - option "Booked"
+                          - option "Rejected"
+                          - option "Expired"
+                      - button "Take ownership" [ref=e251]
+                      - link "Open" [ref=e252]:
+                        - /url: /admin/inquiries/668fc765-ea9a-4f15-8f56-706a6843b34a
+                      - link "Duplicate" [ref=e253]:
+                        - /url: /admin/inquiries/668fc765-ea9a-4f15-8f56-706a6843b34a#duplicate-inquiry
+                      - link "Same account" [ref=e254]:
+                        - /url: /admin/inquiries?client_account_id=fca85c97-05b9-4ee9-8c34-86de2693d4a7
+              - button "Open inquiry from taast" [ref=e255] [cursor=pointer]:
+                - cell "taast rafjasf@gasfka.com" [ref=e256]:
+                  - generic [ref=e257]:
+                    - generic [ref=e258]: T
+                    - generic [ref=e259]:
+                      - paragraph [ref=e260]: taast
+                      - paragraph [ref=e261]: rafjasf@gasfka.com
+                - cell "New Oran Tene" [ref=e262]:
+                  - generic [ref=e263]: New
+                  - paragraph [ref=e264]: Oran Tene
+                - cell "Mamita's Beach Club" [ref=e265]:
+                  - paragraph [ref=e266]: Mamita's Beach Club
+                - cell "None yet" [ref=e267]
+                - cell "—" [ref=e268]
+                - cell "Open inquiry Preview Status New Take ownership Open Duplicate Same account" [ref=e269]:
+                  - generic [ref=e270]:
+                    - link "Open inquiry" [ref=e271]:
+                      - /url: /admin/inquiries/8d7951d7-43d8-4488-b7b3-63ed70e12484
+                      - img
+                    - button "Preview" [ref=e272]
+                    - generic [ref=e273]:
+                      - generic [ref=e274]:
+                        - generic [ref=e275]: Status
+                        - combobox "Status" [ref=e276]:
+                          - option "New" [selected]
+                          - option "Under review"
+                          - option "Waiting for you"
+                          - option "Talent suggested"
+                          - option "In progress"
+                          - option "Qualified"
+                          - option "Converted"
+                          - option "Closed"
+                          - option "Closed (lost)"
+                          - option "Archived"
+                          - option "Draft"
+                          - option "Submitted"
+                          - option "Coordination"
+                          - option "Offer pending"
+                          - option "Approved"
+                          - option "Booked"
+                          - option "Rejected"
+                          - option "Expired"
+                      - button "Take ownership" [ref=e278]
+                      - link "Open" [ref=e279]:
+                        - /url: /admin/inquiries/8d7951d7-43d8-4488-b7b3-63ed70e12484
+                      - link "Duplicate" [ref=e280]:
+                        - /url: /admin/inquiries/8d7951d7-43d8-4488-b7b3-63ed70e12484#duplicate-inquiry
+                      - link "Same account" [ref=e281]:
+                        - /url: /admin/inquiries?client_account_id=bd9638c8-2d7f-4a5f-ad80-b74dc58ca664
+              - button "Open inquiry from Test" [ref=e282] [cursor=pointer]:
+                - cell "Test asffsaf@gmail.com" [ref=e283]:
+                  - generic [ref=e284]:
+                    - generic [ref=e285]: T
+                    - generic [ref=e286]:
+                      - paragraph [ref=e287]: Test
+                      - paragraph [ref=e288]: asffsaf@gmail.com
+                - cell "New Oran Tene" [ref=e289]:
+                  - generic [ref=e290]: New
+                  - paragraph [ref=e291]: Oran Tene
+                - cell "tst" [ref=e292]:
+                  - paragraph [ref=e293]: tst
+                - cell "None yet" [ref=e294]
+                - cell "—" [ref=e295]
+                - cell "Open inquiry Preview Status New Take ownership Open Duplicate" [ref=e296]:
+                  - generic [ref=e297]:
+                    - link "Open inquiry" [ref=e298]:
+                      - /url: /admin/inquiries/fb1d703a-720a-411f-9fc7-9c59eaa19f00
+                      - img
+                    - button "Preview" [ref=e299]
+                    - generic [ref=e300]:
+                      - generic [ref=e301]:
+                        - generic [ref=e302]: Status
+                        - combobox "Status" [ref=e303]:
+                          - option "New" [selected]
+                          - option "Under review"
+                          - option "Waiting for you"
+                          - option "Talent suggested"
+                          - option "In progress"
+                          - option "Qualified"
+                          - option "Converted"
+                          - option "Closed"
+                          - option "Closed (lost)"
+                          - option "Archived"
+                          - option "Draft"
+                          - option "Submitted"
+                          - option "Coordination"
+                          - option "Offer pending"
+                          - option "Approved"
+                          - option "Booked"
+                          - option "Rejected"
+                          - option "Expired"
+                      - button "Take ownership" [ref=e305]
+                      - link "Open" [ref=e306]:
+                        - /url: /admin/inquiries/fb1d703a-720a-411f-9fc7-9c59eaa19f00
+                      - link "Duplicate" [ref=e307]:
+                        - /url: /admin/inquiries/fb1d703a-720a-411f-9fc7-9c59eaa19f00#duplicate-inquiry
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e313] [cursor=pointer]:
+    - img [ref=e314]

@@ -9,7 +9,8 @@ import { IMPERSONATION_COOKIE_NAME } from "@/lib/impersonation/constants";
 import { clearImpersonationCookieOnResponse } from "@/lib/impersonation/cookie";
 import { resolveImpersonationRoutingForMiddleware } from "@/lib/impersonation/dashboard-identity";
 import { NextRequest, NextResponse } from "next/server";
-import { isLocale } from "@/i18n/config";
+import type { LanguageSettings } from "@/lib/language-settings/types";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { stripLocaleFromPathname } from "@/i18n/pathnames";
 
 const GUEST_COOKIE = "impronta_guest";
@@ -18,7 +19,7 @@ const LOCALE_HEADER = "x-impronta-locale";
 
 export async function updateSession(
   request: NextRequest,
-  options?: { pathnameForAuth?: string },
+  options?: { pathnameForAuth?: string; languageSettings?: LanguageSettings },
 ) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -28,16 +29,16 @@ export async function updateSession(
   const needsGuestCookie = !cookieGuest;
 
   const pathnameForAuth = options?.pathnameForAuth ?? request.nextUrl.pathname;
+  const lang = options?.languageSettings ?? FALLBACK_LANGUAGE_SETTINGS;
 
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.set(GUEST_HEADER, guestKey);
   const presetLocale = request.headers.get(LOCALE_HEADER);
-  forwardedHeaders.set(
-    LOCALE_HEADER,
-    isLocale(presetLocale)
-      ? presetLocale
-      : stripLocaleFromPathname(pathnameForAuth).locale,
-  );
+  const fromPath = stripLocaleFromPathname(pathnameForAuth, lang).locale;
+  const presetOk =
+    Boolean(presetLocale) &&
+    (lang.publicLocales.includes(presetLocale!) || presetLocale === lang.defaultLocale);
+  forwardedHeaders.set(LOCALE_HEADER, presetOk && presetLocale ? presetLocale : fromPath);
 
   const guestCookieOptions = {
     httpOnly: true,

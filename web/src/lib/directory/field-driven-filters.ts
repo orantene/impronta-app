@@ -92,16 +92,19 @@ export type DirectoryFilterSidebarBlock =
 /** Field key for the primary talent classification facet (`field_definitions.key`). */
 export const DIRECTORY_TALENT_TYPE_FIELD_KEY = "talent_type" as const;
 
-export type DirectoryTalentTypeTopBarModel = {
+export type DirectoryTopBarFacetModel = {
   fieldKey: string;
   label: string;
   options: DirectoryFilterOption[];
 };
 
+/** @deprecated Use `DirectoryTopBarFacetModel`. */
+export type DirectoryTalentTypeTopBarModel = DirectoryTopBarFacetModel;
+
 export type DirectoryFilterSidebarModel = {
   blocks: DirectoryFilterSidebarBlock[];
-  /** Horizontal ALL + type pills; sidebar omits the same facet when present. */
-  topBarTalentType?: DirectoryTalentTypeTopBarModel;
+  /** Horizontal ALL + taxonomy term pills; sidebar omits the same facet when present. */
+  topBarFacet?: DirectoryTopBarFacetModel;
 };
 
 export type DirectoryFilterRequestContext = {
@@ -157,7 +160,7 @@ function compareFieldCatalogOrder(a: FieldDefinitionQueryRow, b: FieldDefinition
   return a.key.localeCompare(b.key);
 }
 
-function pickLabel(locale: "en" | "es", en: string, es?: string | null): string {
+function pickLabel(locale: string, en: string, es?: string | null): string {
   if (locale === "es" && es && es.trim()) return es.trim();
   return en.trim();
 }
@@ -545,7 +548,7 @@ function buildDirectoryFilterBlocks(
 }
 
 async function loadDirectoryFilterSectionsUncached(
-  locale: "en" | "es",
+  locale: string,
   ctx: DirectoryFilterRequestContext,
 ): Promise<DirectoryFilterSidebarModel> {
   const supabase = createPublicSupabaseClient();
@@ -1058,7 +1061,7 @@ async function loadDirectoryFilterSectionsUncached(
     };
   }
 
-  let workingSections = sections.map(stripZeroCountOptions);
+  const workingSections = sections.map(stripZeroCountOptions);
 
   const filteredSections = workingSections.filter((s) => {
     if (s.kind === "height_range" || s.kind === "age_range") return true;
@@ -1067,21 +1070,19 @@ async function loadDirectoryFilterSectionsUncached(
 
   const layout = await fetchDirectorySidebarLayout(supabase);
 
-  let topBarTalentType: DirectoryTalentTypeTopBarModel | undefined;
+  let topBarFacet: DirectoryTopBarFacetModel | undefined;
   const sidebarSections = [...filteredSections];
-  if (layout.talent_type_top_bar_visible) {
+  const topKey = layout.top_bar_facet_key?.trim() ?? null;
+  if (topKey) {
     const ti = sidebarSections.findIndex(
-      (s) =>
-        s.kind === "taxonomy" &&
-        s.fieldKey === DIRECTORY_TALENT_TYPE_FIELD_KEY &&
-        s.options.length > 0,
+      (s) => s.kind === "taxonomy" && s.fieldKey === topKey && s.options.length > 0,
     );
     if (ti >= 0) {
       const sec = sidebarSections[ti] as Extract<
         DirectoryFilterSection,
         { kind: "taxonomy" }
       >;
-      topBarTalentType = {
+      topBarFacet = {
         fieldKey: sec.fieldKey,
         label: sec.label,
         options: sec.options.map((o) => ({ ...o })),
@@ -1092,25 +1093,25 @@ async function loadDirectoryFilterSectionsUncached(
 
   return {
     blocks: buildDirectoryFilterBlocks(sidebarSections, layout),
-    topBarTalentType,
+    topBarFacet,
   };
 }
 
 export function getCachedDirectoryFilterSidebarModel(
-  locale: "en" | "es",
+  locale: string,
   ctx: DirectoryFilterRequestContext,
 ) {
   const key = serializeFilterContextKey(ctx);
   return unstable_cache(
     () => loadDirectoryFilterSectionsUncached(locale, ctx),
-    ["directory-filter-sidebar", "v12-visibility-overrides", locale, key],
+    ["directory-filter-sidebar", "v13-top-bar-facet-key", locale, key],
     { tags: [CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY], revalidate: 90 },
   )();
 }
 
 /** @deprecated Use getCachedDirectoryFilterSidebarModel — returns only facet sections in catalog order. */
 export async function getCachedDirectoryFilterSections(
-  locale: "en" | "es",
+  locale: string,
   ctx: DirectoryFilterRequestContext,
 ): Promise<DirectoryFilterSection[]> {
   const { blocks } = await getCachedDirectoryFilterSidebarModel(locale, ctx);

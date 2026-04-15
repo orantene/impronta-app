@@ -24,6 +24,11 @@ test("public bio: en locale uses English source", () => {
   assert.equal(publicBioForLocale("en", "EN text", "ES text"), "EN text");
 });
 
+test("public bio: en locale falls back to Spanish when English empty", () => {
+  assert.equal(publicBioForLocale("en", "", "Solo español"), "Solo español");
+  assert.equal(publicBioForLocale("en", "   ", "ES"), "ES");
+});
+
 test("stale: already stale → no new status from EN-change helper", () => {
   assert.equal(nextBioEsStatusAfterEnglishChanged("stale", "published"), null);
 });
@@ -46,6 +51,8 @@ test("buildBioEnEditExtras: identical EN text does not bump bio_en_updated_at", 
       bio_es: "Español",
       bio_es_draft: null,
       bio_es_status: "approved",
+      bio_en_draft: null,
+      bio_en_status: "missing",
       short_bio: "Same",
     },
     nextShortBio: "Same",
@@ -63,6 +70,8 @@ test("buildBioEnEditExtras: EN text change + published ES → stale + audit", ()
       bio_es: "Viejo",
       bio_es_draft: null,
       bio_es_status: "approved",
+      bio_en_draft: null,
+      bio_en_status: "missing",
       short_bio: "Old",
     },
     nextShortBio: "New",

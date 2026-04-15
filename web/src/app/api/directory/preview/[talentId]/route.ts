@@ -8,7 +8,6 @@ import {
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
 import { publicBioForLocale, canonicalBioEn } from "@/lib/translation/public-bio";
-import type { Locale } from "@/i18n/config";
 import { createTranslator } from "@/i18n/messages";
 
 type TaxonomyRow = {
@@ -55,8 +54,7 @@ export async function GET(
   const locale = parseDirectoryLocale({
     locale: url.searchParams.get("locale") ?? undefined,
   });
-  const catalogLocale: Locale = locale === "es" ? "es" : "en";
-  const t = createTranslator(catalogLocale);
+  const t = createTranslator(locale);
   const fallbackPrimaryTalentType = t("public.directory.fallbackPrimaryTalentType");
 
   const pickTermName = (term: { name_en: string; name_es?: string | null }) =>

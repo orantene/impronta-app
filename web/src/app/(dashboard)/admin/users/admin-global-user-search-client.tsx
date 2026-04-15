@@ -13,6 +13,7 @@ import type {
 import { getSiteUrl } from "@/lib/auth-flow";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { Label } from "@/components/ui/label";
 import {
   ADMIN_OUTLINE_CONTROL_CLASS,
@@ -46,14 +47,6 @@ const PROFILE_OPTS = [
   { value: "submitted", label: "Submitted" },
   { value: "approved", label: "Approved" },
 ] as const;
-
-function initials(name: string | null) {
-  const n = (name ?? "").trim();
-  if (!n) return "?";
-  const parts = n.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
-  return n.slice(0, 2).toUpperCase();
-}
 
 function profileHref(r: GlobalUserSearchResult) {
   if (r.kind === "talent" && r.profileCode) {
@@ -329,15 +322,7 @@ export function AdminGlobalUserSearchClient({
                 <tr key={r.key} className={ADMIN_TABLE_ROW_INTERACTIVE}>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div
-                        className={cn(
-                          "flex size-10 shrink-0 items-center justify-center rounded-full",
-                          "bg-[var(--impronta-gold)]/14 text-xs font-bold text-[var(--impronta-gold)] ring-1 ring-[var(--impronta-gold)]/25",
-                        )}
-                        aria-hidden
-                      >
-                        {initials(r.displayName)}
-                      </div>
+                      <UserAvatar src={r.avatarUrl} name={r.displayName} size="md" />
                       <div className="min-w-0">
                         <p className="truncate font-display text-[15px] font-medium text-foreground">
                           {r.displayName ?? "Unnamed"}

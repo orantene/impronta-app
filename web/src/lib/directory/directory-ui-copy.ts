@@ -69,6 +69,8 @@ export type DirectoryUiCopy = {
     heightMaxPart: string;
   };
   talentType: { barAria: string; all: string };
+  /** ALL label for the configurable taxonomy pill row above results. */
+  topBarPills: { all: string };
   taxonomyBarAria: string;
   card: {
     available: string;
@@ -324,6 +326,9 @@ export function buildDirectoryUiCopy(t: T): DirectoryUiCopy {
     talentType: {
       barAria: t("public.directory.ui.talentType.barAria"),
       all: t("public.directory.ui.talentType.all"),
+    },
+    topBarPills: {
+      all: t("public.directory.ui.topBarPills.all"),
     },
     taxonomyBarAria: t("public.directory.ui.taxonomyBarAria"),
     card: {

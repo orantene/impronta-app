@@ -7,6 +7,7 @@ import {
   validateAndMergeInterpretIntent,
   type RawModelIntent,
 } from "@/lib/ai/validate-interpret-intent";
+import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { logServerError } from "@/lib/server/safe-error";
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   const flags = await getAiFeatureFlags();
-  if (!flags.ai_search_enabled) {
+  if (!flags.ai_master_enabled || !flags.ai_search_enabled) {
     return NextResponse.json({ error: "ai_search_disabled" }, { status: 403 });
   }
 
@@ -57,6 +58,14 @@ export async function POST(request: Request) {
   }
   if (q.length > MAX_QUERY_LEN) {
     return NextResponse.json({ error: "query_too_long" }, { status: 400 });
+  }
+
+  const gate = await assertAiInvocationAllowed();
+  if (!gate.ok) {
+    return NextResponse.json(
+      { error: gate.code, message: gate.message },
+      { status: 429 },
+    );
   }
 
   try {
@@ -109,6 +118,10 @@ export async function POST(request: Request) {
       locale,
       usedInterpreter: usedModel,
     });
+
+    if (usedModel) {
+      void recordAiUsageEstimate();
+    }
 
     return NextResponse.json({
       taxonomyTermIds: mapped.taxonomyTermIds,

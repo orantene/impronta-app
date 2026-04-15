@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { Home, LogOut, UserRound } from "lucide-react";
+import { Home, LogOut } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import {
   DashboardSidebarNavLinks,
@@ -29,6 +29,7 @@ import { stripLocaleFromPathname } from "@/i18n/pathnames";
 import { getRequestLocale, ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { createTranslator } from "@/i18n/messages";
 import { cn } from "@/lib/utils";
+import { DashboardPersonInline } from "@/components/dashboard/dashboard-person-inline";
 import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner";
 import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
@@ -147,6 +148,13 @@ export default async function DashboardLayout({
         user.email ||
         t("dashboard.accountFallback"));
 
+  const effectiveAvatarUrl = profile?.avatar_url ?? null;
+  const actorAvatarUrl = identity.actorProfile?.avatar_url ?? null;
+  const actorDisplayLabel =
+    identity.actorProfile?.display_name?.trim() ||
+    user.email ||
+    t("dashboard.agencyStaffFallback");
+
   const impersonationRoleLabel =
     role === "talent"
       ? t("dashboard.roleTalent")
@@ -194,19 +202,20 @@ export default async function DashboardLayout({
           </Link>
         </div>
 
-        {/* Role label */}
+        {/* Role label + identity */}
         <div className="shrink-0 px-5 pt-5 pb-3">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--impronta-muted)]">
-            {roleLabel}
-          </span>
-          <div className="mt-2 space-y-1">
-            <p className="text-m font-medium text-[var(--impronta-foreground)]">
-              {displayName}
-            </p>
-            <p className="text-sm text-[var(--impronta-muted)]">
-              {sidebarEmail}
-            </p>
-          </div>
+          <DashboardPersonInline
+            avatarUrl={effectiveAvatarUrl}
+            name={displayName}
+            avatarSize="md"
+            className="mt-0"
+          >
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--impronta-muted)]">
+              {roleLabel}
+            </span>
+            <p className="mt-1 text-m font-medium text-[var(--impronta-foreground)]">{displayName}</p>
+            <p className="text-sm text-[var(--impronta-muted)]">{sidebarEmail}</p>
+          </DashboardPersonInline>
         </div>
 
         {/* Nav links */}
@@ -264,41 +273,49 @@ export default async function DashboardLayout({
                 : "lg:flex",
             )}
           >
-            <div className="flex min-w-0 items-center gap-3 justify-self-start">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl border border-[var(--impronta-gold-border)]/50 bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)]">
-                <UserRound className="size-5" aria-hidden />
-              </span>
-              <div className="min-w-0">
-                {staff ? (
+            <div className="flex min-w-0 items-center justify-self-start">
+              {staff ? (
+                <DashboardPersonInline
+                  avatarUrl={actorAvatarUrl}
+                  name={actorDisplayLabel}
+                  avatarSize="md"
+                  align="center"
+                >
                   <p className="truncate text-sm font-medium text-[var(--impronta-foreground)]">
                     {t("dashboard.agencyWorkspace")}
                     <span className="font-normal text-[var(--impronta-muted)]"> · </span>
-                    <span className="text-[var(--impronta-muted)]">
-                      {identity.actorProfile?.display_name ??
-                        user.email ??
-                        t("dashboard.agencyStaffFallback")}
-                    </span>
+                    <span className="text-[var(--impronta-muted)]">{actorDisplayLabel}</span>
                   </p>
-                ) : role === "client" ? (
-                  <>
-                    <p className="truncate text-sm font-semibold text-[var(--impronta-foreground)]">
-                      {displayName}
-                    </p>
-                    <p className="truncate text-xs text-[var(--impronta-muted)]">
-                      {t("dashboard.clientPortalLine")}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-muted)]">
-                      {roleLabel}
-                    </p>
-                    <p className="truncate text-sm font-medium text-[var(--impronta-foreground)]">
-                      {displayName}
-                    </p>
-                  </>
-                )}
-              </div>
+                </DashboardPersonInline>
+              ) : role === "client" ? (
+                <DashboardPersonInline
+                  avatarUrl={effectiveAvatarUrl}
+                  name={displayName}
+                  avatarSize="md"
+                  align="center"
+                >
+                  <p className="truncate text-sm font-semibold text-[var(--impronta-foreground)]">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-xs text-[var(--impronta-muted)]">
+                    {t("dashboard.clientPortalLine")}
+                  </p>
+                </DashboardPersonInline>
+              ) : (
+                <DashboardPersonInline
+                  avatarUrl={effectiveAvatarUrl}
+                  name={displayName}
+                  avatarSize="md"
+                  align="center"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-muted)]">
+                    {roleLabel}
+                  </p>
+                  <p className="truncate text-sm font-medium text-[var(--impronta-foreground)]">
+                    {displayName}
+                  </p>
+                </DashboardPersonInline>
+              )}
             </div>
             {workspaceSwitcherHeader ? (
               <div className="flex w-full max-w-[min(100vw-18rem,30rem)] shrink justify-center justify-self-center px-1">
@@ -316,6 +333,7 @@ export default async function DashboardLayout({
               <DashboardMobileMenu
                 roleLabel={roleLabel}
                 profileName={displayName}
+                avatarUrl={effectiveAvatarUrl}
                 email={sidebarEmail}
                 menuCopy={{
                   sheetDashboardTitle: t("dashboard.sheetDashboardTitle"),
@@ -381,6 +399,7 @@ export default async function DashboardLayout({
         {identity.isImpersonating ? (
           <ImpersonationBanner
             effectiveName={displayName}
+            effectiveAvatarUrl={effectiveAvatarUrl}
             roleLabel={impersonationRoleLabel}
             readOnlyLine={t("dashboard.impersonationReadOnly")}
             v1ReadOnlyQaLine={t("dashboard.impersonationV1ReadOnlyQa")}

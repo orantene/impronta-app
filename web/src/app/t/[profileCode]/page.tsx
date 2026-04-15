@@ -121,12 +121,12 @@ function flattenTaxonomy(rows: TaxonomyRow[]): TaxonomyTerm[] {
   });
 }
 
-function pickTaxonomyLabel(locale: "en" | "es", term: TaxonomyTerm): string {
+function pickTaxonomyLabel(locale: string, term: TaxonomyTerm): string {
   if (locale === "es" && term.name_es && term.name_es.trim()) return term.name_es.trim();
   return term.name_en;
 }
 
-function groupByKind(locale: "en" | "es", terms: TaxonomyTerm[]): Record<string, string[]> {
+function groupByKind(locale: string, terms: TaxonomyTerm[]): Record<string, string[]> {
   return terms.reduce<Record<string, string[]>>((acc, t) => {
     if (!acc[t.kind]) acc[t.kind] = [];
     acc[t.kind].push(pickTaxonomyLabel(locale, t));
@@ -140,7 +140,7 @@ function displayName(p: TalentProfile): string {
   return parts || p.profile_code;
 }
 
-function residenceLabel(locale: "en" | "es", p: TalentProfile): string {
+function residenceLabel(locale: string, p: TalentProfile): string {
   const row = resolveResidenceLocationEmbed({
     residence_city: p.residence_city,
     legacy_location: p.legacy_location,
@@ -148,11 +148,11 @@ function residenceLabel(locale: "en" | "es", p: TalentProfile): string {
   return formatCityCountryLabel(locale, row);
 }
 
-function originLabel(locale: "en" | "es", p: TalentProfile): string {
+function originLabel(locale: string, p: TalentProfile): string {
   return formatCityCountryLabel(locale, p.origin_city ?? null);
 }
 
-function primaryTalentType(locale: "en" | "es", rows: TaxonomyRow[]): string | null {
+function primaryTalentType(locale: string, rows: TaxonomyRow[]): string | null {
   let fallback: string | null = null;
 
   for (const row of rows) {
@@ -291,7 +291,7 @@ async function fetchPublicFieldValues(
   return data as PublicFieldValueRow[];
 }
 
-function pickFieldLabel(locale: "en" | "es", en: string, es?: string | null): string {
+function pickFieldLabel(locale: string, en: string, es?: string | null): string {
   if (locale === "es" && es && es.trim()) return es.trim();
   return en.trim();
 }

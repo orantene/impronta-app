@@ -1,0 +1,990 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: Impronta
+        - button "Collapse sidebar" [ref=e6]:
+          - img
+      - navigation [ref=e7]:
+        - generic [ref=e8]:
+          - generic [ref=e9]:
+            - button "Dashboard" [expanded] [ref=e10]:
+              - img [ref=e11]
+              - generic [ref=e13]: Dashboard
+            - region "Dashboard" [ref=e14]:
+              - generic [ref=e18]:
+                - link "Overview" [ref=e19] [cursor=pointer]:
+                  - /url: /admin
+                  - img [ref=e20]
+                  - generic [ref=e25]: Overview
+                - generic [ref=e26]:
+                  - button "Pin to sidebar top" [ref=e27]:
+                    - img [ref=e28]
+                  - button "Show in top shortcuts bar" [ref=e30]:
+                    - img [ref=e31]
+          - generic [ref=e33]:
+            - button "Operations" [ref=e34]:
+              - img [ref=e35]
+              - generic [ref=e37]: Operations
+            - region "Operations":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/inquiries
+                      - img
+                      - generic: Inquiries
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/bookings
+                      - img
+                      - generic: Bookings
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/accounts
+                      - img
+                      - generic: Work locations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e38]:
+            - button "Talent" [ref=e39]:
+              - img [ref=e40]
+              - generic [ref=e42]: Talent
+            - region "Talent":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/talent
+                      - img
+                      - generic: All talent
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/talent
+                      - img
+                      - generic: Applications
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/talent
+                      - img
+                      - generic: Featured
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/talent
+                      - img
+                      - generic: Hidden
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e43]:
+            - button "Clients" [ref=e44]:
+              - img [ref=e45]
+              - generic [ref=e47]: Clients
+            - region "Clients":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/clients
+                      - img
+                      - generic: Clients
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e48]:
+            - button "Media" [ref=e49]:
+              - img [ref=e50]
+              - generic [ref=e52]: Media
+            - region "Media":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/media
+                      - img
+                      - generic: Pending approvals
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/media?tab=library
+                      - img
+                      - generic: Library
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e53]:
+            - button "Website" [ref=e54]:
+              - img [ref=e55]
+              - generic [ref=e57]: Website
+            - region "Website":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/content/pages
+                      - img
+                      - generic: Pages
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/content/navigation
+                      - img
+                      - generic: Navigation
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/content/posts
+                      - img
+                      - generic: Posts
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/content/redirects
+                      - img
+                      - generic: Redirects
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/site-settings/seo
+                      - img
+                      - generic: SEO
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e58]:
+            - button "Directory" [ref=e59]:
+              - img [ref=e60]
+              - generic [ref=e62]: Directory
+            - region "Directory":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/fields
+                      - img
+                      - generic: Fields
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/directory/filters
+                      - img
+                      - generic: Filters
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/taxonomy
+                      - img
+                      - generic: Taxonomy
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/locations
+                      - img
+                      - generic: Locations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e63]:
+            - button "Docs" [ref=e64]:
+              - img [ref=e65]
+              - generic [ref=e67]: Docs
+            - region "Docs":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs
+                      - img
+                      - generic: Overview
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/ai
+                      - img
+                      - generic: AI Documentation
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/search
+                      - img
+                      - generic: Search & Ranking
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/talent
+                      - img
+                      - generic: Talent System
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/clients
+                      - img
+                      - generic: Clients & Inquiries
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/directory
+                      - img
+                      - generic: Directory & Filters
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/taxonomy
+                      - img
+                      - generic: Taxonomy & Attributes
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/featured
+                      - img
+                      - generic: Featured & Visibility
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/analytics
+                      - img
+                      - generic: Analytics
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/translations
+                      - img
+                      - generic: Translations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/permissions
+                      - img
+                      - generic: Permissions & Roles
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/api
+                      - img
+                      - generic: API & Integrations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/settings
+                      - img
+                      - generic: Settings & Feature Flags
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/troubleshooting
+                      - img
+                      - generic: Troubleshooting
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/docs/release-notes
+                      - img
+                      - generic: Release Notes
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e68]:
+            - button "AI" [ref=e69]:
+              - img [ref=e70]
+              - generic [ref=e72]: AI
+            - region "AI":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace
+                      - img
+                      - generic: AI workspace
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace/settings
+                      - img
+                      - generic: AI Settings
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace/logs
+                      - img
+                      - generic: Search logs
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace/match-preview
+                      - img
+                      - generic: Match preview
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/ai-workspace/console
+                      - img
+                      - generic: Console
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e73]:
+            - button "Analytics" [ref=e74]:
+              - img [ref=e75]
+              - generic [ref=e77]: Analytics
+            - region "Analytics":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/overview
+                      - img
+                      - generic: Executive
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/acquisition
+                      - img
+                      - generic: Traffic
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/funnels
+                      - img
+                      - generic: Funnels
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/talent
+                      - img
+                      - generic: Marketplace
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/search
+                      - img
+                      - generic: AI / Search
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/analytics/seo
+                      - img
+                      - generic: SEO
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+          - generic [ref=e78]:
+            - button "System" [ref=e79]:
+              - img [ref=e80]
+              - generic [ref=e82]: System
+            - region "System":
+              - generic:
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/translations
+                      - img
+                      - generic: Translations
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/settings
+                      - img
+                      - generic: Site settings
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/users/search
+                      - img
+                      - generic: Users — search
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/users/admins
+                      - img
+                      - generic: Users — admins
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /admin/account
+                      - img
+                      - generic: Account
+                    - generic:
+                      - button:
+                        - img
+                      - button:
+                        - img
+      - generic [ref=e83]:
+        - button "Sign out" [ref=e85]:
+          - img
+          - text: Sign out
+        - link "Exit to site" [ref=e86] [cursor=pointer]:
+          - /url: /
+          - img
+          - text: Exit to site
+    - generic [ref=e87]:
+      - banner [ref=e88]:
+        - 'button "Search anything… ⌘K Opens search. Keyboard shortcut: Command K or Control K." [ref=e90]':
+          - img [ref=e91]
+          - img [ref=e94]
+          - generic [ref=e97]: Search anything…
+          - generic [ref=e98]: ⌘K
+          - generic [ref=e99]: "Opens search. Keyboard shortcut: Command K or Control K."
+        - generic [ref=e100]:
+          - group "Language" [ref=e101]:
+            - button "EN" [ref=e102]
+            - generic [ref=e103]: "|"
+            - button "ES" [ref=e104]
+          - button "Use light workspace" [ref=e105]:
+            - img
+          - button "Panel" [ref=e106]:
+            - img
+            - text: Panel
+          - button "Sign out" [ref=e108]:
+            - img
+            - text: Sign out
+      - main [ref=e110]:
+        - generic [ref=e113]:
+          - navigation "Breadcrumb" [ref=e114]:
+            - link "Inquiries" [ref=e115] [cursor=pointer]:
+              - /url: /admin/inquiries
+              - img [ref=e116]
+              - text: Inquiries
+            - img [ref=e118]
+            - generic [ref=e120]: Phase2 Offer E2E
+          - generic [ref=e121]:
+            - generic [ref=e122]:
+              - generic [ref=e123]: submitted
+              - generic [ref=e124]: Admin
+              - generic [ref=e125]: Unassigned
+              - generic [ref=e126]: just now
+              - button "Copy ID" [ref=e127]
+            - heading "Phase2 Offer E2E" [level=1] [ref=e128]
+            - generic [ref=e129]:
+              - generic [ref=e130]: Impronta QA
+              - generic [ref=e131]: phase2-offer-e2e@example.com
+              - generic [ref=e132]: 555-0100
+              - 'link "Portal: QA Client One" [ref=e133] [cursor=pointer]':
+                - /url: /admin/clients/51f9cb68-74ab-40cb-bd7e-98ca32f8a661
+            - paragraph [ref=e134]: Offer determinism verification
+            - generic [ref=e135]:
+              - generic [ref=e136]:
+                - generic [ref=e137]: Talent
+                - generic [ref=e138]: "0"
+              - generic [ref=e139]:
+                - generic [ref=e140]: Bookings
+                - generic [ref=e141]: "0"
+              - generic [ref=e142]:
+                - generic [ref=e143]: Location
+                - generic [ref=e144]: —
+              - generic [ref=e145]:
+                - generic [ref=e146]: Event spot
+                - generic [ref=e147]: Tulum
+          - generic [ref=e148]:
+            - generic [ref=e149]:
+              - generic [ref=e151]:
+                - heading "Client" [level=2] [ref=e152]
+                - paragraph [ref=e153]: Who is making this request.
+              - generic [ref=e155]:
+                - generic [ref=e156]:
+                  - button "Add new client" [ref=e157]
+                  - link "Edit client" [ref=e158] [cursor=pointer]:
+                    - /url: /admin/clients/51f9cb68-74ab-40cb-bd7e-98ca32f8a661
+                - generic [ref=e159]:
+                  - text: Linked platform client
+                  - generic [ref=e160]:
+                    - textbox "Search by client name, email, or phone" [ref=e161]
+                    - paragraph [ref=e162]: Optional. Link the inquiry to a platform client while keeping the inquiry snapshot person-focused.
+                    - generic [ref=e163]:
+                      - paragraph [ref=e165]: QA Client One
+                      - button "Clear" [ref=e166]
+                - generic [ref=e167]:
+                  - generic [ref=e168]:
+                    - text: Name
+                    - textbox "Name" [ref=e169]: Phase2 Offer E2E
+                  - generic [ref=e170]:
+                    - text: Email
+                    - textbox "Email" [ref=e171]: phase2-offer-e2e@example.com
+                  - generic [ref=e172]:
+                    - text: Phone
+                    - textbox "Phone" [ref=e173]: 555-0100
+                  - generic [ref=e174]:
+                    - text: Company (optional)
+                    - textbox "Company (optional)" [ref=e175]: Impronta QA
+                - button "Save client" [ref=e176]
+            - generic [ref=e177]:
+              - generic [ref=e179]:
+                - heading "Work Location" [level=2] [ref=e180]
+                - paragraph [ref=e181]: Place or business this work is for.
+              - generic [ref=e182]:
+                - paragraph [ref=e183]: No location linked yet.
+                - generic [ref=e184]:
+                  - button "Add new location" [ref=e186]
+                  - generic [ref=e187]:
+                    - text: Find location
+                    - textbox "Find location" [ref=e188]:
+                      - /placeholder: Search location by name
+                  - generic [ref=e189]:
+                    - text: Work Location
+                    - combobox "Work Location" [ref=e190]:
+                      - option "— None —" [selected]
+                      - option "Mamita's Beach Club"
+                      - option "Mamita's Beach Club"
+                  - generic [ref=e191]:
+                    - text: Secondary contact
+                    - combobox "Secondary contact" [disabled] [ref=e192]:
+                      - option "— None —" [selected]
+                    - paragraph [ref=e193]: Keep this optional and location-scoped.
+                  - button "Save location" [ref=e194]
+            - generic [ref=e195]:
+              - generic [ref=e196]:
+                - generic [ref=e197]:
+                  - heading "Talent shortlist" [level=2] [ref=e198]
+                  - paragraph [ref=e199]: Add, remove, and reorder before converting to a booking.
+                - generic [ref=e201]: 0 selected
+              - generic [ref=e203]:
+                - generic [ref=e204]:
+                  - generic [ref=e205]:
+                    - paragraph [ref=e206]: Add to shortlist
+                    - paragraph [ref=e207]: Search represented talent by profile code or name, then add them to this inquiry.
+                  - generic [ref=e208]:
+                    - img
+                    - textbox "Search talent by code or name" [ref=e209]
+                  - paragraph [ref=e211]: Search to add talent to this inquiry.
+                  - button "Add talent" [disabled]
+                - paragraph [ref=e212]: No talent selected yet. Add represented talent above to build this inquiry shortlist.
+            - generic [ref=e213]:
+              - generic [ref=e215]:
+                - heading "Request details" [level=2] [ref=e216]
+                - paragraph [ref=e217]: Brief, event location, source, and internal notes.
+              - generic [ref=e219]:
+                - generic [ref=e220]:
+                  - text: Request summary
+                  - textbox "Request summary" [ref=e221]:
+                    - /placeholder: Short operational title for this request
+                - generic [ref=e222]:
+                  - text: Brief / notes
+                  - textbox "Brief / notes" [ref=e223]:
+                    - /placeholder: Scope, deliverables, timing, or any client-facing context.
+                    - text: Offer determinism verification
+                - generic [ref=e224]:
+                  - generic [ref=e225]:
+                    - text: Event location / setup detail
+                    - textbox "Event location / setup detail" [ref=e226]:
+                      - /placeholder: Only if the exact event spot differs from the Work Location above
+                      - text: Tulum
+                    - paragraph [ref=e227]: Use this for the exact on-site spot, room, or setup note when it is more specific than the main Work Location.
+                  - generic [ref=e228]:
+                    - text: Source channel
+                    - combobox "Source channel" [ref=e229]:
+                      - option "directory guest"
+                      - option "directory client"
+                      - option "phone"
+                      - option "whatsapp"
+                      - option "email"
+                      - option "admin" [selected]
+                      - option "other"
+                    - paragraph [ref=e230]: Operational metadata only. Keep it accurate so staff can trace where the request came from without turning it into a major business field.
+                - generic [ref=e231]:
+                  - text: Internal notes
+                  - textbox "Internal notes" [ref=e232]:
+                    - /placeholder: Internal handoff notes, blockers, or follow-up context for the team.
+                - button "Save details" [ref=e233]
+            - generic [ref=e234]:
+              - generic [ref=e236]:
+                - heading "Messages (private)" [level=2] [ref=e237]
+                - paragraph [ref=e238]: Client ↔ coordinator thread for this inquiry.
+              - generic [ref=e240]:
+                - list [ref=e241]
+                - generic [ref=e242]:
+                  - textbox "Type a message…" [ref=e243]
+                  - button "Send" [ref=e244]
+            - generic [ref=e245]:
+              - generic [ref=e247]:
+                - heading "Structured offer" [level=2] [ref=e248]
+                - paragraph [ref=e249]: Draft line items, save, then send to the client.
+              - generic [ref=e364]:
+                - generic [ref=e365]:
+                  - generic [ref=e366]:
+                    - generic [ref=e367]:
+                      - text: Total client price
+                      - spinbutton "Total client price" [ref=e368]: "0"
+                    - generic [ref=e369]:
+                      - text: Coordinator fee
+                      - spinbutton "Coordinator fee" [ref=e370]: "0"
+                    - generic [ref=e371]:
+                      - text: Currency
+                      - textbox "Currency" [ref=e372]: MXN
+                  - generic [ref=e373]:
+                    - text: Notes / inclusions
+                    - textbox "Notes / inclusions Notes" [ref=e374]
+                  - generic [ref=e375]:
+                    - generic [ref=e376]:
+                      - paragraph [ref=e377]: Line items
+                      - button "Add row" [ref=e378]
+                    - list [ref=e379]:
+                      - listitem [ref=e380]:
+                        - textbox "Talent profile UUID (optional)" [ref=e381]
+                        - textbox "Label" [ref=e382]
+                        - combobox [ref=e383]:
+                          - option "event" [selected]
+                          - option "hour"
+                          - option "day"
+                          - option "week"
+                        - spinbutton [ref=e384]: "1"
+                        - spinbutton [ref=e385]: "0"
+                        - spinbutton [ref=e386]: "0"
+                        - spinbutton [ref=e387]: "0"
+                      - listitem [ref=e388]:
+                        - textbox "Talent profile UUID (optional)" [ref=e389]
+                        - textbox "Label" [ref=e390]
+                        - combobox [ref=e391]:
+                          - option "event" [selected]
+                          - option "hour"
+                          - option "day"
+                          - option "week"
+                        - spinbutton [ref=e392]: "1"
+                        - spinbutton [ref=e393]: "0"
+                        - spinbutton [ref=e394]: "0"
+                        - spinbutton [ref=e395]: "0"
+                      - listitem [ref=e396]:
+                        - textbox "Talent profile UUID (optional)" [ref=e397]
+                        - textbox "Label" [ref=e398]
+                        - combobox [ref=e399]:
+                          - option "event" [selected]
+                          - option "hour"
+                          - option "day"
+                          - option "week"
+                        - spinbutton [ref=e400]: "1"
+                        - spinbutton [ref=e401]: "0"
+                        - spinbutton [ref=e402]: "0"
+                        - spinbutton [ref=e403]: "0"
+                  - generic [ref=e404]:
+                    - button "Save draft" [ref=e405]
+                    - paragraph [ref=e406]: Save draft before sending — send uses the saved version.
+                    - paragraph [ref=e407]: "Current versions: inquiry v2 · offer v1"
+                - button "Send offer to client" [ref=e409]
+            - generic [ref=e254]:
+              - generic [ref=e256]:
+                - heading "Approvals" [level=2] [ref=e257]
+                - paragraph [ref=e258]: Per-offer confirmations (client + active talents).
+              - paragraph [ref=e260]: No approval rows yet — they are created when an offer is sent.
+          - group [ref=e261]:
+            - generic "Workflow & operations Change status, reassign, or mark closed. These are the most important ops fields." [ref=e262] [cursor=pointer]:
+              - generic [ref=e263]:
+                - generic [ref=e264]:
+                  - img [ref=e266]
+                  - generic [ref=e271]:
+                    - paragraph [ref=e272]: Workflow & operations
+                    - paragraph [ref=e273]: Change status, reassign, or mark closed. These are the most important ops fields.
+                - img [ref=e275]
+            - generic [ref=e278]:
+              - generic [ref=e279]:
+                - generic [ref=e280]:
+                  - text: Workflow status
+                  - combobox "Workflow status" [ref=e281]:
+                    - option "new"
+                    - option "reviewing"
+                    - option "waiting for client"
+                    - option "talent suggested"
+                    - option "in progress"
+                    - option "qualified"
+                    - option "converted"
+                    - option "closed"
+                    - option "closed lost"
+                    - option "archived"
+                    - option "draft"
+                    - option "submitted" [selected]
+                    - option "coordination"
+                    - option "offer pending"
+                    - option "approved"
+                    - option "booked"
+                    - option "rejected"
+                    - option "expired"
+                - generic [ref=e282]:
+                  - text: Assigned
+                  - combobox "Assigned" [ref=e283]:
+                    - option "—" [selected]
+                    - option "Oran Tene"
+                    - option "Dev Staff"
+                - generic [ref=e284]:
+                  - text: Closed / lost reason
+                  - textbox "Closed / lost reason" [ref=e285]:
+                    - /placeholder: Optional
+              - button "Save operations" [ref=e286]
+          - group [ref=e287]:
+            - generic "Convert to booking Turn this inquiry into a confirmed job. Pick talent from the shortlist above." [ref=e288] [cursor=pointer]:
+              - generic [ref=e289]:
+                - generic [ref=e290]:
+                  - img [ref=e292]
+                  - generic [ref=e294]:
+                    - paragraph [ref=e295]: Convert to booking
+                    - paragraph [ref=e296]: Turn this inquiry into a confirmed job. Pick talent from the shortlist above.
+                - img [ref=e298]
+            - generic [ref=e301]:
+              - paragraph [ref=e302]: No bookings linked yet. Use the form below to create the first job from this inquiry.
+              - generic [ref=e303]:
+                - paragraph [ref=e304]:
+                  - text: Engine conversion — requires status
+                  - strong [ref=e305]: approved
+                  - text: ", an"
+                  - strong [ref=e306]: accepted
+                  - text: offer, and matching roster. Snapshot pricing into the booking.
+                - button "Convert to booking" [ref=e307]
+          - group [ref=e308]:
+            - generic "Quick add booking Manual shortcut — prefer Convert to Booking above for the full inquiry-to-booking flow." [ref=e309] [cursor=pointer]:
+              - generic [ref=e310]:
+                - generic [ref=e311]:
+                  - img [ref=e313]
+                  - generic [ref=e315]:
+                    - paragraph [ref=e316]: Quick add booking
+                    - paragraph [ref=e317]: Manual shortcut — prefer Convert to Booking above for the full inquiry-to-booking flow.
+                - img [ref=e319]
+            - option "—" [selected]
+            - option "draft" [selected]
+            - option "tentative"
+            - option "confirmed"
+            - option "in progress"
+            - option "completed"
+            - option "cancelled"
+            - option "archived"
+          - group [ref=e321]:
+            - generic "Activity log Audit trail for conversions, duplicates, and link changes." [ref=e322] [cursor=pointer]:
+              - generic [ref=e323]:
+                - generic [ref=e324]:
+                  - img [ref=e326]
+                  - generic [ref=e333]:
+                    - paragraph [ref=e334]: Activity log
+                    - paragraph [ref=e335]: Audit trail for conversions, duplicates, and link changes.
+                - img [ref=e337]
+          - group [ref=e339]:
+            - generic "Duplicate inquiry Copy this inquiry into a new lead and optionally keep the location, contact, and shortlist." [ref=e340] [cursor=pointer]:
+              - generic [ref=e341]:
+                - generic [ref=e342]:
+                  - img [ref=e344]
+                  - generic [ref=e348]:
+                    - paragraph [ref=e349]: Duplicate inquiry
+                    - paragraph [ref=e350]: Copy this inquiry into a new lead and optionally keep the location, contact, and shortlist.
+                - img [ref=e352]
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e359] [cursor=pointer]:
+    - img [ref=e360]
+  - alert [ref=e363]

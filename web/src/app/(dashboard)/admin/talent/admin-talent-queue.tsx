@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { ChevronRight, Star } from "lucide-react";
 import { AdminTalentBulkBar } from "@/app/(dashboard)/admin/talent/admin-talent-bulk-bar";
+import { DashboardPersonInline } from "@/components/dashboard/dashboard-person-inline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ADMIN_OUTLINE_CONTROL_CLASS } from "@/lib/dashboard-shell-classes";
@@ -70,6 +71,7 @@ export type AdminTalentQueueRow = {
     display_name: string | null;
     app_role: string | null;
     account_status: string | null;
+    avatar_url: string | null;
   } | null;
 };
 
@@ -270,25 +272,32 @@ export function AdminTalentQueue({
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="max-w-[260px] truncate font-display text-[15px] font-medium tracking-tight text-foreground">
-                        {row.display_name ?? (
-                          <span className="text-muted-foreground italic">Unnamed</span>
-                        )}
-                      </span>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {row.is_featured ? (
-                          <Badge
-                            variant="outline"
-                            className="gap-0.5 border-[var(--impronta-gold)]/40 bg-[var(--impronta-gold)]/10 text-[10px] text-[var(--impronta-gold)]"
-                          >
-                            <Star className="size-3 fill-[var(--impronta-gold)]/25" aria-hidden />
-                            Featured
+                      <DashboardPersonInline
+                        avatarUrl={row.profiles?.avatar_url ?? null}
+                        name={row.display_name ?? row.profile_code}
+                        avatarSize="sm"
+                        align="start"
+                      >
+                        <span className="max-w-[260px] truncate font-display text-[15px] font-medium tracking-tight text-foreground">
+                          {row.display_name ?? (
+                            <span className="text-muted-foreground italic">Unnamed</span>
+                          )}
+                        </span>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {row.is_featured ? (
+                            <Badge
+                              variant="outline"
+                              className="gap-0.5 border-[var(--impronta-gold)]/40 bg-[var(--impronta-gold)]/10 text-[10px] text-[var(--impronta-gold)]"
+                            >
+                              <Star className="size-3 fill-[var(--impronta-gold)]/25" aria-hidden />
+                              Featured
+                            </Badge>
+                          ) : null}
+                          <Badge variant="outline" className="border-border/45 text-[10px] text-muted-foreground">
+                            {VISIBILITY_BADGE[row.visibility]?.label ?? row.visibility}
                           </Badge>
-                        ) : null}
-                        <Badge variant="outline" className="border-border/45 text-[10px] text-muted-foreground">
-                          {VISIBILITY_BADGE[row.visibility]?.label ?? row.visibility}
-                        </Badge>
-                      </div>
+                        </div>
+                      </DashboardPersonInline>
                     </td>
                     <td className="hidden px-4 py-3.5 text-muted-foreground xl:table-cell">
                       {row.primary_talent_type ?? "—"}

@@ -174,7 +174,7 @@ export default async function AdminBookingsPage({
       : Promise.resolve({ data: null as { display_name: string | null } | null, error: null }),
     supabase
       .from("profiles")
-      .select("id, display_name")
+      .select("id, display_name, avatar_url")
       .in("app_role", ["super_admin", "agency_staff"])
       .order("display_name", { ascending: true }),
     supabase.from("client_accounts").select("id, name").is("archived_at", null).order("name", { ascending: true }),
@@ -229,6 +229,32 @@ export default async function AdminBookingsPage({
 
   const list = (rawRows ?? []) as unknown as RawBookingRow[];
 
+  const profileIdsForAvatars = [
+    ...new Set(
+      list
+        .flatMap((b) => [b.client_user_id, b.owner_staff_id])
+        .filter((x): x is string => Boolean(x)),
+    ),
+  ];
+
+  let avatarByUserId = new Map<string, string | null>();
+  if (profileIdsForAvatars.length > 0) {
+    const { data: avatarRows, error: avatarErr } = await supabase
+      .from("profiles")
+      .select("id, avatar_url")
+      .in("id", profileIdsForAvatars);
+    if (avatarErr) {
+      logServerError("admin/bookings/profileAvatars", avatarErr);
+    } else {
+      avatarByUserId = new Map(
+        (avatarRows ?? []).map((r) => [
+          r.id as string,
+          (r.avatar_url as string | null) ?? null,
+        ]),
+      );
+    }
+  }
+
   // Shape rows for the queue component
   const queueRows: BookingQueueRow[] = list.map((b) => ({
     id: b.id,
@@ -250,6 +276,8 @@ export default async function AdminBookingsPage({
     account_name: relOne(b.client_accounts as { name: string } | null)?.name ?? "—",
     contact_name:
       relOne(b.client_account_contacts as { full_name: string } | null)?.full_name ?? "—",
+    contact_avatar_url: b.client_user_id ? avatarByUserId.get(b.client_user_id) ?? null : null,
+    owner_avatar_url: b.owner_staff_id ? avatarByUserId.get(b.owner_staff_id) ?? null : null,
     manager_display: b.owner_staff_id ? staffMap.get(b.owner_staff_id) ?? null : null,
     talent_count: Array.isArray(b.booking_talent) ? b.booking_talent.length : 0,
     updated_at_display: formatAdminTimestamp(b.updated_at),

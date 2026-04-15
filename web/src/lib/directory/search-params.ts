@@ -12,10 +12,12 @@ const UUID_RE =
 /** For API routes / preview URLs that receive `locale` or `lang` as query params. Prefer `getRequestLocale()` for App Router pages (path + middleware). */
 export function parseDirectoryLocale(
   sp: Record<string, string | string[] | undefined>,
-): "en" | "es" {
+): string {
   const raw = sp.locale ?? sp.lang;
-  const v = Array.isArray(raw) ? raw[0] : raw;
-  return v === "es" ? "es" : "en";
+  const v = (Array.isArray(raw) ? raw[0] : raw)?.trim().toLowerCase() ?? "";
+  if (v === "es") return "es";
+  if (v === "en" || v === "") return "en";
+  return v;
 }
 
 export function parseTaxonomyParam(tax: string | string[] | undefined): string[] {
@@ -282,12 +284,14 @@ export function applyCanonicalDirectoryFetchSearchParams(
   params: URLSearchParams,
   input: {
     taxonomyTermIds: string[];
-    locale: "en" | "es";
+    locale: string;
     sort: DirectorySortValue;
     query: string;
     locationSlug: string;
     heightMinCm: number | null;
     heightMaxCm: number | null;
+    ageMin?: number | null;
+    ageMax?: number | null;
     fieldFacets?: DirectoryFieldFacetSelection[];
   },
 ): void {
@@ -301,6 +305,8 @@ export function applyCanonicalDirectoryFetchSearchParams(
   if (sl) params.set("location", sl);
   if (input.heightMinCm != null) params.set("hmin", String(input.heightMinCm));
   if (input.heightMaxCm != null) params.set("hmax", String(input.heightMaxCm));
+  if (input.ageMin != null) params.set("amin", String(input.ageMin));
+  if (input.ageMax != null) params.set("amax", String(input.ageMax));
   params.delete("ff");
   for (const seg of serializeDirectoryFieldFacetParams(input.fieldFacets)) {
     params.append("ff", seg);

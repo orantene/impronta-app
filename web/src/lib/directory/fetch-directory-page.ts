@@ -107,7 +107,7 @@ function cardResidenceLocation(profile: TalentProfileRow): LocationRow | null {
 }
 
 function pickLocalizedTermName(
-  loc: "en" | "es",
+  loc: string,
   en: string | null,
   es: string | null,
 ): string {
@@ -118,7 +118,7 @@ function pickLocalizedTermName(
 }
 
 function buildClassicFilterMatchLabels(
-  locale: "en" | "es",
+  locale: string,
   locationSlug: string,
   taxonomyTermIds: string[],
   termMetaById: Map<string, { kind: string; slug: string; label: string }>,

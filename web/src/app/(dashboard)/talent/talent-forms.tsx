@@ -224,6 +224,7 @@ export function TalentProfileForm({
 
   return (
     <form id={TALENT_PUBLIC_PROFILE_FORM_ID} action={formAction} className="space-y-5">
+      <input type="hidden" name="edited_locale" value="en" />
       <div className={panelCard}>
         <p className={panelSectionLabel}>Identity</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">

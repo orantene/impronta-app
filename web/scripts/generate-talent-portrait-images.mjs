@@ -5,6 +5,7 @@
  * Kinds (--kind):
  *   card    — directory / profile avatar (default), 1080×1350
  *   banner  — profile cover / hero, 2400×1350
+ *   gallery — portfolio stills, 1600×2000 (all approved gallery rows per profile)
  *   both    — card then banner for each profile (long run)
  *
  * Parallel terminals share Pollinations’ per-IP limit → 429s. Prefer one terminal, or use
@@ -29,11 +30,14 @@ import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 import sharp from "sharp";
 
-const DEMO_PROFILE_CODE = /^TAL-91\d{3}$/;
+/** Demo pack TAL-910xx plus Tulum Spanish seed TAL-920xx (see supabase/seed_tulum_spanish_talent.sql). */
+const DEMO_PROFILE_CODE = /^TAL-9[12]\d{3}$/;
 const CARD_WIDTH = 1080;
 const CARD_HEIGHT = 1350;
 const BANNER_WIDTH = 2400;
 const BANNER_HEIGHT = 1350;
+const GALLERY_WIDTH = 1600;
+const GALLERY_HEIGHT = 2000;
 
 function parseArgs(argv) {
   let dryRun = false;
@@ -60,9 +64,9 @@ function parseArgs(argv) {
     }
     if (arg.startsWith("--kind=")) {
       const k = arg.slice("--kind=".length).toLowerCase();
-      if (k === "card" || k === "banner" || k === "both") kind = k;
+      if (k === "card" || k === "banner" || k === "both" || k === "gallery") kind = k;
       else {
-        console.error(`Unknown --kind=${k}. Use card, banner, or both.`);
+        console.error(`Unknown --kind=${k}. Use card, banner, gallery, or both.`);
         process.exit(1);
       }
     }
@@ -115,6 +119,26 @@ function buildCardPrompt(profile) {
     `Vertical portrait framing: head and upper shoulders, editorial photography, photorealistic, sharp eyes.`,
     `No text, no watermark, no logos on the image.`,
     `Mood and styling hints only (do not write names on image): ${name}. ${clip}`,
+  ].join(" ");
+}
+
+function buildGalleryPrompt(profile) {
+  const name = profile.display_name?.trim() || "Talent";
+  const clip = profile.short_bio?.replace(/\s+/g, " ").trim().slice(0, 200) || "";
+  const gender = (profile.gender ?? "").toLowerCase();
+  const subject =
+    gender === "male"
+      ? "adult man"
+      : gender === "female"
+        ? "adult woman"
+        : "adult person";
+
+  return [
+    `Editorial lifestyle photograph of one fictional ${subject}, not based on any real celebrity.`,
+    `Luxury destination / events portfolio look: natural light, tasteful wardrobe, relaxed confident pose.`,
+    `Vertical editorial framing suitable for a talent portfolio grid, photorealistic, sharp focus.`,
+    `No text, no watermark, no logos.`,
+    `Mood hints only (do not render name as text): ${name}. ${clip}`,
   ].join(" ");
 }
 
@@ -231,16 +255,17 @@ async function generateRawImageBuffer(
   profileCode,
 ) {
   const isBanner = role === "banner";
+  const isGallery = role === "gallery";
 
   if (provider === "picsum") {
-    const w = isBanner ? BANNER_WIDTH : CARD_WIDTH;
-    const h = isBanner ? BANNER_HEIGHT : CARD_HEIGHT;
+    const w = isBanner ? BANNER_WIDTH : isGallery ? GALLERY_WIDTH : CARD_WIDTH;
+    const h = isBanner ? BANNER_HEIGHT : isGallery ? GALLERY_HEIGHT : CARD_HEIGHT;
     return fetchPicsumJpeg(w, h, profileCode, role);
   }
 
   if (provider === "pollinations") {
-    const pw = isBanner ? 1920 : CARD_WIDTH;
-    const ph = isBanner ? 1080 : CARD_HEIGHT;
+    const pw = isBanner ? 1920 : isGallery ? 1280 : CARD_WIDTH;
+    const ph = isBanner ? 1080 : isGallery ? 1600 : CARD_HEIGHT;
     return fetchPollinationsPng(prompt, seed, pw, ph);
   }
 
@@ -251,9 +276,13 @@ async function generateRawImageBuffer(
     ? imageModel === "dall-e-3"
       ? "1792x1024"
       : "1024x1024"
-    : imageModel === "dall-e-3"
-      ? "1024x1792"
-      : "1024x1024";
+    : isGallery
+      ? imageModel === "dall-e-3"
+        ? "1024x1792"
+        : "1024x1024"
+      : imageModel === "dall-e-3"
+        ? "1024x1792"
+        : "1024x1024";
 
   const gen = await openai.images.generate({
     model: imageModel,
@@ -299,6 +328,44 @@ async function fetchCardRows(supabase) {
       const ma = pickMedia(tp);
       if (!ma?.storage_path || !ma.bucket_id) return null;
       return { tp, ma, role: "card" };
+    })
+    .filter(Boolean);
+}
+
+async function fetchGalleryRows(supabase) {
+  const { data, error } = await supabase.from("media_assets").select(
+    `
+      id,
+      storage_path,
+      bucket_id,
+      variant_kind,
+      sort_order,
+      talent_profiles!inner (
+        profile_code,
+        display_name,
+        short_bio,
+        gender
+      )
+    `,
+  )
+    .eq("variant_kind", "gallery")
+    .eq("approval_state", "approved")
+    .is("deleted_at", null);
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? [])
+    .map((row) => {
+      const tp = row.talent_profiles;
+      if (!tp?.profile_code || !row.storage_path || !row.bucket_id) return null;
+      const ma = {
+        id: row.id,
+        storage_path: row.storage_path,
+        bucket_id: row.bucket_id,
+        variant_kind: row.variant_kind,
+        sort_order: row.sort_order,
+      };
+      return { tp, ma, role: "gallery" };
     })
     .filter(Boolean);
 }
@@ -380,6 +447,9 @@ async function main() {
     if (kind === "banner" || kind === "both") {
       targets.push(...(await fetchBannerRows(supabase)));
     }
+    if (kind === "gallery") {
+      targets.push(...(await fetchGalleryRows(supabase)));
+    }
   } catch (e) {
     console.error("Query failed:", e?.message ?? e);
     process.exit(1);
@@ -392,8 +462,10 @@ async function main() {
   targets.sort((a, b) => {
     const c = (a.tp.profile_code ?? "").localeCompare(b.tp.profile_code ?? "");
     if (c !== 0) return c;
-    const order = { card: 0, banner: 1 };
-    return (order[a.role] ?? 9) - (order[b.role] ?? 9);
+    const order = { card: 0, banner: 1, gallery: 2 };
+    const r = (order[a.role] ?? 9) - (order[b.role] ?? 9);
+    if (r !== 0) return r;
+    return (a.ma.sort_order ?? 0) - (b.ma.sort_order ?? 0);
   });
 
   const end = limit === Infinity ? undefined : offset + limit;
@@ -425,10 +497,17 @@ async function main() {
     i += 1;
     const { tp, ma, role } = row;
     const code = tp.profile_code;
-    const prompt = role === "banner" ? buildBannerPrompt(tp) : buildCardPrompt(tp);
-    const seed = seedFromProfileCode(code, role);
-    const outW = role === "banner" ? BANNER_WIDTH : CARD_WIDTH;
-    const outH = role === "banner" ? BANNER_HEIGHT : CARD_HEIGHT;
+    const prompt =
+      role === "banner"
+        ? buildBannerPrompt(tp)
+        : role === "gallery"
+          ? buildGalleryPrompt(tp)
+          : buildCardPrompt(tp);
+    const seed = seedFromProfileCode(code, `${role}-${ma.sort_order ?? 0}`);
+    const outW =
+      role === "banner" ? BANNER_WIDTH : role === "gallery" ? GALLERY_WIDTH : CARD_WIDTH;
+    const outH =
+      role === "banner" ? BANNER_HEIGHT : role === "gallery" ? GALLERY_HEIGHT : CARD_HEIGHT;
 
     console.log(`\n[${i}/${targets.length}] ${code} ${role} → ${ma.storage_path}`);
 
@@ -455,7 +534,7 @@ async function main() {
 
     const jpeg = await sharp(raw)
       .resize(outW, outH, { fit: "cover", position: "attention" })
-      .jpeg({ quality: role === "banner" ? 85 : 88, mozjpeg: true })
+      .jpeg({ quality: role === "banner" ? 85 : role === "gallery" ? 86 : 88, mozjpeg: true })
       .toBuffer();
 
     const { error: upErr } = await supabase.storage

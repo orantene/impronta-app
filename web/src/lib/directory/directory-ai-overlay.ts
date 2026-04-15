@@ -4,7 +4,7 @@ import type { DirectoryAiCardOverlay } from "@/lib/directory/types";
 
 export function buildDirectoryAiOverlayByTalentId(
   results: SearchResult[],
-  locale: "en" | "es",
+  locale: string,
 ): Record<string, DirectoryAiCardOverlay> | undefined {
   const out: Record<string, DirectoryAiCardOverlay> = {};
   for (const r of results) {

@@ -3,12 +3,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /** Matches `directory_sidebar_layout` and DirectoryFiltersSidebar. */
 export const DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY = "__filter_search__" as const;
 
+/** Legacy default when DB row predates `top_bar_facet_key` (matches former `talent_type_top_bar_visible` default true). */
+const LEGACY_DEFAULT_TOP_BAR_FACET_KEY = "talent_type" as const;
+
 export type DirectorySidebarLayoutRow = {
   item_order: string[];
   filter_option_search_visible: boolean;
   /** Keys with true start collapsed in the public sidebar; missing keys = expanded. */
   section_collapsed_defaults: Record<string, boolean>;
-  /** When true, talent type uses the top pill row instead of a sidebar section. */
+  /**
+   * Taxonomy facet (`field_definitions.key`) shown as ALL + pills above results; omitted from sidebar.
+   * Null = no top bar.
+   */
+  top_bar_facet_key: string | null;
+  /** @deprecated Prefer `top_bar_facet_key`. Kept for reads on older DB replicas. */
   talent_type_top_bar_visible: boolean;
   /**
    * Per-field visibility overrides for the public sidebar.
@@ -23,6 +31,7 @@ const DEFAULT_LAYOUT: DirectorySidebarLayoutRow = {
   item_order: [DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY],
   filter_option_search_visible: true,
   section_collapsed_defaults: {},
+  top_bar_facet_key: LEGACY_DEFAULT_TOP_BAR_FACET_KEY,
   talent_type_top_bar_visible: true,
   field_visibility_overrides: {},
 };
@@ -65,13 +74,43 @@ export async function fetchDirectorySidebarLayout(
   const { data, error } = await supabase
     .from("directory_sidebar_layout")
     .select(
-      "item_order, filter_option_search_visible, section_collapsed_defaults, talent_type_top_bar_visible, field_visibility_overrides",
+      "item_order, filter_option_search_visible, section_collapsed_defaults, talent_type_top_bar_visible, top_bar_facet_key, field_visibility_overrides",
     )
     .eq("id", 1)
     .maybeSingle();
 
   if (error) {
     const msg = `${error.message ?? ""}`.toLowerCase();
+    if (msg.includes("top_bar_facet_key")) {
+      const retry = await supabase
+        .from("directory_sidebar_layout")
+        .select(
+          "item_order, filter_option_search_visible, section_collapsed_defaults, talent_type_top_bar_visible, field_visibility_overrides",
+        )
+        .eq("id", 1)
+        .maybeSingle();
+      if (retry.error || !retry.data) return DEFAULT_LAYOUT;
+      const d = retry.data as {
+        item_order?: unknown;
+        filter_option_search_visible?: boolean;
+        section_collapsed_defaults?: unknown;
+        talent_type_top_bar_visible?: boolean;
+        field_visibility_overrides?: unknown;
+      };
+      const rawOrder = d.item_order;
+      const item_order = Array.isArray(rawOrder)
+        ? rawOrder.filter((x): x is string => typeof x === "string" && x.length > 0)
+        : DEFAULT_LAYOUT.item_order;
+      const legacyBar = Boolean(d.talent_type_top_bar_visible ?? true);
+      return {
+        item_order: item_order.length > 0 ? item_order : DEFAULT_LAYOUT.item_order,
+        filter_option_search_visible: Boolean(d.filter_option_search_visible ?? true),
+        section_collapsed_defaults: parseSectionCollapsedDefaults(d.section_collapsed_defaults),
+        top_bar_facet_key: legacyBar ? LEGACY_DEFAULT_TOP_BAR_FACET_KEY : null,
+        talent_type_top_bar_visible: legacyBar,
+        field_visibility_overrides: parseFieldVisibilityOverrides(d.field_visibility_overrides),
+      };
+    }
     if (msg.includes("talent_type_top_bar_visible")) {
       const retry = await supabase
         .from("directory_sidebar_layout")
@@ -92,6 +131,7 @@ export async function fetchDirectorySidebarLayout(
         item_order: item_order.length > 0 ? item_order : DEFAULT_LAYOUT.item_order,
         filter_option_search_visible: Boolean(d.filter_option_search_visible ?? true),
         section_collapsed_defaults: parseSectionCollapsedDefaults(d.section_collapsed_defaults),
+        top_bar_facet_key: DEFAULT_LAYOUT.top_bar_facet_key,
         talent_type_top_bar_visible: DEFAULT_LAYOUT.talent_type_top_bar_visible,
         field_visibility_overrides: {},
       };
@@ -112,6 +152,7 @@ export async function fetchDirectorySidebarLayout(
         item_order: item_order.length > 0 ? item_order : DEFAULT_LAYOUT.item_order,
         filter_option_search_visible: Boolean(d.filter_option_search_visible ?? true),
         section_collapsed_defaults: {},
+        top_bar_facet_key: DEFAULT_LAYOUT.top_bar_facet_key,
         talent_type_top_bar_visible: DEFAULT_LAYOUT.talent_type_top_bar_visible,
         field_visibility_overrides: {},
       };
@@ -131,17 +172,27 @@ export async function fetchDirectorySidebarLayout(
     filter_option_search_visible?: boolean;
     section_collapsed_defaults?: unknown;
     talent_type_top_bar_visible?: boolean;
+    top_bar_facet_key?: string | null;
     field_visibility_overrides?: unknown;
   };
+
+  const legacyBar =
+    row.talent_type_top_bar_visible !== undefined
+      ? Boolean(row.talent_type_top_bar_visible)
+      : DEFAULT_LAYOUT.talent_type_top_bar_visible;
+  const rawTopKey =
+    typeof row.top_bar_facet_key === "string" && row.top_bar_facet_key.trim().length > 0
+      ? row.top_bar_facet_key.trim()
+      : null;
+  const top_bar_facet_key = rawTopKey ?? (legacyBar ? LEGACY_DEFAULT_TOP_BAR_FACET_KEY : null);
+  const talent_type_top_bar_visible = top_bar_facet_key === LEGACY_DEFAULT_TOP_BAR_FACET_KEY;
 
   return {
     item_order: item_order.length > 0 ? item_order : DEFAULT_LAYOUT.item_order,
     filter_option_search_visible: Boolean(row.filter_option_search_visible ?? true),
     section_collapsed_defaults: parseSectionCollapsedDefaults(row.section_collapsed_defaults),
-    talent_type_top_bar_visible:
-      row.talent_type_top_bar_visible !== undefined
-        ? Boolean(row.talent_type_top_bar_visible)
-        : DEFAULT_LAYOUT.talent_type_top_bar_visible,
+    top_bar_facet_key,
+    talent_type_top_bar_visible,
     field_visibility_overrides: parseFieldVisibilityOverrides(row.field_visibility_overrides),
   };
 }

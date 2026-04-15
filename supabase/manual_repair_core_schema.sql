@@ -210,6 +210,9 @@ CREATE INDEX IF NOT EXISTS idx_taxonomy_terms_kind_active
   ON public.taxonomy_terms (kind)
   WHERE archived_at IS NULL;
 
+ALTER TABLE public.taxonomy_terms ADD COLUMN IF NOT EXISTS promo_image_storage_path TEXT;
+ALTER TABLE public.taxonomy_terms ADD COLUMN IF NOT EXISTS promo_placements TEXT[] NOT NULL DEFAULT '{}';
+
 CREATE TABLE IF NOT EXISTS public.locations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   country_code TEXT NOT NULL,

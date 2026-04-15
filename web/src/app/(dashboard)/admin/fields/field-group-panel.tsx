@@ -777,11 +777,9 @@ export function FieldGroupPanel({
             className={ADMIN_GROUP_TOOLBAR_BUTTON}
             disabled={busy}
             onClick={() => {
-              setAddFieldOpen((prev) => {
-                const next = !prev;
-                if (next) onOpenChange(true);
-                return next;
-              });
+              const next = !addFieldOpen;
+              setAddFieldOpen(next);
+              if (next) onOpenChange(true);
             }}
             aria-expanded={addFieldOpen}
           >

@@ -2,6 +2,8 @@
 
 Context-preserving, panel-first admin navigation. **Primary shell:** `DashboardEditPanel` ([`src/components/dashboard/dashboard-edit-panel.tsx`](../src/components/dashboard/dashboard-edit-panel.tsx)).
 
+Broader dashboard shell, layout, reusable components, and cross-role consistency rules are defined in the [Dashboard UX / Design System Spec](../../docs/dashboard-ux-design-system.md). This document remains authoritative for admin drawer, panel, and `apanel` / `aid` behavior.
+
 ## Core rules
 
 1. **Primary record workspace = full page** — Deep, multi-section work (talent hub, booking detail, inquiry detail, client profile, taxonomy/locations editors, settings).

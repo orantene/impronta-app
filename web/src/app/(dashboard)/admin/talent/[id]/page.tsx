@@ -41,6 +41,8 @@ export default async function AdminTalentDetailPage({
       bio_es,
       bio_es_draft,
       bio_es_status,
+      bio_en_draft,
+      bio_en_status,
       bio_en_updated_at,
       bio_es_updated_at,
       phone,

@@ -1,18 +1,15 @@
 import { cache } from "react";
-import { headers } from "next/headers";
 
 const LOG_NS = "impronta";
 
 /**
  * Stable id for correlating logs within one RSC / route handler request.
+ *
+ * Intentionally does **not** use `next/headers` so this module stays safe to import from code
+ * shared with the Pages Router or other bundles where `headers()` is unavailable at build time.
  */
-export const getRequestCorrelationId = cache(async (): Promise<string> => {
-  const h = await headers();
-  return (
-    h.get("x-vercel-id")?.trim() ||
-    h.get("x-request-id")?.trim() ||
-    `local-${crypto.randomUUID()}`
-  );
+export const getRequestCorrelationId = cache((): string => {
+  return `req-${crypto.randomUUID()}`;
 });
 
 export type ImprontaLogFields = Record<string, string | number | boolean | null | undefined>;
@@ -26,9 +23,9 @@ export async function improntaLog(
 ): Promise<void> {
   let requestId = "no-request";
   try {
-    requestId = await getRequestCorrelationId();
+    requestId = getRequestCorrelationId();
   } catch {
-    /* e.g. middleware or non-request context */
+    /* non-request context */
   }
   const payload = {
     ns: LOG_NS,

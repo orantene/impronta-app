@@ -15,7 +15,6 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
-import { getInquiryEngineV2Enabled } from "@/lib/inquiry/inquiry-settings";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -392,94 +391,31 @@ export async function submitClientInquiry(
     submittedVia: "client",
   });
 
-  const v2Enabled = await getInquiryEngineV2Enabled(supabase);
-  if (v2Enabled) {
-    const admin = createServiceRoleClient();
-    if (!admin) {
-      return { error: t("public.forms.inquiry.supabaseNotConfigured") };
-    }
-    const v2 = await submitInquiry(admin, {
-      contact_name,
-      contact_email,
-      contact_phone: contact_phone || null,
-      company: company || null,
-      event_date: event_date || null,
-      event_location: event_location || null,
-      quantity: quantity ?? null,
-      message: message || null,
-      event_type_id: event_type_id ?? null,
-      raw_ai_query: raw_query || null,
-      interpreted_query,
-      source_page: source_page || "/directory",
-      source_channel: "directory_client",
-      client_user_id: user.id,
-      talent_profile_ids: talentIds,
-      actorUserId: user.id,
-    });
-    if (!v2.success) {
-      logServerError("directory/submitClientInquiry/v2", new Error(JSON.stringify(v2)));
-      return { error: t("public.errors.inquiry") };
-    }
-    await supabase
-      .from("saved_talent")
-      .delete()
-      .eq("client_user_id", user.id)
-      .in("talent_profile_id", talentIds);
-
-    const locale = await getRequestLocale();
-    await logAnalyticsEventServer({
-      name: PRODUCT_ANALYTICS_EVENTS.submit_inquiry,
-      payload: {
-        locale,
-        talent_id: talentIds[0],
-        inquiry_type: "directory_client_v2",
-        source_page: source_page || "/directory",
-      },
-      userId: user.id,
-      path: source_page || "/directory",
-      locale,
-    });
-
-    revalidatePath("/client");
-    revalidatePath("/directory");
-    redirect("/directory?inquiry=submitted");
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return { error: t("public.forms.inquiry.supabaseNotConfigured") };
   }
 
-  const { data: inquiry, error: insErr } = await supabase
-    .from("inquiries")
-    .insert({
-      client_user_id: user.id,
-      contact_name,
-      contact_email,
-      contact_phone: contact_phone || null,
-      company: company || null,
-      event_date,
-      event_location: event_location || null,
-      quantity,
-      message: message || null,
-      event_type_id,
-      raw_ai_query: raw_query || null,
-      interpreted_query,
-      source_page: source_page || "/directory",
-      source_channel: "directory_client" as never,
-      status: "new",
-    })
-    .select("id")
-    .single();
-
-  if (insErr || !inquiry) {
-    if (insErr) logServerError("directory/submitClientInquiry/insert", insErr);
-    return { error: t("public.errors.inquiry") };
-  }
-
-  const rows = talentIds.map((talent_profile_id) => ({
-    inquiry_id: inquiry.id,
-    talent_profile_id,
-  }));
-
-  const { error: linkErr } = await supabase.from("inquiry_talent").insert(rows);
-  if (linkErr) {
-    logServerError("directory/submitClientInquiry/link", linkErr);
+  const v2 = await submitInquiry(admin, {
+    contact_name,
+    contact_email,
+    contact_phone: contact_phone || null,
+    company: company || null,
+    event_date: event_date || null,
+    event_location: event_location || null,
+    quantity: quantity ?? null,
+    message: message || null,
+    event_type_id: event_type_id ?? null,
+    raw_ai_query: raw_query || null,
+    interpreted_query,
+    source_page: source_page || "/directory",
+    source_channel: "directory_client",
+    client_user_id: user.id,
+    talent_profile_ids: talentIds,
+    actorUserId: user.id,
+  });
+  if (!v2.success) {
+    logServerError("directory/submitClientInquiry/v2", new Error(JSON.stringify(v2)));
     return { error: t("public.errors.inquiry") };
   }
 
@@ -495,7 +431,7 @@ export async function submitClientInquiry(
     payload: {
       locale,
       talent_id: talentIds[0],
-      inquiry_type: "directory_client",
+      inquiry_type: "directory_client_v2",
       source_page: source_page || "/directory",
     },
     userId: user.id,
@@ -523,6 +459,9 @@ export async function submitGuestInquiry(
   const admin = createServiceRoleClient();
   if (!pub || !guestKey) {
     return { error: t("public.forms.inquiry.sessionUnavailable") };
+  }
+  if (!admin) {
+    return { error: t("public.forms.inquiry.supabaseNotConfigured") };
   }
 
   const rawIds = formData.get("talent_ids");
@@ -592,52 +531,6 @@ export async function submitGuestInquiry(
     submittedVia: "guest",
   });
 
-  if (!admin) {
-    const { data: inquiryId, error } = await pub.rpc("guest_submit_inquiry", {
-      p_session_key: guestKey,
-      p_contact_name: contact_name,
-      p_contact_email: contact_email,
-      p_contact_phone: contact_phone || null,
-      p_company: company || null,
-      p_event_type_id: event_type_id,
-      p_event_date: event_date,
-      p_event_location: event_location || null,
-      p_quantity: quantity,
-      p_message: message || null,
-      p_raw_ai_query: raw_query || null,
-      p_interpreted_query: interpreted_query,
-      p_source_page: source_page || "/directory",
-      p_talent_ids: talentIds,
-    });
-
-    if (error) {
-      logServerError("directory/submitGuestInquiry/rpc", error);
-      return { error: t("public.errors.inquiry") };
-    }
-
-    if (!inquiryId) {
-      return { error: t("public.errors.inquiry") };
-    }
-
-    const localeGuest = await getRequestLocale();
-    await logAnalyticsEventServer({
-      name: PRODUCT_ANALYTICS_EVENTS.submit_inquiry,
-      payload: {
-        locale: localeGuest,
-        talent_id: talentIds[0],
-        inquiry_type: "directory_guest",
-        source_page: source_page || "/directory",
-      },
-      path: source_page || "/directory",
-      locale: localeGuest,
-    });
-
-    revalidatePath("/directory");
-    redirect(
-      `/directory?inquiry=submitted&activation=unlinked&email=${encodeURIComponent(contact_email.toLowerCase())}`,
-    );
-  }
-
   const { data: guestSession, error: guestErr } = await admin
     .from("guest_sessions")
     .select("id")
@@ -675,8 +568,8 @@ export async function submitGuestInquiry(
       source_page: source_page || "/directory",
       source_channel: "directory_guest" as never,
       status: "new",
-      // Explicit legacy isolation: guest submissions do not create v2 inquiries yet.
-      uses_new_engine: false,
+      uses_new_engine: true,
+      version: 1,
     })
     .select("id")
     .single();
@@ -686,25 +579,44 @@ export async function submitGuestInquiry(
     return { error: t("public.errors.inquiry") };
   }
 
-  const linkRows = talentIds.map((talent_profile_id, index) => ({
-    inquiry_id: inquiry.id,
-    talent_profile_id,
-    sort_order: index,
-  }));
-
-  const { data: engineFlagRow } = await admin
-    .from("inquiries")
-    .select("uses_new_engine")
-    .eq("id", inquiry.id)
-    .maybeSingle();
-  if (engineFlagRow?.uses_new_engine) {
-    logServerError("directory/submitGuestInquiry/v2_guard", new Error("Guest inquiry unexpectedly marked uses_new_engine=true"));
+  const { data: talentParticipantRows, error: talentParticipantLookupErr } = await admin
+    .from("talent_profiles")
+    .select("id, user_id")
+    .in("id", talentIds);
+  if (talentParticipantLookupErr) {
+    logServerError("directory/submitGuestInquiry/talentParticipantLookup", talentParticipantLookupErr);
     return { error: t("public.errors.inquiry") };
   }
 
-  const { error: linkErr } = await admin.from("inquiry_talent").insert(linkRows);
-  if (linkErr) {
-    logServerError("directory/submitGuestInquiry/link", linkErr);
+  const talentUserIdsByProfileId = new Map(
+    ((talentParticipantRows ?? []) as { id: string; user_id: string | null }[]).map((row) => [row.id, row.user_id] as const),
+  );
+
+  const participantRows = [
+    ...(guestClient.clientUserId
+      ? [
+          {
+            inquiry_id: inquiry.id,
+            user_id: guestClient.clientUserId,
+            role: "client" as const,
+            status: "active" as const,
+          },
+        ]
+      : []),
+    ...talentIds.map((talent_profile_id, index) => ({
+      inquiry_id: inquiry.id,
+      user_id: talentUserIdsByProfileId.get(talent_profile_id) ?? null,
+      talent_profile_id,
+      role: "talent" as const,
+      status: "invited" as const,
+      sort_order: index,
+      added_by_user_id: guestClient.clientUserId,
+    })),
+  ];
+
+  const { error: participantErr } = await admin.from("inquiry_participants").insert(participantRows);
+  if (participantErr) {
+    logServerError("directory/submitGuestInquiry/participants", participantErr);
     return { error: t("public.errors.inquiry") };
   }
 

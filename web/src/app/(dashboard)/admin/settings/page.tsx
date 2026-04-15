@@ -103,10 +103,9 @@ const KNOWN_SETTINGS: Array<{
   {
     key: "dashboard_theme",
     label: "Dashboard theme",
-    description: "Switch the internal dashboard between dark and light appearance.",
+    description: "Switch the internal dashboard between light and dark appearance.",
     type: "select",
     options: [
-      { value: "dark", label: "Dark" },
       { value: "light", label: "Light" },
     ],
   },
@@ -118,6 +117,17 @@ const KNOWN_SETTINGS: Array<{
     options: [
       { value: "dark", label: "Dark" },
       { value: "light", label: "Light" },
+    ],
+  },
+  {
+    key: "public_font_preset",
+    label: "Public typography",
+    description:
+      "Font pairing for the public site, directory, and auth screens. Admin uses a separate system font stack.",
+    type: "select",
+    options: [
+      { value: "impronta", label: "Impronta — Raleway + Cinzel" },
+      { value: "editorial", label: "Editorial — Inter + Playfair Display" },
     ],
   },
 ];
@@ -147,6 +157,9 @@ export default async function AdminSettingsPage() {
   );
   const publicAppearanceSettings = selectSettings.filter(
     (s) => s.key === "site_theme",
+  );
+  const publicTypographySettings = selectSettings.filter(
+    (s) => s.key === "public_font_preset",
   );
 
   return (
@@ -307,6 +320,25 @@ export default async function AdminSettingsPage() {
               key={s.key}
               settingKey={s.key}
               currentValue={settingsMap[s.key] ?? "dark"}
+              label={s.label}
+              description={s.description}
+              options={s.options ?? []}
+            />
+          ))}
+        </div>
+      </DashboardSectionCard>
+
+      <DashboardSectionCard
+        title="Public typography"
+        description="Font pairing for the marketing site, directory, and sign-in flows."
+        titleClassName={ADMIN_SECTION_TITLE_CLASS}
+      >
+        <div className="space-y-6">
+          {publicTypographySettings.map((s) => (
+            <SelectSettingForm
+              key={s.key}
+              settingKey={s.key}
+              currentValue={settingsMap[s.key] ?? "impronta"}
               label={s.label}
               description={s.description}
               options={s.options ?? []}

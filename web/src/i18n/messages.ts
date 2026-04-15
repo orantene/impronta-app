@@ -1,19 +1,17 @@
-import type { Locale } from "@/i18n/config";
-
 import en from "../../messages/en.json";
 import es from "../../messages/es.json";
 
-const catalogs: Record<Locale, Record<string, unknown>> = {
+const catalogs: Record<string, Record<string, unknown>> = {
   en: en as Record<string, unknown>,
   es: es as Record<string, unknown>,
 };
 
-export function getMessages(locale: Locale): Record<string, unknown> {
+export function getMessages(locale: string): Record<string, unknown> {
   return catalogs[locale] ?? catalogs.en;
 }
 
 /** Dot-path lookup; returns key if missing (TYPE A should keep keys in sync). */
-export function createTranslator(locale: Locale) {
+export function createTranslator(locale: string) {
   const messages = getMessages(locale);
   return function t(key: string): string {
     const parts = key.split(".");
@@ -30,7 +28,7 @@ export function createTranslator(locale: Locale) {
 }
 
 /** String arrays in catalogs (e.g. hero typewriter examples). */
-export function getMessageStringArray(locale: Locale, key: string): string[] {
+export function getMessageStringArray(locale: string, key: string): string[] {
   const parts = key.split(".");
   let cur: unknown = getMessages(locale);
   for (const p of parts) {

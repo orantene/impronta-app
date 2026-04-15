@@ -30,6 +30,8 @@ export function computeHybridContextStamp(parts: {
   sort: DirectorySortValue;
   heightMinCm: number | null;
   heightMaxCm: number | null;
+  ageMin?: number | null;
+  ageMax?: number | null;
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
 }): string {
   const base = {
@@ -39,6 +41,8 @@ export function computeHybridContextStamp(parts: {
     s: parts.sort,
     hmin: parts.heightMinCm,
     hmax: parts.heightMaxCm,
+    amin: parts.ageMin ?? null,
+    amax: parts.ageMax ?? null,
   };
   const ff = stableFieldFacetsJson(parts.fieldFacetFilters);
   const payload = JSON.stringify(ff?.length ? { ...base, ff } : base);

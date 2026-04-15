@@ -16,6 +16,8 @@ const bodySchema = z.object({
   limit: z.number().int().min(1).max(DIRECTORY_PAGE_SIZE_MAX).optional(),
   heightMinCm: z.number().optional().nullable(),
   heightMaxCm: z.number().optional().nullable(),
+  ageMin: z.number().int().optional().nullable(),
+  ageMax: z.number().int().optional().nullable(),
   cursor: z.string().optional().nullable(),
   fieldFacets: z
     .array(
@@ -83,6 +85,8 @@ export async function POST(request: Request) {
       limit: limitBody,
       heightMinCm: hMin,
       heightMaxCm: hMax,
+      ageMin: parsed.data.ageMin,
+      ageMax: parsed.data.ageMax,
       fieldFacetFilters,
       cursor: cursor ?? null,
       includeTotalCount: false,

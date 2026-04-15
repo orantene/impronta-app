@@ -3,11 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect } from "react";
-import { Bookmark, Share2, Star } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Bookmark, ChevronDown, ChevronUp, Share2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ContactTalentButton } from "@/components/directory/directory-inquiry-actions";
 import { usePublicDiscoveryState } from "@/components/directory/public-discovery-state";
 import { AIMatchExplanation } from "@/components/ai/ai-match-explanation";
@@ -75,8 +74,8 @@ export type TalentCardProps = {
 };
 
 /**
- * Directory card — luxury dark layout aligned with brand mockups: portrait hero, overlays,
- * trait grid from `card_visible` catalog, portfolio + inquire actions.
+ * Directory card — streamlined layout: full-bleed portrait hero with name/type overlay,
+ * compact attribute reveal, and a clean action row.
  */
 export function TalentCard({
   card,
@@ -91,6 +90,7 @@ export function TalentCard({
 }: TalentCardProps) {
   const pathname = usePathname();
   const { setFlash } = usePublicDiscoveryState();
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   useEffect(() => {
     trackProductEvent(PRODUCT_ANALYTICS_EVENTS.view_talent_card, {
@@ -110,6 +110,7 @@ export function TalentCard({
   const cardAttributes = card.cardAttributes ?? [];
   const { availability, industries, gridAttrs } = partitionCardAttributes(cardAttributes);
   const availableLabel = availabilityChipText(availability, c.available);
+  const hasDetails = gridAttrs.length > 0 || !!industries?.value;
 
   const shareProfile = useCallback(async () => {
     const path = talentProfileHref(pathname, card.profileCode);
@@ -152,52 +153,59 @@ export function TalentCard({
   }, [card, setFlash, c, pathname, sourcePage]);
 
   return (
-    <Card
+    <div
       className={cn(
-        "flex flex-col overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/95 via-[var(--impronta-surface)] to-black shadow-sm transition-[box-shadow,transform] duration-200 hover:shadow-lg hover:shadow-[var(--impronta-gold)]/10",
+        "group/card flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/95 to-black shadow-sm transition-shadow duration-200 hover:shadow-lg hover:shadow-[var(--impronta-gold)]/8",
         className,
       )}
     >
-      <div
-        className="relative w-full overflow-hidden bg-gradient-to-b from-zinc-800/90 to-zinc-950"
-        style={aspectStyle}
-      >
+      {/* ── Hero image with overlays ── */}
+      <Link href={profileHref} className="relative block w-full overflow-hidden" style={aspectStyle}>
         {card.thumbnail.url ? (
           <Image
             src={card.thumbnail.url}
             alt={formatCardImageAlt(c, card.displayName)}
             fill
-            className="object-cover"
+            className="object-cover transition-transform duration-500 group-hover/card:scale-[1.03]"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             priority={priority}
           />
         ) : (
           <div
-            className="flex h-full min-h-[200px] items-center justify-center font-[family-name:var(--font-cinzel)] text-sm tracking-[0.2em] text-[var(--impronta-muted)]"
+            className="flex h-full min-h-[200px] items-center justify-center bg-gradient-to-b from-zinc-800/90 to-zinc-950 font-[family-name:var(--font-cinzel)] text-sm tracking-[0.2em] text-[var(--impronta-muted)]"
             aria-hidden
           >
             {brand}
           </div>
         )}
+
+        {/* Gradient overlay — always present for text readability */}
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"
           aria-hidden
         />
 
-        {availableLabel ? (
-          <div className="absolute left-2.5 top-2.5 z-[1] flex flex-wrap items-center gap-1.5">
-            <span className="pointer-events-none rounded-full border border-white/20 bg-black/40 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--impronta-foreground)]/90 backdrop-blur-sm">
+        {/* Top-left: availability + featured badges */}
+        <div className="absolute left-2 top-2 z-[1] flex flex-wrap items-center gap-1.5">
+          {card.isFeatured ? (
+            <span className="pointer-events-none rounded-full border border-[var(--impronta-gold)]/30 bg-black/50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--impronta-gold)] backdrop-blur-sm sm:text-[9px]">
+              {c.featuredLabel}
+            </span>
+          ) : null}
+          {availableLabel ? (
+            <span className="pointer-events-none rounded-full border border-white/20 bg-black/40 px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-[var(--impronta-foreground)]/90 backdrop-blur-sm sm:text-[9px]">
               {availableLabel}
             </span>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
-        <div className="absolute right-2 top-2 z-[1] flex flex-col gap-1.5">
+        {/* Top-right: save + share */}
+        <div className="absolute right-1.5 top-1.5 z-[1] flex flex-col gap-1">
           <Button
             type="button"
             size="icon"
             variant="secondary"
-            className="h-9 w-9 rounded-full border border-white/10 bg-black/55 text-[var(--impronta-gold)] backdrop-blur-sm hover:bg-black/70"
+            className="size-8 rounded-full border border-white/10 bg-black/50 text-[var(--impronta-gold)] backdrop-blur-sm hover:bg-black/70"
             aria-pressed={saved}
             aria-label={saved ? c.removeSaveAria : c.saveAria}
             onClick={(e) => {
@@ -207,7 +215,7 @@ export function TalentCard({
             }}
           >
             <Bookmark
-              className={cn("size-4", saved && "fill-current")}
+              className={cn("size-3.5", saved && "fill-current")}
               strokeWidth={1.75}
             />
           </Button>
@@ -215,7 +223,7 @@ export function TalentCard({
             type="button"
             size="icon"
             variant="secondary"
-            className="h-9 w-9 rounded-full border border-white/10 bg-black/55 text-[var(--impronta-foreground)] backdrop-blur-sm hover:bg-black/70"
+            className="size-8 rounded-full border border-white/10 bg-black/50 text-[var(--impronta-foreground)] backdrop-blur-sm hover:bg-black/70"
             aria-label={c.shareAria}
             onClick={(e) => {
               e.preventDefault();
@@ -223,66 +231,36 @@ export function TalentCard({
               void shareProfile();
             }}
           >
-            <Share2 className="size-4" strokeWidth={1.75} />
+            <Share2 className="size-3.5" strokeWidth={1.75} />
           </Button>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-3 px-3.5 pb-4 pt-3 sm:px-4">
-        {card.isFeatured ? (
-          <div
-            className="flex flex-wrap items-center gap-2 text-[var(--impronta-gold)]"
-            role="img"
-            aria-label={c.featuredAria}
-          >
-            <span className="flex gap-0.5" aria-hidden>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className="size-3 shrink-0 fill-[var(--impronta-gold)] text-[var(--impronta-gold)]"
-                  strokeWidth={1.25}
-                />
-              ))}
-            </span>
-            <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-[var(--impronta-gold)]">
-              {c.featuredLabel}
-            </span>
-          </div>
-        ) : null}
-
-        <div className="space-y-1">
-          <h2 className="font-[family-name:var(--font-cinzel)] text-lg font-semibold leading-tight tracking-wide sm:text-xl">
-            <Link
-              href={profileHref}
-              className="block truncate text-[var(--impronta-foreground)] transition-colors hover:text-[var(--impronta-gold)]"
-            >
-              {card.displayName}
-            </Link>
+        {/* Bottom overlay: name, type, location */}
+        <div className="absolute inset-x-0 bottom-0 z-[1] px-3 pb-3 sm:px-4 sm:pb-4">
+          <h2 className="font-[family-name:var(--font-cinzel)] text-base font-semibold leading-tight tracking-wide text-white drop-shadow-sm sm:text-lg">
+            {card.displayName}
           </h2>
-          <p
-            className="truncate text-sm italic leading-snug text-[var(--impronta-foreground)]/85"
-            title={
-              card.locationLabel
-                ? c.livesInTitle.replace("{location}", card.locationLabel)
-                : undefined
-            }
-          >
+          <p className="mt-0.5 truncate text-xs text-white/75 sm:text-sm">
             {card.primaryTalentTypeLabel}
             {card.locationLabel ? (
               <>
-                <span className="mx-1.5 not-italic text-[var(--impronta-gold-dim)]">•</span>
+                <span className="mx-1 text-[var(--impronta-gold)]/60">·</span>
                 {card.locationLabel}
               </>
             ) : null}
           </p>
         </div>
+      </Link>
 
+      {/* ── Card body ── */}
+      <div className="flex flex-col gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3">
+        {/* Fit labels */}
         {fitLabels.length > 0 ? (
-          <ul className="flex flex-wrap gap-1.5">
+          <ul className="flex flex-wrap gap-1">
             {fitLabels.map((f) => (
               <li
                 key={f.slug}
-                className="max-w-full truncate rounded-md border border-[var(--impronta-gold-border)] bg-black/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-gold)]"
+                className="max-w-full truncate rounded-md border border-[var(--impronta-gold-border)] bg-black/25 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--impronta-gold)] sm:text-[10px]"
                 title={f.label}
               >
                 {f.label}
@@ -291,6 +269,7 @@ export function TalentCard({
           </ul>
         ) : null}
 
+        {/* Filter match explanation (classic) */}
         {card.filterMatchLabels &&
         card.filterMatchLabels.length > 0 &&
         !aiOverlay ? (
@@ -298,7 +277,7 @@ export function TalentCard({
             <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-muted)]">
               {c.matchWhyPrefix}
             </p>
-            <ul className="mt-1.5 space-y-1 text-xs text-[var(--impronta-foreground)]/90">
+            <ul className="mt-1 space-y-0.5 text-xs text-[var(--impronta-foreground)]/90">
               {card.filterMatchLabels.map((line, i) => (
                 <li key={i}>{line}</li>
               ))}
@@ -306,13 +285,14 @@ export function TalentCard({
           </div>
         ) : null}
 
+        {/* AI match explanation (hybrid) */}
         {aiOverlay &&
         (aiOverlay.explanationLines.length > 0 ||
           aiOverlay.confidenceNote ||
           (aiOverlay.vectorSimilarity != null &&
             Number.isFinite(aiOverlay.vectorSimilarity))) ? (
           <div className="rounded-lg border border-white/[0.06] bg-black/20 px-2.5 py-2">
-            <div className="mb-1.5 flex items-start justify-between gap-2">
+            <div className="mb-1 flex items-start justify-between gap-2">
               <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-muted)]">
                 {c.matchWhyPrefix}
               </p>
@@ -336,83 +316,89 @@ export function TalentCard({
               />
             ) : null}
             {aiOverlay.confidenceNote ? (
-              <p className="mt-1.5 text-[10px] leading-snug text-[var(--impronta-muted)]">
+              <p className="mt-1 text-[10px] leading-snug text-[var(--impronta-muted)]">
                 {aiOverlay.confidenceNote}
               </p>
             ) : null}
           </div>
         ) : null}
 
-        {gridAttrs.length > 0 ? (
-          <>
-            <div className="border-t border-white/[0.07] pt-3">
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5">
-                {gridAttrs.map((attr) => (
-                  <div key={attr.key} className="min-w-0">
-                    <dt className="text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-muted)]">
-                      {attr.label}
-                    </dt>
-                    <dd
-                      className="mt-0.5 truncate text-sm font-semibold text-[var(--impronta-foreground)]"
-                      title={`${attr.label}: ${attr.value}`}
-                    >
-                      {attr.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </>
-        ) : null}
-
-        {industries?.value ? (
-          <div className="border-t border-white/[0.07] pt-3">
-            <p className="text-[9px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-muted)]">
-              {industries.label}
-            </p>
-            <p className="mt-1 text-sm font-medium leading-relaxed text-[var(--impronta-foreground)]">
-              {industries.value}
-            </p>
-          </div>
-        ) : null}
-
-        <div className="flex flex-col gap-2 border-t border-white/[0.07] pt-3">
-          <div className="flex gap-2">
-            <Button
-              asChild
-              className="h-10 flex-1 rounded-lg bg-[var(--impronta-gold)] text-xs font-semibold uppercase tracking-[0.12em] text-[var(--impronta-black)] hover:bg-[var(--impronta-gold-bright)]"
+        {/* Expandable attributes section */}
+        {hasDetails ? (
+          <div>
+            <button
+              type="button"
+              onClick={() => setDetailsOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between rounded-md px-1 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--impronta-muted)] transition-colors hover:text-[var(--impronta-gold)]"
             >
-              <Link href={profileHref}>{c.viewPortfolio}</Link>
-            </Button>
-            <ContactTalentButton
-              talent={{
-                id: card.id,
-                profileCode: card.profileCode,
-                displayName: card.displayName,
-              }}
-              sourcePage={sourcePage}
-              initialSaved={saved}
-              variant="outline"
-              inquiry={ui.inquiry}
-              label={c.inquire}
-              className="h-10 shrink-0 rounded-lg border-[var(--impronta-gold-border)] px-3 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--impronta-gold)] hover:border-[var(--impronta-gold)]/50 hover:bg-[var(--impronta-gold)]/10 hover:text-[var(--impronta-gold-bright)]"
-            />
+              <span>{detailsOpen ? c.quickPreview : c.quickPreview}</span>
+              {detailsOpen ? (
+                <ChevronUp className="size-3.5" />
+              ) : (
+                <ChevronDown className="size-3.5" />
+              )}
+            </button>
+
+            {detailsOpen ? (
+              <div className="mt-1.5 space-y-2.5">
+                {gridAttrs.length > 0 ? (
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                    {gridAttrs.map((attr) => (
+                      <div key={attr.key} className="min-w-0">
+                        <dt className="text-[8px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-muted)] sm:text-[9px]">
+                          {attr.label}
+                        </dt>
+                        <dd
+                          className="mt-0.5 truncate text-xs font-semibold text-[var(--impronta-foreground)] sm:text-sm"
+                          title={`${attr.label}: ${attr.value}`}
+                        >
+                          {attr.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+
+                {industries?.value ? (
+                  <div>
+                    <p className="text-[8px] font-medium uppercase tracking-[0.16em] text-[var(--impronta-muted)] sm:text-[9px]">
+                      {industries.label}
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium leading-relaxed text-[var(--impronta-foreground)] sm:text-sm">
+                      {industries.value}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-          <button
-            type="button"
-            className="w-full text-left text-xs font-medium text-[var(--impronta-muted)] underline-offset-4 transition-colors hover:text-[var(--impronta-gold)] hover:underline"
-            onClick={onQuickPreview}
+        ) : null}
+
+        {/* Action row */}
+        <div className="flex gap-2">
+          <Button
+            asChild
+            className="h-9 flex-1 rounded-lg bg-[var(--impronta-gold)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-black)] hover:bg-[var(--impronta-gold-bright)] sm:text-xs"
           >
-            {c.quickPreview}
-          </button>
+            <Link href={profileHref}>{c.viewPortfolio}</Link>
+          </Button>
+          <ContactTalentButton
+            talent={{
+              id: card.id,
+              profileCode: card.profileCode,
+              displayName: card.displayName,
+            }}
+            sourcePage={sourcePage}
+            initialSaved={saved}
+            variant="outline"
+            inquiry={ui.inquiry}
+            label={c.inquire}
+            className="h-9 shrink-0 rounded-lg border-[var(--impronta-gold-border)] px-2.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--impronta-gold)] hover:border-[var(--impronta-gold)]/50 hover:bg-[var(--impronta-gold)]/10 hover:text-[var(--impronta-gold-bright)] sm:px-3 sm:text-xs"
+          />
         </div>
 
-        <p className="text-center text-[9px] font-medium uppercase tracking-[0.18em] text-[var(--impronta-muted)]/80">
-          {brand} <span className="text-[var(--impronta-gold-dim)]">•</span> {c.footerTalent}{" "}
-          <span className="text-[var(--impronta-muted)]">{card.profileCode}</span>
-        </p>
         <span className="sr-only">{formatSrOnlyProfileCode(ui.card, card.profileCode)}</span>
       </div>
-    </Card>
+    </div>
   );
 }

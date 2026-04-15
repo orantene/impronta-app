@@ -73,6 +73,7 @@ export default async function AiConsolePage() {
         <ul className="grid gap-2 font-mono text-xs sm:grid-cols-2">
           {(
             [
+              ["ai_master_enabled", flags.ai_master_enabled],
               ["ai_provider", flags.ai_provider],
               ["ai_search_enabled", flags.ai_search_enabled],
               ["ai_search_quality_v2", flags.ai_search_quality_v2],

@@ -189,14 +189,14 @@ export default async function AdminTalentListPage({
     deleted_at,
     profile_completeness_score,
     phone,
-    profiles(display_name, app_role, account_status),
+    profiles(display_name, app_role, account_status, avatar_url),
     talent_profile_taxonomy(is_primary, taxonomy_terms(kind, name_en)),
     res_city:locations!talent_profiles_residence_city_id_fkey(display_name_en),
     res_ctry:countries!talent_profiles_residence_country_id_fkey(name_en, iso2)
   `;
 
   const BASIC_SELECT =
-    "id, user_id, profile_code, display_name, workflow_status, visibility, membership_tier, is_featured, created_at, updated_at, deleted_at, profile_completeness_score, phone, profiles(display_name, app_role, account_status), talent_profile_taxonomy(is_primary, taxonomy_terms(kind, name_en))";
+    "id, user_id, profile_code, display_name, workflow_status, visibility, membership_tier, is_featured, created_at, updated_at, deleted_at, profile_completeness_score, phone, profiles(display_name, app_role, account_status, avatar_url), talent_profile_taxonomy(is_primary, taxonomy_terms(kind, name_en))";
 
   const activeTab = TABS.find((tab) => tab.key === statusFilter)?.key ?? "all";
   const activeMediaTab = MEDIA_TABS.find((tab) => tab.key === mediaFilter)?.key ?? "all";
@@ -308,6 +308,7 @@ export default async function AdminTalentListPage({
             display_name: (profile.display_name as string | null) ?? null,
             app_role: (profile.app_role as string | null) ?? null,
             account_status: (profile.account_status as string | null) ?? null,
+            avatar_url: (profile.avatar_url as string | null) ?? null,
           }
         : null,
     };

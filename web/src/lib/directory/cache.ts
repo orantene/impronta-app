@@ -30,12 +30,14 @@ function fieldFacetCacheKey(facets: DirectoryFieldFacetSelection[] | undefined):
 export function getCachedDirectoryFirstPage(options: {
   taxonomyTermIds: string[];
   limit?: number;
-  locale?: "en" | "es";
+  locale?: string;
   query?: string;
   locationSlug?: string;
   sort?: "recommended" | "featured" | "recent" | "updated";
   heightMinCm?: number | null;
   heightMaxCm?: number | null;
+  ageMin?: number | null;
+  ageMax?: number | null;
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
 }): Promise<DirectoryPageResponse> {
   const key = taxonomyCacheKey(options.taxonomyTermIds);
@@ -46,6 +48,8 @@ export function getCachedDirectoryFirstPage(options: {
   const sort = options.sort ?? "recommended";
   const hMin = options.heightMinCm ?? null;
   const hMax = options.heightMaxCm ?? null;
+  const aMin = options.ageMin ?? null;
+  const aMax = options.ageMax ?? null;
   const ffKey = fieldFacetCacheKey(options.fieldFacetFilters);
 
   return unstable_cache(
@@ -68,6 +72,8 @@ export function getCachedDirectoryFirstPage(options: {
         sort,
         heightMinCm: hMin,
         heightMaxCm: hMax,
+        ageMin: aMin,
+        ageMax: aMax,
         fieldFacetFilters: options.fieldFacetFilters,
       });
     },
@@ -81,6 +87,8 @@ export function getCachedDirectoryFirstPage(options: {
       sort,
       String(hMin ?? ""),
       String(hMax ?? ""),
+      String(aMin ?? ""),
+      String(aMax ?? ""),
       ffKey,
     ],
     { tags: [CACHE_TAG_DIRECTORY], revalidate: 120 },
@@ -94,16 +102,18 @@ export function getCachedDirectoryFirstPage(options: {
 export async function getPublicDirectoryFirstPage(options: {
   taxonomyTermIds: string[];
   limit?: number;
-  locale?: "en" | "es";
+  locale?: string;
   query?: string;
   locationSlug?: string;
   sort?: "recommended" | "featured" | "recent" | "updated";
   heightMinCm?: number | null;
   heightMaxCm?: number | null;
+  ageMin?: number | null;
+  ageMax?: number | null;
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
 }): Promise<DirectoryPageResponse> {
   const flags = await getAiFeatureFlags();
-  if (!flags.ai_search_enabled) {
+  if (!flags.ai_master_enabled || !flags.ai_search_enabled) {
     return getCachedDirectoryFirstPage(options);
   }
 
@@ -130,6 +140,8 @@ export async function getPublicDirectoryFirstPage(options: {
     limit,
     heightMinCm: options.heightMinCm ?? null,
     heightMaxCm: options.heightMaxCm ?? null,
+    ageMin: options.ageMin ?? null,
+    ageMax: options.ageMax ?? null,
     fieldFacetFilters: options.fieldFacetFilters,
     cursor: null,
     includeTotalCount: true,

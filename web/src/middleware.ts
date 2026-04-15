@@ -2,21 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripDefaultLocalePrefixFromPath } from "@/i18n/pathnames";
 import {
   isDashboardInnerPath,
-  isSpanishPrefixedPath,
+  isNonDefaultLocalePrefixedPath,
   resolveLocaleForPathname,
-  shouldRewriteSpanishPublicPath,
-  stripSpanishPrefix,
+  shouldRewriteLocalePublicPath,
+  stripNonDefaultLocalePrefix,
   syncLocaleCookieForPath,
 } from "@/i18n/locale-middleware";
 import {
   LOCALE_HEADER,
   ORIGINAL_PATHNAME_HEADER,
 } from "@/i18n/request-locale";
+import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
 import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
 import { rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
-
-/** See `rate-limit.ts` — in-memory, per-instance throttles only. */
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -33,22 +32,25 @@ export async function middleware(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
 
+  const langSettings = await getLanguageSettingsForMiddleware();
+
   const parts = pathname.split("/");
-  if (
-    parts[1] &&
-    parts[1].toLowerCase() === "es" &&
-    parts[1] !== "es"
-  ) {
-    parts[1] = "es";
-    const url = request.nextUrl.clone();
-    url.pathname = parts.join("/") || "/";
-    return NextResponse.redirect(url, 308);
+  if (parts[1]) {
+    const canonical = langSettings.publicLocales.find(
+      (c) => c.toLowerCase() === parts[1].toLowerCase(),
+    );
+    if (canonical && parts[1] !== canonical) {
+      parts[1] = canonical;
+      const url = request.nextUrl.clone();
+      url.pathname = parts.join("/") || "/";
+      return NextResponse.redirect(url, 308);
+    }
   }
 
-  const withoutEn = stripDefaultLocalePrefixFromPath(pathname);
-  if (withoutEn !== pathname) {
+  const withoutLocalePrefix = stripDefaultLocalePrefixFromPath(pathname, langSettings);
+  if (withoutLocalePrefix !== pathname) {
     const url = request.nextUrl.clone();
-    url.pathname = withoutEn;
+    url.pathname = withoutLocalePrefix;
     return NextResponse.redirect(url, 308);
   }
 
@@ -114,8 +116,8 @@ export async function middleware(request: NextRequest) {
 
   const originalPathname = request.nextUrl.pathname;
 
-  if (isSpanishPrefixedPath(originalPathname)) {
-    const inner = stripSpanishPrefix(originalPathname);
+  if (isNonDefaultLocalePrefixedPath(originalPathname, langSettings)) {
+    const inner = stripNonDefaultLocalePrefix(originalPathname, langSettings);
     if (isDashboardInnerPath(inner)) {
       const url = request.nextUrl.clone();
       url.pathname = inner;
@@ -125,17 +127,11 @@ export async function middleware(request: NextRequest) {
 
   const cmsRedirect = await tryCmsRedirectResponse(request, originalPathname);
   if (cmsRedirect) {
-    syncLocaleCookieForPath(cmsRedirect, originalPathname);
+    syncLocaleCookieForPath(cmsRedirect, originalPathname, langSettings);
     return cmsRedirect;
   }
 
-  /**
-   * Unprefixed public URLs are English (plan). Do not redirect to `/es` from cookie or
-   * Accept-Language — that breaks the EN toggle (same request still has `locale=es` cookie).
-   * Users choose Spanish via `/es/...` or the ES control.
-   */
-
-  const locale = resolveLocaleForPathname(originalPathname, request);
+  const locale = resolveLocaleForPathname(originalPathname, request, langSettings);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
@@ -143,8 +139,8 @@ export async function middleware(request: NextRequest) {
   let pathnameForAuth = originalPathname;
   const nextUrl = request.nextUrl.clone();
 
-  if (shouldRewriteSpanishPublicPath(originalPathname)) {
-    nextUrl.pathname = stripSpanishPrefix(originalPathname);
+  if (shouldRewriteLocalePublicPath(originalPathname, langSettings)) {
+    nextUrl.pathname = stripNonDefaultLocalePrefix(originalPathname, langSettings);
     pathnameForAuth = nextUrl.pathname;
   }
 
@@ -155,19 +151,15 @@ export async function middleware(request: NextRequest) {
 
   const sessionRes = await updateSession(innerRequest, {
     pathnameForAuth,
+    languageSettings: langSettings,
   });
 
   if (sessionRes.headers.get("location")) {
-    syncLocaleCookieForPath(sessionRes, originalPathname);
+    syncLocaleCookieForPath(sessionRes, originalPathname, langSettings);
     return sessionRes;
   }
 
-  /**
-   * Next.js 16: `NextResponse.next({ request: innerRequest })` no longer maps `/es/...`
-   * to app routes — Spanish URLs 404. Explicit rewrite keeps the browser on `/es` while
-   * resolving `(public)/...` and `page.tsx` at the stripped path.
-   */
-  if (shouldRewriteSpanishPublicPath(originalPathname)) {
+  if (shouldRewriteLocalePublicPath(originalPathname, langSettings)) {
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = pathnameForAuth;
 
@@ -185,11 +177,11 @@ export async function middleware(request: NextRequest) {
       }
     });
 
-    syncLocaleCookieForPath(res, originalPathname);
+    syncLocaleCookieForPath(res, originalPathname, langSettings);
     return res;
   }
 
-  syncLocaleCookieForPath(sessionRes, originalPathname);
+  syncLocaleCookieForPath(sessionRes, originalPathname, langSettings);
   return sessionRes;
 }
 

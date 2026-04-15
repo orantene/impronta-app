@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { Cinzel, Geist_Mono, Raleway } from "next/font/google";
+import { Cinzel, Geist_Mono, Inter, Playfair_Display, Raleway } from "next/font/google";
 import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { getLocaleMetadata } from "@/i18n/config";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
 
 import "./globals.css";
@@ -32,6 +33,21 @@ const cinzel = Cinzel({
   display: "swap",
 });
 
+/** Editorial preset: Inter + Playfair Display (loaded once; mapped in CSS by preset). */
+const interBody = Inter({
+  variable: "--font-inter-body",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const playfairDisplay = Playfair_Display({
+  variable: "--font-playfair-display",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
 export const metadata: Metadata = {
   title: {
     default: "Impronta — Models & image agency",
@@ -49,7 +65,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const siteTheme = await getSiteTheme();
+  const [siteTheme, publicFontPreset] = await Promise.all([
+    getSiteTheme(),
+    getPublicFontPreset(),
+  ]);
   const locale = await getRequestLocale();
   const { dir, hreflang } = getLocaleMetadata(locale);
 
@@ -58,11 +77,12 @@ export default async function RootLayout({
       lang={hreflang}
       dir={dir}
       suppressHydrationWarning
-      className={`${bodySans.variable} ${geistMono.variable} ${cinzel.variable} h-full antialiased`}
+      data-public-font-preset={publicFontPreset}
+      className={`${bodySans.variable} ${geistMono.variable} ${cinzel.variable} ${interBody.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body
         suppressHydrationWarning
-        className={`site-theme-${siteTheme} flex min-h-full flex-col bg-background text-foreground`}
+        className={`site-theme-${siteTheme} flex min-h-full flex-col text-foreground`}
       >
         <AnalyticsScripts />
         <WebVitalsReporter />

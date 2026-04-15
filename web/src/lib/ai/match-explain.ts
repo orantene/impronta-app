@@ -139,7 +139,7 @@ const CONF_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
  */
 export function publicMatchConfidenceFromExplanations(
   items: SearchExplanationItem[],
-  locale: "en" | "es",
+  locale: string,
 ): string | null {
   if (!items.length) return null;
   let best = 0;
@@ -164,7 +164,7 @@ export type MatchExplanationUiLine = { id: string; text: string };
  */
 export function formatMatchExplanationsForUi(
   items: SearchExplanationItem[],
-  locale: "en" | "es",
+  locale: string,
 ): MatchExplanationUiLine[] {
   const lines: MatchExplanationUiLine[] = [];
   let i = 0;
@@ -178,7 +178,7 @@ export function formatMatchExplanationsForUi(
 
 function formatOneExplanationLine(
   item: SearchExplanationItem,
-  locale: "en" | "es",
+  locale: string,
 ): string {
   const p = item.templateParams ?? {};
   const es = locale === "es";

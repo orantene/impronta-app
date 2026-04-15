@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { revalidateDirectoryListing } from "@/lib/revalidate-public";
+import { DIRECTORY_TALENT_TYPE_FIELD_KEY } from "@/lib/directory/field-driven-filters";
 import { DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY } from "@/lib/directory/directory-sidebar-layout";
 import { parseWithSchema, trimmedString } from "@/lib/admin/validation";
 import { requireStaff } from "@/lib/server/action-guards";
@@ -16,7 +17,8 @@ const savePayloadSchema = z.object({
   field_visibility: z.record(z.string(), z.boolean()),
   /** Keys with true = facet accordion starts collapsed on the public directory. */
   section_collapsed_defaults: z.record(z.string(), z.boolean()).optional(),
-  talent_type_top_bar_visible: z.boolean().optional(),
+  /** Taxonomy facet key for the pill row above results, or null to disable. */
+  top_bar_facet_key: z.union([z.string().min(1).max(120), z.null()]),
 });
 
 export async function saveDirectorySidebarLayout(
@@ -45,7 +47,7 @@ export async function saveDirectorySidebarLayout(
     filter_search_visible,
     field_visibility,
     section_collapsed_defaults,
-    talent_type_top_bar_visible,
+    top_bar_facet_key,
   } = parsed.data;
 
   if (item_order.some((k) => k !== DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY && k.includes(","))) {
@@ -67,17 +69,33 @@ export async function saveDirectorySidebarLayout(
     if (visible === false) visibilityOverrides[key] = false;
   }
 
+  if (top_bar_facet_key) {
+    const { data: facetRow, error: facetErr } = await supabase
+      .from("field_definitions")
+      .select("key")
+      .eq("key", top_bar_facet_key)
+      .eq("active", true)
+      .is("archived_at", null)
+      .in("value_type", ["taxonomy_single", "taxonomy_multi"])
+      .maybeSingle();
+    if (facetErr || !facetRow) {
+      return {
+        error:
+          "Top bar facet must be an active taxonomy field (taxonomy_single or taxonomy_multi) that participates in directory filters.",
+      };
+    }
+  }
+
   const layoutRow: Record<string, unknown> = {
     id: 1,
     item_order,
     filter_option_search_visible: filter_search_visible,
     section_collapsed_defaults: collapsedClean,
     field_visibility_overrides: visibilityOverrides,
+    top_bar_facet_key,
+    talent_type_top_bar_visible: top_bar_facet_key === DIRECTORY_TALENT_TYPE_FIELD_KEY,
     updated_at: new Date().toISOString(),
   };
-  if (talent_type_top_bar_visible !== undefined) {
-    layoutRow.talent_type_top_bar_visible = talent_type_top_bar_visible;
-  }
 
   const { error: layoutErr } = await supabase
     .from("directory_sidebar_layout")
@@ -85,6 +103,12 @@ export async function saveDirectorySidebarLayout(
 
   if (layoutErr) {
     const le = `${layoutErr.message ?? ""} ${layoutErr.code ?? ""}`.toLowerCase();
+    if (le.includes("top_bar_facet_key")) {
+      return {
+        error:
+          "Database is missing top_bar_facet_key. Apply migration 20260414120100_directory_top_bar_facet_key.sql.",
+      };
+    }
     if (le.includes("field_visibility_overrides")) {
       return {
         error:

@@ -19,6 +19,7 @@ import {
   ADMIN_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
+import { isMissingTaxonomyPromoColumnsError } from "@/lib/taxonomy/taxonomy-promo";
 
 type Term = {
   id: string;
@@ -28,6 +29,8 @@ type Term = {
   name_es: string | null;
   sort_order: number;
   archived_at: string | null;
+  promo_image_storage_path: string | null;
+  promo_placements: string[] | null;
 };
 
 const GROUP_LABELS: Record<string, string> = {
@@ -87,26 +90,54 @@ export default async function AdminTaxonomyPage({
     );
   }
 
-  let q = supabase
-    .from("taxonomy_terms")
-    .select("id, kind, slug, name_en, name_es, sort_order, archived_at")
-    .order("kind")
-    .order("sort_order")
-    .order("slug");
+  const runList = (select: string) => {
+    let q = supabase
+      .from("taxonomy_terms")
+      .select(select)
+      .order("kind")
+      .order("sort_order")
+      .order("slug");
+    if (!showArchived) {
+      q = q.is("archived_at", null);
+    }
+    if (filterQ) {
+      const escaped = filterQ.replace(/[%_]/g, "\\$&");
+      q = q.or(`name_en.ilike.%${escaped}%,slug.ilike.%${escaped}%`);
+    }
+    return q;
+  };
 
-  if (!showArchived) {
-    q = q.is("archived_at", null);
-  }
+  const selectWithPromo =
+    "id, kind, slug, name_en, name_es, sort_order, archived_at, promo_image_storage_path, promo_placements";
+  const selectLegacy = "id, kind, slug, name_en, name_es, sort_order, archived_at";
 
-  if (filterQ) {
-    const escaped = filterQ.replace(/[%_]/g, "\\$&");
-    q = q.or(`name_en.ilike.%${escaped}%,slug.ilike.%${escaped}%`);
-  }
+  let res = await runList(selectWithPromo);
+  let terms: Term[];
 
-  const { data: terms, error } = await q;
-
-  if (error) {
-    logServerError("admin/taxonomy/list", error);
+  if (!res.error) {
+    terms = (res.data ?? []).map((row) => {
+      const t = row as unknown as Term;
+      return {
+        ...t,
+        promo_image_storage_path: t.promo_image_storage_path ?? null,
+        promo_placements: t.promo_placements ?? [],
+      };
+    });
+  } else if (isMissingTaxonomyPromoColumnsError(res.error)) {
+    const retry = await runList(selectLegacy);
+    if (retry.error) {
+      logServerError("admin/taxonomy/list", retry.error);
+      return (
+        <p className="text-sm text-destructive">{CLIENT_ERROR.loadPage}</p>
+      );
+    }
+    terms = (retry.data ?? []).map((row) => ({
+      ...(row as unknown as Omit<Term, "promo_image_storage_path" | "promo_placements">),
+      promo_image_storage_path: null,
+      promo_placements: [] as string[],
+    }));
+  } else {
+    logServerError("admin/taxonomy/list", res.error);
     return (
       <p className="text-sm text-destructive">{CLIENT_ERROR.loadPage}</p>
     );
@@ -132,6 +163,7 @@ export default async function AdminTaxonomyPage({
     ...extraKinds.filter((k) => (grouped[k]?.length ?? 0) > 0),
   ];
   const noTermsAtAll = list.length === 0;
+  const aiTaxonomyImageEnabled = Boolean(process.env.OPENAI_API_KEY?.trim());
 
   return (
     <div className={ADMIN_PAGE_STACK}>
@@ -167,6 +199,7 @@ export default async function AdminTaxonomyPage({
                     <li>Use terms to tag profiles and power filters.</li>
                     <li>Archive terms instead of deleting to preserve history.</li>
                     <li>Reorder terms to control UI scan order within a kind.</li>
+                    <li>Optional marketing image per term (upload or AI) and home placement — edit any term.</li>
                     <li>
                       Location Countries and Location Cities at the bottom are read-only mirrors synced from{" "}
                       <span className="font-mono text-[11px]">/admin/locations</span>.
@@ -246,6 +279,7 @@ export default async function AdminTaxonomyPage({
                   kind={kind}
                   showArchived={showArchived}
                   systemManaged={false}
+                  aiTaxonomyImageEnabled={aiTaxonomyImageEnabled}
                   terms={(kindTerms as Term[]) as unknown as AdminTaxonomyTerm[]}
                 />
               </DashboardSectionCard>
@@ -285,6 +319,7 @@ export default async function AdminTaxonomyPage({
                   showArchived={showArchived}
                   systemManaged
                   defaultExpanded
+                  aiTaxonomyImageEnabled={aiTaxonomyImageEnabled}
                   terms={(kindTerms as Term[]) as unknown as AdminTaxonomyTerm[]}
                 />
               </div>

@@ -1,19 +1,15 @@
 import type { Locale } from "@/i18n/config";
+import { pickLocalizedString } from "@/lib/i18n/pick-localized-string";
 
 /**
- * Plan §5: on `/es/…`, show published Spanish when present; otherwise that field falls back to English.
- * Stale Spanish is still shown (non-empty `bio_es`).
+ * Locale-first display with symmetric EN ↔ ES fallback (see Translation Center plan).
  */
 export function publicBioForLocale(
   locale: Locale,
   bio_en: string | null | undefined,
   bio_es: string | null | undefined,
 ): string {
-  const en = (bio_en ?? "").trim();
-  const es = (bio_es ?? "").trim();
-  if (locale !== "es") return en;
-  if (!es) return en;
-  return es;
+  return pickLocalizedString(locale, bio_en, bio_es);
 }
 
 /** Source English for editing / admin (coalesce legacy `short_bio`). */

@@ -10,7 +10,8 @@ import { createTranslator } from "@/i18n/messages";
 
 export const MAX_CARD_FIT_LABELS = 3;
 
-export type DirectoryLocale = "en" | "es";
+/** BCP-47 code; card copy still maps non-`es` to English DB columns until taxonomy migrates. */
+export type DirectoryLocale = string;
 
 export type ApiDirectoryCardRpcRow = {
   id: string;

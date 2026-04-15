@@ -7,6 +7,9 @@ import test from "node:test";
 import { NextRequest } from "next/server";
 
 import { resolveLocaleForPathname } from "@/i18n/locale-middleware";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
+
+const S = FALLBACK_LANGUAGE_SETTINGS;
 
 function req(path: string, cookie?: string) {
   const url = new URL(`https://example.test${path}`);
@@ -17,26 +20,26 @@ function req(path: string, cookie?: string) {
 
 test("resolveLocale: /es/public path is Spanish despite locale=en cookie", () => {
   const r = req("/es/directory", "locale=en");
-  assert.equal(resolveLocaleForPathname("/es/directory", r), "es");
+  assert.equal(resolveLocaleForPathname("/es/directory", r, S), "es");
 });
 
 test("resolveLocale: /es/t/... is Spanish despite locale=en cookie", () => {
   const r = req("/es/t/abc123", "locale=en");
-  assert.equal(resolveLocaleForPathname("/es/t/abc123", r), "es");
+  assert.equal(resolveLocaleForPathname("/es/t/abc123", r, S), "es");
 });
 
 test("resolveLocale: unprefixed /directory is English (cookie es does not override)", () => {
   const r = req("/directory", "locale=es");
-  assert.equal(resolveLocaleForPathname("/directory", r), "en");
+  assert.equal(resolveLocaleForPathname("/directory", r, S), "en");
 });
 
 test("resolveLocale: /admin uses cookie when present", () => {
   assert.equal(
-    resolveLocaleForPathname("/admin/translations", req("/admin/translations", "locale=es")),
+    resolveLocaleForPathname("/admin/translations", req("/admin/translations", "locale=es"), S),
     "es",
   );
   assert.equal(
-    resolveLocaleForPathname("/admin/translations", req("/admin/translations", "locale=en")),
+    resolveLocaleForPathname("/admin/translations", req("/admin/translations", "locale=en"), S),
     "en",
   );
 });

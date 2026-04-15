@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { type FormEvent, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { handleActionResult, type ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import type { OfferLineDraft } from "@/lib/inquiry/inquiry-engine";
 import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
 import { Button } from "@/components/ui/button";
@@ -64,10 +66,21 @@ export function InquiryV2OfferEditor({
   const [inqVersion, setInqVersion] = useState<number>(inquiryVersion);
 
   const updateLine = (i: number, patch: Partial<OfferLineDraft>) => {
-    setLines((prev) => prev.map((row, j) => (j === i ? { ...row, ...patch, sort_order: i } : row)));
+    setLines((prev) =>
+      prev.map((row, j) => {
+        if (j !== i) return row;
+        const merged = { ...row, ...patch, sort_order: i };
+        // Auto-calculate total_price when units or unit_price changes
+        if ("units" in patch || "unit_price" in patch) {
+          merged.total_price = parseFloat((merged.units * merged.unit_price).toFixed(2));
+        }
+        return merged;
+      }),
+    );
   };
 
   const addRow = () => setLines((prev) => [...prev, emptyLine(prev.length)]);
+  const removeRow = (i: number) => setLines((prev) => prev.filter((_, j) => j !== i).map((r, j) => ({ ...r, sort_order: j })));
 
   const handleSaveDraft = (formData: FormData) => {
     if (!canEdit) return;
@@ -75,24 +88,34 @@ export function InquiryV2OfferEditor({
     formData.set("inquiry_version", String(inqVersion));
     formData.set("offer_version", String(offerVersion));
     startTransition(async () => {
-      const res = await actionUpdateOfferDraft(formData);
-      if (res.ok) {
-        setOfferVersion(res.nextOfferVersion);
-        setInqVersion(res.nextInquiryVersion);
-        router.refresh();
+      const res: ActionResult<{ nextOfferVersion: number; nextInquiryVersion: number }> = await actionUpdateOfferDraft(formData);
+      handleActionResult(res, {
+        onToast: (m) => toast.message(m),
+        onRefresh: () => router.refresh(),
+        onInlineError: (m) => toast.error(m),
+        onBlockerBanner: (m) => toast.error(m),
+      });
+      if (res.ok && res.data) {
+        setOfferVersion(res.data.nextOfferVersion);
+        setInqVersion(res.data.nextInquiryVersion);
       }
     });
   };
 
-  const handleSendOffer = (formData: FormData) => {
+  const handleSendOffer = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!canEdit) return;
+    const formData = new FormData(e.currentTarget);
     formData.set("inquiry_version", String(inqVersion));
     formData.set("offer_version", String(offerVersion));
     startTransition(async () => {
       const res = await actionSendOffer(formData);
-      if (res.ok) {
-        router.refresh();
-      }
+      handleActionResult(res, {
+        onToast: (m) => toast.message(m),
+        onRefresh: () => router.refresh(),
+        onInlineError: (m) => toast.error(m),
+        onBlockerBanner: (m) => toast.error(m),
+      });
     });
   };
 
@@ -168,71 +191,86 @@ export function InquiryV2OfferEditor({
             {lines.map((line, i) => (
               <li
                 key={i}
-                className="grid gap-2 rounded-xl border border-border/40 bg-muted/10 p-3 sm:grid-cols-2 lg:grid-cols-3"
+                className="rounded-xl border border-border/40 bg-muted/10 p-3"
               >
-                <Input
-                  placeholder="Talent profile UUID (optional)"
-                  className={ADMIN_FORM_CONTROL}
-                  disabled={!canEdit}
-                  value={line.talent_profile_id ?? ""}
-                  onChange={(e) => updateLine(i, { talent_profile_id: e.target.value.trim() || null })}
-                />
-                <Input
-                  placeholder="Label"
-                  className={ADMIN_FORM_CONTROL}
-                  disabled={!canEdit}
-                  value={line.label ?? ""}
-                  onChange={(e) => updateLine(i, { label: e.target.value })}
-                />
-                <select
-                  className={ADMIN_FORM_CONTROL}
-                  disabled={!canEdit}
-                  value={line.pricing_unit}
-                  onChange={(e) =>
-                    updateLine(i, { pricing_unit: e.target.value as OfferLineDraft["pricing_unit"] })
-                  }
-                >
-                  <option value="event">event</option>
-                  <option value="hour">hour</option>
-                  <option value="day">day</option>
-                  <option value="week">week</option>
-                </select>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Units"
-                  className={ADMIN_FORM_CONTROL}
-                  disabled={!canEdit}
-                  value={line.units}
-                  onChange={(e) => updateLine(i, { units: Number(e.target.value) || 0 })}
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Unit price (client)"
-                  className={ADMIN_FORM_CONTROL}
-                  disabled={!canEdit}
-                  value={line.unit_price}
-                  onChange={(e) => updateLine(i, { unit_price: Number(e.target.value) || 0 })}
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Line total (client)"
-                  className={ADMIN_FORM_CONTROL}
-                  disabled={!canEdit}
-                  value={line.total_price}
-                  onChange={(e) => updateLine(i, { total_price: Number(e.target.value) || 0 })}
-                />
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="Talent cost"
-                  className={ADMIN_FORM_CONTROL}
-                  disabled={!canEdit}
-                  value={line.talent_cost}
-                  onChange={(e) => updateLine(i, { talent_cost: Number(e.target.value) || 0 })}
-                />
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">Line {i + 1}</span>
+                  {canEdit && lines.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      className="rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`Remove line ${i + 1}`}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <Input
+                    placeholder="Talent profile UUID (optional)"
+                    className={ADMIN_FORM_CONTROL}
+                    disabled={!canEdit}
+                    value={line.talent_profile_id ?? ""}
+                    onChange={(e) => updateLine(i, { talent_profile_id: e.target.value.trim() || null })}
+                  />
+                  <Input
+                    placeholder="Label"
+                    className={ADMIN_FORM_CONTROL}
+                    disabled={!canEdit}
+                    value={line.label ?? ""}
+                    onChange={(e) => updateLine(i, { label: e.target.value })}
+                  />
+                  <select
+                    className={ADMIN_FORM_CONTROL}
+                    disabled={!canEdit}
+                    value={line.pricing_unit}
+                    onChange={(e) =>
+                      updateLine(i, { pricing_unit: e.target.value as OfferLineDraft["pricing_unit"] })
+                    }
+                  >
+                    <option value="event">event</option>
+                    <option value="hour">hour</option>
+                    <option value="day">day</option>
+                    <option value="week">week</option>
+                  </select>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Units"
+                    className={ADMIN_FORM_CONTROL}
+                    disabled={!canEdit}
+                    value={line.units}
+                    onChange={(e) => updateLine(i, { units: Number(e.target.value) || 0 })}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Unit price (client)"
+                    className={ADMIN_FORM_CONTROL}
+                    disabled={!canEdit}
+                    value={line.unit_price}
+                    onChange={(e) => updateLine(i, { unit_price: Number(e.target.value) || 0 })}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Line total (client)"
+                    className={ADMIN_FORM_CONTROL}
+                    disabled={!canEdit}
+                    value={line.total_price}
+                    onChange={(e) => updateLine(i, { total_price: Number(e.target.value) || 0 })}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Talent cost"
+                    className={ADMIN_FORM_CONTROL}
+                    disabled={!canEdit}
+                    value={line.talent_cost}
+                    onChange={(e) => updateLine(i, { talent_cost: Number(e.target.value) || 0 })}
+                  />
+                </div>
               </li>
             ))}
           </ul>
@@ -250,7 +288,7 @@ export function InquiryV2OfferEditor({
       </form>
 
       {canEdit ? (
-        <form action={handleSendOffer} className="flex flex-wrap gap-2 border-t border-border/40 pt-4">
+        <form onSubmit={handleSendOffer} className="flex flex-wrap gap-2 border-t border-border/40 pt-4">
           <input type="hidden" name="inquiry_id" value={inquiryId} />
           <input type="hidden" name="offer_id" value={offer.id} />
           <input type="hidden" name="inquiry_version" value={inqVersion} />

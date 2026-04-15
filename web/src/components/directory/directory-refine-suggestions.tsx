@@ -28,7 +28,7 @@ function DirectoryRefineSuggestionsInner({
   heightMaxCm,
   ui,
 }: {
-  locale: "en" | "es";
+  locale: string;
   query: string;
   locationSlug: string;
   selectedTaxonomyIds: string[];
@@ -136,7 +136,7 @@ function DirectoryRefineSuggestionsInner({
 }
 
 export function DirectoryRefineSuggestions(props: {
-  locale: "en" | "es";
+  locale: string;
   query: string;
   locationSlug?: string;
   selectedTaxonomyIds: string[];

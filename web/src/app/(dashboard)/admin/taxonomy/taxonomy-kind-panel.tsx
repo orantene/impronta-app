@@ -18,8 +18,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import * as Dialog from "@radix-ui/react-dialog";
-import { startTransition, useActionState, useEffect, useMemo, useState } from "react";
-import { ChevronDown, GripVertical, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, GripVertical, Pencil, Plus, Search, Trash2, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,14 +38,19 @@ import { cn } from "@/lib/utils";
 import {
   archiveAllTermsInKind,
   bulkToggleArchiveTaxonomyTerms,
+  clearTaxonomyPromoImage,
   createTaxonomyTerm,
   deleteTaxonomyTerm,
+  generateTaxonomyPromoImage,
   reorderTaxonomyKind,
   restoreAllTermsInKind,
   updateTaxonomyTerm,
+  uploadTaxonomyPromoImage,
   type TaxonomyActionState,
 } from "./actions";
 import { ArchiveTermButton, RestoreTermButton } from "./taxonomy-forms";
+import { createClient } from "@/lib/supabase/client";
+import { TAXONOMY_PLACEMENT_HOME_BROWSE_BY_TYPE } from "@/lib/taxonomy/taxonomy-promo";
 
 function ReadOnlyTermRow({ term }: { term: AdminTaxonomyTerm }) {
   return (
@@ -76,6 +82,8 @@ export type AdminTaxonomyTerm = {
   name_es: string | null;
   sort_order: number;
   archived_at: string | null;
+  promo_image_storage_path: string | null;
+  promo_placements: string[] | null;
 };
 
 function slugify(input: string): string {
@@ -199,6 +207,7 @@ export function TaxonomyKindPanel({
   showArchived,
   systemManaged = false,
   defaultExpanded = false,
+  aiTaxonomyImageEnabled = false,
 }: {
   title: string;
   kind: string;
@@ -207,6 +216,8 @@ export function TaxonomyKindPanel({
   systemManaged?: boolean;
   /** When true, section starts expanded (used for system-managed location mirrors). */
   defaultExpanded?: boolean;
+  /** Server: OPENAI_API_KEY present — enables AI image generation in edit modal. */
+  aiTaxonomyImageEnabled?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(!defaultExpanded);
   const [query, setQuery] = useState("");
@@ -216,6 +227,9 @@ export function TaxonomyKindPanel({
   const [confirmGroupOpen, setConfirmGroupOpen] = useState(false);
   const [termBeingEdited, setTermBeingEdited] = useState<AdminTaxonomyTerm | null>(null);
   const [termBeingDeleted, setTermBeingDeleted] = useState<AdminTaxonomyTerm | null>(null);
+  const [placementHomeBrowse, setPlacementHomeBrowse] = useState(false);
+  const promoFileRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const [createState, createAction, createPending] = useActionState<TaxonomyActionState, FormData>(
     createTaxonomyTerm,
@@ -245,6 +259,61 @@ export function TaxonomyKindPanel({
     restoreAllTermsInKind,
     undefined,
   );
+  const [upImgState, upImgAction, upImgPending] = useActionState<TaxonomyActionState, FormData>(
+    uploadTaxonomyPromoImage,
+    undefined,
+  );
+  const [clrImgState, clrImgAction, clrImgPending] = useActionState<TaxonomyActionState, FormData>(
+    clearTaxonomyPromoImage,
+    undefined,
+  );
+  const [genImgState, genImgAction, genImgPending] = useActionState<TaxonomyActionState, FormData>(
+    generateTaxonomyPromoImage,
+    undefined,
+  );
+
+  const placementSyncKey = termBeingEdited
+    ? `${termBeingEdited.id}:${(termBeingEdited.promo_placements ?? []).join(",")}`
+    : "";
+
+  useEffect(() => {
+    if (!termBeingEdited) {
+      setPlacementHomeBrowse(false);
+      return;
+    }
+    const pl = termBeingEdited.promo_placements ?? [];
+    setPlacementHomeBrowse(pl.includes(TAXONOMY_PLACEMENT_HOME_BROWSE_BY_TYPE));
+  }, [placementSyncKey, termBeingEdited]);
+
+  useEffect(() => {
+    if (!upImgState?.success) return;
+    router.refresh();
+    if (upImgState.promo_image_storage_path !== undefined) {
+      setTermBeingEdited((prev) =>
+        prev ? { ...prev, promo_image_storage_path: upImgState.promo_image_storage_path ?? null } : null,
+      );
+    }
+  }, [upImgState, router]);
+
+  useEffect(() => {
+    if (!clrImgState?.success) return;
+    router.refresh();
+    if (clrImgState.promo_image_storage_path !== undefined) {
+      setTermBeingEdited((prev) =>
+        prev ? { ...prev, promo_image_storage_path: clrImgState.promo_image_storage_path ?? null } : null,
+      );
+    }
+  }, [clrImgState, router]);
+
+  useEffect(() => {
+    if (!genImgState?.success) return;
+    router.refresh();
+    if (genImgState.promo_image_storage_path !== undefined) {
+      setTermBeingEdited((prev) =>
+        prev ? { ...prev, promo_image_storage_path: genImgState.promo_image_storage_path ?? null } : null,
+      );
+    }
+  }, [genImgState, router]);
 
   useEffect(() => {
     if (createState?.success) setAddTermOpen(false);
@@ -273,7 +342,17 @@ export function TaxonomyKindPanel({
       updPending ||
       delPending ||
       archAllPending ||
-      restAllPending);
+      restAllPending ||
+      upImgPending ||
+      clrImgPending ||
+      genImgPending);
+
+  const promoPreviewUrl = useMemo(() => {
+    const path = termBeingEdited?.promo_image_storage_path;
+    if (!path) return null;
+    const sb = createClient();
+    return sb?.storage.from("media-public").getPublicUrl(path).data.publicUrl ?? null;
+  }, [termBeingEdited?.promo_image_storage_path]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -644,7 +723,7 @@ export function TaxonomyKindPanel({
       <Dialog.Root open={!!termBeingEdited} onOpenChange={(open) => !open && setTermBeingEdited(null)}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-black/55" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border/60 bg-background p-5 shadow-xl">
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border/60 bg-background p-5 shadow-xl">
             <Dialog.Title className="text-base font-semibold text-foreground">Edit term</Dialog.Title>
             <Dialog.Description className="mt-1 text-sm text-muted-foreground">
               Slug must stay unique within this group. Changing slug updates how URLs and filters reference this term.
@@ -652,6 +731,11 @@ export function TaxonomyKindPanel({
             {termBeingEdited ? (
               <form key={termBeingEdited.id} action={updAction} className="mt-4 grid gap-3">
                 <input type="hidden" name="term_id" value={termBeingEdited.id} />
+                <input
+                  type="hidden"
+                  name="promo_placements"
+                  value={placementHomeBrowse ? TAXONOMY_PLACEMENT_HOME_BROWSE_BY_TYPE : ""}
+                />
                 <div className="space-y-1.5">
                   <Label htmlFor={`edit-slug-${termBeingEdited.id}`}>Slug</Label>
                   <Input
@@ -693,6 +777,115 @@ export function TaxonomyKindPanel({
                     defaultValue={termBeingEdited.sort_order}
                   />
                 </div>
+
+                <div className="space-y-2 border-t border-border/50 pt-3">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Marketing image
+                  </p>
+                  <div className="flex flex-wrap items-start gap-4">
+                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted/30">
+                      {promoPreviewUrl ? (
+                        <img src={promoPreviewUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                          No image
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <input
+                        ref={promoFileRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!file || !termBeingEdited) return;
+                          const fd = new FormData();
+                          fd.set("term_id", termBeingEdited.id);
+                          fd.set("file", file);
+                          startTransition(() => {
+                            upImgAction(fd);
+                          });
+                        }}
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={updPending || upImgPending}
+                          onClick={() => promoFileRef.current?.click()}
+                        >
+                          {upImgPending ? "Uploading…" : "Upload photo"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            updPending || genImgPending || !aiTaxonomyImageEnabled || !termBeingEdited.name_en?.trim()
+                          }
+                          title={
+                            !aiTaxonomyImageEnabled
+                              ? "Set OPENAI_API_KEY on the server to enable AI image generation."
+                              : undefined
+                          }
+                          onClick={() => {
+                            if (!termBeingEdited) return;
+                            const fd = new FormData();
+                            fd.set("term_id", termBeingEdited.id);
+                            startTransition(() => {
+                              genImgAction(fd);
+                            });
+                          }}
+                        >
+                          <Wand2 className="mr-1.5 size-3.5" aria-hidden />
+                          {genImgPending ? "Generating…" : "AI generate"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground hover:text-destructive"
+                          disabled={updPending || clrImgPending || !termBeingEdited.promo_image_storage_path}
+                          onClick={() => {
+                            if (!termBeingEdited) return;
+                            const fd = new FormData();
+                            fd.set("term_id", termBeingEdited.id);
+                            startTransition(() => {
+                              clrImgAction(fd);
+                            });
+                          }}
+                        >
+                          {clrImgPending ? "Removing…" : "Remove image"}
+                        </Button>
+                      </div>
+                      <label className="flex cursor-pointer items-start gap-2 text-sm leading-snug">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 rounded border-border/60 bg-transparent"
+                          checked={placementHomeBrowse}
+                          onChange={(e) => setPlacementHomeBrowse(e.target.checked)}
+                          disabled={updPending}
+                        />
+                        <span>
+                          <span className="font-medium text-foreground">Show on home</span>
+                          <span className="text-muted-foreground"> — Browse by type strip</span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            Applies to the public home page when this term is a talent type and an image is set. Other
+                            groups can store an image for future surfaces.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                  {upImgState?.error ? <p className="text-sm text-destructive">{upImgState.error}</p> : null}
+                  {genImgState?.error ? <p className="text-sm text-destructive">{genImgState.error}</p> : null}
+                  {clrImgState?.error ? <p className="text-sm text-destructive">{clrImgState.error}</p> : null}
+                </div>
+
                 {updState?.error ? <p className="text-sm text-destructive">{updState.error}</p> : null}
                 <div className="flex flex-wrap justify-end gap-2 pt-1">
                   <Dialog.Close asChild>

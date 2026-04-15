@@ -40,6 +40,7 @@ import {
 import { TalentEditPanel } from "@/components/talent/talent-edit-panel";
 import { HelpTip } from "@/components/ui/help-tip";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import {
   TalentProfileForm,
   TalentSubmitForReviewForm,
@@ -501,9 +502,13 @@ export function TalentMyProfileClient({
   }, [taxonomy?.assignedIds, termKindById]);
 
   // Media completeness from the media array
-  const hasProfilePhoto = dashboard.media.some((m) => m.variant_kind === "card");
+  const cardMedia = dashboard.media.find((m) => m.variant_kind === "card");
+  const hasProfilePhoto = Boolean(cardMedia);
+  const profilePhotoUrl = cardMedia?.publicUrl ?? null;
   const hasCoverPhoto = dashboard.media.some((m) => m.variant_kind === "banner");
   const galleryCount = dashboard.media.filter((m) => m.variant_kind === "gallery").length;
+
+  const talentFirstName = (profile.first_name?.trim() ?? profile.display_name?.trim() ?? "").split(/\s+/)[0] ?? "";
 
   const groupChecklist = useCallback(
     (groupId: string) => {
@@ -603,7 +608,16 @@ export function TalentMyProfileClient({
           <div className="p-4 sm:p-6 lg:p-8">
             <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_min(100%,20rem)] lg:items-start xl:gap-10">
               <div className="grid min-w-0 grid-cols-1 items-center gap-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start sm:gap-6 lg:gap-8">
-                <div className="flex justify-center sm:justify-start">
+                <div className="flex flex-col items-center gap-3 sm:items-start">
+                  {profilePhotoUrl ? (
+                    <UserAvatar
+                      src={profilePhotoUrl}
+                      name={profile.display_name}
+                      size="lg"
+                      rounded="xl"
+                      className="size-20 sm:size-[4.5rem]"
+                    />
+                  ) : null}
                   <TalentHeroCompletionRing value={completionScore} />
                 </div>
                 <div className="min-w-0 space-y-2 text-center sm:text-left">
@@ -618,7 +632,8 @@ export function TalentMyProfileClient({
                         : "text-lg sm:text-xl",
                     )}
                   >
-                    {missingItems.length > 0 ? "Finish your profile" : "You’re in good shape"}
+                    {talentFirstName ? `${talentFirstName} — ` : ""}
+                    {missingItems.length > 0 ? "finish your profile" : "you’re in good shape"}
                   </h2>
                   <p className="text-pretty text-sm leading-relaxed text-muted-foreground lg:text-base lg:leading-relaxed">
                     {missingItems.length > 0 ? (

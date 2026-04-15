@@ -9,6 +9,9 @@
     "typecheck": "npm --prefix web run typecheck",
     "ci": "npm --prefix web run ci",
     "test:auth-routing": "npm --prefix web run test:auth-routing",
-    "create:test-clients": "npm --prefix web run create:test-clients"
+    "create:test-clients": "npm --prefix web run create:test-clients",
+    "verify:mcp-prereqs": "bash scripts/verify-mcp-prereqs.sh",
+    "verify:google-maps-env": "npm --prefix web run verify:google-maps-env",
+    "validate:inquiry-workspace-db": "npm --prefix web run validate:inquiry-workspace-db"
   }
 }

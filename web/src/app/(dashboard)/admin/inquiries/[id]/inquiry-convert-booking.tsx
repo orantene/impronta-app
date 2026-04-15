@@ -1,14 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { convertInquiryToBooking } from "@/app/(dashboard)/admin/bookings/actions";
 import { actionEngineConvertToBooking } from "@/app/(dashboard)/admin/inquiries/[id]/convert-booking-actions";
-import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
+import { handleActionResult } from "@/lib/inquiry/inquiry-action-result";
+import { ADMIN_FORM_CONTROL, LUXURY_GOLD_BUTTON_CLASS } from "@/lib/dashboard-shell-classes";
 import { BOOKING_STATUS_VALUES } from "@/lib/admin/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type InquiryTalent = {
@@ -18,6 +23,86 @@ type InquiryTalent = {
 };
 
 type ExistingBooking = { id: string; title: string; status: string };
+
+export const INQUIRY_ENGINE_CONVERT_FORM_ID = "inquiry-engine-convert-form";
+
+function EngineConvertBookingForm({
+  inquiryId,
+  inquiryVersion,
+  formId = INQUIRY_ENGINE_CONVERT_FORM_ID,
+}: {
+  inquiryId: string;
+  inquiryVersion: number;
+  formId?: string;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const [success, setSuccess] = useState<{ bookingId: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (success) {
+    return (
+      <div className="rounded-2xl border border-[var(--impronta-gold)]/40 bg-[var(--impronta-gold)]/8 px-5 py-5">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[var(--impronta-gold)]" aria-hidden />
+          <div className="min-w-0">
+            <p className="font-semibold text-foreground">Booking confirmed</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This inquiry has been converted. The booking record holds the confirmed pricing, talent,
+              and timeline. The inquiry is now read-only.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button asChild className={cn(LUXURY_GOLD_BUTTON_CLASS, "rounded-full")}>
+                <Link href={`/admin/bookings/${success.bookingId}`}>View booking →</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    startTransition(() => {
+      void (async () => {
+        const result = await actionEngineConvertToBooking(fd);
+        if (result.ok) {
+          router.refresh();
+          if (result.data?.bookingId) {
+            setSuccess({ bookingId: result.data.bookingId });
+          } else {
+            toast.message(result.message ?? "Booking created.");
+          }
+        } else {
+          setError(result.message);
+        }
+      })();
+    });
+  };
+
+  return (
+    <form id={formId} onSubmit={onSubmit} className="space-y-4">
+      <p className="rounded-md border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">Engine conversion</span> — requires status{" "}
+        <strong>approved</strong>, an <strong>accepted</strong> offer, and a matching roster. Pricing is
+        snapshotted into the booking. The workspace refreshes to the booked state immediately.
+      </p>
+      {error ? (
+        <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <input type="hidden" name="inquiry_id" value={inquiryId} />
+      <input type="hidden" name="expected_version" value={String(inquiryVersion)} />
+      <Button type="submit" className="w-full sm:w-auto" disabled={pending}>
+        {pending ? "Converting…" : "Convert to booking"}
+      </Button>
+    </form>
+  );
+}
 
 export function InquiryConvertBookingPanel({
   inquiryId,
@@ -38,20 +123,7 @@ export function InquiryConvertBookingPanel({
   const talentListRef = useRef<HTMLUListElement>(null);
 
   if (engineV2) {
-    return (
-      <form action={actionEngineConvertToBooking} className="space-y-4">
-        <p className="rounded-md border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Engine conversion</span> — requires status{" "}
-          <strong>approved</strong>, an <strong>accepted</strong> offer, and matching roster. Snapshot pricing into the
-          booking.
-        </p>
-        <input type="hidden" name="inquiry_id" value={inquiryId} />
-        <input type="hidden" name="expected_version" value={String(inquiryVersion)} />
-        <Button type="submit" className="w-full sm:w-auto">
-          Convert to booking
-        </Button>
-      </form>
-    );
+    return <EngineConvertBookingForm inquiryId={inquiryId} inquiryVersion={inquiryVersion} formId={INQUIRY_ENGINE_CONVERT_FORM_ID} />;
   }
 
   const setAllTalentChecks = (on: boolean) => {

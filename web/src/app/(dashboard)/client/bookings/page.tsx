@@ -48,8 +48,8 @@ export default async function ClientBookingsPage() {
             actions={
               <>
                 <Button variant="outline" size="sm" asChild>
-                  <Link href="/client/requests" scroll={false}>
-                    View your requests
+                  <Link href="/client/inquiries" scroll={false}>
+                    View your inquiries
                   </Link>
                 </Button>
                 <Button size="sm" className={cn(LUXURY_GOLD_BUTTON_CLASS)} asChild>

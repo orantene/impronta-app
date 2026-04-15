@@ -22,6 +22,7 @@ import { isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
 import { logSearchQuery } from "@/lib/search-queries/log-search-query";
 import { normalizeSearchQueryForEmbedding } from "@/lib/ai/normalize-search-query";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
+import { fetchLanguageSettingsPublic } from "@/lib/language-settings/fetch-language-settings";
 
 export async function GET(request: Request) {
   const audit = isDirectoryApiAudit();
@@ -41,7 +42,12 @@ export async function GET(request: Request) {
   const limitRaw = searchParams.get("limit");
   const localeParam =
     searchParams.get("locale") ?? searchParams.get("lang");
-  const locale = localeParam === "es" ? ("es" as const) : ("en" as const);
+  const langSettings = await fetchLanguageSettingsPublic();
+  const raw = localeParam?.trim().toLowerCase() ?? "";
+  const locale =
+    raw && langSettings.publicLocales.includes(raw)
+      ? raw
+      : langSettings.defaultLocale;
   const sort = parseDirectorySort(
     searchParams.get("sort") ?? undefined,
   ) as DirectorySortValue;
@@ -132,9 +138,9 @@ export async function GET(request: Request) {
         resultsCount: body.items?.length ?? 0,
         source: "directory",
         searchMode: "classic",
-        aiEnabled: flags.ai_search_enabled,
+        aiEnabled: flags.ai_master_enabled && flags.ai_search_enabled,
         rerankEnabled: flags.ai_rerank_enabled,
-        explanationEnabled: flags.ai_explanations_enabled,
+        explanationEnabled: flags.ai_master_enabled && flags.ai_explanations_enabled,
         flagSnapshot: { ...flags },
       }),
     );

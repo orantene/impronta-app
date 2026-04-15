@@ -1,18 +1,14 @@
-export const VIEW_TABS = [
-  { key: "bio", label: "Talent bios (ES)" },
-  { key: "taxonomy", label: "Taxonomy (ES)" },
-  { key: "locations", label: "Locations (ES)" },
-] as const;
+import { getTranslationNavTabs } from "@/lib/translation-center/registry";
+
+/** Tabs are derived from the Translation Center registry — do not hardcode new views here. */
+export const VIEW_TABS = getTranslationNavTabs().map((t) => ({ key: t.key, label: t.label }));
 
 export const BIO_STATUS_FILTERS = [
   { key: "all", label: "All profiles" },
   { key: "needs_attention", label: "Needs attention" },
-  { key: "missing", label: "Status: missing" },
-  { key: "stale", label: "Status: stale" },
-  { key: "draft", label: "Draft pending" },
-  { key: "auto", label: "Status: auto" },
-  { key: "reviewed", label: "Status: reviewed" },
-  { key: "approved", label: "Status: approved" },
+  { key: "missing", label: "Missing Spanish" },
+  { key: "complete", label: "Complete" },
+  { key: "language_issue", label: "Language issue" },
 ] as const;
 
 /** URL `status` when view is taxonomy or locations (computed missing / translated only). */
@@ -20,10 +16,11 @@ export const TAX_LOC_STATUS_FILTERS = [
   { key: "all", label: "All" },
   { key: "needs_attention", label: "Needs attention" },
   { key: "missing", label: "Missing Spanish" },
-  { key: "translated", label: "Translated" },
+  { key: "complete", label: "Complete" },
+  { key: "language_issue", label: "Language issue" },
 ] as const;
 
-export type ViewKey = (typeof VIEW_TABS)[number]["key"];
+export type ViewKey = string;
 export type BioFilterKey = (typeof BIO_STATUS_FILTERS)[number]["key"];
 export type TaxLocFilterKey = (typeof TAX_LOC_STATUS_FILTERS)[number]["key"];
 export type BioSortKey = "name" | "code" | "es_at" | "en_at";
@@ -62,7 +59,13 @@ export function translationsHref(options: {
   if (options.status && options.status !== "all") sp.set("status", options.status);
   if (options.q?.trim()) sp.set("q", options.q.trim());
   const defaultSortKey =
-    options.view === "taxonomy" ? "kind" : options.view === "locations" ? "country" : "name";
+    options.view === "taxonomy"
+      ? "kind"
+      : options.view === "locations"
+        ? "country"
+        : options.view === "cms"
+          ? "slug"
+          : "name";
   if (options.sort && options.sort !== defaultSortKey) sp.set("sort", options.sort);
   if (options.dir && options.dir !== "asc") sp.set("dir", options.dir);
   const qs = sp.toString();
@@ -152,18 +155,30 @@ export function parseTranslationsSearchParams(sp: {
   locationSort: LocationSortKey;
   sortDir: SortDir;
 } {
-  const view = (VIEW_TABS.some((t) => t.key === sp.view) ? sp.view : "bio") as ViewKey;
+  const allowed = new Set(VIEW_TABS.map((t) => t.key));
+  const view = (sp.view && allowed.has(sp.view) ? sp.view : "bio") as ViewKey;
   const statusRaw = ((sp.status ?? sp.bio) ?? "").trim() || "all";
   const q = (sp.q ?? "").trim();
   const sortDir: SortDir = sp.dir === "desc" ? "desc" : "asc";
   const sortRaw = sp.sort;
 
-  const bioStatusFilter = BIO_STATUS_FILTERS.some((f) => f.key === statusRaw)
-    ? (statusRaw as BioFilterKey)
-    : "all";
-  const taxLocStatusFilter = TAX_LOC_STATUS_FILTERS.some((f) => f.key === statusRaw)
-    ? (statusRaw as TaxLocFilterKey)
-    : "all";
+  const bioStatusFilter = ((): BioFilterKey => {
+    if (statusRaw === "reviewed" || statusRaw === "approved" || statusRaw === "auto" || statusRaw === "published") {
+      return "complete";
+    }
+    if (statusRaw === "stale" || statusRaw === "draft") return "needs_attention";
+    if (statusRaw === "translated") return "complete";
+    if (statusRaw === "language_conflict") return "language_issue";
+    if (BIO_STATUS_FILTERS.some((f) => f.key === statusRaw)) return statusRaw as BioFilterKey;
+    return "all";
+  })();
+  const taxLocStatusFilter = ((): TaxLocFilterKey => {
+    if (statusRaw === "language_conflict") return "language_issue";
+    if (statusRaw === "published" || statusRaw === "translated") return "complete";
+    if (statusRaw === "stale" || statusRaw === "draft") return "needs_attention";
+    if (TAX_LOC_STATUS_FILTERS.some((f) => f.key === statusRaw)) return statusRaw as TaxLocFilterKey;
+    return "all";
+  })();
 
   return {
     view,

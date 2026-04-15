@@ -4,12 +4,10 @@ import type { DirectoryCardDTO } from "@/lib/directory/types";
 import { explainMatch } from "@/lib/ai/match-explain";
 import type { SearchExplanationItem } from "@/lib/ai/search-result";
 
-type Locale = "en" | "es";
-
 async function loadLocationQueryCity(
   supabase: SupabaseClient,
   locationSlug: string,
-  locale: Locale,
+  locale: string,
 ): Promise<string | null> {
   const slug = locationSlug.trim();
   if (!slug) return null;
@@ -52,7 +50,7 @@ export async function buildExplanationsForAiSearchCards(
   supabase: SupabaseClient,
   cards: DirectoryCardDTO[],
   opts: {
-    locale: Locale;
+    locale: string;
     locationSlug: string;
     taxonomyTermIds: string[];
     heightMinCm: number | null;

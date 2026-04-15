@@ -30,7 +30,6 @@ import { DirectoryUnderstandingStrip } from "./directory-understanding-strip";
 import { DirectoryResultsToolbar } from "./directory-results-toolbar";
 import { DirectoryTalentTypeBar } from "./directory-talent-type-bar";
 import type { DirectoryFieldFacetSelection, DirectorySortValue } from "@/lib/directory/types";
-import type { Locale } from "@/i18n/config";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { withLocalePath } from "@/i18n/pathnames";
 import { logServerError } from "@/lib/server/safe-error";
@@ -46,17 +45,21 @@ function buildDirectorySourcePage({
   taxonomyTermIds,
   heightMinCm,
   heightMaxCm,
+  ageMin,
+  ageMax,
   fieldFacets,
   view,
   aiSummary,
 }: {
-  locale: Locale;
+  locale: string;
   query: string;
   locationSlug: string;
   sort: DirectorySortValue;
   taxonomyTermIds: string[];
   heightMinCm: number | null;
   heightMaxCm: number | null;
+  ageMin: number | null;
+  ageMax: number | null;
   fieldFacets: DirectoryFieldFacetSelection[];
   view: "grid" | "list";
   aiSummary?: string;
@@ -68,6 +71,8 @@ function buildDirectorySourcePage({
     taxonomyTermIds,
     heightMinCm,
     heightMaxCm,
+    ageMin,
+    ageMax,
     fieldFacets,
     view,
     aiSummary,
@@ -92,7 +97,7 @@ async function DirectoryDiscoverInner({
   initialSavedIds,
 }: {
   taxonomyTermIds: string[];
-  locale: "en" | "es";
+  locale: string;
   sort: DirectorySortValue;
   query: string;
   locationSlug: string;
@@ -128,6 +133,8 @@ async function DirectoryDiscoverInner({
         locationSlug,
         heightMinCm,
         heightMaxCm,
+        ageMin,
+        ageMax,
         fieldFacetFilters: fieldFacets,
       }),
     ]);
@@ -166,6 +173,8 @@ async function DirectoryDiscoverInner({
 
   const t = createTranslator(locale);
   const ui = buildDirectoryUiCopy(t);
+  const aiSearchEnabled = Boolean(aiFlags?.ai_master_enabled && aiFlags.ai_search_enabled);
+  const aiRefineEnabled = Boolean(aiFlags?.ai_master_enabled && aiFlags.ai_refine_enabled);
 
   const interpretedStructuredLine = buildDirectoryInterpretedSummaryLine({
     taxonomyOptions,
@@ -178,11 +187,12 @@ async function DirectoryDiscoverInner({
 
   return (
     <>
-      {filterSidebar.topBarTalentType ? (
+      {filterSidebar.topBarFacet ? (
         <DirectoryTalentTypeBar
-          options={filterSidebar.topBarTalentType.options}
+          options={filterSidebar.topBarFacet.options}
           selectedIds={taxonomyTermIds}
-          talentType={ui.talentType}
+          allLabel={ui.topBarPills.all}
+          barAriaLabel={filterSidebar.topBarFacet.label}
         />
       ) : null}
       <div className="flex gap-8">
@@ -193,7 +203,7 @@ async function DirectoryDiscoverInner({
             locationSlug,
             sort,
             taxonomyTermIds,
-              sourcePage: buildDirectorySourcePage({
+            sourcePage: buildDirectorySourcePage({
               locale,
               query,
               locationSlug,
@@ -201,6 +211,8 @@ async function DirectoryDiscoverInner({
               taxonomyTermIds,
               heightMinCm,
               heightMaxCm,
+              ageMin,
+              ageMax,
               fieldFacets,
               view,
               aiSummary: aiSummary.trim() || undefined,
@@ -245,7 +257,7 @@ async function DirectoryDiscoverInner({
           >
             <DirectoryUnderstandingStrip
               aiSummary={aiSummary}
-              showSummary={Boolean(aiFlags?.ai_search_enabled)}
+              showSummary={aiSearchEnabled}
               interpretedStructuredLine={interpretedStructuredLine}
               taxonomyOptions={taxonomyOptions}
               selectedIds={taxonomyTermIds}
@@ -262,7 +274,7 @@ async function DirectoryDiscoverInner({
               ui={ui}
             />
 
-            {aiFlags?.ai_refine_enabled ? (
+            {aiRefineEnabled ? (
               <DirectoryRefineSuggestions
                 locale={locale}
                 query={query}
@@ -282,6 +294,8 @@ async function DirectoryDiscoverInner({
                 taxonomyTermIds,
                 heightMinCm,
                 heightMaxCm,
+                ageMin,
+                ageMax,
                 fieldFacets,
                 view,
                 aiSummary,
@@ -294,11 +308,13 @@ async function DirectoryDiscoverInner({
               locationSlug={locationSlug}
               heightMinCm={heightMinCm}
               heightMaxCm={heightMaxCm}
+              ageMin={ageMin}
+              ageMax={ageMax}
               fieldFacets={fieldFacets}
               view={view}
               initialSavedIds={initialSavedIds}
               ui={ui}
-              directorySearchViaAi={Boolean(aiFlags?.ai_search_enabled)}
+              directorySearchViaAi={aiSearchEnabled}
             />
           </DirectoryMatchFitProvider>
         </div>

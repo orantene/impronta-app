@@ -73,17 +73,33 @@ function connectSrcDirectives(): string[] {
   return [...origins];
 }
 
+/**
+ * Maps JavaScript API — allowlist CSP aligned with Google’s guidance:
+ * https://developers.google.com/maps/documentation/javascript/content-security-policy
+ * (narrow script/connect was causing partial loads / console CSP violations.)
+ */
+const googleMapsCsp = {
+  script:
+    "https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.ggpht.com https://*.googleusercontent.com blob:",
+  connect:
+    "https://*.googleapis.com https://*.google.com https://*.gstatic.com https://maps.googleapis.com data: blob:",
+  frameSrc: "'self' https://*.google.com",
+};
+
 function contentSecurityPolicy(): string {
   const googleTag = "https://www.googletagmanager.com https://www.google-analytics.com";
   const directives = [
     "default-src 'self'",
     isProd
-      ? `script-src 'self' 'unsafe-inline' ${googleTag}`
-      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleTag}`,
+      ? `script-src 'self' 'unsafe-inline' ${googleMapsCsp.script} ${googleTag}`
+      : `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${googleMapsCsp.script} ${googleTag}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     `img-src 'self' data: blob: https: https://www.google-analytics.com`,
-    `connect-src ${connectSrcDirectives().join(" ")} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com`,
+    `connect-src ${connectSrcDirectives().join(" ")} ${googleMapsCsp.connect} ${googleTag} https://*.google-analytics.com https://*.analytics.google.com https://analytics.google.com`,
+    `frame-src ${googleMapsCsp.frameSrc}`,
+    /** Maps workers use blob: URLs */
+    "worker-src blob:",
     "frame-ancestors 'self'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -139,6 +155,21 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+    ];
+  },
+  /** Common typo: inqueries → inquiries */
+  async redirects() {
+    return [
+      {
+        source: "/talent/inqueries",
+        destination: "/talent/inquiries",
+        permanent: false,
+      },
+      {
+        source: "/talent/inqueries/:path*",
+        destination: "/talent/inquiries/:path*",
+        permanent: false,
       },
     ];
   },

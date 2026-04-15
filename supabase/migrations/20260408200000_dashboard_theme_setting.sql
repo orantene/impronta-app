@@ -21,7 +21,7 @@ CREATE POLICY settings_public_select_frontend ON public.settings
     )
   );
 INSERT INTO public.settings (key, value, updated_at)
-VALUES ('dashboard_theme', '"dark"'::jsonb, now())
+VALUES ('dashboard_theme', '"light"'::jsonb, now())
 ON CONFLICT (key) DO NOTHING;
 INSERT INTO public.settings (key, value, updated_at)
 VALUES ('site_theme', '"dark"'::jsonb, now())

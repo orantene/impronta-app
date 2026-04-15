@@ -10,7 +10,7 @@ export type TaxonomyFilterOption = {
 };
 
 async function loadTaxonomyTermsUncached(
-  locale: "en" | "es",
+  locale: string,
 ): Promise<TaxonomyFilterOption[]> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) {
@@ -35,7 +35,7 @@ async function loadTaxonomyTermsUncached(
   }));
 }
 
-export function getCachedTaxonomyFilterOptions(locale: "en" | "es") {
+export function getCachedTaxonomyFilterOptions(locale: string) {
   return unstable_cache(
     () => loadTaxonomyTermsUncached(locale),
     ["taxonomy-filter-options", locale],

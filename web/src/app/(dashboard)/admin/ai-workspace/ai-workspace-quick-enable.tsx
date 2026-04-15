@@ -25,7 +25,7 @@ export function AiWorkspaceQuickEnableButton() {
       onSubmit={(e) => {
         if (
           !window.confirm(
-            "Enable all five core AI features (search, rerank, explanations, refine, inquiry draft)? Quality v2 flags are unchanged.",
+            "Enable all core AI feature switches (search, rerank, explanations, refine, inquiry draft, translations, semantic/vector)? Master AI mode and quality v2 flags are unchanged.",
           )
         ) {
           e.preventDefault();

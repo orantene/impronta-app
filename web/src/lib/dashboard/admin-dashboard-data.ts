@@ -95,6 +95,7 @@ export type AdminClientListRow = {
   user_id: string;
   created_at: string;
   display_name: string | null;
+  avatar_url: string | null;
   company_name: string | null;
   phone: string | null;
   whatsapp_phone: string | null;
@@ -110,6 +111,7 @@ export type AdminClientListRow = {
 export type AdminStaffRow = {
   user_id: string;
   display_name: string | null;
+  avatar_url: string | null;
   app_role: string | null;
   account_status: string | null;
   updated_at: string;
@@ -246,7 +248,7 @@ export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]
       whatsapp_phone,
       website_url,
       notes,
-      profiles!inner(display_name, app_role, account_status)
+      profiles!inner(display_name, app_role, account_status, avatar_url)
     `,
     )
     .order("created_at", { ascending: false });
@@ -269,11 +271,12 @@ export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]
       website_url: string | null;
       notes: string | null;
       profiles:
-        | { display_name: string | null; app_role: string | null; account_status: string | null }
+        | { display_name: string | null; app_role: string | null; account_status: string | null; avatar_url: string | null }
         | {
             display_name: string | null;
             app_role: string | null;
             account_status: string | null;
+            avatar_url: string | null;
           }[];
     }
   >;
@@ -328,6 +331,7 @@ export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]
       user_id: row.user_id,
       created_at: row.created_at,
       display_name: profile?.display_name ?? null,
+      avatar_url: profile?.avatar_url ?? null,
       company_name: row.company_name,
       phone: row.phone,
       whatsapp_phone: row.whatsapp_phone,
@@ -349,7 +353,7 @@ export const loadAdminStaffRows = cache(async (): Promise<AdminStaffRow[]> => {
   const { supabase } = auth;
   const { data: profiles, error: pErr } = await supabase
     .from("profiles")
-    .select("id, display_name, app_role, account_status, updated_at")
+    .select("id, display_name, avatar_url, app_role, account_status, updated_at")
     .in("app_role", ["agency_staff", "super_admin"])
     .order("display_name", { ascending: true });
 
@@ -381,6 +385,7 @@ export const loadAdminStaffRows = cache(async (): Promise<AdminStaffRow[]> => {
   return (profiles ?? []).map((p) => ({
     user_id: p.id as string,
     display_name: (p.display_name as string | null) ?? null,
+    avatar_url: (p.avatar_url as string | null) ?? null,
     app_role: (p.app_role as string | null) ?? null,
     account_status: (p.account_status as string | null) ?? null,
     updated_at: p.updated_at as string,
@@ -425,7 +430,7 @@ export async function loadAdminClientDetail(userId: string) {
     { data: savedTalent, error: sErr },
   ] =
     await Promise.all([
-      supabase.from("profiles").select("id, display_name, app_role, account_status").eq("id", userId).maybeSingle(),
+      supabase.from("profiles").select("id, display_name, app_role, account_status, avatar_url").eq("id", userId).maybeSingle(),
       supabase
         .from("client_profiles")
         .select("user_id, company_name, phone, whatsapp_phone, website_url, notes, created_at, updated_at")

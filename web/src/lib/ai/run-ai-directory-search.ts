@@ -11,6 +11,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { embedTextForSearch, embeddingCacheKey } from "@/lib/ai/openai-embeddings";
+import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import { directoryCardToSearchResult, type SearchResult } from "@/lib/ai/search-result";
 import { cosineDistanceToSimilarity01 } from "@/lib/ai/vector-retrieval";
 import { matchTalentEmbeddingsCached } from "@/lib/ai/vector-neighbor-cache";
@@ -41,10 +42,12 @@ export type RunAiDirectorySearchInput = {
   taxonomyTermIds?: string[];
   locationSlug?: string | null;
   sortRaw?: string | null;
-  locale?: "en" | "es";
+  locale?: string;
   limit?: number;
   heightMinCm?: number | null;
   heightMaxCm?: number | null;
+  ageMin?: number | null;
+  ageMax?: number | null;
   /** Public directory `ff` scalar facets (boolean, text enum, canonical gender). */
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
   cursor?: string | null;
@@ -95,6 +98,8 @@ function buildAiSearchDedupeKey(input: RunAiDirectorySearchInput): string {
     limit: input.limit ?? null,
     hmin: input.heightMinCm ?? null,
     hmax: input.heightMaxCm ?? null,
+    amin: input.ageMin ?? null,
+    amax: input.ageMax ?? null,
     ff,
     cursor: input.cursor?.trim() || null,
     log: input.logAnalytics !== false,
@@ -144,6 +149,8 @@ async function runAiDirectorySearchOnce(
   }
 
   const flags = await getAiFeatureFlags();
+  const aiSearchEnabled = flags.ai_master_enabled && flags.ai_search_enabled;
+  const explanationsEnabled = flags.ai_master_enabled && flags.ai_explanations_enabled;
 
   const canonicalQ = canonicalDirectoryQueryForAiSearch(input.rawQ);
   const locationSlug = parseDirectoryLocation(input.locationSlug ?? undefined);
@@ -171,6 +178,17 @@ async function runAiDirectorySearchOnce(
     heightMinCm = heightMaxCm;
     heightMaxCm = t;
   }
+  const clampAge = (n: number | null | undefined): number | null => {
+    if (n == null || !Number.isFinite(n)) return null;
+    return Math.min(70, Math.max(18, Math.round(n)));
+  };
+  let ageMin = clampAge(input.ageMin);
+  let ageMax = clampAge(input.ageMax);
+  if (ageMin != null && ageMax != null && ageMin > ageMax) {
+    const t = ageMin;
+    ageMin = ageMax;
+    ageMax = t;
+  }
 
   const cursorRaw = input.cursor?.trim() || null;
   let cursor = cursorRaw;
@@ -184,6 +202,8 @@ async function runAiDirectorySearchOnce(
         sort,
         heightMinCm,
         heightMaxCm,
+        ageMin,
+        ageMax,
         fieldFacetFilters,
       });
       if (dec.hybridContextStamp !== expectedStamp) {
@@ -198,12 +218,12 @@ async function runAiDirectorySearchOnce(
   const skipVector = Boolean(cursor);
 
   const query =
-    flags.ai_search_enabled && canonicalQ.length > 0 && !skipVector
+    aiSearchEnabled && canonicalQ.length > 0 && !skipVector
       ? canonicalQ
       : parseDirectoryQuery(input.rawQ ?? undefined);
 
   const normalizedForEmbedding =
-    flags.ai_search_enabled && !skipVector && canonicalQ.length >= 2 ? canonicalQ : null;
+    aiSearchEnabled && !skipVector && canonicalQ.length >= 2 ? canonicalQ : null;
 
   const supabase = createPublicSupabaseClient();
   if (!supabase) {
@@ -218,11 +238,12 @@ async function runAiDirectorySearchOnce(
   }
 
   const searchMode =
-    flags.ai_search_enabled ? ("hybrid" as const) : ("classic" as const);
+    aiSearchEnabled ? ("hybrid" as const) : ("classic" as const);
 
   const vectorEligible =
     !skipVector &&
-    flags.ai_search_enabled &&
+    aiSearchEnabled &&
+    flags.ai_embeddings_semantic_enabled &&
     Boolean(normalizedForEmbedding && normalizedForEmbedding.trim().length >= 2);
 
   const fetchLimit = vectorEligible
@@ -241,6 +262,8 @@ async function runAiDirectorySearchOnce(
     locationSlug,
     heightMinCm,
     heightMaxCm,
+    ageMin,
+    ageMax,
     fieldFacetFilters,
     skipTotalCount: !includeTotalCount,
   });
@@ -257,7 +280,7 @@ async function runAiDirectorySearchOnce(
     const svc = createServiceRoleClient();
     if (!svc) {
       fallbackReason = "service_role_unconfigured";
-    } else if (!process.env.OPENAI_API_KEY?.trim()) {
+    } else if (!(await resolveOpenAiApiKey())?.trim()) {
       fallbackReason = "openai_key_missing";
     } else {
       const emb = await embedTextForSearch(normalizedForEmbedding!);
@@ -308,7 +331,7 @@ async function runAiDirectorySearchOnce(
   if (!vectorActive) {
     mergeStrategy = "classic_only";
     if (fallbackReason == null) {
-      if (!flags.ai_search_enabled) {
+      if (!aiSearchEnabled) {
         fallbackReason = "ai_search_disabled";
       } else if (skipVector) {
         fallbackReason = "pagination_skip_vector";
@@ -324,7 +347,7 @@ async function runAiDirectorySearchOnce(
   const slicedItems = page.items.slice(0, limit);
 
   const explainMap =
-    flags.ai_explanations_enabled && slicedItems.length > 0
+    explanationsEnabled && slicedItems.length > 0
       ? await buildExplanationsForAiSearchCards(supabase, slicedItems, {
           locale,
           locationSlug,
@@ -340,7 +363,7 @@ async function runAiDirectorySearchOnce(
     const vecScore = vectorScoreByTalentId.get(card.id);
     const explanation = explainMap?.get(card.id) ?? [];
     const confidence =
-      flags.ai_explanations_enabled &&
+      explanationsEnabled &&
       flags.ai_explanations_v2 &&
       explanation.length > 0
         ? publicMatchConfidenceFromExplanations(explanation, locale)
@@ -382,6 +405,8 @@ async function runAiDirectorySearchOnce(
         sort,
         heightMinCm,
         heightMaxCm,
+        ageMin,
+        ageMax,
         fieldFacetFilters,
       }),
     });
@@ -390,10 +415,10 @@ async function runAiDirectorySearchOnce(
   }
 
   const queryForLog =
-    flags.ai_search_enabled && canonicalQ.length > 0 ? canonicalQ : query.trim() || null;
+    aiSearchEnabled && canonicalQ.length > 0 ? canonicalQ : query.trim() || null;
 
   const vectorStageAttempted =
-    flags.ai_search_enabled &&
+    aiSearchEnabled &&
     !skipVector &&
     Boolean(normalizedForEmbedding && normalizedForEmbedding.trim().length >= 2);
 
@@ -449,6 +474,8 @@ async function runAiDirectorySearchOnce(
         sort,
         heightMinCm,
         heightMaxCm,
+        ageMin,
+        ageMax,
         vector_active: vectorActive,
         fallback_reason: fallbackReason,
         merge_strategy: mergeStrategy,
@@ -461,10 +488,10 @@ async function runAiDirectorySearchOnce(
       resultsCount: results.length,
       source: input.analyticsSource ?? "ai_search",
       searchMode,
-      aiEnabled: flags.ai_search_enabled,
+      aiEnabled: aiSearchEnabled,
       rerankEnabled: flags.ai_rerank_enabled,
-      explanationEnabled: flags.ai_explanations_enabled,
-      aiPathRequested: flags.ai_search_enabled ? "hybrid" : "classic",
+      explanationEnabled: explanationsEnabled,
+      aiPathRequested: aiSearchEnabled ? "hybrid" : "classic",
       fallbackTriggered,
       fallbackReason,
       flagSnapshot: {
@@ -512,7 +539,7 @@ async function runAiDirectorySearchOnce(
     taxonomy_term_ids: page.taxonomyTermIds,
     vector_active: vectorActive,
     note:
-      flags.ai_search_enabled && !vectorActive && fallbackReason
+      aiSearchEnabled && !vectorActive && fallbackReason
         ? `Classic ordering; vector stage skipped (${fallbackReason}).`
         : undefined,
     total_count: includeTotalCount ? (page.totalCount ?? null) : null,

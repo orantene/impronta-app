@@ -4,10 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireStaff } from "@/lib/server/action-guards";
-import {
-  markSpanishBioApproved,
-  markSpanishBioReviewed,
-} from "@/lib/translation/talent-bio-translation-service";
+import { markSpanishBioReviewed } from "@/lib/translation/talent-bio-translation-service";
+import { appendBulkTranslationAudit } from "@/lib/translation-center/bulk/translation-bulk-runner";
 
 const bulkIdsSchema = z.object({
   talent_profile_ids: z.array(z.string().uuid()).max(250),
@@ -45,25 +43,13 @@ export async function adminBulkMarkSpanishBioReviewed(
   const res = await runBulk(ids, (id) =>
     markSpanishBioReviewed(auth.supabase, id, auth.user.id),
   );
+  await appendBulkTranslationAudit(auth.supabase, {
+    actorId: auth.user.id,
+    eventType: "bulk_mark_reviewed",
+    meta: { domainId: "talent.profile.bio", count: res.ok, failed: res.failed.length },
+  });
   revalidatePath("/admin/translations");
   revalidatePath("/admin/talent");
   return res;
 }
 
-export async function adminBulkMarkSpanishBioApproved(
-  input: z.infer<typeof bulkIdsSchema>,
-): Promise<BulkWorkflowResult | { error: string }> {
-  const auth = await requireStaff();
-  if (!auth.ok) return { error: auth.error };
-  const parsed = bulkIdsSchema.safeParse(input);
-  if (!parsed.success) return { error: "Invalid selection." };
-  const ids = parsed.data.talent_profile_ids;
-  if (ids.length === 0) return { error: "Select at least one profile." };
-
-  const res = await runBulk(ids, (id) =>
-    markSpanishBioApproved(auth.supabase, id, auth.user.id),
-  );
-  revalidatePath("/admin/translations");
-  revalidatePath("/admin/talent");
-  return res;
-}

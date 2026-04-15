@@ -7,7 +7,9 @@ import {
   TalentAccountPasswordForm,
 } from "@/app/(dashboard)/talent/talent-account-forms";
 import { Button } from "@/components/ui/button";
+import { DashboardPersonInline } from "@/components/dashboard/dashboard-person-inline";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
+import { AvatarUploadButton } from "@/components/ui/avatar-upload-button";
 import {
   TalentDashboardPage,
   TalentPageHeader,
@@ -65,14 +67,33 @@ export default async function TalentAccountPage() {
             <DashboardSectionCard
               className={sectionCardTalent}
               titleClassName={titleTalent}
+              title="Profile photo"
+              description="Your avatar appears in messages and across the platform."
+            >
+              <AvatarUploadButton
+                currentAvatarUrl={accountProfile?.avatar_url ?? null}
+                displayName={accountProfile?.display_name ?? userEmail ?? ""}
+              />
+            </DashboardSectionCard>
+
+            <DashboardSectionCard
+              className={sectionCardTalent}
+              titleClassName={titleTalent}
               title="Your account"
               description="Linked login and account status visible to the agency."
             >
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="space-y-1.5 text-sm text-muted-foreground">
-                  <p className="text-[15px] font-semibold tracking-tight text-foreground">
-                    {accountProfile?.display_name ?? userEmail ?? "Talent account"}
-                  </p>
+                  <DashboardPersonInline
+                    avatarUrl={accountProfile?.avatar_url ?? null}
+                    name={accountProfile?.display_name ?? userEmail ?? "Talent account"}
+                    avatarSize="md"
+                    align="center"
+                  >
+                    <p className="text-[15px] font-semibold tracking-tight text-foreground">
+                      {accountProfile?.display_name ?? userEmail ?? "Talent account"}
+                    </p>
+                  </DashboardPersonInline>
                   <p className="leading-relaxed">{userEmail ?? "No email available"}</p>
                   <p className="rounded-lg border border-border/40 bg-muted/20 px-2.5 py-1 text-xs font-medium text-foreground/90">
                     Status:{" "}

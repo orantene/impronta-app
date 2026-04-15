@@ -90,7 +90,9 @@
       },
       "bestFor": {
         "sectionKicker": "Best for",
-        "sectionTitle": "Find talent by use case"
+        "sectionTitle": "Find talent by use case",
+        "showMore": "Show {count} more",
+        "showLess": "Show less"
       },
       "browseByType": {
         "sectionKicker": "Browse by type"
@@ -99,7 +101,13 @@
         "sectionKicker": "Explore by location",
         "sectionTitle": "Where we operate",
         "talentCountOne": "1 talent",
-        "talentCountMany": "{count} talents"
+        "talentCountMany": "{count} talents",
+        "viewTalents": "View talents",
+        "mapPinPreviewAria": "Talent based in {city}",
+        "mapPinPreviewPhotoAlt": "Talent photo",
+        "mapLoadErrorTitle": "Map unavailable",
+        "mapLoadErrorBody": "Google returned ApiNotActivatedMapError: enable Maps JavaScript API on the Cloud project for this key (Places and Maps are separate toggles). Billing must be on; if the key has restrictions, add HTTP referrers for this site—then hard-refresh.",
+        "mapLoadErrorOpenConsole": "Open Google Cloud — Maps APIs"
       }
     },
     "howItWorks": {
@@ -123,8 +131,8 @@
       "configMissingBody": "Connect Supabase (see .env.example) to load published talent.",
       "pausedTitle": "Directory unavailable",
       "pausedBody": "Public discovery is currently paused. Please contact the agency directly for availability.",
-      "pageTitle": "Discover talent",
-      "pageDescription": "Browse represented talent — save profiles to your shortlist, then open the inquiry panel from the header to message the agency.",
+      "pageTitle": "Find & Book Talent",
+      "pageDescription": "Explore talent, save profiles you like, and send a booking request in minutes.",
       "aiPanelTitle": "AI assist",
       "aiPanelBody": "Semantic search and refinements will appear here when AI features are enabled.",
       "discoverLoadError": "The directory could not be loaded right now. Please refresh or try again shortly.",
@@ -154,8 +162,8 @@
           "resultLayoutAria": "Result layout",
           "gridViewAria": "Grid view",
           "listViewAria": "List view",
-          "resultsOne": "1 result",
-          "resultsMany": "{count} results"
+          "resultsOne": "1 talent profile available",
+          "resultsMany": "{count} talent profiles available"
         },
         "refine": {
           "suggestionsTitle": "Refine search"
@@ -171,11 +179,12 @@
           "interpretError": "Could not understand your search. Showing plain text results instead.",
           "interpretErrorDirectoryClosed": "The talent directory is not open to the public, so natural-language search cannot run. In Admin → Site settings, turn on “Directory public”, then try again.",
           "interpretErrorAiDisabled": "AI search is turned off. In Admin → AI → AI Settings, enable “AI search (vector / hybrid)”.",
-          "interpretErrorService": "The search service is not reachable right now. Check your connection or try again shortly."
+          "interpretErrorService": "The search service is not reachable right now. Check your connection or try again shortly.",
+          "searchSubmit": "Find Talent"
         },
         "sort": {
           "aria": "Sort talent",
-          "recommended": "Featured + recent",
+          "recommended": "Recommended",
           "featured": "Featured",
           "recent": "Recently added",
           "updated": "Recently updated"
@@ -187,7 +196,7 @@
           "noCitiesYet": "No cities are available for filtering yet.",
           "noCitiesMatch": "No cities match.",
           "searchFiltersLabel": "Search filters",
-          "searchFiltersPlaceholder": "Search filters…",
+          "searchFiltersPlaceholder": "Search skills or roles",
           "clearFilterSearchAria": "Clear filter search",
           "showLess": "Show less",
           "showAll": "Show all ({count})",
@@ -227,6 +236,9 @@
           "barAria": "Talent type",
           "all": "ALL"
         },
+        "topBarPills": {
+          "all": "ALL"
+        },
         "taxonomyBarAria": "Filter by taxonomy",
         "card": {
           "available": "Available",
@@ -236,7 +248,7 @@
           "featuredAria": "Featured profile",
           "featuredLabel": "Featured",
           "livesInTitle": "Lives in: {location}",
-          "viewPortfolio": "View portfolio",
+          "viewPortfolio": "View Profile",
           "inquire": "Inquire",
           "quickPreview": "Quick preview",
           "aiMatchWhyAria": "Why this match",
@@ -255,7 +267,7 @@
           "shareNativeText": "{name} — {brand}"
         },
         "list": {
-          "view": "View",
+          "view": "View Profile",
           "preview": "Preview"
         },
         "preview": {

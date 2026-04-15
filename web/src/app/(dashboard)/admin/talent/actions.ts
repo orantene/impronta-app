@@ -32,6 +32,8 @@ import {
   buildBioEnEditExtras,
   type TalentBioRow,
 } from "@/lib/translation/talent-bio-translation-service";
+import { assertLocaleConsistency } from "@/lib/translation-center/save/assert-locale-consistency";
+import type { Locale } from "@/i18n/config";
 import { scheduleRebuildAiSearchDocument } from "@/lib/ai/schedule-rebuild-ai-search-document";
 
 export type TalentActionState = { error?: string; success?: boolean } | undefined;
@@ -153,7 +155,7 @@ export async function updateTalentProfile(
   const { data: before, error: beforeErr } = await supabase
     .from("talent_profiles")
     .select(
-      "workflow_status, visibility, bio_en, bio_es, bio_es_draft, bio_es_status, short_bio",
+      "workflow_status, visibility, bio_en, bio_es, bio_es_draft, bio_es_status, bio_en_draft, bio_en_status, short_bio",
     )
     .eq("id", id)
     .maybeSingle();
@@ -180,6 +182,12 @@ export async function updateTalentProfile(
   if (last_name !== undefined) payload.last_name = last_name || null;
   let bioAudit: TranslationAuditInput | null = null;
   if (short_bio !== undefined) {
+    const editedLocaleRaw = String(formData.get("edited_locale") ?? "en");
+    const editedLocale: Locale = editedLocaleRaw === "es" ? "es" : "en";
+    const gate = assertLocaleConsistency(short_bio, editedLocale);
+    if (!gate.ok) {
+      return { error: gate.message };
+    }
     const nowIso = new Date().toISOString();
     const { payload: bioPatch, audit } = buildBioEnEditExtras({
       talentProfileId: id,

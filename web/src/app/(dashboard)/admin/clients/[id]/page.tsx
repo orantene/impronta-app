@@ -24,15 +24,9 @@ import {
   ADMIN_SECTION_TITLE_CLASS,
   LUXURY_GOLD_BUTTON_CLASS,
 } from "@/lib/dashboard-shell-classes";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-
-function getInitials(name: string | null): string {
-  if (!name?.trim()) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0]![0]!.toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -138,12 +132,7 @@ export default async function AdminClientDetailPage({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           {/* Left: avatar + identity */}
           <div className="flex items-center gap-4">
-            <div
-              aria-hidden
-              className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--impronta-gold)]/15 font-display text-xl font-semibold text-[var(--impronta-gold)] shadow-sm"
-            >
-              {getInitials(detail.profile.display_name)}
-            </div>
+            <UserAvatar src={detail.profile.avatar_url} name={detail.profile.display_name} size="lg" rounded="xl" />
             <div className="min-w-0">
               <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">
                 {detail.profile.display_name ?? "Unnamed client"}

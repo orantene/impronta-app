@@ -926,33 +926,35 @@ export function DirectoryFiltersSidebar({
         if (block.kind === "filter_search") {
           return (
             <div key="directory-filter-search-block" className="space-y-2">
-              <div className="relative pb-3">
+              <div className="flex flex-col gap-1.5 pb-3">
                 <label htmlFor="directory-filter-search" className="sr-only">
                   {fc.searchFiltersLabel}
                 </label>
-                <Search
-                  className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--impronta-gold-dim)]"
-                  aria-hidden
-                />
-                <input
-                  id="directory-filter-search"
-                  type="search"
-                  value={filterQuery}
-                  onChange={(e) => setFilterQuery(e.target.value)}
-                  placeholder={fc.searchFiltersPlaceholder}
-                  autoComplete="off"
-                  className="w-full rounded-lg border border-[var(--impronta-gold-border)]/35 bg-[var(--impronta-surface)]/90 py-2 pl-8 pr-8 text-sm text-foreground placeholder:text-[var(--impronta-muted)]/70 outline-none ring-0 transition-[border-color,box-shadow] focus:border-[var(--impronta-gold-dim)] focus:shadow-[0_0_0_1px_rgba(201,162,39,0.25)]"
-                />
-                {filterQuery ? (
-                  <button
-                    type="button"
-                    onClick={() => setFilterQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--impronta-muted)] hover:text-foreground"
-                    aria-label={fc.clearFilterSearchAria}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                ) : null}
+                <div className="relative">
+                  <Search
+                    className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--impronta-gold-dim)]"
+                    aria-hidden
+                  />
+                  <input
+                    id="directory-filter-search"
+                    type="search"
+                    value={filterQuery}
+                    onChange={(e) => setFilterQuery(e.target.value)}
+                    placeholder={fc.searchFiltersPlaceholder}
+                    autoComplete="off"
+                    className="w-full rounded-lg border border-[var(--impronta-gold-border)]/35 bg-[var(--impronta-surface)]/90 py-2 pl-8 pr-8 text-sm text-foreground placeholder:text-[var(--impronta-muted)]/70 outline-none ring-0 transition-[border-color,box-shadow] focus:border-[var(--impronta-gold-dim)] focus:shadow-[0_0_0_1px_rgba(201,162,39,0.25)]"
+                  />
+                  {filterQuery ? (
+                    <button
+                      type="button"
+                      onClick={() => setFilterQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--impronta-muted)] hover:text-foreground"
+                      aria-label={fc.clearFilterSearchAria}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  ) : null}
+                </div>
                 <AnimatePresence>
                   {hasFilterSearch ? (
                     <motion.p
@@ -961,7 +963,7 @@ export function DirectoryFiltersSidebar({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -4 }}
                       transition={{ duration: 0.2 }}
-                      className="mt-1.5 text-[10px] uppercase tracking-wider text-[var(--impronta-muted)]"
+                      className="text-[10px] uppercase tracking-wider text-[var(--impronta-muted)]"
                     >
                       {matchCount > 0 ? (
                         formatFilterSearchSummary(fc, matchCount, visibleSections.length)

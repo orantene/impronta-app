@@ -15,7 +15,7 @@ export type PublicProfileSectionConfig = {
   groupSort: number;
 };
 
-function pickLabel(locale: "en" | "es", en: string, es?: string | null): string {
+function pickLabel(locale: string, en: string, es?: string | null): string {
   if (locale === "es" && es && es.trim()) return es.trim();
   return en.trim();
 }
@@ -30,7 +30,7 @@ const SUPPORTED: PublicProfileSectionKey[] = [
 ];
 
 export async function getOrderedPublicProfileSections(
-  locale: "en" | "es" = "en",
+  locale: string = "en",
 ): Promise<PublicProfileSectionConfig[]> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) {

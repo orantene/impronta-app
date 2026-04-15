@@ -114,7 +114,8 @@ export type DirectoryListParams = {
   /** Boolean, text-enum (`filter_options`), and canonical profile gender (`ff` URL param). */
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
   /** Localized labels on card */
-  locale?: "en" | "es";
+  /** BCP-47 code; directory cards still map non-`es` to English columns until taxonomy migrates. */
+  locale?: string;
   /** When true, skip COUNT(*) (used for cursor / infinite-scroll pages). */
   skipTotalCount?: boolean;
 };

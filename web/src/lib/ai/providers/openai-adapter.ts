@@ -12,17 +12,18 @@ function modelId(): string {
 
 /**
  * OpenAI chat adapter (structured output via json_schema when provided).
+ * Pass `apiKey` from the encrypted registry; otherwise falls back to `OPENAI_API_KEY`.
  */
-export function createOpenAiChatAdapter(): AiProviderAdapter {
+export function createOpenAiChatAdapter(apiKey?: string | null): AiProviderAdapter {
   return {
     id: "openai",
     async chatCompletion(input: ChatCompletionInput): Promise<ChatCompletionResult> {
-      const key = process.env.OPENAI_API_KEY?.trim();
+      const key = apiKey?.trim() || process.env.OPENAI_API_KEY?.trim();
       if (!key) {
         return {
           ok: false,
           code: "no_key",
-          message: "OPENAI_API_KEY is not configured.",
+          message: "OpenAI API key is not configured.",
         };
       }
 

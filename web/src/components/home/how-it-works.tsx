@@ -31,7 +31,7 @@ export function HowItWorks({ copy }: { copy: HowItWorksCopy }) {
   ];
 
   return (
-    <section className="w-full px-4 py-16 sm:px-6 lg:px-8">
+    <section className="w-full px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center font-display text-sm font-medium uppercase tracking-[0.3em] text-[var(--impronta-gold-dim)]">
           {copy.sectionKicker}
@@ -43,7 +43,10 @@ export function HowItWorks({ copy }: { copy: HowItWorksCopy }) {
         <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-3">
           {STEPS.map((step, i) => (
             <div key={i} className="text-center">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-full border border-[var(--impronta-gold-border)] bg-[var(--impronta-gold)]/5 text-[var(--impronta-gold)]">
+              <p className="font-display text-xs tracking-[0.3em] text-[var(--impronta-gold-dim)]">
+                {String(i + 1).padStart(2, "0")}
+              </p>
+              <div className="mx-auto mt-2.5 flex size-14 items-center justify-center rounded-full border border-[var(--impronta-gold-border)] bg-[var(--impronta-gold)]/5 text-[var(--impronta-gold)]">
                 {step.icon}
               </div>
               <h3 className="mt-5 text-base font-semibold text-foreground">

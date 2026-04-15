@@ -103,6 +103,7 @@ export type TalentDashboardData = {
   accountProfile: {
     display_name: string | null;
     account_status: string | null;
+    avatar_url: string | null;
   } | null;
   profile: TalentDashboardProfileRow;
   media: TalentMediaRow[];
@@ -307,7 +308,7 @@ async function loadTalentDashboardDataImpl(): Promise<TalentDashboardLoadResult>
   const [{ data: accountProfile }, { data: profile, error }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("display_name, account_status")
+        .select("display_name, account_status, avatar_url")
         .eq("id", subjectId)
         .maybeSingle(),
       supabase

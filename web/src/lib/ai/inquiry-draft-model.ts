@@ -4,7 +4,7 @@ export type InquiryDraftAction = "generate" | "polish";
 
 export type InquiryDraftModelInput = {
   action: InquiryDraftAction;
-  locale: "en" | "es";
+  locale: string;
   talentNames: string[];
   rawQuery: string;
   eventLocation: string;
@@ -15,7 +15,7 @@ export type InquiryDraftModelInput = {
 
 const DEFAULT_CHAT_MODEL_FALLBACK = "gpt-4o-mini";
 
-function systemPrompt(locale: "en" | "es"): string {
+function systemPrompt(locale: string): string {
   if (locale === "es") {
     return [
       "Eres un asistente para redactar consultas breves y profesionales a una agencia de talentos.",

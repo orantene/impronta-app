@@ -1,4 +1,7 @@
 .DS_Store
 
+# Cursor MCP: GitHub PAT for Docker-based github/github-mcp-server (see .cursor/github-mcp.env.example)
+.cursor/github-mcp.env
+
 # Supabase CLI local cache (project ref, versions)
 supabase/.temp/

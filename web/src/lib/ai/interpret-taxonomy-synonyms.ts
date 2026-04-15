@@ -80,12 +80,32 @@ function aliasRowMatchesHint(aliases: readonly string[] | undefined, h: string):
   return false;
 }
 
+function aliasRowEqualsHint(aliases: readonly string[] | undefined, h: string): boolean {
+  if (!aliases?.length || h.length < 2) return false;
+  for (const raw of aliases) {
+    const a = raw.trim().toLowerCase();
+    if (!a) continue;
+    if (a === h) return true;
+  }
+  return false;
+}
+
+const EXACT_ONLY_HINTS = new Set(["model", "modelo"]);
+
 function termMatchesHint(term: InterpretCatalogTerm, hint: string): boolean {
   const h = hint.toLowerCase();
   if (h.length < 2) return false;
   const slug = term.slug.toLowerCase();
   const ne = term.name_en.toLowerCase();
   const ns = (term.name_es ?? "").toLowerCase();
+  if (EXACT_ONLY_HINTS.has(h)) {
+    return (
+      slug === h ||
+      ne === h ||
+      ns === h ||
+      aliasRowEqualsHint(term.aliases, h)
+    );
+  }
   if (slug.includes(h) || ne.includes(h) || ns.includes(h)) return true;
   return aliasRowMatchesHint(term.aliases, h);
 }

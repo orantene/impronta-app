@@ -54,6 +54,7 @@ export function TalentDetailForm({ id, initial, initialResidence, initialOrigin 
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="talent_id" value={id} />
+      <input type="hidden" name="edited_locale" value="en" />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
@@ -305,6 +306,7 @@ export function AdminTalentIdentityForm({
   return (
     <form action={action} className="space-y-5">
       <input type="hidden" name="talent_id" value={id} />
+      <input type="hidden" name="edited_locale" value="en" />
 
       {/* Identity */}
       <div className="grid gap-4 sm:grid-cols-2">

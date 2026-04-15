@@ -53,6 +53,8 @@ type ProfileRow = {
   bio_es: string | null;
   bio_es_draft: string | null;
   bio_es_status: string | null;
+  bio_en_draft: string | null;
+  bio_en_status: string | null;
   bio_en_updated_at: string | null;
   bio_es_updated_at: string | null;
   phone: string | null;
@@ -404,8 +406,6 @@ export function AdminTalentCockpitClient({
             talentProfileId={id}
             bio_en={profile.bio_en}
             bio_es={profile.bio_es}
-            bio_es_draft={profile.bio_es_draft}
-            bio_es_status={profile.bio_es_status}
             bio_en_updated_at={profile.bio_en_updated_at}
             bio_es_updated_at={profile.bio_es_updated_at}
             short_bio={profile.short_bio}

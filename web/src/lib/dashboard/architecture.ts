@@ -98,6 +98,21 @@ export const TALENT_DASHBOARD_GROUPS: DashboardNavGroup[] = [
     ],
   },
   {
+    id: "talent-nav-inquiries",
+    label: "Inquiries",
+    singleLink: true,
+    collapsible: false,
+    items: [
+      {
+        id: "talent-inquiries-link",
+        href: "/talent/inquiries",
+        label: "Inquiries",
+        match: "prefix",
+        icon: "inquiries",
+      },
+    ],
+  },
+  {
     id: "talent-nav-my-profile",
     label: "My profile",
     singleLink: true,
@@ -174,7 +189,8 @@ export const CLIENT_DASHBOARD_GROUPS: DashboardNavGroup[] = [
     items: [
       { href: "/client/overview", label: "Overview", match: "exact", icon: "overview" },
       { href: "/client/saved", label: "Saved Talent", match: "exact", icon: "saved" },
-      { href: "/client/requests", label: "Requests", match: "prefix", icon: "requests" },
+      { href: "/client/inquiries", label: "Inquiries", match: "prefix", icon: "inquiries" },
+      { href: "/client/bookings", label: "Bookings", match: "prefix", icon: "requests" },
     ],
   },
   {

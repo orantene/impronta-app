@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bookmark, CalendarDays, Info, LayoutGrid, ShoppingBag } from "lucide-react";
+import { Bookmark, CalendarDays, Info, LayoutGrid, ShoppingBag, FileText, UserCircle } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-header";
 import { WorkspaceStickyShell } from "@/components/dashboard/workspace-sticky-shell";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,44 @@ import {
   LUXURY_GOLD_BUTTON_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
+
+function MobileNavItem({
+  href,
+  icon: Icon,
+  label,
+  active,
+  badge,
+}: {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  active: boolean;
+  badge?: number;
+}) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      className={cn(
+        "relative flex flex-col items-center gap-0.5 px-2 py-2 text-[10px] font-medium transition-colors",
+        active ? "text-[var(--impronta-gold)]" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <span className="relative">
+        <Icon className="size-5" aria-hidden />
+        {badge && badge > 0 ? (
+          <span className="absolute -right-1.5 -top-1 flex min-w-4 items-center justify-center rounded-full bg-[var(--impronta-gold)] px-0.5 text-[9px] font-bold text-[var(--impronta-gold-foreground)]">
+            {badge > 99 ? "99+" : badge}
+          </span>
+        ) : null}
+      </span>
+      {label}
+      {active ? (
+        <span className="absolute bottom-0 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-[var(--impronta-gold)]" />
+      ) : null}
+    </Link>
+  );
+}
 
 export function ClientWorkspaceShell({
   summary,
@@ -131,7 +169,7 @@ export function ClientWorkspaceShell({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 sm:pb-0">
       <WorkspaceStickyShell>
         <div className="rounded-2xl border border-border/60 bg-card/50 px-4 py-4 shadow-sm ring-1 ring-black/[0.03] sm:px-5 dark:ring-white/[0.04]">
           <DashboardPageHeader
@@ -154,6 +192,47 @@ export function ClientWorkspaceShell({
       </WorkspaceStickyShell>
 
       <div className="min-h-[12rem]">{children}</div>
+
+      {/* Mobile bottom navigation — hidden on sm+ where the top bar is sufficient */}
+      <nav
+        aria-label="Client workspace navigation"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:hidden"
+      >
+        <div className="grid grid-cols-5">
+          <MobileNavItem
+            href="/client/overview"
+            icon={LayoutGrid}
+            label="Overview"
+            active={pathname === "/client/overview"}
+          />
+          <MobileNavItem
+            href="/client/inquiries"
+            icon={FileText}
+            label="Inquiries"
+            active={pathname.startsWith("/client/inquiries")}
+            badge={summary.inquiryCount}
+          />
+          <MobileNavItem
+            href="/directory"
+            icon={ShoppingBag}
+            label="Browse"
+            active={pathname.startsWith("/directory")}
+          />
+          <MobileNavItem
+            href="/client/saved"
+            icon={Bookmark}
+            label="Saved"
+            active={pathname.startsWith("/client/saved")}
+            badge={summary.savedCount}
+          />
+          <MobileNavItem
+            href="/client/account"
+            icon={UserCircle}
+            label="Account"
+            active={pathname.startsWith("/client/account")}
+          />
+        </div>
+      </nav>
     </div>
   );
 }

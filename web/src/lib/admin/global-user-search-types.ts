@@ -6,6 +6,8 @@ export type GlobalUserSearchResult = {
   id: string;
   userId: string | null;
   talentProfileId: string | null;
+  /** Platform profile photo and/or staff/client avatar from `profiles.avatar_url`. */
+  avatarUrl: string | null;
   displayName: string | null;
   subtitle: string | null;
   profileCode: string | null;

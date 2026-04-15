@@ -8,6 +8,7 @@ import type { AdminClientListRow } from "@/lib/dashboard/admin-dashboard-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { UsersRound } from "lucide-react";
 import { ADMIN_OUTLINE_CONTROL_CLASS } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
@@ -21,13 +22,6 @@ const STATUS_BADGE: Record<
   registered: { label: "Registered", variant: "muted" },
   onboarding: { label: "Onboarding", variant: "secondary" },
 };
-
-function getInitials(name: string | null): string {
-  if (!name?.trim()) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0]![0]!.toUpperCase();
-  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
-}
 
 function relativeTime(iso: string | null): string {
   if (!iso) return "—";
@@ -119,12 +113,7 @@ export function AdminClientQueue({ rows }: { rows: AdminClientListRow[] }) {
                 {/* Client name + phone + avatar */}
                 <td className="px-4 py-3.5">
                   <div className="flex items-center gap-3">
-                    <div
-                      aria-hidden
-                      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--impronta-gold)]/12 font-display text-[13px] font-semibold text-[var(--impronta-gold)]"
-                    >
-                      {getInitials(row.display_name)}
-                    </div>
+                    <UserAvatar src={row.avatar_url} name={row.display_name} size="md" />
                     <div className="min-w-0">
                       <p className="truncate font-display text-[15px] font-medium tracking-tight text-foreground">
                         {row.display_name ?? (

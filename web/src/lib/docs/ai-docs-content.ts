@@ -95,6 +95,16 @@ export const AI_FLAG_DOC_ROWS: Array<{ key: string; purpose: string; audience: s
     audience: "Staff",
   },
   {
+    key: "ai_translations_enabled",
+    purpose: "Allows AI-assisted translation actions in admin workflows.",
+    audience: "Staff",
+  },
+  {
+    key: "ai_embeddings_semantic_enabled",
+    purpose: "Allows vector / semantic retrieval stages when OpenAI embeddings are available.",
+    audience: "Guests",
+  },
+  {
     key: "ai_search_quality_v2",
     purpose: "Stronger hybrid merge path (RRF + hybrid cursor continuation).",
     audience: "Guests",

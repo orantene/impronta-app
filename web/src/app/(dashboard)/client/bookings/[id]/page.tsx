@@ -40,8 +40,8 @@ export default async function ClientBookingDetailPage({ params }: { params: Prom
         </Button>
         {fromRequest ? (
           <Button variant="outline" size="sm" className="h-9 border-border/60 text-xs" asChild>
-            <Link href={`/client/requests/${booking.source_inquiry_id}`} scroll={false}>
-              Related request
+            <Link href={`/client/inquiries/${booking.source_inquiry_id}`} scroll={false}>
+              Related inquiry
             </Link>
           </Button>
         ) : null}
@@ -56,7 +56,7 @@ export default async function ClientBookingDetailPage({ params }: { params: Prom
           <p className="flex gap-2">
             <MessageSquare className="mt-0.5 size-4 shrink-0 text-foreground/60" aria-hidden />
             <span>
-              This job is tied to <span className="font-medium text-foreground">a request you sent us</span>. Details
+              This job is tied to <span className="font-medium text-foreground">an inquiry you sent us</span>. Details
               here are what we&apos;re comfortable sharing on your side—reach out if something looks off.
             </span>
           </p>

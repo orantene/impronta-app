@@ -193,7 +193,7 @@ export async function adminUpdateUser(
     const { data: tpRow, error: tpLoadErr } = await supabase
       .from("talent_profiles")
       .select(
-        "user_id, workflow_status, visibility, bio_en, bio_es, bio_es_draft, bio_es_status, short_bio",
+        "user_id, workflow_status, visibility, bio_en, bio_es, bio_es_draft, bio_es_status, bio_en_draft, bio_en_status, short_bio",
       )
       .eq("id", talentProfileId)
       .maybeSingle();

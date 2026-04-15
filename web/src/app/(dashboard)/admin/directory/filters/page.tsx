@@ -70,7 +70,7 @@ export default async function AdminDirectoryFiltersPage() {
     return <p className="text-sm text-destructive">{CLIENT_ERROR.loadPage}</p>;
   }
 
-  const fields = (fieldsRaw ?? []) as FieldRow[];
+  const fields = (Array.isArray(fieldsRaw) ? fieldsRaw : []) as FieldRow[];
 
   /** All fields opted into directory filters from Admin → Fields (`directory_filter_visible`, else legacy `filterable`). */
   const facetFields = fields.filter((f) => {
@@ -92,7 +92,10 @@ export default async function AdminDirectoryFiltersPage() {
   );
 
   const filterSearchVisible = sidebarLayout.filter_option_search_visible;
-  const talentTypeTopBarVisible = sidebarLayout.talent_type_top_bar_visible;
+  const initialTopBarFacetKey = sidebarLayout.top_bar_facet_key;
+  const topBarFacetCandidates = facetFields
+    .filter((f) => f.value_type === "taxonomy_single" || f.value_type === "taxonomy_multi")
+    .map((f) => ({ key: f.key, label: f.label_en }));
   const initialSectionCollapsed: Record<string, boolean> = { ...sidebarLayout.section_collapsed_defaults };
 
   const rowsByKey: Record<string, DirectoryFilterAdminRow> = {
@@ -154,7 +157,8 @@ export default async function AdminDirectoryFiltersPage() {
         <AdminDirectoryFiltersClient
           initialOrder={mergedOrder.filter((k) => rowsByKey[k])}
           initialFilterSearchVisible={filterSearchVisible}
-          initialTalentTypeTopBarVisible={talentTypeTopBarVisible}
+          initialTopBarFacetKey={initialTopBarFacetKey}
+          topBarFacetCandidates={topBarFacetCandidates}
           initialFieldVisibility={fieldVisibility}
           initialSectionCollapsed={initialSectionCollapsed}
           rowsByKey={rowsByKey}

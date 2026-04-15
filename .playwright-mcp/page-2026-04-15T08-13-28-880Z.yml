@@ -1,0 +1,27 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - link "IMPRONTA" [ref=e4] [cursor=pointer]:
+      - /url: /
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - heading "Log in" [level=1] [ref=e8]
+        - paragraph [ref=e9]: Google or email — staff roles are never chosen here. With Google, a password is optional (add one under Account after signing in).
+      - button "Continue with Google" [ref=e11]
+      - generic [ref=e16]: or
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - text: Email
+          - textbox "Email" [ref=e19]
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - generic [ref=e22]: Password
+            - link "Forgot password?" [ref=e23] [cursor=pointer]:
+              - /url: /forgot-password
+          - textbox "Password" [ref=e24]
+        - button "Log in with email" [ref=e25]
+        - paragraph [ref=e26]:
+          - text: No account?
+          - link "Sign up" [ref=e27] [cursor=pointer]:
+            - /url: /register?next=%2Fadmin%2Finquiries
+  - button "Open Next.js Dev Tools" [ref=e33] [cursor=pointer]:
+    - img [ref=e34]

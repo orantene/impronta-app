@@ -6,13 +6,14 @@ import {
   INQUIRY_DRAFT_MAX_CHARS,
   sanitizeInquiryDraftOutput,
 } from "@/lib/ai/inquiry-draft-guardrails";
+import { assertAiInvocationAllowed, recordAiUsageEstimate } from "@/lib/ai/ai-usage-gate";
 import { completeInquiryDraft } from "@/lib/ai/inquiry-draft-model";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 const bodySchema = z.object({
   action: z.enum(["generate", "polish"]),
-  locale: z.enum(["en", "es"]).optional(),
+  locale: z.string().min(2).max(24).optional(),
   talentNames: z.array(z.string().max(200)).max(24),
   rawQuery: z.string().max(4000).optional().nullable(),
   eventLocation: z.string().max(500).optional().nullable(),
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     const flags = await getAiFeatureFlags();
-    if (!flags.ai_draft_enabled) {
+    if (!flags.ai_master_enabled || !flags.ai_draft_enabled) {
       return NextResponse.json(
         { error: "Inquiry drafting disabled", draft: null },
         { status: 501 },
@@ -46,6 +47,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Drafting unavailable", draft: null },
         { status: 503 },
+      );
+    }
+
+    const gate = await assertAiInvocationAllowed();
+    if (!gate.ok) {
+      return NextResponse.json(
+        { error: gate.message, draft: null },
+        { status: 429 },
       );
     }
 
@@ -95,6 +104,7 @@ export async function POST(request: Request) {
     }
 
     const safe = sanitizeInquiryDraftOutput(draft).slice(0, INQUIRY_DRAFT_MAX_CHARS);
+    void recordAiUsageEstimate();
     return NextResponse.json({ draft: safe || draft.slice(0, INQUIRY_DRAFT_MAX_CHARS) });
   } catch (e) {
     logServerError("api/ai/inquiry-draft", e);

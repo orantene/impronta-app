@@ -6,6 +6,7 @@ import {
   AdminResponsiveTable,
   type AdminResponsiveTableColumn,
 } from "@/components/admin/admin-responsive-table";
+import { DashboardPersonInline } from "@/components/dashboard/dashboard-person-inline";
 import { Badge } from "@/components/ui/badge";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { loadAdminStaffRows, type AdminStaffRow } from "@/lib/dashboard/admin-dashboard-data";
@@ -17,12 +18,17 @@ const staffColumns: AdminResponsiveTableColumn<AdminStaffRow>[] = [
     label: "Name",
     priority: "high",
     cell: (row) => (
-      <div>
+      <DashboardPersonInline
+        avatarUrl={row.avatar_url}
+        name={row.display_name}
+        avatarSize="md"
+        align="center"
+      >
         <p className="font-display text-[15px] font-medium text-foreground">
           {row.display_name ?? "Unnamed"}
         </p>
         <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{row.user_id}</p>
-      </div>
+      </DashboardPersonInline>
     ),
   },
   {

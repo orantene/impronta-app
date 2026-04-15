@@ -79,6 +79,11 @@ function primaryTalentType(
   return { label: null };
 }
 
+function profileAvatar(prof: unknown): string | null {
+  if (!prof || typeof prof !== "object") return null;
+  return ((prof as Record<string, unknown>).avatar_url as string | null) ?? null;
+}
+
 function locationLabels(row: Record<string, unknown>): { city: string | null; country: string | null } {
   const rc = row.res_city;
   const rco = row.res_ctry;
@@ -173,7 +178,7 @@ export async function GET(request: Request) {
         phone,
         deleted_at,
         updated_at,
-        profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status),
+        profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status, avatar_url),
         res_city:locations!talent_profiles_residence_city_id_fkey(display_name_en),
         res_ctry:countries!talent_profiles_residence_country_id_fkey(name_en, iso2),
         talent_profile_taxonomy(taxonomy_term_id, is_primary, taxonomy_terms(kind, name_en))
@@ -195,7 +200,7 @@ export async function GET(request: Request) {
       let fb = supabase
         .from("talent_profiles")
         .select(
-          "id, user_id, profile_code, display_name, workflow_status, visibility, profile_completeness_score, phone, deleted_at, updated_at, profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status), talent_profile_taxonomy(taxonomy_term_id, is_primary, taxonomy_terms(kind, name_en))",
+          "id, user_id, profile_code, display_name, workflow_status, visibility, profile_completeness_score, phone, deleted_at, updated_at, profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status, avatar_url), talent_profile_taxonomy(taxonomy_term_id, is_primary, taxonomy_terms(kind, name_en))",
         )
         .is("deleted_at", null)
         .order("updated_at", { ascending: false })
@@ -262,6 +267,7 @@ export async function GET(request: Request) {
           id: r.id as string,
           userId: (r.user_id as string | null) ?? null,
           talentProfileId: r.id as string,
+          avatarUrl: profileAvatar(prof),
           displayName: (r.display_name as string | null) ?? null,
           subtitle: (r.profile_code as string) ?? null,
           profileCode: (r.profile_code as string) ?? null,
@@ -333,6 +339,7 @@ export async function GET(request: Request) {
           id: r.id as string,
           userId: (r.user_id as string | null) ?? null,
           talentProfileId: r.id as string,
+          avatarUrl: profileAvatar(prof),
           displayName: (r.display_name as string | null) ?? null,
           subtitle: (r.profile_code as string) ?? null,
           profileCode: (r.profile_code as string) ?? null,
@@ -414,7 +421,7 @@ export async function GET(request: Request) {
             company_name,
             phone,
             whatsapp_phone,
-            profiles!inner(id, display_name, app_role, account_status)
+            profiles!inner(id, display_name, app_role, account_status, avatar_url)
           `,
           )
           .in("user_id", ids);
@@ -436,6 +443,7 @@ export async function GET(request: Request) {
             id: userId,
             userId,
             talentProfileId: null,
+            avatarUrl: profileAvatar(p),
             displayName: (p.display_name as string | null) ?? null,
             subtitle: (r.company_name as string | null) ?? null,
             profileCode: null,
@@ -472,7 +480,7 @@ export async function GET(request: Request) {
       if (userIds.length > 0) {
         const { data: profRows } = await supabase
           .from("profiles")
-          .select("id, display_name, app_role, account_status")
+          .select("id, display_name, app_role, account_status, avatar_url")
           .in("id", userIds)
           .eq("app_role", "client");
 
@@ -498,6 +506,7 @@ export async function GET(request: Request) {
             id: userId,
             userId,
             talentProfileId: null,
+            avatarUrl: profileAvatar(pr),
             displayName: (pr.display_name as string | null) ?? null,
             subtitle: (cp?.company_name as string | null) ?? "Matched via inquiry email",
             profileCode: null,
@@ -523,7 +532,7 @@ export async function GET(request: Request) {
     } else {
       let adminQuery = supabase
         .from("profiles")
-        .select("id, display_name, app_role, account_status, updated_at")
+        .select("id, display_name, app_role, account_status, updated_at, avatar_url")
         .in("app_role", ["agency_staff", "super_admin"])
         .order("updated_at", { ascending: false })
         .limit(FETCH_CAP);
@@ -547,6 +556,7 @@ export async function GET(request: Request) {
             id: userId,
             userId,
             talentProfileId: null,
+            avatarUrl: profileAvatar(r),
             displayName: (r.display_name as string | null) ?? null,
             subtitle: (r.app_role as string) ?? null,
             profileCode: null,

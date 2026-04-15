@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impronta — Home Redesign Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── TOKENS ─────────────────────────────────── */
+    :root {
+      --bg:            #0a0a0b;
+      --surface:       #111113;
+      --surface-2:     #161618;
+      --border:        rgba(201,162,39,0.12);
+      --gold:          #C9A227;
+      --gold-dim:      rgba(201,162,39,0.55);
+      --gold-hover:    rgba(201,162,39,0.08);
+      --foreground:    #f0ede8;
+      --muted:         rgba(240,237,232,0.45);
+      --display:       'Cormorant Garamond', Georgia, serif;
+      --body:          'Inter', system-ui, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--foreground);
+      font-family: var(--body);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+
+    /* ── UTILITIES ──────────────────────────────── */
+    .max-w-6 { max-width: 1152px; margin-inline: auto; }
+    .max-w-3 { max-width: 768px;  margin-inline: auto; }
+    .px-page { padding-inline: clamp(1rem, 4vw, 2rem); }
+
+    .section-kicker {
+      font-family: var(--display);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+    }
+
+    .section-title {
+      font-family: var(--display);
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      color: var(--foreground);
+      line-height: 1.2;
+    }
+
+    /* ── ANNOTATION BANNER ─────────────────────── */
+    .annotation-banner {
+      background: rgba(201,162,39,0.08);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 1.5rem;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--gold-dim);
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .annotation-banner strong { color: var(--gold); }
+
+    /* ── NAV ────────────────────────────────────── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem clamp(1rem, 4vw, 2rem);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-family: var(--display);
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      font-weight: 400;
+      color: var(--foreground);
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+    .nav-links a {
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--foreground); }
+    .nav-cta {
+      font-size: 0.82rem;
+      letter-spacing: 0.08em;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.45rem 1.1rem;
+      color: var(--gold-dim);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .nav-cta:hover { border-color: rgba(201,162,39,0.4); color: var(--gold); }
+
+    /* ── SECTION: LABEL ─────────────────────────── */
+    .section-label {
+      display: inline-block;
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: rgba(201,162,39,0.07);
+      border: 1px solid rgba(201,162,39,0.2);
+      border-radius: 4px;
+      padding: 0.25rem 0.6rem;
+      margin-bottom: 3rem;
+    }
+
+    /* ════════════════════════════════════════════
+       SECTION 1 — HERO
+       ════════════════════════════════════════════ */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(5rem, 14vh, 9rem) clamp(1rem, 4vw, 2rem) clamp(4rem, 10vh, 7rem);
+      text-align: center;
+      overflow: hidden;
+    }
+
+    /* IMPROVED: stronger gradient (was 0.12, now 0.18) */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(201,162,39,0.18), transparent),
+        radial-gradient(ellipse 40% 30% at 80% 80%, rgba(201,162,39,0.04), transparent);
+      pointer-events: none;
+    }
+
+    /* subtle noise texture */
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .hero-inner { position: relative; z-index: 1; max-width: 860px; }
+
+    .hero-kicker {
+      font-family: var(--display);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.36em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin-bottom: 2rem;
+    }
+
+    /* IMPROVED: was md:text-5xl, now going bolder */
+    .hero-headline {
+      font-family: var(--display);
+      font-size: clamp(3rem, 7vw, 6.5rem);
+      font-weight: 300;
+      line-height: 1.06;
+      letter-spacing: 0.04em;
+      color: var(--foreground);
+      margin-bottom: 1.75rem;
+    }
+
+    .hero-headline em {
+      font-style: italic;
+      color: var(--gold);
+    }
+
+    .hero-subtitle {
+      font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto 2.75rem;
+      line-height: 1.7;
+    }
+
+    /* IMPROVED: trust anchor below headline */
+    .hero-trust {
+      font-size: 0.72rem;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 2.5rem;
+    }
+    .hero-trust span { color: var(--gold-dim); }
+
+    /* Search bar */
+    .hero-search {
+      position: relative;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .hero-search-icon {
+      position: absolute;
+      left: 1.1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gold-dim);
+      width: 20px;
+      height: 20px;
+    }
+
+    .hero-search input {
+      width: 100%;
+      height: 4rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0 5rem 0 3.2rem;
+      font-family: var(--body);
+      font-size: 1rem;
+      color: var(--foreground);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .hero-search input:focus {
+      border-color: rgba(201,162,39,0.4);
+      box-shadow: 0 0 0 3px rgba(201,162,39,0.06);
+    }
+    .hero-search input::placeholder { color: rgba(240,237,232,0.3); }
+
+    .hero-search-btn {
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--gold);
+      color: #0a0a0b;
+      border: none;
+      border-radius: 10px;
+      padding: 0.55rem 1.2rem;
+      font-family: var(--body);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .hero-search-btn:hover { opacity: 0.88; }
+
+    /* typewriter cursor blink */
+    .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: var(--gold);
+      vertical-align: middle;
+      animation: blink 0.7s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* REMOVED: "Create an account" ghost link — was here before */
+    .hero-annotation {
+      margin-top: 1.25rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* scroll indicator */
+    .scroll-hint {
+      position: absolute;
+      bottom: 2.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.5;
+    }
+    .scroll-hint::after {
+      content: '';
+      width: 1px;
+      height: 2rem;
+      background: linear-gradient(to bottom, var(--gold-dim), transparent);
+    }
+
+    /* ════════════════════════════════════════════
+       SECTION 2 — BROWSE BY TYPE
+       ════════════════════════════════════════════ */
+    .browse-section {
+      padding: 4rem clamp(1rem, 4vw, 2rem);
+    }
+
+    .browse-section .section-kicker { text-align: center; display: block; margin-bottom: 2rem; }
+
+    /* IMPROVED: single row, no wrapping on desktop */
+    .browse-strip {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .browse-strip::-webkit-scrollbar { display: none; }
+
+    .browse-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.6rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      white-space: nowrap;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--foreground);
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .browse-pill:hover {
+      border-color: rgba(201,162,39,0.4);
+      background: var(--gold-hover);
+      color: var(--gold);
+    }
+
+    .browse-pill-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1c1c1e, #2a2a2c);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      color: var(--gold-dim);
+      letter-spacing: 0.05em;
+    }
+
+    .browse-pill-icon {
+      color: var(--gold-dim);
+      transition: color 0.2s;
+    }
+    .browse-pill:hover .browse-pill-icon { color: var(--gold); }
+
+    /* ════════════════════════════════════════════
+       SECTION 3 — FEATURED TALENT
+       ════════════════════════════════════════════ */
+    .featured-section {
+      padding: 5rem clamp(1rem, 4vw, 2rem);
+    }
+
+    .featured-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 2.5rem;
+    }
+
+    .featured-header .section-title { font-size: clamp(1.6rem, 3vw, 2.4rem); margin-top: 0.5rem; }
+
+    .view-all-link {
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.2s;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .view-all-link:hover { color: var(--gold); }
+
+    /* IMPROVED: tighter gap, overlay text on image */
+    .talent-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.5rem;  /* was gap-3/4, now tighter for editorial mosaic */
+    }
+
+    /* IMPROVED: first card is 2-col hero treatment */
+    .talent-card { position: relative; overflow: hidden; border-radius: 10px; cursor: pointer; }
+    .talent-card:first-child {
+      grid-column: span 2;
+      grid-row: span 2;
+    }
+
+    .talent-card-img {
+      width: 100%;
+      padding-top: 133%;  /* 3:4 ratio */
+      position: relative;
+      overflow: hidden;
+    }
+    .talent-card:first-child .talent-card-img { padding-top: 100%; }
+
+    .talent-card-bg {
+      position: absolute;
+      inset: 0;
+      transition: transform 0.6s cubic-bezier(0.22,1,0.36,1);
+    }
+    .talent-card:hover .talent-card-bg { transform: scale(1.04); }
+
+    /* IMPROVED: text is now overlaid on image, not below it */
+    .talent-card-info {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 1.5rem 1rem 1rem;
+      background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+      transform: translateY(4px);
+      opacity: 0.9;
+      transition: all 0.3s;
+    }
+    .talent-card:hover .talent-card-info { opacity: 1; transform: translateY(0); }
+
+    .talent-card:first-child .talent-card-info {
+      padding: 2rem 1.5rem 1.5rem;
+    }
+
+    .talent-name {
+      font-family: var(--display);
+      font-size: 1rem;
+      font-weight: 400;
+      letter-spacing: 0.05em;
+      color: #fff;
+    }
+    .talent-card:first-child .talent-name { font-size: 1.35rem; }
+
+    .talent-meta {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.06em;
+      margin-top: 0.2rem;
+    }
+
+    /* color palettes for mock cards */
+    .card-1  { background: linear-gradient(160deg, #1a1714 0%, #0d0c0b 100%); }
+    .card-2  { background: linear-gradient(160deg, #16151a 0%, #0e0d11 100%); }
+    .card-3  { background: linear-gradient(160deg, #171714 0%, #101010 100%); }
+    .card-4  { background: linear-gradient(160deg, #141618 0%, #0c0e10 100%); }
+    .card-5  { background: linear-gradient(160deg, #181614 0%, #110f0d 100%); }
+
+    .card-glow::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 20%, rgba(201,162,39,0.07), transparent 60%);
+    }
+
+    /* ════════════════════════════════════════════
+       SECTION 4 — BEST FOR
+       ════════════════════════════════════════════ */
+    .bestfor-section {
+      padding: 5rem clamp(1rem, 4vw, 2rem);
+    }
+
+    .bestfor-header { text-align: center; margin-bottom: 3.5rem; }
+    .bestfor-header .section-title { font-size: clamp(1.6rem, 3vw, 2.4rem); margin-top: 0.5rem; }
+
+    /* IMPROVED: border-l editorial treatment instead of full bordered box */
+    .bestfor-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.25rem 2.5rem;
+    }
+
+    .bestfor-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.2rem 0;
+      border-bottom: 1px solid rgba(201,162,39,0.07);
+      cursor: pointer;
+      transition: all 0.2s;
+      group: true;
+    }
+    .bestfor-item:hover { padding-left: 0.5rem; }
+
+    .bestfor-label {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--foreground);
+      transition: color 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .bestfor-item:hover .bestfor-label { color: var(--gold); }
+
+    .bestfor-arrow {
+      color: var(--gold-dim);
+      width: 14px;
+      height: 14px;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .bestfor-item:hover .bestfor-arrow {
+      color: var(--gold);
+      transform: translateX(4px);
+    }
+
+    /* ════════════════════════════════════════════
+       SECTION 5 — HOW IT WORKS
+       ════════════════════════════════════════════ */
+    .how-section {
+      padding: 5rem clamp(1rem, 4vw, 2rem);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .how-header { text-align: center; margin-bottom: 4rem; }
+    .how-header .section-title { font-size: clamp(1.6rem, 3vw, 2.4rem); margin-top: 0.5rem; }
+
+    .how-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3rem;
+      position: relative;
+    }
+
+    /* connector line between steps */
+    .how-steps::before {
+      content: '';
+      position: absolute;
+      top: 2.4rem;
+      left: calc(16.66% + 1rem);
+      right: calc(16.66% + 1rem);
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--border) 20%, var(--border) 80%, transparent);
+    }
+
+    .how-step { text-align: center; }
+
+    /* IMPROVED: large editorial numeral instead of icon circle */
+    .how-numeral {
+      font-family: var(--display);
+      font-size: 4.5rem;
+      font-weight: 300;
+      line-height: 1;
+      color: rgba(201,162,39,0.15);
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+    }
+
+    .how-step-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--foreground);
+      letter-spacing: 0.03em;
+      margin-bottom: 0.6rem;
+    }
+
+    .how-step-body {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 220px;
+      margin: 0 auto;
+    }
+
+    /* ════════════════════════════════════════════
+       SECTION 6 — CTA
+       ════════════════════════════════════════════ */
+    /* IMPROVED: dark surface band with gold borders */
+    .cta-section {
+      padding: 5.5rem clamp(1rem, 4vw, 2rem);
+      text-align: center;
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(201,162,39,0.05), transparent);
+      pointer-events: none;
+    }
+
+    .cta-inner { position: relative; z-index: 1; }
+
+    .cta-headline {
+      font-family: var(--display);
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 300;
+      letter-spacing: 0.04em;
+      color: var(--foreground);
+      max-width: 600px;
+      margin: 0 auto 1rem;
+      line-height: 1.2;
+    }
+    .cta-headline em { font-style: italic; color: var(--gold); }
+
+    .cta-body {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+    }
+
+    .cta-buttons { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
+
+    .btn-primary {
+      background: var(--gold);
+      color: #0a0a0b;
+      border: none;
+      border-radius: 10px;
+      padding: 0.75rem 2rem;
+      font-family: var(--body);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.88; }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--foreground);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 2rem;
+      font-family: var(--body);
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover {
+      border-color: rgba(201,162,39,0.4);
+      color: var(--gold);
+    }
+
+    /* ════════════════════════════════════════════
+       FOOTER
+       ════════════════════════════════════════════ */
+    footer {
+      padding: 2.5rem clamp(1rem, 4vw, 2rem);
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .footer-logo {
+      font-family: var(--display);
+      font-size: 0.9rem;
+      letter-spacing: 0.35em;
+      color: var(--foreground);
+      margin-bottom: 0.5rem;
+    }
+
+    .footer-tagline {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+    }
+
+    /* ── COMPARISON CALLOUTS ─────────────────── */
+    .change-note {
+      position: absolute;
+      right: -0.5rem;
+      top: -0.5rem;
+      background: rgba(201,162,39,0.12);
+      border: 1px solid rgba(201,162,39,0.3);
+      border-radius: 4px;
+      padding: 0.15rem 0.4rem;
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      color: var(--gold);
+      text-transform: uppercase;
+      white-space: nowrap;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .section-wrapper { position: relative; }
+
+    /* ── RESPONSIVE ──────────────────────────── */
+    @media (max-width: 900px) {
+      .talent-grid { grid-template-columns: repeat(2, 1fr); }
+      .talent-card:first-child { grid-column: span 2; }
+      .bestfor-grid { grid-template-columns: repeat(2, 1fr); }
+      .how-steps { grid-template-columns: 1fr; gap: 2rem; }
+      .how-steps::before { display: none; }
+      .browse-strip { justify-content: flex-start; }
+    }
+
+    @media (max-width: 580px) {
+      .talent-grid { grid-template-columns: repeat(2, 1fr); }
+      .talent-card:first-child { grid-column: span 2; grid-row: span 1; }
+      .bestfor-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .featured-header .view-all-link { display: none; }
+    }
+
+    /* ── SVG ICONS ───────────────────────────── */
+    .icon { display: inline-block; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+</head>
+<body>
+
+<!-- ── ANNOTATION BANNER ──────────────────────── -->
+<div class="annotation-banner">
+  <strong>DESIGN MOCKUP</strong> · Impronta Home — Redesign Preview · Gold labels mark each change
+</div>
+
+<!-- ── NAV ───────────────────────────────────── -->
+<nav>
+  <span class="nav-logo">IMPRONTA</span>
+  <div class="nav-links">
+    <a href="#">Models &amp; Talent</a>
+    <a href="#">Agency</a>
+    <a href="#">Contact</a>
+    <a href="#" class="nav-cta">Log in</a>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════
+     HERO
+     ════════════════════════════════════════════ -->
+<section class="hero section-wrapper">
+  <span class="change-note">↑ gradient 0.12→0.18 · headline scale ↑ · removed ghost CTA</span>
+
+  <div class="hero-inner">
+    <p class="hero-kicker">Models &amp; Talent</p>
+
+    <h1 class="hero-headline">
+      Talent, <em>presented</em><br>with intention.
+    </h1>
+
+    <!-- IMPROVED: trust anchor (was missing before) -->
+    <p class="hero-trust">
+      Agency-curated &nbsp;·&nbsp; <span>60+ profiles</span> &nbsp;·&nbsp; Inquiry-managed
+    </p>
+
+    <p class="hero-subtitle">
+      Structured discovery and agency-managed inquiries —<br>
+      editorial calm, minimal surface, no noise.
+    </p>
+
+    <div class="hero-search">
+      <svg class="hero-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="text" placeholder="Describe your event or campaign…" />
+      <button class="hero-search-btn">Search</button>
+    </div>
+
+    <!-- REMOVED: "Create an account" ghost link was here — pulls focus away from search -->
+    <p class="hero-annotation">No account required to browse &nbsp;·&nbsp; Agency responds within 24h</p>
+  </div>
+
+  <div class="scroll-hint">Discover</div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     BROWSE BY TYPE
+     ════════════════════════════════════════════ -->
+<section class="browse-section section-wrapper px-page">
+  <span class="change-note">single row · no wrap on desktop</span>
+
+  <span class="section-kicker">Browse by type</span>
+
+  <div class="browse-strip">
+    <a href="#" class="browse-pill">
+      <span class="browse-pill-avatar">✦</span>
+      Models
+    </a>
+    <a href="#" class="browse-pill">
+      <span class="browse-pill-avatar">☆</span>
+      Hostesses
+    </a>
+    <a href="#" class="browse-pill">
+      <span class="browse-pill-avatar">◇</span>
+      Promotional
+    </a>
+    <a href="#" class="browse-pill">
+      <span class="browse-pill-avatar">♪</span>
+      Dancers
+    </a>
+    <a href="#" class="browse-pill">
+      <span class="browse-pill-avatar">▲</span>
+      Brand Ambassadors
+    </a>
+    <a href="#" class="browse-pill" style="opacity:0.6; font-size:0.78rem; color:var(--muted); border-style:dashed;">
+      + 3 more
+    </a>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     FEATURED TALENT — NO HR DIVIDER BEFORE IT
+     ════════════════════════════════════════════ -->
+<section class="featured-section section-wrapper px-page">
+  <span class="change-note">text overlay on image · tight gap · hero card [1st col×2]</span>
+
+  <div class="max-w-6">
+    <div class="featured-header">
+      <div>
+        <span class="section-kicker">Featured presence</span>
+        <p class="section-title">Curated for this season.</p>
+      </div>
+      <a class="view-all-link" href="#">
+        View all
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+
+    <div class="talent-grid">
+
+      <!-- HERO CARD (spans 2×2) -->
+      <a href="#" class="talent-card">
+        <div class="talent-card-img card-1 card-glow">
+          <div class="talent-card-bg" style="background: linear-gradient(160deg,#1c1814 0%,#0d0b09 100%); position:absolute; inset:0;"></div>
+          <!-- decorative element suggesting a figure -->
+          <svg style="position:absolute;bottom:15%;left:50%;transform:translateX(-50%);opacity:0.06;width:60%;height:auto" viewBox="0 0 100 200" fill="none">
+            <ellipse cx="50" cy="40" rx="18" ry="22" fill="white"/>
+            <path d="M20 90 Q30 65 50 60 Q70 65 80 90 L85 160 Q70 170 50 172 Q30 170 15 160 Z" fill="white"/>
+          </svg>
+        </div>
+        <div class="talent-card-info">
+          <p class="talent-name">Sofia M.</p>
+          <p class="talent-meta">Editorial Model &nbsp;·&nbsp; Barcelona</p>
+        </div>
+      </a>
+
+      <!-- Smaller cards -->
+      <a href="#" class="talent-card">
+        <div class="talent-card-img card-2 card-glow">
+          <div class="talent-card-bg" style="position:absolute;inset:0;background:linear-gradient(160deg,#1a1620 0%,#0e0c14 100%);"></div>
+        </div>
+        <div class="talent-card-info">
+          <p class="talent-name">James R.</p>
+          <p class="talent-meta">Commercial &nbsp;·&nbsp; London</p>
+        </div>
+      </a>
+
+      <a href="#" class="talent-card">
+        <div class="talent-card-img card-3 card-glow">
+          <div class="talent-card-bg" style="position:absolute;inset:0;background:linear-gradient(160deg,#1c1a14 0%,#101009 100%);"></div>
+        </div>
+        <div class="talent-card-info">
+          <p class="talent-name">Amélie V.</p>
+          <p class="talent-meta">Runway &nbsp;·&nbsp; Paris</p>
+        </div>
+      </a>
+
+      <a href="#" class="talent-card">
+        <div class="talent-card-img card-4 card-glow">
+          <div class="talent-card-bg" style="position:absolute;inset:0;background:linear-gradient(160deg,#141618 0%,#0c0e10 100%);"></div>
+        </div>
+        <div class="talent-card-info">
+          <p class="talent-name">Marco D.</p>
+          <p class="talent-meta">Brand Ambassador &nbsp;·&nbsp; Milan</p>
+        </div>
+      </a>
+
+      <a href="#" class="talent-card">
+        <div class="talent-card-img card-5 card-glow">
+          <div class="talent-card-bg" style="position:absolute;inset:0;background:linear-gradient(160deg,#181614 0%,#110f0d 100%);"></div>
+        </div>
+        <div class="talent-card-info">
+          <p class="talent-name">Lena K.</p>
+          <p class="talent-meta">Hostess &nbsp;·&nbsp; Dubai</p>
+        </div>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     BEST FOR — NO HR DIVIDER
+     ════════════════════════════════════════════ -->
+<section class="bestfor-section section-wrapper px-page">
+  <span class="change-note">editorial text-list · no full border box · hover slide</span>
+
+  <div class="max-w-6">
+    <div class="bestfor-header">
+      <span class="section-kicker">Best for</span>
+      <p class="section-title">Find talent by use case.</p>
+    </div>
+
+    <div class="bestfor-grid">
+
+      <!-- 6 visible items, 3 per row -->
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Fashion Campaigns</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Trade Show Staff</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Corporate Events</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Product Launches</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Luxury Brand Shoots</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Runway &amp; Showroom</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Automotive Shows</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Hospitality &amp; VIP</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="bestfor-item">
+        <span class="bestfor-label">Music &amp; Performance</span>
+        <svg class="bestfor-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     HOW IT WORKS
+     ════════════════════════════════════════════ -->
+<section class="how-section section-wrapper px-page">
+  <span class="change-note" style="right:1rem">large numerals · no icon circles · connector line</span>
+
+  <div class="max-w-6">
+    <div class="how-header">
+      <span class="section-kicker">How it works</span>
+      <p class="section-title">Three steps, zero friction.</p>
+    </div>
+
+    <div class="how-steps">
+
+      <div class="how-step">
+        <!-- IMPROVED: editorial numeral instead of icon-in-circle -->
+        <div class="how-numeral">01</div>
+        <h3 class="how-step-title">Search &amp; Discover</h3>
+        <p class="how-step-body">Browse by type, location, or describe your need — our AI does the rest.</p>
+      </div>
+
+      <div class="how-step">
+        <div class="how-numeral">02</div>
+        <h3 class="how-step-title">Save Your Shortlist</h3>
+        <p class="how-step-body">Bookmark talent as you browse. No account required for your first save.</p>
+      </div>
+
+      <div class="how-step">
+        <div class="how-numeral">03</div>
+        <h3 class="how-step-title">Send an Inquiry</h3>
+        <p class="how-step-body">Submit your shortlist to the agency. We confirm details and handle everything.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════
+     CTA — dark surface band
+     ════════════════════════════════════════════ -->
+<section class="cta-section section-wrapper">
+  <span class="change-note" style="right:1rem">dark surface band · ambient glow · no plain bg</span>
+
+  <div class="cta-inner">
+    <h2 class="cta-headline">
+      The right talent<br>is one search <em>away.</em>
+    </h2>
+    <p class="cta-body">Agency-managed from first inquiry to final booking.</p>
+    <div class="cta-buttons">
+      <button class="btn-primary">Browse Talent</button>
+      <button class="btn-outline">Create an Account</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ─────────────────────────────────── -->
+<footer>
+  <p class="footer-logo">IMPRONTA</p>
+  <p class="footer-tagline">Models &amp; Talent Agency &nbsp;·&nbsp; © 2026</p>
+</footer>
+
+</body>
+</html>

@@ -45,7 +45,7 @@ export default async function DirectoryPage({
   const heroSearchCopy = {
     placeholder: t("public.home.hero.searchPlaceholder"),
     ariaLabel: t("public.home.hero.searchAria"),
-    searchSubmit: t("public.home.hero.searchSubmit"),
+    searchSubmit: t("public.directory.ui.hero.searchSubmit"),
     typedExamples: getMessageStringArray(locale, "public.home.hero.typedExamples"),
     interpreting: t("public.directory.ui.hero.interpreting"),
     interpretErrorTitle: t("public.directory.ui.hero.interpretErrorTitle"),
@@ -110,7 +110,7 @@ export default async function DirectoryPage({
         <DirectoryInquiryUrlSync />
       </Suspense>
       <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-        <header className="mb-6 max-w-2xl space-y-3 sm:mb-8 sm:space-y-4">
+        <header className="mx-auto mb-6 max-w-2xl space-y-3 text-center sm:mb-8 sm:space-y-4">
           <h1 className="font-display text-2xl font-medium tracking-wide text-foreground sm:text-3xl">
             {t("public.directory.pageTitle")}
           </h1>
@@ -130,7 +130,7 @@ export default async function DirectoryPage({
                 copy={heroSearchCopy}
                 directoryUrlSync
                 initialDirectoryQuery={parseDirectoryQuery(sp.q)}
-                aiSearchEnabled={aiFlags.ai_search_enabled}
+                aiSearchEnabled={aiFlags.ai_master_enabled && aiFlags.ai_search_enabled}
                 locale={locale === "es" ? "es" : "en"}
               />
             </Suspense>

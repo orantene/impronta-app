@@ -1,5 +1,6 @@
 import { getGuestSessionKey } from "@/lib/guest-session";
 import { getPublicSettings } from "@/lib/public-settings";
+import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -16,7 +17,7 @@ export type DirectoryInquiryPayload =
   | {
       kind: "ready";
       inquiriesOpen: boolean;
-      /** Phase 13 — `ai_draft_enabled` + OpenAI; UI shows inline draft assistant. */
+      /** Phase 13 — `ai_draft_enabled` + resolved provider key; UI shows inline draft assistant. */
       aiInquiryDraftEnabled: boolean;
       agencyWhatsAppNumber?: string;
       mode: "client" | "guest";
@@ -98,8 +99,11 @@ export async function loadDirectoryInquiryPayload(): Promise<DirectoryInquiryPay
     .order("sort_order", { ascending: true });
 
   const aiFlags = await getAiFeatureFlags();
-  const aiInquiryDraftEnabled =
-    Boolean(aiFlags.ai_draft_enabled && process.env.OPENAI_API_KEY?.trim());
+  const aiInquiryDraftEnabled = Boolean(
+    aiFlags.ai_master_enabled &&
+      aiFlags.ai_draft_enabled &&
+      (await isResolvedAiChatConfigured()),
+  );
 
   const defaultEmail = user?.email ?? undefined;
   const defaultName =

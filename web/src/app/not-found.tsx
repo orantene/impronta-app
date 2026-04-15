@@ -7,6 +7,7 @@ export default function NotFound() {
   const pathname = usePathname();
 
   return (
+    <div className="flex min-h-full flex-1 flex-col bg-background">
     <main className="flex min-h-[70vh] items-center justify-center px-6 py-16">
       <div className="w-full max-w-xl rounded-2xl border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] p-8">
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--impronta-gold-dim)]">
@@ -43,6 +44,7 @@ export default function NotFound() {
         </div>
       </div>
     </main>
+    </div>
   );
 }
 

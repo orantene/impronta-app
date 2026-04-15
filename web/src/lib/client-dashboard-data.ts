@@ -51,7 +51,7 @@ export type ClientDashboardData = {
   userId: string;
   userEmail: string | null;
   accountHasEmailPassword: boolean;
-  profile: { display_name: string | null } | null;
+  profile: { display_name: string | null; avatar_url: string | null } | null;
   clientProfile: {
     company_name: string | null;
     phone: string | null;
@@ -89,7 +89,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
   try {
     const [{ data: profile }, { data: clientProfile }, { data: saves }, { data: inquiries }] =
       await Promise.all([
-        supabase.from("profiles").select("display_name").eq("id", subjectId).maybeSingle(),
+        supabase.from("profiles").select("display_name, avatar_url").eq("id", subjectId).maybeSingle(),
         supabase
           .from("client_profiles")
           .select("company_name, phone, whatsapp_phone, website_url, notes")
@@ -138,11 +138,10 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
       ]);
 
     const inquiryRows = (inquiries ?? []) as unknown as ClientInquiryRow[];
-    const legacyIds = inquiryRows.filter((r) => !r.uses_new_engine).map((r) => r.id);
-    const v2Ids = inquiryRows.filter((r) => Boolean(r.uses_new_engine)).map((r) => r.id);
+    const inquiryIds = inquiryRows.map((r) => r.id);
 
     const legacyMap = new Map<string, InquiryTalentRow[]>();
-    if (legacyIds.length) {
+    if (inquiryIds.length) {
       const { data: rows } = await supabase
         .from("inquiry_talent")
         .select(
@@ -152,7 +151,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
           talent_profiles ( profile_code, display_name )
         `,
         )
-        .in("inquiry_id", legacyIds)
+        .in("inquiry_id", inquiryIds)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
       for (const row of (rows ?? []) as Array<Record<string, unknown>>) {
@@ -170,7 +169,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
     }
 
     const v2Map = new Map<string, InquiryTalentRow[]>();
-    if (v2Ids.length) {
+    if (inquiryIds.length) {
       const { data: parts } = await supabase
         .from("inquiry_participants")
         .select(
@@ -181,7 +180,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
           talent_profiles ( profile_code, display_name )
         `,
         )
-        .in("inquiry_id", v2Ids)
+        .in("inquiry_id", inquiryIds)
         .eq("role", "talent")
         .order("inquiry_id", { ascending: true })
         .order("sort_order", { ascending: true });
@@ -200,7 +199,7 @@ async function loadClientDashboardDataImpl(): Promise<ClientDashboardLoadResult>
     }
 
     for (const row of inquiryRows) {
-      const roster = row.uses_new_engine ? v2Map.get(row.id) : legacyMap.get(row.id);
+      const roster = v2Map.get(row.id) ?? legacyMap.get(row.id);
       row.inquiry_talent = roster ?? [];
     }
 

@@ -50,8 +50,15 @@ export function logServerError(context: string, err: unknown): void {
   }
 }
 
-/** True when PostgREST reports unknown columns (migration not applied yet). */
+/** True when PostgREST reports unknown columns/tables (migration not applied yet). */
 export function isPostgrestMissingColumnError(err: unknown): boolean {
+  if (err !== null && typeof err === "object") {
+    const code = (err as { code?: string }).code;
+    // PGRST205: relation not in schema cache (unknown table / not yet migrated).
+    if (code === "PGRST205") return true;
+    // 42703: undefined_column (migration not applied yet).
+    if (code === "42703") return true;
+  }
   const msg = String(
     err !== null && typeof err === "object" && "message" in err
       ? (err as { message?: string }).message

@@ -4,7 +4,7 @@ import { logServerError } from "@/lib/server/safe-error";
 export type DashboardTheme = "dark" | "light";
 
 export function normalizeDashboardTheme(value: unknown): DashboardTheme {
-  return value === "light" ? "light" : "dark";
+  return value === "dark" ? "dark" : "light";
 }
 
 export async function getDashboardTheme(
@@ -19,12 +19,12 @@ export async function getDashboardTheme(
 
     if (error) {
       logServerError("settings/getDashboardTheme", error);
-      return "dark";
+      return "light";
     }
 
     return normalizeDashboardTheme(data?.value);
   } catch (error) {
     logServerError("settings/getDashboardTheme", error);
-    return "dark";
+    return "light";
   }
 }

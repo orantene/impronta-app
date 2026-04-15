@@ -146,6 +146,35 @@ function mergeTaxonomyIds(
   return out;
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripResolvedLocationFromQuery(
+  query: string,
+  locationSlug: string,
+): string {
+  const loc = locationSlug.trim().replace(/-/g, " ");
+  if (!query.trim() || !loc) return query.trim();
+  const locPattern = loc
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => escapeRegex(part))
+    .join("\\s+");
+  if (!locPattern) return query.trim();
+
+  let out = query;
+  const phrasePatterns = [
+    new RegExp(`\\b(?:from|in|at|near|de|en)\\s+${locPattern}\\b`, "gi"),
+    new RegExp(`\\b${locPattern}\\b`, "gi"),
+  ];
+  for (const pattern of phrasePatterns) {
+    out = out.replace(pattern, " ");
+  }
+  out = out.replace(/\b(?:from|in|at|near|de|en)\b/gi, " ");
+  return out.replace(/\s+/g, " ").trim();
+}
+
 /**
  * Validates model output against catalog; maps to directory URL params + canonical ParsedIntent.
  */
@@ -200,6 +229,9 @@ export function validateAndMergeInterpretIntent(
   // so they don't also pass through as free-text search and produce 0 results via AND intersection.
   if (taxonomyTermIds.length > 0) {
     query = stripResolvedTaxonomyTokens(query);
+  }
+  if (locationSlug) {
+    query = stripResolvedLocationFromQuery(query, locationSlug);
   }
 
   // Parse age range from query (e.g. "20 to 30 years old")

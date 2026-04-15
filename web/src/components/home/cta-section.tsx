@@ -18,7 +18,7 @@ export function CtaSection({
   copy: CtaSectionCopy;
 }) {
   return (
-    <section className="w-full px-4 py-20 sm:px-6 lg:px-8">
+    <section className="w-full px-4 py-12 sm:px-6 sm:py-20 lg:px-8">
       <div className="mx-auto max-w-3xl text-center">
         <h2 className="font-display text-2xl font-normal tracking-wide text-foreground sm:text-3xl">
           {copy.title}

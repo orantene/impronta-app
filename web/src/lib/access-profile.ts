@@ -4,10 +4,11 @@ import { logServerError } from "@/lib/server/safe-error";
 
 export type AccessProfileWithDisplayName = AccessProfile & {
   display_name?: string | null;
+  avatar_url?: string | null;
 };
 
 const ACCESS_PROFILE_SELECT =
-  "account_status, app_role, onboarding_completed_at, display_name";
+  "account_status, app_role, onboarding_completed_at, display_name, avatar_url";
 
 /** PostgREST: RPC not exposed or DB migration not applied (PGRST202). Fallback path handles it. */
 function isRpcMissingFromSchemaCache(err: {

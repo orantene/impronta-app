@@ -4,6 +4,7 @@ import { ClientAccountPasswordForm } from "@/app/(dashboard)/client/client-accou
 import { ClientDeleteAccountForm } from "@/app/(dashboard)/client/client-delete-account-form";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { ClientDashboardLoadFallback } from "@/components/dashboard/dashboard-load-fallback";
+import { AvatarUploadButton } from "@/components/ui/avatar-upload-button";
 import { CLIENT_PAGE_STACK_MEDIUM } from "@/lib/dashboard-shell-classes";
 import { loadClientDashboardData } from "@/lib/client-dashboard-data";
 
@@ -26,6 +27,16 @@ export default async function ClientAccountPage() {
           ],
         }}
       />
+
+      <DashboardSectionCard
+        title="Profile photo"
+        description="Your avatar appears in messages and across the platform."
+      >
+        <AvatarUploadButton
+          currentAvatarUrl={profile?.avatar_url ?? null}
+          displayName={profile?.display_name ?? userEmail ?? ""}
+        />
+      </DashboardSectionCard>
 
       <DashboardSectionCard
         title="Business & contact"

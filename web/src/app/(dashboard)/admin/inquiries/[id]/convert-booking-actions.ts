@@ -1,14 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine";
+import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireStaff } from "@/lib/server/action-guards";
 
-export async function actionEngineConvertToBooking(formData: FormData): Promise<void> {
+export type ConvertBookingSuccess = { bookingId: string };
+
+export async function actionEngineConvertToBooking(
+  formData: FormData,
+): Promise<ActionResult<ConvertBookingSuccess>> {
   const auth = await requireStaff();
   if (!auth.ok) {
-    redirect("/admin/inquiries");
+    return { ok: false, code: "permission_denied", message: "You do not have access to convert this inquiry." };
   }
   const { supabase, user } = auth;
 
@@ -16,7 +20,7 @@ export async function actionEngineConvertToBooking(formData: FormData): Promise<
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
 
   if (!inquiryId) {
-    redirect(`/admin/inquiries?convert_error=${encodeURIComponent("Missing inquiry.")}`);
+    return { ok: false, code: "validation_error", message: "Missing inquiry." };
   }
 
   const res = await convertToBooking(supabase, {
@@ -36,14 +40,23 @@ export async function actionEngineConvertToBooking(formData: FormData): Promise<
             : res.conflict
               ? "This inquiry was updated. Refresh and try again."
               : res.error ?? "Could not convert to booking.";
-    redirect(`/admin/inquiries/${inquiryId}?convert_error=${encodeURIComponent(msg)}`);
+    return res.conflict
+      ? { ok: false, code: "version_conflict", message: msg }
+      : { ok: false, code: "precondition_failed", message: msg };
   }
 
   const bookingId = res.data?.bookingId;
   revalidatePath(`/admin/inquiries/${inquiryId}`);
   revalidatePath("/admin/bookings");
-  if (bookingId) {
-    redirect(`/admin/bookings/${bookingId}`);
+  if (!bookingId) {
+    return {
+      ok: true,
+      message: "Booking created. Refresh if the linked booking does not appear.",
+    };
   }
-  redirect(`/admin/inquiries/${inquiryId}`);
+  return {
+    ok: true,
+    data: { bookingId },
+    message: "Converted to booking.",
+  };
 }

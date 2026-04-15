@@ -1,4 +1,5 @@
 import { resolveAiChatAdapter, isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
+import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { glossaryPromptBlock } from "@/lib/translation/ai-translate-bio";
 
 export type LabelTranslateFailureCode = "no_key" | "quota" | "api_error" | "empty_response";
@@ -17,12 +18,22 @@ export async function translateDirectoryLabelEnToEs(text: string): Promise<Label
     return { ok: true, text: "" };
   }
 
+  const flags = await getAiFeatureFlags();
+  if (!flags.ai_master_enabled || !flags.ai_translations_enabled) {
+    return {
+      ok: false,
+      code: "no_key",
+      message:
+        "AI translations are off in AI settings (or master AI is off). Enable them under Admin → AI settings, or translate manually.",
+    };
+  }
+
   if (!(await isResolvedAiChatConfigured())) {
     return {
       ok: false,
       code: "no_key",
       message:
-        "AI chat is not configured for the selected provider (missing API key). Add OPENAI_API_KEY or ANTHROPIC_API_KEY, or translate manually.",
+        "No AI provider is connected with a valid key. Configure a provider in Admin → AI settings, or translate manually.",
     };
   }
 

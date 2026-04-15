@@ -3,7 +3,6 @@ import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { assignCoordinatorFromSettings } from "./coordinator-assignment";
-import { getInquiryEngineV2Enabled } from "./inquiry-settings";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
@@ -40,12 +39,6 @@ export async function submitInquiry(
 
     const perm = await validateActorPermission(supabase, "", input.actorUserId, "submit_inquiry");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
-
-    const v2 = await getInquiryEngineV2Enabled(supabase);
-
-    if (!v2) {
-      return { success: false, error: "engine_v2_disabled_use_legacy_path" };
-    }
 
     const assignment = await assignCoordinatorFromSettings(supabase, {
       source_type: "agency",

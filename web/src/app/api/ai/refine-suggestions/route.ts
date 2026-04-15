@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     }
 
     const flags = await getAiFeatureFlags();
-    if (!flags.ai_refine_enabled) {
+    if (!flags.ai_master_enabled || !flags.ai_refine_enabled) {
       return NextResponse.json({ suggestions: [] });
     }
 

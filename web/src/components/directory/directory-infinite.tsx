@@ -73,12 +73,14 @@ type DirectoryPreviewResponse = {
 async function fetchDirectoryPageClient(
   taxKey: string,
   cursor: string | null,
-  locale: "en" | "es",
+  locale: string,
   sort: DirectorySortValue,
   query: string,
   locationSlug: string,
   heightMinCm: number | null,
   heightMaxCm: number | null,
+  ageMin: number | null,
+  ageMax: number | null,
   fieldFacets: DirectoryFieldFacetSelection[],
   loadErrorMessage: string,
 ): Promise<DirectoryPageResponse> {
@@ -95,6 +97,8 @@ async function fetchDirectoryPageClient(
     locationSlug,
     heightMinCm,
     heightMaxCm,
+    ageMin,
+    ageMax,
     fieldFacets,
   });
   if (cursor) params.set("cursor", cursor);
@@ -119,12 +123,14 @@ type AiSearchPageJson = {
 async function fetchAiSearchDirectoryPageClient(
   taxKey: string,
   cursor: string | null,
-  locale: "en" | "es",
+  locale: string,
   sort: DirectorySortValue,
   query: string,
   locationSlug: string,
   heightMinCm: number | null,
   heightMaxCm: number | null,
+  ageMin: number | null,
+  ageMax: number | null,
   fieldFacets: DirectoryFieldFacetSelection[],
   loadErrorMessage: string,
 ): Promise<DirectoryPageResponse> {
@@ -142,6 +148,8 @@ async function fetchAiSearchDirectoryPageClient(
       limit: DIRECTORY_PAGE_SIZE_DEFAULT,
       heightMinCm,
       heightMaxCm,
+      ageMin,
+      ageMax,
       cursor: cursor || null,
       fieldFacets: fieldFacets.length ? fieldFacets : undefined,
       analyticsSource: "directory",
@@ -172,6 +180,8 @@ export function DirectoryInfiniteGrid({
   locationSlug,
   heightMinCm = null,
   heightMaxCm = null,
+  ageMin = null,
+  ageMax = null,
   fieldFacets = [],
   view = "grid",
   initialSavedIds = [],
@@ -180,12 +190,14 @@ export function DirectoryInfiniteGrid({
 }: {
   taxonomyTermIds: string[];
   initialPage: DirectoryPageResponse;
-  locale?: "en" | "es";
+  locale?: string;
   sort: DirectorySortValue;
   query: string;
   locationSlug: string;
   heightMinCm?: number | null;
   heightMaxCm?: number | null;
+  ageMin?: number | null;
+  ageMax?: number | null;
   fieldFacets?: DirectoryFieldFacetSelection[];
   view?: DirectoryViewMode;
   initialSavedIds?: string[];
@@ -306,6 +318,8 @@ export function DirectoryInfiniteGrid({
       locationSlug,
       heightMinCm ?? "",
       heightMaxCm ?? "",
+      ageMin ?? "",
+      ageMax ?? "",
       view,
     ],
     queryFn: ({ pageParam }) =>
@@ -319,6 +333,8 @@ export function DirectoryInfiniteGrid({
             locationSlug,
             heightMinCm ?? null,
             heightMaxCm ?? null,
+            ageMin ?? null,
+            ageMax ?? null,
             fieldFacets,
             ui.loadResultsError,
           )
@@ -331,6 +347,8 @@ export function DirectoryInfiniteGrid({
             locationSlug,
             heightMinCm ?? null,
             heightMaxCm ?? null,
+            ageMin ?? null,
+            ageMax ?? null,
             fieldFacets,
             ui.loadResultsError,
           ),

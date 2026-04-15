@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ADMIN_TABLE_HEAD,
@@ -17,7 +17,7 @@ export type AdminResponsiveTableColumn<T> = {
   priority: "high" | "low";
   headerClassName?: string;
   cellClassName?: string;
-  cell: (row: T) => React.ReactNode;
+  cell: (row: T) => ReactNode;
 };
 
 type AdminResponsiveTableProps<T> = {
@@ -25,8 +25,11 @@ type AdminResponsiveTableProps<T> = {
   columns: AdminResponsiveTableColumn<T>[];
   rows: T[];
   getRowKey: (row: T) => string;
-  emptyMessage?: React.ReactNode;
+  emptyMessage?: ReactNode;
   className?: string;
+  /** Row click / Enter / Space — skip when event target is inside `[data-stop-row-nav]`. */
+  onRowClick?: (row: T) => void;
+  getRowAriaLabel?: (row: T) => string;
 };
 
 /**
@@ -39,6 +42,8 @@ export function AdminResponsiveTable<T>({
   getRowKey,
   emptyMessage = "No rows.",
   className,
+  onRowClick,
+  getRowAriaLabel,
 }: AdminResponsiveTableProps<T>) {
   const high = columns.filter((c) => c.priority === "high");
   const low = columns.filter((c) => c.priority === "low");
@@ -70,7 +75,30 @@ export function AdminResponsiveTable<T>({
           </thead>
           <tbody className="divide-y divide-border/25">
             {rows.map((row) => (
-              <tr key={getRowKey(row)} className={ADMIN_TABLE_ROW_INTERACTIVE}>
+              <tr
+                key={getRowKey(row)}
+                className={cn(ADMIN_TABLE_ROW_INTERACTIVE, onRowClick && "cursor-pointer")}
+                tabIndex={onRowClick ? 0 : undefined}
+                aria-label={getRowAriaLabel?.(row)}
+                onClick={
+                  onRowClick
+                    ? (e) => {
+                        if ((e.target as HTMLElement).closest("[data-stop-row-nav]")) return;
+                        onRowClick(row);
+                      }
+                    : undefined
+                }
+                onKeyDown={
+                  onRowClick
+                    ? (e) => {
+                        if (e.key !== "Enter" && e.key !== " ") return;
+                        if ((e.target as HTMLElement).closest("[data-stop-row-nav]")) return;
+                        e.preventDefault();
+                        onRowClick(row);
+                      }
+                    : undefined
+                }
+              >
                 {columns.map((col) => (
                   <td key={col.id} className={cn("px-4 py-3.5 align-top", col.cellClassName)}>
                     {col.cell(row)}
@@ -89,6 +117,8 @@ export function AdminResponsiveTable<T>({
             row={row}
             high={high}
             low={low}
+            onRowClick={onRowClick}
+            getRowAriaLabel={getRowAriaLabel}
           />
         ))}
       </ul>
@@ -100,14 +130,43 @@ function MobileRowCard<T>({
   row,
   high,
   low,
+  onRowClick,
+  getRowAriaLabel,
 }: {
   row: T;
   high: AdminResponsiveTableColumn<T>[];
   low: AdminResponsiveTableColumn<T>[];
+  onRowClick?: (row: T) => void;
+  getRowAriaLabel?: (row: T) => string;
 }) {
   const [more, setMore] = useState(false);
   return (
-    <li className="rounded-2xl border border-border/50 bg-card/50 p-4 shadow-sm">
+    <li
+      className={cn(
+        "rounded-2xl border border-border/50 bg-card/50 p-4 shadow-sm",
+        onRowClick && "cursor-pointer",
+      )}
+      tabIndex={onRowClick ? 0 : undefined}
+      aria-label={getRowAriaLabel?.(row)}
+      onClick={
+        onRowClick
+          ? (e) => {
+              if ((e.target as HTMLElement).closest("[data-stop-row-nav],button,a")) return;
+              onRowClick(row);
+            }
+          : undefined
+      }
+      onKeyDown={
+        onRowClick
+          ? (e) => {
+              if (e.key !== "Enter" && e.key !== " ") return;
+              if ((e.target as HTMLElement).closest("[data-stop-row-nav],button,a")) return;
+              e.preventDefault();
+              onRowClick(row);
+            }
+          : undefined
+      }
+    >
       <dl className="space-y-2">
         {high.map((col) => (
           <div key={col.id} className="flex flex-col gap-0.5">
@@ -136,6 +195,7 @@ function MobileRowCard<T>({
               variant="ghost"
               size="sm"
               className="h-11 w-full justify-center rounded-xl text-xs font-semibold sm:h-10"
+              data-stop-row-nav
               onClick={() => setMore((v) => !v)}
             >
               {more ? "Show less" : `Show ${low.length} more field${low.length === 1 ? "" : "s"}`}

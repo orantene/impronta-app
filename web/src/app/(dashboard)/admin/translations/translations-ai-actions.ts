@@ -4,11 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireStaff } from "@/lib/server/action-guards";
-import {
-  aiFillMissingSpanishBio,
-  aiRefreshSpanishBioDraft,
-  aiRefreshSpanishBioPublishedWhenNotApproved,
-} from "@/lib/translation/talent-bio-translation-service";
+import { aiFillMissingSpanishBio, aiRefreshSpanishBioLive } from "@/lib/translation/talent-bio-translation-service";
 import { translateDirectoryLabelEnToEs } from "@/lib/translation/ai-translate-label";
 
 const uuid = z.string().uuid();
@@ -18,8 +14,8 @@ export type AiJobResult =
   | { ok: false; error: string };
 
 /**
- * One profile AI step for bulk/row: reviewed → skip; approved → draft refresh;
- * empty ES → fill missing; else → refresh published (stale/auto, etc.).
+ * One profile AI step for bulk/row: reviewed → skip; empty ES → fill missing;
+ * else refresh live Spanish from English (same path for all legacy statuses).
  */
 export async function adminAiRunProfileTranslationJob(input: {
   talent_profile_id: string;
@@ -44,15 +40,6 @@ export async function adminAiRunProfileTranslationJob(input: {
     return { ok: true, skipped: true };
   }
 
-  if (status === "approved") {
-    const { error } = await aiRefreshSpanishBioDraft(auth.supabase, id, auth.user.id);
-    if (error) return { ok: false, error };
-    revalidatePath("/admin/translations");
-    revalidatePath("/admin/talent");
-    revalidatePath(`/admin/talent/${id}`);
-    return { ok: true };
-  }
-
   if (!hasEs) {
     const { error } = await aiFillMissingSpanishBio(auth.supabase, id, auth.user.id);
     if (error) return { ok: false, error };
@@ -62,7 +49,7 @@ export async function adminAiRunProfileTranslationJob(input: {
     return { ok: true };
   }
 
-  const { error } = await aiRefreshSpanishBioPublishedWhenNotApproved(auth.supabase, id, auth.user.id);
+  const { error } = await aiRefreshSpanishBioLive(auth.supabase, id, auth.user.id);
   if (error) return { ok: false, error };
   revalidatePath("/admin/translations");
   revalidatePath("/admin/talent");

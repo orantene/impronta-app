@@ -2,6 +2,8 @@
 
 Short conventions for **public directory**, **public profile**, **inquiry**, and **admin** — aligned with the frozen roadmap (layout shells unchanged; clarity and feedback improved).
 
+Dashboard layout, shell, and reusable UI rules are defined in the [Dashboard UX / Design System Spec](dashboard-ux-design-system.md).
+
 ## Global
 
 - **Loading:** Prefer skeletons (`web/src/components/ui/skeleton.tsx`) over blank regions for lists and media.

@@ -1,0 +1,281 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "Search talent" [ref=e5] [cursor=pointer]:
+        - /url: /directory
+        - img
+      - link "IMPRONTA" [ref=e6] [cursor=pointer]:
+        - /url: /
+      - generic [ref=e7]:
+        - group "Language" [ref=e8]:
+          - link "EN" [ref=e9] [cursor=pointer]:
+            - /url: /?t=1
+          - generic [ref=e10]: "|"
+          - link "ES" [ref=e11] [cursor=pointer]:
+            - /url: /es?t=1
+        - link "Go to directory and saved talent" [ref=e12] [cursor=pointer]:
+          - /url: /directory
+          - img
+        - link "Log in or sign up" [ref=e13] [cursor=pointer]:
+          - /url: /login
+          - img
+  - main [ref=e14]:
+    - generic [ref=e16]:
+      - paragraph [ref=e17]: Models & image agency
+      - heading "Find the right talent for your event" [level=1] [ref=e18]
+      - paragraph [ref=e19]: Search the directory by role, location, or fit using natural language. Agency-managed, no direct contact.
+      - generic [ref=e22]:
+        - img [ref=e23]
+        - textbox "Search directory" [ref=e26]:
+          - /placeholder: Describe your event or talent needs…
+        - button "Search" [ref=e27]
+    - region "Browse by type" [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - heading "Browse by type" [level=2] [ref=e31]
+          - paragraph [ref=e32]: Open the directory with that role pre-selected.
+        - list [ref=e33]:
+          - listitem [ref=e34]:
+            - link "Fashion Model" [ref=e35] [cursor=pointer]:
+              - /url: /directory?tax=ce0c19f7-9fa6-424a-988f-dadbeab61aea
+          - listitem [ref=e36]:
+            - link "Model" [ref=e37] [cursor=pointer]:
+              - /url: /directory?tax=4b11d495-16e1-4f13-bd3a-c6ecbd27060e
+          - listitem [ref=e38]:
+            - link "Editorial Model" [ref=e39] [cursor=pointer]:
+              - /url: /directory?tax=753e2977-3307-4913-a0c8-b33ec5ac93f5
+          - listitem [ref=e40]:
+            - link "Commercial Model" [ref=e41] [cursor=pointer]:
+              - /url: /directory?tax=4c81fbb7-372b-4463-8513-75975b5fbf96
+          - listitem [ref=e42]:
+            - link "Promotional Model" [ref=e43] [cursor=pointer]:
+              - /url: /directory?tax=e0f1a265-7ce3-46a0-b2ca-0699bd168ae9
+          - listitem [ref=e44]:
+            - link "Hostess" [ref=e45] [cursor=pointer]:
+              - /url: /directory?tax=75cee48e-d89e-43b5-b25d-da6abd2f8c09
+          - listitem [ref=e46]:
+            - link "Brand Ambassador" [ref=e47] [cursor=pointer]:
+              - /url: /directory?tax=1ba1bd97-3939-48a0-abd5-d8b907418932
+          - listitem [ref=e48]:
+            - link "Influencer" [ref=e49] [cursor=pointer]:
+              - /url: /directory?tax=e96fa1ff-2b38-416f-9cda-17c0837d8958
+          - listitem [ref=e50]:
+            - link "Actor" [ref=e51] [cursor=pointer]:
+              - /url: /directory?tax=81f28150-070a-4d1f-95a1-8668ecbf08f0
+          - listitem [ref=e52]:
+            - link "Performer" [ref=e53] [cursor=pointer]:
+              - /url: /directory?tax=8c80e82d-5249-4ffa-86db-4b28961209d0
+          - listitem [ref=e54]:
+            - link "Dancer" [ref=e55] [cursor=pointer]:
+              - /url: /directory?tax=2861d437-edb8-48ee-b335-5bdba01d0c17
+          - listitem [ref=e56]:
+            - link "DJ" [ref=e57] [cursor=pointer]:
+              - /url: /directory?tax=b8a95f39-35b5-4bb7-93eb-400dd5290ff7
+        - button "Show 16 more types" [active] [ref=e59]:
+          - text: Show 16 more types
+          - img [ref=e60]
+    - separator [ref=e63]
+    - generic [ref=e65]:
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - heading "Featured talent" [level=2] [ref=e68]
+          - paragraph [ref=e69]: Handpicked by the agency
+        - link "View all" [ref=e70] [cursor=pointer]:
+          - /url: /directory?sort=featured
+          - text: View all
+          - img
+      - generic [ref=e71]:
+        - link "Adriana Vega Adriana Vega Fashion Model · Cancun, MX" [ref=e72] [cursor=pointer]:
+          - /url: /t/TAL-91010
+          - img "Adriana Vega" [ref=e74]
+          - generic [ref=e76]:
+            - heading "Adriana Vega" [level=3] [ref=e77]
+            - paragraph [ref=e78]: Fashion Model · Cancun, MX
+        - link "Isabella Flores Isabella Flores Commercial Model · Cancun, MX" [ref=e79] [cursor=pointer]:
+          - /url: /t/TAL-91007
+          - img "Isabella Flores" [ref=e81]
+          - generic [ref=e83]:
+            - heading "Isabella Flores" [level=3] [ref=e84]
+            - paragraph [ref=e85]: Commercial Model · Cancun, MX
+        - link "Omar Haddad Omar Haddad Brand Ambassador · Cancun, MX" [ref=e86] [cursor=pointer]:
+          - /url: /t/TAL-91020
+          - img "Omar Haddad" [ref=e88]
+          - generic [ref=e90]:
+            - heading "Omar Haddad" [level=3] [ref=e91]
+            - paragraph [ref=e92]: Brand Ambassador · Cancun, MX
+        - link "Nina Hart Nina Hart Influencer · Ibiza, ES" [ref=e93] [cursor=pointer]:
+          - /url: /t/TAL-91004
+          - img "Nina Hart" [ref=e95]
+          - generic [ref=e97]:
+            - heading "Nina Hart" [level=3] [ref=e98]
+            - paragraph [ref=e99]: Influencer · Ibiza, ES
+    - generic [ref=e101]:
+      - heading "Best for" [level=2] [ref=e102]
+      - paragraph [ref=e103]: Find talent by use case
+      - generic [ref=e104]:
+        - link "Female presenting" [ref=e105] [cursor=pointer]:
+          - /url: /directory?tax=d023fd64-ab54-497a-8e3f-e76ea38fe154
+          - generic [ref=e106]: Female presenting
+          - img [ref=e107]
+        - link "Male presenting" [ref=e109] [cursor=pointer]:
+          - /url: /directory?tax=12f4b776-abef-4696-9d2b-db0fb11bad36
+          - generic [ref=e110]: Male presenting
+          - img [ref=e111]
+        - link "Best for Hotel Events" [ref=e113] [cursor=pointer]:
+          - /url: /directory?tax=360ce0ec-5064-49c9-9208-f5905627789e
+          - generic [ref=e114]: Best for Hotel Events
+          - img [ref=e115]
+        - link "Best for Nightlife" [ref=e117] [cursor=pointer]:
+          - /url: /directory?tax=094757ac-8aa7-4525-8535-0c18d1970fdc
+          - generic [ref=e118]: Best for Nightlife
+          - img [ref=e119]
+        - link "Blonde hair" [ref=e121] [cursor=pointer]:
+          - /url: /directory?tax=9598bffe-6be5-4b17-936a-edf6a6a68c6f
+          - generic [ref=e122]: Blonde hair
+          - img [ref=e123]
+        - link "Best for Luxury Activations" [ref=e125] [cursor=pointer]:
+          - /url: /directory?tax=9e16aa94-0251-426d-b5b4-68b971ad7dcf
+          - generic [ref=e126]: Best for Luxury Activations
+          - img [ref=e127]
+        - link "Best for Corporate" [ref=e129] [cursor=pointer]:
+          - /url: /directory?tax=1b5b3205-fffd-48ea-ac2d-96e743d1663f
+          - generic [ref=e130]: Best for Corporate
+          - img [ref=e131]
+        - link "Best for Luxury" [ref=e133] [cursor=pointer]:
+          - /url: /directory?tax=aeefe1b2-4a82-4513-a768-20fac2f6e33c
+          - generic [ref=e134]: Best for Luxury
+          - img [ref=e135]
+        - link "Best for Promotions" [ref=e137] [cursor=pointer]:
+          - /url: /directory?tax=39e7115d-bff6-4c6f-afc6-f0bbc3a883f2
+          - generic [ref=e138]: Best for Promotions
+          - img [ref=e139]
+        - link "Best for Trade Shows" [ref=e141] [cursor=pointer]:
+          - /url: /directory?tax=60952561-6fea-430f-ae0c-ab86e217bd23
+          - generic [ref=e142]: Best for Trade Shows
+          - img [ref=e143]
+        - link "Best for Hosting" [ref=e145] [cursor=pointer]:
+          - /url: /directory?tax=1ef1e3e7-48de-4f4e-8a66-11cffba6f22e
+          - generic [ref=e146]: Best for Hosting
+          - img [ref=e147]
+        - link "Best for Acting" [ref=e149] [cursor=pointer]:
+          - /url: /directory?tax=8614f4ba-192e-4883-a795-32f3bc4cecbc
+          - generic [ref=e150]: Best for Acting
+          - img [ref=e151]
+        - link "Best for Dancing" [ref=e153] [cursor=pointer]:
+          - /url: /directory?tax=3a085d5f-fd4e-491f-b50f-13ab80a44a3d
+          - generic [ref=e154]: Best for Dancing
+          - img [ref=e155]
+        - link "Best for Fashion" [ref=e157] [cursor=pointer]:
+          - /url: /directory?tax=7d515fde-bd2a-4be6-a060-f214f26b40ec
+          - generic [ref=e158]: Best for Fashion
+          - img [ref=e159]
+        - link "Best for Events" [ref=e161] [cursor=pointer]:
+          - /url: /directory?tax=82f5c966-99fc-40da-8458-ecebfe531831
+          - generic [ref=e162]: Best for Events
+          - img [ref=e163]
+        - link "Best for Brand Activation" [ref=e165] [cursor=pointer]:
+          - /url: /directory?tax=1b85ce78-2587-42df-943e-5c5e7d4e18f7
+          - generic [ref=e166]: Best for Brand Activation
+          - img [ref=e167]
+        - link "Best for Hospitality" [ref=e169] [cursor=pointer]:
+          - /url: /directory?tax=100d5134-b136-4ffd-88af-af86a4ab130e
+          - generic [ref=e170]: Best for Hospitality
+          - img [ref=e171]
+        - link "Best for Conferences" [ref=e173] [cursor=pointer]:
+          - /url: /directory?tax=d5acbe92-369e-4594-8717-816356c24aa0
+          - generic [ref=e174]: Best for Conferences
+          - img [ref=e175]
+        - link "Best for Resorts" [ref=e177] [cursor=pointer]:
+          - /url: /directory?tax=f8bf3fac-c150-4424-9391-dec16cd1f54b
+          - generic [ref=e178]: Best for Resorts
+          - img [ref=e179]
+        - link "Best for Yacht Events" [ref=e181] [cursor=pointer]:
+          - /url: /directory?tax=1af10076-0810-42b2-a9a7-78bd0ffcd9b3
+          - generic [ref=e182]: Best for Yacht Events
+          - img [ref=e183]
+        - link "Best for Private Events" [ref=e185] [cursor=pointer]:
+          - /url: /directory?tax=35a78747-be1e-4101-8861-4a4c980db6cd
+          - generic [ref=e186]: Best for Private Events
+          - img [ref=e187]
+        - link "Best for Editorial" [ref=e189] [cursor=pointer]:
+          - /url: /directory?tax=077dce32-dc59-4f00-8553-888a4f8e0439
+          - generic [ref=e190]: Best for Editorial
+          - img [ref=e191]
+        - link "Best for Commercial" [ref=e193] [cursor=pointer]:
+          - /url: /directory?tax=c82c5f65-4447-47d6-a4e9-1d7baaaa5500
+          - generic [ref=e194]: Best for Commercial
+          - img [ref=e195]
+        - link "Best for Social Content" [ref=e197] [cursor=pointer]:
+          - /url: /directory?tax=0999da3d-c4cc-4056-8bda-4b51dfe1706b
+          - generic [ref=e198]: Best for Social Content
+          - img [ref=e199]
+        - link "Best for Runway" [ref=e201] [cursor=pointer]:
+          - /url: /directory?tax=f95715b5-da13-487a-9455-4d3343e9e75d
+          - generic [ref=e202]: Best for Runway
+          - img [ref=e203]
+        - link "Best for Fitness" [ref=e205] [cursor=pointer]:
+          - /url: /directory?tax=bd97b55d-a5ee-4d2d-a3d9-766602ae0b1f
+          - generic [ref=e206]: Best for Fitness
+          - img [ref=e207]
+        - link "Best for Bilingual Events" [ref=e209] [cursor=pointer]:
+          - /url: /directory?tax=aae3e56a-656b-425e-956a-e2cf4415c8c2
+          - generic [ref=e210]: Best for Bilingual Events
+          - img [ref=e211]
+    - separator [ref=e214]
+    - generic [ref=e216]:
+      - heading "Explore by location" [level=2] [ref=e217]
+      - paragraph [ref=e218]: Where we operate
+      - generic [ref=e219]:
+        - link "Buenos Aires 0 talents" [ref=e220] [cursor=pointer]:
+          - /url: /directory?location=buenos-aires
+          - img [ref=e221]
+          - generic [ref=e224]:
+            - generic [ref=e225]: Buenos Aires
+            - text: 0 talents
+        - link "Cancun 7 talents" [ref=e226] [cursor=pointer]:
+          - /url: /directory?location=cancun
+          - img [ref=e227]
+          - generic [ref=e230]:
+            - generic [ref=e231]: Cancun
+            - text: 7 talents
+        - link "Ibiza 4 talents" [ref=e232] [cursor=pointer]:
+          - /url: /directory?location=ibiza
+          - img [ref=e233]
+          - generic [ref=e236]:
+            - generic [ref=e237]: Ibiza
+            - text: 4 talents
+        - link "Playa del Carmen 3 talents" [ref=e238] [cursor=pointer]:
+          - /url: /directory?location=playa-del-carmen
+          - img [ref=e239]
+          - generic [ref=e242]:
+            - generic [ref=e243]: Playa del Carmen
+            - text: 3 talents
+    - generic [ref=e245]:
+      - heading "How it works" [level=2] [ref=e246]
+      - paragraph [ref=e247]: Three steps to the right talent
+      - generic [ref=e248]:
+        - generic [ref=e249]:
+          - img [ref=e251]
+          - heading "Discover" [level=3] [ref=e254]
+          - paragraph [ref=e255]: Search naturally or browse by type, location, and use case. Every profile is agency-curated.
+        - generic [ref=e256]:
+          - img [ref=e258]
+          - heading "Save & shortlist" [level=3] [ref=e260]
+          - paragraph [ref=e261]: Add talent to your list. No account required to start — sign up when you're ready.
+        - generic [ref=e262]:
+          - img [ref=e264]
+          - heading "Brief the agency" [level=3] [ref=e267]
+          - paragraph [ref=e268]: Submit your event details and selected talent. The agency handles coordination and booking.
+    - separator [ref=e270]
+    - generic [ref=e272]:
+      - heading "Ready to find the right talent?" [level=2] [ref=e273]
+      - paragraph [ref=e274]: Tell us about your event, and the agency will match you with the perfect talent for any occasion.
+      - generic [ref=e275]:
+        - link "Search talent" [ref=e276] [cursor=pointer]:
+          - /url: /directory
+        - link "Create an account" [ref=e277] [cursor=pointer]:
+          - /url: /register
+    - generic [ref=e279]:
+      - paragraph [ref=e280]: IMPRONTA
+      - paragraph [ref=e281]: Models & Talent · Agency-managed discovery and representation
+      - paragraph [ref=e282]: © 2026 Impronta. All rights reserved.

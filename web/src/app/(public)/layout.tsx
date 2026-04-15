@@ -17,12 +17,14 @@ export default async function PublicLayout({
   const directoryUi = buildDirectoryUiCopy(t);
 
   return (
-    <PublicDiscoveryStateProvider>
-      <DirectoryInquiryModalProvider>
-        <PublicFlashHost dismissAria={dismissFlashAria} />
-        {children}
-        <DirectoryInquirySheet ui={directoryUi} locale={locale} />
-      </DirectoryInquiryModalProvider>
-    </PublicDiscoveryStateProvider>
+    <div className="flex min-h-full flex-1 flex-col bg-background">
+      <PublicDiscoveryStateProvider>
+        <DirectoryInquiryModalProvider>
+          <PublicFlashHost dismissAria={dismissFlashAria} />
+          {children}
+          <DirectoryInquirySheet ui={directoryUi} locale={locale} />
+        </DirectoryInquiryModalProvider>
+      </PublicDiscoveryStateProvider>
+    </div>
   );
 }

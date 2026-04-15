@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { Home, Menu, PanelLeft } from "lucide-react";
+import { DashboardPersonInline } from "@/components/dashboard/dashboard-person-inline";
 import { DashboardSidebarNavLinks } from "@/components/dashboard/dashboard-nav-links";
 import { Button } from "@/components/ui/button";
 import type { DashboardNavGroup } from "@/lib/dashboard/architecture";
@@ -19,6 +20,7 @@ import {
 export function DashboardMobileMenu({
   roleLabel,
   profileName,
+  avatarUrl,
   email,
   menuCopy,
   groups,
@@ -27,6 +29,7 @@ export function DashboardMobileMenu({
 }: {
   roleLabel: string;
   profileName: string;
+  avatarUrl?: string | null;
   email: string;
   menuCopy: {
     sheetDashboardTitle: string;
@@ -72,12 +75,24 @@ export function DashboardMobileMenu({
               </SheetTitle>
             </div>
           </div>
-          <SheetDescription className="text-left text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{roleLabel}</span>
-            <span className="text-muted-foreground/80"> · </span>
-            {profileName}
+          <SheetDescription asChild>
+            <div className="text-left">
+              <DashboardPersonInline
+                avatarUrl={avatarUrl}
+                name={profileName}
+                avatarSize="md"
+                align="center"
+                className="text-sm text-muted-foreground"
+              >
+                <p>
+                  <span className="font-medium text-foreground">{roleLabel}</span>
+                  <span className="text-muted-foreground/80"> · </span>
+                  {profileName}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{email}</p>
+              </DashboardPersonInline>
+            </div>
           </SheetDescription>
-          <p className="text-xs leading-relaxed text-muted-foreground">{email}</p>
           {workspaceSwitcher ? (
             <div className="border-t border-[var(--impronta-gold-border)]/30 pt-3">
               {workspaceSwitcher}

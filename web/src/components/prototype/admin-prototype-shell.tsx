@@ -6,7 +6,7 @@ import {
   usePathname,
   useSearchParams,
 } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { signOut } from "@/app/auth/actions";
 import {
   Bookmark,
@@ -439,12 +439,12 @@ export function AdminDashboardShell({ children, dashboardTheme }: AdminDashboard
   const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [chromeTheme, setChromeTheme] = useState<AdminPrototypeChromeTheme>("dark");
+  const [chromeTheme, setChromeTheme] = useState<AdminPrototypeChromeTheme>("light");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [shortcutIds, setShortcutIds] = useState<string[]>([]);
   const pathname = usePathname() ?? "/";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       const raw = localStorage.getItem(ADMIN_PROTOTYPE_THEME_KEY);
       if (raw === "light" || raw === "dark") {

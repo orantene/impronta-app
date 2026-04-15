@@ -7,8 +7,10 @@ import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-c
 import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
 import { readAiTuningEnvSnapshot } from "@/lib/ai/ai-console-metrics";
 import { OPENAI_EMBEDDING_MODEL_ID } from "@/lib/ai/openai-embeddings";
+import { resolveAnthropicApiKey, resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import {
   getEnvAiProviderOverride,
+  getResolvedAiChatKind,
   getResolvedAiProviderId,
   isResolvedAiChatConfigured,
 } from "@/lib/ai/resolve-provider";
@@ -17,6 +19,7 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { cn } from "@/lib/utils";
 
 import { AiWorkspaceQuickEnableButton } from "./ai-workspace-quick-enable";
+import { AiMasterModeForm } from "./ai-master-mode-form";
 
 export const dynamic = "force-dynamic";
 
@@ -78,12 +81,13 @@ function StatusCard({
 export default async function AiWorkspacePage() {
   const flags = await getAiFeatureFlags();
   const providerId = await getResolvedAiProviderId();
+  const chatKind = await getResolvedAiChatKind();
   const chatConfigured = await isResolvedAiChatConfigured();
   const envOverride = getEnvAiProviderOverride();
   const tuning = readAiTuningEnvSnapshot();
 
-  const openaiKey = Boolean(process.env.OPENAI_API_KEY?.trim());
-  const anthropicKey = Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  const openaiKey = Boolean((await resolveOpenAiApiKey())?.trim());
+  const anthropicKey = Boolean((await resolveAnthropicApiKey())?.trim());
 
   const supabase = await getCachedServerSupabase();
   let embedCount: number | null = null;
@@ -99,6 +103,7 @@ export default async function AiWorkspacePage() {
     : "Baseline hybrid merge";
   const activeChatModel =
     providerId === "anthropic" ? tuning.anthropicChatModel : tuning.openaiChatModel;
+  const masterEnabled = flags.ai_master_enabled;
 
   return (
     <div className={ADMIN_PAGE_STACK}>
@@ -110,14 +115,19 @@ export default async function AiWorkspacePage() {
 
       <DashboardSectionCard
         title="Quick actions"
-        description="Turn on the five guest-facing AI features at once (does not change v2 quality flags)."
+        description="Quickly flip AI mode for the whole site, or enable the saved guest-facing AI features at once."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
+        <AiMasterModeForm
+          enabled={masterEnabled}
+          className="mb-4"
+          description="Use this as your master AI on/off switch. When off, the site falls back to classic behavior even if the feature toggles stay saved as on."
+        />
         <AiWorkspaceQuickEnableButton />
         <p className="mt-3 text-xs text-muted-foreground">
           Prefer granular control?{" "}
-          <Link href={`${SETTINGS}#ai-settings-core-toggles`} className="text-primary hover:underline">
-            Core toggles
+          <Link href={`${SETTINGS}#ai-settings-feature-toggles`} className="text-primary hover:underline">
+            Feature switches
           </Link>
         </p>
       </DashboardSectionCard>
@@ -128,15 +138,16 @@ export default async function AiWorkspacePage() {
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <StatusCard title="Search" href={`${SETTINGS}#ai-settings-core-toggles`}>
+          <StatusCard title="Search" href={`${SETTINGS}#ai-settings-feature-toggles`}>
             <p className="flex flex-wrap items-center gap-2">
-              <OnOff on={flags.ai_search_enabled} />
+              <OnOff on={masterEnabled && flags.ai_search_enabled} />
               <span>{searchModeLabel}</span>
             </p>
+            {!masterEnabled ? <p>Master AI mode is off.</p> : null}
             <p>
               OpenAI (embeddings):{" "}
               <span className={openaiKey ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
-                {openaiKey ? "API key OK" : "missing OPENAI_API_KEY"}
+                {openaiKey ? "OpenAI key path OK" : "no OpenAI key path"}
               </span>
             </p>
             <p>
@@ -147,41 +158,47 @@ export default async function AiWorkspacePage() {
             </p>
           </StatusCard>
 
-          <StatusCard title="Rerank" href={`${SETTINGS}#ai-settings-core-toggles`}>
+          <StatusCard title="Rerank" href={`${SETTINGS}#ai-settings-feature-toggles`}>
             <p className="flex items-center gap-2">
-              <OnOff on={flags.ai_rerank_enabled} />
+              <OnOff on={masterEnabled && flags.ai_rerank_enabled} />
               <span>Signal-based re-ordering after retrieval</span>
             </p>
           </StatusCard>
 
           <StatusCard title="Explanations" href={`${SETTINGS}#ai-settings-v2-toggles`}>
             <p className="flex flex-wrap items-center gap-2">
-              <OnOff on={flags.ai_explanations_enabled} />
+              <OnOff on={masterEnabled && flags.ai_explanations_enabled} />
               <span>v2 rules</span>
-              <OnOff on={flags.ai_explanations_v2} />
+              <OnOff on={masterEnabled && flags.ai_explanations_v2} />
             </p>
           </StatusCard>
 
           <StatusCard title="Refine" href={`${SETTINGS}#ai-settings-v2-toggles`}>
             <p className="flex flex-wrap items-center gap-2">
-              <OnOff on={flags.ai_refine_enabled} />
+              <OnOff on={masterEnabled && flags.ai_refine_enabled} />
               <span>v2 chips</span>
-              <OnOff on={flags.ai_refine_v2} />
+              <OnOff on={masterEnabled && flags.ai_refine_v2} />
             </p>
           </StatusCard>
 
-          <StatusCard title="Inquiry draft" href={`${SETTINGS}#ai-settings-core-toggles`}>
+          <StatusCard title="Inquiry draft" href={`${SETTINGS}#ai-settings-feature-toggles`}>
             <p className="flex items-center gap-2">
-              <OnOff on={flags.ai_draft_enabled} />
+              <OnOff on={masterEnabled && flags.ai_draft_enabled} />
               <span>Public inquiry assistant</span>
             </p>
           </StatusCard>
 
           <StatusCard title="Provider" href={`${SETTINGS}#ai-settings-provider`}>
             <p>
-              Active:{" "}
+              Default:{" "}
               <span className="font-medium text-foreground">
-                {providerId === "anthropic" ? "Anthropic (Claude)" : "OpenAI"}
+                {chatKind === "anthropic"
+                  ? "Anthropic (Claude)"
+                  : chatKind === "openai"
+                    ? "OpenAI"
+                    : chatKind === "custom"
+                      ? "Custom (coming soon)"
+                      : "None"}
               </span>
             </p>
             {envOverride ? (
@@ -190,17 +207,18 @@ export default async function AiWorkspacePage() {
               </p>
             ) : (
               <p>
-                DB <code className="font-mono">ai_provider</code>: {flags.ai_provider}
+                Registry resolves to <code className="font-mono">{flags.ai_provider}</code> for chat
+                adapters.
               </p>
             )}
             <p>
               Chat key:{" "}
               <span className={chatConfigured ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
-                {chatConfigured ? "configured" : "missing for active provider"}
+                {chatConfigured ? "available" : "not available for default provider"}
               </span>
             </p>
             <p>
-              Keys in env: OpenAI {openaiKey ? "✓" : "—"}, Anthropic {anthropicKey ? "✓" : "—"}
+              Resolved key paths: OpenAI {openaiKey ? "✓" : "—"}, Anthropic {anthropicKey ? "✓" : "—"}
             </p>
             <p className="font-mono text-[10px] text-foreground/80">Model: {activeChatModel}</p>
           </StatusCard>

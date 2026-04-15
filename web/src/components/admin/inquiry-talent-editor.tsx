@@ -2,7 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ExternalLink, Plus, Search, Trash2 } from "lucide-react";
 import { addInquiryTalent, type AdminActionState, moveInquiryTalent, removeInquiryTalent } from "@/app/(dashboard)/admin/actions";
 import {
@@ -12,6 +14,7 @@ import {
 } from "@/app/(dashboard)/admin/inquiries/[id]/roster-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { handleActionResult, type ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { cn } from "@/lib/utils";
 
 type TalentOption = {
@@ -103,6 +106,87 @@ function TalentAvatar({ row }: { row: InquiryTalentRow }) {
   return (
     <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border/50 bg-muted/30 text-lg font-medium text-foreground shadow-sm">
       {(row.display_name ?? row.profile_code).slice(0, 1).toUpperCase()}
+    </div>
+  );
+}
+
+function RosterEngineV2RowControls({
+  inquiryId,
+  inquiryVersion,
+  participantId,
+  index,
+  total,
+}: {
+  inquiryId: string;
+  inquiryVersion: number;
+  participantId: string;
+  index: number;
+  total: number;
+}) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+
+  const feedback = (result: ActionResult) => {
+    handleActionResult(result, {
+      onToast: (m) => toast.message(m),
+      onRefresh: () => router.refresh(),
+      onInlineError: (m) => toast.error(m),
+      onBlockerBanner: (m) => toast.error(m),
+    });
+  };
+
+  const runMove = (direction: "up" | "down") => {
+    const fd = new FormData();
+    fd.set("inquiry_id", inquiryId);
+    fd.set("participant_id", participantId);
+    fd.set("direction", direction);
+    fd.set("expected_version", String(inquiryVersion));
+    startTransition(() => {
+      void rosterMoveParticipant(fd).then((r) => feedback(r));
+    });
+  };
+
+  const runRemove = () => {
+    const fd = new FormData();
+    fd.set("inquiry_id", inquiryId);
+    fd.set("participant_id", participantId);
+    fd.set("expected_version", String(inquiryVersion));
+    startTransition(() => {
+      void rosterRemoveParticipant(fd).then((r) => feedback(r));
+    });
+  };
+
+  return (
+    <div className="flex items-center gap-2 self-end sm:self-center">
+      <div className="mr-1 rounded-full border border-[var(--impronta-gold-border)]/65 bg-[var(--impronta-gold-muted)] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--impronta-gold)]">
+        {index + 1}
+      </div>
+      <Button type="button" variant="outline" size="sm" className="h-9 w-9 rounded-full p-0" disabled={index === 0 || pending} onClick={() => runMove("up")}>
+        <ArrowUp className="h-4 w-4" />
+        <span className="sr-only">Move up</span>
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-9 w-9 rounded-full p-0"
+        disabled={index === total - 1 || pending}
+        onClick={() => runMove("down")}
+      >
+        <ArrowDown className="h-4 w-4" />
+        <span className="sr-only">Move down</span>
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-9 rounded-full border-destructive/35 px-3 text-destructive hover:bg-destructive/5"
+        disabled={pending}
+        onClick={runRemove}
+      >
+        <Trash2 className="mr-1 h-4 w-4" />
+        Remove
+      </Button>
     </div>
   );
 }
@@ -210,13 +294,11 @@ export function InquiryTalentEditor({
   engineV2?: boolean;
   inquiryVersion?: number;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [selectedTalentId, setSelectedTalentId] = useState("");
   const [state, addAction, addPending] = useActionState<AdminActionState, FormData>(addInquiryTalent, undefined);
-  const [stateV2, addActionV2, addPendingV2] = useActionState(
-    async (_prev: { error?: string } | undefined, formData: FormData) => rosterAddTalent(formData),
-    undefined,
-  );
+  const [v2AddPending, startV2Add] = useTransition();
 
   const selectedIds = useMemo(() => new Set(rows.map((row) => row.talent_profile_id)), [rows]);
   const filtered = useMemo(
@@ -228,18 +310,31 @@ export function InquiryTalentEditor({
     [allTalents, query, selectedIds],
   );
 
-  const addFormAction = engineV2 ? addActionV2 : addAction;
-  const addPendingState = engineV2 ? addPendingV2 : addPending;
-  const addError = engineV2 ? stateV2?.error : state?.error;
+  const addFormAction = engineV2 ? undefined : addAction;
+  const addPendingState = engineV2 ? v2AddPending : addPending;
+  const addError = engineV2 ? undefined : state?.error;
 
   return (
     <div className="space-y-4">
       <form
         action={addFormAction}
         className="space-y-4 rounded-[1.5rem] border border-border/50 bg-[linear-gradient(180deg,rgba(255,255,255,0.78),rgba(255,255,255,0.55))] p-4 shadow-sm"
-        onSubmit={() => {
+        onSubmit={(event) => {
           setQuery("");
           setSelectedTalentId("");
+          if (!engineV2) return;
+          event.preventDefault();
+          const fd = new FormData(event.currentTarget);
+          startV2Add(() => {
+            void rosterAddTalent(fd).then((result) =>
+              handleActionResult(result, {
+                onToast: (m) => toast.message(m),
+                onRefresh: () => router.refresh(),
+                onInlineError: (m) => toast.error(m),
+                onBlockerBanner: (m) => toast.error(m),
+              }),
+            );
+          });
         }}
       >
         <input type="hidden" name="inquiry_id" value={inquiryId} />
@@ -334,40 +429,47 @@ export function InquiryTalentEditor({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 self-end sm:self-center">
-                <div className="mr-1 rounded-full border border-[var(--impronta-gold-border)]/65 bg-[var(--impronta-gold-muted)] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--impronta-gold)]">
-                  {index + 1}
+              {engineV2 ? (
+                <RosterEngineV2RowControls
+                  inquiryId={inquiryId}
+                  inquiryVersion={inquiryVersion}
+                  participantId={row.id}
+                  index={index}
+                  total={rows.length}
+                />
+              ) : (
+                <div className="flex items-center gap-2 self-end sm:self-center">
+                  <div className="mr-1 rounded-full border border-[var(--impronta-gold-border)]/65 bg-[var(--impronta-gold-muted)] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-[var(--impronta-gold)]">
+                    {index + 1}
+                  </div>
+                  <form action={moveInquiryTalent}>
+                    <input type="hidden" name="inquiry_id" value={inquiryId} />
+                    <input type="hidden" name="inquiry_talent_id" value={row.id} />
+                    <input type="hidden" name="direction" value="up" />
+                    <Button type="submit" variant="outline" size="sm" className="h-9 w-9 rounded-full p-0" disabled={index === 0}>
+                      <ArrowUp className="h-4 w-4" />
+                      <span className="sr-only">Move up</span>
+                    </Button>
+                  </form>
+                  <form action={moveInquiryTalent}>
+                    <input type="hidden" name="inquiry_id" value={inquiryId} />
+                    <input type="hidden" name="inquiry_talent_id" value={row.id} />
+                    <input type="hidden" name="direction" value="down" />
+                    <Button type="submit" variant="outline" size="sm" className="h-9 w-9 rounded-full p-0" disabled={index === rows.length - 1}>
+                      <ArrowDown className="h-4 w-4" />
+                      <span className="sr-only">Move down</span>
+                    </Button>
+                  </form>
+                  <form action={removeInquiryTalent}>
+                    <input type="hidden" name="inquiry_id" value={inquiryId} />
+                    <input type="hidden" name="inquiry_talent_id" value={row.id} />
+                    <Button type="submit" variant="outline" size="sm" className="h-9 rounded-full border-destructive/35 px-3 text-destructive hover:bg-destructive/5">
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      Remove
+                    </Button>
+                  </form>
                 </div>
-                <form action={engineV2 ? rosterMoveParticipant : moveInquiryTalent}>
-                  <input type="hidden" name="inquiry_id" value={inquiryId} />
-                  <input type="hidden" name={engineV2 ? "participant_id" : "inquiry_talent_id"} value={row.id} />
-                  <input type="hidden" name="direction" value="up" />
-                  {engineV2 ? <input type="hidden" name="expected_version" value={String(inquiryVersion)} /> : null}
-                  <Button type="submit" variant="outline" size="sm" className="h-9 w-9 rounded-full p-0" disabled={index === 0}>
-                    <ArrowUp className="h-4 w-4" />
-                    <span className="sr-only">Move up</span>
-                  </Button>
-                </form>
-                <form action={engineV2 ? rosterMoveParticipant : moveInquiryTalent}>
-                  <input type="hidden" name="inquiry_id" value={inquiryId} />
-                  <input type="hidden" name={engineV2 ? "participant_id" : "inquiry_talent_id"} value={row.id} />
-                  <input type="hidden" name="direction" value="down" />
-                  {engineV2 ? <input type="hidden" name="expected_version" value={String(inquiryVersion)} /> : null}
-                  <Button type="submit" variant="outline" size="sm" className="h-9 w-9 rounded-full p-0" disabled={index === rows.length - 1}>
-                    <ArrowDown className="h-4 w-4" />
-                    <span className="sr-only">Move down</span>
-                  </Button>
-                </form>
-                <form action={engineV2 ? rosterRemoveParticipant : removeInquiryTalent}>
-                  <input type="hidden" name="inquiry_id" value={inquiryId} />
-                  <input type="hidden" name={engineV2 ? "participant_id" : "inquiry_talent_id"} value={row.id} />
-                  {engineV2 ? <input type="hidden" name="expected_version" value={String(inquiryVersion)} /> : null}
-                  <Button type="submit" variant="outline" size="sm" className="h-9 rounded-full border-destructive/35 px-3 text-destructive hover:bg-destructive/5">
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    Remove
-                  </Button>
-                </form>
-              </div>
+              )}
             </li>
           ))}
         </ul>

@@ -12,15 +12,8 @@ import {
   type BioTranslationPanelPayload,
 } from "@/app/(dashboard)/admin/talent/translation-actions";
 import { adminAiRunProfileTranslationJob } from "@/app/(dashboard)/admin/translations/translations-ai-actions";
-import {
-  adminAiFillMissingSpanishBio,
-  adminMarkSpanishBioApproved,
-  adminMarkSpanishBioReviewed,
-} from "@/app/(dashboard)/admin/talent/translation-actions";
-import {
-  adminBulkMarkSpanishBioApproved,
-  adminBulkMarkSpanishBioReviewed,
-} from "@/app/(dashboard)/admin/translations/translations-workflow-actions";
+import { adminAiFillMissingSpanishBio, adminMarkSpanishBioReviewed } from "@/app/(dashboard)/admin/talent/translation-actions";
+import { adminBulkMarkSpanishBioReviewed } from "@/app/(dashboard)/admin/translations/translations-workflow-actions";
 import type { BioFilterKey, BioSortKey, SortDir } from "@/app/(dashboard)/admin/translations/translations-url";
 import { bioSortHref, TRANSLATIONS_APANEL_BIO } from "@/app/(dashboard)/admin/translations/translations-url";
 import { DashboardEditPanel } from "@/components/dashboard/dashboard-edit-panel";
@@ -73,13 +66,20 @@ const STATUS_TOOLTIPS: Record<BioEsStatus, string> = {
   stale: "English updated after Spanish",
   auto: "AI generated",
   reviewed: "Manually edited",
-  approved: "Locked",
+  approved: "Legacy DB value — not a workflow step",
 };
+
+/** Legacy `bio_es_status` column — hide the word “approved” in the table. */
+function esStatusColumnLabel(st: BioEsStatus, hasEs: boolean): string {
+  if (!hasEs && st === "missing") return "missing";
+  if (st === "approved") return "legacy";
+  return st;
+}
 
 function statusBadgeClass(status: BioEsStatus): string {
   switch (status) {
     case "approved":
-      return "border-emerald-600/50 bg-emerald-600/12 text-emerald-900 dark:text-emerald-100";
+      return "border-zinc-500/45 bg-zinc-500/10 text-zinc-200 dark:text-zinc-100";
     case "stale":
       return "border-orange-500/50 bg-orange-500/12 text-orange-950 dark:text-orange-50";
     case "missing":
@@ -101,11 +101,19 @@ function eventTypeLabel(eventType: string): string {
       return "AI generated";
     case "manual_edit_es":
       return "Manual edit";
+    case "manual_edit_es_draft":
+      return "Manual edit (Spanish buffer)";
+    case "manual_edit_en_draft":
+      return "Manual edit (English buffer)";
+    case "manual_edit_bilingual_quick":
+      return "Quick edit (bilingual)";
     case "mark_reviewed":
       return "Reviewed";
     case "mark_approved":
     case "approve_draft":
-      return "Approved";
+      return "Legacy status change";
+    case "approve_en_draft":
+      return "English buffer merged to live";
     case "en_changed_mark_stale":
       return "Stale (English changed)";
     default:
@@ -363,14 +371,9 @@ export function TranslationsBioWorkflowTable({
     }
   }
 
-  function runBulk(
-    action: "reviewed" | "approved",
-    ids: string[],
-  ) {
+  function runBulkReviewed(ids: string[]) {
     start(async () => {
-      const fn =
-        action === "reviewed" ? adminBulkMarkSpanishBioReviewed : adminBulkMarkSpanishBioApproved;
-      const res = await fn({ talent_profile_ids: ids });
+      const res = await adminBulkMarkSpanishBioReviewed({ talent_profile_ids: ids });
       if ("error" in res && res.error) {
         toast.error(res.error);
         return;
@@ -389,25 +392,13 @@ export function TranslationsBioWorkflowTable({
     });
   }
 
-  function runRowAction(
-    kind: "reviewed" | "approved" | "ai",
-    talentId: string,
-  ) {
+  function runRowAction(kind: "reviewed" | "ai", talentId: string) {
     start(async () => {
       if (kind === "reviewed") {
         const r = await adminMarkSpanishBioReviewed({ talent_profile_id: talentId });
         if (r.error) toast.error(r.error);
         else {
           toast.success("Marked reviewed");
-          router.refresh();
-        }
-        return;
-      }
-      if (kind === "approved") {
-        const r = await adminMarkSpanishBioApproved({ talent_profile_id: talentId });
-        if (r.error) toast.error(r.error);
-        else {
-          toast.success("Marked approved");
           router.refresh();
         }
         return;
@@ -475,20 +466,10 @@ export function TranslationsBioWorkflowTable({
                 className="h-8 rounded-full"
                 disabled={pending || aiRunning || selectedIds.length === 0}
                 aria-busy={pending}
-                onClick={() => runBulk("reviewed", selectedIds)}
+                title="Sets legacy Spanish status to reviewed (staff verification — not a publish step)"
+                onClick={() => runBulkReviewed(selectedIds)}
               >
                 Mark reviewed
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="h-8 rounded-full"
-                disabled={pending || aiRunning || selectedIds.length === 0}
-                aria-busy={pending}
-                onClick={() => runBulk("approved", selectedIds)}
-              >
-                Mark approved
               </Button>
               <Button
                 type="button"
@@ -500,7 +481,7 @@ export function TranslationsBioWorkflowTable({
                 title={
                   !aiConfigured
                     ? "Configure OPENAI_API_KEY"
-                    : "Missing → fill ES; stale/auto → refresh ES; approved → draft only; reviewed → skip"
+                    : "Missing Spanish → fill; other rows follow legacy DB rules in this bulk tool."
                 }
                 onClick={() => void runBulkAi(selectedIds)}
               >
@@ -513,8 +494,8 @@ export function TranslationsBioWorkflowTable({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[920px] text-left text-sm">
             <caption className="sr-only">
-              Talent bios translation queue. Columns: select, expand for audit trail, name, profile code, Spanish
-              workflow status, draft state, when published Spanish and English bios last changed, and row actions.
+              Talent bios translation queue. Columns: select, expand for audit trail, name, profile code, legacy
+              Spanish status flags, optional buffer column, Spanish and English live text timestamps, and row actions.
             </caption>
             <thead className={cn("border-b border-border/50 text-xs uppercase tracking-wider", ADMIN_TABLE_HEAD)}>
               <tr>
@@ -553,28 +534,28 @@ export function TranslationsBioWorkflowTable({
                     TAL-… ID
                   </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Spanish bio workflow status">
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Legacy Spanish status column (internal)">
                   <span className="block">ES status</span>
                   <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
-                    Missing / stale / …
+                    Internal / legacy
                   </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Unpublished Spanish draft">
-                  <span className="block">Draft</span>
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Optional Spanish buffer column (internal)">
+                  <span className="block">Buffer</span>
                   <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
-                    Unpublished ES
+                    Optional ES copy
                   </span>
                 </th>
-                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Published Spanish bio (en-GB)">
+                <th className={cn(ADMIN_TABLE_TH, "py-3")} title="Spanish live bio (en-GB)">
                   <SortHeader
                     label="ES live"
-                    titleAttr="Published ES bio — en-GB format"
+                    titleAttr="Spanish live bio — en-GB format"
                     href={bioSortHref("es_at", bioSort, sortDir, statusFilter, q)}
                     active={bioSort === "es_at"}
                     ascending={sortDir === "asc"}
                   />
                   <span className="mt-1 block text-[10px] font-normal normal-case tracking-normal text-muted-foreground">
-                    Published updated
+                    Spanish updated
                   </span>
                 </th>
                 <th className={cn(ADMIN_TABLE_TH, "py-3")} title="English source bio (en-GB)">
@@ -662,17 +643,17 @@ export function TranslationsBioWorkflowTable({
                         ) : (
                           <StatusBadgeWithTooltip
                             status={st!}
-                            label={!hasEs && st === "missing" ? "missing" : st!}
+                            label={esStatusColumnLabel(st!, hasEs)}
                           />
                         )}
                       </td>
                       <td className="px-4 py-2">
                         {hasDraft ? (
                           <span className="inline-flex rounded-md border border-amber-500/45 bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-950 dark:text-amber-50">
-                            Draft pending
+                            Buffer present
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">No draft</span>
+                          <span className="text-xs text-muted-foreground">No buffer</span>
                         )}
                       </td>
                       <td className="px-4 py-2 text-xs text-muted-foreground tabular-nums leading-snug">
@@ -712,18 +693,10 @@ export function TranslationsBioWorkflowTable({
                                 size="sm"
                                 className="h-9 w-full justify-start"
                                 disabled={pending}
+                                title="Sets legacy Spanish status to reviewed (staff verification)"
                                 onClick={() => runRowAction("reviewed", row.id)}
                               >
                                 Mark reviewed
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-9 w-full justify-start"
-                                disabled={pending}
-                                onClick={() => runRowAction("approved", row.id)}
-                              >
-                                Mark approved
                               </Button>
                               <Button
                                 variant="ghost"
@@ -839,8 +812,6 @@ export function TranslationsBioWorkflowTable({
             talentProfileId={panelData.talent_profile_id}
             bio_en={panelData.bio_en}
             bio_es={panelData.bio_es}
-            bio_es_draft={panelData.bio_es_draft}
-            bio_es_status={panelData.bio_es_status}
             bio_en_updated_at={panelData.bio_en_updated_at}
             bio_es_updated_at={panelData.bio_es_updated_at}
             short_bio={panelData.short_bio}

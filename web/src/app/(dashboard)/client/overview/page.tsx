@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ClientPageHeader } from "@/app/(dashboard)/client/client-page-header";
+import { DashboardPersonInline } from "@/components/dashboard/dashboard-person-inline";
 import { MergeGuestStatus } from "@/app/(dashboard)/client/merge-guest-status";
 import { Button } from "@/components/ui/button";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
@@ -11,7 +12,8 @@ import { CLIENT_PAGE_STACK_WIDE } from "@/lib/dashboard-shell-classes";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { LucideIcon } from "lucide-react";
-import { Bookmark, Building2, CalendarDays, FileText } from "lucide-react";
+import { Bookmark, Building2, CalendarDays, FileText, Sparkles } from "lucide-react";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 function CardTitleIcon({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
@@ -36,11 +38,53 @@ export default async function ClientOverviewPage() {
   const bookingsResult = await loadClientBookings();
   const bookingCount = bookingsResult.ok ? bookingsResult.bookings.length : 0;
 
+  // Find an inquiry that may need the client's attention
+  const actionableInquiry = inquiries.find(
+    (i) => i.status === "offer_pending" || i.status === "approved" || i.status === "submitted",
+  ) ?? null;
+
+  const displayName = profile?.display_name ?? userEmail ?? "there";
+  const firstName = displayName.split(/[\s@]/)[0] ?? displayName;
+
   const tx = (key: string) => t(`dashboard.clientOverview.${key}`);
 
   return (
     <div className={CLIENT_PAGE_STACK_WIDE}>
       <MergeGuestStatus />
+
+      {/* Welcome banner */}
+      <div className="flex items-center gap-4 rounded-3xl border border-[var(--impronta-gold-border)]/30 bg-gradient-to-br from-[var(--impronta-gold)]/8 via-card/60 to-card/30 px-5 py-4 shadow-sm backdrop-blur-sm sm:px-6 sm:py-5">
+        <UserAvatar
+          src={profile?.avatar_url ?? null}
+          name={displayName}
+          size="lg"
+          rounded="xl"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            Welcome back, {firstName}
+            <Sparkles className="size-4 shrink-0 text-[var(--impronta-gold)]" aria-hidden />
+          </p>
+          {clientProfile?.company_name?.trim() ? (
+            <p className="mt-0.5 text-sm text-muted-foreground">{clientProfile.company_name}</p>
+          ) : null}
+          {actionableInquiry ? (
+            <div className="mt-2">
+              <Link
+                href={`/client/inquiries/${actionableInquiry.id}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--impronta-gold)]/30 bg-[var(--impronta-gold)]/10 px-3 py-1 text-xs font-medium text-[var(--impronta-gold)] hover:bg-[var(--impronta-gold)]/20"
+              >
+                <span className="size-1.5 animate-pulse rounded-full bg-[var(--impronta-gold)]" />
+                {actionableInquiry.status === "offer_pending"
+                  ? "You have an offer waiting for review"
+                  : actionableInquiry.status === "approved"
+                    ? "Inquiry approved — awaiting booking"
+                    : "Your request is being reviewed"}
+              </Link>
+            </div>
+          ) : null}
+        </div>
+      </div>
 
       <ClientPageHeader
         title={tx("title")}
@@ -96,7 +140,7 @@ export default async function ClientOverviewPage() {
           </p>
           <div className="mt-4">
             <Button className="w-full" variant="outline" size="sm" asChild>
-              <Link href="/client/requests" scroll={false}>
+              <Link href="/client/inquiries" scroll={false}>
                 {tx("viewRequests")}
               </Link>
             </Button>
@@ -126,9 +170,16 @@ export default async function ClientOverviewPage() {
           description={tx("accountDesc")}
           titleClassName="!text-base"
         >
-          <p className="text-sm font-semibold text-foreground">
-            {profile?.display_name ?? userEmail ?? tx("accountFallback")}
-          </p>
+          <DashboardPersonInline
+            avatarUrl={profile?.avatar_url ?? null}
+            name={profile?.display_name ?? userEmail ?? tx("accountFallback")}
+            avatarSize="md"
+            align="center"
+          >
+            <p className="text-sm font-semibold text-foreground">
+              {profile?.display_name ?? userEmail ?? tx("accountFallback")}
+            </p>
+          </DashboardPersonInline>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {clientProfile?.company_name?.trim()
               ? clientProfile.company_name

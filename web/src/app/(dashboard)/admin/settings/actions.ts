@@ -43,5 +43,14 @@ export async function upsertSetting(
   revalidatePath("/admin/settings");
   revalidatePath("/admin/ai-workspace/settings");
   revalidatePath("/admin/ai-workspace");
+  // Theme & public toggles live in the root layout — revalidate all public pages.
+  if (
+    key === "site_theme" ||
+    key === "dashboard_theme" ||
+    key === "directory_public" ||
+    key === "public_font_preset"
+  ) {
+    revalidatePath("/", "layout");
+  }
   return { success: true };
 }

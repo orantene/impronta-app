@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
+import type { LanguageSettings } from "@/lib/language-settings/types";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 import { stripLocaleFromPathname, withLocalePath } from "@/i18n/pathnames";
 
 /** Public cookie name (plan §2). */
@@ -19,35 +20,63 @@ function firstSegment(pathname: string): string {
   return p.split("/")[1] ?? "";
 }
 
-/** Dashboard roots must never use `/es` prefix — strip if present. */
-export function isDashboardInnerPath(pathWithoutLeadingEs: string): boolean {
-  const seg = firstSegment(pathWithoutLeadingEs);
+/** Dashboard roots must never use a non-default locale prefix — strip if present. */
+export function isDashboardInnerPath(pathWithoutLeadingLocale: string): boolean {
+  const seg = firstSegment(pathWithoutLeadingLocale);
   return seg === "admin" || seg === "talent" || seg === "client";
 }
 
-function readLocaleCookie(request: NextRequest): Locale | null {
-  const v = request.cookies.get(LOCALE_COOKIE)?.value;
-  return isLocale(v) ? v : null;
+function nonDefaultPublicLocales(settings: LanguageSettings): Set<string> {
+  return new Set(settings.publicLocales.filter((c) => c !== settings.defaultLocale));
 }
 
-function acceptLanguagePrefersSpanish(header: string | null): boolean {
-  if (!header) return false;
-  const parts = header.split(",");
-  for (const part of parts) {
-    const code = part.split(";")[0]?.trim().toLowerCase() ?? "";
-    if (code.startsWith("es")) return true;
-  }
-  return false;
+export function readLocaleCookie(request: NextRequest, settings: LanguageSettings): string | null {
+  const v = request.cookies.get(LOCALE_COOKIE)?.value;
+  if (!v) return null;
+  if (settings.publicLocales.includes(v)) return v;
+  if (v === settings.defaultLocale) return v;
+  return null;
+}
+
+/** `/es/...` or `/fr/...` when those are enabled non-default public locales. */
+export function isNonDefaultLocalePrefixedPath(
+  pathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): boolean {
+  const seg = firstSegment(pathname);
+  return nonDefaultPublicLocales(settings).has(seg);
 }
 
 /**
- * Unprefixed paths that participate in EN URL + optional redirect to /es.
- * Excludes API, Next internals, auth, dashboards, onboarding.
+ * Strip leading non-default locale segments (e.g. `/es` → `/`, `/es/foo` → `/foo`).
  */
-export function isUnprefixedPublicEnglishPath(pathname: string): boolean {
+export function stripNonDefaultLocalePrefix(
+  pathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): string {
+  let p = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const nd = nonDefaultPublicLocales(settings);
+  while (true) {
+    const seg = p.split("/")[1] ?? "";
+    if (!nd.has(seg)) break;
+    if (p === `/${seg}` || p === `/${seg}/`) {
+      p = "/";
+      break;
+    }
+    p = p.slice(`/${seg}`.length) || "/";
+  }
+  return p;
+}
+
+/**
+ * Unprefixed paths that use the **default** public locale URL (no `/{code}` prefix).
+ */
+export function isUnprefixedPublicDefaultPath(
+  pathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): boolean {
   if (pathname.startsWith("/api") || pathname.startsWith("/_next")) return false;
-  /** Already Spanish URL — do not run EN→ES redirect (would stack `/es/es/...`). */
-  if (pathname === "/es" || pathname.startsWith("/es/")) return false;
+  if (isNonDefaultLocalePrefixedPath(pathname, settings)) return false;
   const seg = firstSegment(pathname);
   if (
     seg === "admin" ||
@@ -65,41 +94,36 @@ export function isUnprefixedPublicEnglishPath(pathname: string): boolean {
   return true;
 }
 
-/** `/es` or `/es/...` before rewrite. */
-export function isSpanishPrefixedPath(pathname: string): boolean {
-  return pathname === "/es" || pathname.startsWith("/es/");
-}
-
-/**
- * Inner path after removing `/es` prefix (`/` for `/es`).
- */
-export function stripSpanishPrefix(pathname: string): string {
-  let p = pathname.startsWith("/") ? pathname : `/${pathname}`;
-  while (p === "/es" || p === "/es/" || p.startsWith("/es/")) {
-    if (p === "/es" || p === "/es/") return "/";
-    p = p.slice("/es".length) || "/";
+function acceptLanguageMatchesLocale(header: string | null, localeCode: string): boolean {
+  if (!header) return false;
+  const primary = localeCode.toLowerCase().split("-")[0] ?? localeCode;
+  const parts = header.split(",");
+  for (const part of parts) {
+    const code = part.split(";")[0]?.trim().toLowerCase() ?? "";
+    if (code.startsWith(localeCode.toLowerCase())) return true;
+    if (code.startsWith(primary)) return true;
   }
-  return p;
+  return false;
 }
 
 /**
- * Spanish public URL → always `es`. English public URL → `en`.
+ * Spanish public URL → that locale. Default-locale public URL → default.
  * Dashboards / auth → cookie for UI language.
- * Always pass the **browser** pathname (e.g. `/es/directory`), not the rewrite target.
  */
 export function resolveLocaleForPathname(
   pathname: string,
   request: NextRequest,
-): Locale {
-  if (isSpanishPrefixedPath(pathname)) {
-    const inner = stripSpanishPrefix(pathname);
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): string {
+  if (isNonDefaultLocalePrefixedPath(pathname, settings)) {
+    const inner = stripNonDefaultLocalePrefix(pathname, settings);
     if (!isDashboardInnerPath(inner)) {
-      return "es";
+      return firstSegment(pathname);
     }
   }
 
   if (isDashboardInnerPath(pathname)) {
-    return readLocaleCookie(request) ?? defaultLocale;
+    return readLocaleCookie(request, settings) ?? settings.defaultLocale;
   }
 
   const seg = firstSegment(pathname);
@@ -111,63 +135,82 @@ export function resolveLocaleForPathname(
     seg === "onboarding" ||
     seg === "update-password"
   ) {
-    return readLocaleCookie(request) ?? defaultLocale;
+    return readLocaleCookie(request, settings) ?? settings.defaultLocale;
   }
 
-  if (isUnprefixedPublicEnglishPath(pathname)) {
-    return "en";
+  if (isUnprefixedPublicDefaultPath(pathname, settings)) {
+    return settings.defaultLocale;
   }
 
-  return readLocaleCookie(request) ?? defaultLocale;
+  return readLocaleCookie(request, settings) ?? settings.defaultLocale;
 }
 
-/**
- * Should we internally rewrite `/es/...` → `/...` for Next route resolution?
- * Only for public paths (not dashboard under /es — those redirect earlier).
- */
-export function shouldRewriteSpanishPublicPath(pathname: string): boolean {
-  if (!isSpanishPrefixedPath(pathname)) return false;
-  const inner = stripSpanishPrefix(pathname);
+export function shouldRewriteLocalePublicPath(
+  pathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): boolean {
+  if (!isNonDefaultLocalePrefixedPath(pathname, settings)) return false;
+  const inner = stripNonDefaultLocalePrefix(pathname, settings);
   return !isDashboardInnerPath(inner);
 }
 
 export function preferredPublicLocaleFromNegotiation(
   request: NextRequest,
-): Locale {
-  const cookie = readLocaleCookie(request);
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): string {
+  const cookie = readLocaleCookie(request, settings);
   if (cookie) return cookie;
-  if (acceptLanguagePrefersSpanish(request.headers.get("accept-language"))) {
-    return "es";
+
+  const header = request.headers.get("accept-language");
+  const ordered = [...settings.publicLocales].sort((a, b) => {
+    if (a === settings.defaultLocale) return -1;
+    if (b === settings.defaultLocale) return 1;
+    return a.localeCompare(b);
+  });
+
+  for (const code of ordered) {
+    if (code !== settings.defaultLocale && acceptLanguageMatchesLocale(header, code)) {
+      return code;
+    }
   }
-  return "en";
+  if (acceptLanguageMatchesLocale(header, settings.defaultLocale)) {
+    return settings.defaultLocale;
+  }
+  return settings.defaultLocale;
 }
 
-/**
- * Apply plan §2 cookie sync for public URLs (after we know final response path intent).
- */
 export function syncLocaleCookieForPath(
   res: import("next/server").NextResponse,
   originalPathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
 ): void {
-  if (isSpanishPrefixedPath(originalPathname)) {
-    const inner = stripSpanishPrefix(originalPathname);
+  if (isNonDefaultLocalePrefixedPath(originalPathname, settings)) {
+    const inner = stripNonDefaultLocalePrefix(originalPathname, settings);
     if (!isDashboardInnerPath(inner)) {
-      res.cookies.set(LOCALE_COOKIE, "es", localeCookieOptions);
+      const loc = firstSegment(originalPathname);
+      res.cookies.set(LOCALE_COOKIE, loc, localeCookieOptions);
     }
     return;
   }
-  if (isUnprefixedPublicEnglishPath(originalPathname)) {
-    res.cookies.set(LOCALE_COOKIE, "en", localeCookieOptions);
+  if (isUnprefixedPublicDefaultPath(originalPathname, settings)) {
+    res.cookies.set(LOCALE_COOKIE, settings.defaultLocale, localeCookieOptions);
   }
 }
 
-export function redirectToSpanishEquivalent(request: NextRequest): NextResponse {
+export function redirectToLocaleEquivalent(
+  request: NextRequest,
+  locale: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): NextResponse {
   const url = request.nextUrl.clone();
-  const { pathnameWithoutLocale } = stripLocaleFromPathname(
-    request.nextUrl.pathname,
-  );
-  url.pathname = withLocalePath(pathnameWithoutLocale, "es");
+  const { pathnameWithoutLocale } = stripLocaleFromPathname(request.nextUrl.pathname, settings);
+  url.pathname = withLocalePath(pathnameWithoutLocale, locale, settings);
   const res = NextResponse.redirect(url, 307);
-  res.cookies.set(LOCALE_COOKIE, "es", localeCookieOptions);
+  res.cookies.set(LOCALE_COOKIE, locale, localeCookieOptions);
   return res;
+}
+
+/** @deprecated Use `redirectToLocaleEquivalent` with explicit locale. */
+export function redirectToSpanishEquivalent(request: NextRequest): NextResponse {
+  return redirectToLocaleEquivalent(request, "es", FALLBACK_LANGUAGE_SETTINGS);
 }

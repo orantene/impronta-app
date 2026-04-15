@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { AdminBookingListRowQuickActions } from "@/components/admin/admin-booking-list-row-quick-actions";
 import { AdminBookingPeekTrigger } from "@/components/admin/admin-booking-peek-sheet";
+import { DashboardPersonInline } from "@/components/dashboard/dashboard-person-inline";
 import { AdminCommercialStatusBadge } from "@/components/admin/admin-commercial-status-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -75,6 +76,8 @@ export type BookingQueueRow = {
   // resolved server-side
   account_name: string;
   contact_name: string;
+  contact_avatar_url: string | null;
+  owner_avatar_url: string | null;
   manager_display: string | null;
   talent_count: number;
   updated_at_display: string;
@@ -186,17 +189,33 @@ export function AdminBookingQueue({
                   <AdminCommercialStatusBadge kind="booking" status={b.status}>
                     {BOOKING_STATUS_LABEL[b.status] ?? b.status}
                   </AdminCommercialStatusBadge>
-                  {b.manager_display && (
-                    <p className="mt-1 text-[10px] text-muted-foreground">{b.manager_display}</p>
-                  )}
+                  {b.manager_display ? (
+                    <DashboardPersonInline
+                      avatarUrl={b.owner_avatar_url}
+                      name={b.manager_display}
+                      avatarSize="xs"
+                      align="center"
+                      className="mt-1"
+                    >
+                      <p className="text-[10px] text-muted-foreground">{b.manager_display}</p>
+                    </DashboardPersonInline>
+                  ) : null}
                 </td>
 
                 {/* Client / Location */}
                 <td className="hidden max-w-[180px] px-4 py-3.5 md:table-cell">
                   <p className="truncate text-sm text-foreground">{b.account_name}</p>
-                  {b.contact_name !== "—" && (
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{b.contact_name}</p>
-                  )}
+                  {b.contact_name !== "—" ? (
+                    <DashboardPersonInline
+                      avatarUrl={b.contact_avatar_url}
+                      name={b.contact_name}
+                      avatarSize="xs"
+                      align="center"
+                      className="mt-0.5"
+                    >
+                      <p className="truncate text-[11px] text-muted-foreground">{b.contact_name}</p>
+                    </DashboardPersonInline>
+                  ) : null}
                 </td>
 
                 {/* Talent */}

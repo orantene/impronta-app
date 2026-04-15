@@ -10,5 +10,5 @@ export default function OnboardingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return <div className="flex min-h-full flex-1 flex-col bg-background">{children}</div>;
 }

@@ -5,17 +5,20 @@ import { requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 const CORE_AI_KEYS = [
+  "ai_master_enabled",
   "ai_search_enabled",
   "ai_rerank_enabled",
   "ai_explanations_enabled",
   "ai_refine_enabled",
   "ai_draft_enabled",
+  "ai_translations_enabled",
+  "ai_embeddings_semantic_enabled",
 ] as const;
 
 export type EnableCoreAiState = { error?: string; success?: boolean } | undefined;
 
 /**
- * Turns on the five core AI feature flags in `settings` (does not touch v2 flags).
+ * Turns on core AI feature flags in `settings` (includes master + feature switches; does not touch v2 flags).
  */
 export async function enableCoreAiFeatures(
   _prev: EnableCoreAiState,

@@ -8,7 +8,6 @@ import type { DirectoryViewMode } from "@/lib/directory/search-params";
 import { cn } from "@/lib/utils";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
 import { DirectorySort } from "./directory-sort";
-import type { TaxonomyFilterOption } from "@/lib/directory/taxonomy-filters";
 import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 import { formatResultsCount } from "@/lib/directory/directory-ui-copy";
 
@@ -51,7 +50,7 @@ export function DirectoryResultsToolbar({
         <div
           className={cn(
             "flex shrink-0 flex-wrap items-center justify-end gap-2",
-            pending && "opacity-60",
+            pending && "pointer-events-none opacity-60",
           )}
         >
           <div

@@ -6,8 +6,6 @@ import { FilterChip, FilterChips } from "@/components/ui/filter-chips";
 import type { DirectoryFilterOption } from "@/lib/directory/field-driven-filters";
 import { cn } from "@/lib/utils";
 import { commitDirectoryListingUrl } from "@/lib/directory/directory-url-navigation";
-import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
-
 function pillLabel(label: string): string {
   const t = label.trim();
   if (!t) return t;
@@ -17,11 +15,14 @@ function pillLabel(label: string): string {
 export function DirectoryTalentTypeBar({
   options,
   selectedIds,
-  talentType,
+  allLabel,
+  barAriaLabel,
 }: {
   options: DirectoryFilterOption[];
   selectedIds: string[];
-  talentType: DirectoryUiCopy["talentType"];
+  allLabel: string;
+  /** Usually the facet label (e.g. “Talent type”, “Skills”) for the pill tablist. */
+  barAriaLabel: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -50,7 +51,7 @@ export function DirectoryTalentTypeBar({
     [router, pathname, searchParams, startTransition],
   );
 
-  const setTalentType = (termId: string | null) => {
+  const setActiveTerm = (termId: string | null) => {
     const rest = selectedIds.filter((id) => !siblingIds.has(id));
     if (termId) {
       pushTax([...rest, termId]);
@@ -63,7 +64,7 @@ export function DirectoryTalentTypeBar({
 
   const pillClass = (on: boolean) =>
     cn(
-      "shrink-0 max-w-[min(100%,14rem)] truncate rounded-full border-0 px-4 py-2 text-[11px] font-semibold tracking-[0.12em] shadow-none",
+      "snap-start shrink-0 max-w-[min(100%,14rem)] truncate rounded-full border-0 px-4 py-2 text-[11px] font-semibold tracking-[0.12em] shadow-none",
       on
         ? "border border-[var(--impronta-gold)] bg-[var(--impronta-gold)] !text-black"
         : "border border-[var(--impronta-gold-border)] bg-transparent text-[var(--impronta-muted)] hover:border-[var(--impronta-gold-dim)] hover:!text-zinc-200",
@@ -72,16 +73,16 @@ export function DirectoryTalentTypeBar({
   return (
     <FilterChips
       className={cn(
-        "mb-4 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        "mb-4 flex-nowrap snap-x snap-proximity gap-2 overflow-x-auto scroll-pb-1 scroll-pl-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         pending && "pointer-events-none opacity-60",
       )}
       role="tablist"
-      aria-label={talentType.barAria}
+      aria-label={barAriaLabel}
     >
       <FilterChip
-        label={talentType.all}
+        label={allLabel}
         selected={activeId == null}
-        onClick={() => setTalentType(null)}
+        onClick={() => setActiveTerm(null)}
         className={pillClass(activeId == null)}
         role="tab"
         aria-selected={activeId == null}
@@ -93,7 +94,7 @@ export function DirectoryTalentTypeBar({
             key={opt.id}
             label={pillLabel(opt.label)}
             selected={on}
-            onClick={() => setTalentType(on ? null : opt.id)}
+            onClick={() => setActiveTerm(on ? null : opt.id)}
             className={pillClass(on)}
             title={opt.label}
             role="tab"

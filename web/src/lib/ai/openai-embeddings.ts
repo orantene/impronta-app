@@ -1,4 +1,5 @@
 import { normalizeSearchQueryForEmbedding } from "@/lib/ai/normalize-search-query";
+import { resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 
 /**
  * Directory hybrid search embeddings use the OpenAI API only. Vector dimensions are fixed in
@@ -66,7 +67,7 @@ export async function embedTextForSearch(text: string): Promise<number[] | null>
 }
 
 async function embedTextForSearchUncached(text: string): Promise<number[] | null> {
-  const key = process.env.OPENAI_API_KEY?.trim();
+  const key = (await resolveOpenAiApiKey())?.trim();
   if (!key) return null;
   const input = text.trim().slice(0, 8000);
   if (!input) return null;

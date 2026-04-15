@@ -26,6 +26,7 @@ import {
   ADMIN_DRAGGABLE_SETTING_ROW,
   ADMIN_EMBEDDED_SURFACE,
   ADMIN_ERROR_CARD,
+  ADMIN_FORM_CONTROL,
   ADMIN_GROUP_LIST_GAP,
 } from "@/lib/dashboard-shell-classes";
 import { cn } from "@/lib/utils";
@@ -152,26 +153,30 @@ function SortableFilterRow({
   );
 }
 
+export type TopBarFacetCandidate = { key: string; label: string };
+
 export function AdminDirectoryFiltersClient({
   initialOrder,
   initialFilterSearchVisible,
-  initialTalentTypeTopBarVisible,
+  initialTopBarFacetKey,
+  topBarFacetCandidates,
   initialFieldVisibility,
   initialSectionCollapsed,
   rowsByKey,
 }: {
   initialOrder: string[];
   initialFilterSearchVisible: boolean;
-  initialTalentTypeTopBarVisible: boolean;
+  /** `field_definitions.key` for taxonomy facet in the pill row, or null for no top bar. */
+  initialTopBarFacetKey: string | null;
+  /** Taxonomy facets that can use the public directory pill row (same set the pill UI supports). */
+  topBarFacetCandidates?: TopBarFacetCandidate[] | null;
   initialFieldVisibility: Record<string, boolean>;
   initialSectionCollapsed: Record<string, boolean>;
   rowsByKey: Record<string, DirectoryFilterAdminRow>;
 }) {
   const [order, setOrder] = useState<string[]>(initialOrder);
   const [filterSearchVisible, setFilterSearchVisible] = useState(initialFilterSearchVisible);
-  const [talentTypeTopBarVisible, setTalentTypeTopBarVisible] = useState(
-    initialTalentTypeTopBarVisible,
-  );
+  const [topBarFacetKey, setTopBarFacetKey] = useState<string | null>(initialTopBarFacetKey);
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(initialFieldVisibility);
   const [sectionCollapsed, setSectionCollapsed] = useState<Record<string, boolean>>(initialSectionCollapsed);
 
@@ -190,12 +195,12 @@ export function AdminDirectoryFiltersClient({
   useEffect(() => {
     setOrder(initialOrder);
     setFilterSearchVisible(initialFilterSearchVisible);
-    setTalentTypeTopBarVisible(initialTalentTypeTopBarVisible);
+    setTopBarFacetKey(initialTopBarFacetKey);
     setFieldVisibility({ ...initialFieldVisibility });
     setSectionCollapsed({ ...initialSectionCollapsed });
   }, [
     initialFilterSearchVisible,
-    initialTalentTypeTopBarVisible,
+    initialTopBarFacetKey,
     JSON.stringify(initialOrder),
     JSON.stringify(initialFieldVisibility),
     JSON.stringify(initialSectionCollapsed),
@@ -221,6 +226,21 @@ export function AdminDirectoryFiltersClient({
       .filter((r): r is DirectoryFilterAdminRow => Boolean(r));
   }, [order, rowsByKey]);
 
+  const topBarSelectOptions = useMemo(() => {
+    const candidates = Array.isArray(topBarFacetCandidates) ? topBarFacetCandidates : [];
+    const sorted = [...candidates].sort((a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+    );
+    if (topBarFacetKey && !sorted.some((o) => o.key === topBarFacetKey)) {
+      const row = rowsByKey[topBarFacetKey];
+      sorted.unshift({
+        key: topBarFacetKey,
+        label: row ? `${row.label} (${topBarFacetKey})` : topBarFacetKey,
+      });
+    }
+    return sorted;
+  }, [topBarFacetCandidates, topBarFacetKey, rowsByKey]);
+
   const save = () => {
     const fv = { ...fieldVisibility };
     const collapsed: Record<string, boolean> = {};
@@ -234,7 +254,7 @@ export function AdminDirectoryFiltersClient({
       JSON.stringify({
         item_order: order,
         filter_search_visible: filterSearchVisible,
-        talent_type_top_bar_visible: talentTypeTopBarVisible,
+        top_bar_facet_key: topBarFacetKey,
         field_visibility: fv,
         section_collapsed_defaults: collapsed,
       }),
@@ -252,26 +272,45 @@ export function AdminDirectoryFiltersClient({
       ) : null}
 
       <div className={ADMIN_EMBEDDED_SURFACE}>
-        <label className="flex cursor-pointer items-start gap-3 text-sm">
-          <input
-            type="checkbox"
-            className="mt-0.5 h-4 w-4 shrink-0 rounded border-border bg-background accent-[var(--impronta-gold)]"
-            checked={talentTypeTopBarVisible}
+        <div className="space-y-2 text-sm">
+          <div>
+            <label htmlFor="directory-top-bar-facet" className="font-medium text-foreground">
+              Top pill row (above results)
+            </label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pick one <span className="font-medium text-foreground">taxonomy</span> facet to show as a
+              horizontal ALL + options row on the public directory. That facet is removed from the sidebar so it
+              is not shown twice. Height, age, location, and non-taxonomy facets cannot use this row (they use
+              different controls on the listing).
+            </p>
+          </div>
+          <select
+            id="directory-top-bar-facet"
+            className={cn(ADMIN_FORM_CONTROL, "max-w-md")}
             disabled={pending}
-            onChange={(e) => setTalentTypeTopBarVisible(e.target.checked)}
-            aria-label="Show talent type pill row above directory results"
-          />
-          <span>
-            <span className="font-medium text-foreground">Talent type top bar</span>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              Renders ALL + talent type pills above the directory (like the public mockup). When enabled, the
-              Talent Type facet is hidden in the sidebar so it is not duplicated.
-            </span>
-          </span>
-        </label>
+            value={topBarFacetKey ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setTopBarFacetKey(v.length > 0 ? v : null);
+            }}
+            aria-label="Directory facet for top pill row"
+          >
+            <option value="">None — all facets only in the sidebar</option>
+            {topBarSelectOptions.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext
+        id="admin-directory-sidebar-filters"
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
           <div className={cn(ADMIN_GROUP_LIST_GAP, pending && "pointer-events-none opacity-60")}>
             {orderedRows.map((row) => (

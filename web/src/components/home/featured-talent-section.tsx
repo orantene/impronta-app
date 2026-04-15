@@ -34,7 +34,7 @@ export function FeaturedTalentSection({
   if (talent.length === 0) return null;
 
   return (
-    <section className="w-full px-4 py-16 sm:px-6 lg:px-8">
+    <section className="w-full px-4 py-10 sm:px-6 sm:py-16 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex items-end justify-between">
           <div>
@@ -53,11 +53,11 @@ export function FeaturedTalentSection({
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {talent.map((t) => (
+          {talent.map((t, i) => (
             <Link
               key={t.id}
               href={withLocalePath(`/t/${t.profileCode}`, locale)}
-              className="group relative overflow-hidden rounded-lg bg-[var(--impronta-surface)]"
+              className={`group relative overflow-hidden rounded-lg bg-[var(--impronta-surface)]${i >= 4 ? " hidden sm:block" : ""}`}
             >
               <div className="relative aspect-[3/4] w-full overflow-hidden">
                 {t.thumbnailUrl ? (

@@ -57,7 +57,7 @@ export function DirectoryInquirySuccessPanel({
               </Button>
               <Button variant="outline" asChild>
                 <Link
-                  href={`/login?next=${encodeURIComponent("/client/requests")}${email ? `&email=${encodeURIComponent(email)}` : ""}`}
+                  href={`/login?next=${encodeURIComponent("/client/inquiries")}${email ? `&email=${encodeURIComponent(email)}` : ""}`}
                 >
                   {copy.logInTrackRequestButton}
                 </Link>

@@ -90,7 +90,9 @@
       },
       "bestFor": {
         "sectionKicker": "Ideal para",
-        "sectionTitle": "Encuentra talento por caso de uso"
+        "sectionTitle": "Encuentra talento por caso de uso",
+        "showMore": "Mostrar {count} más",
+        "showLess": "Mostrar menos"
       },
       "browseByType": {
         "sectionKicker": "Explorar por tipo"
@@ -99,7 +101,13 @@
         "sectionKicker": "Explorar por ubicación",
         "sectionTitle": "Dónde operamos",
         "talentCountOne": "1 talento",
-        "talentCountMany": "{count} talentos"
+        "talentCountMany": "{count} talentos",
+        "viewTalents": "Ver talentos",
+        "mapPinPreviewAria": "Talentos en {city}",
+        "mapPinPreviewPhotoAlt": "Foto de talento",
+        "mapLoadErrorTitle": "Mapa no disponible",
+        "mapLoadErrorBody": "Google devuelve ApiNotActivatedMapError: el proyecto de esta clave aún no tiene activada la API de Maps JavaScript (Places y Maps son distintas). Actívala, confirma facturación y, si restringes la clave, añade referentes HTTP para este sitio; luego recarga en duro.",
+        "mapLoadErrorOpenConsole": "Abrir Google Cloud — APIs de Maps"
       }
     },
     "howItWorks": {
@@ -123,8 +131,8 @@
       "configMissingBody": "Conecta Supabase (ver .env.example) para cargar el talento publicado.",
       "pausedTitle": "Directorio no disponible",
       "pausedBody": "El descubrimiento público está pausado. Contacta directamente a la agencia para disponibilidad.",
-      "pageTitle": "Descubre talento",
-      "pageDescription": "Explora el talento representado: guarda perfiles en tu lista y abre el panel de consulta en el encabezado para escribir a la agencia.",
+      "pageTitle": "Busca y reserva talento",
+      "pageDescription": "Explora el talento, guarda los perfiles que te gusten y envía una solicitud de reserva en minutos.",
       "aiPanelTitle": "Asistencia IA",
       "aiPanelBody": "La búsqueda semántica y los refinamientos aparecerán aquí cuando las funciones de IA estén activadas.",
       "discoverLoadError": "No se pudo cargar el directorio ahora. Actualiza la página o inténtalo de nuevo en un momento.",
@@ -154,8 +162,8 @@
           "resultLayoutAria": "Disposición de resultados",
           "gridViewAria": "Vista de cuadrícula",
           "listViewAria": "Vista de lista",
-          "resultsOne": "1 resultado",
-          "resultsMany": "{count} resultados"
+          "resultsOne": "1 perfil de talento disponible",
+          "resultsMany": "{count} perfiles de talento disponibles"
         },
         "refine": {
           "suggestionsTitle": "Afinar búsqueda"
@@ -171,11 +179,12 @@
           "interpretError": "No pudimos interpretar tu búsqueda. Mostramos resultados por texto.",
           "interpretErrorDirectoryClosed": "El directorio de talento no está abierto al público, así que la búsqueda en lenguaje natural no está disponible. En Admin → Ajustes del sitio, activa «Directorio público» e inténtalo de nuevo.",
           "interpretErrorAiDisabled": "La búsqueda con IA está desactivada. En Admin → IA → Ajustes de IA, activa «Búsqueda con IA (vector / híbrida)».",
-          "interpretErrorService": "El servicio de búsqueda no está disponible ahora. Comprueba la conexión o inténtalo más tarde."
+          "interpretErrorService": "El servicio de búsqueda no está disponible ahora. Comprueba la conexión o inténtalo más tarde.",
+          "searchSubmit": "Encontrar talento"
         },
         "sort": {
           "aria": "Ordenar talento",
-          "recommended": "Destacados + recientes",
+          "recommended": "Recomendado",
           "featured": "Destacados",
           "recent": "Añadidos recientemente",
           "updated": "Actualizados recientemente"
@@ -186,8 +195,8 @@
           "clearCityAria": "Quitar filtro de ciudad",
           "noCitiesYet": "Aún no hay ciudades disponibles para filtrar.",
           "noCitiesMatch": "Ninguna ciudad coincide.",
-          "searchFiltersLabel": "Buscar en filtros",
-          "searchFiltersPlaceholder": "Buscar en filtros…",
+          "searchFiltersLabel": "Buscar en los filtros",
+          "searchFiltersPlaceholder": "Buscar habilidades o roles",
           "clearFilterSearchAria": "Borrar búsqueda de filtros",
           "showLess": "Ver menos",
           "showAll": "Ver todo ({count})",
@@ -227,6 +236,9 @@
           "barAria": "Tipo de talento",
           "all": "TODOS"
         },
+        "topBarPills": {
+          "all": "TODOS"
+        },
         "taxonomyBarAria": "Filtrar por taxonomía",
         "card": {
           "available": "Disponible",
@@ -236,7 +248,7 @@
           "featuredAria": "Perfil destacado",
           "featuredLabel": "Destacado",
           "livesInTitle": "Vive en: {location}",
-          "viewPortfolio": "Ver portafolio",
+          "viewPortfolio": "Ver perfil",
           "inquire": "Consultar",
           "quickPreview": "Vista rápida",
           "aiMatchWhyAria": "Por qué coincide",
@@ -255,7 +267,7 @@
           "shareNativeText": "{name} — {brand}"
         },
         "list": {
-          "view": "Ver",
+          "view": "Ver perfil",
           "preview": "Vista previa"
         },
         "preview": {

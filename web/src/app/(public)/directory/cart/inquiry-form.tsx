@@ -121,7 +121,7 @@ function FormFields({
   state: InquiryFormState;
   form: DirectoryUiCopy["inquiryForm"];
   inquiryDraftEnabled?: boolean;
-  locale?: "en" | "es";
+  locale?: string;
   formId?: string;
 }) {
   const messageRef = useRef<HTMLTextAreaElement>(null);
@@ -315,7 +315,7 @@ export function ClientInquiryForm({
   selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
   formCopy: DirectoryUiCopy["inquiryForm"];
   inquiryDraftEnabled?: boolean;
-  locale?: "en" | "es";
+  locale?: string;
 }) {
   const [state, formAction] = useActionState(submitClientInquiry, undefined);
   return (
@@ -354,7 +354,7 @@ export function GuestInquiryForm({
   selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
   formCopy: DirectoryUiCopy["inquiryForm"];
   inquiryDraftEnabled?: boolean;
-  locale?: "en" | "es";
+  locale?: string;
 }) {
   const [state, formAction] = useActionState(submitGuestInquiry, undefined);
   return (
@@ -399,7 +399,7 @@ export function InquiryForm({
   selectedTalent: { id: string; profile_code: string; display_name: string | null }[];
   formCopy: DirectoryUiCopy["inquiryForm"];
   inquiryDraftEnabled?: boolean;
-  locale?: "en" | "es";
+  locale?: string;
 }) {
   if (mode === "client") {
     return (

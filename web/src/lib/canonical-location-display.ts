@@ -35,7 +35,7 @@ export function resolveResidenceLocationEmbed(input: {
 }
 
 export function formatCityCountryLabel(
-  locale: "en" | "es",
+  locale: string,
   row:
     | CanonicalLocationEmbed
     | CanonicalLocationEmbed[]

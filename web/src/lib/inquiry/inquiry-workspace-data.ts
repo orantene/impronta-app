@@ -33,54 +33,40 @@ export type InquiryRosterParticipant = {
 };
 
 /**
- * Canonical roster read — new engine uses inquiry_participants; legacy uses inquiry_talent (Contract 1).
+ * Canonical roster read for QA cutover: prefer inquiry_participants, then fall back to inquiry_talent.
  */
 export async function loadInquiryRoster(
   supabase: SupabaseClient,
   inquiryId: string,
 ): Promise<InquiryRosterParticipant[]> {
-  const { data: inq, error: inqErr } = await supabase
-    .from("inquiries")
-    .select("uses_new_engine")
-    .eq("id", inquiryId)
-    .maybeSingle();
-
-  if (inqErr || !inq) {
-    logServerError("inquiry-workspace-data/loadInquiryRoster/inquiry", inqErr);
-    return [];
-  }
-
-  if (inq.uses_new_engine) {
-    const { data: rows, error } = await supabase
-      .from("inquiry_participants")
-      .select(
-        `
+  const { data: rows, error } = await supabase
+    .from("inquiry_participants")
+    .select(
+      `
+      id,
+      inquiry_id,
+      user_id,
+      talent_profile_id,
+      status,
+      sort_order,
+      accepted_at,
+      removed_at,
+      added_by_user_id,
+      talent_profiles (
         id,
-        inquiry_id,
-        user_id,
-        talent_profile_id,
-        status,
-        sort_order,
-        accepted_at,
-        removed_at,
-        added_by_user_id,
-        talent_profiles (
-          id,
-          profile_code,
-          display_name,
-          user_id
-        )
-      `,
+        profile_code,
+        display_name,
+        user_id
       )
-      .eq("inquiry_id", inquiryId)
-      .eq("role", "talent")
-      .order("sort_order", { ascending: true });
+    `,
+    )
+    .eq("inquiry_id", inquiryId)
+    .eq("role", "talent")
+    .order("sort_order", { ascending: true });
 
-    if (error || !rows) {
-      logServerError("inquiry-workspace-data/loadInquiryRoster/participants", error);
-      return [];
-    }
-
+  if (error) {
+    logServerError("inquiry-workspace-data/loadInquiryRoster/participants", error);
+  } else if (rows && rows.length > 0) {
     const talentIds = rows.map((r) => r.talent_profile_id).filter(Boolean) as string[];
     const thumbs = await loadTalentThumbUrls(supabase, talentIds);
     const tags = await loadPrimaryTalentTags(supabase, talentIds);
@@ -163,8 +149,7 @@ export type InquiryRosterPeek = {
 };
 
 /**
- * Canonical roster peek for list rows: works for v2 and legacy.
- * Uses batch queries internally to avoid N+1 in queue views.
+ * Canonical roster peek for list rows: prefers inquiry_participants, falls back to inquiry_talent.
  */
 export async function loadInquiryRosterPeekMany(
   supabase: SupabaseClient,
@@ -174,62 +159,51 @@ export async function loadInquiryRosterPeekMany(
   const ids = [...new Set(inquiryIds.filter(Boolean))];
   if (!ids.length) return map;
 
-  const { data: inqs, error: inqErr } = await supabase
-    .from("inquiries")
-    .select("id, uses_new_engine")
-    .in("id", ids);
-  if (inqErr || !inqs) {
-    logServerError("inquiry-workspace-data/loadInquiryRosterPeekMany/inquiries", inqErr);
-    return map;
-  }
-
-  const v2Ids = (inqs as { id: string; uses_new_engine: boolean }[])
-    .filter((r) => r.uses_new_engine)
-    .map((r) => r.id);
-  const legacyIds = (inqs as { id: string; uses_new_engine: boolean }[])
-    .filter((r) => !r.uses_new_engine)
-    .map((r) => r.id);
-
-  if (v2Ids.length) {
-    const { data: parts, error } = await supabase
-      .from("inquiry_participants")
-      .select(
-        `
-        inquiry_id,
-        sort_order,
-        talent_profiles ( profile_code, display_name )
-      `,
-      )
-      .in("inquiry_id", v2Ids)
-      .eq("role", "talent")
-      .in("status", ["invited", "active"])
-      .order("inquiry_id", { ascending: true })
-      .order("sort_order", { ascending: true });
-    if (error) {
-      logServerError("inquiry-workspace-data/loadInquiryRosterPeekMany/v2", error);
-    } else {
-      const by = new Map<string, Array<{ profile_code: string; display_name: string | null }>>();
-      for (const row of (parts ?? []) as Array<Record<string, unknown>>) {
-        const inquiry_id = String(row.inquiry_id ?? "");
-        if (!inquiry_id) continue;
-        const tp = normalizeTalentProfileJoin(row.talent_profiles);
-        if (!tp?.profile_code) continue;
-        const list = by.get(inquiry_id) ?? [];
-        list.push({ profile_code: tp.profile_code, display_name: tp.display_name });
-        by.set(inquiry_id, list);
-      }
-      for (const [inquiryId, list] of by.entries()) {
-        const count = list.length;
-        const labels = list.slice(0, 3).map((tp) => `${tp.profile_code}${tp.display_name ? ` · ${tp.display_name}` : ""}`);
-        const extra = count > 3 ? ` (+${count - 3} more)` : "";
-        map.set(inquiryId, {
-          count,
-          labelLine: count ? `${labels.join(", ")}${extra}` : "No talent on shortlist",
-        });
-      }
+  const applyPeekRows = (
+    rows: Array<Record<string, unknown>>,
+  ) => {
+    const by = new Map<string, Array<{ profile_code: string; display_name: string | null }>>();
+    for (const row of rows) {
+      const inquiry_id = String(row.inquiry_id ?? "");
+      if (!inquiry_id) continue;
+      const tp = normalizeTalentProfileJoin(row.talent_profiles);
+      if (!tp?.profile_code) continue;
+      const list = by.get(inquiry_id) ?? [];
+      list.push({ profile_code: tp.profile_code, display_name: tp.display_name });
+      by.set(inquiry_id, list);
     }
+    for (const [inquiryId, list] of by.entries()) {
+      const count = list.length;
+      const labels = list.slice(0, 3).map((tp) => `${tp.profile_code}${tp.display_name ? ` · ${tp.display_name}` : ""}`);
+      const extra = count > 3 ? ` (+${count - 3} more)` : "";
+      map.set(inquiryId, {
+        count,
+        labelLine: count ? `${labels.join(", ")}${extra}` : "No talent on shortlist",
+      });
+    }
+  };
+
+  const { data: parts, error: partErr } = await supabase
+    .from("inquiry_participants")
+    .select(
+      `
+      inquiry_id,
+      sort_order,
+      talent_profiles ( profile_code, display_name )
+    `,
+    )
+    .in("inquiry_id", ids)
+    .eq("role", "talent")
+    .in("status", ["invited", "active"])
+    .order("inquiry_id", { ascending: true })
+    .order("sort_order", { ascending: true });
+  if (partErr) {
+    logServerError("inquiry-workspace-data/loadInquiryRosterPeekMany/participants", partErr);
+  } else {
+    applyPeekRows((parts ?? []) as Array<Record<string, unknown>>);
   }
 
+  const legacyIds = ids.filter((id) => !map.has(id));
   if (legacyIds.length) {
     const { data: rows, error } = await supabase
       .from("inquiry_talent")
@@ -246,25 +220,7 @@ export async function loadInquiryRosterPeekMany(
     if (error) {
       logServerError("inquiry-workspace-data/loadInquiryRosterPeekMany/legacy", error);
     } else {
-      const by = new Map<string, Array<{ profile_code: string; display_name: string | null }>>();
-      for (const row of (rows ?? []) as Array<Record<string, unknown>>) {
-        const inquiry_id = String(row.inquiry_id ?? "");
-        if (!inquiry_id) continue;
-        const tp = normalizeTalentProfileJoin(row.talent_profiles);
-        if (!tp?.profile_code) continue;
-        const list = by.get(inquiry_id) ?? [];
-        list.push({ profile_code: tp.profile_code, display_name: tp.display_name });
-        by.set(inquiry_id, list);
-      }
-      for (const [inquiryId, list] of by.entries()) {
-        const count = list.length;
-        const labels = list.slice(0, 3).map((tp) => `${tp.profile_code}${tp.display_name ? ` · ${tp.display_name}` : ""}`);
-        const extra = count > 3 ? ` (+${count - 3} more)` : "";
-        map.set(inquiryId, {
-          count,
-          labelLine: count ? `${labels.join(", ")}${extra}` : "No talent on shortlist",
-        });
-      }
+      applyPeekRows((rows ?? []) as Array<Record<string, unknown>>);
     }
   }
 

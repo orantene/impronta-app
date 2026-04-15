@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireStaffApi } from "@/lib/server/staff-api-route";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { loadInquiryRoster } from "@/lib/inquiry/inquiry-workspace-data";
 
 function relOne<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null;
@@ -24,15 +25,11 @@ export async function GET(request: Request) {
     .from("inquiries")
     .select(
       `
-      id, status, contact_name, contact_email, company,
+      id, status, uses_new_engine, contact_name, contact_email, company,
       event_date, event_location, quantity, message,
       created_at, updated_at,
       client_account_id, client_user_id,
       client_accounts ( name ),
-      inquiry_talent (
-        talent_profile_id,
-        talent_profiles ( display_name, profile_code )
-      ),
       agency_bookings ( id )
     `,
     )
@@ -47,9 +44,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const row = data as {
+  const row = data as unknown as {
     id: string;
     status: string;
+    uses_new_engine: boolean;
     contact_name: string;
     contact_email: string;
     company: string | null;
@@ -62,25 +60,12 @@ export async function GET(request: Request) {
     client_account_id: string | null;
     client_user_id: string | null;
     client_accounts: { name: string } | { name: string }[] | null;
-    inquiry_talent:
-      | {
-          talent_profile_id: string;
-          talent_profiles:
-            | { display_name: string | null; profile_code: string }
-            | { display_name: string | null; profile_code: string }[]
-            | null;
-        }[]
-      | null;
     agency_bookings: { id: string }[] | null;
   };
 
   const acc = Array.isArray(row.client_accounts) ? row.client_accounts[0] : row.client_accounts;
-  const talentNames =
-    row.inquiry_talent?.map((t) => {
-      const tp = relOne(t.talent_profiles);
-      const label = tp?.display_name?.trim() || tp?.profile_code || "Talent";
-      return label;
-    }) ?? [];
+  const roster = await loadInquiryRoster(supabase, row.id);
+  const talentNames = roster.map((t) => t.displayName?.trim() || t.profileCode || "Talent");
 
   return NextResponse.json({
     id: row.id,

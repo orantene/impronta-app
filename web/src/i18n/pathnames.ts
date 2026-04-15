@@ -1,51 +1,69 @@
-import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
+import type { LanguageSettings } from "@/lib/language-settings/types";
+import { FALLBACK_LANGUAGE_SETTINGS } from "@/lib/language-settings/fetch-language-settings";
 
 /**
- * Removes repeated leading `/en` or `/es` segments (malformed URLs, bad redirects).
+ * Removes repeated leading locale path segments (e.g. `/es/en/...` from bad redirects).
  */
-export function pathnameWithoutAnyLocalePrefix(pathname: string): string {
+export function pathnameWithoutAnyLocalePrefix(
+  pathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): string {
   let p = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const set = new Set(settings.publicLocales);
   while (true) {
     const seg = p.split("/")[1] ?? "";
-    if (!isLocale(seg)) break;
+    if (!seg || !set.has(seg)) break;
     p = p.slice(`/${seg}`.length) || "/";
   }
   return p;
 }
 
-export function stripLocaleFromPathname(pathname: string): {
-  locale: Locale;
+export function stripLocaleFromPathname(
+  pathname: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): {
+  locale: string;
   pathnameWithoutLocale: string;
   hasLocalePrefix: boolean;
 } {
   const p = pathname.startsWith("/") ? pathname : `/${pathname}`;
   const firstSeg = p.split("/")[1] ?? "";
-  const hasLocalePrefix = isLocale(firstSeg);
+  const defaultLocale = settings.defaultLocale;
+  const hasLocalePrefix =
+    settings.publicLocales.includes(firstSeg) && firstSeg !== defaultLocale;
   return {
     locale: hasLocalePrefix ? firstSeg : defaultLocale,
-    pathnameWithoutLocale: pathnameWithoutAnyLocalePrefix(p),
+    pathnameWithoutLocale: pathnameWithoutAnyLocalePrefix(p, settings),
     hasLocalePrefix,
   };
 }
 
-/** Canonical URLs: English has no `/en` prefix; Spanish stays under `/es`. */
-export function withLocalePath(pathnameWithoutLocale: string, locale: Locale): string {
+/** Canonical URLs: default locale has no prefix; others use `/{code}/...`. */
+export function withLocalePath(
+  pathnameWithoutLocale: string,
+  locale: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): string {
   const normalized = pathnameWithoutAnyLocalePrefix(
     pathnameWithoutLocale.startsWith("/")
       ? pathnameWithoutLocale
       : `/${pathnameWithoutLocale}`,
+    settings,
   );
-  if (locale === defaultLocale) {
+  if (locale === settings.defaultLocale) {
     return normalized;
   }
-  return `/es${normalized === "/" ? "" : normalized}`;
+  return `/${locale}${normalized === "/" ? "" : normalized}`;
 }
 
 /**
- * Rewrites `/en` and `/en/...` to `/` and `/...` for redirects and post-auth `next` URLs.
+ * Rewrites `/en` and `/en/...` (or any locale prefix) to `/` and `/...` for redirects and post-auth `next` URLs.
  * Preserves query string and hash.
  */
-export function stripDefaultLocalePrefixFromPath(path: string): string {
+export function stripDefaultLocalePrefixFromPath(
+  path: string,
+  settings: LanguageSettings = FALLBACK_LANGUAGE_SETTINGS,
+): string {
   const hashIdx = path.indexOf("#");
   const beforeHash = hashIdx === -1 ? path : path.slice(0, hashIdx);
   const hash = hashIdx === -1 ? "" : path.slice(hashIdx);
@@ -54,13 +72,6 @@ export function stripDefaultLocalePrefixFromPath(path: string): string {
   const pathname = qIdx === -1 ? beforeHash : beforeHash.slice(0, qIdx);
   const query = qIdx === -1 ? "" : beforeHash.slice(qIdx);
 
-  if (pathname === "/en" || pathname === "/en/") {
-    return `/${query}${hash}`;
-  }
-  if (pathname.startsWith("/en/")) {
-    const rest = pathname.slice("/en".length) || "/";
-    return `${rest}${query}${hash}`;
-  }
-  return path;
+  const rest = pathnameWithoutAnyLocalePrefix(pathname, settings);
+  return `${rest}${query}${hash}`;
 }
-

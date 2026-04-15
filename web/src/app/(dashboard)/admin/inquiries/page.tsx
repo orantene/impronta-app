@@ -47,6 +47,8 @@ type RawInquiryRow = {
   assigned_staff_id: string | null;
   client_user_id: string | null;
   client_account_id: string | null;
+  next_action_by: string | null;
+  priority: string | null;
   client_accounts: { name: string } | { name: string }[] | null;
   client_account_contacts: { full_name: string } | { full_name: string }[] | null;
   agency_bookings: { id: string }[] | null;
@@ -75,15 +77,29 @@ function buildAdminInquiriesHref(opts: {
 
 const STATUS_TABS = [
   { key: "all", label: "All" },
+  { key: "draft", label: "Draft" },
   { key: "new", label: "New" },
-  { key: "reviewing", label: "Reviewing" },
-  { key: "in_progress", label: "In progress" },
-  { key: "waiting_for_client", label: "Waiting" },
-  { key: "talent_suggested", label: "Suggested" },
-  { key: "converted", label: "Converted" },
-  { key: "closed", label: "Closed" },
+  { key: "submitted", label: "Submitted" },
+  { key: "coordination", label: "Coordination" },
+  { key: "offer_pending", label: "Offer" },
+  { key: "approved", label: "Approved" },
+  { key: "booked", label: "Booked" },
+  { key: "rejected", label: "Rejected" },
+  { key: "expired", label: "Expired" },
+  { key: "closed_lost", label: "Closed" },
   { key: "archived", label: "Archived" },
 ];
+
+// Map legacy DB status values to their canonical equivalents for display + filtering
+const LEGACY_STATUS_ALIASES: Record<string, string> = {
+  reviewing: "coordination",
+  in_progress: "coordination",
+  waiting_for_client: "coordination",
+  talent_suggested: "coordination",
+  qualified: "coordination",
+  converted: "booked",
+  closed: "closed_lost",
+};
 
 export default async function AdminInquiriesPage({
   searchParams,
@@ -123,6 +139,7 @@ export default async function AdminInquiriesPage({
       event_date, event_location, quantity, guest_session_id,
       created_at, updated_at, assigned_staff_id,
       client_user_id, client_account_id, client_contact_id,
+      next_action_by, priority,
       client_accounts ( name ),
       client_account_contacts ( full_name ),
       agency_bookings ( id )
@@ -130,7 +147,20 @@ export default async function AdminInquiriesPage({
     )
     .order("created_at", { ascending: false });
 
-  if (statusFilter && statusFilter !== "all") dbQuery = dbQuery.eq("status", statusFilter);
+  if (statusFilter && statusFilter !== "all") {
+    // Build list of DB values to match: the canonical value plus any legacy aliases that map to it
+    const statusValues = [
+      statusFilter,
+      ...Object.entries(LEGACY_STATUS_ALIASES)
+        .filter(([, canonical]) => canonical === statusFilter)
+        .map(([legacy]) => legacy),
+    ];
+    if (statusValues.length === 1) {
+      dbQuery = dbQuery.eq("status", statusValues[0]!);
+    } else {
+      dbQuery = dbQuery.in("status", statusValues);
+    }
+  }
   if (clientUserId) dbQuery = dbQuery.eq("client_user_id", clientUserId);
   if (clientAccountId) dbQuery = dbQuery.eq("client_account_id", clientAccountId);
   if (assignedStaffId) dbQuery = dbQuery.eq("assigned_staff_id", assignedStaffId);
@@ -199,10 +229,13 @@ export default async function AdminInquiriesPage({
   ];
   const { data: platformProfiles } =
     platformClientIds.length > 0
-      ? await supabase.from("profiles").select("id, display_name").in("id", platformClientIds)
-      : { data: [] as { id: string; display_name: string | null }[] };
+      ? await supabase.from("profiles").select("id, display_name, avatar_url").in("id", platformClientIds)
+      : { data: [] as { id: string; display_name: string | null; avatar_url: string | null }[] };
   const platformNameById = new Map(
     (platformProfiles ?? []).map((p) => [p.id as string, (p.display_name as string | null)?.trim() || null]),
+  );
+  const platformAvatarById = new Map(
+    (platformProfiles ?? []).map((p) => [p.id as string, (p.avatar_url as string | null) ?? null]),
   );
 
   if (staffRes.error) logServerError("admin/inquiries/staffOptions", staffRes.error);
@@ -228,6 +261,48 @@ export default async function AdminInquiriesPage({
   });
 
   const currentUserId = authRes.data.user?.id ?? null;
+
+  const inquiryIds = rowList.map((r) => r.id);
+  const lastMessageAtByInquiry = new Map<string, string>();
+  if (inquiryIds.length > 0) {
+    const { data: msgRows } = await supabase
+      .from("inquiry_messages")
+      .select("inquiry_id, created_at")
+      .in("inquiry_id", inquiryIds);
+    for (const m of msgRows ?? []) {
+      const iid = String((m as { inquiry_id: string }).inquiry_id);
+      const ca = String((m as { created_at: string }).created_at);
+      const prev = lastMessageAtByInquiry.get(iid);
+      if (!prev || new Date(ca) > new Date(prev)) lastMessageAtByInquiry.set(iid, ca);
+    }
+  }
+
+  const hasUnreadByInquiry = new Map<string, boolean>();
+  if (currentUserId && inquiryIds.length > 0) {
+    const { data: reads } = await supabase
+      .from("inquiry_message_reads")
+      .select("inquiry_id, last_read_at")
+      .eq("user_id", currentUserId)
+      .in("inquiry_id", inquiryIds);
+    const readLatestByInquiry = new Map<string, string>();
+    for (const r of reads ?? []) {
+      const iid = String((r as { inquiry_id: string }).inquiry_id);
+      const lr = String((r as { last_read_at: string }).last_read_at);
+      const prev = readLatestByInquiry.get(iid);
+      if (!prev || new Date(lr) > new Date(prev)) readLatestByInquiry.set(iid, lr);
+    }
+    for (const id of inquiryIds) {
+      const lm = lastMessageAtByInquiry.get(id);
+      if (!lm) hasUnreadByInquiry.set(id, false);
+      else {
+        const rd = readLatestByInquiry.get(id);
+        hasUnreadByInquiry.set(id, !rd || new Date(lm) > new Date(rd));
+      }
+    }
+  } else {
+    for (const id of inquiryIds) hasUnreadByInquiry.set(id, false);
+  }
+
   const scopedClientName = clientFilterRes.data?.display_name as string | null | undefined;
   const scopedAccountName = accountFilterRes.data?.name as string | null | undefined;
 
@@ -240,7 +315,13 @@ export default async function AdminInquiriesPage({
     created_to: createdTo || undefined,
   };
 
-  // Shape rows for the queue component
+  function nextActionSortKey(v: string | null): number {
+    if (!v) return 99;
+    const order: Record<string, number> = { coordinator: 0, admin: 1, client: 2, talent: 3, system: 4 };
+    return order[v] ?? 50;
+  }
+
+  // Shape rows for the queue component (then sort: unread first, then next_action_by, then recency)
   const queueRows: InquiryQueueRow[] = rowList.map((row) => {
     const peek = rosterPeek.get(row.id);
     const talentPeek = peek
@@ -251,6 +332,7 @@ export default async function AdminInquiriesPage({
       status: row.status,
       contact_name: row.contact_name,
       contact_email: row.contact_email,
+      contact_avatar_url: row.client_user_id ? platformAvatarById.get(row.client_user_id) ?? null : null,
       company: row.company,
       event_date: row.event_date,
       event_location: row.event_location,
@@ -261,6 +343,9 @@ export default async function AdminInquiriesPage({
       assigned_staff_id: row.assigned_staff_id,
       client_user_id: row.client_user_id,
       client_account_id: row.client_account_id,
+      next_action_by: row.next_action_by ?? null,
+      priority: row.priority ?? null,
+      has_unread: hasUnreadByInquiry.get(row.id) ?? false,
       client_account_name: relOne(row.client_accounts as { name: string } | { name: string }[] | null)?.name ?? null,
       linked_contact_name:
         relOne(row.client_account_contacts as { full_name: string } | { full_name: string }[] | null)?.full_name ?? null,
@@ -271,6 +356,14 @@ export default async function AdminInquiriesPage({
       linked_booking_count: Array.isArray(row.agency_bookings) ? row.agency_bookings.length : 0,
       updated_at_display: formatAdminTimestamp(row.updated_at),
     };
+  });
+
+  queueRows.sort((a, b) => {
+    if (a.has_unread !== b.has_unread) return a.has_unread ? -1 : 1;
+    const da = nextActionSortKey(a.next_action_by);
+    const db = nextActionSortKey(b.next_action_by);
+    if (da !== db) return da - db;
+    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
   });
 
   const hasActiveFilters = Boolean(trimmedQuery || assignedStaffId || createdFrom || createdTo);

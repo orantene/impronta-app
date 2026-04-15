@@ -10,9 +10,9 @@ import type { DirectoryUiCopy } from "@/lib/directory/directory-ui-copy";
 function readFormContext(
   form: HTMLFormElement,
   talentNames: string[],
-  locale: "en" | "es",
+  locale: string,
 ): {
-  locale: "en" | "es";
+  locale: string;
   talentNames: string[];
   rawQuery: string;
   eventLocation: string;
@@ -49,7 +49,7 @@ function InquiryDraftAssistantInner({
   messageTextareaRef,
 }: {
   formId: string;
-  locale: "en" | "es";
+  locale: string;
   talentNames: string[];
   formCopy: DirectoryUiCopy["inquiryForm"];
   messageTextareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -140,7 +140,7 @@ function InquiryDraftAssistantInner({
 
 export function InquiryDraftAssistant(props: {
   formId: string;
-  locale: "en" | "es";
+  locale: string;
   talentNames: string[];
   formCopy: DirectoryUiCopy["inquiryForm"];
   messageTextareaRef: RefObject<HTMLTextAreaElement | null>;

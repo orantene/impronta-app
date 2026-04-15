@@ -24,17 +24,18 @@ function schemaInstruction(jsonSchema?: ChatCompletionInput["jsonSchema"]): stri
 
 /**
  * Anthropic (Claude) chat adapter. Structured output is prompt-enforced + JSON parse.
+ * Pass `apiKey` from the encrypted registry; otherwise falls back to `ANTHROPIC_API_KEY`.
  */
-export function createAnthropicChatAdapter(): AiProviderAdapter {
+export function createAnthropicChatAdapter(apiKey?: string | null): AiProviderAdapter {
   return {
     id: "anthropic",
     async chatCompletion(input: ChatCompletionInput): Promise<ChatCompletionResult> {
-      const key = process.env.ANTHROPIC_API_KEY?.trim();
+      const key = apiKey?.trim() || process.env.ANTHROPIC_API_KEY?.trim();
       if (!key) {
         return {
           ok: false,
           code: "no_key",
-          message: "ANTHROPIC_API_KEY is not configured.",
+          message: "Anthropic API key is not configured.",
         };
       }
 
