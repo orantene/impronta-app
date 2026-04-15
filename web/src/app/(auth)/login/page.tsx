@@ -14,13 +14,13 @@ export default async function LoginPage({
     <div className="space-y-6">
       <div className="space-y-1 text-center">
         <h1 className="text-xl font-semibold">Log in</h1>
-        <p className="text-m text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Google or email — staff roles are never chosen here. With Google, a password is optional
           (add one under Account after signing in).
         </p>
       </div>
       {error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-m text-destructive">
+        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
           {decodeURIComponent(error)}
         </p>
       ) : null}

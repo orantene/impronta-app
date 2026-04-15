@@ -14,17 +14,17 @@ export function ForgotPasswordForm({ defaultEmail }: { defaultEmail?: string }) 
   return (
     <form action={formAction} className="space-y-4">
       {state?.error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-m text-destructive">
+        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.error}
         </p>
       ) : null}
       {state?.message ? (
-        <p className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-m text-foreground">
+        <p className="rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm text-foreground">
           {state.message}
         </p>
       ) : null}
       <div className="space-y-2">
-        <label htmlFor="reset-email" className="text-m font-medium">
+        <label htmlFor="reset-email" className="text-sm font-medium">
           Email
         </label>
         <input
@@ -34,7 +34,7 @@ export function ForgotPasswordForm({ defaultEmail }: { defaultEmail?: string }) 
           autoComplete="email"
           required
           defaultValue={defaultEmail}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-m shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
       <Button type="submit" className="w-full" disabled={pending}>

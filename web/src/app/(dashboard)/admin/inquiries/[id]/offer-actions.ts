@@ -11,6 +11,7 @@ import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireStaff } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { isOfferReady } from "@/lib/inquiry/inquiry-offer-readiness";
+import { sendOfferSentNotification } from "@/lib/email/inquiry-notifications";
 
 export async function actionCreateDraftOffer(formData: FormData): Promise<ActionResult<{ offerId: string }>> {
   const auth = await requireStaff();
@@ -185,6 +186,9 @@ export async function actionSendOffer(formData: FormData): Promise<ActionResult>
       ? { ok: false, code: "version_conflict", message: "This inquiry was updated elsewhere. Refresh and try again." }
       : { ok: false, code: "precondition_failed", message: res.error ?? "Could not send offer." };
   }
+
+  // Fire-and-forget: notify client that their offer is ready
+  void sendOfferSentNotification({ supabase, inquiryId });
 
   revalidatePath(`/admin/inquiries/${inquiryId}`);
   return { ok: true, message: "Offer sent." };

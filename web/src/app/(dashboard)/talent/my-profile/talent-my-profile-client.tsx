@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CircleDot,
   ClipboardList,
+  Clock,
   ExternalLink,
   FileText,
   Globe2,
@@ -596,6 +597,39 @@ export function TalentMyProfileClient({
 
   return (
     <TalentDashboardPage>
+      {/* Post-onboarding status banners — shown only for terminal / action-needed states */}
+      {profile.workflow_status === "approved" && livePageAvailable ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.07] px-4 py-3.5 dark:bg-emerald-500/[0.05]">
+          <CheckCircle2 className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">Your profile is live</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Visible in the public directory — share your link with clients or collaborators.
+            </p>
+          </div>
+          <Link
+            href={previewHref}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 text-xs font-medium text-emerald-700 underline-offset-4 hover:underline dark:text-emerald-300"
+          >
+            View live profile →
+          </Link>
+        </div>
+      ) : profile.workflow_status === "submitted" || profile.workflow_status === "under_review" ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/20 bg-primary/[0.04] px-4 py-3.5">
+          <Clock className="size-5 shrink-0 text-primary/60" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">
+              {profile.workflow_status === "submitted" ? "Submitted — awaiting review" : "Under agency review"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Nothing to do right now. The agency will reach out if they need anything.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       {/* Action hub: stacked on mobile; narrative + CTA column on large screens */}
       <section className="space-y-4 lg:space-y-5">
         <div

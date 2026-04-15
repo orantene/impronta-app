@@ -14,7 +14,7 @@ export default async function TalentLocationOnboardingPage() {
       <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col justify-center px-4 py-16">
         <div className="rounded-lg border border-border bg-card p-8 shadow-sm">
           <h1 className="text-center text-xl font-medium">Setup required</h1>
-          <p className="mt-3 text-center text-m text-muted-foreground">{SUPABASE_ENV_HELP}</p>
+          <p className="mt-3 text-center text-sm text-muted-foreground">{SUPABASE_ENV_HELP}</p>
           <Button className="mt-6 w-full" asChild variant="outline">
             <Link href="/">Back home</Link>
           </Button>

@@ -13,14 +13,15 @@ export default async function RegisterPage({
   return (
     <div className="space-y-6">
       <div className="space-y-1 text-center">
-        <h1 className="text-xl font-semibold">Sign up</h1>
-        <p className="text-m text-muted-foreground">
-          After your first sign-in you&apos;ll choose{" "}
-          <strong>Talent</strong> or <strong>Client</strong>.
+        <h1 className="text-xl font-semibold">Create your account</h1>
+        <p className="text-sm text-muted-foreground">
+          After signing up you&apos;ll choose whether you&apos;re{" "}
+          <strong>Talent</strong> (join the agency roster) or a{" "}
+          <strong>Client</strong> (book talent for events).
         </p>
       </div>
       {error ? (
-        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-m text-destructive">
+        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
           {decodeURIComponent(error)}
         </p>
       ) : null}
