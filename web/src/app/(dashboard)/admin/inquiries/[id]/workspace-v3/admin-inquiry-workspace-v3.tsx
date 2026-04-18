@@ -8,7 +8,15 @@ import { WorkspaceV3Header } from "./workspace-v3-header";
 import { WorkspaceV3StatusStrip } from "./workspace-v3-status-strip";
 import { WorkspaceV3ThreadSwitcher } from "./workspace-v3-thread-switcher";
 import { WorkspaceV3Rail } from "./workspace-v3-rail";
-import type { SummaryPanelData } from "./workspace-v3-panel-types";
+import type {
+  BookingPanelData,
+  CoordinatorsPanelData,
+  NeedsAttentionPanelData,
+  OffersApprovalsPanelData,
+  RecentActivityPanelData,
+  RequirementGroupsPanelData,
+  SummaryPanelData,
+} from "./workspace-v3-panel-types";
 
 type ThreadMessage = {
   id: string;
@@ -58,6 +66,12 @@ export function AdminInquiryWorkspaceV3({
   sendMessageAction,
   loadOlderAction,
   summary,
+  requirementGroups,
+  offersApprovals,
+  coordinators,
+  booking,
+  needsAttention,
+  recentActivity,
 }: {
   inquiryId: string;
   viewerUserId: string;
@@ -84,6 +98,12 @@ export function AdminInquiryWorkspaceV3({
   sendMessageAction: (formData: FormData) => Promise<ActionResult>;
   loadOlderAction?: (formData: FormData) => Promise<ActionResult<{ messages: ThreadMessage[] }>>;
   summary: SummaryPanelData;
+  requirementGroups: RequirementGroupsPanelData;
+  offersApprovals: OffersApprovalsPanelData;
+  coordinators: CoordinatorsPanelData;
+  booking: BookingPanelData;
+  needsAttention: NeedsAttentionPanelData;
+  recentActivity: RecentActivityPanelData;
 }) {
   return (
     <div
@@ -130,7 +150,17 @@ export function AdminInquiryWorkspaceV3({
           />
         </section>
         <div className="min-h-0 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
-          <WorkspaceV3Rail userId={viewerUserId} inquiryId={inquiryId} summary={summary} />
+          <WorkspaceV3Rail
+            userId={viewerUserId}
+            inquiryId={inquiryId}
+            summary={summary}
+            requirementGroups={requirementGroups}
+            offersApprovals={offersApprovals}
+            coordinators={coordinators}
+            booking={booking}
+            needsAttention={needsAttention}
+            recentActivity={recentActivity}
+          />
         </div>
       </div>
     </div>
