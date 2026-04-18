@@ -8,6 +8,7 @@ import { WorkspaceV3Header } from "./workspace-v3-header";
 import { WorkspaceV3StatusStrip } from "./workspace-v3-status-strip";
 import { WorkspaceV3ThreadSwitcher } from "./workspace-v3-thread-switcher";
 import { WorkspaceV3Rail } from "./workspace-v3-rail";
+import type { SummaryPanelData } from "./workspace-v3-panel-types";
 
 type ThreadMessage = {
   id: string;
@@ -56,6 +57,7 @@ export function AdminInquiryWorkspaceV3({
   initialThread,
   sendMessageAction,
   loadOlderAction,
+  summary,
 }: {
   inquiryId: string;
   viewerUserId: string;
@@ -81,6 +83,7 @@ export function AdminInquiryWorkspaceV3({
   initialThread: "client" | "group";
   sendMessageAction: (formData: FormData) => Promise<ActionResult>;
   loadOlderAction?: (formData: FormData) => Promise<ActionResult<{ messages: ThreadMessage[] }>>;
+  summary: SummaryPanelData;
 }) {
   return (
     <div
@@ -127,7 +130,7 @@ export function AdminInquiryWorkspaceV3({
           />
         </section>
         <div className="min-h-0 overflow-y-auto lg:max-h-[calc(100vh-8rem)]">
-          <WorkspaceV3Rail userId={viewerUserId} inquiryId={inquiryId} />
+          <WorkspaceV3Rail userId={viewerUserId} inquiryId={inquiryId} summary={summary} />
         </div>
       </div>
     </div>
