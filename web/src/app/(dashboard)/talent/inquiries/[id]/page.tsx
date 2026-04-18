@@ -13,6 +13,7 @@ import { getPrimaryAction } from "@/lib/inquiry/inquiry-primary-action";
 import { getWorkspacePermissions } from "@/lib/inquiry/inquiry-workspace-permissions";
 import { isOfferReady } from "@/lib/inquiry/inquiry-offer-readiness";
 import { resolveApprovalCompleteness } from "@/lib/inquiry/inquiry-approval-resolver";
+import { getInquiryGroupShortfall } from "@/lib/inquiry/inquiry-fulfillment";
 import { loadInquiryRoster } from "@/lib/inquiry/inquiry-workspace-data";
 import { ADMIN_SECTION_TITLE_CLASS, CLIENT_PAGE_STACK_DETAIL } from "@/lib/dashboard-shell-classes";
 import { EventLocationMap } from "@/components/inquiry/event-location-map";
@@ -191,6 +192,13 @@ export default async function TalentInquiryWorkspacePage({
 
   const hasTalentLine = (ownLines ?? []).length > 0;
 
+  // M2.3: per-group fulfillment (only relevant at approved).
+  let groupsFulfilled: boolean | undefined = undefined;
+  if (ws === "approved") {
+    const readiness = await getInquiryGroupShortfall(supabase, String(inq.id));
+    groupsFulfilled = readiness.fulfilled;
+  }
+
   const workspaceStateInput = {
     status: ws,
     effectiveRole: "talent" as const,
@@ -205,6 +213,7 @@ export default async function TalentInquiryWorkspacePage({
     linkedBookingId: firstBookingId,
     isLocked: isWorkspaceLocked(ws),
     workspaceDetailPath: `/talent/inquiries/${inq.id}`,
+    groupsFulfilled,
   };
 
   const permissions = getWorkspacePermissions(workspaceStateInput);

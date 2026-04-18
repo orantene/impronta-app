@@ -19,6 +19,9 @@ export async function actionEngineConvertToBooking(
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
+  const rawOverride = formData.get("override_reason");
+  const overrideReason =
+    typeof rawOverride === "string" && rawOverride.trim().length > 0 ? rawOverride.trim() : null;
 
   if (!inquiryId) {
     return { ok: false, code: "validation_error", message: "Missing inquiry." };
@@ -28,6 +31,7 @@ export async function actionEngineConvertToBooking(
     inquiryId,
     actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
+    overrideReason,
   });
 
   if (!res.success) {
@@ -38,9 +42,15 @@ export async function actionEngineConvertToBooking(
           ? "All approvals must be complete before booking."
           : res.reason === "no_active_offer"
             ? "No accepted offer — complete approvals first."
-            : res.conflict
-              ? "This inquiry was updated. Refresh and try again."
-              : res.error ?? "Could not convert to booking.";
+            : res.reason === "requirement_groups_unfulfilled"
+              ? "One or more requirement groups are under-approved. Admin override required to proceed."
+              : res.reason === "override_not_allowed"
+                ? "Only an admin can override an unfulfilled requirement group."
+                : res.reason === "override_reason_too_short"
+                  ? "Override reason must be at least 10 characters."
+                  : res.conflict
+                    ? "This inquiry was updated. Refresh and try again."
+                    : res.error ?? "Could not convert to booking.";
     return res.conflict
       ? { ok: false, code: "version_conflict", message: msg }
       : { ok: false, code: "precondition_failed", message: msg };

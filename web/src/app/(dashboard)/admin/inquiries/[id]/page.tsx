@@ -45,6 +45,7 @@ import { getPrimaryAction } from "@/lib/inquiry/inquiry-primary-action";
 import { getWorkspacePermissions } from "@/lib/inquiry/inquiry-workspace-permissions";
 import { getProgressStep } from "@/lib/inquiry/inquiry-progress";
 import { isOfferReady } from "@/lib/inquiry/inquiry-offer-readiness";
+import { getInquiryGroupShortfall } from "@/lib/inquiry/inquiry-fulfillment";
 import { resolveApprovalCompleteness } from "@/lib/inquiry/inquiry-approval-resolver";
 import type {
   InquiryWorkspaceApproval,
@@ -625,6 +626,14 @@ export default async function AdminInquiryDetailPage({
 
   const firstBookingId = ((bookings ?? [])[0] as { id?: string } | undefined)?.id ?? null;
 
+  // M2.3: fetch per-group fulfillment readiness so the primary CTA reflects
+  // whether an admin override is required. Only meaningful at status=approved.
+  let groupsFulfilled: boolean | undefined = undefined;
+  if (wsStatus === "approved") {
+    const readiness = await getInquiryGroupShortfall(supabase, inquiry.id);
+    groupsFulfilled = readiness.fulfilled;
+  }
+
   const workspaceStateInput = {
     status: wsStatus,
     effectiveRole: resolveEffectiveRole(viewerAppRole, viewerId, {
@@ -642,6 +651,7 @@ export default async function AdminInquiryDetailPage({
     linkedBookingId: firstBookingId,
     isLocked: isWorkspaceLocked(wsStatus),
     workspaceDetailPath: `/admin/inquiries/${inquiry.id}`,
+    groupsFulfilled,
   };
 
   const workspacePrimaryAction = engineV2 ? getPrimaryAction(workspaceStateInput) : null;

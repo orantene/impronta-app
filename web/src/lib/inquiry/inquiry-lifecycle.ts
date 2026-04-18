@@ -25,7 +25,10 @@ export type TransitionBlockReason =
   | "missing_client"
   | "version_conflict"
   | "rate_limited"
-  | "forbidden";
+  | "forbidden"
+  | "requirement_groups_unfulfilled"
+  | "override_not_allowed"
+  | "override_reason_too_short";
 
 export type TransitionCheck =
   | { ok: true }
