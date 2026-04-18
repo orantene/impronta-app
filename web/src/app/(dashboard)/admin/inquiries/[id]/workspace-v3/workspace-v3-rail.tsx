@@ -2,7 +2,21 @@
 
 import { WorkspaceV3RailPanel } from "./workspace-v3-rail-panel";
 import { WorkspaceV3PanelSummary } from "./workspace-v3-panel-summary";
-import type { SummaryPanelData } from "./workspace-v3-panel-types";
+import { WorkspaceV3PanelRequirementGroups } from "./workspace-v3-panel-requirement-groups";
+import { WorkspaceV3PanelOffersApprovals } from "./workspace-v3-panel-offers-approvals";
+import { WorkspaceV3PanelCoordinators } from "./workspace-v3-panel-coordinators";
+import { WorkspaceV3PanelBooking } from "./workspace-v3-panel-booking";
+import { WorkspaceV3PanelNeedsAttention } from "./workspace-v3-panel-needs-attention";
+import { WorkspaceV3PanelRecentActivity } from "./workspace-v3-panel-recent-activity";
+import type {
+  BookingPanelData,
+  CoordinatorsPanelData,
+  NeedsAttentionPanelData,
+  OffersApprovalsPanelData,
+  RecentActivityPanelData,
+  RequirementGroupsPanelData,
+  SummaryPanelData,
+} from "./workspace-v3-panel-types";
 
 /**
  * Admin Workspace V3 — right-rail container (§5.2).
@@ -21,10 +35,22 @@ export function WorkspaceV3Rail({
   userId,
   inquiryId,
   summary,
+  requirementGroups,
+  offersApprovals,
+  coordinators,
+  booking,
+  needsAttention,
+  recentActivity,
 }: {
   userId: string;
   inquiryId: string;
   summary: SummaryPanelData;
+  requirementGroups: RequirementGroupsPanelData;
+  offersApprovals: OffersApprovalsPanelData;
+  coordinators: CoordinatorsPanelData;
+  booking: BookingPanelData;
+  needsAttention: NeedsAttentionPanelData;
+  recentActivity: RecentActivityPanelData;
 }) {
   const common = { userId, inquiryId } as const;
 
@@ -47,9 +73,9 @@ export function WorkspaceV3Rail({
         {...common}
         panelKey="requirement_groups"
         title="Requirement Groups"
-        subtitle="Per-role need vs. selected / approved / confirmed"
+        subtitle="Per-role need vs. selected / approved"
       >
-        <p>Wiring in M4.2 — from getRequirementGroups.</p>
+        <WorkspaceV3PanelRequirementGroups data={requirementGroups} />
       </WorkspaceV3RailPanel>
 
       <WorkspaceV3RailPanel
@@ -58,25 +84,25 @@ export function WorkspaceV3Rail({
         title="Offers / Approvals"
         subtitle="Drafted · sent · pending · approved · rejected"
       >
-        <p>Wiring in M4.3 — from inquiry_offers / inquiry_approvals.</p>
+        <WorkspaceV3PanelOffersApprovals data={offersApprovals} />
       </WorkspaceV3RailPanel>
 
       <WorkspaceV3RailPanel
         {...common}
         panelKey="coordinators"
         title="Coordinators"
-        subtitle="Primary + secondaries · assign / promote / remove"
+        subtitle="Primary + secondaries"
       >
-        <p>Wiring in M4.4 — from inquiry_coordinators, uses M2.1 actions.</p>
+        <WorkspaceV3PanelCoordinators data={coordinators} />
       </WorkspaceV3RailPanel>
 
       <WorkspaceV3RailPanel
         {...common}
         panelKey="booking"
         title="Booking"
-        subtitle="Convert · override (admin) · post-booking summary"
+        subtitle="Conversion state · override visibility"
       >
-        <p>Wiring in M4.5 — uses M2.3 gating + override modal.</p>
+        <WorkspaceV3PanelBooking data={booking} />
       </WorkspaceV3RailPanel>
 
       <WorkspaceV3RailPanel
@@ -84,9 +110,9 @@ export function WorkspaceV3Rail({
         panelKey="needs_attention"
         title="Needs Attention"
         subtitle="Derived Tier-1 alerts"
-        defaultOpen={false}
+        defaultOpen={needsAttention.alerts.length > 0}
       >
-        <p>Wiring in M4.6 — derived alerts module.</p>
+        <WorkspaceV3PanelNeedsAttention data={needsAttention} />
       </WorkspaceV3RailPanel>
 
       <WorkspaceV3RailPanel
@@ -96,7 +122,7 @@ export function WorkspaceV3Rail({
         subtitle="Latest events from the audit stream"
         defaultOpen={false}
       >
-        <p>Wiring in M4.7 — InquiryTimeline preview mode.</p>
+        <WorkspaceV3PanelRecentActivity data={recentActivity} />
       </WorkspaceV3RailPanel>
     </aside>
   );

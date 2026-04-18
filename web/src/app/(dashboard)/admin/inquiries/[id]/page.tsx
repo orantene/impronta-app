@@ -50,6 +50,14 @@ import { isWorkspaceV3Enabled } from "@/lib/settings/admin-workspace-flag";
 import { AdminInquiryWorkspaceV3 } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/admin-inquiry-workspace-v3";
 import type { SummaryPanelData } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-panel-types";
 import { getWorkspaceStateSentence } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-state";
+import {
+  buildBookingPanelData,
+  loadCoordinatorsPanelData,
+  loadOffersApprovalsPanelData,
+  loadRecentActivityPanelData,
+  loadRequirementGroupsPanelData,
+} from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-panel-data";
+import { deriveWorkspaceAlerts } from "@/lib/inquiry/inquiry-alerts";
 import { actionLoadOlderInquiryMessages } from "@/app/(dashboard)/admin/inquiries/[id]/messaging-actions";
 import { resolveApprovalCompleteness } from "@/lib/inquiry/inquiry-approval-resolver";
 import type {
@@ -259,7 +267,7 @@ export default async function AdminInquiryDetailPage({
       supabase
         .from("agency_bookings")
         .select(
-          `id, title, status, starts_at, ends_at, notes, internal_notes, payment_status, total_client_revenue, gross_profit,
+          `id, title, status, starts_at, ends_at, notes, internal_notes, payment_status, total_client_revenue, gross_profit, created_with_override, override_reason,
            booking_talent (id, talent_profile_id, talent_name_snapshot, profile_code_snapshot, talent_profiles (profile_code, display_name))`,
         )
         .eq("source_inquiry_id", id)
@@ -772,6 +780,64 @@ export default async function AdminInquiryDetailPage({
       lastActivityAt: String(inquiry.updated_at ?? inquiry.created_at),
     };
 
+    // ── Rail panel data (M4.2–M4.7) ────────────────────────────────────
+    // All loaders are thin compositions over canonical engine helpers —
+    // no business rules are invented here. See
+    // workspace-v3/workspace-v3-panel-data.ts and lib/inquiry/inquiry-alerts.ts
+    // for the exact sourcing per panel.
+    const [
+      requirementGroupsData,
+      offersApprovalsData,
+      coordinatorsData,
+      recentActivityData,
+    ] = await Promise.all([
+      loadRequirementGroupsPanelData(supabase, inquiry.id),
+      loadOffersApprovalsPanelData(supabase, inquiry.id, workspaceInquiry.current_offer_id),
+      loadCoordinatorsPanelData(supabase, inquiry.id),
+      loadRecentActivityPanelData(supabase, inquiry.id, 5),
+    ]);
+
+    const bookingRowsForPanel = ((bookings ?? []) as unknown as {
+      id: string;
+      title: string | null;
+      status: string;
+      starts_at: string | null;
+      ends_at: string | null;
+      created_with_override: boolean | null;
+      override_reason: string | null;
+    }[]).map((b) => ({
+      id: b.id,
+      title: b.title,
+      status: b.status,
+      starts_at: b.starts_at,
+      ends_at: b.ends_at,
+      created_with_override: b.created_with_override,
+      override_reason: b.override_reason,
+    }));
+    const bookingData = buildBookingPanelData({
+      bookings: bookingRowsForPanel,
+      hasRequirementGroups: requirementGroupsData.groups.length > 0,
+      allFulfilled: requirementGroupsData.allFulfilled,
+    });
+
+    // M4.6 — Needs Attention. Derivation-only: takes the canonical signals
+    // already computed above (shortfall, approvals, offer readiness,
+    // coordinator presence, unread count) and projects them into alert rows.
+    const shortfallForAlerts = requirementGroupsData.groups
+      .filter((g) => g.shortfall > 0)
+      .map((g) => ({ role_key: g.roleKey, shortfall: g.shortfall }));
+    const needsAttentionData = deriveWorkspaceAlerts({
+      workspaceStatus: wsStatus,
+      isLocked: workspaceStateInput.isLocked,
+      shortfall: shortfallForAlerts,
+      approvals: offersApprovalsData.approvals,
+      currentOfferId: offersApprovalsData.currentOfferId,
+      currentOfferStatus: v2Offer?.status ?? null,
+      isOfferReady: offerReady.ready,
+      hasPrimaryCoordinator: coordinatorsData.primary != null,
+      unreadCount,
+    });
+
     return (
       <AdminInquiryWorkspaceV3
         inquiryId={inquiry.id}
@@ -799,6 +865,12 @@ export default async function AdminInquiryDetailPage({
         sendMessageAction={actionSendInquiryMessage}
         loadOlderAction={actionLoadOlderInquiryMessages}
         summary={summaryData}
+        requirementGroups={requirementGroupsData}
+        offersApprovals={offersApprovalsData}
+        coordinators={coordinatorsData}
+        booking={bookingData}
+        needsAttention={needsAttentionData}
+        recentActivity={recentActivityData}
       />
     );
   }
