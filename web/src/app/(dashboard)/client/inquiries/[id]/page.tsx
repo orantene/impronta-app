@@ -9,6 +9,7 @@ import { getPrimaryAction } from "@/lib/inquiry/inquiry-primary-action";
 import { getWorkspacePermissions } from "@/lib/inquiry/inquiry-workspace-permissions";
 import { isOfferReady } from "@/lib/inquiry/inquiry-offer-readiness";
 import { resolveApprovalCompleteness } from "@/lib/inquiry/inquiry-approval-resolver";
+import { getInquiryGroupShortfall } from "@/lib/inquiry/inquiry-fulfillment";
 import { loadInquiryRoster } from "@/lib/inquiry/inquiry-workspace-data";
 import {
   ClientInquiryWorkspace,
@@ -187,6 +188,13 @@ export default async function ClientInquiryDetailPage({
   const nBookings = (bookings ?? []).length;
   const firstBookingId = ((bookings ?? [])[0] as { id?: string } | undefined)?.id ?? null;
 
+  // M2.3: per-group fulfillment (only relevant at approved; drives awaiting CTA).
+  let groupsFulfilled: boolean | undefined = undefined;
+  if (ws === "approved") {
+    const readiness = await getInquiryGroupShortfall(supabase, inq.id as string);
+    groupsFulfilled = readiness.fulfilled;
+  }
+
   const workspaceStateInput = {
     status: ws,
     effectiveRole: "client" as const,
@@ -201,6 +209,7 @@ export default async function ClientInquiryDetailPage({
     linkedBookingId: firstBookingId,
     isLocked: isWorkspaceLocked(ws),
     workspaceDetailPath: `/client/inquiries/${inq.id as string}`,
+    groupsFulfilled,
   };
 
   const permissions = getWorkspacePermissions(workspaceStateInput);

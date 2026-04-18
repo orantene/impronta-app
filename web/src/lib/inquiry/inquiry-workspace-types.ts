@@ -226,6 +226,16 @@ export type WorkspaceStateInput = {
   offerStatus: OfferStatus | null;
   allApprovalsAccepted: boolean;
   pendingApprovalCount: number;
+  /**
+   * M2.3: true when every requirement group on the inquiry has at least
+   * `quantity_required` accepted approvals for the current offer.
+   *
+   * Optional for backward compatibility with call sites predating M2.3;
+   * omitted means "assume fulfilled" (same conservative behavior as before
+   * M2.3 — approvals-gate remains). All admin/client/talent page.tsx paths
+   * should populate this via {@link getInquiryGroupShortfall}.
+   */
+  groupsFulfilled?: boolean;
   isOfferReady: boolean;
   hasLinkedBooking: boolean;
   linkedBookingId: string | null;
