@@ -1,6 +1,8 @@
 "use client";
 
 import { WorkspaceV3RailPanel } from "./workspace-v3-rail-panel";
+import { WorkspaceV3PanelSummary } from "./workspace-v3-panel-summary";
+import type { SummaryPanelData } from "./workspace-v3-panel-types";
 
 /**
  * Admin Workspace V3 — right-rail container (§5.2).
@@ -18,9 +20,11 @@ import { WorkspaceV3RailPanel } from "./workspace-v3-rail-panel";
 export function WorkspaceV3Rail({
   userId,
   inquiryId,
+  summary,
 }: {
   userId: string;
   inquiryId: string;
+  summary: SummaryPanelData;
 }) {
   const common = { userId, inquiryId } as const;
 
@@ -36,7 +40,7 @@ export function WorkspaceV3Rail({
         title="Summary"
         subtitle="Client · event · location"
       >
-        <p>Wiring in M4.1 — loaded from inquiry record.</p>
+        <WorkspaceV3PanelSummary data={summary} />
       </WorkspaceV3RailPanel>
 
       <WorkspaceV3RailPanel

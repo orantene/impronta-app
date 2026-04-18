@@ -48,6 +48,8 @@ import { isOfferReady } from "@/lib/inquiry/inquiry-offer-readiness";
 import { getInquiryGroupShortfall } from "@/lib/inquiry/inquiry-fulfillment";
 import { isWorkspaceV3Enabled } from "@/lib/settings/admin-workspace-flag";
 import { AdminInquiryWorkspaceV3 } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/admin-inquiry-workspace-v3";
+import type { SummaryPanelData } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-panel-types";
+import { getWorkspaceStateSentence } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-state";
 import { actionLoadOlderInquiryMessages } from "@/app/(dashboard)/admin/inquiries/[id]/messaging-actions";
 import { resolveApprovalCompleteness } from "@/lib/inquiry/inquiry-approval-resolver";
 import type {
@@ -222,6 +224,8 @@ export default async function AdminInquiryDetailPage({
       company,
       event_location,
       event_date,
+      event_type_id,
+      quantity,
       message,
       raw_ai_query,
       source_page,
@@ -740,6 +744,34 @@ export default async function AdminInquiryDetailPage({
     const initialThread: "client" | "group" = rawThread === "group" ? "group" : "client";
     const title = inquiry.contact_name || "Unnamed inquiry";
 
+    // ── Summary panel data (M4.1) ────────────────────────────────────
+    // Resolve event type label from taxonomy_terms when set. Pure lookup,
+    // no engine derivation. Budget band is intentionally absent — see
+    // SummaryPanelData docstring.
+    const inquiryExt = inquiry as unknown as {
+      event_type_id: string | null;
+      quantity: number | null;
+    };
+    let eventTypeLabel: string | null = null;
+    if (inquiryExt.event_type_id) {
+      const { data: et } = await supabase
+        .from("taxonomy_terms")
+        .select("name_en")
+        .eq("id", inquiryExt.event_type_id)
+        .maybeSingle();
+      eventTypeLabel = (et as { name_en?: string | null } | null)?.name_en ?? null;
+    }
+    const summaryData: SummaryPanelData = {
+      clientName: inquiry.contact_name ?? null,
+      company: inquiry.company ?? null,
+      eventType: eventTypeLabel,
+      eventDate: (inquiryAny.event_date as string | null | undefined) ?? null,
+      eventLocation: inquiry.event_location ?? null,
+      quantity: inquiryExt.quantity ?? null,
+      statusSentence: getWorkspaceStateSentence(wsStatus),
+      lastActivityAt: String(inquiry.updated_at ?? inquiry.created_at),
+    };
+
     return (
       <AdminInquiryWorkspaceV3
         inquiryId={inquiry.id}
@@ -766,6 +798,7 @@ export default async function AdminInquiryDetailPage({
         initialThread={initialThread}
         sendMessageAction={actionSendInquiryMessage}
         loadOlderAction={actionLoadOlderInquiryMessages}
+        summary={summaryData}
       />
     );
   }
