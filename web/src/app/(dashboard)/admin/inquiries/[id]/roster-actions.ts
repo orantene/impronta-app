@@ -49,6 +49,9 @@ export async function rosterAddTalent(formData: FormData): Promise<ActionResult>
     talentProfileId,
     actorUserId: auth.user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
+    // M2.2: pass null to use the inquiry's default requirement group.
+    // The group selector wires up in M5; M5.6 removes this fallback.
+    requirementGroupId: null,
   });
 
   if (!res.success) {

@@ -65,7 +65,29 @@ async function invalidateOfferIfRosterChanged(
 
 export async function addTalentToRoster(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; talentProfileId: string; actorUserId: string; expectedVersion: number },
+  ctx: {
+    inquiryId: string;
+    talentProfileId: string;
+    actorUserId: string;
+    expectedVersion: number;
+    /**
+     * Requirement group to assign this participant to (spec §3.5, §3.7).
+     *
+     * - A uuid **must** reference a requirement group on the same inquiry —
+     *   cross-inquiry or unknown ids are rejected with `invalid_group`.
+     * - `null` triggers the M2.2 transition fallback: the participant is
+     *   assigned to the inquiry's default group (first by sort_order, then
+     *   created_at). The M1.2 backfill guarantees every existing inquiry has
+     *   at least one group, and M2.2's post-booking lock prevents deleting
+     *   the last group during normal flow, so this lookup always resolves.
+     *
+     * M5.6 flips `requirement_group_id` to NOT NULL, removes the null branch
+     * of this helper, and requires every caller to pass an explicit id. Until
+     * then, existing callers (no-UI, legacy roster-actions.ts) can keep
+     * passing `null` so Phase 1 UI work can land independently.
+     */
+    requirementGroupId: string | null;
+  },
 ): Promise<EngineResult> {
   return runWithEngineLog("addTalentToRoster", ctx.inquiryId, ctx.actorUserId, async () => {
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "add_talent");
@@ -78,6 +100,31 @@ export async function addTalentToRoster(
       .maybeSingle();
     if (!inq?.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
     if (!isMutablePhase(inq.status as string, !!inq.is_frozen)) return { success: false, reason: "post_booking_immutable" };
+
+    // Resolve the requirement group. Explicit id → validate it's on this
+    // inquiry. Null → fall back to the default group (M2.2 transition).
+    let resolvedGroupId: string | null = null;
+    if (ctx.requirementGroupId) {
+      const { data: g } = await supabase
+        .from("inquiry_requirement_groups")
+        .select("id, inquiry_id")
+        .eq("id", ctx.requirementGroupId)
+        .maybeSingle();
+      if (!g || g.inquiry_id !== ctx.inquiryId) {
+        return { success: false, error: "invalid_group" };
+      }
+      resolvedGroupId = g.id as string;
+    } else {
+      const { data: defaultGroup } = await supabase
+        .from("inquiry_requirement_groups")
+        .select("id")
+        .eq("inquiry_id", ctx.inquiryId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      resolvedGroupId = (defaultGroup?.id as string | undefined) ?? null;
+    }
 
     const { data: tp } = await supabase
       .from("talent_profiles")
@@ -104,6 +151,7 @@ export async function addTalentToRoster(
       status: "invited",
       sort_order: nextSort,
       added_by_user_id: ctx.actorUserId,
+      requirement_group_id: resolvedGroupId,
     });
 
     if (error) return { success: false, error: error.message };

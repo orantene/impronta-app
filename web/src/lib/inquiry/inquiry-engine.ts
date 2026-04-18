@@ -26,6 +26,18 @@ export type { OfferLineDraft } from "./inquiry-engine-offers";
 export { submitApproval, rejectApproval, clientAcceptOffer } from "./inquiry-engine-approvals";
 export { convertToBooking } from "./inquiry-engine-booking";
 export {
+  addRequirementGroup,
+  updateRequirementGroup,
+  removeRequirementGroup,
+  assignParticipantToGroup,
+} from "./inquiry-engine-requirement-groups";
+export type {
+  AddRequirementGroupCtx,
+  UpdateRequirementGroupCtx,
+  RemoveRequirementGroupCtx,
+  AssignParticipantToGroupCtx,
+} from "./inquiry-engine-requirement-groups";
+export {
   freezeInquiry,
   unfreezeInquiry,
   archiveInquiry,
