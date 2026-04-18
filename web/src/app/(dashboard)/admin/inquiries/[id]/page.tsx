@@ -46,6 +46,9 @@ import { getWorkspacePermissions } from "@/lib/inquiry/inquiry-workspace-permiss
 import { getProgressStep } from "@/lib/inquiry/inquiry-progress";
 import { isOfferReady } from "@/lib/inquiry/inquiry-offer-readiness";
 import { getInquiryGroupShortfall } from "@/lib/inquiry/inquiry-fulfillment";
+import { isWorkspaceV3Enabled } from "@/lib/settings/admin-workspace-flag";
+import { AdminInquiryWorkspaceV3 } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/admin-inquiry-workspace-v3";
+import { actionLoadOlderInquiryMessages } from "@/app/(dashboard)/admin/inquiries/[id]/messaging-actions";
 import { resolveApprovalCompleteness } from "@/lib/inquiry/inquiry-approval-resolver";
 import type {
   InquiryWorkspaceApproval,
@@ -185,7 +188,7 @@ export default async function AdminInquiryDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ convert_error?: string; dup_err?: string; tab?: string }>;
+  searchParams: Promise<{ convert_error?: string; dup_err?: string; tab?: string; thread?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -697,6 +700,75 @@ export default async function AdminInquiryDetailPage({
   const locationSummary = linkedAccount
     ? [linkedAccount.city, linkedAccount.country, titleCase(linkedAccount.account_type)].filter(Boolean).join(" · ")
     : null;
+
+  // ── Admin Workspace V3 (flagged) ─────────────────────────────────────────
+  // Resolve the flag per-viewer; when on, render the new shell instead of
+  // V2. Safe-by-default: isWorkspaceV3Enabled returns false on any error so
+  // the old workspace keeps rendering. Roadmap M3.1.
+  const v3Enabled = await isWorkspaceV3Enabled(viewerId);
+  if (v3Enabled && engineV2 && workspacePrimaryAction && workspacePermissions) {
+    // Truthful unread — compare viewer's last_read_at to thread head per thread.
+    let unreadPrivate = false;
+    let unreadGroup = false;
+    if (viewerId) {
+      const { data: reads } = await supabase
+        .from("inquiry_message_reads")
+        .select("thread_type, last_read_at")
+        .eq("inquiry_id", inquiry.id)
+        .eq("user_id", viewerId);
+      const readsMap = new Map<string, string | null>();
+      for (const r of (reads ?? []) as { thread_type: string; last_read_at: string | null }[]) {
+        readsMap.set(r.thread_type, r.last_read_at ?? null);
+      }
+      const privHead = v2PrivateMessages.at(-1)?.created_at ?? null;
+      const grpHead = v2GroupMessages.at(-1)?.created_at ?? null;
+      const privRead = readsMap.get("private") ?? null;
+      const grpRead = readsMap.get("group") ?? null;
+      unreadPrivate = Boolean(privHead && (!privRead || privHead > privRead));
+      unreadGroup = Boolean(grpHead && (!grpRead || grpHead > grpRead));
+    }
+    const unreadCount = (unreadPrivate ? 1 : 0) + (unreadGroup ? 1 : 0);
+
+    // Primary coordinator display name (§5.4). inquiries.coordinator_id is the
+    // single primary seat; secondaries come from inquiry_coordinators (M2.1)
+    // and render inside the Coordinators rail panel in M4.4.
+    const primaryCoordinatorName = inquiry.coordinator_id
+      ? ((staff ?? []).find((p) => p.id === inquiry.coordinator_id)?.display_name ?? "Coordinator")
+      : null;
+
+    const rawThread = typeof sp.thread === "string" ? sp.thread : "";
+    const initialThread: "client" | "group" = rawThread === "group" ? "group" : "client";
+    const title = inquiry.contact_name || "Unnamed inquiry";
+
+    return (
+      <AdminInquiryWorkspaceV3
+        inquiryId={inquiry.id}
+        viewerUserId={viewerId}
+        title={title}
+        rawStatus={inquiry.status}
+        workspaceStatus={wsStatus}
+        nextActionBy={inquiry.next_action_by as string | null}
+        isLocked={workspaceStateInput.isLocked}
+        primaryAction={workspacePrimaryAction}
+        chips={{
+          primaryCoordinatorName,
+          unreadCount,
+          participantCount: typedInquiryTalents.length,
+          bookingLinked: nBookings > 0,
+        }}
+        messagesPrivate={v2PrivateMessages}
+        messagesGroup={v2GroupMessages}
+        messagesPrivateHasOlder={v2PrivateMessages.length >= 200}
+        messagesGroupHasOlder={v2GroupMessages.length >= 200}
+        unreadPrivate={unreadPrivate}
+        unreadGroup={unreadGroup}
+        allowCompose={workspacePermissions.canSendMessage}
+        initialThread={initialThread}
+        sendMessageAction={actionSendInquiryMessage}
+        loadOlderAction={actionLoadOlderInquiryMessages}
+      />
+    );
+  }
 
   return (
     <div className={ADMIN_PAGE_STACK}>
