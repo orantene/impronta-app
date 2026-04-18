@@ -4,6 +4,7 @@ import { validateActorPermission } from "./inquiry-permissions";
 import { assignCoordinatorFromSettings } from "./coordinator-assignment";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { logInquiryActivity } from "@/lib/server/commercial-audit";
+import { logInquiryAction } from "./inquiry-action-log";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
@@ -256,4 +257,225 @@ export async function autoAssignCoordinatorFromSettings(
   }).then((r) =>
     r.success ? { success: true as const, data: { coordinatorId: res.coordinator_id } } : r,
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// M2.1 — Multi-coordinator engine actions (Admin Workspace V3).
+// Ref: docs/admin-workspace-spec.md §2.3, §2.3a, §4.3; docs/admin-workspace-roadmap.md §M2.1.
+//
+// Each wrapper:
+//   1. Gates on validateActorPermission("reassign_coordinator") to fail fast
+//      (the RPC re-checks is_agency_staff() server-side as defence in depth).
+//   2. Calls the SECURITY DEFINER RPC which does the compound write
+//      (inquiry_coordinators + inquiry_participants thread membership +
+//      engine_emit_event). No additional DB writes happen on this side.
+//   3. Maps the RPC's RAISE EXCEPTION sentinels to an EngineResult.
+//   4. Calls logInquiryAction on BOTH success and failure branches (spec §10.2).
+//   5. Dispatches the in-process emitStandardEngineEvent for side-effects the
+//      RPC doesn't own (system messages, notifications, improntaLog).
+// ─────────────────────────────────────────────────────────────────────────────
+
+type CoordinatorActionCtx = {
+  inquiryId: string;
+  userId: string;
+  actorUserId: string;
+};
+
+function mapCoordinatorRpcError(msg: string): { reason: string; field: "reason" | "error" } {
+  // "reason" column on inquiry_action_log is short free text; we use the same
+  // short codes the RPC raises so downstream filtering is trivial.
+  if (msg.includes("cannot_remove_primary")) return { reason: "cannot_remove_primary", field: "reason" };
+  if (msg.includes("already_primary"))        return { reason: "already_primary", field: "reason" };
+  if (msg.includes("not_coordinator"))        return { reason: "not_coordinator", field: "reason" };
+  if (msg.includes("target_not_active"))      return { reason: "target_not_active", field: "reason" };
+  if (msg.includes("inquiry_frozen"))         return { reason: "inquiry_frozen", field: "reason" };
+  if (msg.includes("not_found"))              return { reason: "not_found", field: "reason" };
+  if (msg.includes("forbidden"))              return { reason: "forbidden", field: "reason" };
+  return { reason: msg || "unknown", field: "error" };
+}
+
+export async function addSecondaryCoordinator(
+  supabase: SupabaseClient,
+  ctx: CoordinatorActionCtx,
+): Promise<EngineResult> {
+  return runWithEngineLog("addSecondaryCoordinator", ctx.inquiryId, ctx.actorUserId, async () => {
+    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
+    if (!perm.ok) {
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "coordinator_assigned",
+        result: "failure",
+        reason: "forbidden",
+        metadata: { target_user_id: ctx.userId },
+      });
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
+    const { error } = await supabase.rpc("engine_add_secondary_coordinator", {
+      p_inquiry_id: ctx.inquiryId,
+      p_user_id: ctx.userId,
+      p_actor_user_id: ctx.actorUserId,
+    });
+
+    if (error) {
+      const mapped = mapCoordinatorRpcError(String(error.message || ""));
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "coordinator_assigned",
+        result: "failure",
+        reason: mapped.reason,
+        metadata: { target_user_id: ctx.userId },
+      });
+      return mapped.reason === "forbidden"
+        ? { success: false, forbidden: true, reason: "forbidden" }
+        : { success: false, error: mapped.reason };
+    }
+
+    await logInquiryAction(supabase, {
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      actionType: "coordinator_assigned",
+      result: "success",
+      metadata: { target_user_id: ctx.userId, role: "secondary" },
+    });
+
+    await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.SECONDARY_COORDINATOR_ASSIGNED,
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      data: { targetUserId: ctx.userId },
+      notifications: [
+        { userId: ctx.userId, title: "Added as coordinator", body: "You were assigned as a secondary coordinator on an inquiry." },
+      ],
+    });
+
+    return { success: true };
+  });
+}
+
+export async function removeSecondaryCoordinator(
+  supabase: SupabaseClient,
+  ctx: CoordinatorActionCtx,
+): Promise<EngineResult> {
+  return runWithEngineLog("removeSecondaryCoordinator", ctx.inquiryId, ctx.actorUserId, async () => {
+    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
+    if (!perm.ok) {
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "coordinator_removed",
+        result: "failure",
+        reason: "forbidden",
+        metadata: { target_user_id: ctx.userId },
+      });
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
+    const { error } = await supabase.rpc("engine_remove_secondary_coordinator", {
+      p_inquiry_id: ctx.inquiryId,
+      p_user_id: ctx.userId,
+      p_actor_user_id: ctx.actorUserId,
+    });
+
+    if (error) {
+      const mapped = mapCoordinatorRpcError(String(error.message || ""));
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "coordinator_removed",
+        result: "failure",
+        reason: mapped.reason,
+        metadata: { target_user_id: ctx.userId },
+      });
+      return mapped.reason === "forbidden"
+        ? { success: false, forbidden: true, reason: "forbidden" }
+        : { success: false, error: mapped.reason };
+    }
+
+    await logInquiryAction(supabase, {
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      actionType: "coordinator_removed",
+      result: "success",
+      metadata: { target_user_id: ctx.userId },
+    });
+
+    await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.SECONDARY_COORDINATOR_UNASSIGNED,
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      data: { targetUserId: ctx.userId },
+    });
+
+    return { success: true };
+  });
+}
+
+export async function promoteToPrimary(
+  supabase: SupabaseClient,
+  ctx: CoordinatorActionCtx,
+): Promise<EngineResult> {
+  return runWithEngineLog("promoteToPrimary", ctx.inquiryId, ctx.actorUserId, async () => {
+    const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
+    if (!perm.ok) {
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "coordinator_promoted",
+        result: "failure",
+        reason: "forbidden",
+        metadata: { target_user_id: ctx.userId },
+      });
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
+    const { error } = await supabase.rpc("engine_promote_to_primary", {
+      p_inquiry_id: ctx.inquiryId,
+      p_user_id: ctx.userId,
+      p_actor_user_id: ctx.actorUserId,
+    });
+
+    if (error) {
+      const mapped = mapCoordinatorRpcError(String(error.message || ""));
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "coordinator_promoted",
+        result: "failure",
+        reason: mapped.reason,
+        metadata: { target_user_id: ctx.userId },
+      });
+      return mapped.reason === "forbidden"
+        ? { success: false, forbidden: true, reason: "forbidden" }
+        : { success: false, error: mapped.reason };
+    }
+
+    await logInquiryAction(supabase, {
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      actionType: "coordinator_promoted",
+      result: "success",
+      metadata: { target_user_id: ctx.userId },
+    });
+
+    await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
+
+    await emitStandardEngineEvent(supabase, {
+      type: ENGINE_EVENT_TYPES.PRIMARY_COORDINATOR_CHANGED,
+      inquiryId: ctx.inquiryId,
+      actorUserId: ctx.actorUserId,
+      data: { newPrimaryUserId: ctx.userId },
+      notifications: [
+        { userId: ctx.userId, title: "Promoted to lead coordinator", body: "You were promoted to lead coordinator on an inquiry." },
+      ],
+    });
+
+    return { success: true };
+  });
 }
