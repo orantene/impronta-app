@@ -36,10 +36,18 @@ export function AdminFieldsClient({
   groups,
   fieldsByGroup,
   initialEditFieldId,
+  activeTenantId,
 }: {
   groups: FieldGroupRow[];
   fieldsByGroup: Array<{ groupId: string; fields: FieldDefinitionRow[] }>;
   initialEditFieldId?: string | null;
+  /**
+   * Current tenant scope resolved by the admin layout (SaaS Phase 3).
+   * When set, new field groups / definitions default to agency-local scope
+   * (`tenant_id = activeTenantId`). When null, callers must be platform
+   * admins and new rows are created canonical.
+   */
+  activeTenantId: string | null;
 }) {
   const [editFieldId, setEditFieldId] = useState<string | null>(
     initialEditFieldId ?? null,
@@ -163,6 +171,7 @@ export function AdminFieldsClient({
                   <FieldGroupPanel
                     group={group}
                     fields={fields}
+                    activeTenantId={activeTenantId}
                     onEditField={(id) => openFieldEdit(id)}
                     open={openGroups.has(group.id)}
                     onOpenChange={(nextOpen) => {

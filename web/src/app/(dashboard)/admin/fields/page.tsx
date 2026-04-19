@@ -20,8 +20,9 @@ import {
 import { cn } from "@/lib/utils";
 import { AdminAddGroupForm } from "./admin-add-group-form";
 import { ensureBasicInfoCanonicalMirrors } from "@/lib/fields/ensure-basic-info-canonical-mirrors";
+import { getTenantScope } from "@/lib/saas";
 
-type RawFieldRow = FieldDefinitionRow & { field_group_id: string | null };
+type RawFieldRow = FieldDefinitionRow & { field_group_id: string | null; tenant_id: string | null };
 
 function isMissingPreviewVisibleColumn(error: { code?: string; message?: string } | null | undefined) {
   if (!error) return false;
@@ -35,6 +36,12 @@ function isMissingDirectoryFilterVisibleColumn(error: { code?: string; message?:
   return text.includes("directory_filter_visible");
 }
 
+function isMissingTenantIdColumn(error: { code?: string; message?: string } | null | undefined) {
+  if (!error) return false;
+  const text = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
+  return text.includes("tenant_id");
+}
+
 export default async function AdminFieldsPage({
   searchParams,
 }: {
@@ -46,9 +53,12 @@ export default async function AdminFieldsPage({
     return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
   }
 
+  const tenantScope = await getTenantScope();
+  const activeTenantId = tenantScope?.tenantId ?? null;
+
   const groupsPromise = supabase
     .from("field_groups")
-    .select("id, slug, name_en, name_es, sort_order, archived_at")
+    .select("id, slug, name_en, name_es, sort_order, archived_at, tenant_id")
     .is("archived_at", null)
     .order("sort_order");
 
@@ -57,7 +67,7 @@ export default async function AdminFieldsPage({
   const fieldsPromise = supabase
     .from("field_definitions")
     .select(
-      "id, field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, preview_visible, profile_visible, filterable, directory_filter_visible, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, archived_at",
+      "id, field_group_id, key, label_en, label_es, help_en, help_es, value_type, required_level, public_visible, internal_only, card_visible, preview_visible, profile_visible, filterable, directory_filter_visible, searchable, ai_visible, editable_by_talent, editable_by_staff, editable_by_admin, active, sort_order, taxonomy_kind, archived_at, tenant_id",
     )
     .is("archived_at", null)
     .order("field_group_id")
@@ -72,8 +82,13 @@ export default async function AdminFieldsPage({
   let fErr = initialFields.error;
   let previewVisibilityFallback = false;
 
-  if (isMissingPreviewVisibleColumn(fErr) || isMissingDirectoryFilterVisibleColumn(fErr)) {
-    // Compatibility: older DBs may omit `preview_visible` or `directory_filter_visible`.
+  if (
+    isMissingPreviewVisibleColumn(fErr)
+    || isMissingDirectoryFilterVisibleColumn(fErr)
+    || isMissingTenantIdColumn(fErr)
+  ) {
+    // Compatibility: older DBs may omit `preview_visible`, `directory_filter_visible`,
+    // or `tenant_id` (pre-P6). Fall back to a reduced select and synthesise defaults.
     previewVisibilityFallback = isMissingPreviewVisibleColumn(fErr);
     const fallbackFields = await supabase
       .from("field_definitions")
@@ -85,23 +100,41 @@ export default async function AdminFieldsPage({
       .order("sort_order");
     fields = (fallbackFields.data ?? []).map((row) => {
       const r = row as Record<string, unknown>;
-      // Reduced select omits preview_visible + directory_filter_visible — derive from legacy columns.
+      // Reduced select omits preview_visible + directory_filter_visible + tenant_id —
+      // derive safe defaults (canonical scope + legacy visibility mirrors).
       return {
         ...row,
         preview_visible: Boolean((r.profile_visible as boolean | undefined) ?? true),
         directory_filter_visible: Boolean(r.filterable === true),
+        tenant_id: null,
       };
     });
     fErr = fallbackFields.error;
   }
 
-  if (gErr || fErr) {
-    if (gErr) logServerError("admin/fields/groups", gErr);
+  // If the field_groups query also predates P6, resolve tenant_id to null on each row.
+  const groupsFallbackPromise = (async () => {
+    if (!gErr || !isMissingTenantIdColumn(gErr)) return null;
+    const { data, error } = await supabase
+      .from("field_groups")
+      .select("id, slug, name_en, name_es, sort_order, archived_at")
+      .is("archived_at", null)
+      .order("sort_order");
+    return { data, error };
+  })();
+  const groupsFallback = await groupsFallbackPromise;
+  const resolvedGroups = groupsFallback?.data
+    ? groupsFallback.data.map((g) => ({ ...g, tenant_id: null }))
+    : groups;
+  const resolvedGroupsErr = groupsFallback?.error ?? gErr;
+
+  if (resolvedGroupsErr || fErr) {
+    if (resolvedGroupsErr) logServerError("admin/fields/groups", resolvedGroupsErr);
     if (fErr) logServerError("admin/fields/fields", fErr);
     return <p className="text-sm text-destructive">{CLIENT_ERROR.loadPage}</p>;
   }
 
-  const groupRows = (groups ?? []) as FieldGroupRow[];
+  const groupRows = (resolvedGroups ?? []) as FieldGroupRow[];
   const fieldRows = (fields ?? []) as RawFieldRow[];
 
   const fieldsByGroup = new Map<string, FieldDefinitionRow[]>();
@@ -134,6 +167,7 @@ export default async function AdminFieldsPage({
       sort_order: f.sort_order,
       taxonomy_kind: f.taxonomy_kind,
       archived_at: f.archived_at,
+      tenant_id: f.tenant_id ?? null,
     };
     // Preserve sheet-only fields on the object for the client sheet.
     (rest as unknown as { field_group_id?: string | null }).field_group_id = f.field_group_id ?? null;
@@ -215,7 +249,7 @@ export default async function AdminFieldsPage({
           titleClassName={ADMIN_SECTION_TITLE_CLASS}
           right={<HelpTip content="Groups define sections in talent profile. Reorder controls scan rhythm." />}
         >
-          <AdminAddGroupForm />
+          <AdminAddGroupForm activeTenantId={activeTenantId} />
         </DashboardSectionCard>
       </section>
 
@@ -239,6 +273,7 @@ export default async function AdminFieldsPage({
                   fields: fieldsByGroup.get(g.id) ?? [],
                 }))}
                 initialEditFieldId={edit ?? null}
+                activeTenantId={activeTenantId}
               />
             </Suspense>
           </div>
