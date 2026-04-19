@@ -223,7 +223,7 @@ async function buildOffersDrill(
     const participantIds = Array.from(
       new Set(((apRows ?? []) as { participant_id: string }[]).map((r) => r.participant_id)),
     );
-    let nameByPart = new Map<string, { displayName: string | null; profileCode: string }>();
+    const nameByPart = new Map<string, { displayName: string | null; profileCode: string }>();
     if (participantIds.length > 0) {
       const { data: partRows } = await supabase
         .from("inquiry_participants")

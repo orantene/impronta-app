@@ -1234,7 +1234,7 @@ export default async function AdminInquiryDetailPage({
 
           {inquiry.raw_ai_query?.trim() ? (
             <blockquote className="mt-3 border-l-2 border-[var(--impronta-gold)]/40 pl-3 text-sm italic text-muted-foreground">
-              "{inquiry.raw_ai_query.trim()}"
+              &ldquo;{inquiry.raw_ai_query.trim()}&rdquo;
             </blockquote>
           ) : inquiry.message?.trim() ? (
             <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{inquiry.message.trim()}</p>
