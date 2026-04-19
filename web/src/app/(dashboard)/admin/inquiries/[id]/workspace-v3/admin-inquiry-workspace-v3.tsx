@@ -8,6 +8,8 @@ import { WorkspaceV3Header } from "./workspace-v3-header";
 import { WorkspaceV3StatusStrip } from "./workspace-v3-status-strip";
 import { WorkspaceV3ThreadSwitcher } from "./workspace-v3-thread-switcher";
 import { WorkspaceV3Rail } from "./workspace-v3-rail";
+import { WorkspaceV3DrillHost } from "./workspace-v3-drill-host";
+import type { DrillPayload } from "./workspace-v3-drill-types";
 import type {
   BookingPanelData,
   CoordinatorsPanelData,
@@ -72,6 +74,7 @@ export function AdminInquiryWorkspaceV3({
   booking,
   needsAttention,
   recentActivity,
+  drill,
 }: {
   inquiryId: string;
   viewerUserId: string;
@@ -104,6 +107,11 @@ export function AdminInquiryWorkspaceV3({
   booking: BookingPanelData;
   needsAttention: NeedsAttentionPanelData;
   recentActivity: RecentActivityPanelData;
+  /**
+   * When non-null, the drill host renders the matching slide-over sheet
+   * over the two-column layout. Null = sheet closed (no `?drill=` param).
+   */
+  drill: DrillPayload | null;
 }) {
   return (
     <div
@@ -163,6 +171,7 @@ export function AdminInquiryWorkspaceV3({
           />
         </div>
       </div>
+      <WorkspaceV3DrillHost drill={drill} />
     </div>
   );
 }

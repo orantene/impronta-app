@@ -74,6 +74,7 @@ export function WorkspaceV3Rail({
         panelKey="requirement_groups"
         title="Requirement Groups"
         subtitle="Per-role need vs. selected / approved"
+        drillKey="groups"
       >
         <WorkspaceV3PanelRequirementGroups data={requirementGroups} />
       </WorkspaceV3RailPanel>
@@ -83,6 +84,7 @@ export function WorkspaceV3Rail({
         panelKey="offers_approvals"
         title="Offers / Approvals"
         subtitle="Drafted · sent · pending · approved · rejected"
+        drillKey="offers"
       >
         <WorkspaceV3PanelOffersApprovals data={offersApprovals} />
       </WorkspaceV3RailPanel>
@@ -92,6 +94,7 @@ export function WorkspaceV3Rail({
         panelKey="coordinators"
         title="Coordinators"
         subtitle="Primary + secondaries"
+        drillKey="coordinators"
       >
         <WorkspaceV3PanelCoordinators data={coordinators} />
       </WorkspaceV3RailPanel>
@@ -101,6 +104,7 @@ export function WorkspaceV3Rail({
         panelKey="booking"
         title="Booking"
         subtitle="Conversion state · override visibility"
+        drillKey="booking"
       >
         <WorkspaceV3PanelBooking data={booking} />
       </WorkspaceV3RailPanel>
@@ -121,6 +125,7 @@ export function WorkspaceV3Rail({
         title="Recent Activity"
         subtitle="Latest events from the audit stream"
         defaultOpen={false}
+        drillKey="timeline"
       >
         <WorkspaceV3PanelRecentActivity data={recentActivity} />
       </WorkspaceV3RailPanel>

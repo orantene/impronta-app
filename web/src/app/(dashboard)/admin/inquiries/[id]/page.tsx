@@ -57,6 +57,8 @@ import {
   loadRecentActivityPanelData,
   loadRequirementGroupsPanelData,
 } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-panel-data";
+import { parseDrillKey } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-drill-types";
+import { loadDrillPayload } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-drill-data";
 import { deriveWorkspaceAlerts } from "@/lib/inquiry/inquiry-alerts";
 import { actionLoadOlderInquiryMessages } from "@/app/(dashboard)/admin/inquiries/[id]/messaging-actions";
 import { resolveApprovalCompleteness } from "@/lib/inquiry/inquiry-approval-resolver";
@@ -198,7 +200,7 @@ export default async function AdminInquiryDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ convert_error?: string; dup_err?: string; tab?: string; thread?: string }>;
+  searchParams: Promise<{ convert_error?: string; dup_err?: string; tab?: string; thread?: string; drill?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -838,6 +840,26 @@ export default async function AdminInquiryDetailPage({
       unreadCount,
     });
 
+    // ── Drill-down (M5) ─────────────────────────────────────────────
+    // Only resolve when `?drill=<valid-key>` is set — a closed drill issues
+    // zero additional queries. Every drill body extends its panel, so the
+    // loader takes the already-resolved panel payloads as context and only
+    // fetches the extra detail the sheet needs.
+    const drillKey = parseDrillKey(typeof sp.drill === "string" ? sp.drill : null);
+    const drillPayload = drillKey
+      ? await loadDrillPayload(supabase, inquiry.id, drillKey, {
+          requirementGroupsPanel: requirementGroupsData,
+          offersApprovalsPanel: offersApprovalsData,
+          coordinatorsPanel: coordinatorsData,
+          bookingPanel: bookingData,
+          bookings: ((bookings ?? []) as unknown as BookingListRow[]).map((b) => ({
+            id: b.id,
+            booking_talent: b.booking_talent ?? null,
+          })),
+          currentOfferId: workspaceInquiry.current_offer_id,
+        })
+      : null;
+
     return (
       <AdminInquiryWorkspaceV3
         inquiryId={inquiry.id}
@@ -871,6 +893,7 @@ export default async function AdminInquiryDetailPage({
         booking={bookingData}
         needsAttention={needsAttentionData}
         recentActivity={recentActivityData}
+        drill={drillPayload}
       />
     );
   }
