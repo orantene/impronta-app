@@ -110,10 +110,12 @@ Plan §4. Creation order fixed in Plan §4.5 "Migration/Backfill Order."
 | Table | Zone | Purpose | Created by | Who approves | Phase |
 |---|---|---|---|---|---|
 | `agency_field_values` | 2 (value) + governed by field definition zone | Agency-local field values (multi-entity: talent, client, inquiry, booking) | `manage_agency_fields` + value editor | n/a (value); platform for field promotion | 6 |
-| `hub_visibility_requests` | 3 | Submit-to-hub workflow (per-surface rows) | Agency (`submit_hub_visibility`) or talent (freelancer) | Platform reviewer (`platform_reviewer`) | 7 |
+| `talent_representation_requests` | 3 | Unified governed request table for talent representation. Rows with `target_type = 'agency'` are agency applications (reviewed by agency admin); rows with `target_type = 'hub'` are hub visibility requests (reviewed by platform reviewer). Same status vocabulary; reviewer differs by `target_type`. **L44.** | Talent (self) or agency admin via `submit_hub_visibility` for hub rows | Agency admin (`target_type = 'agency'`); `platform_reviewer`+ (`target_type = 'hub'`) | 7 |
 | `field_promotion_requests` | 3 | Local → global field proposals | Agency admin | Platform admin/reviewer | 6 |
 | `taxonomy_promotion_requests` | 3 | Local tag → global term proposals | Agency admin | Platform admin/reviewer | 6 |
 | `duplicate_candidates` | 1 | Duplicate detection queue (talent) | System | Platform (or explicit agency "new person" confirmation, logged) | 7 |
+
+**Note (L44).** There is no separate `hub_visibility_requests` table in V1. The earlier plan drafts used that name; the unified `talent_representation_requests` subsumes it. Roster lifecycle's `hub_visibility_status` field (`agency_talent_roster.hub_visibility_status`) remains — it is the **effect** of an accepted `target_type = 'hub'` request, not a queue. Agency roster invitations (agency invites existing talent) create roster rows directly and do **not** flow through this table (see `03-state-machines.md` §5).
 
 ---
 

@@ -71,7 +71,7 @@ These are the capability keys the `hasCapability()` check is written against. Ph
 | `manage_bookings` | Post-inquiry booking lifecycle | Confirm booking; invoke controlled adjustment flow |
 | `create_offers` | Create/edit `inquiry_offers` + line items | Draft per-participant offer |
 | `approve_internal_offers` | Agency-internal sign-off before client-facing send | Admin approval gate in multi-staff agency |
-| `submit_hub_visibility` | Create `hub_visibility_requests` rows | Submit talent to hub for platform review |
+| `submit_hub_visibility` | Create `talent_representation_requests` rows with `target_type = 'hub'` (L44) | Submit talent to hub for platform review |
 | `manage_agency_fields` | Create agency-local field definitions (Phase 6) | Add local field; manage select options |
 | `view_private_client_data` | See notes/tags on `agency_client_relationships` + client contact fields beyond public projection | Coordinator access to full client record |
 | `view_billing` | Read billing status, invoices | Owner sees by default; admin can view but not change |

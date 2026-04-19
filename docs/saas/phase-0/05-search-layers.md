@@ -36,7 +36,7 @@ The Plan §22.9 gate "cross-tenant RLS zero-leak" + "cross-surface serialization
 
 ### Indexes
 
-- **Talent:** `talent_profiles` WHERE `workflow_status = 'approved' AND visibility = 'public'` AND there exists a matching `hub_visibility_requests` row with `status = 'accepted'` for the target hub surface.
+- **Talent:** `talent_profiles` WHERE `workflow_status = 'approved' AND visibility = 'public'` AND there exists a matching `talent_representation_requests` row with `target_type = 'hub'` and `status = 'accepted'` for the target hub surface (L44).
 - **Fields:** `field_values` for `field_definitions` WHERE `scope = 'global' AND hub_visible = true AND ai_visible = true`.
 - **Taxonomy:** `taxonomy_terms` global vocabulary only.
 - **Media:** approved media metadata (alt text, dimensions) from `media_assets`; binary content served via CDN.

@@ -242,7 +242,7 @@ roster_only ──publish──> site_visible ──feature──> featured
 
 ### Hub visibility dimension
 
-`hub_visibility_status` is a **separate** third dimension (see §6 below). Roster changes do not auto-affect hub visibility — they must be submitted explicitly (L9, L42).
+`hub_visibility_status` is a **separate** third dimension, written by the representation-request engine when a `target_type = 'hub'` row reaches `accepted` (see §6). Roster changes do not auto-affect hub visibility — they must be submitted explicitly (L9, L42, **L44**).
 
 | `hub_visibility_status` | Meaning |
 |---|---|
@@ -258,75 +258,98 @@ roster_only ──publish──> site_visible ──feature──> featured
 
 ---
 
-## 6. Hub visibility lifecycle (`hub_visibility_requests.status`) — Plan §11, §11.5, L41
+## 6. Representation request lifecycle (`talent_representation_requests.status`) — Plan §11.5, L41, L42, **L44**
 
-Governed request pattern. Uses the unified status vocabulary from Plan §11.5.
+**Unified governed request model.** One table, one state machine, two reviewer populations keyed by `target_type`:
+
+- `target_type = 'agency'` — a talent applies to an agency roster. Reviewer: agency admin+ with `manage_roster` (within the tenant identified by `target_id`).
+- `target_type = 'hub'` — a hub visibility request. Reviewer: `platform_reviewer` / `platform_admin` / `super_admin`.
+
+This replaces the earlier separate `hub_visibility_requests` table. Agency applications and hub visibility submissions share the workflow engine, the queue component, the audit surface, and the RLS policy. Reviewer differs only by `target_type`.
 
 ### States
 
 ```
 requested ──pick up──> under_review ──approve──> accepted
    │                       │                         │
-   │                       │                         └─(revoke by moderation)─> rejected
+   │                       │                         └─(revoke by moderation)─> (publication frozen; row stays accepted)
    │                       └──reject──> rejected
    └──withdraw──> withdrawn
 ```
 
 | State | Meaning |
 |---|---|
-| `requested` | Submitted by agency or freelancer-talent; in queue |
-| `under_review` | Platform reviewer is actively reviewing |
-| `accepted` | Approved; hub visibility **effectuated** — `agency_talent_roster.hub_visibility_status = 'approved'`, `talent_profiles.workflow_status` + `visibility` synced |
+| `requested` | Submitted; in queue for the reviewer population implied by `target_type` |
+| `under_review` | Reviewer actively reviewing |
+| `accepted` | Approved; effectuation depends on `target_type` (see table below) |
 | `rejected` | Denied; no effectuation; optional reason surfaced to requester |
 | `withdrawn` | Cancelled by requester before acceptance; no partial publication |
 
-### Transitions + who
+### Transitions + who (common)
 
-| From → To | Trigger | Actor | Side effects |
-|---|---|---|---|
-| (create) → `requested` | Agency `submit_hub_visibility` OR freelancer talent flow | Agency admin+ / talent self | Queue entry; platform notified |
-| `requested → under_review` | Reviewer picks up | `platform_reviewer` / `platform_admin` / `super_admin` | Review queue UI |
-| `under_review → accepted` | Approve with optional notes | `platform_reviewer`+ | Sync to `talent_profiles.workflow_status` + `visibility`; `agency_talent_roster.hub_visibility_status = 'approved'`; index in hub search |
-| `under_review → rejected` | Reject with reason | `platform_reviewer`+ | Requester notified; hub unaffected |
-| `requested|under_review → withdrawn` | Requester cancels | Original requester OR agency admin | No publication artefacts created |
-| `accepted → (revoke)` | Moderation action | `super_admin` (emergency) OR `platform_moderator` | Row stays `accepted` in history; **moderation layer** hides/freezes publication; audit at elevated severity (L43) |
+| From → To | Trigger | Actor |
+|---|---|---|
+| (create) → `requested` | Talent self-applies OR agency admin submits on behalf (hub) OR platform admin creates on behalf | Talent / agency admin (`submit_hub_visibility` for hub) / platform admin |
+| `requested → under_review` | Reviewer picks up | Reviewer for this `target_type` |
+| `under_review → accepted` | Approve | Reviewer for this `target_type` |
+| `under_review → rejected` | Reject with reason | Reviewer for this `target_type` |
+| `requested\|under_review → withdrawn` | Requester cancels | Original requester OR platform admin |
+
+### Effectuation by `target_type`
+
+| `target_type` | On `accepted` side effects |
+|---|---|
+| `'agency'` | Create `agency_talent_roster` row for `(target_id, talent_profile_id)` with `status = 'pending'` or `'active'` per agency workflow; roster lifecycle continues independently (see §5) |
+| `'hub'` | `agency_talent_roster.hub_visibility_status = 'approved'` for the talent's primary roster row (or a platform-controlled standalone row for freelancers); `talent_profiles.workflow_status` + `visibility` synced; hub search index picks up at next partition rebuild (Plan §28) |
 
 ### Rules
 
-- Each hub surface is a **separate request row** (Plan §11.5). Adding `talenthub.io` visibility does not imply visibility on any future branded discovery host.
-- Self-selection (talent requests hub visibility) creates `requested`, not `accepted`. Never auto-publish (L41).
-- Preferences ("I want to appear on hub X") are stored **separately** from requests. They inform future requests or reviewer context only.
-- Platform moderation can override publication state at any time without transitioning the request row. The audit trail carries the override.
+- Each hub surface is a **separate request row** (Plan §11.5). Adding `talenthub.io` visibility does not imply visibility on any future branded discovery host — a future row with a different `target_id` is submitted separately.
+- Self-selection (talent requests anything) creates `requested`, not `accepted`. Never auto-publish (L41).
+- Preferences ("I want to appear on hub X" / "I'd like to work with agency Y") are stored **separately** from requests. They inform future requests or reviewer context only.
+- Platform moderation can override publication state at any time without transitioning the request row. The row stays `accepted` in history; the **moderation layer** hides/freezes publication; audit at elevated severity (L43).
+- Agency admin **cannot** approve hub visibility unless product grants a delegated capability (default: no). L42 — enforced by the reviewer-capability check keyed on `target_type`.
+- A talent cannot have two active (`requested` or `under_review`) rows for the same `(talent_profile_id, target_type, target_id)`. Enforced by partial unique index (Plan §11.5 DDL).
 
 ### Cross-reference
 
-Feeds `agency_talent_roster.hub_visibility_status` on `accepted`; this sync is the only way an agency row's hub flag becomes `approved`.
+For `target_type = 'hub'` accepted rows: feeds `agency_talent_roster.hub_visibility_status`; this sync is the only way an agency row's hub flag becomes `approved`.
 
 ---
 
-## 7. Representation request — agency application (Plan §11.5, L41–L42)
+## 7. Talent invitation lifecycle (agency invites existing talent) — Plan §11.5 flow 4
 
-Same unified status vocabulary. Applies when a **talent** applies to an **agency roster** (separate from hub visibility).
+Distinct from §6. An agency inviting an **existing** talent does **not** flow through `talent_representation_requests` — the agency has authority to propose a roster relationship, and the talent's consent is captured through the invitation accept, not a governed request row.
 
 ### States
 
 ```
-requested → under_review → accepted | rejected | withdrawn
+(create, pending_talent_accept) ──talent accepts──> accepted ──effectuate──> (roster row active)
+                                 │
+                                 └──talent declines / expires──> declined | expired
 ```
+
+| State | Meaning |
+|---|---|
+| `pending_talent_accept` | Agency sent invitation; talent has been notified; row held on invitation surface, not in queue |
+| `accepted` | Talent accepted; roster row created in `agency_talent_roster` immediately |
+| `declined` | Talent declined; no roster change; invitation archived |
+| `expired` | Talent did not respond within expiry window; invitation archived |
 
 ### Transitions + who
 
 | From → To | Trigger | Actor | Side effects |
 |---|---|---|---|
-| (create) → `requested` | Talent applies via dashboard OR platform admin creates on behalf | Talent / platform admin | Queue entry in agency workspace |
-| `requested → under_review` | Agency picks up | Agency admin+ with `manage_roster` | Visible in agency review surface |
-| `under_review → accepted` | Accept | Agency admin+ | Roster row created in `agency_talent_roster` (`status = 'pending'` or `'active'` per agency workflow); roster lifecycle continues independently |
-| `under_review → rejected` | Reject | Agency admin+ | Optional reason to talent; no roster change |
-| `requested|under_review → withdrawn` | Talent cancels | Talent OR platform admin on behalf | No roster change |
+| (create) → `pending_talent_accept` | Agency invites existing talent | Agency admin+ with `manage_roster` | Notification to talent; no governed-request row |
+| `pending_talent_accept → accepted` | Talent accepts | Talent (self) | `agency_talent_roster` row created (`status = 'active'` or `'pending'` per agency workflow); `source_type = 'platform_assigned'` or `'agency_added'` |
+| `pending_talent_accept → declined` | Talent declines | Talent (self) | No roster row; `activity_log` entry |
+| `pending_talent_accept → expired` | Expiry window elapsed | Background job | `activity_log` entry; agency notified |
 
-### Rule
+### Rules
 
-Agency admin **cannot** approve hub visibility unless product grants a delegated capability (default: no). L42.
+- Invitation storage: either a dedicated `agency_talent_invitations` table (Phase 4 decision) OR a pre-created `agency_talent_roster` row in a dedicated pre-active status. Phase 0 does not decide; the state machine above is agnostic.
+- Hub visibility is **never** auto-conferred on invitation acceptance. If the agency wants the talent hub-visible under their brand, a separate `target_type = 'hub'` request is submitted (§6).
+- Talent can refuse without opening a governed request — this is a courtesy invite, not an application.
 
 ---
 
@@ -471,7 +494,8 @@ Not a single state machine — they are **checklists** attached to the `agencies
 
 Direct state-machine tests from Plan §20:
 
-- **Visibility workflow state transitions** — hub visibility lifecycle (§6) across all transitions.
+- **Representation request state transitions** — unified lifecycle (§6) across all transitions, for both `target_type = 'agency'` and `target_type = 'hub'`. Includes reviewer-capability check keyed on `target_type`.
+- **Talent invitation transitions** — §7 accept/decline/expire paths.
 - **Invitation lifecycle transitions** — membership §2 + §3.
 - **Agency lifecycle state effects** — §1 for each state (public site visibility, admin access, inquiries/billing gates).
 - **Domain resolution and fallback** — §4.
