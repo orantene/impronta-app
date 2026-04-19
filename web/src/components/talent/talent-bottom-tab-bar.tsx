@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { LayoutDashboard, Camera, Send, User } from "lucide-react";
+import { LayoutDashboard, Camera, Send, UserCheck, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/talent/my-profile", label: "Home", icon: LayoutDashboard },
   { href: "/talent/portfolio", label: "Media", icon: Camera },
   { href: "/talent/status", label: "Status", icon: Send },
+  { href: "/talent/representations", label: "Agencies", icon: UserCheck },
   { href: "/talent/account", label: "Account", icon: User },
 ] as const;
 
