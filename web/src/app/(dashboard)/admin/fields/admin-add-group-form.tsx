@@ -13,7 +13,12 @@ import {
 import { cn } from "@/lib/utils";
 import { createFieldGroup, type FieldAdminActionState } from "./actions";
 
-export function AdminAddGroupForm() {
+export function AdminAddGroupForm({
+  activeTenantId,
+}: {
+  /** Active tenant scope; hidden `tenant_id` input routes the new group to it. */
+  activeTenantId: string | null;
+}) {
   const [state, action, pending] = useActionState<FieldAdminActionState, FormData>(
     createFieldGroup,
     undefined,
@@ -27,6 +32,7 @@ export function AdminAddGroupForm() {
 
   return (
     <form ref={formRef} action={action} className={cn("grid sm:grid-cols-3", ADMIN_FORM_GRID_GAP)}>
+      <input type="hidden" name="tenant_id" value={activeTenantId ?? ""} />
       <div className={ADMIN_FORM_FIELD_STACK}>
         <div className="flex items-center justify-between gap-2">
           <Label htmlFor="name_en">Name (EN)</Label>
