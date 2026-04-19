@@ -13,6 +13,7 @@ import {
 } from "@/lib/dashboard/admin-dashboard-data";
 import { getDashboardTheme } from "@/lib/dashboard-theme";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getCurrentUserTenants, getTenantScope } from "@/lib/saas";
 
 export default async function AdminLayout({
   children,
@@ -32,11 +33,14 @@ export default async function AdminLayout({
     redirect(resolveAuthenticatedDestination(profile));
   }
 
-  const [pulseCounts, tier1AlertCount, dashboardTheme] = await Promise.all([
-    loadAdminShellPulseCounts(),
-    loadAdminTier1AlertCount(),
-    getDashboardTheme(session.supabase),
-  ]);
+  const [pulseCounts, tier1AlertCount, dashboardTheme, tenants, tenantScope] =
+    await Promise.all([
+      loadAdminShellPulseCounts(),
+      loadAdminTier1AlertCount(),
+      getDashboardTheme(session.supabase),
+      getCurrentUserTenants(),
+      getTenantScope(),
+    ]);
 
   return (
     <>
@@ -47,7 +51,12 @@ export default async function AdminLayout({
           </div>
         }
       >
-        <AdminDashboardShell dashboardTheme={dashboardTheme} navBadges={{ inquiries: tier1AlertCount }}>
+        <AdminDashboardShell
+          dashboardTheme={dashboardTheme}
+          navBadges={{ inquiries: tier1AlertCount }}
+          tenants={tenants}
+          activeTenantId={tenantScope?.tenantId ?? null}
+        >
           <AdminWorkspaceShell pulseCounts={pulseCounts}>{children}</AdminWorkspaceShell>
         </AdminDashboardShell>
       </Suspense>
