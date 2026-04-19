@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { publicSiteMetadataBase } from "@/lib/seo/locale-alternates";
 import { withLocalePath } from "@/i18n/pathnames";
+import { getPublicTenantScope } from "@/lib/saas/scope";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = publicSiteMetadataBase();
@@ -19,9 +20,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return staticEntries;
   }
 
+  // Non-agency contexts (hub/marketing/app) have no tenant-specific CMS.
+  // Only agency storefronts expose cms_pages / cms_posts in their sitemap.
+  const publicScope = await getPublicTenantScope();
+  if (!publicScope) {
+    return staticEntries;
+  }
+
   const { data: pages } = await supabase
     .from("cms_pages")
     .select("slug,locale,updated_at")
+    .eq("tenant_id", publicScope.tenantId)
     .eq("status", "published")
     .eq("include_in_sitemap", true)
     .eq("noindex", false);
@@ -39,6 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: posts } = await supabase
     .from("cms_posts")
     .select("slug,locale,updated_at")
+    .eq("tenant_id", publicScope.tenantId)
     .eq("status", "published")
     .eq("include_in_sitemap", true)
     .eq("noindex", false);

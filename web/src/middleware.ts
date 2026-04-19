@@ -148,7 +148,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const cmsRedirect = await tryCmsRedirectResponse(request, originalPathname);
+  const cmsRedirect = await tryCmsRedirectResponse(
+    request,
+    originalPathname,
+    hostContext.kind === "agency" ? hostContext.tenantId : null,
+  );
   if (cmsRedirect) {
     syncLocaleCookieForPath(cmsRedirect, originalPathname, langSettings);
     return cmsRedirect;

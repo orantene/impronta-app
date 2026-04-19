@@ -176,10 +176,10 @@ function taxonomyPresentation(f: FieldDefinitionRow): "radio" | "grid" | "chips"
 }
 
 const FILTERABLE_FIELD_DEF_SELECT =
-  "id, key, label_en, label_es, value_type, filterable, config, active, archived_at, taxonomy_kind, sort_order, field_group_id, field_groups(sort_order)";
+  "id, key, label_en, label_es, value_type, filterable, config, active, archived_at, taxonomy_kind, sort_order, field_group_id, tenant_id, field_groups(sort_order)";
 
 const DIRECTORY_FILTER_FIELD_DEF_SELECT =
-  "id, key, label_en, label_es, value_type, filterable, directory_filter_visible, config, active, archived_at, taxonomy_kind, sort_order, field_group_id, field_groups(sort_order)";
+  "id, key, label_en, label_es, value_type, filterable, directory_filter_visible, config, active, archived_at, taxonomy_kind, sort_order, field_group_id, tenant_id, field_groups(sort_order)";
 
 function isMissingDirectoryFilterMigration(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -187,7 +187,10 @@ function isMissingDirectoryFilterMigration(error: { code?: string; message?: str
   return text.includes("directory_filter_visible") || text.includes("directory_sidebar_layout");
 }
 
-async function fetchDirectoryFilterCatalogRows(supabase: SupabaseClient): Promise<FieldDefinitionQueryRow[]> {
+async function fetchDirectoryFilterCatalogRows(
+  supabase: SupabaseClient,
+  tenantId: string | null,
+): Promise<FieldDefinitionQueryRow[]> {
   // Prefer service-role client: `internal_only=true` fields (e.g. gender, date_of_birth) must be
   // readable here so their filter categories appear in the public sidebar. The anon RLS policy
   // restricts `internal_only=true` rows, but `directory_filter_visible` is an independent flag
@@ -213,14 +216,37 @@ async function fetchDirectoryFilterCatalogRows(supabase: SupabaseClient): Promis
       logServerError("directory/filter-sections/field_definitions_legacy", legacy.error);
       return [];
     }
-    return (legacy.data ?? []) as FieldDefinitionQueryRow[];
+    return filterFieldCatalogByTenant(
+      (legacy.data ?? []) as FieldDefinitionQueryRow[],
+      tenantId,
+    );
   }
 
   if (modern.error) {
     logServerError("directory/filter-sections/field_definitions", modern.error);
     return [];
   }
-  return (modern.data ?? []) as FieldDefinitionQueryRow[];
+  return filterFieldCatalogByTenant(
+    (modern.data ?? []) as FieldDefinitionQueryRow[],
+    tenantId,
+  );
+}
+
+/**
+ * Phase 6: field_definitions can be canonical (tenant_id NULL, visible to all
+ * tenants) or agency-local (tenant_id = agency, visible only to that agency).
+ * Public storefront sees canonical rows + the current tenant's own rows only.
+ * Hub/marketing/app (tenantId null) see canonical rows only.
+ */
+function filterFieldCatalogByTenant(
+  rows: FieldDefinitionQueryRow[],
+  tenantId: string | null,
+): FieldDefinitionQueryRow[] {
+  return rows.filter((r) => {
+    const rowTenant = (r as { tenant_id?: string | null }).tenant_id ?? null;
+    if (rowTenant === null) return true;
+    return tenantId !== null && rowTenant === tenantId;
+  });
 }
 
 function serializeFilterContextKey(ctx: DirectoryFilterRequestContext): string {
@@ -570,12 +596,12 @@ async function loadDirectoryFilterSectionsUncached(
   const locSlug = ctx.locationSlug.trim() || null;
   const t = createTranslator(locale);
 
-  let fieldRows = await fetchDirectoryFilterCatalogRows(supabase);
+  let fieldRows = await fetchDirectoryFilterCatalogRows(supabase, tenantId);
 
   if (!fieldRows.length) {
     const service = createServiceRoleClient();
     if (service) {
-      const svcRows = await fetchDirectoryFilterCatalogRows(service);
+      const svcRows = await fetchDirectoryFilterCatalogRows(service, tenantId);
       if (svcRows.length) {
         logServerError(
           "directory/filter-sections/catalog_anon_blocked",
