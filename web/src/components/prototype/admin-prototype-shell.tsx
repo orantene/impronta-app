@@ -39,7 +39,9 @@ import {
 } from "@/lib/prototype/admin-prototype-prefs";
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette";
 import { AdminContextualInspector } from "@/components/admin/inspector/admin-contextual-inspector";
+import { AgencySwitcher } from "@/components/admin/agency-switcher";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import type { TenantMembership } from "@/lib/saas";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -472,9 +474,24 @@ export type AdminDashboardShellProps = {
    * the sidebar surfaces the Tier-1 count without inventing a new inbox.
    */
   navBadges?: Record<string, number>;
+  /**
+   * Tenants the current actor is a staff member of (or all tenants for
+   * platform super_admins). Rendered as an AgencySwitcher in the sidebar
+   * header when length > 1. Empty array means "no workspace" (layout should
+   * have redirected before we got here).
+   */
+  tenants?: TenantMembership[];
+  /** Tenant id currently in scope per {@link getTenantScope}, or null. */
+  activeTenantId?: string | null;
 };
 
-export function AdminDashboardShell({ children, dashboardTheme, navBadges }: AdminDashboardShellProps) {
+export function AdminDashboardShell({
+  children,
+  dashboardTheme,
+  navBadges,
+  tenants = [],
+  activeTenantId = null,
+}: AdminDashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -589,6 +606,15 @@ export function AdminDashboardShell({ children, dashboardTheme, navBadges }: Adm
               {collapsed ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
             </Button>
           </div>
+          {tenants.length > 0 ? (
+            <div className="border-b border-[var(--admin-gold-border)] px-3 py-2">
+              <AgencySwitcher
+                tenants={tenants}
+                activeTenantId={activeTenantId}
+                collapsed={collapsed}
+              />
+            </div>
+          ) : null}
           <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">
             <PrototypeNavSections
               collapsed={collapsed}
@@ -671,6 +697,11 @@ export function AdminDashboardShell({ children, dashboardTheme, navBadges }: Adm
                 Menu
               </SheetTitle>
             </SheetHeader>
+            {tenants.length > 0 ? (
+              <div className="border-b border-[var(--admin-gold-border)] px-4 py-3">
+                <AgencySwitcher tenants={tenants} activeTenantId={activeTenantId} />
+              </div>
+            ) : null}
             <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto">
               <PrototypeNavSections
                 collapsed={false}
