@@ -16,6 +16,8 @@ import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middle
 import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
 import { rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
+import { resolveTenantRouting } from "@/lib/saas/tenant-routing";
+import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -31,6 +33,24 @@ function clientIp(request: NextRequest): string {
 export async function middleware(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
+
+  // SaaS Phase 4 — subdomain tenant resolution. Runs before anything else so
+  // downstream logic can rely on `x-impronta-tenant-id` being set for
+  // anonymous storefront traffic. Authenticated admin traffic still flows
+  // through cookie/header precedence in `getTenantScope()`.
+  const hostHeader = request.headers.get("host") ?? "";
+  const tenantRouting = await resolveTenantRouting(request, hostHeader);
+
+  if (tenantRouting.kind === "not_found") {
+    // Fail-hard (Plan L37): an unrecognised tenant subdomain does NOT fall
+    // back to tenant #1 or the root hub. Show a 404 so the user realises
+    // they are on the wrong surface, rather than silently impersonating the
+    // platform hub.
+    return new NextResponse("Tenant not found for this hostname.", {
+      status: 404,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
+  }
 
   const langSettings = await getLanguageSettingsForMiddleware();
 
@@ -135,6 +155,14 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
+
+  if (tenantRouting.kind === "subdomain" || tenantRouting.kind === "custom") {
+    requestHeaders.set(TENANT_HEADER_NAME, tenantRouting.tenantId);
+  } else {
+    // On the platform root, strip any spoofed header — the storefront must
+    // not honour arbitrary client-provided tenant ids.
+    requestHeaders.delete(TENANT_HEADER_NAME);
+  }
 
   let pathnameForAuth = originalPathname;
   const nextUrl = request.nextUrl.clone();

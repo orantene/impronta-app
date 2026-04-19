@@ -19,11 +19,23 @@ export {
   getTenantScope,
   requireTenantScope,
   getScopedTenantId,
+  getPublicTenantScope,
   resolveTenantFromHost,
   TENANT_COOKIE_NAME,
   TENANT_HEADER_NAME,
   type TenantScope,
 } from "./scope";
+
+export {
+  parseTenantHostname,
+  getDefaultRootDomain,
+  type TenantHostnameMatch,
+} from "./hostname";
+
+export {
+  resolveTenantRouting,
+  type TenantRoutingResult,
+} from "./tenant-routing";
 
 export {
   submitRepresentationRequest,

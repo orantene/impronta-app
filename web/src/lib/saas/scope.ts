@@ -150,3 +150,29 @@ export async function resolveTenantFromHost(
 
 export const TENANT_COOKIE_NAME = ACTIVE_TENANT_COOKIE;
 export const TENANT_HEADER_NAME = ACTIVE_TENANT_HEADER;
+
+/**
+ * Hostname-based tenant scope for anonymous / public storefront requests.
+ *
+ * Unlike {@link getTenantScope}, this does NOT require a signed-in user or
+ * agency_membership — it only trusts the `x-impronta-tenant-id` header that
+ * the subdomain middleware injects from a verified `agency_domains` lookup.
+ *
+ * Returns:
+ *   - `{ tenantId }` when the request hostname mapped to a tenant
+ *   - `null` when the request is on the platform root (no tenant scope)
+ *
+ * Callers filtering data by tenant should treat `null` as "hub / platform
+ * root" and either show a federated view (if applicable) or a landing page.
+ */
+export async function getPublicTenantScope(): Promise<
+  { tenantId: string } | null
+> {
+  try {
+    const tenantId = (await headers()).get(ACTIVE_TENANT_HEADER);
+    if (!tenantId) return null;
+    return { tenantId };
+  } catch {
+    return null;
+  }
+}
