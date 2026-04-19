@@ -15,6 +15,7 @@ import {
 } from "@/lib/directory/search-params";
 import { getCachedTaxonomyFilterOptions } from "@/lib/directory/taxonomy-filters";
 import { getCachedDirectoryFilterSidebarModel } from "@/lib/directory/field-driven-filters";
+import { getPublicTenantScope } from "@/lib/saas/scope";
 import {
   DirectoryFiltersSkeleton,
   DirectoryGridSkeleton,
@@ -145,16 +146,21 @@ async function DirectoryDiscoverInner({
 
   if (!loadError) {
     try {
-      filterSidebar = await getCachedDirectoryFilterSidebarModel(locale, {
-        taxonomyTermIds,
-        locationSlug,
-        heightMinCm,
-        heightMaxCm,
-        ageMin,
-        ageMax,
-        query,
-        fieldFacets,
-      });
+      const publicScope = await getPublicTenantScope();
+      filterSidebar = await getCachedDirectoryFilterSidebarModel(
+        locale,
+        {
+          taxonomyTermIds,
+          locationSlug,
+          heightMinCm,
+          heightMaxCm,
+          ageMin,
+          ageMax,
+          query,
+          fieldFacets,
+        },
+        publicScope?.tenantId ?? null,
+      );
     } catch (e) {
       logServerError("directory/discover-filter-sections", e);
       filterSidebar = { blocks: [] };

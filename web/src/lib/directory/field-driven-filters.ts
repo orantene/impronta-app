@@ -550,6 +550,7 @@ function buildDirectoryFilterBlocks(
 async function loadDirectoryFilterSectionsUncached(
   locale: string,
   ctx: DirectoryFilterRequestContext,
+  tenantId: string | null,
 ): Promise<DirectoryFilterSidebarModel> {
   const supabase = createPublicSupabaseClient();
   if (!supabase) return { blocks: [] };
@@ -1068,7 +1069,7 @@ async function loadDirectoryFilterSectionsUncached(
     return s.options.length > 0;
   });
 
-  const layout = await fetchDirectorySidebarLayout(supabase);
+  const layout = await fetchDirectorySidebarLayout(supabase, tenantId);
 
   let topBarFacet: DirectoryTopBarFacetModel | undefined;
   const sidebarSections = [...filteredSections];
@@ -1100,11 +1101,13 @@ async function loadDirectoryFilterSectionsUncached(
 export function getCachedDirectoryFilterSidebarModel(
   locale: string,
   ctx: DirectoryFilterRequestContext,
+  tenantId: string | null,
 ) {
   const key = serializeFilterContextKey(ctx);
+  const tenantKey = tenantId ?? "__hub__";
   return unstable_cache(
-    () => loadDirectoryFilterSectionsUncached(locale, ctx),
-    ["directory-filter-sidebar", "v13-top-bar-facet-key", locale, key],
+    () => loadDirectoryFilterSectionsUncached(locale, ctx, tenantId),
+    ["directory-filter-sidebar", "v14-tenant-scoped", locale, tenantKey, key],
     { tags: [CACHE_TAG_DIRECTORY, CACHE_TAG_TAXONOMY], revalidate: 90 },
   )();
 }
@@ -1113,8 +1116,9 @@ export function getCachedDirectoryFilterSidebarModel(
 export async function getCachedDirectoryFilterSections(
   locale: string,
   ctx: DirectoryFilterRequestContext,
+  tenantId: string | null,
 ): Promise<DirectoryFilterSection[]> {
-  const { blocks } = await getCachedDirectoryFilterSidebarModel(locale, ctx);
+  const { blocks } = await getCachedDirectoryFilterSidebarModel(locale, ctx, tenantId);
   return blocks
     .filter((b): b is { kind: "section"; section: DirectoryFilterSection } => b.kind === "section")
     .map((b) => b.section);

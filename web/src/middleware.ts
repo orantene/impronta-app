@@ -16,7 +16,11 @@ import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middle
 import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
 import { rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
-import { resolveTenantRouting } from "@/lib/saas/tenant-routing";
+import {
+  resolveTenantContext,
+  HOST_CONTEXT_HEADER,
+  HOST_NAME_HEADER,
+} from "@/lib/saas/host-context";
 import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
 
 function clientIp(request: NextRequest): string {
@@ -34,19 +38,18 @@ export async function middleware(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
 
-  // SaaS Phase 4 — subdomain tenant resolution. Runs before anything else so
-  // downstream logic can rely on `x-impronta-tenant-id` being set for
-  // anonymous storefront traffic. Authenticated admin traffic still flows
-  // through cookie/header precedence in `getTenantScope()`.
+  // SaaS Phase 4 — unified host resolution. Every hostname (marketing /
+  // app / hub / agency) is resolved via a single DB-driven lookup in
+  // `agency_domains`. No hostnames are hardcoded in code. Downstream
+  // server code reads the resulting context from request headers.
   const hostHeader = request.headers.get("host") ?? "";
-  const tenantRouting = await resolveTenantRouting(request, hostHeader);
+  const hostContext = await resolveTenantContext(request, hostHeader);
 
-  if (tenantRouting.kind === "not_found") {
-    // Fail-hard (Plan L37): an unrecognised tenant subdomain does NOT fall
-    // back to tenant #1 or the root hub. Show a 404 so the user realises
-    // they are on the wrong surface, rather than silently impersonating the
-    // platform hub.
-    return new NextResponse("Tenant not found for this hostname.", {
+  if (hostContext.kind === "not_found") {
+    // Fail-hard (Plan L37): an unregistered hostname does NOT fall back
+    // to tenant #1 or the hub. A 404 tells the operator the domain needs
+    // seeding in `agency_domains`.
+    return new NextResponse("Host not registered. Seed agency_domains.", {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
@@ -156,11 +159,14 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
 
-  if (tenantRouting.kind === "subdomain" || tenantRouting.kind === "custom") {
-    requestHeaders.set(TENANT_HEADER_NAME, tenantRouting.tenantId);
+  requestHeaders.set(HOST_CONTEXT_HEADER, hostContext.kind);
+  requestHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+
+  if (hostContext.kind === "agency") {
+    requestHeaders.set(TENANT_HEADER_NAME, hostContext.tenantId);
   } else {
-    // On the platform root, strip any spoofed header — the storefront must
-    // not honour arbitrary client-provided tenant ids.
+    // Strip any spoofed header on non-tenant contexts (marketing / app /
+    // hub). Downstream code must never honour a client-supplied tenant id.
     requestHeaders.delete(TENANT_HEADER_NAME);
   }
 

@@ -20,22 +20,20 @@ export {
   requireTenantScope,
   getScopedTenantId,
   getPublicTenantScope,
+  getPublicHostContext,
   resolveTenantFromHost,
   TENANT_COOKIE_NAME,
   TENANT_HEADER_NAME,
   type TenantScope,
+  type PublicHostContext,
 } from "./scope";
 
 export {
-  parseTenantHostname,
-  getDefaultRootDomain,
-  type TenantHostnameMatch,
-} from "./hostname";
-
-export {
-  resolveTenantRouting,
-  type TenantRoutingResult,
-} from "./tenant-routing";
+  resolveTenantContext,
+  HOST_CONTEXT_HEADER,
+  HOST_NAME_HEADER,
+  type HostContext,
+} from "./host-context";
 
 export {
   submitRepresentationRequest,
