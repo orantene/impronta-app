@@ -150,3 +150,79 @@ export async function resolveTenantFromHost(
 
 export const TENANT_COOKIE_NAME = ACTIVE_TENANT_COOKIE;
 export const TENANT_HEADER_NAME = ACTIVE_TENANT_HEADER;
+
+const HOST_CONTEXT_HEADER = "x-impronta-host-context";
+const HOST_NAME_HEADER = "x-impronta-host-name";
+
+/**
+ * Route context resolved by edge middleware for this request.
+ *
+ *   - "agency"    — tenant-scoped storefront (subdomain or custom domain).
+ *                   `tenantId` is always set.
+ *   - "hub"       — global hub (cross-tenant public directory).
+ *   - "app"       — internal admin / coordination app.
+ *   - "marketing" — public SaaS marketing site.
+ *   - "unknown"   — header was missing (non-request context, tests, etc.).
+ */
+export type PublicHostContext =
+  | { kind: "agency"; tenantId: string; hostname: string | null }
+  | { kind: "hub"; tenantId: null; hostname: string | null }
+  | { kind: "app"; tenantId: null; hostname: string | null }
+  | { kind: "marketing"; tenantId: null; hostname: string | null }
+  | { kind: "unknown"; tenantId: null; hostname: null };
+
+/**
+ * Read the host context headers set by middleware. Safe to call from any
+ * server code that sees request headers; returns `{ kind: "unknown" }`
+ * outside a request (e.g. build-time metadata generation).
+ */
+export async function getPublicHostContext(): Promise<PublicHostContext> {
+  try {
+    const h = await headers();
+    const context = h.get(HOST_CONTEXT_HEADER);
+    const hostname = h.get(HOST_NAME_HEADER);
+    const tenantId = h.get(ACTIVE_TENANT_HEADER);
+
+    switch (context) {
+      case "agency":
+        if (!tenantId) return { kind: "unknown", tenantId: null, hostname: null };
+        return { kind: "agency", tenantId, hostname };
+      case "hub":
+        return { kind: "hub", tenantId: null, hostname };
+      case "app":
+        return { kind: "app", tenantId: null, hostname };
+      case "marketing":
+        return { kind: "marketing", tenantId: null, hostname };
+      default:
+        return { kind: "unknown", tenantId: null, hostname: null };
+    }
+  } catch {
+    return { kind: "unknown", tenantId: null, hostname: null };
+  }
+}
+
+/**
+ * Hostname-based tenant scope for anonymous / public storefront requests.
+ *
+ * Unlike {@link getTenantScope}, this does NOT require a signed-in user or
+ * agency_membership — it only trusts the `x-impronta-tenant-id` header that
+ * the subdomain middleware injects from a verified `agency_domains` lookup.
+ *
+ * Returns:
+ *   - `{ tenantId }` when the request hostname mapped to a tenant
+ *   - `null` when the request is on the platform root (no tenant scope)
+ *
+ * Callers filtering data by tenant should treat `null` as "hub / platform
+ * root" and either show a federated view (if applicable) or a landing page.
+ */
+export async function getPublicTenantScope(): Promise<
+  { tenantId: string } | null
+> {
+  try {
+    const tenantId = (await headers()).get(ACTIVE_TENANT_HEADER);
+    if (!tenantId) return null;
+    return { tenantId };
+  } catch {
+    return null;
+  }
+}

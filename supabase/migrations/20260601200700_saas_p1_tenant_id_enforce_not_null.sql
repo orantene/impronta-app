@@ -8,6 +8,10 @@
 --
 -- Safety: we guard with EXISTS on information_schema.columns so the migration
 -- is idempotent if re-run in a partially-applied environment.
+--
+-- Defensive: each table is gated by to_regclass() so environments that never
+-- applied the legacy migrations skip cleanly instead of halting the P1
+-- rollout.
 
 BEGIN;
 
@@ -66,6 +70,14 @@ DECLARE
   null_count BIGINT;
 BEGIN
   FOREACH t IN ARRAY tables LOOP
+    -- Skip tables that never got created in this environment (e.g. hosted DB
+    -- that never ran the legacy analytics migration). Matching B1–B7, which
+    -- all use to_regclass() guards.
+    IF to_regclass('public.' || t) IS NULL THEN
+      RAISE NOTICE '% absent — skipping NOT NULL enforcement', t;
+      CONTINUE;
+    END IF;
+
     -- Defensive sanity check: refuse to enforce NOT NULL if any row still has
     -- tenant_id IS NULL. This surfaces backfill gaps loudly rather than
     -- silently failing later.

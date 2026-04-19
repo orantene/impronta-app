@@ -1,6 +1,7 @@
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import type { Locale } from "@/i18n/config";
 import { withLocalePath } from "@/i18n/pathnames";
+import { getPublicTenantScope } from "@/lib/saas/scope";
 
 export type PublicNavLink = {
   label: string;
@@ -29,9 +30,16 @@ export async function getPublicCmsNavigationLinks(
   const supabase = createPublicSupabaseClient();
   if (!supabase) return [];
 
+  // CMS navigation is per-tenant. Non-agency contexts (hub/marketing/app)
+  // render no tenant-specific nav — return empty rather than leak one
+  // tenant's links onto another host.
+  const publicScope = await getPublicTenantScope();
+  if (!publicScope) return [];
+
   const { data, error } = await supabase
     .from("cms_navigation_items")
     .select("label,href,sort_order")
+    .eq("tenant_id", publicScope.tenantId)
     .eq("locale", locale)
     .eq("zone", zone)
     .eq("visible", true)

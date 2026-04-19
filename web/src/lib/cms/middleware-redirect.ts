@@ -5,10 +5,14 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 /**
  * If `pathname` matches an active `cms_redirects.old_path`, return a redirect response.
  * Use the browser-visible pathname (e.g. `/es/p/foo` for Spanish).
+ *
+ * `tenantId` null means the request is not on a tenant-scoped host (hub /
+ * marketing / app). CMS redirects are per-tenant only — skip lookup.
  */
 export async function tryCmsRedirectResponse(
   request: NextRequest,
   pathname: string,
+  tenantId: string | null,
 ): Promise<NextResponse | null> {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return null;
@@ -20,6 +24,7 @@ export async function tryCmsRedirectResponse(
   ) {
     return null;
   }
+  if (!tenantId) return null;
   if (!isSupabaseConfigured()) return null;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim();
@@ -39,6 +44,7 @@ export async function tryCmsRedirectResponse(
   const { data, error } = await supabase
     .from("cms_redirects")
     .select("new_path, status_code")
+    .eq("tenant_id", tenantId)
     .eq("old_path", pathname)
     .eq("active", true)
     .maybeSingle();

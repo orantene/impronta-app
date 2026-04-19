@@ -121,7 +121,7 @@ ALTER TABLE public.talent_representation_requests ENABLE ROW LEVEL SECURITY;
 
 -- READ: visible to
 --   (a) platform admins (always),
---   (b) the talent themselves (via their profile → talent_profiles.profile_id),
+--   (b) the talent themselves (via their profile → talent_profiles.user_id),
 --   (c) staff of the target tenant (applies to both 'agency' and 'hub' target
 --       types — a hub's staff may review its hub requests; an agency's staff
 --       may review their own agency applications).
@@ -136,7 +136,7 @@ CREATE POLICY talent_representation_requests_read
     OR EXISTS (
       SELECT 1 FROM public.talent_profiles tp
       WHERE tp.id = talent_representation_requests.talent_profile_id
-        AND tp.profile_id = auth.uid()
+        AND tp.user_id = auth.uid()
     )
   );
 
@@ -157,7 +157,7 @@ CREATE POLICY talent_representation_requests_insert
     OR EXISTS (
       SELECT 1 FROM public.talent_profiles tp
       WHERE tp.id = talent_representation_requests.talent_profile_id
-        AND tp.profile_id = auth.uid()
+        AND tp.user_id = auth.uid()
     )
   );
 
@@ -181,7 +181,7 @@ CREATE POLICY talent_representation_requests_update
     OR EXISTS (
       SELECT 1 FROM public.talent_profiles tp
       WHERE tp.id = talent_representation_requests.talent_profile_id
-        AND tp.profile_id = auth.uid()
+        AND tp.user_id = auth.uid()
     )
   )
   WITH CHECK (
@@ -193,7 +193,7 @@ CREATE POLICY talent_representation_requests_update
     OR EXISTS (
       SELECT 1 FROM public.talent_profiles tp
       WHERE tp.id = talent_representation_requests.talent_profile_id
-        AND tp.profile_id = auth.uid()
+        AND tp.user_id = auth.uid()
     )
   );
 
