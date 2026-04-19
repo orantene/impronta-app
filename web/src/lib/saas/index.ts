@@ -24,3 +24,15 @@ export {
   TENANT_HEADER_NAME,
   type TenantScope,
 } from "./scope";
+
+export {
+  submitRepresentationRequest,
+  pickUpRepresentationRequest,
+  approveRepresentationRequest,
+  rejectRepresentationRequest,
+  withdrawRepresentationRequest,
+  canReviewRepresentationRequest,
+  type RepresentationRequestRow,
+  type RepresentationRequestStatus,
+  type RepresentationTargetType,
+} from "./representation-requests";
