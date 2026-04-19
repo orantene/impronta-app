@@ -80,6 +80,93 @@ export const loadAdminShellPulseCounts = cache(
   },
 );
 
+/**
+ * Sidebar Tier-1 badge count (spec §7.3, roadmap M6.2).
+ *
+ * Returns the number of inquiries with ANY Tier-1 alert for the current admin.
+ * Derivation mirrors the queue's `has_tier1_alert` field exactly so the badge
+ * matches the click-through target (`/admin/inquiries?tier1_only=1`):
+ *
+ *   • `next_action_by ∈ {admin, coordinator}` — agency-owned primary action
+ *   • `status = 'approved'` AND no linked booking — ready to convert
+ *   • unread inquiry threads for the current user
+ *
+ * Terminal inquiries (rejected / expired / closed_lost / archived) contribute
+ * nothing even if they technically matched one of the above — they aren't
+ * actionable in Phase 1.
+ *
+ * One server call = three PostgREST reads + an in-memory union. No new table.
+ */
+export const loadAdminTier1AlertCount = cache(async (): Promise<number> => {
+  const auth = await requireStaff();
+  if (!auth.ok) return 0;
+  const { supabase, user } = auth;
+  const userId = user?.id ?? null;
+
+  const TERMINAL_STATUSES = ["rejected", "expired", "closed_lost", "closed", "archived"];
+
+  const [actionableRes, readyRes, unreadMsgRes, readRowsRes] = await Promise.all([
+    supabase
+      .from("inquiries")
+      .select("id")
+      .in("next_action_by", ["admin", "coordinator"])
+      .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`),
+    supabase
+      .from("inquiries")
+      .select("id, agency_bookings(id)")
+      .eq("status", "approved"),
+    userId
+      ? supabase
+          .from("inquiry_messages")
+          .select("inquiry_id, created_at")
+      : Promise.resolve({ data: null, error: null } as const),
+    userId
+      ? supabase
+          .from("inquiry_message_reads")
+          .select("inquiry_id, last_read_at")
+          .eq("user_id", userId)
+      : Promise.resolve({ data: null, error: null } as const),
+  ]);
+
+  const tier1: Set<string> = new Set();
+
+  for (const row of actionableRes.data ?? []) {
+    tier1.add(String((row as { id: string }).id));
+  }
+  for (const row of readyRes.data ?? []) {
+    const bookings = (row as { agency_bookings: { id: string }[] | null }).agency_bookings;
+    if (!bookings || bookings.length === 0) {
+      tier1.add(String((row as { id: string }).id));
+    }
+  }
+
+  // Unread: per-inquiry, last message > user's last_read_at (or never-read).
+  if (userId && unreadMsgRes.data) {
+    const lastMsgByInquiry = new Map<string, string>();
+    for (const m of unreadMsgRes.data as { inquiry_id: string; created_at: string }[]) {
+      const prev = lastMsgByInquiry.get(m.inquiry_id);
+      if (!prev || new Date(m.created_at) > new Date(prev)) {
+        lastMsgByInquiry.set(m.inquiry_id, m.created_at);
+      }
+    }
+    const lastReadByInquiry = new Map<string, string>();
+    for (const r of (readRowsRes.data ?? []) as { inquiry_id: string; last_read_at: string }[]) {
+      const prev = lastReadByInquiry.get(r.inquiry_id);
+      if (!prev || new Date(r.last_read_at) > new Date(prev)) {
+        lastReadByInquiry.set(r.inquiry_id, r.last_read_at);
+      }
+    }
+    for (const [iid, lastMsg] of lastMsgByInquiry.entries()) {
+      const lastRead = lastReadByInquiry.get(iid);
+      if (!lastRead || new Date(lastMsg) > new Date(lastRead)) {
+        tier1.add(iid);
+      }
+    }
+  }
+
+  return tier1.size;
+});
+
 export type { AdminTranslationHealth } from "@/lib/translation-center/admin-pulse";
 
 export const loadAdminTranslationHealth = cache(async (): Promise<AdminTranslationHealth | null> => {
