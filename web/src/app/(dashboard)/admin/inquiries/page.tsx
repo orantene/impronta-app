@@ -15,7 +15,6 @@ import {
   ADMIN_HELP_TRIGGER_BUTTON,
   ADMIN_PAGE_STACK,
   ADMIN_POPOVER_CONTENT_CLASS,
-  ADMIN_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
 import { cn } from "@/lib/utils";
@@ -546,7 +545,7 @@ export default async function AdminInquiriesPage({
               <div className="space-y-2">
                 <p className="font-display text-sm font-medium text-foreground">Intake pipeline</p>
                 <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                  <li>Each row is a lead — not confirmed work yet. Use "New request" for phone intake.</li>
+                  <li>Each row is a lead — not confirmed work yet. Use &ldquo;New request&rdquo; for phone intake.</li>
                   <li>Preview without leaving the list, or open the full page to convert to a booking.</li>
                   <li>Confirmed jobs live under Bookings once you convert.</li>
                 </ul>

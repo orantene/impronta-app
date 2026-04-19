@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import { AdminCommercialStatusBadge } from "@/components/admin/admin-commercial-status-badge";
 import { AdminInquiryListRowActions } from "@/components/admin/admin-inquiry-list-row-actions";
@@ -107,8 +107,8 @@ export function AdminInquiryQueue({
   currentUserId: string | null;
 }) {
   const router = useRouter();
-  const go = (id: string) => router.push(`/admin/inquiries/${id}`);
-  const prefetch = (id: string) => router.prefetch(`/admin/inquiries/${id}`);
+  const go = useCallback((id: string) => router.push(`/admin/inquiries/${id}`), [router]);
+  const prefetch = useCallback((id: string) => router.prefetch(`/admin/inquiries/${id}`), [router]);
 
   const columns = useMemo((): AdminResponsiveTableColumn<InquiryQueueRow>[] => {
     return [
@@ -315,7 +315,7 @@ export function AdminInquiryQueue({
         ),
       },
     ];
-  }, [currentUserId]);
+  }, [currentUserId, prefetch]);
 
   if (rows.length === 0) {
     return (
