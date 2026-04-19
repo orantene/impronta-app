@@ -8,6 +8,10 @@
 -- Unlike B1–B6, these tables **remain nullable** in B8. The NULL value carries
 -- semantic meaning ("platform-wide" / "hub search"); tenant-scoped rows get a
 -- real UUID. Phase 1 adds the column + backfills obvious agency rows only.
+--
+-- Defensive: each table is gated by to_regclass() so environments that never
+-- applied the legacy migrations skip cleanly instead of halting the P1
+-- rollout.
 
 BEGIN;
 
@@ -18,15 +22,29 @@ BEGIN;
 -- everything NULL here. No backfill — existing rows are Layer 4 platform
 -- defaults by definition.
 
-ALTER TABLE public.settings
-  ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.agencies(id) ON DELETE RESTRICT;
+DO $$
+BEGIN
+  IF to_regclass('public.settings') IS NOT NULL THEN
+    ALTER TABLE public.settings
+      ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.agencies(id) ON DELETE RESTRICT;
+  ELSE
+    RAISE NOTICE 'settings absent — skipping tenantise';
+  END IF;
+END $$;
 
 -- search_queries -------------------------------------------------------------
 -- search_queries tracks both hub searches (tenant_id NULL) and storefront
 -- searches (tenant_id set). Phase 1 leaves everything NULL — all existing
 -- search rows predate tenant-aware search and semantically count as hub-era.
 
-ALTER TABLE public.search_queries
-  ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.agencies(id) ON DELETE RESTRICT;
+DO $$
+BEGIN
+  IF to_regclass('public.search_queries') IS NOT NULL THEN
+    ALTER TABLE public.search_queries
+      ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES public.agencies(id) ON DELETE RESTRICT;
+  ELSE
+    RAISE NOTICE 'search_queries absent — skipping tenantise';
+  END IF;
+END $$;
 
 COMMIT;
