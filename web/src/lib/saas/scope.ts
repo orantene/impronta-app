@@ -11,8 +11,10 @@ import { getCurrentUserTenants, type TenantMembership } from "@/lib/saas/tenant"
  * Resolved from (in order of precedence):
  *   1. An explicit `x-impronta-tenant-id` header set by middleware or tests.
  *   2. The `impronta.active_tenant_id` cookie (admin workspace switcher).
- *   3. The user's primary membership.
- *   4. The user's single membership if they have exactly one.
+ *   3. The user's first active membership (single-membership users land
+ *      here; multi-membership users must pick via the switcher cookie —
+ *      `agency_memberships` has no `is_primary` column, so there's no
+ *      DB-level default to honour).
  *
  * Fail-hard (Plan L37): if a scope cannot be resolved, returns `null` and
  * callers MUST refuse the request. There is no fallback to tenant #1 at
@@ -46,8 +48,10 @@ async function readPreferredTenantId(): Promise<string | null> {
 
 function pickDefault(memberships: TenantMembership[]): TenantMembership | null {
   if (memberships.length === 0) return null;
-  const primary = memberships.find((m) => m.is_primary && m.status === "active");
-  if (primary) return primary;
+  // No DB-backed "primary" flag on agency_memberships, so selection is:
+  //   first active row → else first row at all.
+  // Multi-workspace users are expected to pick via the switcher cookie
+  // (handled before this helper runs in getTenantScope).
   const firstActive = memberships.find((m) => m.status === "active");
   if (firstActive) return firstActive;
   return memberships[0] ?? null;

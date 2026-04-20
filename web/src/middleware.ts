@@ -23,6 +23,7 @@ import {
 } from "@/lib/saas/host-context";
 import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
 import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -76,6 +77,37 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
     return NextResponse.redirect(url, 308);
+  }
+
+  // Phase 5 / M1 — per-tenant locale enforcement. A tenant publishes a subset
+  // of platform locales (`agency_business_identity.supported_locales`). When
+  // the URL carries an explicit locale prefix that the tenant does NOT
+  // support, redirect to the tenant's default locale instead of serving
+  // a page that would 404 or fall back silently. This is temporary safety
+  // — M7+ Site Health surfaces missing-locale warnings to operators.
+  if (hostContext.kind === "agency") {
+    const firstSegment = parts[1];
+    const isPlatformLocale = langSettings.publicLocales.some(
+      (l) => l.toLowerCase() === firstSegment?.toLowerCase(),
+    );
+    if (firstSegment && isPlatformLocale) {
+      const tenantLocales = await loadTenantLocaleSettings(hostContext.tenantId);
+      const supportsRequested = tenantLocales.supportedLocales.some(
+        (l) => l.toLowerCase() === firstSegment.toLowerCase(),
+      );
+      if (!supportsRequested) {
+        const url = request.nextUrl.clone();
+        // Drop the unsupported prefix; if the tenant's default is the platform
+        // default, the `stripDefaultLocalePrefixFromPath` pass above will
+        // normalize further on the next request.
+        const remainder = parts.slice(2).join("/");
+        url.pathname =
+          tenantLocales.defaultLocale === langSettings.defaultLocale
+            ? `/${remainder}`
+            : `/${tenantLocales.defaultLocale}/${remainder}`;
+        return NextResponse.redirect(url, 302);
+      }
+    }
   }
 
   // SaaS P2 — surface allow-list. Reject paths that do not belong on this

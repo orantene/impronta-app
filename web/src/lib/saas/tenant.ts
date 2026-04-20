@@ -33,14 +33,12 @@ export type TenantMembership = {
   slug: string;
   display_name: string;
   agency_status: string;
-  is_primary: boolean;
 };
 
 type MembershipRow = {
   tenant_id: string;
   role: MembershipRole;
   status: MembershipStatus;
-  is_primary: boolean;
   agencies: {
     slug: string;
     display_name: string;
@@ -48,8 +46,14 @@ type MembershipRow = {
   } | null;
 };
 
+// NOTE: `agency_memberships` has no `is_primary` column (confirmed against the
+// live schema — the P1 table lists id, tenant_id, profile_id, role, status,
+// invited_by, invited_at, invite_expires_at, accepted_at, removed_at,
+// removed_by, created_at, updated_at). Any legacy references to a primary
+// membership were drift; default-tenant selection now falls through to the
+// first active membership (see scope.pickDefault).
 const MEMBERSHIP_SELECT =
-  "tenant_id, role, status, is_primary, agencies:tenant_id ( slug, display_name, status )";
+  "tenant_id, role, status, agencies:tenant_id ( slug, display_name, status )";
 
 async function fetchMemberships(
   supabase: SupabaseClient,
@@ -74,7 +78,6 @@ async function fetchMemberships(
         tenant_id: row.tenant_id,
         role: row.role,
         status: row.status,
-        is_primary: row.is_primary,
         slug: row.agencies!.slug,
         display_name: row.agencies!.display_name,
         agency_status: row.agencies!.status,
@@ -121,7 +124,6 @@ export const getCurrentUserTenants = cache(
           slug: agency.slug,
           display_name: agency.display_name,
           agency_status: agency.status,
-          is_primary: false,
         });
       }
       return Array.from(known.values());
