@@ -37,17 +37,16 @@ export async function getPublicCmsNavigationLinks(
   if (!publicScope) return [];
 
   const { data, error } = await supabase
-    .from("cms_navigation_items")
+    .rpc("cms_public_navigation_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select("label,href,sort_order")
-    .eq("tenant_id", publicScope.tenantId)
     .eq("locale", locale)
     .eq("zone", zone)
-    .eq("visible", true)
     .order("sort_order", { ascending: true });
 
-  if (error || !data?.length) return [];
+  const rows = (data ?? []) as unknown as { label: string; href: string; sort_order: number }[];
+  if (error || rows.length === 0) return [];
 
-  return (data as { label: string; href: string; sort_order: number }[]).map((r) => ({
+  return rows.map((r) => ({
     label: r.label,
     href: resolvePublicCmsNavHref(r.href, locale),
     sort_order: r.sort_order,

@@ -42,11 +42,9 @@ export async function tryCmsRedirectResponse(
   });
 
   const { data, error } = await supabase
-    .from("cms_redirects")
+    .rpc("cms_public_redirects_for_tenant", { p_tenant_id: tenantId })
     .select("new_path, status_code")
-    .eq("tenant_id", tenantId)
     .eq("old_path", pathname)
-    .eq("active", true)
     .maybeSingle();
 
   if (error || !data?.new_path) return null;

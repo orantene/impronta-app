@@ -40,14 +40,12 @@ export async function generateMetadata({
   if (!publicScope) return { title: "Not found" };
 
   const { data } = await supabase
-    .from("cms_posts")
+    .rpc("cms_public_posts_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select(
       "title,meta_title,meta_description,og_image_url,noindex,locale,slug,excerpt",
     )
-    .eq("tenant_id", publicScope.tenantId)
     .eq("locale", locale)
     .eq("slug", slug.trim().toLowerCase())
-    .eq("status", "published")
     .maybeSingle();
 
   const post = data as CmsPostPublic | null;
@@ -95,12 +93,10 @@ export default async function CmsPublicPostPage({
   if (!publicScope) notFound();
 
   const { data } = await supabase
-    .from("cms_posts")
+    .rpc("cms_public_posts_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select("title,excerpt,body,slug")
-    .eq("tenant_id", publicScope.tenantId)
     .eq("locale", locale)
     .eq("slug", clean)
-    .eq("status", "published")
     .maybeSingle();
 
   if (!data) notFound();
