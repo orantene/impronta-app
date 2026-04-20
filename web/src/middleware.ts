@@ -22,6 +22,7 @@ import {
   HOST_NAME_HEADER,
 } from "@/lib/saas/host-context";
 import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -75,6 +76,19 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
     return NextResponse.redirect(url, 308);
+  }
+
+  // SaaS P2 — surface allow-list. Reject paths that do not belong on this
+  // host kind BEFORE rate limits, CMS redirects, or auth run. Checked
+  // against the locale-stripped path so `/es/admin` is treated as `/admin`.
+  const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, langSettings)
+    ? stripNonDefaultLocalePrefix(pathname, langSettings)
+    : pathname;
+  if (!isPathAllowedForHostKind(hostContext.kind, canonicalPath)) {
+    return new NextResponse("Not found", {
+      status: 404,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
   }
 
   if (pathname.startsWith("/api/directory") && request.method === "GET") {

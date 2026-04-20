@@ -1,6 +1,7 @@
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { logServerError } from "@/lib/server/safe-error";
+import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import type { FeaturedTalentCard } from "@/components/home/featured-talent-section";
 import type { FitLabelItem } from "@/components/home/best-for-section";
 import type { LocationItem, LocationFeaturedPreview } from "@/components/home/location-section";
@@ -24,12 +25,27 @@ import {
   TAXONOMY_PLACEMENT_HOME_BROWSE_BY_TYPE,
 } from "@/lib/taxonomy/taxonomy-promo";
 
-export async function getHomepageData() {
+/**
+ * Agency-homepage data for a single tenant storefront.
+ *
+ * `talent_profiles` is a global table; tenant visibility is governed by
+ * `agency_talent_roster`. We resolve that roster once and use it as the
+ * hard filter on every talent read so featured strips / location counts
+ * never leak a peer tenant's approved & public talent.
+ *
+ * Caller must pass a resolved `tenantId` (from the host-context header).
+ * If the roster is empty, the page renders with no talent cards — which
+ * is the correct truthful state for a newly seeded tenant.
+ */
+export async function getHomepageData({ tenantId }: { tenantId: string }) {
   if (!isSupabaseConfigured()) {
     return { talentTypes: [], featuredTalent: [], fitLabels: [], locations: [] };
   }
 
   const supabase = createPublicSupabaseClient()!;
+
+  const rosterTalentIds = await listTalentIdsOnTenantRoster(supabase, tenantId);
+  const hasRoster = rosterTalentIds.length > 0;
 
   /**
    * Product exception — marketing / curated discovery:
@@ -77,30 +93,35 @@ export async function getHomepageData() {
     logServerError("home/getHomepageData/talentTypes", typesFull.error);
   }
 
+  const featuredQuery = hasRoster
+    ? supabase
+        .from("talent_profiles")
+        .select(`
+          id,
+          profile_code,
+          display_name,
+          is_featured,
+          location_id,
+          residence_city_id,
+          residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
+          legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
+          talent_profile_taxonomy (
+            is_primary,
+            taxonomy_terms ( kind, name_en )
+          )
+        `)
+        .in("id", rosterTalentIds)
+        .eq("workflow_status", "approved")
+        .eq("visibility", "public")
+        .eq("is_featured", true)
+        .is("deleted_at", null)
+        .order("featured_level", { ascending: false })
+        .order("featured_position", { ascending: true })
+        .limit(8)
+    : Promise.resolve({ data: [], error: null });
+
   const [featuredRes, fitRes, locationsRes] = await Promise.all([
-    supabase
-      .from("talent_profiles")
-      .select(`
-        id,
-        profile_code,
-        display_name,
-        is_featured,
-        location_id,
-        residence_city_id,
-        residence_city:locations!residence_city_id ( display_name_en, display_name_es, country_code ),
-        legacy_location:locations!location_id ( display_name_en, display_name_es, country_code ),
-        talent_profile_taxonomy (
-          is_primary,
-          taxonomy_terms ( kind, name_en )
-        )
-      `)
-      .eq("workflow_status", "approved")
-      .eq("visibility", "public")
-      .eq("is_featured", true)
-      .is("deleted_at", null)
-      .order("featured_level", { ascending: false })
-      .order("featured_position", { ascending: true })
-      .limit(8),
+    featuredQuery,
 
     supabase
       .from("taxonomy_terms")
@@ -213,10 +234,11 @@ export async function getHomepageData() {
   // Map of locationId -> up to 10 talent IDs (featured first)
   const locationPreviewIds: Record<string, string[]> = {};
 
-  if (locationIds.length > 0) {
+  if (locationIds.length > 0 && hasRoster) {
     const { data: countRows } = await supabase
       .from("talent_profiles")
       .select("id, residence_city_id, location_id, is_featured, featured_level")
+      .in("id", rosterTalentIds)
       .eq("workflow_status", "approved")
       .eq("visibility", "public")
       .is("deleted_at", null)
