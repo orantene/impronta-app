@@ -9,13 +9,37 @@
       "autoPort": true
     },
     {
+      "name": "Marketing (marketing.local)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3101", "marketing.local"],
+      "port": 3101
+    },
+    {
+      "name": "App (app.local)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3102", "app.local"],
+      "port": 3102
+    },
+    {
+      "name": "Hub (hub.local)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3103", "hub.local"],
+      "port": 3103
+    },
+    {
+      "name": "Impronta storefront (impronta.local)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3104", "impronta.local"],
+      "port": 3104
+    },
+    {
       "name": "Mockup Preview",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd '/Users/oranpersonal/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/4bc0f6c3-4301-4328-8d55-c9d3317c7f98/75ead64a-1650-45eb-a4fb-eb877a85ec85/skills/web-artifacts-builder/impronta-directory-mockup' && npx pnpm dev --port 5174"],
       "port": 5174,
       "autoPort": true
-    }
-    ,{
+    },
+    {
       "name": "Home Mockup",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app && python3 -m http.server 4444"],
