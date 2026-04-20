@@ -5,6 +5,7 @@ import { clientAcceptOffer } from "@/lib/inquiry/inquiry-engine-approvals";
 import { clientRejectOffer } from "@/lib/inquiry/inquiry-engine-offers";
 import { requireClient } from "@/lib/server/action-guards";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
+import { resolveInquiryTenantForParticipant } from "@/lib/saas/admin-scope";
 
 export async function actionClientAcceptOffer(formData: FormData): Promise<ActionResult> {
   const auth = await requireClient();
@@ -19,8 +20,14 @@ export async function actionClientAcceptOffer(formData: FormData): Promise<Actio
     return { ok: false, code: "validation_error", message: "Missing required fields." };
   }
 
+  const tenantId = await resolveInquiryTenantForParticipant(supabase, auth.user.id, inquiryId, "client");
+  if (!tenantId) {
+    return { ok: false, code: "permission_denied", message: "You cannot approve this offer." };
+  }
+
   const result = await clientAcceptOffer(supabase, {
     inquiryId,
+    tenantId,
     offerId,
     actorUserId: auth.user.id,
     expectedVersion,
@@ -49,8 +56,14 @@ export async function actionClientRejectOffer(formData: FormData): Promise<Actio
     return { ok: false, code: "validation_error", message: "Missing required fields." };
   }
 
+  const tenantId = await resolveInquiryTenantForParticipant(supabase, auth.user.id, inquiryId, "client");
+  if (!tenantId) {
+    return { ok: false, code: "permission_denied", message: "You cannot reject this offer." };
+  }
+
   const result = await clientRejectOffer(supabase, {
     inquiryId,
+    tenantId,
     offerId,
     actorUserId: auth.user.id,
     expectedVersion,

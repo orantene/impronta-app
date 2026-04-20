@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { convertToBooking } from "@/lib/inquiry/inquiry-engine";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { sendBookingConfirmedNotifications } from "@/lib/email/inquiry-notifications";
 
 export type ConvertBookingSuccess = { bookingId: string };
@@ -11,11 +11,11 @@ export type ConvertBookingSuccess = { bookingId: string };
 export async function actionEngineConvertToBooking(
   formData: FormData,
 ): Promise<ActionResult<ConvertBookingSuccess>> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "You do not have access to convert this inquiry." };
   }
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
@@ -29,6 +29,7 @@ export async function actionEngineConvertToBooking(
 
   const res = await convertToBooking(supabase, {
     inquiryId,
+    tenantId,
     actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
     overrideReason,

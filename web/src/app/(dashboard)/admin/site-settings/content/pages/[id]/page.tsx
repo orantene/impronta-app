@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 import type { CmsRevisionListItem } from "../../cms-revision-actions";
@@ -14,12 +14,14 @@ export const dynamic = "force-dynamic";
 
 export default async function EditCmsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
-  }
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
-  const { data, error } = await supabase.from("cms_pages").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("cms_pages")
+    .select("*")
+    .eq("id", id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
 
   if (error) {
     logServerError("admin/cms-pages/edit", error);
@@ -34,6 +36,7 @@ export default async function EditCmsPage({ params }: { params: Promise<{ id: st
     .from("cms_page_revisions")
     .select("id, kind, created_at, created_by")
     .eq("page_id", id)
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .limit(50);
   if (!revRes.error && revRes.data) {

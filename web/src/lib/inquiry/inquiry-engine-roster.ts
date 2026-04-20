@@ -7,15 +7,20 @@ import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
 
+// SaaS P1.B STEP A: tenant-scoped by construction on every inquiry/participant
+// read and write.
+
 async function invalidateOfferIfRosterChanged(
   supabase: SupabaseClient,
   inquiryId: string,
+  tenantId: string,
   actorUserId: string,
 ): Promise<void> {
   const { data: inq } = await supabase
     .from("inquiries")
     .select("current_offer_id, status, version")
     .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
   if (!inq?.current_offer_id) return;
 
@@ -23,13 +28,15 @@ async function invalidateOfferIfRosterChanged(
     .from("inquiry_offers")
     .select("id, status")
     .eq("id", inq.current_offer_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
   if (!offer || offer.status !== "sent") return;
 
   await supabase
     .from("inquiry_offers")
     .update({ status: "invalidated" as never, updated_at: new Date().toISOString() })
-    .eq("id", offer.id as string);
+    .eq("id", offer.id as string)
+    .eq("tenant_id", tenantId);
 
   await supabase
     .from("inquiries")
@@ -41,7 +48,8 @@ async function invalidateOfferIfRosterChanged(
       last_edited_by: actorUserId,
       last_edited_at: new Date().toISOString(),
     })
-    .eq("id", inquiryId);
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId);
 
   await logInquiryActivity(supabase, {
     inquiryId,
@@ -67,6 +75,7 @@ export async function addTalentToRoster(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     talentProfileId: string;
     actorUserId: string;
     expectedVersion: number;
@@ -97,8 +106,10 @@ export async function addTalentToRoster(
       .from("inquiries")
       .select("uses_new_engine, status, is_frozen, version")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
     if (!isMutablePhase(inq.status as string, !!inq.is_frozen)) return { success: false, reason: "post_booking_immutable" };
 
     // Resolve the requirement group. Explicit id → validate it's on this
@@ -109,6 +120,7 @@ export async function addTalentToRoster(
         .from("inquiry_requirement_groups")
         .select("id, inquiry_id")
         .eq("id", ctx.requirementGroupId)
+        .eq("tenant_id", ctx.tenantId)
         .maybeSingle();
       if (!g || g.inquiry_id !== ctx.inquiryId) {
         return { success: false, error: "invalid_group" };
@@ -119,6 +131,7 @@ export async function addTalentToRoster(
         .from("inquiry_requirement_groups")
         .select("id")
         .eq("inquiry_id", ctx.inquiryId)
+        .eq("tenant_id", ctx.tenantId)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true })
         .limit(1)
@@ -136,6 +149,7 @@ export async function addTalentToRoster(
       .from("inquiry_participants")
       .select("sort_order")
       .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("role", "talent")
       .order("sort_order", { ascending: false })
       .limit(1)
@@ -145,6 +159,7 @@ export async function addTalentToRoster(
 
     const { error } = await supabase.from("inquiry_participants").insert({
       inquiry_id: ctx.inquiryId,
+      tenant_id: ctx.tenantId,
       user_id: tp?.user_id ?? null,
       talent_profile_id: ctx.talentProfileId,
       role: "talent",
@@ -164,6 +179,7 @@ export async function addTalentToRoster(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
     if (verr) return { success: false, conflict: true, reason: "version_conflict" };
 
@@ -174,7 +190,7 @@ export async function addTalentToRoster(
       payload: { talent_profile_id: ctx.talentProfileId },
     });
 
-    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.actorUserId);
+    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.tenantId, ctx.actorUserId);
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 
     await emitStandardEngineEvent(supabase, {
@@ -193,7 +209,7 @@ export async function addTalentToRoster(
 
 export async function removeTalentFromRoster(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; participantId: string; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; participantId: string; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("removeTalentFromRoster", ctx.inquiryId, ctx.actorUserId, async () => {
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "remove_talent");
@@ -203,8 +219,10 @@ export async function removeTalentFromRoster(
       .from("inquiries")
       .select("uses_new_engine, status, is_frozen, version")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
     if (!isMutablePhase(inq.status as string, !!inq.is_frozen)) return { success: false, reason: "post_booking_immutable" };
 
     await supabase
@@ -215,6 +233,7 @@ export async function removeTalentFromRoster(
       })
       .eq("id", ctx.participantId)
       .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("role", "talent");
 
     const { error: verr } = await supabase
@@ -225,6 +244,7 @@ export async function removeTalentFromRoster(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
     if (verr) return { success: false, conflict: true, reason: "version_conflict" };
 
@@ -235,7 +255,7 @@ export async function removeTalentFromRoster(
       payload: { participant_id: ctx.participantId },
     });
 
-    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.actorUserId);
+    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.tenantId, ctx.actorUserId);
     await assertConsistencyAfterWrite(supabase, ctx.inquiryId);
 
     await emitStandardEngineEvent(supabase, {
@@ -251,7 +271,7 @@ export async function removeTalentFromRoster(
 
 export async function reorderRoster(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; orderedParticipantIds: string[]; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; orderedParticipantIds: string[]; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("reorderRoster", ctx.inquiryId, ctx.actorUserId, async () => {
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reorder_roster");
@@ -261,13 +281,20 @@ export async function reorderRoster(
       .from("inquiries")
       .select("uses_new_engine, status, is_frozen, version")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "use_legacy_roster_actions" };
     if (!isMutablePhase(inq.status as string, !!inq.is_frozen)) return { success: false, reason: "post_booking_immutable" };
 
     let order = 0;
     for (const id of ctx.orderedParticipantIds) {
-      await supabase.from("inquiry_participants").update({ sort_order: order++ }).eq("id", id).eq("inquiry_id", ctx.inquiryId);
+      await supabase
+        .from("inquiry_participants")
+        .update({ sort_order: order++ })
+        .eq("id", id)
+        .eq("inquiry_id", ctx.inquiryId)
+        .eq("tenant_id", ctx.tenantId);
     }
 
     const { error: verr } = await supabase
@@ -278,10 +305,11 @@ export async function reorderRoster(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
     if (verr) return { success: false, conflict: true, reason: "version_conflict" };
 
-    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.actorUserId);
+    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.tenantId, ctx.actorUserId);
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.ROSTER_REORDERED,
@@ -296,7 +324,7 @@ export async function reorderRoster(
 
 export async function acceptTalentInvitation(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("acceptTalentInvitation", ctx.inquiryId, ctx.actorUserId, async () => {
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "accept_talent_invite");
@@ -313,6 +341,7 @@ export async function acceptTalentInvitation(
       .from("inquiry_participants")
       .select("id, status")
       .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("talent_profile_id", tp.id)
       .eq("role", "talent")
       .maybeSingle();
@@ -326,12 +355,14 @@ export async function acceptTalentInvitation(
         status: "active",
         accepted_at: new Date().toISOString(),
       })
-      .eq("id", row.id as string);
+      .eq("id", row.id as string)
+      .eq("tenant_id", ctx.tenantId);
 
     const { data: inq } = await supabase
       .from("inquiries")
       .select("version")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
 
     await supabase
@@ -342,6 +373,7 @@ export async function acceptTalentInvitation(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
 
     await logInquiryActivity(supabase, {
@@ -371,6 +403,7 @@ export async function declineTalentInvitation(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     actorUserId: string;
     expectedVersion: number;
     declineReason?: string | null;
@@ -394,6 +427,7 @@ export async function declineTalentInvitation(
         decline_reason: (ctx.declineReason as never) ?? "other",
       })
       .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("talent_profile_id", tp.id)
       .eq("role", "talent");
 
@@ -404,7 +438,7 @@ export async function declineTalentInvitation(
       payload: {},
     });
 
-    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.actorUserId);
+    await invalidateOfferIfRosterChanged(supabase, ctx.inquiryId, ctx.tenantId, ctx.actorUserId);
 
     await emitStandardEngineEvent(supabase, {
       type: ENGINE_EVENT_TYPES.ROSTER_TALENT_DECLINED,

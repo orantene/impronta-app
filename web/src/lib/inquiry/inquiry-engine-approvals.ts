@@ -1,15 +1,33 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { canTransition, resolveNextActionBy } from "./inquiry-lifecycle";
+import { canTransition } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
+// SaaS P1.B STEP A: tenant-scoped by construction. Pre-flight the inquiry's
+// tenant_id before invoking the SECURITY DEFINER RPC so cross-tenant ids are
+// rejected at the engine boundary.
+async function inquiryInTenant(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 export async function submitApproval(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     offerId: string;
     participantId: string;
     actorUserId: string;
@@ -21,6 +39,10 @@ export async function submitApproval(
   return runWithEngineLog("submitApproval", ctx.inquiryId, ctx.actorUserId, async () => {
     const rl = await rateLimiter.check(engineRateKey("submitApproval", ctx.actorUserId), 10, 60_000);
     if (!rl.ok) return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
+
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
 
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "submit_approval");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
@@ -95,18 +117,26 @@ export async function rejectApproval(
 /** Client shortcut — resolves client participant row and records approval. */
 export async function clientAcceptOffer(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; offerId: string; actorUserId: string; expectedVersion: number },
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    offerId: string;
+    actorUserId: string;
+    expectedVersion: number;
+  },
 ): Promise<EngineResult> {
   const { data: part } = await supabase
     .from("inquiry_participants")
     .select("id")
     .eq("inquiry_id", ctx.inquiryId)
+    .eq("tenant_id", ctx.tenantId)
     .eq("user_id", ctx.actorUserId)
     .eq("role", "client")
     .maybeSingle();
   if (!part) return { success: false, error: "no_client_participant" };
   return submitApproval(supabase, {
     inquiryId: ctx.inquiryId,
+    tenantId: ctx.tenantId,
     offerId: ctx.offerId,
     participantId: part.id as string,
     actorUserId: ctx.actorUserId,

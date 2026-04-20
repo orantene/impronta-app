@@ -4,6 +4,7 @@ import {
   DIRECTORY_PAGE_SIZE_MAX,
 } from "@/lib/directory/types";
 import { getPublicSettings } from "@/lib/public-settings";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { runAiDirectorySearch } from "@/lib/ai/run-ai-directory-search";
 
@@ -45,6 +46,19 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
+
+    const hostContext = await getPublicHostContext();
+    if (
+      hostContext.kind === "marketing" ||
+      hostContext.kind === "app" ||
+      hostContext.kind === "unknown"
+    ) {
+      return NextResponse.json(
+        { error: "Not available", results: [], search_mode: "classic" },
+        { status: 404 },
+      );
+    }
+    const tenantId = hostContext.kind === "agency" ? hostContext.tenantId : null;
 
     const json = await request.json().catch(() => ({}));
     const parsed = bodySchema.safeParse(json);
@@ -92,6 +106,7 @@ export async function POST(request: Request) {
       includeTotalCount: false,
       logAnalytics: true,
       analyticsSource: analyticsSrc ?? "ai_search",
+      tenantId,
     });
 
     return NextResponse.json({

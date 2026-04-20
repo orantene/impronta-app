@@ -20,6 +20,7 @@ import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { loadInquiryRosterPeekMany } from "@/lib/inquiry/inquiry-workspace-data";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 
 function relOne<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null;
@@ -155,11 +156,7 @@ export default async function AdminInquiriesPage({
   const tier1Only = tier1OnlyParam === "1";
   const coordinatorFilter =
     coordinatorParam && coordinatorParam !== "all" ? coordinatorParam : undefined;
-  const supabase = await getCachedServerSupabase();
-
-  if (!supabase) {
-    return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
-  }
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   let dbQuery = supabase
     .from("inquiries")
@@ -175,6 +172,7 @@ export default async function AdminInquiriesPage({
       agency_bookings ( id )
     `,
     )
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
 
   if (statusFilter && statusFilter !== "all") {
@@ -236,7 +234,12 @@ export default async function AdminInquiriesPage({
       ? supabase.from("profiles").select("id, display_name").eq("id", clientUserId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     clientAccountId
-      ? supabase.from("client_accounts").select("id, name").eq("id", clientAccountId).maybeSingle()
+      ? supabase
+          .from("client_accounts")
+          .select("id, name")
+          .eq("tenant_id", tenantId)
+          .eq("id", clientAccountId)
+          .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     supabase
       .from("profiles")
@@ -244,10 +247,16 @@ export default async function AdminInquiriesPage({
       .in("app_role", ["super_admin", "agency_staff"])
       .order("display_name", { ascending: true }),
     supabase.auth.getUser(),
-    supabase.from("client_accounts").select("id, name").is("archived_at", null).order("name", { ascending: true }),
+    supabase
+      .from("client_accounts")
+      .select("id, name")
+      .eq("tenant_id", tenantId)
+      .is("archived_at", null)
+      .order("name", { ascending: true }),
     supabase
       .from("client_account_contacts")
       .select("id, client_account_id, full_name, client_accounts(name)")
+      .eq("tenant_id", tenantId)
       .is("archived_at", null)
       .order("full_name", { ascending: true }),
     supabase

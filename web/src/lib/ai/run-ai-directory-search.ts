@@ -26,6 +26,7 @@ import {
 import { logSearchQuery } from "@/lib/search-queries/log-search-query";
 import { canonicalDirectoryQueryForAiSearch } from "@/lib/ai/normalize-search-query";
 import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 import {
   parseDirectoryLocation,
   parseDirectoryQuery,
@@ -62,6 +63,12 @@ export type RunAiDirectorySearchInput = {
   analyticsSource?: string;
   /** Staff-only: attach pipeline debug DTO (never use on public responses). */
   includeDebug?: boolean;
+  /**
+   * SaaS tenant scope. When set, both the classic leg (via fetchDirectoryPage)
+   * and the vector-neighbor leg are gated to the tenant's roster. Pass `null`
+   * or omit on hub / federated cross-tenant requests.
+   */
+  tenantId?: string | null;
 };
 
 export type RunAiDirectorySearchResult = {
@@ -252,6 +259,8 @@ async function runAiDirectorySearchOnce(
 
   const includeTotalCount = Boolean(input.includeTotalCount && !cursor);
 
+  const tenantScopeId = input.tenantId ?? null;
+
   let page = await fetchDirectoryPage(supabase, {
     limit: fetchLimit,
     cursor: cursor || undefined,
@@ -266,6 +275,7 @@ async function runAiDirectorySearchOnce(
     ageMax,
     fieldFacetFilters,
     skipTotalCount: !includeTotalCount,
+    tenantId: tenantScopeId,
   });
 
   const classicFetchedCount = page.items.length;

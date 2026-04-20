@@ -11,26 +11,34 @@ import type { EngineResult } from "./inquiry-engine.types";
 //      docs/admin-workspace-roadmap.md §M2.2.
 //
 // Each wrapper:
-//   1. Gates on validateActorPermission — we reuse "reassign_coordinator" as
+//   1. Pre-flights the inquiry's tenant_id (SaaS P1.B STEP A) before invoking
+//      the SECURITY DEFINER RPC so cross-tenant inquiry/group/participant ids
+//      are rejected at the engine boundary.
+//   2. Gates on validateActorPermission — we reuse "reassign_coordinator" as
 //      the permission key because requirement-group mutations are restricted
 //      to the same staff role set (admin + active coordinator on the inquiry).
-//      Adding a dedicated key would require a policy-layer change out of M2.2
-//      scope; the RPC re-checks is_agency_staff() server-side as defence in
-//      depth.
-//   2. Calls the SECURITY DEFINER RPC. The RPC owns the compound write
+//   3. Calls the SECURITY DEFINER RPC. The RPC owns the compound write
 //      (requirement_groups row + engine_emit_event) transactionally.
-//   3. Maps RAISE EXCEPTION sentinels to an EngineResult.
-//   4. Calls logInquiryAction on BOTH success and failure for
+//   4. Maps RAISE EXCEPTION sentinels to an EngineResult.
+//   5. Calls logInquiryAction on BOTH success and failure for
 //      assignParticipantToGroup (participant_moved_group — spec §10.2).
-//      Group CRUD does NOT have a dedicated action type in the Phase 1 closed
-//      set; the staff_only engine event stream is the audit record for those.
-//   5. Dispatches the in-process emitStandardEngineEvent for side-effects the
-//      RPC doesn't own (improntaLog; no notifications in Phase 1 since these
-//      are staff-only).
-//
-// No UI callers are wired in M2.2 — these wrappers are the server-side
-// foundation for the M4/M5 drill-downs.
+//   6. Dispatches the in-process emitStandardEngineEvent for side-effects the
+//      RPC doesn't own.
 // ─────────────────────────────────────────────────────────────────────────────
+
+async function inquiryInTenant(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
 
 function mapRequirementGroupRpcError(msg: string): string {
   // Short codes match the RPC's RAISE EXCEPTION literals 1:1 for easy filtering.
@@ -51,6 +59,7 @@ function mapRequirementGroupRpcError(msg: string): string {
 
 export type AddRequirementGroupCtx = {
   inquiryId: string;
+  tenantId: string;
   roleKey: string;
   quantityRequired: number;
   notes?: string | null;
@@ -62,6 +71,10 @@ export async function addRequirementGroup(
   ctx: AddRequirementGroupCtx,
 ): Promise<EngineResult<{ groupId: string }>> {
   return runWithEngineLog("addRequirementGroup", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
@@ -101,6 +114,7 @@ export async function addRequirementGroup(
 
 export type UpdateRequirementGroupCtx = {
   inquiryId: string;
+  tenantId: string;
   groupId: string;
   patch: {
     roleKey?: string;
@@ -115,8 +129,22 @@ export async function updateRequirementGroup(
   ctx: UpdateRequirementGroupCtx,
 ): Promise<EngineResult> {
   return runWithEngineLog("updateRequirementGroup", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
+
+    // Defence-in-depth: ensure the target group belongs to the same tenant.
+    const { data: grp } = await supabase
+      .from("inquiry_requirement_groups")
+      .select("id")
+      .eq("id", ctx.groupId)
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!grp) return { success: false, error: "group_not_on_inquiry" };
 
     const { error } = await supabase.rpc("engine_update_requirement_group", {
       p_group_id: ctx.groupId,
@@ -148,6 +176,7 @@ export async function updateRequirementGroup(
 
 export type RemoveRequirementGroupCtx = {
   inquiryId: string;
+  tenantId: string;
   groupId: string;
   actorUserId: string;
 };
@@ -157,8 +186,21 @@ export async function removeRequirementGroup(
   ctx: RemoveRequirementGroupCtx,
 ): Promise<EngineResult> {
   return runWithEngineLog("removeRequirementGroup", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
+
+    const { data: grp } = await supabase
+      .from("inquiry_requirement_groups")
+      .select("id")
+      .eq("id", ctx.groupId)
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
+    if (!grp) return { success: false, error: "group_not_on_inquiry" };
 
     const { error } = await supabase.rpc("engine_remove_requirement_group", {
       p_group_id: ctx.groupId,
@@ -187,6 +229,7 @@ export async function removeRequirementGroup(
 
 export type AssignParticipantToGroupCtx = {
   inquiryId: string;
+  tenantId: string;
   participantId: string;
   groupId: string;
   actorUserId: string;
@@ -202,6 +245,18 @@ export async function assignParticipantToGroup(
   ctx: AssignParticipantToGroupCtx,
 ): Promise<EngineResult> {
   return runWithEngineLog("assignParticipantToGroup", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "participant_moved_group",
+        result: "failure",
+        reason: "forbidden",
+        metadata: { participant_id: ctx.participantId, new_group_id: ctx.groupId },
+      });
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
     if (!perm.ok) {
       await logInquiryAction(supabase, {
@@ -214,6 +269,26 @@ export async function assignParticipantToGroup(
       });
       return { success: false, forbidden: true, reason: "forbidden" };
     }
+
+    // Defence-in-depth: both participant and group must belong to this tenant.
+    const [{ data: part }, { data: grp }] = await Promise.all([
+      supabase
+        .from("inquiry_participants")
+        .select("id")
+        .eq("id", ctx.participantId)
+        .eq("inquiry_id", ctx.inquiryId)
+        .eq("tenant_id", ctx.tenantId)
+        .maybeSingle(),
+      supabase
+        .from("inquiry_requirement_groups")
+        .select("id")
+        .eq("id", ctx.groupId)
+        .eq("inquiry_id", ctx.inquiryId)
+        .eq("tenant_id", ctx.tenantId)
+        .maybeSingle(),
+    ]);
+    if (!part) return { success: false, error: "participant_not_found" };
+    if (!grp) return { success: false, error: "group_not_on_inquiry" };
 
     const { error } = await supabase.rpc("engine_assign_participant_to_group", {
       p_participant_id: ctx.participantId,

@@ -8,9 +8,15 @@ import { logInquiryAction } from "./inquiry-action-log";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
+// SaaS P1.B STEP A: every inquiry-scoped engine helper takes `tenantId` and
+// applies `.eq("tenant_id", tenantId)` on inquiry + child-table reads/writes.
+// Cross-tenant inquiry ids surface as a `not_found` / `forbidden` outcome at
+// the engine boundary, so the action layer no longer has to rely solely on a
+// `assertRowBelongsToTenant` pre-flight.
+
 export async function assignCoordinator(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; coordinatorUserId: string; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; coordinatorUserId: string; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("assignCoordinator", ctx.inquiryId, ctx.actorUserId, async () => {
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "assign_coordinator");
@@ -20,8 +26,10 @@ export async function assignCoordinator(
       .from("inquiries")
       .select("version, uses_new_engine, is_frozen, status, source_type, tenant_id")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
 
     const v = inq.version as number;
@@ -37,16 +45,23 @@ export async function assignCoordinator(
         next_action_by: resolveNextActionBy(inq.status as string),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion)
       .select("id")
       .maybeSingle();
 
     if (error || !updated) return { success: false, conflict: true, reason: "version_conflict" };
 
-    await supabase.from("inquiry_participants").delete().eq("inquiry_id", ctx.inquiryId).eq("role", "coordinator");
+    await supabase
+      .from("inquiry_participants")
+      .delete()
+      .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .eq("role", "coordinator");
 
     await supabase.from("inquiry_participants").insert({
       inquiry_id: ctx.inquiryId,
+      tenant_id: ctx.tenantId,
       user_id: ctx.coordinatorUserId,
       role: "coordinator",
       status: "invited",
@@ -77,7 +92,7 @@ export async function assignCoordinator(
 
 export async function acceptCoordinatorAssignment(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("acceptCoordinatorAssignment", ctx.inquiryId, ctx.actorUserId, async () => {
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "accept_coordinator");
@@ -87,8 +102,10 @@ export async function acceptCoordinatorAssignment(
       .from("inquiries")
       .select("version, uses_new_engine, is_frozen, status, coordinator_id")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
     if (inq.coordinator_id !== ctx.actorUserId) return { success: false, forbidden: true, reason: "forbidden" };
 
@@ -96,6 +113,7 @@ export async function acceptCoordinatorAssignment(
       .from("inquiry_participants")
       .select("id, status")
       .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("user_id", ctx.actorUserId)
       .eq("role", "coordinator")
       .maybeSingle();
@@ -121,6 +139,7 @@ export async function acceptCoordinatorAssignment(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion)
       .select("id")
       .maybeSingle();
@@ -134,6 +153,7 @@ export async function acceptCoordinatorAssignment(
         accepted_at: new Date().toISOString(),
     })
       .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("user_id", ctx.actorUserId)
       .eq("role", "coordinator");
 
@@ -164,7 +184,7 @@ export async function acceptCoordinatorAssignment(
 
 export async function declineCoordinatorAssignment(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("declineCoordinatorAssignment", ctx.inquiryId, ctx.actorUserId, async () => {
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "decline_coordinator");
@@ -174,8 +194,10 @@ export async function declineCoordinatorAssignment(
       .from("inquiries")
       .select("version, uses_new_engine, is_frozen, status, source_type, tenant_id")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
 
     const { data: updated, error } = await supabase
@@ -189,6 +211,7 @@ export async function declineCoordinatorAssignment(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion)
       .select("id")
       .maybeSingle();
@@ -199,6 +222,7 @@ export async function declineCoordinatorAssignment(
       .from("inquiry_participants")
       .update({ status: "declined", decline_reason: "other" })
       .eq("inquiry_id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("user_id", ctx.actorUserId)
       .eq("role", "coordinator");
 
@@ -230,6 +254,7 @@ export async function declineCoordinatorAssignment(
 export async function autoAssignCoordinatorFromSettings(
   supabase: SupabaseClient,
   inquiryId: string,
+  tenantId: string,
   actorUserId: string,
   expectedVersion: number,
 ): Promise<EngineResult<{ coordinatorId: string | null }>> {
@@ -237,6 +262,7 @@ export async function autoAssignCoordinatorFromSettings(
     .from("inquiries")
     .select("source_type, tenant_id, version")
     .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
   if (!inq) return { success: false, error: "not_found" };
 
@@ -251,6 +277,7 @@ export async function autoAssignCoordinatorFromSettings(
 
   return assignCoordinator(supabase, {
     inquiryId,
+    tenantId,
     coordinatorUserId: res.coordinator_id,
     actorUserId,
     expectedVersion,
@@ -273,10 +300,13 @@ export async function autoAssignCoordinatorFromSettings(
 //   4. Calls logInquiryAction on BOTH success and failure branches (spec §10.2).
 //   5. Dispatches the in-process emitStandardEngineEvent for side-effects the
 //      RPC doesn't own (system messages, notifications, improntaLog).
+//   6. Pre-flights the tenant filter on the inquiries row so cross-tenant ids
+//      are denied at the engine boundary before the RPC runs.
 // ─────────────────────────────────────────────────────────────────────────────
 
 type CoordinatorActionCtx = {
   inquiryId: string;
+  tenantId: string;
   userId: string;
   actorUserId: string;
 };
@@ -294,11 +324,28 @@ function mapCoordinatorRpcError(msg: string): { reason: string; field: "reason" 
   return { reason: msg || "unknown", field: "error" };
 }
 
+async function preflightInquiryInTenant(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 export async function addSecondaryCoordinator(
   supabase: SupabaseClient,
   ctx: CoordinatorActionCtx,
 ): Promise<EngineResult> {
   return runWithEngineLog("addSecondaryCoordinator", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await preflightInquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
     if (!perm.ok) {
       await logInquiryAction(supabase, {
@@ -362,6 +409,9 @@ export async function removeSecondaryCoordinator(
   ctx: CoordinatorActionCtx,
 ): Promise<EngineResult> {
   return runWithEngineLog("removeSecondaryCoordinator", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await preflightInquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
     if (!perm.ok) {
       await logInquiryAction(supabase, {
@@ -422,6 +472,9 @@ export async function promoteToPrimary(
   ctx: CoordinatorActionCtx,
 ): Promise<EngineResult> {
   return runWithEngineLog("promoteToPrimary", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await preflightInquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "reassign_coordinator");
     if (!perm.ok) {
       await logInquiryAction(supabase, {

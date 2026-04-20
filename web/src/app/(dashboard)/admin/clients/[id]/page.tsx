@@ -27,6 +27,7 @@ import {
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { cn } from "@/lib/utils";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { getTenantScope } from "@/lib/saas/scope";
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -80,17 +81,21 @@ export default async function AdminClientDetailPage({
   if (!detail) notFound();
 
   const supabase = await getCachedServerSupabase();
-  const [{ data: clientBookings }, { data: inqRowsForAccounts }] = supabase
+  const scope = await getTenantScope();
+  const tenantId = scope?.tenantId ?? null;
+  const [{ data: clientBookings }, { data: inqRowsForAccounts }] = supabase && tenantId
     ? await Promise.all([
         supabase
           .from("agency_bookings")
           .select("id, title, status, total_client_revenue, currency_code, updated_at")
+          .eq("tenant_id", tenantId)
           .eq("client_user_id", id)
           .order("updated_at", { ascending: false })
           .limit(40),
         supabase
           .from("inquiries")
           .select("client_account_id, client_accounts ( id, name )")
+          .eq("tenant_id", tenantId)
           .eq("client_user_id", id)
           .not("client_account_id", "is", null),
       ])

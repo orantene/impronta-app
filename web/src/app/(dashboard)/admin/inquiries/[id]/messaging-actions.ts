@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { markThreadRead, sendMessage } from "@/lib/inquiry/inquiry-engine";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 export async function actionSendInquiryMessage(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "You do not have access to send on this thread." };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const threadType = String(formData.get("thread_type") ?? "private") as "private" | "group";
@@ -21,7 +21,8 @@ export async function actionSendInquiryMessage(formData: FormData): Promise<Acti
 
   const res = await sendMessage(supabase, {
     inquiryId,
-    actorUserId: auth.user.id,
+    tenantId,
+    actorUserId: user.id,
     threadType: threadType === "group" ? "group" : "private",
     body,
   });
@@ -49,11 +50,11 @@ export type InquiryThreadMessageDto = {
 export async function actionLoadOlderInquiryMessages(
   formData: FormData,
 ): Promise<ActionResult<{ messages: InquiryThreadMessageDto[] }>> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "You do not have access to this inquiry." };
   }
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const threadType = String(formData.get("thread_type") ?? "private") as "private" | "group";
@@ -69,6 +70,7 @@ export async function actionLoadOlderInquiryMessages(
     .from("inquiry_messages")
     .select("id, body, created_at, sender_user_id, metadata")
     .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
     .eq("thread_type", threadType === "group" ? "group" : "private")
     .lt("created_at", beforeCreatedAt)
     .order("created_at", { ascending: false })
@@ -80,7 +82,6 @@ export async function actionLoadOlderInquiryMessages(
 
   const rawRows = (data ?? []).slice().reverse();
 
-  // Enrich with sender profile info
   const senderIds = [...new Set(rawRows.map((m) => m.sender_user_id).filter((id): id is string => Boolean(id)))];
   const profileMap = new Map<string, { display_name: string | null; avatar_url: string | null }>();
   if (senderIds.length > 0) {
@@ -103,11 +104,11 @@ export async function actionLoadOlderInquiryMessages(
 }
 
 export async function actionMarkInquiryThreadRead(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "Not signed in as staff." };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const threadType = String(formData.get("thread_type") ?? "private") as "private" | "group";
@@ -119,7 +120,8 @@ export async function actionMarkInquiryThreadRead(formData: FormData): Promise<A
 
   const res = await markThreadRead(supabase, {
     inquiryId,
-    actorUserId: auth.user.id,
+    tenantId,
+    actorUserId: user.id,
     threadType: threadType === "group" ? "group" : "private",
     lastMessageId,
   });

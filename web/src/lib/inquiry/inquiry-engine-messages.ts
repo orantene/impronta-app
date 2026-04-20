@@ -6,10 +6,29 @@ import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
+// SaaS P1.B STEP A: tenant-scoped by construction. Every read/write against
+// inquiries / inquiry_messages / inquiry_message_reads filters on tenant_id,
+// and inserts include tenant_id so the Phase-1B trigger has no slack.
+
+async function inquiryInTenant(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 export async function sendMessage(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     actorUserId: string;
     threadType: "private" | "group";
     body: string;
@@ -25,6 +44,10 @@ export async function sendMessage(
       return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
     }
 
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "send_message");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
@@ -32,6 +55,7 @@ export async function sendMessage(
       .from("inquiry_messages")
       .insert({
         inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
         thread_type: ctx.threadType,
         sender_user_id: ctx.actorUserId,
         body: ctx.body,
@@ -64,18 +88,23 @@ export async function markThreadRead(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     actorUserId: string;
     threadType: "private" | "group";
     lastMessageId?: string | null;
   },
 ): Promise<EngineResult> {
   return runWithEngineLog("markThreadRead", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "mark_thread_read");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
     const { error } = await supabase.from("inquiry_message_reads").upsert(
       {
         inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
         thread_type: ctx.threadType,
         user_id: ctx.actorUserId,
         last_read_at: new Date().toISOString(),
@@ -91,13 +120,14 @@ export async function markThreadRead(
 
 export async function editMessage(
   supabase: SupabaseClient,
-  ctx: { messageId: string; actorUserId: string; body: string },
+  ctx: { messageId: string; tenantId: string; actorUserId: string; body: string },
 ): Promise<EngineResult> {
   return runWithEngineLog("editMessage", undefined, ctx.actorUserId, async () => {
     const { data: msg } = await supabase
       .from("inquiry_messages")
       .select("id, sender_user_id, inquiry_id, created_at")
       .eq("id", ctx.messageId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
     if (!msg || msg.sender_user_id !== ctx.actorUserId) return { success: false, forbidden: true, reason: "forbidden" };
 
@@ -110,7 +140,8 @@ export async function editMessage(
     await supabase
       .from("inquiry_messages")
       .update({ body: ctx.body, edited_at: new Date().toISOString() })
-      .eq("id", ctx.messageId);
+      .eq("id", ctx.messageId)
+      .eq("tenant_id", ctx.tenantId);
 
     return { success: true };
   });
@@ -118,13 +149,14 @@ export async function editMessage(
 
 export async function deleteMessage(
   supabase: SupabaseClient,
-  ctx: { messageId: string; actorUserId: string },
+  ctx: { messageId: string; tenantId: string; actorUserId: string },
 ): Promise<EngineResult> {
   return runWithEngineLog("deleteMessage", undefined, ctx.actorUserId, async () => {
     const { data: msg } = await supabase
       .from("inquiry_messages")
       .select("id, sender_user_id, inquiry_id")
       .eq("id", ctx.messageId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
     if (!msg) return { success: false, error: "not_found" };
 
@@ -136,7 +168,8 @@ export async function deleteMessage(
     await supabase
       .from("inquiry_messages")
       .update({ deleted_at: new Date().toISOString() })
-      .eq("id", ctx.messageId);
+      .eq("id", ctx.messageId)
+      .eq("tenant_id", ctx.tenantId);
 
     return { success: true };
   });

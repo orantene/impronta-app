@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireStaffApi } from "@/lib/server/staff-api-route";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { getTenantScope } from "@/lib/saas/scope";
 
 /**
  * Staff-only snapshot for the contextual inspector when a booking row is selected (`apanel=peek` + `aid`).
@@ -15,6 +16,10 @@ export async function GET(request: Request) {
   }
 
   const { supabase } = auth;
+  const scope = await getTenantScope();
+  if (!scope) {
+    return NextResponse.json({ error: "No tenant scope" }, { status: 403 });
+  }
   const { data, error } = await supabase
     .from("agency_bookings")
     .select(
@@ -26,6 +31,7 @@ export async function GET(request: Request) {
       booking_talent ( id )
     `,
     )
+    .eq("tenant_id", scope.tenantId)
     .eq("id", id)
     .maybeSingle();
 

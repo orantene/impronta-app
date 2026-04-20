@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { mapRawActivityRows } from "@/lib/commercial-activity-summary";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 import { loadInquiryRoster } from "@/lib/inquiry/inquiry-workspace-data";
 import type { OfferLineDraft } from "@/lib/inquiry/inquiry-engine";
 import { AdminInquiryWorkspaceV2 } from "@/app/(dashboard)/admin/inquiries/[id]/admin-inquiry-workspace-v2";
@@ -213,8 +214,7 @@ export default async function AdminInquiryDetailPage({
     redirect(qs ? `/admin/inquiries/${id}?${qs}` : `/admin/inquiries/${id}`);
   }
   const activeTab = canonicalizeTab(tabRaw);
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) notFound();
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const { data: inquiry, error } = await supabase
     .from("inquiries")
@@ -252,6 +252,7 @@ export default async function AdminInquiryDetailPage({
       priority
     `,
     )
+    .eq("tenant_id", tenantId)
     .eq("id", id)
     .maybeSingle();
 
@@ -272,6 +273,7 @@ export default async function AdminInquiryDetailPage({
           `id, title, status, starts_at, ends_at, notes, internal_notes, payment_status, total_client_revenue, gross_profit, created_with_override, override_reason,
            booking_talent (id, talent_profile_id, talent_name_snapshot, profile_code_snapshot, talent_profiles (profile_code, display_name))`,
         )
+        .eq("tenant_id", tenantId)
         .eq("source_inquiry_id", id)
         .order("created_at", { ascending: false }),
       supabase
@@ -279,11 +281,13 @@ export default async function AdminInquiryDetailPage({
         .select(
           "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, country, city, location_text, address_notes, google_place_id, latitude, longitude",
         )
+        .eq("tenant_id", tenantId)
         .is("archived_at", null)
         .order("name", { ascending: true }),
       supabase
         .from("client_account_contacts")
         .select("id, client_account_id, full_name, email, phone, client_accounts(name)")
+        .eq("tenant_id", tenantId)
         .is("archived_at", null)
         .order("full_name", { ascending: true }),
       inquiry.client_account_id
@@ -292,6 +296,7 @@ export default async function AdminInquiryDetailPage({
             .select(
               "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, country, city, location_text, address_notes, google_place_id, latitude, longitude",
             )
+            .eq("tenant_id", tenantId)
             .eq("id", inquiry.client_account_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -299,6 +304,7 @@ export default async function AdminInquiryDetailPage({
         ? supabase
             .from("client_account_contacts")
             .select("id, full_name, email, phone")
+            .eq("tenant_id", tenantId)
             .eq("id", inquiry.client_contact_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),

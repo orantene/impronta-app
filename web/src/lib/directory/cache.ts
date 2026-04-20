@@ -39,6 +39,8 @@ export function getCachedDirectoryFirstPage(options: {
   ageMin?: number | null;
   ageMax?: number | null;
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
+  /** Tenant-scoped cache segment. `null` = hub / cross-tenant. */
+  tenantId?: string | null;
 }): Promise<DirectoryPageResponse> {
   const key = taxonomyCacheKey(options.taxonomyTermIds);
   const limit = options.limit ?? DIRECTORY_PAGE_SIZE_DEFAULT;
@@ -51,6 +53,7 @@ export function getCachedDirectoryFirstPage(options: {
   const aMin = options.ageMin ?? null;
   const aMax = options.ageMax ?? null;
   const ffKey = fieldFacetCacheKey(options.fieldFacetFilters);
+  const tenantKey = options.tenantId ?? "hub";
 
   return unstable_cache(
     async () => {
@@ -75,10 +78,12 @@ export function getCachedDirectoryFirstPage(options: {
         ageMin: aMin,
         ageMax: aMax,
         fieldFacetFilters: options.fieldFacetFilters,
+        tenantId: options.tenantId ?? null,
       });
     },
     [
       "directory-first",
+      tenantKey,
       key,
       String(limit),
       locale,
@@ -111,6 +116,8 @@ export async function getPublicDirectoryFirstPage(options: {
   ageMin?: number | null;
   ageMax?: number | null;
   fieldFacetFilters?: DirectoryFieldFacetSelection[];
+  /** Tenant-scoped cache segment. `null` = hub / cross-tenant. */
+  tenantId?: string | null;
 }): Promise<DirectoryPageResponse> {
   const flags = await getAiFeatureFlags();
   if (!flags.ai_master_enabled || !flags.ai_search_enabled) {
@@ -147,6 +154,7 @@ export async function getPublicDirectoryFirstPage(options: {
     includeTotalCount: true,
     logAnalytics: false,
     analyticsSource: "directory",
+    tenantId: options.tenantId ?? null,
   });
 
   const aiOverlayByTalentId = buildDirectoryAiOverlayByTalentId(

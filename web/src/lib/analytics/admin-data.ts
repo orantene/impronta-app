@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { requireStaff } from "@/lib/server/action-guards";
+import { getTenantScope } from "@/lib/saas/scope";
 
 export type DateRangeKey = "7d" | "30d" | "90d";
 
@@ -32,7 +33,10 @@ export const loadExecutiveOverviewInternal = cache(
   async (range: { start: Date; end: Date }): Promise<ExecutiveOverviewInternal | null> => {
     const auth = await requireStaff();
     if (!auth.ok) return null;
+    const scope = await getTenantScope();
+    if (!scope) return null;
     const { supabase } = auth;
+    const tenantId = scope.tenantId;
     const startIso = range.start.toISOString();
     const endIso = range.end.toISOString();
 
@@ -46,10 +50,14 @@ export const loadExecutiveOverviewInternal = cache(
       eventsRes,
       profileViewsRes,
     ] = await Promise.all([
-      supabase.from("inquiries").select("id", { count: "exact", head: true }),
       supabase
         .from("inquiries")
         .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("inquiries")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
         .gte("created_at", startIso)
         .lte("created_at", endIso),
       supabase
@@ -66,6 +74,7 @@ export const loadExecutiveOverviewInternal = cache(
       supabase
         .from("inquiries")
         .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
         .in("status", [
           "new",
           "reviewing",
@@ -76,11 +85,13 @@ export const loadExecutiveOverviewInternal = cache(
       supabase
         .from("analytics_events")
         .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
         .gte("created_at", startIso)
         .lte("created_at", endIso),
       supabase
         .from("analytics_events")
         .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId)
         .eq("name", "view_talent_profile")
         .gte("created_at", startIso)
         .lte("created_at", endIso),
@@ -122,7 +133,10 @@ export const loadFunnelEventCounts = cache(
   async (range: { start: Date; end: Date }): Promise<FunnelEventCounts | null> => {
     const auth = await requireStaff();
     if (!auth.ok) return null;
+    const scope = await getTenantScope();
+    if (!scope) return null;
     const { supabase } = auth;
+    const tenantId = scope.tenantId;
     const startIso = range.start.toISOString();
     const endIso = range.end.toISOString();
 
@@ -131,6 +145,7 @@ export const loadFunnelEventCounts = cache(
         supabase
           .from("analytics_events")
           .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
           .eq("name", name)
           .gte("created_at", startIso)
           .lte("created_at", endIso),
@@ -148,31 +163,44 @@ export const loadSearchQualitySummary = cache(
   async (range: { start: Date; end: Date }): Promise<SearchQualitySummary | null> => {
     const auth = await requireStaff();
     if (!auth.ok) return null;
+    const scope = await getTenantScope();
+    if (!scope) return null;
     const { supabase } = auth;
+    const tenantId = scope.tenantId;
     const startIso = range.start.toISOString();
     const endIso = range.end.toISOString();
+
+    // search_queries is tenant-nullable by design (migration B7): NULL rows are
+    // hub/legacy searches that predate tenant-aware search. Phase 2+ rows carry
+    // tenant_id. Match both this tenant's rows AND NULL (hub baseline) so Phase 2
+    // cross-tenant data never leaks while Phase 1 legacy data still surfaces.
+    const tenantFilter = `tenant_id.eq.${tenantId},tenant_id.is.null`;
 
     const [totalRes, zeroRes, aiRes, fbRes] = await Promise.all([
       supabase
         .from("search_queries")
         .select("id", { count: "exact", head: true })
+        .or(tenantFilter)
         .gte("created_at", startIso)
         .lte("created_at", endIso),
       supabase
         .from("search_queries")
         .select("id", { count: "exact", head: true })
+        .or(tenantFilter)
         .gte("created_at", startIso)
         .lte("created_at", endIso)
         .eq("results_count", 0),
       supabase
         .from("search_queries")
         .select("id", { count: "exact", head: true })
+        .or(tenantFilter)
         .gte("created_at", startIso)
         .lte("created_at", endIso)
         .not("ai_path_requested", "is", null),
       supabase
         .from("search_queries")
         .select("id", { count: "exact", head: true })
+        .or(tenantFilter)
         .gte("created_at", startIso)
         .lte("created_at", endIso)
         .eq("fallback_triggered", true),

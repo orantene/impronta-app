@@ -8,7 +8,7 @@ import {
 } from "@/lib/inquiry/inquiry-engine";
 import type { EngineErr } from "@/lib/inquiry/inquiry-engine.types";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 
 function mapCoordinatorEngineFailure(res: EngineErr): ActionResult {
@@ -29,11 +29,11 @@ function mapCoordinatorEngineFailure(res: EngineErr): ActionResult {
 }
 
 export async function actionAcceptCoordinator(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
@@ -43,7 +43,8 @@ export async function actionAcceptCoordinator(formData: FormData): Promise<Actio
 
   const res = await acceptCoordinatorAssignment(supabase, {
     inquiryId,
-    actorUserId: auth.user.id,
+    tenantId,
+    actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
   });
 
@@ -55,11 +56,11 @@ export async function actionAcceptCoordinator(formData: FormData): Promise<Actio
 }
 
 export async function actionDeclineCoordinator(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
@@ -69,7 +70,8 @@ export async function actionDeclineCoordinator(formData: FormData): Promise<Acti
 
   const res = await declineCoordinatorAssignment(supabase, {
     inquiryId,
-    actorUserId: auth.user.id,
+    tenantId,
+    actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
   });
 
@@ -81,11 +83,11 @@ export async function actionDeclineCoordinator(formData: FormData): Promise<Acti
 }
 
 export async function actionAssignCoordinator(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const coordinatorUserId = String(formData.get("coordinator_user_id") ?? "").trim();
@@ -96,8 +98,9 @@ export async function actionAssignCoordinator(formData: FormData): Promise<Actio
 
   const res = await assignCoordinator(supabase, {
     inquiryId,
+    tenantId,
     coordinatorUserId,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
   });
 

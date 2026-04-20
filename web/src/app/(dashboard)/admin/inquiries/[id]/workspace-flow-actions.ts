@@ -2,18 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 
 const PRE_REVIEW_STATUSES = new Set(["new", "submitted", "qualified", "draft"]);
 
-/** Move a v2 inquiry into staff review (submitted → reviewing). */
 export async function actionStartInquiryReview(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "You do not have access to this inquiry." };
   }
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
@@ -25,6 +24,7 @@ export async function actionStartInquiryReview(formData: FormData): Promise<Acti
     .from("inquiries")
     .select("status, version, uses_new_engine")
     .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (loadErr || !row) {
@@ -49,6 +49,7 @@ export async function actionStartInquiryReview(formData: FormData): Promise<Acti
       updated_at: new Date().toISOString(),
     })
     .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
     .eq("version", v)
     .select("id")
     .maybeSingle();
@@ -66,13 +67,12 @@ export async function actionStartInquiryReview(formData: FormData): Promise<Acti
   return { ok: true, message: "Review started." };
 }
 
-/** Reopen a closed terminal inquiry back into coordination. */
 export async function actionReopenInquiry(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "You do not have access to this inquiry." };
   }
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
@@ -84,6 +84,7 @@ export async function actionReopenInquiry(formData: FormData): Promise<ActionRes
     .from("inquiries")
     .select("status, version, uses_new_engine")
     .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (loadErr || !row) {
@@ -112,6 +113,7 @@ export async function actionReopenInquiry(formData: FormData): Promise<ActionRes
       updated_at: new Date().toISOString(),
     })
     .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
     .eq("version", v)
     .select("id")
     .maybeSingle();

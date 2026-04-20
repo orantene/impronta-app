@@ -16,6 +16,7 @@ import {
   parseTaxonomyParam,
 } from "@/lib/directory/search-params";
 import { getPublicSettings } from "@/lib/public-settings";
+import { getPublicHostContext } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { improntaLog } from "@/lib/server/structured-log";
 import { isDirectoryApiAudit } from "@/lib/directory/directory-api-audit";
@@ -36,6 +37,21 @@ export async function GET(request: Request) {
       { status: 403 },
     );
   }
+
+  const hostContext = await getPublicHostContext();
+  if (hostContext.kind === "marketing" || hostContext.kind === "app") {
+    return NextResponse.json(
+      { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds: [] },
+      { status: 404 },
+    );
+  }
+  if (hostContext.kind === "unknown") {
+    return NextResponse.json(
+      { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds: [] },
+      { status: 404 },
+    );
+  }
+  const tenantId = hostContext.kind === "agency" ? hostContext.tenantId : null;
 
   const { searchParams } = new URL(request.url);
   const cursor = searchParams.get("cursor");
@@ -100,6 +116,7 @@ export async function GET(request: Request) {
         ageMax,
         fieldFacetFilters,
         skipTotalCount: Boolean(cursor),
+        tenantId,
       });
     const fetchDirectoryPageMs = performance.now() - tFetch;
     const handlerWallMs = performance.now() - wall;

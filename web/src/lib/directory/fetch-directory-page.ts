@@ -34,6 +34,7 @@ import {
   applyDirectoryFieldFacetFilters,
   loadDirectoryFacetDefinitionsByKey,
 } from "@/lib/directory/apply-directory-field-facet-filters";
+import { listTalentIdsOnTenantRoster } from "@/lib/saas/talent-roster";
 
 /**
  * Directory `q`: primary path is Postgres RPC `directory_search_public_talent_ids` (FTS + ILIKE + similarity).
@@ -228,6 +229,7 @@ export async function fetchDirectoryPage(
     Math.max(params.limit ?? DIRECTORY_PAGE_SIZE_DEFAULT, 1),
     DIRECTORY_PAGE_SIZE_MAX,
   );
+  const tenantScopeId = params.tenantId ?? null;
   const taxonomyTermIds = params.taxonomyTermIds?.filter(Boolean) ?? [];
   const locale = params.locale ?? "en";
   const sort = params.sort ?? "recommended";
@@ -384,6 +386,16 @@ export async function fetchDirectoryPage(
   }
 
   let filteredTalentIds: string[] | null = null;
+  let tenantRosterIds: string[] | null = null;
+  if (tenantScopeId) {
+    tenantRosterIds = await auditTime(audit, timings, "tenantRosterIdsMs", () =>
+      listTalentIdsOnTenantRoster(supabase, tenantScopeId),
+    );
+    if (tenantRosterIds.length === 0) {
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+    }
+  }
+
   if (taxonomyByKind.size > 0) {
     const perKindSets: string[][] = [];
     for (const [, termIds] of taxonomyByKind) {
@@ -419,6 +431,16 @@ export async function fetchDirectoryPage(
     filteredTalentIds = filteredTalentIds
       ? filteredTalentIds.filter((id) => locationTaxonomyTalentIds.includes(id))
       : locationTaxonomyTalentIds;
+  }
+
+  if (tenantRosterIds) {
+    const rosterSet = new Set(tenantRosterIds);
+    filteredTalentIds = filteredTalentIds
+      ? filteredTalentIds.filter((id) => rosterSet.has(id))
+      : tenantRosterIds;
+    if (filteredTalentIds.length === 0) {
+      return { items: [], nextCursor: null, totalCount: 0, taxonomyTermIds };
+    }
   }
 
   if (queryText) {

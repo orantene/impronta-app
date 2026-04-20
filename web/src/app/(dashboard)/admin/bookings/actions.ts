@@ -16,17 +16,22 @@ import { BOOKING_AUDIT, INQUIRY_AUDIT } from "@/lib/commercial-audit-events";
 import { computeBookingTalentRowTotals, sumBookingHeaderFromRows } from "@/lib/booking-pricing";
 import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-audit";
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
-import { requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type BookingActionState = { error?: string } | undefined;
 
-async function recalculateBookingTotals(supabase: SupabaseClient, bookingId: string) {
+async function recalculateBookingTotals(
+  supabase: SupabaseClient,
+  bookingId: string,
+  tenantId: string,
+) {
   const { data: rows, error } = await supabase
     .from("booking_talent")
     .select("talent_cost_total, client_charge_total, gross_profit")
-    .eq("booking_id", bookingId);
+    .eq("booking_id", bookingId)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("admin/recalculateBookingTotals", error);
     return;
@@ -40,7 +45,8 @@ async function recalculateBookingTotals(supabase: SupabaseClient, bookingId: str
       gross_profit: totals.gross_profit,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", bookingId);
+    .eq("id", bookingId)
+    .eq("tenant_id", tenantId);
   if (upErr) logServerError("admin/recalculateBookingTotals/header", upErr);
 }
 
@@ -56,11 +62,11 @@ const convertInquirySchema = z.object({
 });
 
 export async function convertInquiryToBooking(formData: FormData): Promise<void> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     redirect("/admin/inquiries");
   }
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   let talentIds = formData
     .getAll("talent_profile_ids")
@@ -99,14 +105,27 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
   const { data: inq, error: inqErr } = await supabase
     .from("inquiries")
     .select(
-      "client_user_id, client_account_id, client_contact_id, contact_name, contact_email, contact_phone, event_type_id, event_date, event_location",
+      "tenant_id, client_user_id, client_account_id, client_contact_id, contact_name, contact_email, contact_phone, event_type_id, event_date, event_location",
     )
     .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (inqErr || !inq) {
     logServerError("admin/convertInquiry/loadInquiry", inqErr);
     redirect(`/admin/inquiries/${inquiry_id}?convert_error=${encodeURIComponent(CLIENT_ERROR.loadPage)}`);
+  }
+
+  // SaaS P1.B STEP 1 / STEP 3: inquiry must be in the caller's active tenant.
+  // The `.eq("tenant_id", tenantId)` above makes cross-tenant IDs resolve to
+  // `null` and fall through to the notFound branch above. We still keep a
+  // belt-and-suspenders check that the loaded row carries a tenant_id.
+  if (!inq.tenant_id) {
+    logServerError(
+      "admin/convertInquiry/tenant",
+      new Error(`inquiry ${inquiry_id} has no tenant_id`),
+    );
+    redirect(`/admin/inquiries/${inquiry_id}?convert_error=${encodeURIComponent(CLIENT_ERROR.update)}`);
   }
 
   let bookingId: string;
@@ -121,6 +140,7 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
       .from("agency_bookings")
       .select("id, source_inquiry_id")
       .eq("id", existing_booking_id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (exErr || !existing || existing.source_inquiry_id !== inquiry_id) {
       redirect(
@@ -133,6 +153,7 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
         .from("booking_talent")
         .select("talent_profile_id")
         .eq("booking_id", bookingId)
+        .eq("tenant_id", tenantId)
         .not("talent_profile_id", "is", null);
       const have = new Set(
         (existingTalent ?? []).map((r) => r.talent_profile_id).filter(Boolean) as string[],
@@ -147,6 +168,7 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
         .from("client_accounts")
         .select("name, account_type")
         .eq("id", inq.client_account_id)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       client_account_name = acc?.name ?? null;
       client_account_type = acc?.account_type ?? null;
@@ -155,6 +177,7 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
     const { data: bookingRow, error: bookErr } = await supabase
       .from("agency_bookings")
       .insert({
+        tenant_id: tenantId,
         source_inquiry_id: inquiry_id,
         client_user_id: inq.client_user_id,
         client_account_id: inq.client_account_id,
@@ -191,6 +214,7 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
       .from("booking_talent")
       .select("sort_order")
       .eq("booking_id", bookingId)
+      .eq("tenant_id", tenantId)
       .order("sort_order", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -204,6 +228,7 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
         .maybeSingle();
       const t = computeBookingTalentRowTotals(1, 0, 0);
       const { error: lineErr } = await supabase.from("booking_talent").insert({
+        tenant_id: tenantId,
         booking_id: bookingId,
         talent_profile_id: tid,
         talent_name_snapshot: tp?.display_name ?? null,
@@ -252,13 +277,14 @@ export async function convertInquiryToBooking(formData: FormData): Promise<void>
     });
   }
 
-  await recalculateBookingTotals(supabase, bookingId);
+  await recalculateBookingTotals(supabase, bookingId, tenantId);
 
   if (markConverted) {
     await supabase
       .from("inquiries")
       .update({ status: "converted" as never, updated_at: new Date().toISOString() })
-      .eq("id", inquiry_id);
+      .eq("id", inquiry_id)
+      .eq("tenant_id", tenantId);
   }
 
   revalidatePath("/admin/inquiries");
@@ -293,9 +319,9 @@ export async function updateBooking(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const pmRaw = trimmedString(formData, "payment_method");
   let paymentMethodVal: z.infer<typeof paymentMethodSchema> | null = null;
@@ -352,6 +378,7 @@ export async function updateBooking(
       "status, owner_staff_id, client_account_id, client_contact_id, payment_status, payment_method, client_visible_at",
     )
     .eq("id", d.booking_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (priorErr || !prior) {
@@ -369,6 +396,7 @@ export async function updateBooking(
       .from("client_accounts")
       .select("name, account_type")
       .eq("id", accountId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     client_account_name = acc?.name ?? null;
     client_account_type = acc?.account_type != null ? String(acc.account_type) : null;
@@ -382,6 +410,7 @@ export async function updateBooking(
       .from("client_account_contacts")
       .select("full_name, email, phone")
       .eq("id", finalContactId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     contact_name = c?.full_name ?? null;
     contact_email = c?.email ?? null;
@@ -406,7 +435,7 @@ export async function updateBooking(
     client_account_id: accountId,
     client_contact_id: finalContactId,
     client_visible_at: nextClientVisibleAt,
-    updated_by_staff_id: auth.user.id,
+    updated_by_staff_id: user.id,
     updated_at: new Date().toISOString(),
   };
 
@@ -420,14 +449,18 @@ export async function updateBooking(
     if (contact_phone != null) patch.contact_phone = contact_phone;
   }
 
-  const { error } = await supabase.from("agency_bookings").update(patch as never).eq("id", d.booking_id);
+  const { error } = await supabase
+    .from("agency_bookings")
+    .update(patch as never)
+    .eq("id", d.booking_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/updateBooking", error);
     return { error: CLIENT_ERROR.update };
   }
 
-  const actor = auth.user.id;
+  const actor = user.id;
   const nextOwner = d.owner_staff_id || null;
   if (prior.client_account_id !== accountId) {
     await logBookingActivity(supabase, {
@@ -508,9 +541,9 @@ const quickPeekBookingSchema = z.object({
 
 /** Minimal booking patch from list/peek panels (status + manager only). */
 export async function quickUpdateBookingPeek(formData: FormData): Promise<BookingActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(quickPeekBookingSchema, {
     booking_id: trimmedString(formData, "booking_id"),
@@ -526,6 +559,7 @@ export async function quickUpdateBookingPeek(formData: FormData): Promise<Bookin
     .from("agency_bookings")
     .select("status, owner_staff_id")
     .eq("id", booking_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (priorErr || !prior) {
@@ -541,7 +575,8 @@ export async function quickUpdateBookingPeek(formData: FormData): Promise<Bookin
       updated_at: new Date().toISOString(),
       updated_by_staff_id: user.id,
     } as never)
-    .eq("id", booking_id);
+    .eq("id", booking_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/quickUpdateBookingPeek", error);
@@ -576,9 +611,9 @@ const assignBookingToMeSchema = z.object({
 });
 
 export async function assignBookingToCurrentStaff(formData: FormData): Promise<void> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return;
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(assignBookingToMeSchema, {
     booking_id: trimmedString(formData, "booking_id"),
@@ -591,6 +626,7 @@ export async function assignBookingToCurrentStaff(formData: FormData): Promise<v
     .from("agency_bookings")
     .select("owner_staff_id")
     .eq("id", booking_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (priorErr || !prior) {
@@ -605,7 +641,8 @@ export async function assignBookingToCurrentStaff(formData: FormData): Promise<v
       updated_at: new Date().toISOString(),
       updated_by_staff_id: user.id,
     } as never)
-    .eq("id", booking_id);
+    .eq("id", booking_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/assignBookingToCurrentStaff", error);
@@ -643,9 +680,9 @@ export async function patchBookingEntityLinks(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(patchBookingEntityLinksSchema, {
     booking_id: trimmedString(formData, "booking_id"),
@@ -663,6 +700,7 @@ export async function patchBookingEntityLinks(
     .from("agency_bookings")
     .select("client_user_id, client_account_id, client_contact_id, source_inquiry_id")
     .eq("id", booking_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (loadErr || !row) {
@@ -702,7 +740,12 @@ export async function patchBookingEntityLinks(
     } else {
       const uuidOk = z.string().uuid().safeParse(raw);
       if (!uuidOk.success) return { error: "Source inquiry must be a valid id or left blank." };
-      const { data: inqExists } = await supabase.from("inquiries").select("id").eq("id", raw).maybeSingle();
+      const { data: inqExists } = await supabase
+        .from("inquiries")
+        .select("id")
+        .eq("id", raw)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
       if (!inqExists) return { error: "That inquiry was not found." };
       source_inquiry_id = raw;
     }
@@ -723,6 +766,7 @@ export async function patchBookingEntityLinks(
         .from("client_accounts")
         .select("name, account_type")
         .eq("id", client_account_id)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       if (acc?.name) patch.client_account_name = acc.name;
       if (acc?.account_type != null) patch.client_account_type = String(acc.account_type);
@@ -732,6 +776,7 @@ export async function patchBookingEntityLinks(
         .from("client_account_contacts")
         .select("full_name, email, phone")
         .eq("id", client_contact_id)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       if (c?.full_name) patch.contact_name = c.full_name;
       if (c?.email && String(c.email).trim()) patch.contact_email = c.email;
@@ -739,7 +784,11 @@ export async function patchBookingEntityLinks(
     }
   }
 
-  const { error } = await supabase.from("agency_bookings").update(patch as never).eq("id", booking_id);
+  const { error } = await supabase
+    .from("agency_bookings")
+    .update(patch as never)
+    .eq("id", booking_id)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("admin/patchBookingEntityLinks", error);
     return { error: CLIENT_ERROR.update };
@@ -790,9 +839,9 @@ export async function saveBookingTalentRow(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(bookingTalentRowSchema, {
     booking_talent_id: trimmedString(formData, "booking_talent_id"),
@@ -812,6 +861,7 @@ export async function saveBookingTalentRow(
     .from("booking_talent")
     .select("talent_profile_id, units, pricing_unit, talent_cost_rate, client_charge_rate, role_label")
     .eq("id", d.booking_talent_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   const totals = computeBookingTalentRowTotals(d.units, d.talent_cost_rate, d.client_charge_rate);
@@ -830,7 +880,8 @@ export async function saveBookingTalentRow(
       notes: d.notes || null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", d.booking_talent_id);
+    .eq("id", d.booking_talent_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/saveBookingTalentRow", error);
@@ -839,7 +890,7 @@ export async function saveBookingTalentRow(
 
   await logBookingActivity(supabase, {
     bookingId: d.booking_id,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     eventType: BOOKING_AUDIT.TALENT_ROW_SAVED,
     payload: {
       booking_talent_id: d.booking_talent_id,
@@ -855,7 +906,7 @@ export async function saveBookingTalentRow(
     },
   });
 
-  await recalculateBookingTotals(supabase, d.booking_id);
+  await recalculateBookingTotals(supabase, d.booking_id, tenantId);
   revalidatePath(`/admin/bookings/${d.booking_id}`);
   revalidatePath("/admin/bookings");
   return undefined;
@@ -870,9 +921,9 @@ export async function addBookingTalentRow(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(newBookingTalentSchema, {
     booking_id: trimmedString(formData, "booking_id"),
@@ -885,10 +936,21 @@ export async function addBookingTalentRow(
     return { error: "Select a talent." };
   }
 
+  const { data: bookingRow } = await supabase
+    .from("agency_bookings")
+    .select("id")
+    .eq("id", booking_id)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!bookingRow) {
+    return { error: "Booking not found for this tenant." };
+  }
+
   const { data: maxSort } = await supabase
     .from("booking_talent")
     .select("sort_order")
     .eq("booking_id", booking_id)
+    .eq("tenant_id", tenantId)
     .order("sort_order", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -902,6 +964,7 @@ export async function addBookingTalentRow(
 
   const t = computeBookingTalentRowTotals(1, 0, 0);
   const { error } = await supabase.from("booking_talent").insert({
+    tenant_id: tenantId,
     booking_id,
     talent_profile_id,
     talent_name_snapshot: tp?.display_name ?? null,
@@ -923,12 +986,12 @@ export async function addBookingTalentRow(
 
   await logBookingActivity(supabase, {
     bookingId: booking_id,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     eventType: BOOKING_AUDIT.TALENT_ROW_ADDED,
     payload: { talent_profile_id },
   });
 
-  await recalculateBookingTotals(supabase, booking_id);
+  await recalculateBookingTotals(supabase, booking_id, tenantId);
   revalidatePath(`/admin/bookings/${booking_id}`);
   revalidatePath("/admin/bookings");
   return undefined;
@@ -943,9 +1006,9 @@ export async function deleteBookingTalentRow(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(deleteBookingTalentSchema, {
     booking_talent_id: trimmedString(formData, "booking_talent_id"),
@@ -959,9 +1022,14 @@ export async function deleteBookingTalentRow(
     .from("booking_talent")
     .select("talent_profile_id, profile_code_snapshot, talent_name_snapshot")
     .eq("id", booking_talent_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
-  const { error } = await supabase.from("booking_talent").delete().eq("id", booking_talent_id);
+  const { error } = await supabase
+    .from("booking_talent")
+    .delete()
+    .eq("id", booking_talent_id)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("admin/deleteBookingTalentRow", error);
     return { error: CLIENT_ERROR.update };
@@ -969,7 +1037,7 @@ export async function deleteBookingTalentRow(
 
   await logBookingActivity(supabase, {
     bookingId: booking_id,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     eventType: BOOKING_AUDIT.TALENT_ROW_REMOVED,
     payload: {
       booking_talent_id,
@@ -978,7 +1046,7 @@ export async function deleteBookingTalentRow(
     },
   });
 
-  await recalculateBookingTotals(supabase, booking_id);
+  await recalculateBookingTotals(supabase, booking_id, tenantId);
   revalidatePath(`/admin/bookings/${booking_id}`);
   revalidatePath("/admin/bookings");
   return undefined;
@@ -1001,9 +1069,14 @@ const manualBookingSchema = z.object({
 
 export async function createManualBooking(formData: FormData): Promise<void> {
   const returnTo = trimmedString(formData, "return_to") || "/admin/bookings/new";
-  const auth = await requireStaff();
-  if (!auth.ok) redirect(returnTo);
-  const { supabase, user } = auth;
+  // SaaS P1.B STEP 1: manual bookings have no source inquiry, so tenant_id
+  // must come from the admin's active workspace (switcher cookie / primary
+  // membership). Refuse if no scope is resolvable.
+  const auth = await requireStaffTenantAction();
+  if (!auth.ok) {
+    redirect(`${returnTo}?err=${encodeURIComponent(auth.error)}`);
+  }
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(manualBookingSchema, {
     title: trimmedString(formData, "title"),
@@ -1063,6 +1136,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
       .from("client_accounts")
       .select("name, account_type")
       .eq("id", accountId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     client_account_name = acc?.name ?? null;
     client_account_type = acc?.account_type != null ? String(acc.account_type) : null;
@@ -1072,6 +1146,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
       .from("client_account_contacts")
       .select("full_name, email, phone")
       .eq("id", contactId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     contact_name = c?.full_name ?? null;
     contact_email = c?.email ?? null;
@@ -1081,6 +1156,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
   const { data: bookingRow, error: bookErr } = await supabase
     .from("agency_bookings")
     .insert({
+      tenant_id: tenantId,
       source_inquiry_id: null,
       client_account_id: accountId,
       client_contact_id: contactId,
@@ -1125,6 +1201,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
       .maybeSingle();
     const t = computeBookingTalentRowTotals(1, 0, 0);
     const { error: lineErr } = await supabase.from("booking_talent").insert({
+      tenant_id: tenantId,
       booking_id: bookingRow.id,
       talent_profile_id: tid,
       talent_name_snapshot: tp?.display_name ?? null,
@@ -1144,7 +1221,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
     }
   }
 
-  await recalculateBookingTotals(supabase, bookingRow.id);
+  await recalculateBookingTotals(supabase, bookingRow.id, tenantId);
 
   await logBookingActivity(supabase, {
     bookingId: bookingRow.id,
@@ -1161,9 +1238,9 @@ export async function createManualBooking(formData: FormData): Promise<void> {
 }
 
 export async function duplicateBooking(formData: FormData): Promise<void> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) redirect("/admin/bookings");
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const sourceId = trimmedString(formData, "source_booking_id");
   if (!z.string().uuid().safeParse(sourceId).success) {
@@ -1181,11 +1258,15 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
   const newAccountId = trimmedString(formData, "new_client_account_id");
   const newContactId = trimmedString(formData, "new_client_contact_id");
 
+  // SaaS P1.B STEP 3: scope source read to the caller's active tenant. A
+  // cross-tenant source id resolves to `null` and fails fast below — this
+  // replaces the earlier post-load `requireStaffOfTenant` check.
   const { data: src, error: srcErr } = await supabase
     .from("agency_bookings")
     .select(
       `
       id,
+      tenant_id,
       source_inquiry_id,
       client_account_id,
       client_contact_id,
@@ -1211,6 +1292,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
     `,
     )
     .eq("id", sourceId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (srcErr || !src) {
@@ -1223,6 +1305,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
       "talent_profile_id, talent_name_snapshot, profile_code_snapshot, role_label, pricing_unit, units, talent_cost_rate, client_charge_rate, talent_cost_total, client_charge_total, gross_profit, notes, sort_order",
     )
     .eq("booking_id", sourceId)
+    .eq("tenant_id", tenantId)
     .order("sort_order", { ascending: true });
 
   let client_account_id: string | null = keep_client_links ? src.client_account_id : newAccountId || null;
@@ -1247,6 +1330,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
         .from("client_accounts")
         .select("name, account_type")
         .eq("id", client_account_id)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       client_account_name = acc?.name ?? null;
       client_account_type = acc?.account_type != null ? String(acc.account_type) : null;
@@ -1256,6 +1340,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
         .from("client_account_contacts")
         .select("full_name, email, phone")
         .eq("id", client_contact_id)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       contact_name = c?.full_name ?? contact_name;
       contact_email = c?.email ?? contact_email;
@@ -1266,6 +1351,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
   const { data: inserted, error: insErr } = await supabase
     .from("agency_bookings")
     .insert({
+      tenant_id: tenantId,
       source_inquiry_id: keep_source_inquiry ? src.source_inquiry_id : null,
       client_account_id,
       client_contact_id,
@@ -1326,6 +1412,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
           })();
 
       await supabase.from("booking_talent").insert({
+        tenant_id: tenantId,
         booking_id: inserted.id,
         talent_profile_id: row.talent_profile_id,
         talent_name_snapshot: row.talent_name_snapshot,
@@ -1340,7 +1427,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
     }
   }
 
-  await recalculateBookingTotals(supabase, inserted.id);
+  await recalculateBookingTotals(supabase, inserted.id, tenantId);
 
   await logBookingActivity(supabase, {
     bookingId: inserted.id,

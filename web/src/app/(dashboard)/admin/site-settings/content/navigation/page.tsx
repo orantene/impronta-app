@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 import { NavigationManager, type NavRow } from "./navigation-manager";
@@ -10,14 +10,12 @@ import { NavigationManager, type NavRow } from "./navigation-manager";
 export const dynamic = "force-dynamic";
 
 export default async function CmsNavigationPage() {
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
-  }
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const { data, error } = await supabase
     .from("cms_navigation_items")
     .select("id,locale,zone,label,href,sort_order,visible")
+    .eq("tenant_id", tenantId)
     .order("locale")
     .order("zone")
     .order("sort_order");

@@ -19,7 +19,7 @@ import {
 import { BOOKING_STATUS_VALUES } from "@/lib/admin/validation";
 import { cn } from "@/lib/utils";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 
 function relOne<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null;
@@ -114,10 +114,7 @@ export default async function AdminBookingsPage({
     updated_to: updatedTo = "",
     err: errParam,
   } = await searchParams;
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
-  }
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const trimmedQuery = query.trim();
 
@@ -135,6 +132,7 @@ export default async function AdminBookingsPage({
       booking_talent ( id )
     `,
     )
+    .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
 
   if (statusFilter && statusFilter !== "all" && BOOKING_STATUS_VALUES.includes(statusFilter as (typeof BOOKING_STATUS_VALUES)[number])) {
@@ -167,7 +165,12 @@ export default async function AdminBookingsPage({
     dbQuery,
     supabase.auth.getUser(),
     clientAccountIdFilter
-      ? supabase.from("client_accounts").select("name").eq("id", clientAccountIdFilter).maybeSingle()
+      ? supabase
+          .from("client_accounts")
+          .select("name")
+          .eq("tenant_id", tenantId)
+          .eq("id", clientAccountIdFilter)
+          .maybeSingle()
       : Promise.resolve({ data: null as { name: string } | null, error: null }),
     clientUserIdFilter
       ? supabase.from("profiles").select("display_name").eq("id", clientUserIdFilter).maybeSingle()
@@ -177,10 +180,16 @@ export default async function AdminBookingsPage({
       .select("id, display_name, avatar_url")
       .in("app_role", ["super_admin", "agency_staff"])
       .order("display_name", { ascending: true }),
-    supabase.from("client_accounts").select("id, name").is("archived_at", null).order("name", { ascending: true }),
+    supabase
+      .from("client_accounts")
+      .select("id, name")
+      .eq("tenant_id", tenantId)
+      .is("archived_at", null)
+      .order("name", { ascending: true }),
     supabase
       .from("client_account_contacts")
       .select("id, client_account_id, full_name, client_accounts(name)")
+      .eq("tenant_id", tenantId)
       .is("archived_at", null)
       .order("full_name", { ascending: true }),
     supabase

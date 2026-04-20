@@ -8,6 +8,23 @@ import type { EngineResult } from "./inquiry-engine.types";
 import { logInquiryAction } from "./inquiry-action-log";
 import { getInquiryGroupShortfall } from "./inquiry-fulfillment";
 
+// SaaS P1.B STEP A: tenant-scoped by construction. Before invoking the RPC
+// we verify the inquiry row belongs to ctx.tenantId so cross-tenant ids are
+// rejected at the engine boundary even though the RPC runs SECURITY DEFINER.
+async function inquiryInTenant(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 async function onBookingCreated(
   bookingId: string,
   ctx: {
@@ -30,6 +47,7 @@ export async function convertToBooking(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     actorUserId: string;
     expectedVersion: number;
     /**
@@ -54,6 +72,17 @@ export async function convertToBooking(
         reason: "rate_limited",
       });
       return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
+    }
+
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      await logInquiryAction(supabase, {
+        inquiryId: ctx.inquiryId,
+        actorUserId: ctx.actorUserId,
+        actionType: "booking_conversion_attempt",
+        result: "failure",
+        reason: "forbidden",
+      });
+      return { success: false, forbidden: true, reason: "forbidden" };
     }
 
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "convert_to_booking");
