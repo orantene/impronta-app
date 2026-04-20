@@ -76,21 +76,50 @@ END
 $$;
 
 -- ---------------------------------------------------------------------------
--- Step 4 — relax the tenant-scope CHECK for kind='hub'.
+-- Step 4a — drop the old tenant-scope CHECK.
 --
 -- Previous constraint (from 20260605100000_saas_p4_unified_domain_registry):
 --   (kind IN ('subdomain','custom')       AND tenant_id IS NOT NULL)
 --   OR (kind IN ('marketing','app','hub') AND tenant_id IS NULL)
--- New:
+-- New (installed in step 4b, below, AFTER the rebind):
 --   (kind IN ('subdomain','custom','hub') AND tenant_id IS NOT NULL)
 --   OR (kind IN ('marketing','app')       AND tenant_id IS NULL)
 --
 -- Effect: hub rows move from "must be orphaned" to "must be bound to an
 -- org row". `marketing` and `app` remain platform-global (NULL tenant_id).
+--
+-- Ordering rationale: ADD CONSTRAINT validates existing rows synchronously
+-- against the new predicate. If we added the new constraint before the
+-- UPDATE rebinds existing hub rows, the ADD would fail on any pre-existing
+-- hub row with NULL tenant_id. Conversely, we cannot UPDATE the tenant_id
+-- while the OLD constraint is still in place (it forbids hub + non-NULL
+-- tenant_id). So the only valid sequence is: DROP old → UPDATE rows → ADD
+-- new. The single transaction still guarantees no external observer sees
+-- the unconstrained window.
 -- ---------------------------------------------------------------------------
 
 ALTER TABLE public.agency_domains
   DROP CONSTRAINT IF EXISTS agency_domains_tenant_scope_check;
+
+-- ---------------------------------------------------------------------------
+-- Step 5 — rebind existing hub rows to the hub agency's UUID.
+--
+-- Runs while NO tenant-scope CHECK is in place so it can move hub rows
+-- from tenant_id=NULL to the hub UUID. Step 4b then installs the new
+-- predicate which validates successfully because every hub row now
+-- carries the expected tenant_id.
+-- ---------------------------------------------------------------------------
+
+UPDATE public.agency_domains
+   SET tenant_id = '00000000-0000-0000-0000-000000000002'::UUID,
+       updated_at = now()
+ WHERE kind = 'hub'
+   AND (tenant_id IS NULL
+        OR tenant_id = '00000000-0000-0000-0000-000000000002'::UUID);
+
+-- ---------------------------------------------------------------------------
+-- Step 4b — install the new tenant-scope CHECK.
+-- ---------------------------------------------------------------------------
 
 ALTER TABLE public.agency_domains
   ADD CONSTRAINT agency_domains_tenant_scope_check
@@ -103,22 +132,6 @@ COMMENT ON CONSTRAINT agency_domains_tenant_scope_check ON public.agency_domains
   'Org-network extension M0 (step 4). Hub rows carry tenant_id pointing at '
   'the platform-hub agency (kind=''hub''). marketing/app rows remain '
   'platform-global (NULL tenant_id). subdomain/custom remain tenant-bound.';
-
--- ---------------------------------------------------------------------------
--- Step 5 — rebind existing hub rows.
---
--- Applied BEFORE any INSERT of new hub rows could occur, because the new
--- constraint (step 4) already forbids a hub row with NULL tenant_id. The
--- single-transaction property guarantees no window where the old
--- constraint is gone but the new one isn't yet installed.
--- ---------------------------------------------------------------------------
-
-UPDATE public.agency_domains
-   SET tenant_id = '00000000-0000-0000-0000-000000000002'::UUID,
-       updated_at = now()
- WHERE kind = 'hub'
-   AND (tenant_id IS NULL
-        OR tenant_id = '00000000-0000-0000-0000-000000000002'::UUID);
 
 -- ---------------------------------------------------------------------------
 -- Validation — every hub row now has tenant_id set, and it is the hub UUID.

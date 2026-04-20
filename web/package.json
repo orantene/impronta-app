@@ -80,6 +80,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "embedded-postgres": "^17.9.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "libphonenumber-js": "^1.11.20",
