@@ -32,6 +32,7 @@ import {
 import { cn } from "@/lib/utils";
 import { mapRawActivityRows } from "@/lib/commercial-activity-summary";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 import { loadInquiryRoster } from "@/lib/inquiry/inquiry-workspace-data";
 import type { OfferLineDraft } from "@/lib/inquiry/inquiry-engine";
 import { AdminInquiryWorkspaceV2 } from "@/app/(dashboard)/admin/inquiries/[id]/admin-inquiry-workspace-v2";
@@ -45,6 +46,22 @@ import { getPrimaryAction } from "@/lib/inquiry/inquiry-primary-action";
 import { getWorkspacePermissions } from "@/lib/inquiry/inquiry-workspace-permissions";
 import { getProgressStep } from "@/lib/inquiry/inquiry-progress";
 import { isOfferReady } from "@/lib/inquiry/inquiry-offer-readiness";
+import { getInquiryGroupShortfall } from "@/lib/inquiry/inquiry-fulfillment";
+import { isWorkspaceV3Enabled } from "@/lib/settings/admin-workspace-flag";
+import { AdminInquiryWorkspaceV3 } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/admin-inquiry-workspace-v3";
+import type { SummaryPanelData } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-panel-types";
+import { getWorkspaceStateSentence } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-state";
+import {
+  buildBookingPanelData,
+  loadCoordinatorsPanelData,
+  loadOffersApprovalsPanelData,
+  loadRecentActivityPanelData,
+  loadRequirementGroupsPanelData,
+} from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-panel-data";
+import { parseDrillKey } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-drill-types";
+import { loadDrillPayload } from "@/app/(dashboard)/admin/inquiries/[id]/workspace-v3/workspace-v3-drill-data";
+import { deriveWorkspaceAlerts } from "@/lib/inquiry/inquiry-alerts";
+import { actionLoadOlderInquiryMessages } from "@/app/(dashboard)/admin/inquiries/[id]/messaging-actions";
 import { resolveApprovalCompleteness } from "@/lib/inquiry/inquiry-approval-resolver";
 import type {
   InquiryWorkspaceApproval,
@@ -184,7 +201,7 @@ export default async function AdminInquiryDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ convert_error?: string; dup_err?: string; tab?: string }>;
+  searchParams: Promise<{ convert_error?: string; dup_err?: string; tab?: string; thread?: string; drill?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -197,8 +214,7 @@ export default async function AdminInquiryDetailPage({
     redirect(qs ? `/admin/inquiries/${id}?${qs}` : `/admin/inquiries/${id}`);
   }
   const activeTab = canonicalizeTab(tabRaw);
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) notFound();
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const { data: inquiry, error } = await supabase
     .from("inquiries")
@@ -218,6 +234,8 @@ export default async function AdminInquiryDetailPage({
       company,
       event_location,
       event_date,
+      event_type_id,
+      quantity,
       message,
       raw_ai_query,
       source_page,
@@ -234,6 +252,7 @@ export default async function AdminInquiryDetailPage({
       priority
     `,
     )
+    .eq("tenant_id", tenantId)
     .eq("id", id)
     .maybeSingle();
 
@@ -251,9 +270,10 @@ export default async function AdminInquiryDetailPage({
       supabase
         .from("agency_bookings")
         .select(
-          `id, title, status, starts_at, ends_at, notes, internal_notes, payment_status, total_client_revenue, gross_profit,
+          `id, title, status, starts_at, ends_at, notes, internal_notes, payment_status, total_client_revenue, gross_profit, created_with_override, override_reason,
            booking_talent (id, talent_profile_id, talent_name_snapshot, profile_code_snapshot, talent_profiles (profile_code, display_name))`,
         )
+        .eq("tenant_id", tenantId)
         .eq("source_inquiry_id", id)
         .order("created_at", { ascending: false }),
       supabase
@@ -261,11 +281,13 @@ export default async function AdminInquiryDetailPage({
         .select(
           "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, country, city, location_text, address_notes, google_place_id, latitude, longitude",
         )
+        .eq("tenant_id", tenantId)
         .is("archived_at", null)
         .order("name", { ascending: true }),
       supabase
         .from("client_account_contacts")
         .select("id, client_account_id, full_name, email, phone, client_accounts(name)")
+        .eq("tenant_id", tenantId)
         .is("archived_at", null)
         .order("full_name", { ascending: true }),
       inquiry.client_account_id
@@ -274,6 +296,7 @@ export default async function AdminInquiryDetailPage({
             .select(
               "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, country, city, location_text, address_notes, google_place_id, latitude, longitude",
             )
+            .eq("tenant_id", tenantId)
             .eq("id", inquiry.client_account_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -281,6 +304,7 @@ export default async function AdminInquiryDetailPage({
         ? supabase
             .from("client_account_contacts")
             .select("id, full_name, email, phone")
+            .eq("tenant_id", tenantId)
             .eq("id", inquiry.client_contact_id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -625,6 +649,14 @@ export default async function AdminInquiryDetailPage({
 
   const firstBookingId = ((bookings ?? [])[0] as { id?: string } | undefined)?.id ?? null;
 
+  // M2.3: fetch per-group fulfillment readiness so the primary CTA reflects
+  // whether an admin override is required. Only meaningful at status=approved.
+  let groupsFulfilled: boolean | undefined = undefined;
+  if (wsStatus === "approved") {
+    const readiness = await getInquiryGroupShortfall(supabase, inquiry.id);
+    groupsFulfilled = readiness.fulfilled;
+  }
+
   const workspaceStateInput = {
     status: wsStatus,
     effectiveRole: resolveEffectiveRole(viewerAppRole, viewerId, {
@@ -642,6 +674,7 @@ export default async function AdminInquiryDetailPage({
     linkedBookingId: firstBookingId,
     isLocked: isWorkspaceLocked(wsStatus),
     workspaceDetailPath: `/admin/inquiries/${inquiry.id}`,
+    groupsFulfilled,
   };
 
   const workspacePrimaryAction = engineV2 ? getPrimaryAction(workspaceStateInput) : null;
@@ -687,6 +720,189 @@ export default async function AdminInquiryDetailPage({
   const locationSummary = linkedAccount
     ? [linkedAccount.city, linkedAccount.country, titleCase(linkedAccount.account_type)].filter(Boolean).join(" · ")
     : null;
+
+  // ── Admin Workspace V3 (flagged) ─────────────────────────────────────────
+  // Resolve the flag per-viewer; when on, render the new shell instead of
+  // V2. Safe-by-default: isWorkspaceV3Enabled returns false on any error so
+  // the old workspace keeps rendering. Roadmap M3.1.
+  const v3Enabled = await isWorkspaceV3Enabled(viewerId);
+  if (v3Enabled && engineV2 && workspacePrimaryAction && workspacePermissions) {
+    // Truthful unread — compare viewer's last_read_at to thread head per thread.
+    let unreadPrivate = false;
+    let unreadGroup = false;
+    if (viewerId) {
+      const { data: reads } = await supabase
+        .from("inquiry_message_reads")
+        .select("thread_type, last_read_at")
+        .eq("inquiry_id", inquiry.id)
+        .eq("user_id", viewerId);
+      const readsMap = new Map<string, string | null>();
+      for (const r of (reads ?? []) as { thread_type: string; last_read_at: string | null }[]) {
+        readsMap.set(r.thread_type, r.last_read_at ?? null);
+      }
+      const privHead = v2PrivateMessages.at(-1)?.created_at ?? null;
+      const grpHead = v2GroupMessages.at(-1)?.created_at ?? null;
+      const privRead = readsMap.get("private") ?? null;
+      const grpRead = readsMap.get("group") ?? null;
+      unreadPrivate = Boolean(privHead && (!privRead || privHead > privRead));
+      unreadGroup = Boolean(grpHead && (!grpRead || grpHead > grpRead));
+    }
+    const unreadCount = (unreadPrivate ? 1 : 0) + (unreadGroup ? 1 : 0);
+
+    // Primary coordinator display name (§5.4). inquiries.coordinator_id is the
+    // single primary seat; secondaries come from inquiry_coordinators (M2.1)
+    // and render inside the Coordinators rail panel in M4.4.
+    const primaryCoordinatorName = inquiry.coordinator_id
+      ? ((staff ?? []).find((p) => p.id === inquiry.coordinator_id)?.display_name ?? "Coordinator")
+      : null;
+
+    const rawThread = typeof sp.thread === "string" ? sp.thread : "";
+    const initialThread: "client" | "group" = rawThread === "group" ? "group" : "client";
+    const title = inquiry.contact_name || "Unnamed inquiry";
+
+    // ── Summary panel data (M4.1) ────────────────────────────────────
+    // Resolve event type label from taxonomy_terms when set. Pure lookup,
+    // no engine derivation. Budget band is intentionally absent — see
+    // SummaryPanelData docstring.
+    const inquiryExt = inquiry as unknown as {
+      event_type_id: string | null;
+      quantity: number | null;
+    };
+    let eventTypeLabel: string | null = null;
+    if (inquiryExt.event_type_id) {
+      const { data: et } = await supabase
+        .from("taxonomy_terms")
+        .select("name_en")
+        .eq("id", inquiryExt.event_type_id)
+        .maybeSingle();
+      eventTypeLabel = (et as { name_en?: string | null } | null)?.name_en ?? null;
+    }
+    const summaryData: SummaryPanelData = {
+      clientName: inquiry.contact_name ?? null,
+      company: inquiry.company ?? null,
+      eventType: eventTypeLabel,
+      eventDate: (inquiryAny.event_date as string | null | undefined) ?? null,
+      eventLocation: inquiry.event_location ?? null,
+      quantity: inquiryExt.quantity ?? null,
+      statusSentence: getWorkspaceStateSentence(wsStatus),
+      lastActivityAt: String(inquiry.updated_at ?? inquiry.created_at),
+    };
+
+    // ── Rail panel data (M4.2–M4.7) ────────────────────────────────────
+    // All loaders are thin compositions over canonical engine helpers —
+    // no business rules are invented here. See
+    // workspace-v3/workspace-v3-panel-data.ts and lib/inquiry/inquiry-alerts.ts
+    // for the exact sourcing per panel.
+    const [
+      requirementGroupsData,
+      offersApprovalsData,
+      coordinatorsData,
+      recentActivityData,
+    ] = await Promise.all([
+      loadRequirementGroupsPanelData(supabase, inquiry.id),
+      loadOffersApprovalsPanelData(supabase, inquiry.id, workspaceInquiry.current_offer_id),
+      loadCoordinatorsPanelData(supabase, inquiry.id),
+      loadRecentActivityPanelData(supabase, inquiry.id, 5),
+    ]);
+
+    const bookingRowsForPanel = ((bookings ?? []) as unknown as {
+      id: string;
+      title: string | null;
+      status: string;
+      starts_at: string | null;
+      ends_at: string | null;
+      created_with_override: boolean | null;
+      override_reason: string | null;
+    }[]).map((b) => ({
+      id: b.id,
+      title: b.title,
+      status: b.status,
+      starts_at: b.starts_at,
+      ends_at: b.ends_at,
+      created_with_override: b.created_with_override,
+      override_reason: b.override_reason,
+    }));
+    const bookingData = buildBookingPanelData({
+      bookings: bookingRowsForPanel,
+      hasRequirementGroups: requirementGroupsData.groups.length > 0,
+      allFulfilled: requirementGroupsData.allFulfilled,
+    });
+
+    // M4.6 — Needs Attention. Derivation-only: takes the canonical signals
+    // already computed above (shortfall, approvals, offer readiness,
+    // coordinator presence, unread count) and projects them into alert rows.
+    const shortfallForAlerts = requirementGroupsData.groups
+      .filter((g) => g.shortfall > 0)
+      .map((g) => ({ role_key: g.roleKey, shortfall: g.shortfall }));
+    const needsAttentionData = deriveWorkspaceAlerts({
+      workspaceStatus: wsStatus,
+      isLocked: workspaceStateInput.isLocked,
+      shortfall: shortfallForAlerts,
+      approvals: offersApprovalsData.approvals,
+      currentOfferId: offersApprovalsData.currentOfferId,
+      currentOfferStatus: v2Offer?.status ?? null,
+      isOfferReady: offerReady.ready,
+      hasPrimaryCoordinator: coordinatorsData.primary != null,
+      unreadCount,
+    });
+
+    // ── Drill-down (M5) ─────────────────────────────────────────────
+    // Only resolve when `?drill=<valid-key>` is set — a closed drill issues
+    // zero additional queries. Every drill body extends its panel, so the
+    // loader takes the already-resolved panel payloads as context and only
+    // fetches the extra detail the sheet needs.
+    const drillKey = parseDrillKey(typeof sp.drill === "string" ? sp.drill : null);
+    const drillPayload = drillKey
+      ? await loadDrillPayload(supabase, inquiry.id, drillKey, {
+          requirementGroupsPanel: requirementGroupsData,
+          offersApprovalsPanel: offersApprovalsData,
+          coordinatorsPanel: coordinatorsData,
+          bookingPanel: bookingData,
+          bookings: ((bookings ?? []) as unknown as BookingListRow[]).map((b) => ({
+            id: b.id,
+            booking_talent: b.booking_talent ?? null,
+          })),
+          currentOfferId: workspaceInquiry.current_offer_id,
+        })
+      : null;
+
+    return (
+      <AdminInquiryWorkspaceV3
+        inquiryId={inquiry.id}
+        viewerUserId={viewerId}
+        title={title}
+        rawStatus={inquiry.status}
+        workspaceStatus={wsStatus}
+        nextActionBy={inquiry.next_action_by as string | null}
+        isLocked={workspaceStateInput.isLocked}
+        primaryAction={workspacePrimaryAction}
+        chips={{
+          primaryCoordinatorName,
+          unreadCount,
+          participantCount: typedInquiryTalents.length,
+          bookingLinked: nBookings > 0,
+        }}
+        messagesPrivate={v2PrivateMessages}
+        messagesGroup={v2GroupMessages}
+        messagesPrivateHasOlder={v2PrivateMessages.length >= 200}
+        messagesGroupHasOlder={v2GroupMessages.length >= 200}
+        unreadPrivate={unreadPrivate}
+        unreadGroup={unreadGroup}
+        allowCompose={workspacePermissions.canSendMessage}
+        initialThread={initialThread}
+        sendMessageAction={actionSendInquiryMessage}
+        loadOlderAction={actionLoadOlderInquiryMessages}
+        summary={summaryData}
+        requirementGroups={requirementGroupsData}
+        offersApprovals={offersApprovalsData}
+        coordinators={coordinatorsData}
+        booking={bookingData}
+        needsAttention={needsAttentionData}
+        recentActivity={recentActivityData}
+        drill={drillPayload}
+      />
+    );
+  }
 
   return (
     <div className={ADMIN_PAGE_STACK}>
@@ -1024,7 +1240,7 @@ export default async function AdminInquiryDetailPage({
 
           {inquiry.raw_ai_query?.trim() ? (
             <blockquote className="mt-3 border-l-2 border-[var(--impronta-gold)]/40 pl-3 text-sm italic text-muted-foreground">
-              "{inquiry.raw_ai_query.trim()}"
+              &ldquo;{inquiry.raw_ai_query.trim()}&rdquo;
             </blockquote>
           ) : inquiry.message?.trim() ? (
             <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{inquiry.message.trim()}</p>

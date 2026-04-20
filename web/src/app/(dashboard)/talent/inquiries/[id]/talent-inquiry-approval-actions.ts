@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { submitApproval } from "@/lib/inquiry/inquiry-engine";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireTalent } from "@/lib/server/action-guards";
+import { resolveInquiryTenantForParticipant } from "@/lib/saas/admin-scope";
 
 export async function actionTalentInquiryApproval(formData: FormData): Promise<ActionResult> {
   const auth = await requireTalent();
@@ -23,8 +24,14 @@ export async function actionTalentInquiryApproval(formData: FormData): Promise<A
     return { ok: false, code: "validation_error", message: "Invalid decision." };
   }
 
+  const tenantId = await resolveInquiryTenantForParticipant(auth.supabase, auth.user.id, inquiryId, "talent");
+  if (!tenantId) {
+    return { ok: false, code: "permission_denied", message: "You cannot respond to this approval." };
+  }
+
   const res = await submitApproval(auth.supabase, {
     inquiryId,
+    tenantId,
     offerId,
     participantId,
     actorUserId: auth.user.id,

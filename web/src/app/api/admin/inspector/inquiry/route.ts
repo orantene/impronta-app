@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireStaffApi } from "@/lib/server/staff-api-route";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { loadInquiryRoster } from "@/lib/inquiry/inquiry-workspace-data";
+import { getTenantScope } from "@/lib/saas/scope";
 
 function relOne<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null;
@@ -21,6 +22,10 @@ export async function GET(request: Request) {
   }
 
   const { supabase } = auth;
+  const scope = await getTenantScope();
+  if (!scope) {
+    return NextResponse.json({ error: "No tenant scope" }, { status: 403 });
+  }
   const { data, error } = await supabase
     .from("inquiries")
     .select(
@@ -33,6 +38,7 @@ export async function GET(request: Request) {
       agency_bookings ( id )
     `,
     )
+    .eq("tenant_id", scope.tenantId)
     .eq("id", id)
     .maybeSingle();
 

@@ -6,6 +6,7 @@ import {
 } from "@/lib/translation-center/admin-pulse";
 import { requireStaff } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
+import { getTenantScope } from "@/lib/saas/scope";
 
 export type AdminOverviewActivityItem = {
   id: string;
@@ -44,6 +45,9 @@ export const loadAdminShellPulseCounts = cache(
     if (!auth.ok) return null;
 
     const { supabase } = auth;
+    const scope = await getTenantScope();
+    if (!scope) return null;
+    const tenantId = scope.tenantId;
 
     const [talentRes, pendingTalentRes, clientsRes, inquiriesRes, mediaRes] =
       await Promise.all([
@@ -56,6 +60,7 @@ export const loadAdminShellPulseCounts = cache(
         supabase
           .from("inquiries")
           .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
           .in("status", [
             "new",
             "reviewing",
@@ -79,6 +84,100 @@ export const loadAdminShellPulseCounts = cache(
     };
   },
 );
+
+/**
+ * Sidebar Tier-1 badge count (spec §7.3, roadmap M6.2).
+ *
+ * Returns the number of inquiries with ANY Tier-1 alert for the current admin.
+ * Derivation mirrors the queue's `has_tier1_alert` field exactly so the badge
+ * matches the click-through target (`/admin/inquiries?tier1_only=1`):
+ *
+ *   • `next_action_by ∈ {admin, coordinator}` — agency-owned primary action
+ *   • `status = 'approved'` AND no linked booking — ready to convert
+ *   • unread inquiry threads for the current user
+ *
+ * Terminal inquiries (rejected / expired / closed_lost / archived) contribute
+ * nothing even if they technically matched one of the above — they aren't
+ * actionable in Phase 1.
+ *
+ * One server call = three PostgREST reads + an in-memory union. No new table.
+ */
+export const loadAdminTier1AlertCount = cache(async (): Promise<number> => {
+  const auth = await requireStaff();
+  if (!auth.ok) return 0;
+  const { supabase, user } = auth;
+  const userId = user?.id ?? null;
+  const scope = await getTenantScope();
+  if (!scope) return 0;
+  const tenantId = scope.tenantId;
+
+  const TERMINAL_STATUSES = ["rejected", "expired", "closed_lost", "closed", "archived"];
+
+  const [actionableRes, readyRes, unreadMsgRes, readRowsRes] = await Promise.all([
+    supabase
+      .from("inquiries")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .in("next_action_by", ["admin", "coordinator"])
+      .not("status", "in", `(${TERMINAL_STATUSES.join(",")})`),
+    supabase
+      .from("inquiries")
+      .select("id, agency_bookings(id)")
+      .eq("tenant_id", tenantId)
+      .eq("status", "approved"),
+    userId
+      ? supabase
+          .from("inquiry_messages")
+          .select("inquiry_id, created_at")
+          .eq("tenant_id", tenantId)
+      : Promise.resolve({ data: null, error: null } as const),
+    userId
+      ? supabase
+          .from("inquiry_message_reads")
+          .select("inquiry_id, last_read_at")
+          .eq("tenant_id", tenantId)
+          .eq("user_id", userId)
+      : Promise.resolve({ data: null, error: null } as const),
+  ]);
+
+  const tier1: Set<string> = new Set();
+
+  for (const row of actionableRes.data ?? []) {
+    tier1.add(String((row as { id: string }).id));
+  }
+  for (const row of readyRes.data ?? []) {
+    const bookings = (row as { agency_bookings: { id: string }[] | null }).agency_bookings;
+    if (!bookings || bookings.length === 0) {
+      tier1.add(String((row as { id: string }).id));
+    }
+  }
+
+  // Unread: per-inquiry, last message > user's last_read_at (or never-read).
+  if (userId && unreadMsgRes.data) {
+    const lastMsgByInquiry = new Map<string, string>();
+    for (const m of unreadMsgRes.data as { inquiry_id: string; created_at: string }[]) {
+      const prev = lastMsgByInquiry.get(m.inquiry_id);
+      if (!prev || new Date(m.created_at) > new Date(prev)) {
+        lastMsgByInquiry.set(m.inquiry_id, m.created_at);
+      }
+    }
+    const lastReadByInquiry = new Map<string, string>();
+    for (const r of (readRowsRes.data ?? []) as { inquiry_id: string; last_read_at: string }[]) {
+      const prev = lastReadByInquiry.get(r.inquiry_id);
+      if (!prev || new Date(r.last_read_at) > new Date(prev)) {
+        lastReadByInquiry.set(r.inquiry_id, r.last_read_at);
+      }
+    }
+    for (const [iid, lastMsg] of lastMsgByInquiry.entries()) {
+      const lastRead = lastReadByInquiry.get(iid);
+      if (!lastRead || new Date(lastMsg) > new Date(lastRead)) {
+        tier1.add(iid);
+      }
+    }
+  }
+
+  return tier1.size;
+});
 
 export type { AdminTranslationHealth } from "@/lib/translation-center/admin-pulse";
 
@@ -137,6 +236,9 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
   if (!auth.ok) return null;
 
   const { supabase } = auth;
+  const scope = await getTenantScope();
+  if (!scope) return null;
+  const tenantId = scope.tenantId;
 
   const counts = await loadAdminShellPulseCounts();
   if (!counts) return null;
@@ -147,16 +249,19 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
         supabase
           .from("inquiries")
           .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
           .eq("has_failed_effects", true),
         supabase
           .from("inquiries")
           .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
           .eq("uses_new_engine", true)
           .is("coordinator_id", null)
           .eq("status", "submitted" as never),
         supabase
           .from("inquiries")
           .select("id", { count: "exact", head: true })
+          .eq("tenant_id", tenantId)
           .eq("is_frozen", true),
       ]);
       return {
@@ -168,6 +273,7 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
     supabase
       .from("inquiries")
       .select("id, status, contact_name, created_at")
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(4),
     supabase
@@ -237,6 +343,9 @@ export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]
   if (!auth.ok) return [];
 
   const { supabase } = auth;
+  const scope = await getTenantScope();
+  if (!scope) return [];
+  const tenantId = scope.tenantId;
   const { data, error } = await supabase
     .from("client_profiles")
     .select(
@@ -291,6 +400,7 @@ export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]
         supabase
           .from("inquiries")
           .select("client_user_id, created_at")
+          .eq("tenant_id", tenantId)
           .in("client_user_id", userIds)
           .order("created_at", { ascending: false }),
         supabase
@@ -420,6 +530,9 @@ export const loadTaxonomyTalentTypesForFilters = cache(async () => {
 export async function loadAdminClientDetail(userId: string) {
   const auth = await requireStaff();
   if (!auth.ok) return null;
+  const scope = await getTenantScope();
+  if (!scope) return null;
+  const tenantId = scope.tenantId;
 
   const { supabase } = auth;
 
@@ -439,6 +552,7 @@ export async function loadAdminClientDetail(userId: string) {
       supabase
         .from("inquiries")
         .select("id, status, created_at, event_location, company, contact_name")
+        .eq("tenant_id", tenantId)
         .eq("client_user_id", userId)
         .order("created_at", { ascending: false })
         .limit(20),

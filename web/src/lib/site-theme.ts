@@ -1,5 +1,6 @@
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { logServerError } from "@/lib/server/safe-error";
+import { getPublicTenantScope } from "@/lib/saas/scope";
 
 export type SiteTheme = "dark" | "light";
 
@@ -14,11 +15,15 @@ export async function getSiteTheme(): Promise<SiteTheme> {
   }
 
   try {
-    const { data, error } = await supabase
+    const publicScope = await getPublicTenantScope();
+    const q = supabase
       .from("settings")
       .select("value")
-      .eq("key", "site_theme")
-      .maybeSingle();
+      .eq("key", "site_theme");
+    const { data, error } = await (publicScope
+      ? q.eq("tenant_id", publicScope.tenantId)
+      : q.is("tenant_id", null)
+    ).maybeSingle();
 
     if (error) {
       logServerError("settings/getSiteTheme", error);

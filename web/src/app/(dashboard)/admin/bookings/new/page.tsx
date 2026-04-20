@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { requireStaff } from "@/lib/server/action-guards";
+import { getTenantScope } from "@/lib/saas/scope";
+import { redirect } from "next/navigation";
 
 export default async function AdminNewBookingPage({
   searchParams,
@@ -22,13 +24,19 @@ export default async function AdminNewBookingPage({
     return <p className="text-sm text-muted-foreground">{auth.error}</p>;
   }
   const { supabase, user } = auth;
+  const scope = await getTenantScope();
+  if (!scope) {
+    redirect("/admin?err=no_tenant");
+  }
+  const tenantId = scope.tenantId;
 
   const [{ data: accounts }, { data: contactRows }, { data: talents }, { data: staff }, { data: platformClients }] =
     await Promise.all([
-      supabase.from("client_accounts").select("id, name").is("archived_at", null).order("name", { ascending: true }),
+      supabase.from("client_accounts").select("id, name").eq("tenant_id", tenantId).is("archived_at", null).order("name", { ascending: true }),
       supabase
         .from("client_account_contacts")
         .select("id, client_account_id, full_name, client_accounts(name)")
+        .eq("tenant_id", tenantId)
         .is("archived_at", null)
         .order("full_name", { ascending: true }),
       supabase

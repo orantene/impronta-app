@@ -27,6 +27,7 @@ import { BOOKING_AUDIT } from "@/lib/commercial-audit-events";
 import { mapRawActivityRows } from "@/lib/commercial-activity-summary";
 import { cn } from "@/lib/utils";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 import { ChevronDown } from "lucide-react";
 import type React from "react";
 
@@ -113,8 +114,7 @@ export default async function AdminBookingDetailPage({
 }) {
   const { id } = await params;
   const { dup_err: dupErr } = await searchParams;
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) notFound();
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const { data: booking, error } = await supabase
     .from("agency_bookings")
@@ -155,6 +155,7 @@ export default async function AdminBookingDetailPage({
       client_visible_at
     `,
     )
+    .eq("tenant_id", tenantId)
     .eq("id", id)
     .maybeSingle();
 
@@ -188,12 +189,13 @@ export default async function AdminBookingDetailPage({
       .order("profile_code", { ascending: true })
       .limit(400),
     booking.source_inquiry_id
-      ? supabase.from("inquiries").select("id, contact_name, status, created_at, client_user_id").eq("id", booking.source_inquiry_id).maybeSingle()
+      ? supabase.from("inquiries").select("id, contact_name, status, created_at, client_user_id").eq("tenant_id", tenantId).eq("id", booking.source_inquiry_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    supabase.from("client_accounts").select("id, name").is("archived_at", null).order("name", { ascending: true }),
+    supabase.from("client_accounts").select("id, name").eq("tenant_id", tenantId).is("archived_at", null).order("name", { ascending: true }),
     supabase
       .from("client_account_contacts")
       .select("id, client_account_id, full_name, client_accounts(name)")
+      .eq("tenant_id", tenantId)
       .is("archived_at", null)
       .order("full_name", { ascending: true }),
     supabase
@@ -203,13 +205,13 @@ export default async function AdminBookingDetailPage({
       .order("created_at", { ascending: false })
       .limit(100),
     booking.client_contact_id
-      ? supabase.from("client_account_contacts").select("profile_user_id").eq("id", booking.client_contact_id).maybeSingle()
+      ? supabase.from("client_account_contacts").select("profile_user_id").eq("tenant_id", tenantId).eq("id", booking.client_contact_id).maybeSingle()
       : Promise.resolve({ data: null }),
     booking.client_user_id
       ? supabase.from("profiles").select("id, display_name").eq("id", booking.client_user_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from("profiles").select("id, display_name").eq("app_role", "client").order("display_name", { ascending: true }).limit(500),
-    supabase.from("inquiries").select("id, contact_name, created_at").order("created_at", { ascending: false }).limit(120),
+    supabase.from("inquiries").select("id, contact_name, created_at").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(120),
   ]);
 
   type ContactRow = {

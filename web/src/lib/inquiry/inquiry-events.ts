@@ -24,6 +24,24 @@ export const ENGINE_EVENT_TYPES = {
   COORDINATOR_ASSIGNED: "coordinator.assigned",
   COORDINATOR_ACCEPTED: "coordinator.accepted",
   COORDINATOR_DECLINED: "coordinator.declined",
+  // Multi-coordinator (Admin Workspace V3, M2.1). These values match the
+  // event_type strings written by engine_{add,remove}_secondary_coordinator /
+  // engine_promote_to_primary RPCs into inquiry_events. The in-process
+  // listeners in this file fire for *additional* side-effects (system msgs,
+  // notifications, improntaLog) — the DB write already happened in the RPC.
+  SECONDARY_COORDINATOR_ASSIGNED: "secondary_coordinator_assigned",
+  SECONDARY_COORDINATOR_UNASSIGNED: "secondary_coordinator_unassigned",
+  PRIMARY_COORDINATOR_CHANGED: "primary_coordinator_changed",
+
+  // Requirement groups (Admin Workspace V3, M2.2). Match the event_type strings
+  // written by engine_{add,update,remove}_requirement_group /
+  // engine_assign_participant_to_group RPCs. All staff-only visibility per
+  // spec §3.5(3): internal requirement churn is not shown in participant
+  // timelines in Phase 1.
+  REQUIREMENT_GROUP_ADDED: "requirement_group_added",
+  REQUIREMENT_GROUP_UPDATED: "requirement_group_updated",
+  REQUIREMENT_GROUP_REMOVED: "requirement_group_removed",
+  PARTICIPANT_GROUP_CHANGED: "participant_group_changed",
 
   // Roster
   ROSTER_TALENT_INVITED: "roster.talent_invited",
@@ -164,6 +182,13 @@ const DEFAULT_PRIORITY: Record<EngineEventType, EngineEventPriority> = {
   [ENGINE_EVENT_TYPES.COORDINATOR_ASSIGNED]: "high",
   [ENGINE_EVENT_TYPES.COORDINATOR_ACCEPTED]: "high",
   [ENGINE_EVENT_TYPES.COORDINATOR_DECLINED]: "high",
+  [ENGINE_EVENT_TYPES.SECONDARY_COORDINATOR_ASSIGNED]: "medium",
+  [ENGINE_EVENT_TYPES.SECONDARY_COORDINATOR_UNASSIGNED]: "medium",
+  [ENGINE_EVENT_TYPES.PRIMARY_COORDINATOR_CHANGED]: "high",
+  [ENGINE_EVENT_TYPES.REQUIREMENT_GROUP_ADDED]: "medium",
+  [ENGINE_EVENT_TYPES.REQUIREMENT_GROUP_UPDATED]: "low",
+  [ENGINE_EVENT_TYPES.REQUIREMENT_GROUP_REMOVED]: "medium",
+  [ENGINE_EVENT_TYPES.PARTICIPANT_GROUP_CHANGED]: "low",
   [ENGINE_EVENT_TYPES.ROSTER_TALENT_INVITED]: "medium",
   [ENGINE_EVENT_TYPES.ROSTER_TALENT_REMOVED]: "medium",
   [ENGINE_EVENT_TYPES.ROSTER_REORDERED]: "low",

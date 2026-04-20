@@ -5,7 +5,7 @@ import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-c
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { buildPublicPathname } from "@/lib/cms/paths";
 import type { Locale } from "@/i18n/config";
@@ -22,14 +22,12 @@ type Row = {
 };
 
 export default async function CmsPagesListPage() {
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
-  }
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const { data, error } = await supabase
     .from("cms_pages")
     .select("id,locale,slug,title,status,updated_at")
+    .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
 
   if (error) {

@@ -8,6 +8,7 @@ import { slugPathFromParams } from "@/lib/cms/paths";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { getPublicTenantScope } from "@/lib/saas/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -38,14 +39,16 @@ export async function generateMetadata({
   const supabase = await getCachedServerSupabase();
   if (!supabase) return { title: "Not found" };
 
+  const publicScope = await getPublicTenantScope();
+  if (!publicScope) return { title: "Not found" };
+
   const { data } = await supabase
-    .from("cms_pages")
+    .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select(
       "title,meta_title,meta_description,og_title,og_description,og_image_url,noindex,canonical_url,locale,slug",
     )
     .eq("locale", locale)
     .eq("slug", slugPath)
-    .eq("status", "published")
     .maybeSingle();
 
   const page = data as CmsPagePublic | null;
@@ -90,12 +93,14 @@ export default async function CmsPublicPage({
   const supabase = await getCachedServerSupabase();
   if (!supabase) notFound();
 
+  const publicScope = await getPublicTenantScope();
+  if (!publicScope) notFound();
+
   const { data } = await supabase
-    .from("cms_pages")
+    .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })
     .select("title,body,template_key")
     .eq("locale", locale)
     .eq("slug", slugPath)
-    .eq("status", "published")
     .maybeSingle();
 
   if (!data) notFound();

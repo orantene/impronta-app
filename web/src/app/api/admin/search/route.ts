@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { isStaffRole } from "@/lib/auth-flow";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { getTenantScope } from "@/lib/saas/scope";
 
 const LIMIT = 8;
 
@@ -91,6 +92,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const scope = await getTenantScope();
+  if (!scope) {
+    return NextResponse.json({ error: "No tenant scope" }, { status: 403 });
+  }
+  const tenantId = scope.tenantId;
+
   const pattern = ilikePattern(q);
   const qUuid = isUuid(q);
 
@@ -134,18 +141,21 @@ export async function GET(request: Request) {
     supabase
       .from("inquiries")
       .select("id, contact_name, company")
+      .eq("tenant_id", tenantId)
       .ilike("contact_name", pattern)
       .order("created_at", { ascending: false })
       .limit(LIMIT),
     supabase
       .from("inquiries")
       .select("id, contact_name, company")
+      .eq("tenant_id", tenantId)
       .ilike("company", pattern)
       .order("created_at", { ascending: false })
       .limit(LIMIT),
     supabase
       .from("inquiries")
       .select("id, contact_name, company")
+      .eq("tenant_id", tenantId)
       .ilike("contact_email", pattern)
       .order("created_at", { ascending: false })
       .limit(LIMIT),
@@ -188,6 +198,7 @@ export async function GET(request: Request) {
       ? supabase
           .from("inquiries")
           .select("id, contact_name, company")
+          .eq("tenant_id", tenantId)
           .eq("id", q)
           .limit(1)
       : Promise.resolve({ data: [] as AdminSearchResponse["inquiries"], error: null }),
@@ -201,6 +212,7 @@ export async function GET(request: Request) {
     supabase
       .from("inquiries")
       .select("id, contact_name, company")
+      .eq("tenant_id", tenantId)
       .filter("id::text", "ilike", pattern)
       .order("created_at", { ascending: false })
       .limit(LIMIT),

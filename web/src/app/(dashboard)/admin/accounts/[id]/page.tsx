@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatClientLocationAccountType } from "@/lib/admin/validation";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 
 type AdminClientAccountDetailRow = {
   id: string;
@@ -48,8 +48,7 @@ export default async function AdminClientAccountDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) notFound();
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const accountSelectExtended =
     "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, location_text, city, country, address_notes, google_place_id, latitude, longitude, internal_notes";
@@ -62,6 +61,7 @@ export default async function AdminClientAccountDetailPage({
   const accFirst = await supabase
     .from("client_accounts")
     .select(accountSelectExtended)
+    .eq("tenant_id", tenantId)
     .eq("id", id)
     .maybeSingle();
   if (accFirst.error && isPostgrestMissingColumnError(accFirst.error)) {
@@ -69,6 +69,7 @@ export default async function AdminClientAccountDetailPage({
     const accFb = await supabase
       .from("client_accounts")
       .select(accountSelectBase)
+      .eq("tenant_id", tenantId)
       .eq("id", id)
       .maybeSingle();
     account = accFb.data as Record<string, unknown> | null;
@@ -83,18 +84,21 @@ export default async function AdminClientAccountDetailPage({
       supabase
         .from("client_account_contacts")
         .select("id, full_name, email, phone, whatsapp_phone, job_title, is_primary")
+        .eq("tenant_id", tenantId)
         .eq("client_account_id", id)
         .is("archived_at", null)
         .order("full_name", { ascending: true }),
       supabase
         .from("inquiries")
         .select("id, contact_name, status, created_at")
+        .eq("tenant_id", tenantId)
         .eq("client_account_id", id)
         .order("created_at", { ascending: false })
         .limit(40),
       supabase
         .from("agency_bookings")
         .select("id, title, status, starts_at, total_client_revenue")
+        .eq("tenant_id", tenantId)
         .eq("client_account_id", id)
         .order("updated_at", { ascending: false })
         .limit(40),
@@ -113,6 +117,7 @@ export default async function AdminClientAccountDetailPage({
   const { data: sampleInquiryClient } = await supabase
     .from("inquiries")
     .select("client_user_id")
+    .eq("tenant_id", tenantId)
     .eq("client_account_id", id)
     .not("client_user_id", "is", null)
     .limit(1)

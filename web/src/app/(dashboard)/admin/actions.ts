@@ -16,8 +16,8 @@ import { BOOKING_AUDIT, INQUIRY_AUDIT } from "@/lib/commercial-audit-events";
 import { logBookingActivity, logInquiryActivity } from "@/lib/server/commercial-audit";
 import { resolveClientAccountContactForSave } from "@/lib/server/client-account-contact-validation";
 import type { AdminActionState } from "@/lib/admin/admin-action-state";
-import { requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 
 export type { AdminActionState };
 
@@ -117,9 +117,9 @@ export async function updateInquiry(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const channelRaw = trimmedString(formData, "source_channel");
   const channelParsed = parseWithSchema(inquirySourceChannelSchema, channelRaw);
@@ -155,6 +155,7 @@ export async function updateInquiry(
     .from("inquiries")
     .select("client_account_id, client_contact_id")
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (priorInqErr || !priorInq) {
@@ -183,6 +184,7 @@ export async function updateInquiry(
       .from("client_accounts")
       .select("name")
       .eq("id", client_account_id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (acc?.name) patch.company = acc.name;
   }
@@ -192,20 +194,25 @@ export async function updateInquiry(
       .from("client_account_contacts")
       .select("full_name, email, phone")
       .eq("id", client_contact_id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (c?.full_name) patch.contact_name = c.full_name;
     if (c?.email && String(c.email).trim()) patch.contact_email = c.email;
     if (c?.phone != null) patch.contact_phone = c.phone;
   }
 
-  const { error } = await supabase.from("inquiries").update(patch as never).eq("id", id);
+  const { error } = await supabase
+    .from("inquiries")
+    .update(patch as never)
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/updateInquiry", error);
     return { error: CLIENT_ERROR.update };
   }
 
-  const actor = auth.user.id;
+  const actor = user.id;
   const refreshAccSnap = booleanFromEquals(formData, "refresh_account_snapshot");
   const refreshConSnap = booleanFromEquals(formData, "refresh_contact_snapshot");
   if (priorInq.client_account_id !== client_account_id) {
@@ -242,9 +249,9 @@ export async function updateInquiryClientInfo(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
 
   const parsed = parseWithSchema(updateInquiryClientInfoSchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -281,7 +288,8 @@ export async function updateInquiryClientInfo(
       client_user_id,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", inquiry_id);
+    .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/updateInquiryClientInfo", error);
@@ -297,9 +305,9 @@ export async function updateInquiryLocation(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(updateInquiryLocationSchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -314,6 +322,7 @@ export async function updateInquiryLocation(
     .from("inquiries")
     .select("client_account_id, client_contact_id")
     .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (priorErr || !prior) {
@@ -331,14 +340,15 @@ export async function updateInquiryLocation(
       client_contact_id: resolved.contactId,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", inquiry_id);
+    .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/updateInquiryLocation", error);
     return { error: CLIENT_ERROR.update };
   }
 
-  const actor = auth.user.id;
+  const actor = user.id;
   if (prior.client_account_id !== resolved.accountId) {
     await logInquiryActivity(supabase, {
       inquiryId: inquiry_id,
@@ -365,9 +375,9 @@ export async function updateInquiryRequestDetails(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
 
   const channelRaw = trimmedString(formData, "source_channel");
   const channelParsed = parseWithSchema(inquirySourceChannelSchema, channelRaw);
@@ -395,7 +405,8 @@ export async function updateInquiryRequestDetails(
       staff_notes: staff_notes || null,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", inquiry_id);
+    .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/updateInquiryRequestDetails", error);
@@ -411,9 +422,9 @@ export async function addInquiryTalent(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(addInquiryTalentSchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -424,10 +435,14 @@ export async function addInquiryTalent(
 
   const { data: inq } = await supabase
     .from("inquiries")
-    .select("uses_new_engine")
+    .select("uses_new_engine, tenant_id")
     .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (inq?.uses_new_engine) {
+  if (!inq) {
+    return { error: "Inquiry not found for this tenant." };
+  }
+  if (inq.uses_new_engine) {
     return { error: "This inquiry uses the v2 engine. Use the roster actions (participants) instead of inquiry_talent." };
   }
 
@@ -451,10 +466,11 @@ export async function addInquiryTalent(
   const nextSort = ((currentRows?.[0]?.sort_order as number | null) ?? -1) + 1;
 
   const { error } = await supabase.from("inquiry_talent").insert({
+    tenant_id: tenantId,
     inquiry_id,
     talent_profile_id,
     sort_order: nextSort,
-    added_by_staff_id: auth.user.id,
+    added_by_staff_id: user.id,
   });
 
   if (error) {
@@ -468,9 +484,9 @@ export async function addInquiryTalent(
 }
 
 export async function removeInquiryTalent(formData: FormData): Promise<void> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return;
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
 
   const parsed = parseWithSchema(mutateInquiryTalentSchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -483,13 +499,22 @@ export async function removeInquiryTalent(formData: FormData): Promise<void> {
     .from("inquiries")
     .select("uses_new_engine")
     .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (inq?.uses_new_engine) {
+  if (!inq) {
+    return;
+  }
+  if (inq.uses_new_engine) {
     logServerError("admin/removeInquiryTalent/v2_guard", new Error("Attempted inquiry_talent delete on v2 inquiry"));
     return;
   }
 
-  const { error } = await supabase.from("inquiry_talent").delete().eq("id", inquiry_talent_id).eq("inquiry_id", inquiry_id);
+  const { error } = await supabase
+    .from("inquiry_talent")
+    .delete()
+    .eq("id", inquiry_talent_id)
+    .eq("inquiry_id", inquiry_id)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("admin/removeInquiryTalent", error);
     return;
@@ -500,9 +525,9 @@ export async function removeInquiryTalent(formData: FormData): Promise<void> {
 }
 
 export async function moveInquiryTalent(formData: FormData): Promise<void> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return;
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
 
   const parsed = parseWithSchema(mutateInquiryTalentSchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -519,8 +544,12 @@ export async function moveInquiryTalent(formData: FormData): Promise<void> {
     .from("inquiries")
     .select("uses_new_engine")
     .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (inq?.uses_new_engine) {
+  if (!inq) {
+    return;
+  }
+  if (inq.uses_new_engine) {
     logServerError("admin/moveInquiryTalent/v2_guard", new Error("Attempted inquiry_talent reorder on v2 inquiry"));
     return;
   }
@@ -529,6 +558,7 @@ export async function moveInquiryTalent(formData: FormData): Promise<void> {
     .from("inquiry_talent")
     .select("id, sort_order")
     .eq("inquiry_id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
@@ -550,7 +580,11 @@ export async function moveInquiryTalent(formData: FormData): Promise<void> {
   for (let i = 0; i < next.length; i += 1) {
     const row = next[i];
     if ((row.sort_order as number | null) === i) continue;
-    const { error: updateErr } = await supabase.from("inquiry_talent").update({ sort_order: i }).eq("id", row.id);
+    const { error: updateErr } = await supabase
+      .from("inquiry_talent")
+      .update({ sort_order: i })
+      .eq("id", row.id)
+      .eq("tenant_id", tenantId);
     if (updateErr) {
       logServerError("admin/moveInquiryTalent/update", updateErr);
       return;
@@ -574,9 +608,9 @@ export async function patchInquiryEntityLinks(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(patchInquiryEntityLinksSchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -593,6 +627,7 @@ export async function patchInquiryEntityLinks(
     .from("inquiries")
     .select("client_user_id, client_account_id, client_contact_id")
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (loadErr || !row) {
@@ -634,7 +669,12 @@ export async function patchInquiryEntityLinks(
   };
 
   if (booleanFromEquals(formData, "refresh_account_snapshot") && client_account_id) {
-    const { data: acc } = await supabase.from("client_accounts").select("name").eq("id", client_account_id).maybeSingle();
+    const { data: acc } = await supabase
+      .from("client_accounts")
+      .select("name")
+      .eq("id", client_account_id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
     if (acc?.name) patch.company = acc.name;
   }
   if (booleanFromEquals(formData, "refresh_contact_snapshot") && client_contact_id) {
@@ -642,19 +682,24 @@ export async function patchInquiryEntityLinks(
       .from("client_account_contacts")
       .select("full_name, email, phone")
       .eq("id", client_contact_id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (c?.full_name) patch.contact_name = c.full_name;
     if (c?.email && String(c.email).trim()) patch.contact_email = c.email;
     if (c?.phone != null) patch.contact_phone = c.phone;
   }
 
-  const { error } = await supabase.from("inquiries").update(patch as never).eq("id", id);
+  const { error } = await supabase
+    .from("inquiries")
+    .update(patch as never)
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("admin/patchInquiryEntityLinks", error);
     return { error: CLIENT_ERROR.update };
   }
 
-  const actor = auth.user.id;
+  const actor = user.id;
   const refreshAccSnap = booleanFromEquals(formData, "refresh_account_snapshot");
   const refreshConSnap = booleanFromEquals(formData, "refresh_contact_snapshot");
   if (priorAcc !== client_account_id) {
@@ -683,9 +728,9 @@ export async function createBooking(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(createBookingSchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -704,14 +749,20 @@ export async function createBooking(
   const { data: inq, error: inqErr } = await supabase
     .from("inquiries")
     .select(
-      "client_user_id, client_account_id, client_contact_id, contact_name, contact_email, contact_phone, company, event_type_id, event_date, event_location",
+      "tenant_id, client_user_id, client_account_id, client_contact_id, contact_name, contact_email, contact_phone, company, event_type_id, event_date, event_location",
     )
     .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (inqErr || !inq) {
     logServerError("admin/createBooking/loadInquiry", inqErr);
     return { error: CLIENT_ERROR.loadPage };
+  }
+
+  if (!inq.tenant_id) {
+    logServerError("admin/createBooking/tenant", new Error(`inquiry ${inquiry_id} has no tenant_id`));
+    return { error: CLIENT_ERROR.update };
   }
 
   let client_account_name: string | null = null;
@@ -721,6 +772,7 @@ export async function createBooking(
       .from("client_accounts")
       .select("name, account_type")
       .eq("id", inq.client_account_id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     client_account_name = acc?.name ?? null;
     client_account_type = acc?.account_type ?? null;
@@ -729,18 +781,19 @@ export async function createBooking(
   const { data: bookingRow, error: bookErr } = await supabase
     .from("agency_bookings")
     .insert({
+      tenant_id: tenantId,
       source_inquiry_id: inquiry_id,
       client_user_id: inq.client_user_id,
       client_account_id: inq.client_account_id,
       client_contact_id: inq.client_contact_id,
-      owner_staff_id: auth.user.id,
+      owner_staff_id: user.id,
       title: title || "Booking",
       status: booking_status as never,
       starts_at: starts_at.length > 0 ? starts_at : null,
       ends_at: ends_at.length > 0 ? ends_at : null,
       notes: notes || null,
       internal_notes: notes || null,
-      created_by_staff_id: auth.user.id,
+      created_by_staff_id: user.id,
       contact_name: inq.contact_name,
       contact_email: inq.contact_email,
       contact_phone: inq.contact_phone,
@@ -765,6 +818,7 @@ export async function createBooking(
       .eq("id", talent_profile_id)
       .maybeSingle();
     const { error: lineErr } = await supabase.from("booking_talent").insert({
+      tenant_id: tenantId,
       booking_id: bookingRow.id,
       talent_profile_id,
       talent_name_snapshot: tp?.display_name ?? null,
@@ -779,13 +833,13 @@ export async function createBooking(
 
   await logBookingActivity(supabase, {
     bookingId: bookingRow.id,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     eventType: BOOKING_AUDIT.CREATED_FROM_INQUIRY_QUICK,
     payload: { inquiry_id, talent_profile_id: talent_profile_id || null },
   });
   await logInquiryActivity(supabase, {
     inquiryId: inquiry_id,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     eventType: INQUIRY_AUDIT.CONVERTED_TO_BOOKING,
     payload: { booking_id: bookingRow.id, path: "quick_add" },
   });
@@ -800,9 +854,9 @@ export async function createClientAccount(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(createClientAccountSchema, {
     name: trimmedString(formData, "name"),
@@ -850,6 +904,7 @@ export async function createClientAccount(
   const lng = optionalCoord(lngRaw);
 
   const fullInsert = {
+    tenant_id: tenantId,
     name,
     account_type: account_type as never,
     account_type_detail: account_type_detail.trim() || null,
@@ -881,6 +936,7 @@ export async function createClientAccount(
       .join("\n");
 
     const slimInsert = {
+      tenant_id: tenantId,
       name,
       account_type: account_type as never,
       primary_email: emailTrim || null,
@@ -898,13 +954,14 @@ export async function createClientAccount(
 
   const linkInquiryId = trimmedString(formData, "link_inquiry_id");
   const linkBookingId = trimmedString(formData, "link_booking_id");
-  const actor = auth.user.id;
+  const actor = user.id;
 
   if (linkInquiryId) {
     const { data: priorInq, error: loadInqErr } = await supabase
       .from("inquiries")
       .select("client_account_id, client_contact_id")
       .eq("id", linkInquiryId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!loadInqErr && priorInq) {
       const resolved = await resolveClientAccountContactForSave(
@@ -920,7 +977,8 @@ export async function createClientAccount(
             client_contact_id: resolved.contactId,
             updated_at: new Date().toISOString(),
           } as never)
-          .eq("id", linkInquiryId);
+          .eq("id", linkInquiryId)
+          .eq("tenant_id", tenantId);
         if (!upErr) {
           if (priorInq.client_account_id !== resolved.accountId) {
             await logInquiryActivity(supabase, {
@@ -954,6 +1012,7 @@ export async function createClientAccount(
       .from("agency_bookings")
       .select("client_account_id, client_contact_id")
       .eq("id", linkBookingId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!loadBkErr && priorBk) {
       const resolved = await resolveClientAccountContactForSave(
@@ -970,7 +1029,8 @@ export async function createClientAccount(
             updated_at: new Date().toISOString(),
             updated_by_staff_id: actor,
           } as never)
-          .eq("id", linkBookingId);
+          .eq("id", linkBookingId)
+          .eq("tenant_id", tenantId);
         if (!upErr) {
           if (priorBk.client_account_id !== resolved.accountId) {
             await logBookingActivity(supabase, {
@@ -1011,9 +1071,9 @@ export async function updateClientLocation(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, tenantId } = auth;
 
   const client_account_id = trimmedString(formData, "client_account_id");
   if (!client_account_id) return { error: "Missing work location." };
@@ -1083,7 +1143,8 @@ export async function updateClientLocation(
   let { error } = await supabase
     .from("client_accounts")
     .update(fullUpdate as never)
-    .eq("id", client_account_id);
+    .eq("id", client_account_id)
+    .eq("tenant_id", tenantId);
 
   if (error && isPostgrestMissingColumnError(error)) {
     logServerError("admin/updateClientLocation/schema-fallback", error);
@@ -1111,7 +1172,8 @@ export async function updateClientLocation(
     ({ error } = await supabase
       .from("client_accounts")
       .update(slimUpdate as never)
-      .eq("id", client_account_id));
+      .eq("id", client_account_id)
+      .eq("tenant_id", tenantId));
   }
 
   if (error) {
@@ -1134,9 +1196,9 @@ export async function createClientAccountContact(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(createClientContactSchema, {
     client_account_id: trimmedString(formData, "client_account_id"),
@@ -1158,6 +1220,7 @@ export async function createClientAccountContact(
   const { data: inserted, error } = await supabase
     .from("client_account_contacts")
     .insert({
+      tenant_id: tenantId,
       client_account_id,
       full_name,
       email: email || null,
@@ -1176,13 +1239,14 @@ export async function createClientAccountContact(
 
   const newContactId = inserted.id as string;
 
-  const actor = auth.user.id;
+  const actor = user.id;
 
   if (linkInquiryId) {
     const { data: priorInq, error: loadInqErr } = await supabase
       .from("inquiries")
       .select("client_account_id, client_contact_id")
       .eq("id", linkInquiryId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!loadInqErr && priorInq) {
       const resolved = await resolveClientAccountContactForSave(supabase, client_account_id, newContactId);
@@ -1194,7 +1258,8 @@ export async function createClientAccountContact(
             client_contact_id: resolved.contactId,
             updated_at: new Date().toISOString(),
           } as never)
-          .eq("id", linkInquiryId);
+          .eq("id", linkInquiryId)
+          .eq("tenant_id", tenantId);
         if (!upErr) {
           if (priorInq.client_account_id !== resolved.accountId) {
             await logInquiryActivity(supabase, {
@@ -1228,6 +1293,7 @@ export async function createClientAccountContact(
       .from("agency_bookings")
       .select("client_account_id, client_contact_id")
       .eq("id", linkBookingId)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!loadBkErr && priorBk) {
       const resolved = await resolveClientAccountContactForSave(supabase, client_account_id, newContactId);
@@ -1240,7 +1306,8 @@ export async function createClientAccountContact(
             updated_at: new Date().toISOString(),
             updated_by_staff_id: actor,
           } as never)
-          .eq("id", linkBookingId);
+          .eq("id", linkBookingId)
+          .eq("tenant_id", tenantId);
         if (!upErr) {
           if (priorBk.client_account_id !== resolved.accountId) {
             await logBookingActivity(supabase, {
@@ -1278,9 +1345,9 @@ export async function assignInquiryToCurrentStaff(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(assignInquirySchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -1292,6 +1359,7 @@ export async function assignInquiryToCurrentStaff(
     .from("inquiries")
     .select("status")
     .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (loadErr || !current) {
@@ -1306,7 +1374,8 @@ export async function assignInquiryToCurrentStaff(
       status: (current.status === "new" ? "reviewing" : current.status) as never,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", inquiry_id);
+    .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/assignInquiryToCurrentStaff", error);
@@ -1338,9 +1407,9 @@ export async function createManualInquiry(
   _prev: AdminActionState,
   formData: FormData,
 ): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const channelRaw = trimmedString(formData, "source_channel");
   const channelParsed = parseWithSchema(
@@ -1395,6 +1464,7 @@ export async function createManualInquiry(
       .from("client_accounts")
       .select("name")
       .eq("id", client_account_id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     createdInquiryClientAccountName = acc?.name ?? null;
   }
@@ -1402,6 +1472,7 @@ export async function createManualInquiry(
   const { data: created, error: insErr } = await supabase
     .from("inquiries")
     .insert({
+      tenant_id: tenantId,
       guest_session_id: null,
       client_user_id,
       status: "new" as never,
@@ -1447,6 +1518,7 @@ export async function createManualInquiry(
   if (talentIds.length > 0) {
     for (const [index, talent_profile_id] of talentIds.entries()) {
       const { error: talentErr } = await supabase.from("inquiry_talent").insert({
+        tenant_id: tenantId,
         inquiry_id: created.id,
         talent_profile_id,
         sort_order: index,
@@ -1483,9 +1555,9 @@ const quickInquiryStatusPeekSchema = z.object({
 
 /** Status-only patch for inquiry list rows / quick actions (no navigation). */
 export async function quickPatchInquiryStatus(formData: FormData): Promise<AdminActionState> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) return { error: auth.error };
-  const { supabase, user } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const parsed = parseWithSchema(quickInquiryStatusPeekSchema, {
     inquiry_id: trimmedString(formData, "inquiry_id"),
@@ -1499,6 +1571,7 @@ export async function quickPatchInquiryStatus(formData: FormData): Promise<Admin
     .from("inquiries")
     .select("status")
     .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (priorErr || !prior) {
@@ -1509,7 +1582,8 @@ export async function quickPatchInquiryStatus(formData: FormData): Promise<Admin
   const { error } = await supabase
     .from("inquiries")
     .update({ status: status as never, updated_at: new Date().toISOString() })
-    .eq("id", inquiry_id);
+    .eq("id", inquiry_id)
+    .eq("tenant_id", tenantId);
 
   if (error) {
     logServerError("admin/quickPatchInquiryStatus", error);
@@ -1531,6 +1605,7 @@ export async function quickPatchInquiryStatus(formData: FormData): Promise<Admin
 }
 
 type InquiryRow = {
+  tenant_id: string;
   client_user_id: string | null;
   contact_name: string;
   contact_email: string;
@@ -1552,9 +1627,9 @@ type InquiryRow = {
 };
 
 export async function duplicateInquiry(formData: FormData): Promise<void> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) redirect("/admin/inquiries");
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const sourceId = trimmedString(formData, "source_inquiry_id");
   if (!z.string().uuid().safeParse(sourceId).success) {
@@ -1572,13 +1647,20 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
   const new_client_account_id = trimmedString(formData, "new_client_account_id");
   const new_client_contact_id = trimmedString(formData, "new_client_contact_id");
 
-  const { data: src, error } = await supabase.from("inquiries").select("*").eq("id", sourceId).maybeSingle();
+  const { data: src, error } = await supabase
+    .from("inquiries")
+    .select("*")
+    .eq("id", sourceId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
 
   if (error || !src) {
     redirect(`/admin/inquiries/${sourceId}?dup_err=${encodeURIComponent(CLIENT_ERROR.loadPage)}`);
   }
 
   const row = src as unknown as InquiryRow;
+  // SaaS P1.B STEP 3: the `.eq("tenant_id", tenantId)` on the source read
+  // already guarantees the row belongs to the caller's active tenant.
 
   let client_account_id = keep_client_account ? row.client_account_id : new_client_account_id || null;
   let client_contact_id = keep_contact ? row.client_contact_id : new_client_contact_id || null;
@@ -1600,6 +1682,7 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
       .from("client_accounts")
       .select("name")
       .eq("id", client_account_id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (acc?.name) company = acc.name;
   }
@@ -1609,6 +1692,7 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
       .from("client_account_contacts")
       .select("full_name, email, phone")
       .eq("id", client_contact_id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (c?.full_name) contact_name = c.full_name;
     if (c?.email && String(c.email).trim()) contact_email = c.email;
@@ -1618,6 +1702,7 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
   const { data: created, error: insErr } = await supabase
     .from("inquiries")
     .insert({
+      tenant_id: row.tenant_id,
       guest_session_id: null,
       client_user_id: row.client_user_id,
       status: "new" as never,
@@ -1651,7 +1736,7 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
 
   await logInquiryActivity(supabase, {
     inquiryId: sourceId,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     eventType: INQUIRY_AUDIT.DUPLICATED,
     payload: { new_inquiry_id: created.id },
   });
@@ -1660,9 +1745,11 @@ export async function duplicateInquiry(formData: FormData): Promise<void> {
     const { data: talentRows } = await supabase
       .from("inquiry_talent")
       .select("talent_profile_id, sort_order")
-      .eq("inquiry_id", sourceId);
+      .eq("inquiry_id", sourceId)
+      .eq("tenant_id", tenantId);
     for (const tr of talentRows ?? []) {
       await supabase.from("inquiry_talent").insert({
+        tenant_id: tenantId,
         inquiry_id: created.id,
         talent_profile_id: tr.talent_profile_id,
         sort_order: tr.sort_order ?? 0,

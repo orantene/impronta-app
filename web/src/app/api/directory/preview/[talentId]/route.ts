@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getPublicSettings } from "@/lib/public-settings";
 import { parseDirectoryLocale } from "@/lib/directory/search-params";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { isTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 import {
   formatCityCountryLabel,
   resolveResidenceLocationEmbed,
@@ -44,10 +46,30 @@ export async function GET(
     return NextResponse.json({ error: "Unavailable" }, { status: 403 });
   }
 
+  const hostContext = await getPublicHostContext();
+  if (
+    hostContext.kind === "marketing" ||
+    hostContext.kind === "app" ||
+    hostContext.kind === "unknown"
+  ) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const { talentId } = await params;
   const supabase = createPublicSupabaseClient();
   if (!supabase) {
     return NextResponse.json({ error: "Unavailable" }, { status: 503 });
+  }
+
+  if (hostContext.kind === "agency") {
+    const onRoster = await isTalentOnTenantRoster(
+      supabase,
+      hostContext.tenantId,
+      talentId,
+    );
+    if (!onRoster) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
   }
 
   const url = new URL(request.url);

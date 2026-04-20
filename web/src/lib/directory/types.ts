@@ -118,4 +118,11 @@ export type DirectoryListParams = {
   locale?: string;
   /** When true, skip COUNT(*) (used for cursor / infinite-scroll pages). */
   skipTotalCount?: boolean;
+  /**
+   * SaaS tenant scope for storefront (agency) requests. When set, the result
+   * set is gated to the tenant's `agency_talent_roster` (status=active,
+   * agency_visibility in {site_visible,featured}). Pass `null` or omit for
+   * hub (federated cross-tenant) requests.
+   */
+  tenantId?: string | null;
 };

@@ -4,7 +4,13 @@ import { roleMayPerform, statusAllowsAction } from "./inquiry-workspace-state-ma
 function intersect(
   input: WorkspaceStateInput,
   action: string,
-  ctx: { hasOffer: boolean; offerStatus: string | null; isOfferReady: boolean; allApprovalsAccepted: boolean },
+  ctx: {
+    hasOffer: boolean;
+    offerStatus: string | null;
+    isOfferReady: boolean;
+    allApprovalsAccepted: boolean;
+    groupsFulfilled?: boolean;
+  },
 ): boolean {
   const st = statusAllowsAction(input.status, action, ctx);
   if (!st.ok) return false;
@@ -17,7 +23,25 @@ export function getWorkspacePermissions(input: WorkspaceStateInput): WorkspacePe
     offerStatus: input.offerStatus,
     isOfferReady: input.isOfferReady,
     allApprovalsAccepted: input.allApprovalsAccepted,
+    groupsFulfilled: input.groupsFulfilled,
   };
+
+  // M2.3: admins may convert even when requirement groups are under-approved,
+  // via the override dialog. We compute `canConvertToBooking` twice — once with
+  // the raw gate (which denies on shortfall) and once with an admin-forced pass
+  // so the CTA is surfaced. The server RPC remains the authoritative gate: it
+  // enforces role + reason length and will reject non-admin attempts or
+  // under-length reasons.
+  const convertStatusRaw = statusAllowsAction(input.status, "convert_to_booking", ctx);
+  const convertStatusIgnoringGroups = statusAllowsAction(input.status, "convert_to_booking", {
+    ...ctx,
+    groupsFulfilled: true,
+  });
+  const convertRoleOk = roleMayPerform("convert_to_booking", input.effectiveRole);
+  const convertStatusOk =
+    input.effectiveRole === "admin"
+      ? convertStatusIgnoringGroups.ok
+      : convertStatusRaw.ok;
 
   const staff = input.effectiveRole === "admin" || input.effectiveRole === "coordinator";
 
@@ -38,7 +62,8 @@ export function getWorkspacePermissions(input: WorkspaceStateInput): WorkspacePe
     canWithdrawOffer: intersect(input, "withdraw_offer", ctx) && !input.isLocked,
     canApprove: intersect(input, "approve", ctx) && !input.isLocked,
     canConvertToBooking:
-      intersect(input, "convert_to_booking", ctx) &&
+      convertStatusOk &&
+      convertRoleOk &&
       input.allApprovalsAccepted &&
       input.status === "approved" &&
       !input.isLocked,

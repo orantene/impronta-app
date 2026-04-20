@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { canTransition, isMutablePhase, resolveNextActionBy } from "./inquiry-lifecycle";
+import { isMutablePhase } from "./inquiry-lifecycle";
 import { validateActorPermission } from "./inquiry-permissions";
 import { engineRateKey, rateLimiter } from "./inquiry-rate-limiter";
 import { ENGINE_EVENT_TYPES, emitStandardEngineEvent } from "./inquiry-events";
@@ -8,9 +8,28 @@ import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.
 import { loadInquiryRoster } from "./inquiry-workspace-data";
 import type { EngineResult } from "./inquiry-engine.types";
 
+// SaaS P1.B STEP A: tenant-scoped by construction on every inquiry + offers
+// read/write. RPC-backed helpers also pre-flight the inquiry's tenant ownership
+// so cross-tenant ids are rejected before the SECURITY DEFINER call.
+
+async function inquiryInTenant(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 async function ensureClientParticipant(
   supabase: SupabaseClient,
   inquiryId: string,
+  tenantId: string,
   clientUserId: string | null,
 ): Promise<void> {
   if (!clientUserId) return;
@@ -18,11 +37,13 @@ async function ensureClientParticipant(
     .from("inquiry_participants")
     .select("id")
     .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
     .eq("role", "client")
     .maybeSingle();
   if (existing) return;
   await supabase.from("inquiry_participants").insert({
     inquiry_id: inquiryId,
+    tenant_id: tenantId,
     user_id: clientUserId,
     role: "client",
     status: "active",
@@ -32,25 +53,33 @@ async function ensureClientParticipant(
 async function seedApprovalsForOffer(
   supabase: SupabaseClient,
   inquiryId: string,
+  tenantId: string,
   offerId: string,
 ): Promise<void> {
-  const { data: inq } = await supabase.from("inquiries").select("client_user_id").eq("id", inquiryId).maybeSingle();
-  await ensureClientParticipant(supabase, inquiryId, (inq?.client_user_id as string | null) ?? null);
+  const { data: inq } = await supabase
+    .from("inquiries")
+    .select("client_user_id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  await ensureClientParticipant(supabase, inquiryId, tenantId, (inq?.client_user_id as string | null) ?? null);
 
   const { data: clientPart } = await supabase
     .from("inquiry_participants")
     .select("id")
     .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
     .eq("role", "client")
     .maybeSingle();
 
   const roster = await loadInquiryRoster(supabase, inquiryId);
   const activeTalents = roster.filter((r) => r.status === "active");
 
-  const rows: { inquiry_id: string; offer_id: string; participant_id: string; status: string }[] = [];
+  const rows: { inquiry_id: string; tenant_id: string; offer_id: string; participant_id: string; status: string }[] = [];
   if (clientPart) {
     rows.push({
       inquiry_id: inquiryId,
+      tenant_id: tenantId,
       offer_id: offerId,
       participant_id: clientPart.id as string,
       status: "pending",
@@ -61,12 +90,14 @@ async function seedApprovalsForOffer(
       .from("inquiry_participants")
       .select("id")
       .eq("inquiry_id", inquiryId)
+      .eq("tenant_id", tenantId)
       .eq("talent_profile_id", t.talentProfileId)
       .eq("role", "talent")
       .maybeSingle();
     if (tp) {
       rows.push({
         inquiry_id: inquiryId,
+        tenant_id: tenantId,
         offer_id: offerId,
         participant_id: tp.id as string,
         status: "pending",
@@ -79,10 +110,14 @@ async function seedApprovalsForOffer(
   }
 }
 
+// Exported for API route compatibility — currently unused in engine paths.
+export { seedApprovalsForOffer };
+
 export async function createOffer(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     actorUserId: string;
     expectedVersion: number;
     currencyCode?: string;
@@ -99,14 +134,17 @@ export async function createOffer(
       .from("inquiries")
       .select("version, uses_new_engine, is_frozen, status")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
 
     const { data: offer, error } = await supabase
       .from("inquiry_offers")
       .insert({
         inquiry_id: ctx.inquiryId,
+        tenant_id: ctx.tenantId,
         created_by_user_id: ctx.actorUserId,
         currency_code: ctx.currencyCode ?? "MXN",
         status: "draft",
@@ -125,6 +163,7 @@ export async function createOffer(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion)
       .select("id")
       .maybeSingle();
@@ -151,11 +190,15 @@ export async function createOffer(
 
 export async function sendOffer(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; offerId: string; actorUserId: string; inquiryExpectedVersion: number; offerExpectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; offerId: string; actorUserId: string; inquiryExpectedVersion: number; offerExpectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("sendOffer", ctx.inquiryId, ctx.actorUserId, async () => {
     const rl = await rateLimiter.check(engineRateKey("sendOffer", ctx.actorUserId), 5, 60 * 60_000);
     if (!rl.ok) return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
+
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
 
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "send_offer");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
@@ -225,6 +268,7 @@ export async function updateOfferDraft(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     offerId: string;
     actorUserId: string;
     inquiryExpectedVersion: number;
@@ -249,8 +293,10 @@ export async function updateOfferDraft(
       .from("inquiries")
       .select("version, uses_new_engine, is_frozen, status")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
-    if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
+    if (!inq) return { success: false, forbidden: true, reason: "forbidden" };
+    if (!inq.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
     if (!isMutablePhase(inq.status as string, !!inq.is_frozen)) {
       return { success: false, reason: "post_booking_immutable" };
@@ -260,6 +306,7 @@ export async function updateOfferDraft(
       .from("inquiry_offers")
       .select("id, inquiry_id, status, version")
       .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
 
     if (!offer || offer.inquiry_id !== ctx.inquiryId) return { success: false, error: "offer_not_found" };
@@ -274,11 +321,16 @@ export async function updateOfferDraft(
       }
     }
 
-    await supabase.from("inquiry_offer_line_items").delete().eq("offer_id", ctx.offerId);
+    await supabase
+      .from("inquiry_offer_line_items")
+      .delete()
+      .eq("offer_id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId);
 
     for (const line of ctx.lineItems) {
       const { error: liErr } = await supabase.from("inquiry_offer_line_items").insert({
         offer_id: ctx.offerId,
+        tenant_id: ctx.tenantId,
         talent_profile_id: line.talent_profile_id,
         label: line.label,
         pricing_unit: line.pricing_unit as never,
@@ -303,6 +355,7 @@ export async function updateOfferDraft(
         updated_at: new Date().toISOString(),
       })
       .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.offerExpectedVersion)
       .select("id")
       .maybeSingle();
@@ -317,6 +370,7 @@ export async function updateOfferDraft(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.inquiryExpectedVersion)
       .select("id")
       .maybeSingle();
@@ -345,6 +399,7 @@ export async function clientRejectOffer(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     offerId: string;
     actorUserId: string;
     expectedVersion: number;
@@ -353,6 +408,9 @@ export async function clientRejectOffer(
   },
 ): Promise<EngineResult> {
   return runWithEngineLog("clientRejectOffer", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "client_reject_offer");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
@@ -363,7 +421,8 @@ export async function clientRejectOffer(
         rejection_reason: (ctx.rejectionReason as never) ?? "other",
         rejection_reason_text: ctx.rejectionReasonText ?? null,
       })
-      .eq("id", ctx.offerId);
+      .eq("id", ctx.offerId)
+      .eq("tenant_id", ctx.tenantId);
 
     await supabase
       .from("inquiries")
@@ -374,6 +433,7 @@ export async function clientRejectOffer(
         version: ctx.expectedVersion + 1,
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
 
     await logInquiryActivity(supabase, {

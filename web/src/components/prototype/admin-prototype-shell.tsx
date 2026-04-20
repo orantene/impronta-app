@@ -39,7 +39,9 @@ import {
 } from "@/lib/prototype/admin-prototype-prefs";
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette";
 import { AdminContextualInspector } from "@/components/admin/inspector/admin-contextual-inspector";
+import { AgencySwitcher } from "@/components/admin/agency-switcher";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
+import type { TenantMembership } from "@/lib/saas";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -138,6 +140,7 @@ function PrototypeNavSections({
   onTogglePin,
   onToggleShortcut,
   expandAllGroups,
+  navBadges,
 }: {
   collapsed: boolean;
   onNavigate?: () => void;
@@ -147,6 +150,7 @@ function PrototypeNavSections({
   onToggleShortcut: (id: string) => void;
   /** Mobile sheet: show every section open without accordion chrome. */
   expandAllGroups?: boolean;
+  navBadges?: Record<string, number>;
 }) {
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
@@ -201,13 +205,23 @@ function PrototypeNavSections({
     const isPinned = pinnedSet.has(item.id);
     const isShortcut = shortcutSet.has(item.id);
     const compact = opts?.compact ?? false;
+    // M6.2 — if this nav item has a pending Tier-1 count, point the link at
+    // the filtered queue view so a click on the sidebar goes straight to the
+    // inquiries that need attention. No count → link stays at its base href.
+    const badgeCount = navBadges?.[item.id] ?? 0;
+    const hrefWithBadge =
+      badgeCount > 0 && item.id === "inquiries"
+        ? `${item.href}?tier1_only=1`
+        : item.href;
+    const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
 
     const link = (
       <Link
-        href={item.href}
+        href={hrefWithBadge}
         scroll={false}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
+        aria-label={badgeCount > 0 ? `${item.label} — ${badgeCount} needs attention` : undefined}
         className={cn(
           "group/nav relative flex min-w-0 items-center gap-3 py-2.5 text-sm transition-[background-color,color,box-shadow] duration-150 ease-out",
           compact || collapsed ? "justify-center rounded-xl px-2" : "flex-1 overflow-hidden rounded-full pl-4 pr-2",
@@ -222,16 +236,36 @@ function PrototypeNavSections({
             aria-hidden
           />
         ) : null}
-        <Icon
-          className={cn(
-            "size-4 shrink-0 transition-colors duration-150",
-            active
-              ? "text-[var(--admin-gold)]"
-              : "text-[var(--admin-nav-idle)] group-hover/nav:text-[var(--admin-gold-bright)]",
-          )}
-          aria-hidden
-        />
-        {!collapsed && !compact ? <span className="min-w-0 flex-1 truncate">{item.label}</span> : null}
+        <span className="relative shrink-0">
+          <Icon
+            className={cn(
+              "size-4 transition-colors duration-150",
+              active
+                ? "text-[var(--admin-gold)]"
+                : "text-[var(--admin-nav-idle)] group-hover/nav:text-[var(--admin-gold-bright)]",
+            )}
+            aria-hidden
+          />
+          {badgeCount > 0 && (collapsed || compact) ? (
+            <span
+              className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-[var(--admin-gold)] px-1 text-[9px] font-semibold leading-[1.1rem] text-[#1a1305] shadow-sm"
+              aria-hidden
+            >
+              {badgeLabel}
+            </span>
+          ) : null}
+        </span>
+        {!collapsed && !compact ? (
+          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        ) : null}
+        {!collapsed && !compact && badgeCount > 0 ? (
+          <span
+            className="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[var(--admin-gold)] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[#1a1305] shadow-sm"
+            aria-hidden
+          >
+            {badgeLabel}
+          </span>
+        ) : null}
       </Link>
     );
 
@@ -433,9 +467,31 @@ export type AdminDashboardShellProps = {
   children: React.ReactNode;
   /** DB-backed dashboard theme — keeps `--impronta-*` tokens aligned with existing admin pages. */
   dashboardTheme: "dark" | "light";
+  /**
+   * Per-nav-item badge counts, keyed by the stable id from
+   * `prototypeNavItemStableId(href)` (e.g. `inquiries`). Values > 0 render a
+   * gold chip on the link. Any missing keys render no badge. Added in M6.2 so
+   * the sidebar surfaces the Tier-1 count without inventing a new inbox.
+   */
+  navBadges?: Record<string, number>;
+  /**
+   * Tenants the current actor is a staff member of (or all tenants for
+   * platform super_admins). Rendered as an AgencySwitcher in the sidebar
+   * header when length > 1. Empty array means "no workspace" (layout should
+   * have redirected before we got here).
+   */
+  tenants?: TenantMembership[];
+  /** Tenant id currently in scope per {@link getTenantScope}, or null. */
+  activeTenantId?: string | null;
 };
 
-export function AdminDashboardShell({ children, dashboardTheme }: AdminDashboardShellProps) {
+export function AdminDashboardShell({
+  children,
+  dashboardTheme,
+  navBadges,
+  tenants = [],
+  activeTenantId = null,
+}: AdminDashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -550,6 +606,15 @@ export function AdminDashboardShell({ children, dashboardTheme }: AdminDashboard
               {collapsed ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
             </Button>
           </div>
+          {tenants.length > 0 ? (
+            <div className="border-b border-[var(--admin-gold-border)] px-3 py-2">
+              <AgencySwitcher
+                tenants={tenants}
+                activeTenantId={activeTenantId}
+                collapsed={collapsed}
+              />
+            </div>
+          ) : null}
           <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">
             <PrototypeNavSections
               collapsed={collapsed}
@@ -557,6 +622,7 @@ export function AdminDashboardShell({ children, dashboardTheme }: AdminDashboard
               shortcutIds={shortcutIds}
               onTogglePin={onTogglePin}
               onToggleShortcut={onToggleShortcut}
+              navBadges={navBadges}
             />
           </nav>
           <div className="shrink-0 space-y-2 border-t border-[var(--admin-gold-border)] p-3">
@@ -631,6 +697,11 @@ export function AdminDashboardShell({ children, dashboardTheme }: AdminDashboard
                 Menu
               </SheetTitle>
             </SheetHeader>
+            {tenants.length > 0 ? (
+              <div className="border-b border-[var(--admin-gold-border)] px-4 py-3">
+                <AgencySwitcher tenants={tenants} activeTenantId={activeTenantId} />
+              </div>
+            ) : null}
             <div className="max-h-[calc(100dvh-11rem)] overflow-y-auto">
               <PrototypeNavSections
                 collapsed={false}
@@ -640,6 +711,7 @@ export function AdminDashboardShell({ children, dashboardTheme }: AdminDashboard
                 shortcutIds={shortcutIds}
                 onTogglePin={onTogglePin}
                 onToggleShortcut={onToggleShortcut}
+                navBadges={navBadges}
               />
             </div>
             <div className="border-t border-[var(--admin-gold-border)] px-4 py-3 sm:hidden">

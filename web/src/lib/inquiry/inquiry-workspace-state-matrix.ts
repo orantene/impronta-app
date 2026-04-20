@@ -18,6 +18,7 @@ export const DISABLED_REASONS = {
   withdraw_first: "Withdraw the current offer before creating a new one",
   awaiting_client_response: "Waiting for the client to respond to the offer",
   missing_approvals: "Waiting for {count} approval(s): {names}",
+  groups_unfulfilled: "One or more requirement groups are under-approved — admin override required to convert",
   roster_locked_offer_sent: "Withdraw the offer before changing the roster",
   details_locked_offer_sent: "Withdraw the offer before editing event details",
   locked_status: "This inquiry is {status}",
@@ -86,6 +87,12 @@ export type StatusOfferGateContext = {
   offerStatus: string | null;
   isOfferReady: boolean;
   allApprovalsAccepted: boolean;
+  /**
+   * M2.3: every requirement group meets its `quantity_required` of accepted
+   * approvals. When `undefined`, treated as `true` so legacy call sites that
+   * have not been updated continue to work (approvals gate still runs).
+   */
+  groupsFulfilled?: boolean;
 };
 
 type GateResult = { ok: boolean; reason?: DisabledReasonCode };
@@ -204,6 +211,13 @@ export function statusAllowsAction(
     if (action === "convert_to_booking" && !ctx.allApprovalsAccepted) {
       return deny("missing_approvals");
     }
+    if (action === "convert_to_booking" && ctx.groupsFulfilled === false) {
+      // Non-admins see the groups-unfulfilled message; the admin override path
+      // is enforced at the permissions layer (getWorkspacePermissions) and
+      // server-side by engine_convert_to_booking. The workspace primary CTA
+      // stays enabled for admins so they can invoke the override dialog.
+      return deny("groups_unfulfilled");
+    }
     if (["send_message", "convert_to_booking", "reassign", "close"].includes(action)) return allow();
     if (["edit_offer", "create_offer", "withdraw_offer", "send_offer", "add_talent", "remove_talent"].includes(action)) {
       return deny("deal_locked_approved");
@@ -309,15 +323,24 @@ export function resolvePrimaryActionFromMatrix(
       };
     }
     if (input.effectiveRole === "admin" || input.effectiveRole === "coordinator") {
+      const groupsShort = input.groupsFulfilled === false;
+      const disabledReason = !input.allApprovalsAccepted
+        ? interpolateDisabledReason("missing_approvals", {
+            count: pendingApprovalCount,
+            names: "",
+          })
+        : groupsShort
+          ? interpolateDisabledReason("groups_unfulfilled")
+          : interpolateDisabledReason("missing_approvals", {
+              count: pendingApprovalCount,
+              names: "",
+            });
       return {
         key: "convert_booking",
         label: "Convert to booking",
         variant: "gold",
         disabled: true,
-        disabledReason: interpolateDisabledReason("missing_approvals", {
-          count: pendingApprovalCount,
-          names: "",
-        }),
+        disabledReason,
       };
     }
     return {

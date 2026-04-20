@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireClient } from "@/lib/server/action-guards";
+import { resolveInquiryTenantForParticipant } from "@/lib/saas/admin-scope";
 
 export async function actionClientInquirySendMessage(formData: FormData): Promise<ActionResult> {
   const auth = await requireClient();
@@ -18,8 +19,14 @@ export async function actionClientInquirySendMessage(formData: FormData): Promis
     return { ok: false, code: "validation_error", message: "Message cannot be empty." };
   }
 
+  const tenantId = await resolveInquiryTenantForParticipant(supabase, auth.user.id, inquiryId, "client");
+  if (!tenantId) {
+    return { ok: false, code: "permission_denied", message: "You cannot access this inquiry." };
+  }
+
   const res = await sendMessage(supabase, {
     inquiryId,
+    tenantId,
     actorUserId: auth.user.id,
     threadType: "private",
     body,
@@ -62,14 +69,8 @@ export async function actionClientLoadOlderInquiryMessages(
     return { ok: false, code: "validation_error", message: "Missing inquiry or cursor." };
   }
 
-  const { data: own, error: ownErr } = await supabase
-    .from("inquiries")
-    .select("id")
-    .eq("id", inquiryId)
-    .eq("client_user_id", auth.user.id)
-    .maybeSingle();
-
-  if (ownErr || !own) {
+  const tenantId = await resolveInquiryTenantForParticipant(supabase, auth.user.id, inquiryId, "client");
+  if (!tenantId) {
     return { ok: false, code: "permission_denied", message: "You cannot access this inquiry." };
   }
 
@@ -77,6 +78,7 @@ export async function actionClientLoadOlderInquiryMessages(
     .from("inquiry_messages")
     .select("id, body, created_at, sender_user_id, metadata")
     .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
     .eq("thread_type", "private")
     .lt("created_at", beforeCreatedAt)
     .order("created_at", { ascending: false })
@@ -88,7 +90,6 @@ export async function actionClientLoadOlderInquiryMessages(
 
   const rawRows = (data ?? []).slice().reverse();
 
-  // Enrich with sender profile info
   const senderIds = [...new Set(rawRows.map((m) => m.sender_user_id).filter((id): id is string => Boolean(id)))];
   const profileMap = new Map<string, { display_name: string | null; avatar_url: string | null }>();
   if (senderIds.length > 0) {

@@ -1,27 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendMessage } from "@/lib/inquiry/inquiry-engine";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
 import { requireTalent } from "@/lib/server/action-guards";
-
-async function assertTalentInquiryAccess(
-  supabase: SupabaseClient,
-  userId: string,
-  inquiryId: string,
-): Promise<boolean> {
-  const { data: tp } = await supabase.from("talent_profiles").select("id").eq("user_id", userId).maybeSingle();
-  if (!tp?.id) return false;
-  const { data: part } = await supabase
-    .from("inquiry_participants")
-    .select("id")
-    .eq("inquiry_id", inquiryId)
-    .eq("talent_profile_id", tp.id)
-    .eq("role", "talent")
-    .maybeSingle();
-  return Boolean(part);
-}
+import { resolveInquiryTenantForParticipant } from "@/lib/saas/admin-scope";
 
 export type TalentGroupMessageDto = {
   id: string;
@@ -46,13 +29,14 @@ export async function actionTalentInquirySendGroupMessage(formData: FormData): P
     return { ok: false, code: "validation_error", message: "Message cannot be empty." };
   }
 
-  const allowed = await assertTalentInquiryAccess(supabase, user.id, inquiryId);
-  if (!allowed) {
+  const tenantId = await resolveInquiryTenantForParticipant(supabase, user.id, inquiryId, "talent");
+  if (!tenantId) {
     return { ok: false, code: "permission_denied", message: "You cannot access this inquiry." };
   }
 
   const res = await sendMessage(supabase, {
     inquiryId,
+    tenantId,
     actorUserId: user.id,
     threadType: "group",
     body,
@@ -85,8 +69,8 @@ export async function actionTalentLoadOlderGroupMessages(
     return { ok: false, code: "validation_error", message: "Missing inquiry or cursor." };
   }
 
-  const allowed = await assertTalentInquiryAccess(supabase, user.id, inquiryId);
-  if (!allowed) {
+  const tenantId = await resolveInquiryTenantForParticipant(supabase, user.id, inquiryId, "talent");
+  if (!tenantId) {
     return { ok: false, code: "permission_denied", message: "You cannot access this inquiry." };
   }
 
@@ -94,6 +78,7 @@ export async function actionTalentLoadOlderGroupMessages(
     .from("inquiry_messages")
     .select("id, body, created_at, sender_user_id, metadata")
     .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
     .eq("thread_type", "group")
     .lt("created_at", beforeCreatedAt)
     .order("created_at", { ascending: false })
@@ -105,7 +90,6 @@ export async function actionTalentLoadOlderGroupMessages(
 
   const rawRows = (data ?? []).slice().reverse();
 
-  // Enrich with sender profile info
   const senderIds = [...new Set(rawRows.map((m) => m.sender_user_id).filter((id): id is string => Boolean(id)))];
   const profileMap = new Map<string, { display_name: string | null; avatar_url: string | null }>();
   if (senderIds.length > 0) {

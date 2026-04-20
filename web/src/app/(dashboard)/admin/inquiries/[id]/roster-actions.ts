@@ -8,7 +8,7 @@ import {
 } from "@/lib/inquiry/inquiry-engine";
 import type { EngineErr } from "@/lib/inquiry/inquiry-engine.types";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR } from "@/lib/server/safe-error";
 import { sendTalentInvitedNotification } from "@/lib/email/inquiry-notifications";
 
@@ -30,11 +30,11 @@ function mapRosterEngineFailure(res: EngineErr): ActionResult {
 }
 
 export async function rosterAddTalent(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const talentProfileId = String(formData.get("talent_profile_id") ?? "").trim();
@@ -46,9 +46,11 @@ export async function rosterAddTalent(formData: FormData): Promise<ActionResult>
 
   const res = await addTalentToRoster(supabase, {
     inquiryId,
+    tenantId,
     talentProfileId,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
+    requirementGroupId: null,
   });
 
   if (!res.success) {
@@ -61,11 +63,11 @@ export async function rosterAddTalent(formData: FormData): Promise<ActionResult>
 }
 
 export async function rosterRemoveParticipant(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const participantId = String(formData.get("participant_id") ?? "").trim();
@@ -77,8 +79,9 @@ export async function rosterRemoveParticipant(formData: FormData): Promise<Actio
 
   const res = await removeTalentFromRoster(supabase, {
     inquiryId,
+    tenantId,
     participantId,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
   });
 
@@ -91,11 +94,11 @@ export async function rosterRemoveParticipant(formData: FormData): Promise<Actio
 }
 
 export async function rosterMoveParticipant(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: auth.error };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const participantId = String(formData.get("participant_id") ?? "").trim();
@@ -110,6 +113,7 @@ export async function rosterMoveParticipant(formData: FormData): Promise<ActionR
     .from("inquiry_participants")
     .select("id, sort_order")
     .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId)
     .eq("role", "talent")
     .order("sort_order", { ascending: true });
 
@@ -134,8 +138,9 @@ export async function rosterMoveParticipant(formData: FormData): Promise<ActionR
 
   const res = await reorderRoster(supabase, {
     inquiryId,
+    tenantId,
     orderedParticipantIds,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
   });
 

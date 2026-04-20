@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 import { CmsRedirectsClient } from "./cms-redirects-client";
@@ -10,14 +10,12 @@ import { CmsRedirectsClient } from "./cms-redirects-client";
 export const dynamic = "force-dynamic";
 
 export default async function CmsRedirectsPage() {
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
-  }
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const { data, error } = await supabase
     .from("cms_redirects")
     .select("id,old_path,new_path,status_code,active,updated_at")
+    .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
 
   if (error) {

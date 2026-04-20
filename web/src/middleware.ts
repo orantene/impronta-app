@@ -16,6 +16,13 @@ import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middle
 import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
 import { rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
+import {
+  resolveTenantContext,
+  HOST_CONTEXT_HEADER,
+  HOST_NAME_HEADER,
+} from "@/lib/saas/host-context";
+import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
+import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -31,6 +38,23 @@ function clientIp(request: NextRequest): string {
 export async function middleware(request: NextRequest) {
   const ip = clientIp(request);
   const { pathname } = request.nextUrl;
+
+  // SaaS Phase 4 — unified host resolution. Every hostname (marketing /
+  // app / hub / agency) is resolved via a single DB-driven lookup in
+  // `agency_domains`. No hostnames are hardcoded in code. Downstream
+  // server code reads the resulting context from request headers.
+  const hostHeader = request.headers.get("host") ?? "";
+  const hostContext = await resolveTenantContext(request, hostHeader);
+
+  if (hostContext.kind === "not_found") {
+    // Fail-hard (Plan L37): an unregistered hostname does NOT fall back
+    // to tenant #1 or the hub. A 404 tells the operator the domain needs
+    // seeding in `agency_domains`.
+    return new NextResponse("Host not registered. Seed agency_domains.", {
+      status: 404,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
+  }
 
   const langSettings = await getLanguageSettingsForMiddleware();
 
@@ -52,6 +76,19 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = withoutLocalePrefix;
     return NextResponse.redirect(url, 308);
+  }
+
+  // SaaS P2 — surface allow-list. Reject paths that do not belong on this
+  // host kind BEFORE rate limits, CMS redirects, or auth run. Checked
+  // against the locale-stripped path so `/es/admin` is treated as `/admin`.
+  const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, langSettings)
+    ? stripNonDefaultLocalePrefix(pathname, langSettings)
+    : pathname;
+  if (!isPathAllowedForHostKind(hostContext.kind, canonicalPath)) {
+    return new NextResponse("Not found", {
+      status: 404,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
   }
 
   if (pathname.startsWith("/api/directory") && request.method === "GET") {
@@ -125,7 +162,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const cmsRedirect = await tryCmsRedirectResponse(request, originalPathname);
+  const cmsRedirect = await tryCmsRedirectResponse(
+    request,
+    originalPathname,
+    hostContext.kind === "agency" ? hostContext.tenantId : null,
+  );
   if (cmsRedirect) {
     syncLocaleCookieForPath(cmsRedirect, originalPathname, langSettings);
     return cmsRedirect;
@@ -135,6 +176,17 @@ export async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(LOCALE_HEADER, locale);
   requestHeaders.set(ORIGINAL_PATHNAME_HEADER, originalPathname);
+
+  requestHeaders.set(HOST_CONTEXT_HEADER, hostContext.kind);
+  requestHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
+
+  if (hostContext.kind === "agency") {
+    requestHeaders.set(TENANT_HEADER_NAME, hostContext.tenantId);
+  } else {
+    // Strip any spoofed header on non-tenant contexts (marketing / app /
+    // hub). Downstream code must never honour a client-supplied tenant id.
+    requestHeaders.delete(TENANT_HEADER_NAME);
+  }
 
   let pathnameForAuth = originalPathname;
   const nextUrl = request.nextUrl.clone();

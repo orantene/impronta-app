@@ -8,6 +8,24 @@ import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { assertConsistencyAfterWrite, runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
+// SaaS P1.B STEP A: tenant-scoped by construction. All reads/writes against
+// inquiries and inquiry_participants filter on tenant_id. Inserts include
+// tenant_id so the Phase-1B triggers have no slack.
+
+async function inquiryInTenant(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 export type SubmitInquiryInput = {
   contact_name: string;
   contact_email: string;
@@ -25,6 +43,14 @@ export type SubmitInquiryInput = {
   client_user_id: string | null;
   talent_profile_ids: string[];
   actorUserId: string;
+  /**
+   * Tenant (agency) that owns this inquiry. SaaS P1.B: required.
+   * For public storefront submissions, resolve via `getPublicTenantScope()`.
+   * For staff-initiated submissions, resolve via `getTenantScope()`.
+   * Hub / marketing / app hosts cannot submit — callers must fail-hard when
+   * the tenant context is not resolvable.
+   */
+  tenant_id: string;
 };
 
 export async function submitInquiry(
@@ -32,6 +58,10 @@ export async function submitInquiry(
   input: SubmitInquiryInput,
 ): Promise<EngineResult<{ inquiryId: string }>> {
   return runWithEngineLog("submitInquiry", undefined, input.actorUserId, async () => {
+    if (!input.tenant_id) {
+      return { success: false, error: "tenant_required" };
+    }
+
     const rl = await rateLimiter.check(engineRateKey("submitInquiry", input.actorUserId), 5, 60 * 60_000);
     if (!rl.ok) {
       return { success: false, rateLimited: true, retryAfterMs: rl.retryAfterMs, reason: "rate_limited" };
@@ -42,7 +72,7 @@ export async function submitInquiry(
 
     const assignment = await assignCoordinatorFromSettings(supabase, {
       source_type: "agency",
-      tenant_id: null,
+      tenant_id: input.tenant_id,
     });
 
     const status = "submitted" as const;
@@ -51,6 +81,7 @@ export async function submitInquiry(
     const { data: row, error } = await supabase
       .from("inquiries")
       .insert({
+        tenant_id: input.tenant_id,
         client_user_id: input.client_user_id,
         contact_name: input.contact_name,
         contact_email: input.contact_email,
@@ -85,6 +116,7 @@ export async function submitInquiry(
     if (input.client_user_id) {
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
+        tenant_id: input.tenant_id,
         user_id: input.client_user_id,
         role: "client",
         status: "active",
@@ -94,6 +126,7 @@ export async function submitInquiry(
     if (assignment.coordinator_id) {
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
+        tenant_id: input.tenant_id,
         user_id: assignment.coordinator_id,
         role: "coordinator",
         status: "invited",
@@ -109,6 +142,7 @@ export async function submitInquiry(
         .maybeSingle();
       await supabase.from("inquiry_participants").insert({
         inquiry_id: inquiryId,
+        tenant_id: input.tenant_id,
         user_id: tp?.user_id ?? null,
         talent_profile_id: tid,
         role: "talent",
@@ -144,9 +178,13 @@ export async function submitInquiry(
 
 export async function moveToCoordination(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("moveToCoordination", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "move_to_coordination");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
@@ -154,6 +192,7 @@ export async function moveToCoordination(
       .from("inquiries")
       .select("status, version, is_frozen, uses_new_engine")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
     if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
@@ -174,6 +213,7 @@ export async function moveToCoordination(
         updated_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion)
       .select("id")
       .maybeSingle();
@@ -203,12 +243,17 @@ export async function setPriority(
   supabase: SupabaseClient,
   ctx: {
     inquiryId: string;
+    tenantId: string;
     actorUserId: string;
     expectedVersion: number;
     priority: "low" | "normal" | "high" | "urgent";
   },
 ): Promise<EngineResult> {
   return runWithEngineLog("setPriority", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "set_priority");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
@@ -216,6 +261,7 @@ export async function setPriority(
       .from("inquiries")
       .select("version, uses_new_engine, is_frozen")
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .maybeSingle();
     if (!inq?.uses_new_engine) return { success: false, error: "legacy_inquiry" };
     if (inq.is_frozen) return { success: false, reason: "inquiry_frozen" };
@@ -229,6 +275,7 @@ export async function setPriority(
         last_edited_at: new Date().toISOString(),
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion)
       .select("id")
       .maybeSingle();

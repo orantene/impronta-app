@@ -12,7 +12,7 @@ import {
 } from "@/lib/cms/paths";
 import { type CmsPostSnapshot } from "@/lib/cms/revision-snapshots";
 import type { Locale } from "@/i18n/config";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 
 const localeSchema = z.enum(["en", "es"]);
@@ -92,12 +92,14 @@ function buildPostSnapshotFromSave(args: {
 
 async function insertCmsPostRevisionRow(
   supabase: SupabaseClient,
+  tenantId: string,
   postId: string,
   kind: "draft" | "published",
   snapshot: CmsPostSnapshot,
   userId: string,
 ): Promise<void> {
   const { error } = await supabase.from("cms_post_revisions").insert({
+    tenant_id: tenantId,
     post_id: postId,
     kind,
     snapshot,
@@ -112,8 +114,9 @@ export async function saveCmsPost(
   const parsed = parseWithSchema(postUpsertSchema, input);
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
   const slugPath = normalizeSlugPath(parsed.data.slug);
   if (!isValidSlugPath(slugPath) || slugPath.includes("/")) {
@@ -144,6 +147,7 @@ export async function saveCmsPost(
       .from("cms_posts")
       .select("id,status,published_at,slug,locale")
       .eq("id", parsed.data.id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
 
     if (loadErr || !existing) {
@@ -173,6 +177,7 @@ export async function saveCmsPost(
 
     if (shouldInsertSlugRedirect) {
       const { error: redirErr } = await session.supabase.from("cms_redirects").insert({
+        tenant_id: tenantId,
         old_path: oldPublicPath,
         new_path: newPublicPath,
         status_code: 301,
@@ -199,6 +204,7 @@ export async function saveCmsPost(
         published_at: publishedAt,
       })
       .eq("id", parsed.data.id)
+      .eq("tenant_id", tenantId)
       .select("id")
       .single();
 
@@ -226,6 +232,7 @@ export async function saveCmsPost(
     });
     await insertCmsPostRevisionRow(
       session.supabase,
+      tenantId,
       updated.id,
       revKind,
       snapshot,
@@ -243,6 +250,7 @@ export async function saveCmsPost(
     .from("cms_posts")
     .insert({
       ...row,
+      tenant_id: tenantId,
       published_at: publishedAt,
       created_by: session.user.id,
     })
@@ -273,6 +281,7 @@ export async function saveCmsPost(
   });
   await insertCmsPostRevisionRow(
     session.supabase,
+    tenantId,
     inserted.id,
     revKindIns,
     snapIns,
@@ -287,10 +296,15 @@ export async function saveCmsPost(
 export async function deleteCmsPost(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
-  const { error } = await session.supabase.from("cms_posts").delete().eq("id", id);
+  const { error } = await session.supabase
+    .from("cms_posts")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("cms/deletePost", error);
     return { ok: false, error: "Could not delete post." };

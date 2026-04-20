@@ -8,17 +8,17 @@ import {
   type OfferLineDraft,
 } from "@/lib/inquiry/inquiry-engine";
 import type { ActionResult } from "@/lib/inquiry/inquiry-action-result";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 import { isOfferReady } from "@/lib/inquiry/inquiry-offer-readiness";
 import { sendOfferSentNotification } from "@/lib/email/inquiry-notifications";
 
 export async function actionCreateDraftOffer(formData: FormData): Promise<ActionResult<{ offerId: string }>> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "You do not have access to create an offer." };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const expectedVersion = Number(formData.get("expected_version") ?? "1");
@@ -30,11 +30,13 @@ export async function actionCreateDraftOffer(formData: FormData): Promise<Action
     .from("inquiries")
     .select("event_location, event_date, message, raw_ai_query")
     .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
   const { count: msgCount, error: msgCountErr } = await supabase
     .from("inquiry_messages")
     .select("id", { count: "exact", head: true })
-    .eq("inquiry_id", inquiryId);
+    .eq("inquiry_id", inquiryId)
+    .eq("tenant_id", tenantId);
   if (msgCountErr) {
     logServerError("actionCreateDraftOffer/message_count", msgCountErr);
     return { ok: false, code: "server_error", message: "Could not verify messages for this inquiry." };
@@ -59,7 +61,8 @@ export async function actionCreateDraftOffer(formData: FormData): Promise<Action
 
   const res = await createOffer(supabase, {
     inquiryId,
-    actorUserId: auth.user.id,
+    tenantId,
+    actorUserId: user.id,
     expectedVersion: Number.isFinite(expectedVersion) ? expectedVersion : 1,
   });
 
@@ -83,11 +86,11 @@ export type UpdateOfferDraftSuccess = { nextOfferVersion: number; nextInquiryVer
 export async function actionUpdateOfferDraft(
   formData: FormData,
 ): Promise<ActionResult<UpdateOfferDraftSuccess>> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "You do not have access to update this offer." };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const offerId = String(formData.get("offer_id") ?? "").trim();
@@ -127,8 +130,9 @@ export async function actionUpdateOfferDraft(
 
   const res = await updateOfferDraft(supabase, {
     inquiryId,
+    tenantId,
     offerId,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     inquiryExpectedVersion: Number.isFinite(inquiryVersion) ? inquiryVersion : 1,
     offerExpectedVersion: Number.isFinite(offerVersion) ? offerVersion : 1,
     total_client_price,
@@ -157,11 +161,11 @@ export async function actionUpdateOfferDraft(
 }
 
 export async function actionSendOffer(formData: FormData): Promise<ActionResult> {
-  const auth = await requireStaff();
+  const auth = await requireStaffTenantAction();
   if (!auth.ok) {
     return { ok: false, code: "permission_denied", message: "You do not have access to send this offer." };
   }
-  const { supabase } = auth;
+  const { supabase, user, tenantId } = auth;
 
   const inquiryId = String(formData.get("inquiry_id") ?? "").trim();
   const offerId = String(formData.get("offer_id") ?? "").trim();
@@ -174,8 +178,9 @@ export async function actionSendOffer(formData: FormData): Promise<ActionResult>
 
   const res = await sendOffer(supabase, {
     inquiryId,
+    tenantId,
     offerId,
-    actorUserId: auth.user.id,
+    actorUserId: user.id,
     inquiryExpectedVersion: Number.isFinite(inquiryVersion) ? inquiryVersion : 1,
     offerExpectedVersion: Number.isFinite(offerVersion) ? offerVersion : 1,
   });
@@ -187,7 +192,6 @@ export async function actionSendOffer(formData: FormData): Promise<ActionResult>
       : { ok: false, code: "precondition_failed", message: res.error ?? "Could not send offer." };
   }
 
-  // Fire-and-forget: notify client that their offer is ready
   void sendOfferSentNotification({ supabase, inquiryId });
 
   revalidatePath(`/admin/inquiries/${inquiryId}`);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireStaffApi } from "@/lib/server/staff-api-route";
+import { getTenantScope } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 
 const querySchema = z.object({
@@ -24,6 +25,12 @@ export async function GET(request: Request) {
   const { kind, id } = parsed.data;
   const { supabase } = auth;
 
+  const scope = await getTenantScope();
+  if (!scope) {
+    return NextResponse.json({ error: "No active tenant" }, { status: 403 });
+  }
+  const tenantId = scope.tenantId;
+
   if (kind === "page") {
     const { data, error } = await supabase
       .from("cms_pages")
@@ -31,6 +38,7 @@ export async function GET(request: Request) {
         "id, slug, locale, status, title, meta_title, meta_description, noindex, include_in_sitemap, canonical_url",
       )
       .eq("id", id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
     if (error) {
       logServerError("api/admin/inspector/cms/page", error);
@@ -41,7 +49,8 @@ export async function GET(request: Request) {
     const { count, error: cErr } = await supabase
       .from("cms_page_revisions")
       .select("id", { count: "exact", head: true })
-      .eq("page_id", id);
+      .eq("page_id", id)
+      .eq("tenant_id", tenantId);
     if (cErr) logServerError("api/admin/inspector/cms/page-rev-count", cErr);
 
     return NextResponse.json({
@@ -55,6 +64,7 @@ export async function GET(request: Request) {
     .from("cms_posts")
     .select("id, slug, locale, status, title, meta_title, meta_description, noindex")
     .eq("id", id)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) {
     logServerError("api/admin/inspector/cms/post", error);
@@ -65,7 +75,8 @@ export async function GET(request: Request) {
   const { count, error: cErr } = await supabase
     .from("cms_post_revisions")
     .select("id", { count: "exact", head: true })
-    .eq("post_id", id);
+    .eq("post_id", id)
+    .eq("tenant_id", tenantId);
   if (cErr) logServerError("api/admin/inspector/cms/post-rev-count", cErr);
 
   return NextResponse.json({

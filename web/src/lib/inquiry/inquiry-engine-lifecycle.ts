@@ -7,15 +7,51 @@ import { logInquiryActivity } from "@/lib/server/commercial-audit";
 import { runWithEngineLog } from "./inquiry-engine.helpers";
 import type { EngineResult } from "./inquiry-engine.types";
 
+// SaaS P1.B STEP A: tenant-scoped by construction. Staff lifecycle actions
+// require a tenantId in ctx. Cron helpers (processCoordinatorTimeouts,
+// processExpirations, retryFailedEngineEffects) intentionally stay tenant-less
+// — they are system-level sweeps across all tenants.
+
+void resolveNextActionBy;
+
+async function inquiryInTenant(
+  supabase: SupabaseClient,
+  inquiryId: string,
+  tenantId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("inquiries")
+    .select("id")
+    .eq("id", inquiryId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  return !!data;
+}
+
 export async function freezeInquiry(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; actorUserId: string; reason: string; expectedVersion: number },
+  ctx: {
+    inquiryId: string;
+    tenantId: string;
+    actorUserId: string;
+    reason: string;
+    expectedVersion: number;
+  },
 ): Promise<EngineResult> {
   return runWithEngineLog("freezeInquiry", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "freeze_inquiry");
     if (!perm.ok || !perm.isStaff) return { success: false, forbidden: true, reason: "forbidden" };
 
-    const { data: inq } = await supabase.from("inquiries").select("version").eq("id", ctx.inquiryId).maybeSingle();
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
     if (!inq) return { success: false, error: "not_found" };
 
     await supabase
@@ -28,6 +64,7 @@ export async function freezeInquiry(
         version: (inq.version as number) + 1,
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
 
     await logInquiryActivity(supabase, {
@@ -50,13 +87,22 @@ export async function freezeInquiry(
 
 export async function unfreezeInquiry(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("unfreezeInquiry", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "unfreeze_inquiry");
     if (!perm.ok || !perm.isStaff) return { success: false, forbidden: true, reason: "forbidden" };
 
-    const { data: inq } = await supabase.from("inquiries").select("version").eq("id", ctx.inquiryId).maybeSingle();
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("version")
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
 
     await supabase
       .from("inquiries")
@@ -68,6 +114,7 @@ export async function unfreezeInquiry(
         version: ((inq?.version as number) ?? 1) + 1,
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
 
     await logInquiryActivity(supabase, {
@@ -90,13 +137,22 @@ export async function unfreezeInquiry(
 
 export async function archiveInquiry(
   supabase: SupabaseClient,
-  ctx: { inquiryId: string; actorUserId: string; expectedVersion: number },
+  ctx: { inquiryId: string; tenantId: string; actorUserId: string; expectedVersion: number },
 ): Promise<EngineResult> {
   return runWithEngineLog("archiveInquiry", ctx.inquiryId, ctx.actorUserId, async () => {
+    if (!(await inquiryInTenant(supabase, ctx.inquiryId, ctx.tenantId))) {
+      return { success: false, forbidden: true, reason: "forbidden" };
+    }
+
     const perm = await validateActorPermission(supabase, ctx.inquiryId, ctx.actorUserId, "archive_inquiry");
     if (!perm.ok) return { success: false, forbidden: true, reason: "forbidden" };
 
-    const { data: inq } = await supabase.from("inquiries").select("status, version").eq("id", ctx.inquiryId).maybeSingle();
+    const { data: inq } = await supabase
+      .from("inquiries")
+      .select("status, version")
+      .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
+      .maybeSingle();
     if (!inq) return { success: false, error: "not_found" };
 
     const t = canTransition(inq.status as string, "archived");
@@ -110,6 +166,7 @@ export async function archiveInquiry(
         version: (inq.version as number) + 1,
       })
       .eq("id", ctx.inquiryId)
+      .eq("tenant_id", ctx.tenantId)
       .eq("version", ctx.expectedVersion);
 
     await logInquiryActivity(supabase, {
@@ -130,7 +187,7 @@ export async function archiveInquiry(
   });
 }
 
-/** Cron: coordinator assignment timeout (Contract 13). */
+/** Cron: coordinator assignment timeout (Contract 13). Tenant-less by design. */
 export async function processCoordinatorTimeouts(supabase: SupabaseClient): Promise<{ processed: number }> {
   const hours = await getCoordinatorTimeoutHours(supabase);
   const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
@@ -179,6 +236,7 @@ export async function processCoordinatorTimeouts(supabase: SupabaseClient): Prom
 export async function processExpirations(supabase: SupabaseClient): Promise<{ processed: number }> {
   const hours = await getInquiryExpiryHours(supabase);
   const now = new Date().toISOString();
+  void hours;
 
   const { data: rows } = await supabase
     .from("inquiries")

@@ -68,15 +68,27 @@ function isMissingDirectoryFilterColumns(
   );
 }
 
+/**
+ * Fetch the sidebar layout for a given tenant. `tenantId` null (hub /
+ * marketing / app context) returns DEFAULT_LAYOUT — there is no global
+ * "id=1" row to fall back on; each tenant owns its own layout.
+ *
+ * Matching on `tenant_id` (not `id=1`) is a tenant-isolation invariant:
+ * without this, Tenant B's public storefront would render Tenant A's
+ * sidebar configuration (see SaaS P1 audit).
+ */
 export async function fetchDirectorySidebarLayout(
   supabase: SupabaseClient,
+  tenantId: string | null,
 ): Promise<DirectorySidebarLayoutRow> {
+  if (!tenantId) return DEFAULT_LAYOUT;
+
   const { data, error } = await supabase
     .from("directory_sidebar_layout")
     .select(
       "item_order, filter_option_search_visible, section_collapsed_defaults, talent_type_top_bar_visible, top_bar_facet_key, field_visibility_overrides",
     )
-    .eq("id", 1)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (error) {
@@ -87,7 +99,7 @@ export async function fetchDirectorySidebarLayout(
         .select(
           "item_order, filter_option_search_visible, section_collapsed_defaults, talent_type_top_bar_visible, field_visibility_overrides",
         )
-        .eq("id", 1)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       if (retry.error || !retry.data) return DEFAULT_LAYOUT;
       const d = retry.data as {
@@ -115,7 +127,7 @@ export async function fetchDirectorySidebarLayout(
       const retry = await supabase
         .from("directory_sidebar_layout")
         .select("item_order, filter_option_search_visible, section_collapsed_defaults")
-        .eq("id", 1)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       if (retry.error || !retry.data) return DEFAULT_LAYOUT;
       const d = retry.data as {
@@ -140,7 +152,7 @@ export async function fetchDirectorySidebarLayout(
       const retry = await supabase
         .from("directory_sidebar_layout")
         .select("item_order, filter_option_search_visible")
-        .eq("id", 1)
+        .eq("tenant_id", tenantId)
         .maybeSingle();
       if (retry.error || !retry.data) return DEFAULT_LAYOUT;
       const d = retry.data as { item_order?: unknown; filter_option_search_visible?: boolean };

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { ChevronRight } from "lucide-react";
 import { AdminCommercialStatusBadge } from "@/components/admin/admin-commercial-status-badge";
 import { AdminInquiryListRowActions } from "@/components/admin/admin-inquiry-list-row-actions";
@@ -89,6 +89,14 @@ export type InquiryQueueRow = {
   talent_count: number;
   linked_booking_count: number;
   updated_at_display: string;
+  /** Primary+active coordinator user id, or null if unassigned. Canonical via `inquiry_coordinators`. */
+  primary_coordinator_id: string | null;
+  /** Resolved display name for the primary coordinator (via `profiles.display_name`). */
+  primary_coordinator_display: string | null;
+  /** `next_action_by` ∈ {admin, coordinator}. Drives the Actionable toggle + row tint (spec §6.2). */
+  actionable: boolean;
+  /** Union of unread + actionable + ready-to-convert. Drives the sidebar Tier-1 badge click-through (spec §7.2). */
+  has_tier1_alert: boolean;
 };
 
 export function AdminInquiryQueue({
@@ -99,8 +107,8 @@ export function AdminInquiryQueue({
   currentUserId: string | null;
 }) {
   const router = useRouter();
-  const go = (id: string) => router.push(`/admin/inquiries/${id}`);
-  const prefetch = (id: string) => router.prefetch(`/admin/inquiries/${id}`);
+  const go = useCallback((id: string) => router.push(`/admin/inquiries/${id}`), [router]);
+  const prefetch = useCallback((id: string) => router.prefetch(`/admin/inquiries/${id}`), [router]);
 
   const columns = useMemo((): AdminResponsiveTableColumn<InquiryQueueRow>[] => {
     return [
@@ -141,12 +149,37 @@ export function AdminInquiryQueue({
         ),
       },
       {
-        id: "next_action",
-        label: "Next",
+        id: "waiting_on",
+        label: "Waiting on",
         priority: "high",
         cell: (row) => (
-          <span className="text-xs font-medium text-foreground">{nextActionLabel(row.next_action_by)}</span>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+              row.actionable
+                ? "border-[var(--impronta-gold)]/50 bg-[var(--impronta-gold)]/10 text-foreground"
+                : "border-border/40 bg-background/60 text-muted-foreground",
+            )}
+            title={row.actionable ? "Admin or coordinator action required" : undefined}
+          >
+            {nextActionLabel(row.next_action_by)}
+          </span>
         ),
+      },
+      {
+        id: "coordinator",
+        label: "Coordinator",
+        priority: "high",
+        cell: (row) =>
+          row.primary_coordinator_display ? (
+            <span className="truncate text-xs text-foreground">{row.primary_coordinator_display}</span>
+          ) : row.primary_coordinator_id ? (
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {row.primary_coordinator_id.slice(0, 8)}
+            </span>
+          ) : (
+            <span className="text-[11px] italic text-muted-foreground">Unassigned</span>
+          ),
       },
       {
         id: "unread",
@@ -282,7 +315,7 @@ export function AdminInquiryQueue({
         ),
       },
     ];
-  }, [currentUserId]);
+  }, [currentUserId, prefetch]);
 
   if (rows.length === 0) {
     return (

@@ -15,6 +15,7 @@ import {
 } from "@/lib/directory/search-params";
 import { getCachedTaxonomyFilterOptions } from "@/lib/directory/taxonomy-filters";
 import { getCachedDirectoryFilterSidebarModel } from "@/lib/directory/field-driven-filters";
+import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
 import {
   DirectoryFiltersSkeleton,
   DirectoryGridSkeleton,
@@ -121,6 +122,10 @@ async function DirectoryDiscoverInner({
     null;
   let aiFlags: Awaited<ReturnType<typeof getAiFeatureFlags>> | null = null;
 
+  const hostContext = await getPublicHostContext();
+  const directoryTenantId =
+    hostContext.kind === "agency" ? hostContext.tenantId : null;
+
   try {
     [aiFlags, taxonomyOptions, firstPage] = await Promise.all([
       getAiFeatureFlags(),
@@ -136,6 +141,7 @@ async function DirectoryDiscoverInner({
         ageMin,
         ageMax,
         fieldFacetFilters: fieldFacets,
+        tenantId: directoryTenantId,
       }),
     ]);
   } catch (e) {
@@ -145,16 +151,21 @@ async function DirectoryDiscoverInner({
 
   if (!loadError) {
     try {
-      filterSidebar = await getCachedDirectoryFilterSidebarModel(locale, {
-        taxonomyTermIds,
-        locationSlug,
-        heightMinCm,
-        heightMaxCm,
-        ageMin,
-        ageMax,
-        query,
-        fieldFacets,
-      });
+      const publicScope = await getPublicTenantScope();
+      filterSidebar = await getCachedDirectoryFilterSidebarModel(
+        locale,
+        {
+          taxonomyTermIds,
+          locationSlug,
+          heightMinCm,
+          heightMaxCm,
+          ageMin,
+          ageMax,
+          query,
+          fieldFacets,
+        },
+        publicScope?.tenantId ?? null,
+      );
     } catch (e) {
       logServerError("directory/discover-filter-sections", e);
       filterSidebar = { blocks: [] };

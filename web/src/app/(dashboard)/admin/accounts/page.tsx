@@ -9,7 +9,7 @@ import {
 } from "@/lib/dashboard-shell-classes";
 import { formatClientLocationAccountType } from "@/lib/admin/validation";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
-import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 
 type ClientAccountListRow = {
   id: string;
@@ -40,10 +40,7 @@ function tallyByAccountId(rows: { client_account_id: string | null }[] | null): 
 }
 
 export default async function AdminClientAccountsPage() {
-  const supabase = await getCachedServerSupabase();
-  if (!supabase) {
-    return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
-  }
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   const listSelectExtended =
     "id, name, account_type, account_type_detail, primary_email, primary_phone, website_url, location_text, city, country, address_notes, google_place_id, latitude, longitude, archived_at";
@@ -53,6 +50,7 @@ export default async function AdminClientAccountsPage() {
   const firstList = await supabase
     .from("client_accounts")
     .select(listSelectExtended)
+    .eq("tenant_id", tenantId)
     .is("archived_at", null)
     .order("name", { ascending: true });
 
@@ -64,6 +62,7 @@ export default async function AdminClientAccountsPage() {
     const second = await supabase
       .from("client_accounts")
       .select(listSelectBase)
+      .eq("tenant_id", tenantId)
       .is("archived_at", null)
       .order("name", { ascending: true });
     error = second.error;
@@ -88,10 +87,12 @@ export default async function AdminClientAccountsPage() {
       supabase
         .from("inquiries")
         .select("client_account_id, client_user_id, created_at")
+        .eq("tenant_id", tenantId)
         .in("client_account_id", accountIds),
       supabase
         .from("agency_bookings")
         .select("client_account_id, client_user_id, starts_at, updated_at")
+        .eq("tenant_id", tenantId)
         .in("client_account_id", accountIds),
     ]);
 

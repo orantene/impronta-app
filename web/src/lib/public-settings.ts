@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
+import { getPublicTenantScope } from "@/lib/saas/scope";
 
 export type PublicSettings = {
   contactEmail: string | null;
@@ -58,7 +59,11 @@ async function fetchPublicSettings(): Promise<PublicSettings> {
     return UNCONFIGURED_PUBLIC_SETTINGS;
   }
 
-  const { data, error } = await supabase
+  // Settings are tenant-scoped. On agency storefronts we want the tenant's
+  // overrides; on hub/marketing/app contexts we want the platform defaults
+  // (tenant_id IS NULL). Never match across tenants.
+  const publicScope = await getPublicTenantScope();
+  const baseQuery = supabase
     .from("settings")
     .select("key, value")
     .in("key", [
@@ -68,6 +73,10 @@ async function fetchPublicSettings(): Promise<PublicSettings> {
       "watermark_enabled",
       "agency_whatsapp_number",
     ]);
+
+  const { data, error } = await (publicScope
+    ? baseQuery.eq("tenant_id", publicScope.tenantId)
+    : baseQuery.is("tenant_id", null));
 
   if (error || !data) {
     return UNCONFIGURED_PUBLIC_SETTINGS;

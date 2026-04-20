@@ -15,6 +15,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
 import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { submitInquiry } from "@/lib/inquiry/inquiry-engine";
+import { getPublicTenantScope } from "@/lib/saas/scope";
+import { assertAllTalentOnTenantRoster } from "@/lib/saas/talent-roster";
 
 const GUEST_HEADER = "x-impronta-guest";
 
@@ -334,6 +336,14 @@ export async function submitClientInquiry(
     return { error: t("public.forms.inquiry.selectAtLeastOneTalent") };
   }
 
+  // SaaS P1.B STEP 1: storefront inquiry submissions must resolve to a
+  // specific tenant via the hostname. Hub / marketing / app hosts do not
+  // expose this form, so `null` means a malformed or cross-host request.
+  const publicScope = await getPublicTenantScope();
+  if (!publicScope) {
+    return { error: t("public.forms.inquiry.sessionUnavailable") };
+  }
+
   const {
     company,
     contact_email,
@@ -351,6 +361,22 @@ export async function submitClientInquiry(
 
   if (!contact_name || !contact_email) {
     return { error: t("public.forms.inquiry.nameAndEmailRequired") };
+  }
+
+  // Reject any talent id that isn't on this tenant's publicly visible roster
+  // (Plan L7, §16). Prevents a storefront form from being used to coordinate
+  // an inquiry for a talent belonging to a different agency.
+  const rosterCheck = await assertAllTalentOnTenantRoster(
+    supabase,
+    publicScope.tenantId,
+    talentIds,
+  );
+  if (!rosterCheck.ok) {
+    logServerError(
+      "directory/submitClientInquiry/roster",
+      new Error(`talent not on tenant roster: ${rosterCheck.missingIds.join(",")}`),
+    );
+    return { error: t("public.forms.inquiry.selectAtLeastOneTalent") };
   }
 
   const [{ data: talentRows }, { data: eventTypeRow }] = await Promise.all([
@@ -397,6 +423,7 @@ export async function submitClientInquiry(
   }
 
   const v2 = await submitInquiry(admin, {
+    tenant_id: publicScope.tenantId,
     contact_name,
     contact_email,
     contact_phone: contact_phone || null,
@@ -493,6 +520,28 @@ export async function submitGuestInquiry(
     return { error: t("public.forms.inquiry.nameAndEmailRequired") };
   }
 
+  // SaaS P1.B STEP 1: guest submissions require a resolved tenant from the
+  // hostname. Hub / marketing / app hosts return null.
+  const publicScope = await getPublicTenantScope();
+  if (!publicScope) {
+    return { error: t("public.forms.inquiry.sessionUnavailable") };
+  }
+
+  // Tenant-roster gating: reject talent that aren't on this tenant's visible
+  // roster before we provision a guest account (Plan L7, §16).
+  const rosterCheck = await assertAllTalentOnTenantRoster(
+    admin,
+    publicScope.tenantId,
+    talentIds,
+  );
+  if (!rosterCheck.ok) {
+    logServerError(
+      "directory/submitGuestInquiry/roster",
+      new Error(`talent not on tenant roster: ${rosterCheck.missingIds.join(",")}`),
+    );
+    return { error: t("public.forms.inquiry.selectAtLeastOneTalent") };
+  }
+
   const [{ data: talentRows }, { data: eventTypeRow }] = await Promise.all([
     pub
       .from("talent_profiles")
@@ -552,6 +601,7 @@ export async function submitGuestInquiry(
   const { data: inquiry, error: inquiryErr } = await admin
     .from("inquiries")
     .insert({
+      tenant_id: publicScope.tenantId,
       guest_session_id: guestSession.id,
       client_user_id: guestClient.clientUserId,
       contact_name,

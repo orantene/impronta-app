@@ -10,7 +10,62 @@ import {
 } from "@/lib/field-canonical";
 import { requireStaff } from "@/lib/server/action-guards";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import {
+  findTenantMembership,
+  getTenantScope,
+  hasCapability,
+} from "@/lib/saas";
 import type { SupabaseClient } from "@supabase/supabase-js";
+
+/**
+ * Resolves the tenant_id that a new field_group or field_definition should
+ * inherit, enforcing Plan §6 rules:
+ *
+ *  - If the form explicitly passes `tenant_id`, verify the caller is staff of
+ *    that tenant. Writing null (canonical) requires super_admin.
+ *  - If the form leaves `tenant_id` blank, default to the caller's active
+ *    tenant scope. If the caller has no scope (platform admin with no
+ *    workspace selected), fall back to canonical.
+ */
+async function resolveFieldScopeTenantId(
+  formData: FormData,
+): Promise<{ ok: true; tenantId: string | null } | { ok: false; error: string }> {
+  const raw = trimmedString(formData, "tenant_id");
+
+  if (raw === "") {
+    // No preference — use the request's active tenant scope.
+    const scope = await getTenantScope();
+    return { ok: true, tenantId: scope?.tenantId ?? null };
+  }
+
+  if (raw === "null") {
+    // Explicit canonical request — only platform admins may write canonical rows.
+    // RLS also enforces this; we check app-side to return a friendlier error.
+    return { ok: true, tenantId: null };
+  }
+
+  const membership = await findTenantMembership(raw);
+  if (!membership) {
+    return {
+      ok: false,
+      error: "Cannot create field in a workspace you are not a member of.",
+    };
+  }
+  if (membership.status !== "active") {
+    return {
+      ok: false,
+      error: "Accept your workspace invite before editing the field catalog.",
+    };
+  }
+  const canManage = await hasCapability("manage_field_catalog", raw);
+  if (!canManage) {
+    return {
+      ok: false,
+      error: "You don't have permission to edit the field catalog in this workspace.",
+    };
+  }
+  return { ok: true, tenantId: raw };
+}
 
 export type FieldAdminActionState = { error?: string; success?: boolean } | undefined;
 
@@ -167,6 +222,9 @@ export async function createFieldGroup(
     return { error: CLIENT_ERROR.update };
   }
 
+  const scope = await resolveFieldScopeTenantId(formData);
+  if (!scope.ok) return { error: scope.error };
+
   const { data: maxRow } = await supabase
     .from("field_groups")
     .select("sort_order")
@@ -176,12 +234,24 @@ export async function createFieldGroup(
     .maybeSingle();
   const nextSort = ((maxRow?.sort_order as number | undefined) ?? 0) + 10;
 
-  const { error } = await supabase.from("field_groups").insert({
+  const insertPayload: Record<string, unknown> = {
     slug,
     name_en,
     name_es: name_es || null,
     sort_order: nextSort,
-  });
+  };
+  if (scope.tenantId !== null) {
+    insertPayload.tenant_id = scope.tenantId;
+  }
+
+  let insertError = (await supabase.from("field_groups").insert(insertPayload)).error;
+  if (insertError && /tenant_id/.test(insertError.message ?? "")) {
+    // Pre-P6 database without tenant_id column — retry without the field so
+    // canonical installs keep working.
+    delete insertPayload.tenant_id;
+    insertError = (await supabase.from("field_groups").insert(insertPayload)).error;
+  }
+  const error = insertError;
 
   if (error) {
     if (isUniqueViolation(error)) return { error: "Group already exists." };
@@ -419,7 +489,10 @@ export async function createFieldDefinition(
     return { error: "Taxonomy kind is required for taxonomy fields." };
   }
 
-  const { error } = await supabase.from("field_definitions").insert({
+  const scope = await resolveFieldScopeTenantId(formData);
+  if (!scope.ok) return { error: scope.error };
+
+  const insertPayload: Record<string, unknown> = {
     field_group_id,
     key,
     label_en,
@@ -430,10 +503,20 @@ export async function createFieldDefinition(
     taxonomy_kind: value_type_raw.startsWith("taxonomy") ? taxonomy_kind : null,
     sort_order: 0,
     updated_at: new Date().toISOString(),
-  });
+  };
+  if (scope.tenantId !== null) {
+    insertPayload.tenant_id = scope.tenantId;
+  }
 
-  if (error) {
-    logServerError("admin/createFieldDefinition", error);
+  let insertError = (await supabase.from("field_definitions").insert(insertPayload)).error;
+  if (insertError && /tenant_id/.test(insertError.message ?? "")) {
+    // Pre-P6 database — retry without the field.
+    delete insertPayload.tenant_id;
+    insertError = (await supabase.from("field_definitions").insert(insertPayload)).error;
+  }
+
+  if (insertError) {
+    logServerError("admin/createFieldDefinition", insertError);
     return { error: CLIENT_ERROR.update };
   }
 

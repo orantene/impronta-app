@@ -10,7 +10,7 @@ import {
   type CmsPostSnapshot,
 } from "@/lib/cms/revision-snapshots";
 import type { Locale } from "@/i18n/config";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type CmsRevisionListItem = {
@@ -28,13 +28,15 @@ export async function listCmsPageRevisions(
   const idParsed = uuid.safeParse(pageId);
   if (!idParsed.success) return { ok: false, error: "Invalid page." };
 
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
   const { data, error } = await session.supabase
     .from("cms_page_revisions")
     .select("id, kind, created_at, created_by")
     .eq("page_id", pageId)
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -55,13 +57,15 @@ export async function listCmsPostRevisions(
   const idParsed = uuid.safeParse(postId);
   if (!idParsed.success) return { ok: false, error: "Invalid post." };
 
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
   const { data, error } = await session.supabase
     .from("cms_post_revisions")
     .select("id, kind, created_at, created_by")
     .eq("post_id", postId)
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -92,8 +96,9 @@ export async function getCmsPageRevisionForRestore(input: {
   liveSlug: string;
   liveLocale: Locale;
 }): Promise<RestorePageRevisionResult> {
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
   const pageId = uuid.safeParse(input.pageId);
   const revisionId = uuid.safeParse(input.revisionId);
@@ -105,6 +110,7 @@ export async function getCmsPageRevisionForRestore(input: {
     .from("cms_page_revisions")
     .select("snapshot, page_id")
     .eq("id", input.revisionId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (error || !data || data.page_id !== input.pageId) {
@@ -137,8 +143,9 @@ export async function getCmsPostRevisionForRestore(input: {
   liveSlug: string;
   liveLocale: Locale;
 }): Promise<RestorePostRevisionResult> {
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
   const pageId = uuid.safeParse(input.postId);
   const revisionId = uuid.safeParse(input.revisionId);
@@ -150,6 +157,7 @@ export async function getCmsPostRevisionForRestore(input: {
     .from("cms_post_revisions")
     .select("snapshot, post_id")
     .eq("id", input.revisionId)
+    .eq("tenant_id", tenantId)
     .maybeSingle();
 
   if (error || !data || data.post_id !== input.postId) {

@@ -1,3 +1,4 @@
+import { getTenantScope } from "@/lib/saas/scope";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { healthLocaleRowField } from "@/lib/translation-center/health/locale-rows";
 import { buildTranslationUnitInlineEdit } from "@/lib/translation-center/editor-contract";
@@ -44,9 +45,14 @@ export const cmsPageTitleAdapter: TranslationCenterAdapter = {
     const { supabase, domain } = ctx;
     const base = empty(domain);
 
+    const scope = await getTenantScope();
+    if (!scope) return base;
+    const tenantId = scope.tenantId;
+
     const { data: enRows, error: enErr } = await supabase
       .from("cms_pages")
       .select("slug, title")
+      .eq("tenant_id", tenantId)
       .eq("locale", "en")
       .limit(TC_AGGREGATE_LIST_CAP);
 
@@ -58,6 +64,7 @@ export const cmsPageTitleAdapter: TranslationCenterAdapter = {
     const { data: esRows, error: esErr } = await supabase
       .from("cms_pages")
       .select("slug, title, updated_at")
+      .eq("tenant_id", tenantId)
       .eq("locale", "es")
       .limit(TC_AGGREGATE_LIST_CAP);
 
@@ -104,9 +111,14 @@ export const cmsPageTitleAdapter: TranslationCenterAdapter = {
       return { units: [], hasMore: false, loadError: null };
     }
 
+    const scope = await getTenantScope();
+    if (!scope) return { units: [], hasMore: false, loadError: null };
+    const tenantId = scope.tenantId;
+
     const { data: enData, error: enError } = await supabase
       .from("cms_pages")
       .select("id, slug, title, updated_at")
+      .eq("tenant_id", tenantId)
       .eq("locale", "en")
       .order("slug", { ascending: true })
       .range(params.offset, params.offset + TC_TABLE_PAGE_SIZE - 1);
@@ -119,7 +131,12 @@ export const cmsPageTitleAdapter: TranslationCenterAdapter = {
     const slugs = (enData ?? []).map((r) => (r as PageRow).slug);
     const { data: esData } =
       slugs.length > 0
-        ? await supabase.from("cms_pages").select("slug, title, updated_at").eq("locale", "es").in("slug", slugs)
+        ? await supabase
+            .from("cms_pages")
+            .select("slug, title, updated_at")
+            .eq("tenant_id", tenantId)
+            .eq("locale", "es")
+            .in("slug", slugs)
         : { data: [] as PageRow[] };
 
     const esBySlug = new Map<string, PageRow>();

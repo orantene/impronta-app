@@ -2,6 +2,7 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { getTenantScope } from "@/lib/saas/scope";
 import {
   DIRECTORY_SIDEBAR_FILTER_SEARCH_KEY,
   fetchDirectorySidebarLayout,
@@ -83,7 +84,8 @@ export default async function AdminDirectoryFiltersPage() {
 
   const facetKeys = facetFields.map((f) => f.key);
 
-  const sidebarLayout = await fetchDirectorySidebarLayout(supabase);
+  const scope = await getTenantScope();
+  const sidebarLayout = await fetchDirectorySidebarLayout(supabase, scope?.tenantId ?? null);
   const savedOrder = sidebarLayout.item_order;
 
   const mergedOrder = mergeSidebarItemOrder(

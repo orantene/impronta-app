@@ -12,7 +12,7 @@ import {
 } from "@/lib/cms/paths";
 import { normalizeHeroJson, type CmsPageSnapshot } from "@/lib/cms/revision-snapshots";
 import type { Locale } from "@/i18n/config";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 
 const localeSchema = z.enum(["en", "es"]);
@@ -119,12 +119,14 @@ function buildPageSnapshotFromSave(args: {
 
 async function insertCmsPageRevisionRow(
   supabase: SupabaseClient,
+  tenantId: string,
   pageId: string,
   kind: "draft" | "published",
   snapshot: CmsPageSnapshot,
   userId: string,
 ): Promise<void> {
   const { error } = await supabase.from("cms_page_revisions").insert({
+    tenant_id: tenantId,
     page_id: pageId,
     kind,
     snapshot,
@@ -139,8 +141,9 @@ export async function saveCmsPage(
   const parsed = parseWithSchema(pageUpsertSchema, input);
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
   const slugPath = normalizeSlugPath(parsed.data.slug);
   if (!isValidSlugPath(slugPath)) {
@@ -154,6 +157,7 @@ export async function saveCmsPage(
       .from("cms_pages")
       .select("id,status,published_at,hero")
       .eq("id", parsed.data.id)
+      .eq("tenant_id", tenantId)
       .maybeSingle();
 
     if (loadErr || !existing) {
@@ -208,6 +212,7 @@ export async function saveCmsPage(
 
     if (shouldInsertSlugRedirect) {
       const { error: redirErr } = await session.supabase.from("cms_redirects").insert({
+        tenant_id: tenantId,
         old_path: oldPublicPath,
         new_path: newPublicPath,
         status_code: 301,
@@ -233,6 +238,7 @@ export async function saveCmsPage(
         published_at: publishedAt,
       })
       .eq("id", parsed.data.id)
+      .eq("tenant_id", tenantId)
       .select("id")
       .single();
 
@@ -264,6 +270,7 @@ export async function saveCmsPage(
     });
     await insertCmsPageRevisionRow(
       session.supabase,
+      tenantId,
       updated.id,
       revKind,
       snapshot,
@@ -302,6 +309,7 @@ export async function saveCmsPage(
     .from("cms_pages")
     .insert({
       ...rowInsert,
+      tenant_id: tenantId,
       published_at: publishedAt,
       created_by: session.user.id,
     })
@@ -336,6 +344,7 @@ export async function saveCmsPage(
   });
   await insertCmsPageRevisionRow(
     session.supabase,
+    tenantId,
     inserted.id,
     revKindIns,
     snapIns,
@@ -350,10 +359,15 @@ export async function saveCmsPage(
 export async function deleteCmsPage(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
-  const { error } = await session.supabase.from("cms_pages").delete().eq("id", id);
+  const { error } = await session.supabase
+    .from("cms_pages")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("cms/deletePage", error);
     return { ok: false, error: "Could not delete page." };
@@ -374,8 +388,9 @@ export async function saveCmsRedirect(
   const parsed = parseWithSchema(redirectSchema, input);
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
   let oldPath = parsed.data.old_path.trim().replace(/\s+/g, "");
   let newPath = parsed.data.new_path.trim().replace(/\s+/g, "");
@@ -384,6 +399,7 @@ export async function saveCmsRedirect(
   if (oldPath === newPath) return { ok: false, error: "Old and new paths must differ." };
 
   const { error } = await session.supabase.from("cms_redirects").insert({
+    tenant_id: tenantId,
     old_path: oldPath,
     new_path: newPath,
     status_code: Number(parsed.data.status_code) as 301 | 302,
@@ -406,10 +422,15 @@ export async function setCmsRedirectActive(
   id: string,
   active: boolean,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
-  const { error } = await session.supabase.from("cms_redirects").update({ active }).eq("id", id);
+  const { error } = await session.supabase
+    .from("cms_redirects")
+    .update({ active })
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("cms/setRedirectActive", error);
     return { ok: false, error: "Could not update redirect." };

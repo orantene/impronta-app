@@ -15,12 +15,12 @@ import {
   ADMIN_HELP_TRIGGER_BUTTON,
   ADMIN_PAGE_STACK,
   ADMIN_POPOVER_CONTENT_CLASS,
-  ADMIN_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { loadInquiryRosterPeekMany } from "@/lib/inquiry/inquiry-workspace-data";
+import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 
 function relOne<T>(x: T | T[] | null | undefined): T | null {
   if (x == null) return null;
@@ -54,7 +54,12 @@ type RawInquiryRow = {
   agency_bookings: { id: string }[] | null;
 };
 
-function buildAdminInquiriesHref(opts: {
+/**
+ * Filter tokens surfaced in the queue URL (M6.1). All optional; presence means
+ * the user narrowed the list from the default "everything the admin can see".
+ * Keep the shape flat so `buildAdminInquiriesHref` stays a single call-site.
+ */
+type QueueUrlFilters = {
   status?: string;
   client_user_id?: string;
   client_account_id?: string;
@@ -62,7 +67,19 @@ function buildAdminInquiriesHref(opts: {
   assigned_staff_id?: string;
   created_from?: string;
   created_to?: string;
-}): string {
+  /** `admin` | `client` | `talent` — maps to `inquiries.next_action_by`. Admin covers admin+coordinator. */
+  waiting_on?: string;
+  /** "1" = only show rows the current admin has unread messages in. */
+  unread_only?: string;
+  /** "1" = only show rows whose `next_action_by` is admin/coordinator (primary action owner = agency). */
+  actionable_only?: string;
+  /** `all` | `mine` | `unassigned` | uuid of a coordinator profile. Filters on `inquiry_coordinators` (role=primary, status=active). */
+  coordinator?: string;
+  /** "1" = only show rows with ANY Tier-1 alert (union of unread + actionable + approved-with-no-booking). Drives the sidebar badge click-through (M6.2). */
+  tier1_only?: string;
+};
+
+function buildAdminInquiriesHref(opts: QueueUrlFilters): string {
   const p = new URLSearchParams();
   if (opts.status && opts.status !== "all") p.set("status", opts.status);
   if (opts.client_user_id) p.set("client_user_id", opts.client_user_id);
@@ -71,6 +88,11 @@ function buildAdminInquiriesHref(opts: {
   if (opts.assigned_staff_id) p.set("assigned_staff_id", opts.assigned_staff_id);
   if (opts.created_from) p.set("created_from", opts.created_from);
   if (opts.created_to) p.set("created_to", opts.created_to);
+  if (opts.waiting_on) p.set("waiting_on", opts.waiting_on);
+  if (opts.unread_only === "1") p.set("unread_only", "1");
+  if (opts.actionable_only === "1") p.set("actionable_only", "1");
+  if (opts.coordinator && opts.coordinator !== "all") p.set("coordinator", opts.coordinator);
+  if (opts.tier1_only === "1") p.set("tier1_only", "1");
   const s = p.toString();
   return s ? `/admin/inquiries?${s}` : "/admin/inquiries";
 }
@@ -104,17 +126,12 @@ const LEGACY_STATUS_ALIASES: Record<string, string> = {
 export default async function AdminInquiriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    status?: string;
-    client_user_id?: string;
-    client_account_id?: string;
-    q?: string;
-    assigned_staff_id?: string;
-    created_from?: string;
-    created_to?: string;
-    apanel?: string;
-    aid?: string;
-  }>;
+  searchParams: Promise<
+    QueueUrlFilters & {
+      apanel?: string;
+      aid?: string;
+    }
+  >;
 }) {
   const {
     status: statusFilter,
@@ -124,12 +141,22 @@ export default async function AdminInquiriesPage({
     assigned_staff_id: assignedStaffId,
     created_from: createdFrom = "",
     created_to: createdTo = "",
+    waiting_on: waitingOnParam,
+    unread_only: unreadOnlyParam,
+    actionable_only: actionableOnlyParam,
+    coordinator: coordinatorParam,
+    tier1_only: tier1OnlyParam,
   } = await searchParams;
-  const supabase = await getCachedServerSupabase();
-
-  if (!supabase) {
-    return <p className="text-sm text-muted-foreground">Supabase not configured.</p>;
-  }
+  const waitingOn =
+    waitingOnParam === "admin" || waitingOnParam === "client" || waitingOnParam === "talent"
+      ? waitingOnParam
+      : undefined;
+  const unreadOnly = unreadOnlyParam === "1";
+  const actionableOnly = actionableOnlyParam === "1";
+  const tier1Only = tier1OnlyParam === "1";
+  const coordinatorFilter =
+    coordinatorParam && coordinatorParam !== "all" ? coordinatorParam : undefined;
+  const { supabase, tenantId } = await requireAdminTenantGuard();
 
   let dbQuery = supabase
     .from("inquiries")
@@ -145,6 +172,7 @@ export default async function AdminInquiriesPage({
       agency_bookings ( id )
     `,
     )
+    .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
 
   if (statusFilter && statusFilter !== "all") {
@@ -166,6 +194,22 @@ export default async function AdminInquiriesPage({
   if (assignedStaffId) dbQuery = dbQuery.eq("assigned_staff_id", assignedStaffId);
   if (createdFrom) dbQuery = dbQuery.gte("created_at", `${createdFrom}T00:00:00`);
   if (createdTo) dbQuery = dbQuery.lte("created_at", `${createdTo}T23:59:59`);
+
+  // Waiting-on maps to canonical `next_action_by` (set by the engine). Admin
+  // covers both `admin` and `coordinator` since both are agency-side owners
+  // from the queue's triage point of view.
+  if (waitingOn === "admin") {
+    dbQuery = dbQuery.in("next_action_by", ["admin", "coordinator"]);
+  } else if (waitingOn === "client") {
+    dbQuery = dbQuery.eq("next_action_by", "client");
+  } else if (waitingOn === "talent") {
+    dbQuery = dbQuery.eq("next_action_by", "talent");
+  }
+  // Actionable-only is an admin-side subset of waiting-on=admin. If both are
+  // set, the narrower one wins — `.in()` above is already narrow enough.
+  if (actionableOnly && !waitingOn) {
+    dbQuery = dbQuery.in("next_action_by", ["admin", "coordinator"]);
+  }
 
   const trimmedQuery = query.trim();
   if (trimmedQuery) {
@@ -190,7 +234,12 @@ export default async function AdminInquiriesPage({
       ? supabase.from("profiles").select("id, display_name").eq("id", clientUserId).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     clientAccountId
-      ? supabase.from("client_accounts").select("id, name").eq("id", clientAccountId).maybeSingle()
+      ? supabase
+          .from("client_accounts")
+          .select("id, name")
+          .eq("tenant_id", tenantId)
+          .eq("id", clientAccountId)
+          .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     supabase
       .from("profiles")
@@ -198,10 +247,16 @@ export default async function AdminInquiriesPage({
       .in("app_role", ["super_admin", "agency_staff"])
       .order("display_name", { ascending: true }),
     supabase.auth.getUser(),
-    supabase.from("client_accounts").select("id, name").is("archived_at", null).order("name", { ascending: true }),
+    supabase
+      .from("client_accounts")
+      .select("id, name")
+      .eq("tenant_id", tenantId)
+      .is("archived_at", null)
+      .order("name", { ascending: true }),
     supabase
       .from("client_account_contacts")
       .select("id, client_account_id, full_name, client_accounts(name)")
+      .eq("tenant_id", tenantId)
       .is("archived_at", null)
       .order("full_name", { ascending: true }),
     supabase
@@ -303,16 +358,62 @@ export default async function AdminInquiriesPage({
     for (const id of inquiryIds) hasUnreadByInquiry.set(id, false);
   }
 
+  // Primary coordinators for every inquiry in the list. Canonical source is
+  // `inquiry_coordinators` (see `getInquiryCoordinators`) — we run one batched
+  // query instead of per-row helper calls. Only primary+active rows count; the
+  // unique partial index guarantees at most one per inquiry.
+  const primaryCoordByInquiry = new Map<
+    string,
+    { user_id: string; display_name: string | null }
+  >();
+  if (inquiryIds.length > 0) {
+    const { data: coordRows, error: coordErr } = await supabase
+      .from("inquiry_coordinators")
+      .select("inquiry_id, user_id, role, status, profiles:user_id(display_name)")
+      .in("inquiry_id", inquiryIds)
+      .eq("role", "primary")
+      .eq("status", "active");
+    if (coordErr) {
+      logServerError("admin/inquiries/primaryCoordinators", coordErr);
+    } else {
+      for (const row of coordRows ?? []) {
+        const profile = relOne(
+          (row as { profiles: { display_name: string | null } | { display_name: string | null }[] | null }).profiles,
+        );
+        primaryCoordByInquiry.set(String((row as { inquiry_id: string }).inquiry_id), {
+          user_id: String((row as { user_id: string }).user_id),
+          display_name: profile?.display_name ?? null,
+        });
+      }
+    }
+  }
+
+  // Coordinator filter options: every staff profile that currently holds a
+  // primary role on at least one inquiry in the admin's visible set, unioned
+  // with the general staff directory. Keeps the dropdown short but complete.
+  const coordinatorChoiceById = new Map<string, string>();
+  for (const s of staffRes.data ?? []) {
+    coordinatorChoiceById.set(
+      String(s.id),
+      (s.display_name as string | null)?.trim() || String(s.id).slice(0, 8),
+    );
+  }
+
   const scopedClientName = clientFilterRes.data?.display_name as string | null | undefined;
   const scopedAccountName = accountFilterRes.data?.name as string | null | undefined;
 
-  const inquiryNavBase = {
+  const inquiryNavBase: QueueUrlFilters = {
     client_user_id: clientUserId,
     client_account_id: clientAccountId,
     q: trimmedQuery || undefined,
     assigned_staff_id: assignedStaffId || undefined,
     created_from: createdFrom || undefined,
     created_to: createdTo || undefined,
+    waiting_on: waitingOn,
+    unread_only: unreadOnly ? "1" : undefined,
+    actionable_only: actionableOnly ? "1" : undefined,
+    coordinator: coordinatorFilter,
+    tier1_only: tier1Only ? "1" : undefined,
   };
 
   function nextActionSortKey(v: string | null): number {
@@ -322,11 +423,24 @@ export default async function AdminInquiriesPage({
   }
 
   // Shape rows for the queue component (then sort: unread first, then next_action_by, then recency)
-  const queueRows: InquiryQueueRow[] = rowList.map((row) => {
+  const queueRowsRaw: InquiryQueueRow[] = rowList.map((row) => {
     const peek = rosterPeek.get(row.id);
     const talentPeek = peek
       ? { line: peek.labelLine, count: peek.count }
       : inquiryTalentPeekFallback();
+    const has_unread = hasUnreadByInquiry.get(row.id) ?? false;
+    const linked_booking_count = Array.isArray(row.agency_bookings) ? row.agency_bookings.length : 0;
+    const actionable =
+      row.next_action_by === "admin" || row.next_action_by === "coordinator";
+    // Tier-1 union (spec §7.2). Phase-1 rollup: unread messages + actionable
+    // by agency + ready-to-convert (status=approved with no booking yet) +
+    // cancelled (status=rejected|expired|closed_lost is terminal, skip). The
+    // 72h talent-response threshold (§7.2 #3) lives in the per-inquiry
+    // derivation and isn't surfaced in the queue badge today — a queue-wide
+    // recount is Tier-2 scope.
+    const readyToConvert = row.status === "approved" && linked_booking_count === 0;
+    const has_tier1_alert = has_unread || actionable || readyToConvert;
+    const primary = primaryCoordByInquiry.get(row.id) ?? null;
     return {
       id: row.id,
       status: row.status,
@@ -345,7 +459,7 @@ export default async function AdminInquiriesPage({
       client_account_id: row.client_account_id,
       next_action_by: row.next_action_by ?? null,
       priority: row.priority ?? null,
-      has_unread: hasUnreadByInquiry.get(row.id) ?? false,
+      has_unread,
       client_account_name: relOne(row.client_accounts as { name: string } | { name: string }[] | null)?.name ?? null,
       linked_contact_name:
         relOne(row.client_account_contacts as { full_name: string } | { full_name: string }[] | null)?.full_name ?? null,
@@ -353,9 +467,32 @@ export default async function AdminInquiriesPage({
       assigned_staff_display: row.assigned_staff_id ? staffMap.get(row.assigned_staff_id) ?? null : null,
       talent_line: talentPeek.line,
       talent_count: talentPeek.count,
-      linked_booking_count: Array.isArray(row.agency_bookings) ? row.agency_bookings.length : 0,
+      linked_booking_count,
       updated_at_display: formatAdminTimestamp(row.updated_at),
+      primary_coordinator_id: primary?.user_id ?? null,
+      primary_coordinator_display: primary?.display_name ?? null,
+      actionable,
+      has_tier1_alert,
     };
+  });
+
+  // Post-query filters that can't be expressed cleanly in SQL against the
+  // existing joins. Kept small — heavy filters (status, waiting_on, assignment,
+  // date, scope) stay in SQL so paging can be added later without refactoring.
+  const queueRows = queueRowsRaw.filter((r) => {
+    if (unreadOnly && !r.has_unread) return false;
+    if (actionableOnly && !r.actionable) return false;
+    if (tier1Only && !r.has_tier1_alert) return false;
+    if (coordinatorFilter) {
+      if (coordinatorFilter === "mine") {
+        if (!currentUserId || r.primary_coordinator_id !== currentUserId) return false;
+      } else if (coordinatorFilter === "unassigned") {
+        if (r.primary_coordinator_id) return false;
+      } else {
+        if (r.primary_coordinator_id !== coordinatorFilter) return false;
+      }
+    }
+    return true;
   });
 
   queueRows.sort((a, b) => {
@@ -366,12 +503,27 @@ export default async function AdminInquiriesPage({
     return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
   });
 
-  const hasActiveFilters = Boolean(trimmedQuery || assignedStaffId || createdFrom || createdTo);
+  const hasActiveFilters = Boolean(
+    trimmedQuery ||
+      assignedStaffId ||
+      createdFrom ||
+      createdTo ||
+      waitingOn ||
+      unreadOnly ||
+      actionableOnly ||
+      tier1Only ||
+      coordinatorFilter,
+  );
   const filterActiveCount =
     (trimmedQuery ? 1 : 0) +
     (assignedStaffId ? 1 : 0) +
     (createdFrom ? 1 : 0) +
-    (createdTo ? 1 : 0);
+    (createdTo ? 1 : 0) +
+    (waitingOn ? 1 : 0) +
+    (unreadOnly ? 1 : 0) +
+    (actionableOnly ? 1 : 0) +
+    (tier1Only ? 1 : 0) +
+    (coordinatorFilter ? 1 : 0);
 
   return (
     <div className={ADMIN_PAGE_STACK}>
@@ -402,7 +554,7 @@ export default async function AdminInquiriesPage({
               <div className="space-y-2">
                 <p className="font-display text-sm font-medium text-foreground">Intake pipeline</p>
                 <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                  <li>Each row is a lead — not confirmed work yet. Use "New request" for phone intake.</li>
+                  <li>Each row is a lead — not confirmed work yet. Use &ldquo;New request&rdquo; for phone intake.</li>
                   <li>Preview without leaving the list, or open the full page to convert to a booking.</li>
                   <li>Confirmed jobs live under Bookings once you convert.</li>
                 </ul>
@@ -450,7 +602,7 @@ export default async function AdminInquiriesPage({
       )}
 
       <AdminFilterBar title="Search & filters" activeCount={filterActiveCount}>
-      <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_160px_160px_auto] md:items-end">
+      <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_160px_160px_140px_140px_auto] md:items-end">
         <div className="space-y-1.5">
           <label htmlFor="q" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Search
@@ -462,6 +614,44 @@ export default async function AdminInquiriesPage({
             placeholder="Contact, company, location…"
             className={ADMIN_FORM_CONTROL}
           />
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="coordinator" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Coordinator
+          </label>
+          <select
+            id="coordinator"
+            name="coordinator"
+            defaultValue={coordinatorFilter ?? ""}
+            className={ADMIN_FORM_CONTROL}
+          >
+            <option value="">All</option>
+            <option value="mine">Mine</option>
+            <option value="unassigned">Unassigned</option>
+            <optgroup label="Staff">
+              {[...coordinatorChoiceById.entries()].map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label htmlFor="waiting_on" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Waiting on
+          </label>
+          <select
+            id="waiting_on"
+            name="waiting_on"
+            defaultValue={waitingOn ?? ""}
+            className={ADMIN_FORM_CONTROL}
+          >
+            <option value="">Anyone</option>
+            <option value="admin">Admin / Coordinator</option>
+            <option value="client">Client</option>
+            <option value="talent">Talent</option>
+          </select>
         </div>
         <div className="space-y-1.5">
           <label htmlFor="assigned_staff_id" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -509,6 +699,9 @@ export default async function AdminInquiriesPage({
           {statusFilter ? <input type="hidden" name="status" value={statusFilter} /> : null}
           {clientUserId ? <input type="hidden" name="client_user_id" value={clientUserId} /> : null}
           {clientAccountId ? <input type="hidden" name="client_account_id" value={clientAccountId} /> : null}
+          {unreadOnly ? <input type="hidden" name="unread_only" value="1" /> : null}
+          {actionableOnly ? <input type="hidden" name="actionable_only" value="1" /> : null}
+          {tier1Only ? <input type="hidden" name="tier1_only" value="1" /> : null}
           <Button type="submit">Apply</Button>
           {hasActiveFilters ? (
             <Button variant="outline" asChild>
@@ -540,6 +733,50 @@ export default async function AdminInquiriesPage({
           ) : null}
         </div>
       </form>
+      {/* Boolean toggle chips. These sit alongside the form because they're
+          state-driven and URL-based rather than form fields — clicking toggles
+          the param off/on while preserving everything else. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          Quick filters
+        </span>
+        {(
+          [
+            { key: "unread_only", label: "Unread only", active: unreadOnly },
+            { key: "actionable_only", label: "Actionable only", active: actionableOnly },
+            { key: "tier1_only", label: "Needs attention", active: tier1Only },
+          ] as const
+        ).map((chip) => {
+          const nextNav: QueueUrlFilters = {
+            ...inquiryNavBase,
+            status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
+            [chip.key]: chip.active ? undefined : "1",
+          };
+          return (
+            <Link
+              key={chip.key}
+              href={buildAdminInquiriesHref(nextNav)}
+              scroll={false}
+              aria-pressed={chip.active}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-medium transition-colors",
+                chip.active
+                  ? "border-[var(--impronta-gold)]/60 bg-[var(--impronta-gold)]/10 text-foreground"
+                  : "border-border/50 bg-background/60 text-muted-foreground hover:border-[var(--impronta-gold)]/40 hover:text-foreground",
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block size-2 rounded-full",
+                  chip.active ? "bg-[var(--impronta-gold)]" : "bg-muted-foreground/40",
+                )}
+                aria-hidden
+              />
+              {chip.label}
+            </Link>
+          );
+        })}
+      </div>
       </AdminFilterBar>
 
       {/* Queue table — Suspense: peek triggers use `useSearchParams` */}

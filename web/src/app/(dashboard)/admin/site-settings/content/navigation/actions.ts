@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { parseWithSchema } from "@/lib/admin/validation";
-import { requireStaff } from "@/lib/server/action-guards";
+import { requireStaffTenantAction } from "@/lib/saas/admin-scope";
 import { logServerError } from "@/lib/server/safe-error";
 
 const localeSchema = z.enum(["en", "es"]);
@@ -26,8 +26,9 @@ export async function saveCmsNavigationItem(
   const parsed = parseWithSchema(navUpsertSchema, input);
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
   let href = parsed.data.href.trim();
   if (!href.startsWith("/") && !href.startsWith("http")) {
@@ -48,6 +49,7 @@ export async function saveCmsNavigationItem(
       .from("cms_navigation_items")
       .update(row)
       .eq("id", parsed.data.id)
+      .eq("tenant_id", tenantId)
       .select("id")
       .single();
 
@@ -57,6 +59,7 @@ export async function saveCmsNavigationItem(
     }
 
     const { error: logErr } = await session.supabase.from("activity_log").insert({
+      tenant_id: tenantId,
       actor_id: session.user.id,
       entity_type: "cms_navigation_item",
       entity_id: parsed.data.id,
@@ -71,7 +74,7 @@ export async function saveCmsNavigationItem(
 
   const { data: inserted, error: insErr } = await session.supabase
     .from("cms_navigation_items")
-    .insert(row)
+    .insert({ ...row, tenant_id: tenantId })
     .select("id")
     .single();
 
@@ -81,6 +84,7 @@ export async function saveCmsNavigationItem(
   }
 
   const { error: logErr } = await session.supabase.from("activity_log").insert({
+    tenant_id: tenantId,
     actor_id: session.user.id,
     entity_type: "cms_navigation_item",
     entity_id: inserted.id,
@@ -96,16 +100,22 @@ export async function saveCmsNavigationItem(
 export async function deleteCmsNavigationItem(
   id: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const session = await requireStaff();
+  const session = await requireStaffTenantAction();
   if (!session.ok) return { ok: false, error: session.error };
+  const { tenantId } = session;
 
-  const { error } = await session.supabase.from("cms_navigation_items").delete().eq("id", id);
+  const { error } = await session.supabase
+    .from("cms_navigation_items")
+    .delete()
+    .eq("id", id)
+    .eq("tenant_id", tenantId);
   if (error) {
     logServerError("cms/deleteNav", error);
     return { ok: false, error: "Could not delete item." };
   }
 
   const { error: logErr } = await session.supabase.from("activity_log").insert({
+    tenant_id: tenantId,
     actor_id: session.user.id,
     entity_type: "cms_navigation_item",
     entity_id: id,

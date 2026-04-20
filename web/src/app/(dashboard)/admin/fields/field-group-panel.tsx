@@ -168,6 +168,8 @@ export type FieldGroupRow = {
   name_es: string | null;
   sort_order: number;
   archived_at: string | null;
+  /** null = canonical/global, UUID = agency-local. Added in SaaS Phase 6. */
+  tenant_id: string | null;
 };
 
 export type FieldDefinitionRow = {
@@ -194,6 +196,8 @@ export type FieldDefinitionRow = {
   sort_order: number;
   taxonomy_kind: string | null;
   archived_at: string | null;
+  /** null = canonical/global, UUID = agency-local. Added in SaaS Phase 6. */
+  tenant_id: string | null;
 };
 
 function SortableFieldRow({
@@ -588,16 +592,21 @@ function FieldRowShell({
 export function FieldGroupPanel({
   group,
   fields,
+  activeTenantId,
   onEditField,
   open,
   onOpenChange,
 }: {
   group: FieldGroupRow;
   fields: FieldDefinitionRow[];
+  /** Current active tenant — see AdminFieldsClient. New fields created here inherit it when the parent group is agency-local or the caller is on an agency workspace. */
+  activeTenantId: string | null;
   onEditField: (fieldId: string) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const groupScope: "canonical" | "agency" = group.tenant_id ? "agency" : "canonical";
+  const effectiveTenantId = group.tenant_id ?? activeTenantId;
   const [query, setQuery] = useState("");
   const [mounted, setMounted] = useState(false);
   const [editingGroup, setEditingGroup] = useState(false);
@@ -753,6 +762,17 @@ export function FieldGroupPanel({
             <Badge variant="secondary" className="h-6">
               {fields.length} field{fields.length !== 1 ? "s" : ""}
             </Badge>
+            <Badge
+              variant={groupScope === "canonical" ? "outline" : "default"}
+              className="h-6"
+              title={
+                groupScope === "canonical"
+                  ? "Canonical — shared across every agency; edited by platform admins only."
+                  : "Agency-local — visible and editable only within this workspace."
+              }
+            >
+              {groupScope === "canonical" ? "Canonical" : "Agency"}
+            </Badge>
             <HelpTip content="Groups define sections in talent and admin profile editors." />
           </div>
           {err ? <p className="mt-2 text-sm text-destructive">{err}</p> : null}
@@ -901,6 +921,11 @@ export function FieldGroupPanel({
             <div className={ADMIN_EMBEDDED_SURFACE}>
               <form action={createAction} className="grid gap-3 sm:grid-cols-4">
                 <input type="hidden" name="field_group_id" value={group.id} />
+                <input
+                  type="hidden"
+                  name="tenant_id"
+                  value={effectiveTenantId ?? ""}
+                />
                 <div className="space-y-1.5">
                   <Label htmlFor={`key-${group.id}`}>Key</Label>
                   <Input id={`key-${group.id}`} name="key" placeholder="e.g. eye_color" required disabled={busy} />
