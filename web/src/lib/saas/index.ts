@@ -36,6 +36,17 @@ export {
 } from "./host-context";
 
 export {
+  requireAdminTenantGuard,
+  requireAdminTenantGuardOrThrow,
+  requireStaffTenantAction,
+  assertRowBelongsToTenant,
+  resolveInquiryTenantForParticipant,
+  type AdminTenantGuard,
+  type StaffTenantActionGuard,
+  type StaffTenantActionGuardFail,
+} from "./admin-scope";
+
+export {
   submitRepresentationRequest,
   pickUpRepresentationRequest,
   approveRepresentationRequest,
