@@ -212,11 +212,17 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set(HOST_CONTEXT_HEADER, hostContext.kind);
   requestHeaders.set(HOST_NAME_HEADER, hostContext.hostname);
 
-  if (hostContext.kind === "agency") {
+  if (hostContext.kind === "agency" || hostContext.kind === "hub") {
+    // Phase 5/6 M1 — hub is also a tenant on the org abstraction (kind='hub'
+    // agencies row, seeded in 20260625100000). Setting the tenant header on
+    // hub requests lets the public render path call the same tenant-scoped
+    // CMS reads that agency tenants use. Surface allow-list still gates
+    // hub from /admin etc., so this widens data access without widening
+    // the route surface.
     requestHeaders.set(TENANT_HEADER_NAME, hostContext.tenantId);
   } else {
-    // Strip any spoofed header on non-tenant contexts (marketing / app /
-    // hub). Downstream code must never honour a client-supplied tenant id.
+    // Strip any spoofed header on non-tenant contexts (marketing / app).
+    // Downstream code must never honour a client-supplied tenant id.
     requestHeaders.delete(TENANT_HEADER_NAME);
   }
 

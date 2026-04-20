@@ -170,7 +170,11 @@ const HOST_NAME_HEADER = "x-impronta-host-name";
  */
 export type PublicHostContext =
   | { kind: "agency"; tenantId: string; hostname: string | null }
-  | { kind: "hub"; tenantId: null; hostname: string | null }
+  // Phase 5/6 M1 — hub carries the hub agency tenantId so render code can
+  // call CMS reads (loadPublicHomepage, identity, branding, menus) using
+  // the same tenant-scoped path that agency tenants use. The host kind
+  // remains "hub" so surface allow-list / dispatch behavior is unchanged.
+  | { kind: "hub"; tenantId: string; hostname: string | null }
   | { kind: "app"; tenantId: null; hostname: string | null }
   | { kind: "marketing"; tenantId: null; hostname: string | null }
   | { kind: "unknown"; tenantId: null; hostname: null };
@@ -192,7 +196,12 @@ export async function getPublicHostContext(): Promise<PublicHostContext> {
         if (!tenantId) return { kind: "unknown", tenantId: null, hostname: null };
         return { kind: "agency", tenantId, hostname };
       case "hub":
-        return { kind: "hub", tenantId: null, hostname };
+        // Middleware sets the tenant header for hub the same way it does
+        // for agency (post-M1). Missing header on a hub context means
+        // mid-deploy state — fall back to "unknown" rather than render
+        // a hub surface that can't reach its CMS.
+        if (!tenantId) return { kind: "unknown", tenantId: null, hostname: null };
+        return { kind: "hub", tenantId, hostname };
       case "app":
         return { kind: "app", tenantId: null, hostname };
       case "marketing":

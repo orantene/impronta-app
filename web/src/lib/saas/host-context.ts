@@ -27,7 +27,13 @@ import type { NextRequest } from "next/server";
 export type HostContext =
   | { kind: "marketing"; tenantId: null; hostname: string }
   | { kind: "app"; tenantId: null; hostname: string }
-  | { kind: "hub"; tenantId: null; hostname: string }
+  // Phase 5/6 M1 — the hub IS a first-class tenant on the org abstraction
+  // (kind='hub' agency seeded in 20260625100000). Its tenantId lets the
+  // public render path call the same CMS reads (loadPublicHomepage,
+  // identity, branding, menus) that agency tenants use. The host kind
+  // stays 'hub' so the surface allow-list and dispatch keep their
+  // existing semantics — only data access is unified.
+  | { kind: "hub"; tenantId: string; hostname: string }
   | { kind: "agency"; tenantId: string; hostname: string; domainKind: "subdomain" | "custom" }
   | { kind: "not_found"; tenantId: null; hostname: string };
 
@@ -103,7 +109,15 @@ export async function resolveTenantContext(
         value = { kind: "app", tenantId: null, hostname: data.hostname };
         break;
       case "hub":
-        value = { kind: "hub", tenantId: null, hostname: data.hostname };
+        // After M0 step-5, every kind='hub' agency_domains row is bound
+        // to the hub agency UUID. A NULL tenant_id on a hub row would
+        // mean unfinished M0 migration — fail to not_found rather than
+        // silently render with `null`.
+        if (!data.tenant_id) {
+          value = { kind: "not_found", tenantId: null, hostname };
+        } else {
+          value = { kind: "hub", tenantId: data.tenant_id as string, hostname: data.hostname };
+        }
         break;
       case "subdomain":
       case "custom":
