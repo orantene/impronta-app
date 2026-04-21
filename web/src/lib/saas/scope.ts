@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { getCurrentUserTenants, type TenantMembership } from "@/lib/saas/tenant";
 
 /**
@@ -84,6 +85,21 @@ export const getTenantScope = cache(
       }
       // Preferred tenant not in memberships → do NOT silently downgrade.
       // Fail-hard: the app layer must clear the cookie or prompt a switch.
+      //
+      // Plan M3 exit criterion: "Tampered cookie … is rejected server-side
+      // with audit log entry." This is the single choke point on the read
+      // side — every admin/action path funnels through here — so we log
+      // here exactly once per request (getTenantScope is request-cached).
+      // Structured log is grep-friendly and bubbles to our log store; we
+      // deliberately do NOT insert into platform_audit_log here because
+      // that table's SECURITY DEFINER wrappers all require
+      // is_staff_of_tenant() and the whole point is this actor is NOT
+      // staff of the attempted tenant.
+      void improntaLog("security.tenant_cookie_tamper", {
+        actor_id: session.user.id,
+        attempted_tenant_id: preferred,
+        membership_count: memberships.length,
+      });
       return null;
     }
 
