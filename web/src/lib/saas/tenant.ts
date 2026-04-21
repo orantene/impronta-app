@@ -11,6 +11,15 @@ import { logServerError } from "@/lib/server/safe-error";
  */
 export const LEGACY_TENANT_ID = "00000000-0000-0000-0000-000000000001" as const;
 
+/**
+ * Hub (platform-wide directory) tenant UUID — singleton, seeded in
+ * 20260625100000_saas_p56_m0_org_kind_and_hub_seed.sql. Unlike
+ * LEGACY_TENANT_ID this IS intended for runtime use: hub-scoped writes
+ * (hub visibility requests, federated directory) target this id. The
+ * organization_kind discriminator is 'hub'.
+ */
+export const HUB_AGENCY_ID = "00000000-0000-0000-0000-000000000002" as const;
+
 export type MembershipRole =
   | "owner"
   | "admin"
