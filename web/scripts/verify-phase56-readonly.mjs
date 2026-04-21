@@ -11,18 +11,24 @@
  *   1. PHASE 1–4 VERIFIABLE — checks that SHOULD pass on the current DB.
  *      Any FAIL here is a real finding.
  *   2. M0-DEPENDENT PROBES — checks that require the Phase 5/6 M0
- *      migrations (`20260625100000_saas_p56_m0_*`). These are expected
- *      to fail/skip until M0 is applied to the target environment.
- *      SKIPs here are TRACKED (they feed docs/saas/phase-5-6/m0-blockers.md)
- *      but never cause a non-zero exit.
+ *      migrations (`20260625100000_saas_p56_m0_*`). Default mode treats
+ *      these as SKIPs (never cause a non-zero exit). With --post-m0,
+ *      every SKIP is promoted to FAIL and additional data-inspection
+ *      probes run (hub-rebind audit, hub CMS seed count, analytics_events
+ *      bootstrap presence).
  *
- * Run:  node scripts/verify-phase56-readonly.mjs
- * Exit: 0 = all Phase 1–4 checks pass, 1 = any Phase 1–4 FAIL, 2 = tooling error.
+ * Run:
+ *   node scripts/verify-phase56-readonly.mjs            # default tier
+ *   node scripts/verify-phase56-readonly.mjs --post-m0  # M0 must-pass mode
+ *
+ * Exit: 0 = all required checks pass, 1 = any required FAIL, 2 = tooling error.
  */
 
 import { spawnSync } from "node:child_process";
 
 const HUB_AGENCY_ID = "00000000-0000-0000-0000-000000000002";
+
+const POST_M0 = process.argv.includes("--post-m0");
 
 /** Run SQL via `supabase db query --linked`; throws on non-zero exit. */
 function sql(q) {
@@ -515,11 +521,76 @@ function probeM5() {
 }
 
 // =====================================================================
+// TIER 3 — POST-M0 data-inspection probes (only run with --post-m0)
+//
+// These confirm the four M0 migrations actually took effect against
+// real rows. Every probe here must PASS after apply; a SKIP is a FAIL.
+// =====================================================================
+function probePostM0() {
+  const group = "POST-M0";
+
+  // Hub-rebind: every kind='hub' agency_domains row must point at the hub.
+  const rebind = trySql(
+    `select count(*)::int as n from public.agency_domains
+     where kind='hub' and (tenant_id is null or tenant_id <> '${HUB_AGENCY_ID}')`,
+  );
+  if (rebind.ok && rebind.rows[0]?.n === 0) {
+    m0pass(group, "hub-rebind complete — all kind='hub' rows point at hub UUID");
+  } else if (rebind.ok) {
+    m0skip(group, "hub-rebind INCOMPLETE", `stray rows: ${rebind.rows[0]?.n}`);
+  } else {
+    m0skip(group, "hub-rebind query failed", rebind.error);
+  }
+
+  // Hub CMS seed: at least one cms_pages row for the hub tenant exists.
+  const cmsSeed = trySql(
+    `select count(*)::int as n from public.cms_pages
+     where tenant_id='${HUB_AGENCY_ID}'`,
+  );
+  if (cmsSeed.ok && (cmsSeed.rows[0]?.n ?? 0) >= 1) {
+    m0pass(group, "hub CMS pages present", `count=${cmsSeed.rows[0].n}`);
+  } else {
+    m0skip(group, "hub has no cms_pages rows",
+      "M0 seeds at least one CMS page for the hub tenant");
+  }
+
+  // Hub row shape: id / slug / kind / status align with M0 seed.
+  const hubRow = trySql(
+    `select slug, status, display_name, kind::text as kind from public.agencies
+     where id='${HUB_AGENCY_ID}'`,
+  );
+  if (hubRow.ok && hubRow.rows.length === 1) {
+    const r = hubRow.rows[0];
+    if (r.slug === "hub" && r.kind === "hub" && r.status === "active") {
+      m0pass(group, "hub agency row has slug/kind/status='hub/hub/active'",
+        `name=${r.display_name}`);
+    } else {
+      m0skip(group, "hub agency row mismatch",
+        `slug=${r.slug} kind=${r.kind} status=${r.status}`);
+    }
+  } else {
+    m0skip(group, "hub agency row missing", "M0 seed did not land");
+  }
+
+  // analytics_events bootstrap (migration 20260625140000).
+  const aeReg = trySql(
+    `select to_regclass('public.analytics_events')::text as t`,
+  );
+  if (aeReg.ok && aeReg.rows[0]?.t === "analytics_events") {
+    m0pass(group, "analytics_events table present (silent-drop closed)");
+  } else {
+    m0skip(group, "analytics_events table absent",
+      "requires 20260625140000_saas_p56_m0_analytics_events_bootstrap.sql");
+  }
+}
+
+// =====================================================================
 // Report
 // =====================================================================
 function report() {
   const groups = [...new Set(results.map((r) => r.group))];
-  console.log("\n=== PHASE 5/6 STRUCTURAL VERIFICATION (READ-ONLY) ===");
+  const modeLabel = POST_M0 ? " (--post-m0 mode: SKIPs promoted to FAIL)" : "";
+  console.log(`\n=== PHASE 5/6 STRUCTURAL VERIFICATION (READ-ONLY)${modeLabel} ===`);
 
   console.log("\n--- TIER 1 — Phase 1–4 verifiable ---");
   const p14 = results.filter((r) => r.tier === "P14");
@@ -531,12 +602,17 @@ function report() {
     }
   }
 
-  console.log("\n--- TIER 2 — M0-dependent probes (SKIP expected until M0 applied) ---");
+  const tier2Header = POST_M0
+    ? "\n--- TIER 2 — M0-dependent probes (must PASS)"
+    : "\n--- TIER 2 — M0-dependent probes (SKIP expected until M0 applied) ---";
+  console.log(tier2Header);
   const m0 = results.filter((r) => r.tier === "M0");
   for (const g of groups.filter((g) => m0.some((r) => r.group === g))) {
     console.log(`\n[${g}]`);
     for (const r of m0.filter((x) => x.group === g)) {
+      const isFailInPostM0 = POST_M0 && r.status === "SKIP";
       const m = r.status === "PASS" ? "pass"
+        : isFailInPostM0 ? "FAIL"
         : r.status === "SKIP" ? "skip"
         : "info";
       console.log(`  ${m}  ${r.name}${r.detail ? " — " + r.detail : ""}`);
@@ -550,20 +626,23 @@ function report() {
   const m0Skip = m0.filter((r) => r.status === "SKIP").length;
   const m0Info = m0.filter((r) => r.status === "INFO").length;
 
+  // In --post-m0 mode, SKIPs count as failures for exit purposes.
+  const totalFail = p14Fail + (POST_M0 ? m0Skip : 0);
+
   console.log(
-    `\nsummary:\n  Phase 1–4: ${p14Pass} pass, ${p14Fail} FAIL, ${p14Info} info\n  M0 probes: ${m0Pass} pass, ${m0Skip} skip, ${m0Info} info`,
+    `\nsummary:\n  Phase 1–4: ${p14Pass} pass, ${p14Fail} FAIL, ${p14Info} info\n  M0 probes: ${m0Pass} pass, ${m0Skip} skip${POST_M0 ? " (FAIL in --post-m0)" : ""}, ${m0Info} info`,
   );
-  if (p14Fail > 0) {
-    console.log("\nEXIT 1 — Phase 1–4 FAIL(s) present (real findings).");
+  if (totalFail > 0) {
+    console.log(`\nEXIT 1 — ${totalFail} required check(s) failed.`);
   } else {
-    console.log("\nEXIT 0 — Phase 1–4 all pass.");
-    if (m0Skip > 0) {
+    console.log("\nEXIT 0 — all required checks pass.");
+    if (!POST_M0 && m0Skip > 0) {
       console.log(
         `(${m0Skip} M0-dependent SKIPs — see docs/saas/phase-5-6/m0-blockers.md)`,
       );
     }
   }
-  process.exit(p14Fail > 0 ? 1 : 0);
+  process.exit(totalFail > 0 ? 1 : 0);
 }
 
 try {
@@ -577,6 +656,7 @@ try {
   probeM0();
   probeM4();
   probeM5();
+  if (POST_M0) probePostM0();
   report();
 } catch (e) {
   console.error("verifier crashed:", e?.message ?? e);

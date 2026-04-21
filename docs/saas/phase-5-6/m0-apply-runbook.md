@@ -32,16 +32,18 @@ where the green light is given:
 ```bash
 git checkout saas/phase-5-6-m0-foundations
 ls supabase/migrations/2026062[56]*
-# Expect exactly these four files:
+# Expect exactly these five files:
 #   20260625100000_saas_p56_m0_org_kind_and_hub_seed.sql
 #   20260625110000_saas_p56_m0_agency_domains_hub_rebind.sql
 #   20260625120000_saas_p56_m0_membership_role_check.sql
 #   20260625130000_saas_p56_m0_talent_phone_e164.sql
+#   20260625140000_saas_p56_m0_analytics_events_bootstrap.sql
 ```
 
-Confirm no uncommitted edits to any of them — these should match the
-reviewed content from commit `a0fef8f` (feat: Phase 5/6 M0 foundations)
-and `7925a56` (fix: reorder hub-rebind).
+Files 100000–130000 are the core M0 set (commits `a0fef8f` +
+`7925a56`). File 140000 is the adjacent `analytics_events` bootstrap
+covered in §8 — applied alongside M0 so the silent-drop is closed in
+the same window.
 
 ## 2. Hub UUID occupancy audit — **read before apply**
 
@@ -132,18 +134,21 @@ applied stay applied — see §6 for recovery.
 
 ## 5. Post-apply verification
 
-Re-run the verifier:
+Re-run the verifier in **--post-m0 mode** so every M0 probe is
+promoted from SKIP to FAIL:
 
 ```bash
-node web/scripts/verify-phase56-readonly.mjs
+node web/scripts/verify-phase56-readonly.mjs --post-m0
 ```
 
 Expected:
 
 ```
-Phase 1–4: 21 pass, 0 FAIL, 2 info  (analytics_events info persists —
-                                     pre-existing, out of M0 scope)
-M0 probes: ≥ 10 pass, 0 SKIP, 0 FAIL
+Phase 1–4: 21 pass, 0 FAIL, 0–2 info (analytics_events info flips to
+                                      PASS once migration 140000 lands)
+M0 probes: ≥ 13 pass, 0 SKIP, 0 FAIL
+POST-M0  : hub-rebind complete, hub agency row shape correct,
+           hub CMS pages present, analytics_events bootstrapped
 ```
 
 Specifically the skips that must become passes:
@@ -221,24 +226,31 @@ Tier-2 SKIPs into hard PASS requirements and adds the `agency_domains`
 rebind + hub CMS seed checks. Not implemented now because the script's
 single-pass tiered report is enough to gate the current decision.
 
-## 8. Out-of-scope but adjacent: `analytics_events` table missing
+## 8. Adjacent: `analytics_events` table bootstrap (now in-branch)
 
 The linked DB has **no `analytics_events` table**; service-role inserts
-from `logAnalyticsEventServer` silently fail. This is unrelated to M0
-but will cause the `invite_link_clicked` and `invite_converted` events
-from the M5 invite-accept flow to drop on the floor in production.
+from `logAnalyticsEventServer` silently fail. Closed by migration
+`20260625140000_saas_p56_m0_analytics_events_bootstrap.sql` (in this
+branch), which:
 
-Remediation options (out of M0 scope; track as a separate slice):
+- Creates `public.analytics_events` with the columns the writer emits
+  plus `tenant_id UUID NOT NULL DEFAULT '00000000-…-000000000001'`
+  (the demo tenant UUID, matching the Phase-1 backfill default used
+  by `20260601200300`).
+- Adds 5 indexes (created_at, name+created_at, talent+created_at,
+  tenant+created_at, tenant+name+created_at).
+- Enables RLS with two policies: anon+authenticated INSERT (matching
+  the original `20260413120000` policy), staff SELECT via
+  `public.is_agency_staff()` (confirmed present on linked DB).
 
-1. Create the table in a standalone migration with the expected shape
-   (`name text, payload jsonb, session_id text nullable, user_id uuid
-   nullable, talent_id uuid nullable, path text nullable, locale text
-   nullable, created_at timestamptz default now()`), plus RLS.
-2. Remove the `logAnalyticsEventServer` writer and rely exclusively on
-   GA4 browser pings (but lose server-originated events).
-3. Relocate the writes to an existing table with similar shape
-   (e.g. `talent_workflow_events` if event semantics match — they do
-   not currently).
+**Deliberately narrow scope.** Only `analytics_events` is created.
+The other tables from the original `20260413120000` migration
+(daily_rollups, funnel_steps, search_sessions, kpi_snapshots,
+api_cache) remain absent because no production caller depends on
+them today. Adding them is a separate slice if GA4/GSC cache reads
+activate.
 
-Recommended: (1) with a dedicated migration and RLS policies matching
-the rest of the tenantised surface. Not implemented in this branch.
+**Follow-up (out of M0 scope).** `logAnalyticsEventServer` does not
+yet set `tenant_id` on writes — they all default to the demo tenant.
+A later slice should thread the request-context tenant through to
+the writer so per-tenant analytics dashboards reflect reality.
