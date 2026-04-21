@@ -17,9 +17,9 @@ export function HeroSection() {
               className="plt-display mkt-rise mkt-rise-delay-1 mt-5 text-[2.5rem] font-semibold sm:text-[3.25rem] lg:text-[4.25rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              <span className="block">Run your roster</span>
+              <span className="block">Turn your roster</span>
               <span className="block">
-                <span style={{ color: "var(--plt-forest)" }}>like a real business.</span>
+                <span style={{ color: "var(--plt-forest)" }}>into a business.</span>
               </span>
             </h1>
 
@@ -27,11 +27,10 @@ export function HeroSection() {
               className="mkt-rise mkt-rise-delay-2 mt-6 max-w-[34rem] text-[1.0625rem] leading-[1.6] sm:text-[1.125rem]"
               style={{ color: "var(--plt-muted)" }}
             >
-              {PLATFORM_BRAND.name} is the operating system for people-based rosters —
-              built for independent operators, representation agencies, and organizations
-              that coordinate people at scale. Claim a free subdomain, add your roster,
-              share one polished link. Stop sending profiles on WhatsApp; start running a
-              real directory.
+              The operating system for people-based rosters — built for independent
+              operators, agencies, and teams that coordinate talent. Claim your free
+              subdomain, publish your roster, and share one polished link instead of
+              another WhatsApp thread.
             </p>
 
             <div className="mkt-rise mkt-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">

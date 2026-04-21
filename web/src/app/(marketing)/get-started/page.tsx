@@ -39,7 +39,8 @@ const HEADLINE_BY_TIER: Record<string, { eyebrow: string; title: string; subtitl
   default: {
     eyebrow: "Start free",
     title: "Put your roster on the internet, properly.",
-    subtitle: `${PLATFORM_BRAND.name} is the operating system for anyone who manages people — independent operators, representation businesses, casting, staffing, and placement operations. Claim a free subdomain, add your roster, and share one polished link.`,
+    subtitle:
+      "Claim your subdomain, add your roster, and share one polished link. Built for operators, agencies, casting, staffing, and placement teams.",
   },
 };
 
