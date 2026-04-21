@@ -352,3 +352,246 @@ html[data-public-font-preset="editorial"] {
   display: none;
 }
 
+/**
+ * Platform surface — the public Rostra marketing site.
+ *
+ * Scoped with `data-platform-surface="marketing"` so tokens never leak into
+ * tenant storefronts or workspace chrome. Direction "Atelier": warm paper
+ * background, deep ink type, muted forest accent, Geist Sans display +
+ * Inter body + Geist Mono for numerals.
+ *
+ * Legacy `--mkt-*` tokens alias onto `--plt-*` so existing sections that
+ * reference the old names pick up the new brand automatically during the
+ * migration; new code should prefer `--plt-*` directly.
+ */
+[data-platform-surface="marketing"] {
+  /* Paper & ink — warm neutrals, high contrast */
+  --plt-bg: #f5f2ea;
+  --plt-bg-raised: #fffdf7;
+  --plt-bg-elevated: #ffffff;
+  --plt-bg-deep: #ece7dc;
+  --plt-bg-inverse: #0f1714;
+  --plt-bg-inverse-soft: #18211d;
+
+  /* Ink — deep forest-tinted black for warmth */
+  --plt-ink: #0f1714;
+  --plt-ink-soft: #2c332f;
+  --plt-ink-strong: #05110d;
+  --plt-muted: #5c6561;
+  --plt-muted-soft: #8a918c;
+  --plt-on-inverse: #f1ede3;
+  --plt-on-inverse-muted: rgba(241, 237, 227, 0.68);
+  --plt-on-inverse-soft: rgba(241, 237, 227, 0.48);
+
+  /* Hairlines */
+  --plt-hairline: rgba(15, 23, 20, 0.08);
+  --plt-hairline-strong: rgba(15, 23, 20, 0.16);
+  --plt-hairline-inverse: rgba(241, 237, 227, 0.1);
+  --plt-hairline-inverse-strong: rgba(241, 237, 227, 0.18);
+
+  /* Forest accent — the single brand accent */
+  --plt-forest: #1f4a3a;
+  --plt-forest-deep: #143226;
+  --plt-forest-bright: #2e6b52;
+  --plt-forest-soft: rgba(31, 74, 58, 0.08);
+  --plt-forest-ring: rgba(31, 74, 58, 0.22);
+  --plt-forest-glow: rgba(46, 107, 82, 0.18);
+  --plt-forest-on: #f1ede3;
+
+  /* Signal colors — sparingly used */
+  --plt-positive: #2e6b52;
+  --plt-positive-bg: rgba(46, 107, 82, 0.12);
+  --plt-warning: #a7691a;
+  --plt-warning-bg: rgba(167, 105, 26, 0.12);
+  --plt-info: #2b4f7a;
+  --plt-info-bg: rgba(43, 79, 122, 0.1);
+
+  /* Radii */
+  --plt-radius-sm: 8px;
+  --plt-radius-md: 14px;
+  --plt-radius-lg: 20px;
+  --plt-radius-xl: 28px;
+  --plt-radius-pill: 999px;
+
+  /* Shadows — restrained, warm */
+  --plt-shadow-sm: 0 1px 2px rgba(15, 23, 20, 0.04), 0 1px 1px rgba(15, 23, 20, 0.04);
+  --plt-shadow-md: 0 10px 28px -14px rgba(15, 23, 20, 0.18),
+    0 2px 6px rgba(15, 23, 20, 0.04);
+  --plt-shadow-lg: 0 28px 64px -28px rgba(15, 23, 20, 0.28),
+    0 8px 22px -12px rgba(15, 23, 20, 0.08);
+  --plt-shadow-forest: 0 14px 32px -16px rgba(31, 74, 58, 0.42);
+
+  /* Typography */
+  --plt-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --plt-font-body: var(--font-inter-body), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --plt-font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+    Monaco, Consolas, monospace;
+
+  /* Legacy `--mkt-*` aliases — keep existing sections visually consistent
+   * until each section is migrated to `--plt-*` directly. */
+  --mkt-ink: var(--plt-ink);
+  --mkt-ink-soft: var(--plt-ink-soft);
+  --mkt-muted: var(--plt-muted);
+  --mkt-muted-soft: var(--plt-muted-soft);
+  --mkt-cream: var(--plt-bg);
+  --mkt-cream-deep: var(--plt-bg-deep);
+  --mkt-surface: var(--plt-bg-raised);
+  --mkt-surface-raised: var(--plt-bg-elevated);
+  --mkt-hairline: var(--plt-hairline);
+  --mkt-hairline-strong: var(--plt-hairline-strong);
+  --mkt-gold: var(--plt-forest);
+  --mkt-gold-bright: var(--plt-forest-bright);
+  --mkt-gold-soft: var(--plt-forest-soft);
+  --mkt-gold-ring: var(--plt-forest-ring);
+  --mkt-display-font: var(--plt-font-sans);
+  --mkt-body-font: var(--plt-font-body);
+  --mkt-mono-font: var(--plt-font-mono);
+
+  background: var(--plt-bg);
+  color: var(--plt-ink);
+  font-family: var(--plt-font-body);
+  font-feature-settings: "ss01", "cv11", "cv06";
+  letter-spacing: -0.01em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings / display lines — Geist Sans, tight tracking, clean. */
+[data-platform-surface="marketing"] .plt-display,
+[data-platform-surface="marketing"] .mkt-display {
+  font-family: var(--plt-font-sans);
+  font-feature-settings: "ss01", "ss02", "cv11";
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+}
+
+/* Body / UI text */
+[data-platform-surface="marketing"] .plt-body,
+[data-platform-surface="marketing"] .mkt-body {
+  font-family: var(--plt-font-body);
+}
+
+/* Numerals / data (inquiries, counts, prices). */
+[data-platform-surface="marketing"] .plt-numeral,
+[data-platform-surface="marketing"] .mkt-numeral {
+  font-family: var(--plt-font-sans);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum", "tnum", "ss01";
+  letter-spacing: -0.02em;
+}
+
+/* Mono — micro-copy, URL pills, event ids. */
+[data-platform-surface="marketing"] .plt-mono {
+  font-family: var(--plt-font-mono);
+  font-feature-settings: "ss01", "cv01";
+  letter-spacing: 0;
+}
+
+/* Eyebrows — compact uppercase label, forest accent. */
+[data-platform-surface="marketing"] .plt-eyebrow,
+[data-platform-surface="marketing"] .mkt-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--plt-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--plt-forest);
+}
+
+[data-platform-surface="marketing"] ::selection {
+  background: rgba(31, 74, 58, 0.22);
+  color: var(--plt-ink);
+}
+
+/* Subtle paper grain — hero-scoped. */
+.mkt-grain::before,
+.plt-grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(15, 23, 20, 0.04) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.7), transparent 78%);
+}
+
+/* Focus ring — forest, accessible on paper */
+[data-platform-surface="marketing"] :focus-visible {
+  outline: 2px solid var(--plt-forest-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Entry reveal — used on hero text + section titles. */
+@keyframes mkt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mkt-rise {
+  animation: mkt-rise 620ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.mkt-rise-delay-1 {
+  animation-delay: 80ms;
+}
+.mkt-rise-delay-2 {
+  animation-delay: 160ms;
+}
+.mkt-rise-delay-3 {
+  animation-delay: 240ms;
+}
+.mkt-rise-delay-4 {
+  animation-delay: 320ms;
+}
+.mkt-rise-delay-5 {
+  animation-delay: 400ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-rise,
+  .mkt-rise-delay-1,
+  .mkt-rise-delay-2,
+  .mkt-rise-delay-3,
+  .mkt-rise-delay-4,
+  .mkt-rise-delay-5 {
+    animation: none;
+  }
+}
+
+/* Ambient drift — used on hero background flourishes. */
+@keyframes mkt-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+.mkt-drift {
+  animation: mkt-drift 9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-drift {
+    animation: none;
+  }
+}
+

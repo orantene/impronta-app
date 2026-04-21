@@ -19,6 +19,13 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   contact_whatsapp: "contact_whatsapp",
   click_email: "click_email",
   click_phone: "click_phone",
+  marketing_cta_clicked: "marketing_cta_clicked",
+  marketing_waitlist_submitted: "marketing_waitlist_submitted",
+  marketing_pricing_viewed: "marketing_pricing_viewed",
+  marketing_demo_requested: "marketing_demo_requested",
+  marketing_section_viewed: "marketing_section_viewed",
+  marketing_faq_opened: "marketing_faq_opened",
+  marketing_audience_selected: "marketing_audience_selected",
 } as const;
 
 export type ProductAnalyticsEventName =

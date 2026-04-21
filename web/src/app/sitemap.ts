@@ -9,12 +9,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = publicSiteMetadataBase();
   const supabase = await createClient();
 
-  // Only the agency storefront surface advertises routes in sitemap.xml.
-  // Hub/marketing/app/unknown hosts would list storefront paths (/directory,
-  // /contact, /models) that the surface-allow-list 404s on those kinds —
-  // returning them here would publish a manifest of dead links. Return an
-  // empty sitemap instead.
+  // Each host-kind advertises only the routes its surface-allow-list permits,
+  // so we never publish a manifest of dead links. Hub/app/unknown still return
+  // empty; agency returns storefront routes; marketing returns its static tree.
   const hostContext = await getPublicHostContext();
+  if (hostContext.kind === "marketing") {
+    const marketingPaths = [
+      "/",
+      "/get-started",
+      "/operators",
+      "/agencies",
+      "/organizations",
+      "/how-it-works",
+      "/network",
+      "/pricing",
+      "/faq",
+      "/legal/privacy",
+      "/legal/terms",
+    ];
+    return marketingPaths.map((path) => ({
+      url: new URL(path, base).toString(),
+      lastModified: new Date(),
+    }));
+  }
   if (hostContext.kind !== "agency") {
     return [];
   }

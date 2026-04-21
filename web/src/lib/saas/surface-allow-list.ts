@@ -8,12 +8,12 @@
  *
  * Rule table — which groups are reachable on which host:
  *
- *   surface    | root | static | shared api   | auth | storefront | workspaces | storefront api | app api | /t (canonical)
- *   -----------|------|--------|--------------|------|------------|------------|----------------|---------|---------------
- *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |            |       ✓        |    ✓*   |       ✓
- *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓    |       ✓
- *   hub        |  ✓   |   ✓    |      ✓       |      |            |            |                |         |
- *   marketing  |  ✓   |   ✓    |      ✓       |      |            |            |                |         |
+ *   surface    | root | static | shared api   | auth | storefront | workspaces | storefront api | app api | mkt pages | /t (canonical)
+ *   -----------|------|--------|--------------|------|------------|------------|----------------|---------|-----------|---------------
+ *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |            |       ✓        |    ✓*   |           |       ✓
+ *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓    |           |       ✓
+ *   hub        |  ✓   |   ✓    |      ✓       |      |            |            |                |         |           |
+ *   marketing  |  ✓   |   ✓    |      ✓       |      |            |            |                |         |    ✓      |
  *
  *   static        → `/sitemap.xml`, `/robots.txt` (handlers generate their
  *                   own host-appropriate output)
@@ -114,6 +114,25 @@ const APP_API_EXACT_PATHS = [
  */
 const CANONICAL_TALENT_PREFIX = "/t" as const;
 
+/**
+ * Marketing-only public pages. These render the public SaaS marketing site
+ * (sold product, not tenant storefront). They never read tenant data and
+ * never require auth. Keep this list scoped; everything else 404s on the
+ * marketing host to preserve the surface boundary.
+ */
+const MARKETING_PAGE_PREFIXES = [
+  "/get-started",
+  "/operators",
+  "/agencies",
+  "/organizations",
+  "/how-it-works",
+  "/network",
+  "/pricing",
+  "/faq",
+  "/waitlist",
+  "/legal",
+] as const;
+
 function hasPrefix(pathname: string, prefix: string): boolean {
   if (pathname === prefix) return true;
   return pathname.startsWith(`${prefix}/`);
@@ -164,6 +183,10 @@ export function isPathAllowedForHostKind(
     );
   }
 
-  // hub + marketing: root, static, shared-api only.
+  if (kind === "marketing") {
+    return anyPrefix(pathname, MARKETING_PAGE_PREFIXES);
+  }
+
+  // hub: root, static, shared-api only.
   return false;
 }
