@@ -18,53 +18,64 @@ export const metadata: Metadata = {
 
 type Cell = "yes" | "no" | string;
 
-type Row = { label: string; values: [Cell, Cell, Cell] };
+type Row = { label: string; values: [Cell, Cell, Cell, Cell] };
 
 type Section = { title: string; rows: Row[] };
 
 const SECTIONS: Section[] = [
   {
-    title: "Roster & site",
+    title: "Inquiry → booking pipeline",
     rows: [
-      { label: "Free subdomain", values: ["yes", "yes", "yes"] },
-      { label: "Custom domain", values: ["no", "yes", "yes"] },
-      { label: "Branded identity & design system", values: ["Basic", "Full", "Full + white-label"] },
-      { label: "People profiles", values: ["Up to 10", "Unlimited", "Unlimited"] },
-      { label: "CMS pages / posts / nav", values: ["no", "yes", "yes"] },
-      { label: "Multi-locale", values: ["no", "yes", "yes"] },
+      { label: "Structured inquiry inbox", values: ["yes", "yes", "yes", "yes"] },
+      { label: "Versioned offers", values: ["yes", "yes", "yes", "yes"] },
+      { label: "Multi-party approvals", values: ["yes", "yes", "yes", "yes"] },
+      { label: "Booking conversion + calendar data", values: ["yes", "yes", "yes", "yes"] },
     ],
   },
   {
-    title: "Inquiry & booking",
+    title: "Notifications & messaging",
     rows: [
-      { label: "Structured inquiry inbox", values: ["yes", "yes", "yes"] },
-      { label: "Versioned offers", values: ["no", "yes", "yes"] },
-      { label: "Multi-party approvals", values: ["no", "yes", "yes"] },
-      { label: "Booking conversion + calendar data", values: ["no", "yes", "yes"] },
+      { label: "Email notifications", values: ["yes", "yes", "yes", "yes"] },
+      { label: "In-app notifications", values: ["yes", "yes", "yes", "yes"] },
+      { label: "Inquiry message threads", values: ["yes", "yes", "yes", "yes"] },
+      { label: "WhatsApp inquiry notifications", values: ["no", "yes", "yes", "yes"] },
+      { label: "Priority email routing", values: ["no", "yes", "yes", "yes"] },
+    ],
+  },
+  {
+    title: "Roster & site",
+    rows: [
+      { label: "Free subdomain", values: ["yes", "yes", "yes", "yes"] },
+      { label: "Custom domain", values: ["no", "no", "yes", "yes"] },
+      { label: "Branded identity & design system", values: ["Basic", "Basic", "Full", "Full + white-label"] },
+      { label: "People profiles", values: ["Up to 10", "Up to 50", "Unlimited", "Unlimited"] },
+      { label: "CMS pages / posts / nav", values: ["no", "no", "yes", "yes"] },
+      { label: "Multi-locale", values: ["no", "no", "yes", "yes"] },
     ],
   },
   {
     title: "Team & access",
     rows: [
-      { label: "Users", values: ["1", "Up to 8", "Unlimited"] },
-      { label: "Roles & permissions", values: ["no", "Built-in", "Advanced + custom"] },
-      { label: "SSO (SAML, Google, Okta)", values: ["no", "no", "On request"] },
-      { label: "Audit log", values: ["no", "90 days", "Full history"] },
+      { label: "Seats", values: ["1", "Up to 3", "Up to 8", "Unlimited"] },
+      { label: "Roles & permissions", values: ["no", "Basic", "Built-in", "Advanced + custom"] },
+      { label: "SSO (SAML, Google, Okta)", values: ["no", "no", "no", "On request"] },
+      { label: "Audit log", values: ["no", "30 days", "90 days", "Full history"] },
     ],
   },
   {
     title: "Network & data",
     rows: [
-      { label: "Shared hub discovery (opt-in)", values: ["yes", "yes", "yes"] },
-      { label: "Analytics & funnels", values: ["Basic", "Full", "Full + export API"] },
-      { label: "Data export", values: ["CSV", "CSV + JSON", "API access"] },
-      { label: "Priority onboarding", values: ["no", "no", "yes"] },
+      { label: "Shared hub discovery (opt-in)", values: ["yes", "yes", "yes", "yes"] },
+      { label: "Analytics & funnels", values: ["Basic", "Basic", "Full", "Full + export API"] },
+      { label: "Data export", values: ["CSV", "CSV", "CSV + JSON", "API access"] },
+      { label: "Priority onboarding", values: ["no", "no", "no", "yes"] },
     ],
   },
 ];
 
 const TIERS = [
   { name: "Free", caption: "Every operator, forever." },
+  { name: "Studio", caption: "Solo + small team, on WhatsApp." },
   { name: "Agency", caption: "Teams running representation." },
   { name: "Network", caption: "Staffing, casting, and scale." },
 ];
@@ -122,7 +133,7 @@ export default function PricingPage() {
             {/* Desktop table */}
             <div className="hidden md:block">
               <div
-                className="grid grid-cols-[1.5fr_1fr_1fr_1fr] items-end gap-x-4 border-b px-8 py-6"
+                className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr] items-end gap-x-4 border-b px-8 py-6"
                 style={{ borderColor: "var(--plt-hairline)" }}
               >
                 <span
@@ -135,7 +146,7 @@ export default function PricingPage() {
                   <div key={t.name}>
                     <span
                       className="plt-display text-[1.25rem] font-medium tracking-[-0.02em]"
-                      style={{ color: i === 1 ? "var(--plt-forest)" : "var(--plt-ink)" }}
+                      style={{ color: i === 2 ? "var(--plt-forest)" : "var(--plt-ink)" }}
                     >
                       {t.name}
                     </span>
@@ -164,7 +175,7 @@ export default function PricingPage() {
                     {section.rows.map((r) => (
                       <li
                         key={r.label}
-                        className="grid grid-cols-[1.5fr_1fr_1fr_1fr] items-center gap-x-4 border-b px-8 py-4 text-[0.9375rem] last:border-b-0"
+                        className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr] items-center gap-x-4 border-b px-8 py-4 text-[0.9375rem] last:border-b-0"
                         style={{ borderColor: "var(--plt-hairline)" }}
                       >
                         <span style={{ color: "var(--plt-ink)" }}>{r.label}</span>
@@ -191,7 +202,7 @@ export default function PricingPage() {
                   >
                     <span
                       className="plt-display text-[1.375rem] font-medium tracking-[-0.02em]"
-                      style={{ color: tierIdx === 1 ? "var(--plt-forest)" : "var(--plt-ink)" }}
+                      style={{ color: tierIdx === 2 ? "var(--plt-forest)" : "var(--plt-ink)" }}
                     >
                       {t.name}
                     </span>

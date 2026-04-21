@@ -18,7 +18,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 type AudienceKey = "operator" | "agency" | "organization";
 type RosterBucket = "1-5" | "6-20" | "21-50" | "50+";
-type TierKey = "free" | "agency" | "network";
+type TierKey = "free" | "studio" | "agency" | "network";
 
 type Props = {
   initialAudience?: AudienceKey;
@@ -164,9 +164,9 @@ export function GetStartedForm({ initialAudience = "operator", tier }: Props) {
           style={{ color: "var(--plt-muted)" }}
         >
           We&rsquo;ll email{" "}
-          <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong> with your
-          setup link, usually within the hour. Check spam if you don&rsquo;t see it by
-          tomorrow.
+          <strong style={{ color: "var(--plt-ink)" }}>{state.email}</strong>{" "}
+          with your setup link, usually within the hour. Check spam if you
+          don&rsquo;t see it by tomorrow.
         </p>
         <ul
           className="mt-6 space-y-2.5 text-[0.9375rem]"

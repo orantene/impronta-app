@@ -80,7 +80,7 @@ const SignupSchema = z.object({
     .optional()
     .or(z.literal("")),
   rosterSize: z.enum(["1-5", "6-20", "21-50", "50+"]),
-  tierInterest: z.enum(["free", "agency", "network"]).optional(),
+  tierInterest: z.enum(["free", "studio", "agency", "network"]).optional(),
   utm_source: z.string().max(120).optional(),
   utm_medium: z.string().max(120).optional(),
   utm_campaign: z.string().max(120).optional(),
@@ -276,7 +276,7 @@ async function sendFounderDigest(params: {
   audience: "operator" | "agency" | "organization";
   rosterSize: string;
   subdomain: string | null;
-  tierInterest: "free" | "agency" | "network" | null;
+  tierInterest: "free" | "studio" | "agency" | "network" | null;
   utmSource: string | null;
   referrer: string | null;
 }): Promise<void> {

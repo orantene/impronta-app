@@ -24,13 +24,19 @@ const HEADLINE_BY_TIER: Record<string, { eyebrow: string; title: string; subtitl
     eyebrow: "Start free",
     title: "Your roster, online in ten minutes.",
     subtitle:
-      "A free subdomain, up to ten people profiles, a structured inquiry inbox, and opt-in hub discovery. Upgrade on your schedule.",
+      "A free subdomain, up to ten people profiles, and the full inquiry → offer → booking pipeline. Email + in-app notifications included.",
+  },
+  studio: {
+    eyebrow: "Studio · $19/mo",
+    title: "The pipeline, plus WhatsApp.",
+    subtitle:
+      "Up to fifty profiles, three seats, and inquiry notifications that ping WhatsApp — where your clients actually write to you.",
   },
   agency: {
     eyebrow: "Agency · 14-day trial",
-    title: "A branded directory. A real pipeline.",
+    title: "A branded business surface.",
     subtitle:
-      "Your own domain, a CMS-driven site, multi-user roles, and an inquiry → offer → booking pipeline. Full Agency plan, free for 14 days.",
+      "Your own domain, a CMS-driven site, unlimited profiles, and eight seats with roles & permissions. Full Agency plan, free for 14 days.",
   },
   network: {
     eyebrow: "Network · Book a walkthrough",
@@ -42,11 +48,11 @@ const HEADLINE_BY_TIER: Record<string, { eyebrow: string; title: string; subtitl
     eyebrow: "Start free",
     title: "Put your roster on the internet, properly.",
     subtitle:
-      "Claim your subdomain, add your roster, and share one polished link. Built for operators, agencies, casting, staffing, and placement teams.",
+      "Claim your subdomain, add your roster, and share one polished link. Every plan ships with the full inquiry → offer → booking pipeline.",
   },
 };
 
-type TierKey = "free" | "agency" | "network";
+type TierKey = "free" | "studio" | "agency" | "network";
 
 export default async function GetStartedPage({
   searchParams,
@@ -58,7 +64,7 @@ export default async function GetStartedPage({
   const copy = HEADLINE_BY_TIER[tierKey];
   const initialAudience = mapAudience(resolved.audience ?? null);
   const tier: TierKey | undefined =
-    tierKey === "free" || tierKey === "agency" || tierKey === "network"
+    tierKey === "free" || tierKey === "studio" || tierKey === "agency" || tierKey === "network"
       ? (tierKey as TierKey)
       : undefined;
 
@@ -449,35 +455,49 @@ function PlanLadderSection() {
       <MarketingContainer size="wide">
         <div className="grid items-end gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <div>
-            <MarketingEyebrow>Start free. Upgrade on your schedule.</MarketingEyebrow>
+            <MarketingEyebrow>The pipeline is on every plan.</MarketingEyebrow>
             <h2
               className="plt-display mt-4 text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]"
               style={{ color: "var(--plt-ink)" }}
             >
-              One product, three gears.
+              One product. Four sizes.
             </h2>
           </div>
           <p
             className="text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            Every roster starts on a free subdomain. Bring your own domain, unlock the
-            pipeline, add your team, or turn on the shared hub — only when the work pays
-            for it.
+            Every tier turns inquiries into bookings — the full pipeline ships on Free.
+            What grows with each step is roster size, notification channels, and how
+            branded the surface is.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-3 md:gap-6">
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
           <PlanCard
             tier="Free"
             price="$0"
             cadence="forever"
-            tagline="Claim your subdomain today."
+            tagline="The pipeline, on a free subdomain."
             highlights={[
+              "Inquiry → offer → booking pipeline",
+              "Email + in-app notifications",
               `your-roster.${PLATFORM_BRAND.domain}`,
               "Up to 10 people profiles",
-              "Structured inquiry inbox",
               "Hub discovery (opt-in)",
+            ]}
+          />
+          <PlanCard
+            tier="Studio"
+            price="$19"
+            cadence="per month"
+            tagline="Where your inquiries actually happen."
+            highlights={[
+              "Everything in Free, plus:",
+              "WhatsApp inquiry notifications",
+              "Up to 50 people profiles",
+              "Up to 3 seats",
+              "Priority email routing",
             ]}
           />
           <PlanCard
@@ -485,13 +505,13 @@ function PlanLadderSection() {
             tier="Agency"
             price="$49"
             cadence="per month"
-            tagline="When you need a real business surface."
+            tagline="A branded business surface."
             highlights={[
+              "Everything in Studio, plus:",
               "Custom domain + branded site",
               "CMS: pages, posts, navigation, design",
               "Unlimited people profiles",
-              "Inquiry → offer → booking pipeline",
-              "Multi-user with roles & permissions",
+              "Up to 8 seats, roles & permissions",
             ]}
           />
           <PlanCard
