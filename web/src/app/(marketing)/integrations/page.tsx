@@ -166,6 +166,7 @@ export default function IntegrationsPage() {
 
       <FoundationSection />
       <DeliveryModesSection />
+      <RoadmapSection />
       <GovernanceSection />
       <ConsumerExamplesSection />
       <AccessSection />
@@ -785,6 +786,196 @@ function ApiArt() {
 }`}
       </pre>
     </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+
+type RoadmapStage = {
+  id: "live" | "next" | "later";
+  status: string;
+  title: string;
+  body: string;
+  bullets: string[];
+};
+
+const ROADMAP_STAGES: RoadmapStage[] = [
+  {
+    id: "live",
+    status: "Live",
+    title: "Full platform sites",
+    body: "Hosted roster site on a free subdomain, custom domain on paid plans. What every signup gets today.",
+    bullets: [
+      "Hosted roster + canonical profiles",
+      "Inquiry inbox + booking pipeline",
+      "Shared hub discovery (opt-in)",
+    ],
+  },
+  {
+    id: "next",
+    status: "Next",
+    title: "Embeds + public read API",
+    body: "The first slice of off-platform delivery. Starts with a single-profile embed and an org-scoped read API; widens from there.",
+    bullets: [
+      "Single-profile embed (WordPress, Webflow, Shopify)",
+      "Org-scoped read-only JSON API",
+      "Admin-managed keys with domain allow-list",
+    ],
+  },
+  {
+    id: "later",
+    status: "Later",
+    title: "Deferred by design",
+    body: "Explicitly not in the MVP. We'll build them when the foundation underneath has proven itself.",
+    bullets: [
+      "Inquiry-write widgets (form \u2192 pipeline)",
+      "Webhooks + language SDKs",
+      "White-label widget domains + partner apps",
+    ],
+  },
+];
+
+function RoadmapSection() {
+  return (
+    <MarketingSection
+      id="roadmap"
+      className="relative"
+      style={{ background: "var(--plt-bg)" }}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{ background: "var(--plt-hairline)" }}
+      />
+      <MarketingContainer size="wide">
+        <div className="mx-auto max-w-2xl text-center">
+          <MarketingEyebrow>Where we are today</MarketingEyebrow>
+          <h2
+            className="plt-display mt-5 text-[2rem] font-medium leading-[1.05] tracking-[-0.02em] sm:text-[2.75rem]"
+            style={{ color: "var(--plt-ink)" }}
+          >
+            Shipping in slices,
+            <br />
+            <span style={{ color: "var(--plt-forest)" }}>
+              not a big-bang launch.
+            </span>
+          </h2>
+          <p
+            className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
+            style={{ color: "var(--plt-muted)" }}
+          >
+            {PLATFORM_BRAND.name} is in private beta. We build one delivery mode
+            at a time so each one actually works — and we&rsquo;re honest about
+            what that looks like today.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-5 md:grid-cols-3 md:gap-6">
+          {ROADMAP_STAGES.map((stage) => (
+            <RoadmapCard key={stage.id} stage={stage} />
+          ))}
+        </div>
+
+        <p
+          className="mx-auto mt-10 max-w-2xl text-center text-[0.875rem]"
+          style={{ color: "var(--plt-muted)" }}
+        >
+          Commercial embed + API access roll out alongside billing and custom
+          domains. Want early access when the first slice ships?{" "}
+          <Link
+            href="/get-started"
+            className="underline decoration-[var(--plt-hairline-strong)] underline-offset-[3px] transition-colors hover:text-[var(--plt-ink)]"
+            style={{ color: "var(--plt-ink-soft)" }}
+          >
+            Tell us when you sign up
+          </Link>
+          .
+        </p>
+      </MarketingContainer>
+    </MarketingSection>
+  );
+}
+
+function RoadmapCard({ stage }: { stage: RoadmapStage }) {
+  const isLive = stage.id === "live";
+  const isNext = stage.id === "next";
+  const accent = isLive
+    ? "var(--plt-forest)"
+    : isNext
+    ? "var(--plt-forest)"
+    : "var(--plt-muted-soft)";
+  const statusBg = isLive
+    ? "rgba(46,107,82,0.14)"
+    : isNext
+    ? "rgba(46,107,82,0.08)"
+    : "rgba(15,23,20,0.06)";
+  const statusFg = isLive
+    ? "var(--plt-forest)"
+    : isNext
+    ? "var(--plt-forest)"
+    : "var(--plt-muted)";
+  return (
+    <article
+      className="relative flex flex-col overflow-hidden rounded-[28px] p-7 sm:p-8"
+      style={{
+        background: "var(--plt-bg-raised)",
+        border: `1px solid ${isLive ? "var(--plt-hairline-strong)" : "var(--plt-hairline)"}`,
+        boxShadow: isLive
+          ? "0 28px 56px -28px rgba(15,23,20,0.22)"
+          : "inset 0 1px 0 rgba(255,255,255,0.4)",
+      }}
+    >
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[2px] origin-left"
+        style={{ background: accent, opacity: isLive ? 1 : isNext ? 0.6 : 0.25 }}
+      />
+
+      <span
+        className="plt-mono inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] font-medium uppercase tracking-[0.22em]"
+        style={{ background: statusBg, color: statusFg }}
+      >
+        {isLive ? (
+          <span
+            aria-hidden
+            className="inline-block h-1.5 w-1.5 rounded-full"
+            style={{ background: "var(--plt-forest)" }}
+          />
+        ) : null}
+        {stage.status}
+      </span>
+
+      <h3
+        className="plt-display mt-4 text-[1.375rem] font-medium leading-[1.2] tracking-[-0.02em] sm:text-[1.5rem]"
+        style={{ color: "var(--plt-ink)" }}
+      >
+        {stage.title}
+      </h3>
+
+      <p
+        className="mt-3 text-[0.9375rem] leading-[1.55]"
+        style={{ color: "var(--plt-muted)" }}
+      >
+        {stage.body}
+      </p>
+
+      <ul className="mt-5 space-y-2.5">
+        {stage.bullets.map((b) => (
+          <li
+            key={b}
+            className="flex items-start gap-2.5 text-[0.875rem] leading-[1.5]"
+            style={{ color: "var(--plt-ink-soft)" }}
+          >
+            <span
+              aria-hidden
+              className="mt-[7px] inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: accent }}
+            />
+            {b}
+          </li>
+        ))}
+      </ul>
+    </article>
   );
 }
 
