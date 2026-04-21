@@ -40,6 +40,12 @@ import {
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
+import {
+  resolveTalentVisibility,
+  type TalentSurface,
+} from "@/lib/talent/visibility";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -377,8 +383,20 @@ export async function generateMetadata({
   const locale = await getRequestLocale();
   const site =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
+
+  // Phase 5/6 M2 — the canonical URL for a talent is ALWAYS the app host
+  // (`app.pdcvacations.com/t/[code]`). When the agency storefront renders
+  // the overlay view, it emits a canonical pointing back to the app host
+  // so search engines consolidate signals on the global view. If the
+  // app-host origin can't be resolved (env + DB both empty in a dev-less
+  // build), fall back to a relative path — better than a broken URL.
+  const canonicalAbsolute = await canonicalTalentUrl(profileCode);
   const pathEn = `/t/${encodeURIComponent(profileCode)}`;
   const pathEs = `/es/t/${encodeURIComponent(profileCode)}`;
+  const canonicalEn = canonicalAbsolute ?? pathEn;
+  const canonicalEs = canonicalAbsolute
+    ? `${canonicalAbsolute.replace(/\/t\/[^/]+$/, "")}${pathEs}`
+    : pathEs;
 
   const name = profile.display_name?.trim() ||
     [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
@@ -402,11 +420,11 @@ export async function generateMetadata({
     description,
     metadataBase: new URL(site),
     alternates: {
-      canonical: locale === "es" ? pathEs : pathEn,
+      canonical: locale === "es" ? canonicalEs : canonicalEn,
       languages: {
-        en: pathEn,
-        es: pathEs,
-        "x-default": pathEn,
+        en: canonicalEn,
+        es: canonicalEs,
+        "x-default": canonicalEn,
       },
     },
     openGraph: {
@@ -438,6 +456,17 @@ export default async function PublicTalentProfilePage({
   const ui = buildDirectoryUiCopy(t);
   const previewMode = preview === "1";
 
+  // Phase 5/6 M2 — surface gate. Hub hosts never serve /t/* (the hub has its
+  // own approved-hub-directory surface). The surface-allow-list already 404s
+  // this at the middleware edge; this is defense-in-depth for direct route
+  // access in tests, prerender, or middleware bypass.
+  const hostCtx = await getPublicHostContext();
+  if (hostCtx.kind === "hub") {
+    notFound();
+  }
+  const surface: TalentSurface =
+    hostCtx.kind === "agency" ? "agency" : "freelancer";
+
   if (!isSupabaseConfigured()) {
     return (
       <PublicDiscoveryStateProvider>
@@ -454,6 +483,30 @@ export default async function PublicTalentProfilePage({
     notFound();
   }
   const { pub, fieldValuesClient, profile, preview: resolvedPreview } = result;
+
+  // Phase 5/6 M2 — explicit surface-aware visibility. On non-preview flows,
+  // the freelancer/app surface requires workflow_status='approved' AND
+  // visibility='public' AND deleted_at IS NULL. RLS enforces the same rule
+  // for anon reads; the resolver makes the contract code-visible and
+  // protects authenticated-but-unauthorised readers from unapproved rows
+  // leaking through. (Agency surface continues to rely on roster RLS for
+  // M2; a roster-join resolver call wires in when overlays land.)
+  if (!resolvedPreview && surface === "freelancer") {
+    // RLS already filters soft-deleted rows for anon reads, so the row we
+    // have here has deleted_at=null by construction; pass it explicitly so
+    // the resolver's contract is satisfied and intent is code-visible.
+    const decision = resolveTalentVisibility(
+      {
+        profile: {
+          workflow_status: profile.workflow_status,
+          visibility: profile.visibility,
+          deleted_at: null,
+        },
+      },
+      "freelancer",
+    );
+    if (!decision.visible) notFound();
+  }
   const fieldValues = await fetchPublicFieldValues(fieldValuesClient, profile.id);
   type DetailEntry = { key: string; label: string; value: string; groupSort: number; sort: number };
 

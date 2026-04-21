@@ -86,6 +86,9 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
     "/api/cron/inquiry-engine",
     "/sitemap.xml",
     "/robots.txt",
+    // Phase 5/6 M2 — canonical talent surface lives on the app host.
+    "/t/jane-doe",
+    "/t/t_abc123",
   ];
   for (const p of allowed) {
     assert.equal(
@@ -98,7 +101,6 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
   const blocked = [
     "/directory",
     "/directory/cart",
-    "/t/jane-doe",
     "/p/about",
     "/posts/spring-2026",
     "/models",
@@ -113,6 +115,24 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
       `app must 404 ${p}`,
     );
   }
+});
+
+test("canonical talent surface: /t/* allowed on agency + app, 404 on hub + marketing", () => {
+  // Phase 5/6 M2 — /t/[profileCode] is the canonical public talent page.
+  // It renders on the app host (global canonical) and agency hosts (overlay
+  // view). Hub and marketing hosts must 404 it — the hub has its own
+  // approved-hub-directory surface, not /t, and marketing never serves
+  // tenant data.
+  const codes = ["/t/jane-doe", "/t/t_abc123", "/t/some-code/"];
+  for (const p of codes) {
+    assert.equal(isPathAllowedForHostKind("app", p), true, `app should allow ${p}`);
+    assert.equal(isPathAllowedForHostKind("agency", p), true, `agency should allow ${p}`);
+    assert.equal(isPathAllowedForHostKind("hub", p), false, `hub must 404 ${p}`);
+    assert.equal(isPathAllowedForHostKind("marketing", p), false, `marketing must 404 ${p}`);
+  }
+  // Prefix-boundary: /talent (workspace) is NOT /t (canonical).
+  assert.equal(isPathAllowedForHostKind("app", "/talent"), true);
+  assert.equal(isPathAllowedForHostKind("agency", "/talent"), false);
 });
 
 test("hub host: only root + static + bearer-gated shared api allowed", () => {
@@ -155,47 +175,6 @@ test("hub host: only root + static + bearer-gated shared api allowed", () => {
       isPathAllowedForHostKind("hub", p),
       false,
       `hub must 404 ${p}`,
-    );
-  }
-});
-
-test("marketing host: only root + static + bearer-gated shared api allowed", () => {
-  const allowed = [
-    "/",
-    "/sitemap.xml",
-    "/robots.txt",
-    "/api/cron/inquiry-engine",
-    "/api/analytics/events",
-  ];
-  for (const p of allowed) {
-    assert.equal(
-      isPathAllowedForHostKind("marketing", p),
-      true,
-      `marketing should allow ${p}`,
-    );
-  }
-
-  const blocked = [
-    "/directory",
-    "/t/jane-doe",
-    "/admin",
-    "/client",
-    "/talent",
-    "/login",
-    "/onboarding/role",
-    "/models",
-    "/contact",
-    "/auth/callback",
-    "/api/directory",
-    "/api/ai/search",
-    "/api/admin/search",
-    "/api/location-cities",
-  ];
-  for (const p of blocked) {
-    assert.equal(
-      isPathAllowedForHostKind("marketing", p),
-      false,
-      `marketing must 404 ${p}`,
     );
   }
 });

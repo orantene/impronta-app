@@ -8,12 +8,12 @@
  *
  * Rule table — which groups are reachable on which host:
  *
- *   surface    | root | static | shared api   | auth | storefront | workspaces | storefront api | app api
- *   -----------|------|--------|--------------|------|------------|------------|----------------|--------
- *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |            |       ✓        |    ✓*
- *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓
- *   hub        |  ✓   |   ✓    |      ✓       |      |            |            |                |
- *   marketing  |  ✓   |   ✓    |      ✓       |      |            |            |                |
+ *   surface    | root | static | shared api   | auth | storefront | workspaces | storefront api | app api | /t (canonical)
+ *   -----------|------|--------|--------------|------|------------|------------|----------------|---------|---------------
+ *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |            |       ✓        |    ✓*   |       ✓
+ *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓    |       ✓
+ *   hub        |  ✓   |   ✓    |      ✓       |      |            |            |                |         |
+ *   marketing  |  ✓   |   ✓    |      ✓       |      |            |            |                |         |
  *
  *   static        → `/sitemap.xml`, `/robots.txt` (handlers generate their
  *                   own host-appropriate output)
@@ -106,6 +106,14 @@ const APP_API_EXACT_PATHS = [
   "/api/location-cities",
 ] as const;
 
+/**
+ * Canonical public talent surface (`/t/[profileCode]`). Lives on the app host
+ * as the global canonical view (Phase 5/6 M2) and on agency hosts as the
+ * agency-overlay view. Hub and marketing hosts 404 it — talent pages on the
+ * hub belong to the approved-hub-directory surface, not `/t`.
+ */
+const CANONICAL_TALENT_PREFIX = "/t" as const;
+
 function hasPrefix(pathname: string, prefix: string): boolean {
   if (pathname === prefix) return true;
   return pathname.startsWith(`${prefix}/`);
@@ -151,7 +159,8 @@ export function isPathAllowedForHostKind(
       anyPrefix(pathname, APP_WORKSPACE_PREFIXES) ||
       anyPrefix(pathname, APP_API_PREFIXES) ||
       anyExact(pathname, APP_API_EXACT_PATHS) ||
-      anyPrefix(pathname, AUTH_PREFIXES)
+      anyPrefix(pathname, AUTH_PREFIXES) ||
+      hasPrefix(pathname, CANONICAL_TALENT_PREFIX)
     );
   }
 
