@@ -17,7 +17,7 @@ import { TrustStripSection } from "./trust-strip-section";
  * Layout rhythm (by section):
  *   hero  → contrast    (pain/gain primer)
  *         → how-it-works (3 steps, instantly graspable)
- *         → trust        (metrics + logos, breath)
+ *         → trust        (founder-led principles, no fake logos)
  *         → audience     (three buyer pathways)
  *         → features     (six-feature grid)
  *         → product-tour (mock browser + surfaces)

@@ -51,7 +51,7 @@ const FAQS: QA[] = [
   {
     id: "localization",
     q: "Does it work outside the US?",
-    a: "Yes. Multi-locale support, multi-currency pricing, and design tokens that translate cleanly across markets. Early adopters span LATAM, North America, and Europe.",
+    a: "Yes. Multi-locale support, multi-currency pricing, and design tokens that translate cleanly across markets. Built to work across LATAM, North America, and Europe out of the box.",
   },
 ];
 

@@ -30,7 +30,7 @@ const USE_CASES: UseCase[] = [
     title: "Casting & talent placement",
     body: "Curate the roster, expose it to clients through a filterable directory, and capture structured casting briefs that become real bookings.",
     metrics: [
-      { label: "Roster size", value: "1k+" },
+      { label: "Roster capacity", value: "Unlimited" },
       { label: "Attribute filters", value: "20+" },
     ],
   },
