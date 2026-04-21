@@ -183,6 +183,84 @@ test("hub host: only root + static + bearer-gated shared api allowed", () => {
   }
 });
 
+test("marketing host: public marketing pages + root + static + bearer-gated shared api allowed", () => {
+  const allowed = [
+    "/",
+    "/sitemap.xml",
+    "/robots.txt",
+    "/api/cron/inquiry-engine",
+    "/api/analytics/events",
+    "/get-started",
+    "/operators",
+    "/agencies",
+    "/organizations",
+    "/how-it-works",
+    "/network",
+    "/integrations",
+    "/pricing",
+    "/faq",
+    "/waitlist",
+    "/legal/privacy",
+    "/legal/terms",
+  ];
+  for (const p of allowed) {
+    assert.equal(
+      isPathAllowedForHostKind("marketing", p),
+      true,
+      `marketing should allow ${p}`,
+    );
+  }
+
+  const blocked = [
+    "/directory",
+    "/t/jane-doe",
+    "/admin",
+    "/client",
+    "/talent",
+    "/login",
+    "/onboarding/role",
+    "/models",
+    "/contact",
+    "/auth/callback",
+    "/api/directory",
+    "/api/ai/search",
+    "/api/admin/search",
+    "/api/location-cities",
+    "/operator",
+    "/agency",
+    "/pricing-plan",
+    "/get-started-today",
+  ];
+  for (const p of blocked) {
+    assert.equal(
+      isPathAllowedForHostKind("marketing", p),
+      false,
+      `marketing must 404 ${p}`,
+    );
+  }
+});
+
+test("marketing host: non-marketing hosts must 404 marketing pages", () => {
+  const marketingPages = [
+    "/get-started",
+    "/operators",
+    "/agencies",
+    "/organizations",
+    "/how-it-works",
+    "/network",
+    "/integrations",
+    "/pricing",
+    "/faq",
+    "/waitlist",
+    "/legal/privacy",
+  ];
+  for (const p of marketingPages) {
+    assert.equal(isPathAllowedForHostKind("agency", p), false, `agency must 404 ${p}`);
+    assert.equal(isPathAllowedForHostKind("app", p), false, `app must 404 ${p}`);
+    assert.equal(isPathAllowedForHostKind("hub", p), false, `hub must 404 ${p}`);
+  }
+});
+
 test("prefix boundaries: /talented is not /talent, /administration is not /admin", () => {
   // Segment boundary protection — workspace prefixes must not swallow
   // storefront routes that happen to share a leading substring.
