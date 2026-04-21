@@ -24,10 +24,20 @@ export function MarketingHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    const onScroll = () => {
+      const y =
+        typeof window.scrollY === "number"
+          ? window.scrollY
+          : document.documentElement.scrollTop;
+      setScrolled(y > 8);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    document.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("scroll", onScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -48,14 +58,18 @@ export function MarketingHeader() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-40 transition-[background,border-color,backdrop-filter] duration-300",
-        condensed ? "backdrop-blur-xl" : "backdrop-blur-0",
+        "fixed inset-x-0 top-0 z-40 backdrop-blur-xl transition-[background-color,border-color,box-shadow] duration-300",
       )}
       style={{
         background: condensed
-          ? "color-mix(in srgb, var(--plt-bg) 80%, transparent)"
-          : "transparent",
-        borderBottom: `1px solid ${condensed ? "var(--plt-hairline)" : "transparent"}`,
+          ? "color-mix(in srgb, var(--plt-bg) 92%, transparent)"
+          : "color-mix(in srgb, var(--plt-bg) 72%, transparent)",
+        borderBottom: `1px solid ${
+          condensed ? "var(--plt-hairline-strong)" : "var(--plt-hairline)"
+        }`,
+        boxShadow: condensed
+          ? "0 6px 18px -12px rgba(15,23,20,0.18)"
+          : "0 1px 0 rgba(15,23,20,0.02)",
       }}
     >
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:h-[72px] sm:px-8">
