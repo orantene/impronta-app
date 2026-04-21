@@ -56,16 +56,18 @@ async function resolveInviterTargetType(
   supabase: SupabaseClient,
   inviterTenantId: string,
 ): Promise<"agency" | "hub" | null> {
+  // Hub is the single reserved UUID; every other agencies row is an agency
+  // tenant. We intentionally don't read `agencies.kind` here because that
+  // column only exists after the P5/6 M0 migration — this function must
+  // work pre- and post-M0.
   if (inviterTenantId === HUB_AGENCY_ID) return "hub";
   const { data, error } = await supabase
     .from("agencies")
-    .select("kind")
+    .select("id")
     .eq("id", inviterTenantId)
     .maybeSingle();
   if (error || !data) return null;
-  if (data.kind === "hub") return "hub";
-  if (data.kind === "agency") return "agency";
-  return null;
+  return "agency";
 }
 
 async function resolveOwnTalentProfileId(

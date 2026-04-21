@@ -7,6 +7,7 @@ import {
   TalentSectionLabel,
 } from "@/components/talent/talent-dashboard-primitives";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { HUB_AGENCY_ID } from "@/lib/saas";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
 import {
   TalentApplyToAgencyForm,
@@ -127,10 +128,12 @@ export default async function TalentRepresentationsPage() {
       .eq("talent_profile_id", profile.id)
       .order("requested_at", { ascending: false })
       .limit(25),
+    // Agency picker: exclude the reserved hub UUID. We filter by id rather
+    // than `agencies.kind` because that column only exists post P5/6 M0.
     supabase
       .from("agencies")
-      .select("id, display_name, kind")
-      .eq("kind", "agency")
+      .select("id, display_name")
+      .neq("id", HUB_AGENCY_ID)
       .order("display_name", { ascending: true }),
   ]);
 
