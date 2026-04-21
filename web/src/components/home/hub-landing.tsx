@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createPublicSupabaseClient } from "@/lib/supabase/public";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
@@ -5,6 +6,7 @@ import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { isLocale } from "@/lib/site-admin/locales";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
+import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 
 /**
  * Root page for `kind === "hub"` — the cross-tenant hub surface
@@ -27,10 +29,11 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
   const locale: Locale = await getRequestLocale();
   const cmsLocale = isLocale(locale) ? locale : null;
 
-  const [identity, cmsHomepage, agencies] = await Promise.all([
+  const [identity, cmsHomepage, agencies, hubTalent] = await Promise.all([
     loadPublicIdentity(tenantId),
     cmsLocale ? loadPublicHomepage(tenantId, cmsLocale) : Promise.resolve(null),
     loadActiveAgencyDomains(),
+    loadHubApprovedTalent(tenantId),
   ]);
 
   const kicker = identity?.public_name ?? "Impronta Hub";
@@ -85,9 +88,114 @@ export async function HubLanding({ tenantId }: { tenantId: string }) {
             ))}
           </ul>
         )}
+
+        <HubTalentDirectory talent={hubTalent} />
       </main>
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Hub talent directory — approved-visibility grid
+// ---------------------------------------------------------------------------
+
+type HubTalentCard = {
+  profile_code: string;
+  display_name: string | null;
+  canonicalUrl: string | null;
+};
+
+async function HubTalentDirectory({ talent }: { talent: HubTalentCard[] }) {
+  if (talent.length === 0) return null;
+  return (
+    <section className="mt-16">
+      <h2 className="font-display text-sm font-medium uppercase tracking-[0.3em] text-[var(--impronta-gold-dim)]">
+        Featured on the hub
+      </h2>
+      <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {talent.map((t) => {
+          const label = t.display_name?.trim() || t.profile_code;
+          const card = (
+            <div className="flex h-full flex-col justify-between rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 px-5 py-4 text-sm transition hover:bg-[var(--impronta-surface)]/60">
+              <span className="font-display tracking-[0.06em] text-foreground">
+                {label}
+              </span>
+              <span className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--impronta-muted)]">
+                {t.profile_code}
+              </span>
+            </div>
+          );
+          return (
+            <li key={t.profile_code}>
+              {t.canonicalUrl ? (
+                <Link href={t.canonicalUrl} target="_blank" rel="noopener">
+                  {card}
+                </Link>
+              ) : (
+                card
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+type HubRosterJoinRow = {
+  talent_profiles: {
+    profile_code: string;
+    display_name: string | null;
+    workflow_status: string | null;
+    visibility: string | null;
+    deleted_at: string | null;
+  } | null;
+};
+
+async function loadHubApprovedTalent(
+  hubTenantId: string,
+): Promise<HubTalentCard[]> {
+  const supabase = createPublicSupabaseClient();
+  if (!supabase) return [];
+
+  // Resolver contract (web/src/lib/talent/visibility.ts §hub):
+  //   roster row on this hub tenant, hub_visibility_status='approved',
+  //   joined to an approved + public + live talent_profiles row.
+  // RLS on agency_talent_roster permits anon reads only when the joined
+  // talent row passes the same gates, so this query is also the
+  // authoritative boundary.
+  const { data } = await supabase
+    .from("agency_talent_roster")
+    .select(
+      `
+        talent_profiles!inner (
+          profile_code, display_name,
+          workflow_status, visibility, deleted_at
+        )
+      `,
+    )
+    .eq("tenant_id", hubTenantId)
+    .eq("hub_visibility_status", "approved")
+    .eq("status", "active")
+    .eq("talent_profiles.workflow_status", "approved")
+    .eq("talent_profiles.visibility", "public")
+    .is("talent_profiles.deleted_at", null)
+    .limit(48);
+
+  const rows = (data ?? []) as unknown as HubRosterJoinRow[];
+  const cards = await Promise.all(
+    rows
+      .map((r) => r.talent_profiles)
+      .filter(
+        (tp): tp is NonNullable<HubRosterJoinRow["talent_profiles"]> => !!tp,
+      )
+      .map(async (tp) => ({
+        profile_code: tp.profile_code,
+        display_name: tp.display_name,
+        canonicalUrl: await canonicalTalentUrl(tp.profile_code),
+      })),
+  );
+  return cards;
 }
 
 type AgencyDomainRow = { hostname: string; kind: string };
