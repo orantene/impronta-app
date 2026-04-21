@@ -5,8 +5,10 @@ import {
   MarketingSection,
 } from "@/components/marketing/container";
 import { MarketingCta } from "@/components/marketing/cta-link";
+import { EditorialFrame } from "@/components/marketing/editorial-image";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { GetStartedForm } from "@/components/marketing/get-started-form";
+import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 export const metadata: Metadata = {
@@ -131,6 +133,16 @@ function HeroSection({
                 <Dot /> Upgrade any time
               </li>
             </ul>
+
+            <EditorialFrame
+              photo={MARKETING_PHOTOS.welcome}
+              aspect="landscape"
+              size="md"
+              tone="cream"
+              className="mt-10 w-full"
+              eyebrow="Built for how you already work"
+              caption="Operators and teams around the world run their rosters here."
+            />
 
             <div
               className="mt-12 rounded-2xl border p-6"

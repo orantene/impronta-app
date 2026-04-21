@@ -1,6 +1,8 @@
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { MARKETING_PHOTOS, type MarketingPhoto } from "@/lib/marketing/photography";
 import { MarketingContainer, MarketingEyebrow, MarketingSection } from "./container";
 import { MarketingCta } from "./cta-link";
+import { EditorialFrame } from "./editorial-image";
 
 type Audience = {
   key: "operator" | "agency" | "organization";
@@ -10,6 +12,7 @@ type Audience = {
   bullets: string[];
   cta: { label: string; href: string; intent: string };
   tint: "neutral" | "forest" | "ink";
+  photo: MarketingPhoto;
 };
 
 const AUDIENCES: Audience[] = [
@@ -27,6 +30,7 @@ const AUDIENCES: Audience[] = [
     ],
     cta: { label: "Start free as an operator", href: "/operators", intent: "operator" },
     tint: "neutral",
+    photo: MARKETING_PHOTOS.operator,
   },
   {
     key: "agency",
@@ -42,6 +46,7 @@ const AUDIENCES: Audience[] = [
     ],
     cta: { label: "See agency features", href: "/agencies", intent: "agency" },
     tint: "ink",
+    photo: MARKETING_PHOTOS.agency,
   },
   {
     key: "organization",
@@ -61,6 +66,7 @@ const AUDIENCES: Audience[] = [
       intent: "organization",
     },
     tint: "forest",
+    photo: MARKETING_PHOTOS.organization,
   },
 ];
 
@@ -132,6 +138,14 @@ function AudienceCard({ audience }: { audience: Audience }) {
             : "0 28px 64px -32px rgba(15,23,20,0.22)",
       }}
     >
+      <EditorialFrame
+        photo={audience.photo}
+        aspect="landscape"
+        size="md"
+        tone={isInk ? "ink" : isForest ? "forest" : "cream"}
+        className="mb-6 w-full"
+      />
+
       <span
         className="plt-mono text-[0.6875rem] font-medium uppercase tracking-[0.22em]"
         style={{

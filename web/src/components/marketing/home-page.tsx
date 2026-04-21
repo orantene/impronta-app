@@ -5,6 +5,7 @@ import { FeatureGridSection } from "./feature-grid-section";
 import { FinalCtaSection } from "./final-cta-section";
 import { HeroSection } from "./hero-section";
 import { HowItWorksSection } from "./how-it-works-section";
+import { LifestyleBandSection } from "./lifestyle-band-section";
 import { MarketingAnalyticsTracker } from "./analytics-tracker";
 import { NetworkSection } from "./network-section";
 import { PricingTeaserSection } from "./pricing-teaser-section";
@@ -34,6 +35,9 @@ export function MarketingHomePage() {
     <MarketingAnalyticsTracker sourcePage="home">
       <div data-mkt-section="hero">
         <HeroSection />
+      </div>
+      <div data-mkt-section="lifestyle-band">
+        <LifestyleBandSection />
       </div>
       <div data-mkt-section="contrast">
         <ContrastSection />

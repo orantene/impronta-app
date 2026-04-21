@@ -8,7 +8,9 @@ import {
   MarketingSection,
 } from "@/components/marketing/container";
 import { MarketingCta } from "@/components/marketing/cta-link";
+import { EditorialFrame } from "@/components/marketing/editorial-image";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
+import { MARKETING_PHOTOS } from "@/lib/marketing/photography";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 export const metadata: Metadata = {
@@ -166,12 +168,32 @@ export default function IntegrationsPage() {
 
       <FoundationSection />
       <DeliveryModesSection />
+      <SurfacesLifestyleBand />
       <RoadmapSection />
       <GovernanceSection />
       <ConsumerExamplesSection />
       <AccessSection />
       <FinalCtaSection />
     </>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────── */
+
+function SurfacesLifestyleBand() {
+  return (
+    <MarketingSection spacing="tight" style={{ background: "var(--plt-bg)" }}>
+      <MarketingContainer size="wide">
+        <EditorialFrame
+          photo={MARKETING_PHOTOS.systems}
+          aspect="wide"
+          size="lg"
+          tone="forest"
+          eyebrow="One roster · many surfaces"
+          caption="The same data, rendered where your team already works."
+        />
+      </MarketingContainer>
+    </MarketingSection>
   );
 }
 
