@@ -45,6 +45,7 @@ test("agency host: storefront + storefront api + auth + root + static allowed", 
     "/talent",
     "/talent/my-profile",
     "/onboarding/role",
+    "/invite/some-signed-token",
     "/api/admin/search",
     "/api/admin/inspector/talent",
     "/api/location-cities",
@@ -89,6 +90,9 @@ test("app host: workspaces + app api + auth + root + static allowed", () => {
     // Phase 5/6 M2 — canonical talent surface lives on the app host.
     "/t/jane-doe",
     "/t/t_abc123",
+    // Phase 5/6 M5 — invite-accept lives on the app host so cookie scope
+    // matches the canonical session / onboarding flow.
+    "/invite/some-signed-token",
   ];
   for (const p of allowed) {
     assert.equal(

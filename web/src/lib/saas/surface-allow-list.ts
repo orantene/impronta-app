@@ -22,7 +22,7 @@
  *   auth          → `/login`, `/register`, `/forgot-password`,
  *                   `/update-password`, `/auth` (OAuth/magic-link callback)
  *   storefront    → `/directory`, `/t`, `/p`, `/posts`, `/models`, `/contact`
- *   workspaces    → `/admin`, `/client`, `/talent`, `/onboarding`
+ *   workspaces    → `/admin`, `/client`, `/talent`, `/onboarding`, `/invite`
  *   storefront api→ `/api/directory`, `/api/ai`
  *   app api       → `/api/admin`, `/api/ai`, `/api/location-*`
  *
@@ -87,6 +87,7 @@ const APP_WORKSPACE_PREFIXES = [
   "/client",
   "/talent",
   "/onboarding",
+  "/invite",
 ] as const;
 
 /**
