@@ -32,6 +32,7 @@ const COLUMNS: FooterColumn[] = [
       { label: "People profiles", href: "/how-it-works#profiles" },
       { label: "Inquiry engine", href: "/agencies#pipeline" },
       { label: "Shared hub", href: "/network" },
+      { label: "API & embeds", href: "/integrations" },
     ],
   },
   {

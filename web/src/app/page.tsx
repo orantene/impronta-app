@@ -6,6 +6,7 @@ import { MarketingLanding } from "@/components/home/marketing-landing";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { isLocale } from "@/lib/site-admin/locales";
@@ -33,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
       : null;
     const fallbackTitle =
       ctx.kind === "hub"
-        ? "Impronta — Agencies on the platform"
+        ? `Agencies on the platform · ${PLATFORM_BRAND.name}`
         : t("public.meta.homeTitle");
     const fallbackDescription = t("public.meta.homeDescription");
     const title = homepage?.metaTitle || homepage?.title || fallbackTitle;
@@ -60,11 +61,29 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 
   if (ctx.kind === "marketing") {
-    return { title: "Impronta — Booking engine for modeling & talent agencies" };
+    const title = `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`;
+    return {
+      title,
+      description: PLATFORM_BRAND.description,
+      openGraph: {
+        title,
+        description: PLATFORM_BRAND.description,
+        siteName: PLATFORM_BRAND.name,
+        url: `https://${PLATFORM_BRAND.domain}/`,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description: PLATFORM_BRAND.description,
+      },
+    };
   }
 
   // app / unknown — internal workspace host, no SEO surface.
-  return { title: "Impronta Workspace", robots: { index: false, follow: false } };
+  return {
+    title: `${PLATFORM_BRAND.name} Workspace`,
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function HomePage() {

@@ -14,6 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Operators", href: "/operators", description: "For independents running solo" },
   { label: "Agencies", href: "/agencies", description: "For representation teams" },
   { label: "Network", href: "/network", description: "The shared discovery layer" },
+  { label: "Integrations", href: "/integrations", description: "Render your roster anywhere" },
   { label: "Pricing", href: "/pricing", description: "Free to start, simple to scale" },
 ];
 

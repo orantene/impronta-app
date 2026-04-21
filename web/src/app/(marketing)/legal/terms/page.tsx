@@ -15,7 +15,7 @@ export default function TermsPage() {
       lastUpdated="2026-04-01"
       intro={
         <p>
-          By using {PLATFORM_BRAND.name} you agree to these terms. We&rsquo;ve kept them short
+          By using {PLATFORM_BRAND.name}{" "}you agree to these terms. We&rsquo;ve kept them short
           and clear — no fine print tricks. If anything&rsquo;s ambiguous, the plain-language
           reading wins.
         </p>
@@ -89,7 +89,7 @@ export default function TermsPage() {
           body: (
             <>
               <p>
-                {PLATFORM_BRAND.name} is provided &ldquo;as is.&rdquo; To the extent allowed by
+                {PLATFORM_BRAND.name}{" "}is provided &ldquo;as is.&rdquo; To the extent allowed by
                 law, our aggregate liability is limited to fees paid in the 12 months before
                 the claim. We&rsquo;re not liable for indirect or consequential damages.
               </p>

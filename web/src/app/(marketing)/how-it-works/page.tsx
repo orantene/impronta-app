@@ -10,10 +10,9 @@ import {
 import { NetworkSection } from "@/components/marketing/network-section";
 import { ProductTourSection } from "@/components/marketing/product-tour-section";
 import { SimplePageHero } from "@/components/marketing/simple-page-hero";
-import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 export const metadata: Metadata = {
-  title: `How ${PLATFORM_BRAND.name} works`,
+  title: "How it works",
   description: `Three surfaces, one platform: a branded roster site, structured people profiles, and a real inquiry \u2192 offer \u2192 booking pipeline. Here\u2019s the full walkthrough.`,
 };
 

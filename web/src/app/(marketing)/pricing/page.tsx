@@ -87,7 +87,7 @@ export default function PricingPage() {
         sourcePage="pricing-hero"
       />
 
-      <PricingTeaserSection />
+      <PricingTeaserSection hideHeading />
 
       <MarketingSection
         className="relative"

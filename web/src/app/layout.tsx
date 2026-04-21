@@ -68,6 +68,18 @@ export const metadata: Metadata = {
     template: `%s · ${PLATFORM_BRAND.name}`,
   },
   description: PLATFORM_BRAND.description,
+  openGraph: {
+    siteName: PLATFORM_BRAND.name,
+    title: `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`,
+    description: PLATFORM_BRAND.description,
+    url: `https://${PLATFORM_BRAND.domain}/`,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`,
+    description: PLATFORM_BRAND.description,
+  },
 };
 
 /** Root reads locale from middleware header + cookies via `getRequestLocale()` — must not be statically prerendered. */

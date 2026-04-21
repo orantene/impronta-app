@@ -12,7 +12,7 @@ import { PLATFORM_BRAND } from "@/lib/platform/brand";
 export const metadata: Metadata = {
   title: "Start free — claim your roster link",
   description:
-    "Put your roster on the internet, properly. A free subdomain, a branded directory site, and a structured inquiry inbox — built for coordinators, representation businesses, casting, staffing, and placement operations.",
+    "Put your roster on the internet, properly. A free subdomain, a branded directory site, and a structured inquiry inbox — built for independent operators, representation businesses, casting, staffing, and placement operations.",
 };
 
 type AudienceKey = "operator" | "agency" | "organization";
@@ -39,7 +39,7 @@ const HEADLINE_BY_TIER: Record<string, { eyebrow: string; title: string; subtitl
   default: {
     eyebrow: "Start free",
     title: "Put your roster on the internet, properly.",
-    subtitle: `${PLATFORM_BRAND.name} is the operating system for anyone who manages people — independent coordinators, representation businesses, casting, staffing, and placement operations. Claim a free subdomain, add your roster, and share one polished link.`,
+    subtitle: `${PLATFORM_BRAND.name} is the operating system for anyone who manages people — independent operators, representation businesses, casting, staffing, and placement operations. Claim a free subdomain, add your roster, and share one polished link.`,
   },
 };
 
@@ -102,7 +102,7 @@ function HeroSection({
         }}
       />
       <MarketingContainer size="wide" className="relative">
-        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:gap-20">
+        <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:gap-20">
           <div className="pt-8 lg:pt-16">
             <MarketingEyebrow>{copy.eyebrow}</MarketingEyebrow>
             <h1
@@ -155,7 +155,7 @@ function HeroSection({
                 className="mt-4 text-[0.9375rem] leading-[1.6]"
                 style={{ color: "var(--plt-ink-soft)" }}
               >
-                {PLATFORM_BRAND.name} is in private beta with a small group of operators and
+                {PLATFORM_BRAND.name}{" "}is in private beta with a small group of operators and
                 agencies. We&rsquo;re onboarding signups by hand so each roster gets set up
                 properly. No fake social proof, no growth-hack funnel — just a product we&rsquo;re
                 building with the people who use it.
@@ -206,7 +206,7 @@ type Audience = {
 const AUDIENCES: Audience[] = [
   {
     key: "coordinators",
-    eyebrow: "Independent coordinators",
+    eyebrow: "Independent operators",
     title: "You ARE the business.",
     body: `You run a roster out of your phone — bookings, inquiries, profile shots, rate cards. ${PLATFORM_BRAND.name} gives you a real storefront without the overhead of building one.`,
     examples: "Freelance scouts, solo reps, placement coordinators, booking agents",
@@ -256,7 +256,7 @@ function WhoItsForSection() {
             style={{ color: "var(--plt-muted)" }}
           >
             {PLATFORM_BRAND.name} is the roster operating system for anyone whose product is{" "}
-            <em>people they represent</em> — solo coordinators, internal rosters, full
+            <em>people they represent</em> — solo operators, internal rosters, full
             agencies, and large placement operations. One engine, four shapes.
           </p>
         </div>

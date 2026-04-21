@@ -127,6 +127,7 @@ const MARKETING_PAGE_PREFIXES = [
   "/organizations",
   "/how-it-works",
   "/network",
+  "/integrations",
   "/pricing",
   "/faq",
   "/waitlist",

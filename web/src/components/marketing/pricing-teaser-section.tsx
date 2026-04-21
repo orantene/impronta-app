@@ -60,28 +60,32 @@ const TIERS: Tier[] = [
   },
 ];
 
-export function PricingTeaserSection() {
+export function PricingTeaserSection({
+  hideHeading = false,
+}: { hideHeading?: boolean } = {}) {
   return (
     <MarketingSection id="pricing">
       <MarketingContainer size="wide">
-        <div className="mx-auto max-w-2xl text-center">
-          <MarketingEyebrow>Pricing</MarketingEyebrow>
-          <h2
-            className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
-            style={{ color: "var(--mkt-ink)" }}
-          >
-            Start free. Grow on your schedule.
-          </h2>
-          <p
-            className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
-            style={{ color: "var(--mkt-muted)" }}
-          >
-            Every roster starts on a free subdomain. Bring your own domain, unlock the
-            pipeline, and add your team when the work demands it.
-          </p>
-        </div>
+        {hideHeading ? null : (
+          <div className="mx-auto max-w-2xl text-center">
+            <MarketingEyebrow>Pricing</MarketingEyebrow>
+            <h2
+              className="mkt-display mt-5 text-[2rem] font-medium tracking-[-0.02em] sm:text-[2.75rem] md:text-[3rem]"
+              style={{ color: "var(--mkt-ink)" }}
+            >
+              Start free. Grow on your schedule.
+            </h2>
+            <p
+              className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
+              style={{ color: "var(--mkt-muted)" }}
+            >
+              Every roster starts on a free subdomain. Bring your own domain, unlock the
+              pipeline, and add your team when the work demands it.
+            </p>
+          </div>
+        )}
 
-        <div className="mt-14 grid gap-5 md:grid-cols-3 md:gap-6">
+        <div className={`${hideHeading ? "" : "mt-14 "}grid gap-5 md:grid-cols-3 md:gap-6`}>
           {TIERS.map((t) => (
             <TierCard key={t.key} tier={t} />
           ))}
