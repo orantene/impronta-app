@@ -864,9 +864,9 @@ function RoadmapSection() {
             className="mx-auto mt-5 max-w-xl text-[1rem] leading-[1.6] sm:text-[1.0625rem]"
             style={{ color: "var(--plt-muted)" }}
           >
-            {PLATFORM_BRAND.name} is in private beta. We build one delivery mode
-            at a time so each one actually works — and we&rsquo;re honest about
-            what that looks like today.
+            {PLATFORM_BRAND.name}{" "}is in private beta. We build one delivery
+            mode at a time so each one actually works — and we&rsquo;re honest
+            about what that looks like today.
           </p>
         </div>
 
