@@ -14,6 +14,7 @@ import {
 } from "@/components/directory/public-discovery-state";
 import { ProfileAiStrip } from "@/components/directory/profile-ai-strip";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
+import { ShareProfileMenu } from "@/components/directory/share-profile-menu";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicHeader } from "@/components/public-header";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
@@ -697,6 +698,23 @@ export default async function PublicTalentProfilePage({
   const bannerUrl = presentation.bannerUrl;
   const hasCover = Boolean(bannerUrl);
 
+  // Phase 5/6 M5 — share URL must be the app-host canonical, so recipients
+  // land on the global view even when sharing happens from an agency overlay.
+  const siteBase =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    "http://localhost:3000";
+  const canonicalShareUrl =
+    (await canonicalTalentUrl(profile.profile_code)) ??
+    `${siteBase}/t/${encodeURIComponent(profile.profile_code)}`;
+  const shareLabels = {
+    heading: t("public.profile.share.heading"),
+    copyLink: t("public.profile.share.copyLink"),
+    copyLinkDone: t("public.profile.share.copyLinkDone"),
+    shareWhatsapp: t("public.profile.share.shareWhatsapp"),
+    shareSystem: t("public.profile.share.shareSystem"),
+    whatsappTemplate: t("public.profile.share.whatsappTemplate"),
+  };
+
   // Language summary line from taxonomy
   const langLine = languages.length > 0 ? languages.join(" · ") : null;
   const firstName = name.split(" ")[0] ?? name;
@@ -1062,6 +1080,16 @@ export default async function PublicTalentProfilePage({
                     mode="sidebar"
                     profileCta={ui.profileCta}
                     inquiry={ui.inquiry}
+                  />
+                </div>
+                <div className="mt-5 border-t border-[var(--impronta-gold-border)] pt-4">
+                  <ShareProfileMenu
+                    talentId={profile.id}
+                    profileCode={profile.profile_code}
+                    displayName={name}
+                    canonicalUrl={canonicalShareUrl}
+                    sourcePage={`/t/${encodeURIComponent(profile.profile_code)}`}
+                    labels={shareLabels}
                   />
                 </div>
               </div>
