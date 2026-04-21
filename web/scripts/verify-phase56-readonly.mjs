@@ -391,12 +391,14 @@ function probeM0() {
   if (mbr.ok) {
     const expected = mbr.rows.find((x) =>
       x.conname === "agency_memberships_role_check");
-    if (expected && /super_admin/i.test(expected.def))
+    if (expected
+      && /hub_moderator/i.test(expected.def)
+      && /platform_reviewer/i.test(expected.def))
       m0pass(group, "agency_memberships role CHECK matches M0 expected shape",
-        expected.def.slice(0, 120));
+        expected.def.slice(0, 160));
     else
       m0skip(group,
-        "agency_memberships role CHECK not in M0 shape (no super_admin label)",
+        "agency_memberships role CHECK not in M0 shape (missing hub_moderator/platform_reviewer)",
         "requires 20260625120000_saas_p56_m0_membership_role_check.sql");
   }
 
