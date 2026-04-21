@@ -14,6 +14,7 @@ import {
 } from "@/components/directory/public-discovery-state";
 import { ProfileAiStrip } from "@/components/directory/profile-ai-strip";
 import { ProfileDiscoveryCta } from "@/components/directory/profile-discovery-cta";
+import { ShareProfileMenu } from "@/components/directory/share-profile-menu";
 import { PortfolioGalleryLightbox } from "@/components/directory/portfolio-gallery-lightbox";
 import { PublicHeader } from "@/components/public-header";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
@@ -40,6 +41,18 @@ import {
   resolveResidenceLocationEmbed,
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
+import { getPublicHostContext } from "@/lib/saas/scope";
+import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
+import {
+  resolveTalentVisibility,
+  type TalentSurface,
+} from "@/lib/talent/visibility";
+import {
+  composeTalentPresentation,
+  loadAgencyTalentOverlay,
+  loadOverlayCoverMedia,
+  type AgencyTalentOverlayRow,
+} from "@/lib/talent/agency-overlay";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -377,8 +390,20 @@ export async function generateMetadata({
   const locale = await getRequestLocale();
   const site =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "http://localhost:3000";
+
+  // Phase 5/6 M2 — the canonical URL for a talent is ALWAYS the app host
+  // (`app.pdcvacations.com/t/[code]`). When the agency storefront renders
+  // the overlay view, it emits a canonical pointing back to the app host
+  // so search engines consolidate signals on the global view. If the
+  // app-host origin can't be resolved (env + DB both empty in a dev-less
+  // build), fall back to a relative path — better than a broken URL.
+  const canonicalAbsolute = await canonicalTalentUrl(profileCode);
   const pathEn = `/t/${encodeURIComponent(profileCode)}`;
   const pathEs = `/es/t/${encodeURIComponent(profileCode)}`;
+  const canonicalEn = canonicalAbsolute ?? pathEn;
+  const canonicalEs = canonicalAbsolute
+    ? `${canonicalAbsolute.replace(/\/t\/[^/]+$/, "")}${pathEs}`
+    : pathEs;
 
   const name = profile.display_name?.trim() ||
     [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
@@ -402,11 +427,11 @@ export async function generateMetadata({
     description,
     metadataBase: new URL(site),
     alternates: {
-      canonical: locale === "es" ? pathEs : pathEn,
+      canonical: locale === "es" ? canonicalEs : canonicalEn,
       languages: {
-        en: pathEn,
-        es: pathEs,
-        "x-default": pathEn,
+        en: canonicalEn,
+        es: canonicalEs,
+        "x-default": canonicalEn,
       },
     },
     openGraph: {
@@ -438,6 +463,17 @@ export default async function PublicTalentProfilePage({
   const ui = buildDirectoryUiCopy(t);
   const previewMode = preview === "1";
 
+  // Phase 5/6 M2 — surface gate. Hub hosts never serve /t/* (the hub has its
+  // own approved-hub-directory surface). The surface-allow-list already 404s
+  // this at the middleware edge; this is defense-in-depth for direct route
+  // access in tests, prerender, or middleware bypass.
+  const hostCtx = await getPublicHostContext();
+  if (hostCtx.kind === "hub") {
+    notFound();
+  }
+  const surface: TalentSurface =
+    hostCtx.kind === "agency" ? "agency" : "freelancer";
+
   if (!isSupabaseConfigured()) {
     return (
       <PublicDiscoveryStateProvider>
@@ -454,6 +490,30 @@ export default async function PublicTalentProfilePage({
     notFound();
   }
   const { pub, fieldValuesClient, profile, preview: resolvedPreview } = result;
+
+  // Phase 5/6 M2 — explicit surface-aware visibility. On non-preview flows,
+  // the freelancer/app surface requires workflow_status='approved' AND
+  // visibility='public' AND deleted_at IS NULL. RLS enforces the same rule
+  // for anon reads; the resolver makes the contract code-visible and
+  // protects authenticated-but-unauthorised readers from unapproved rows
+  // leaking through. (Agency surface continues to rely on roster RLS for
+  // M2; a roster-join resolver call wires in when overlays land.)
+  if (!resolvedPreview && surface === "freelancer") {
+    // RLS already filters soft-deleted rows for anon reads, so the row we
+    // have here has deleted_at=null by construction; pass it explicitly so
+    // the resolver's contract is satisfied and intent is code-visible.
+    const decision = resolveTalentVisibility(
+      {
+        profile: {
+          workflow_status: profile.workflow_status,
+          visibility: profile.visibility,
+          deleted_at: null,
+        },
+      },
+      "freelancer",
+    );
+    if (!decision.visible) notFound();
+  }
   const fieldValues = await fetchPublicFieldValues(fieldValuesClient, profile.id);
   type DetailEntry = { key: string; label: string; value: string; groupSort: number; sort: number };
 
@@ -560,9 +620,32 @@ export default async function PublicTalentProfilePage({
     .filter((m): m is { id: string; url: string; width: number | null; height: number | null } =>
       Boolean(m.url),
     );
-  const bannerUrl = mediaUrl(pub, bannerMedia);
+  const canonicalBannerUrl = mediaUrl(pub, bannerMedia);
   const profileImageUrl = mediaUrl(pub, profileImageMedia);
-  const hasCover = Boolean(bannerUrl);
+
+  // Phase 5/6 M3 — agency overlay. Load the per-tenant overlay row only on
+  // the agency surface; the RLS policy on agency_talent_overlays restricts
+  // anon reads to rows whose roster is site_visible/featured, and this
+  // query scopes the tenant explicitly so there is no cross-tenant read.
+  // Freelancer/hub surfaces never load an overlay (Gate 3 — L7, L39).
+  let agencyOverlay: AgencyTalentOverlayRow | null = null;
+  let overlayBannerUrl: string | null = null;
+  if (
+    pub &&
+    surface === "agency" &&
+    hostCtx.kind === "agency" &&
+    hostCtx.tenantId &&
+    !resolvedPreview
+  ) {
+    agencyOverlay = await loadAgencyTalentOverlay(pub, hostCtx.tenantId, profile.id);
+    if (agencyOverlay?.cover_media_asset_id) {
+      const overlayCover = await loadOverlayCoverMedia(
+        pub,
+        agencyOverlay.cover_media_asset_id,
+      );
+      overlayBannerUrl = mediaUrl(pub, overlayCover);
+    }
+  }
 
   // Taxonomy
   const allTerms = flattenTaxonomy(profile.talent_profile_taxonomy ?? []);
@@ -578,12 +661,59 @@ export default async function PublicTalentProfilePage({
   const fieldVisibility = await getPublicProfileFieldVisibility();
   const orderedSections = await getOrderedPublicProfileSections(locale);
 
-  const name = displayName(profile as TalentProfile);
+  const canonicalName = displayName(profile as TalentProfile);
+  const canonicalAboutText = publicBioForLocale(
+    locale,
+    canonicalBioEn(profile.bio_en, profile.short_bio),
+    profile.bio_es,
+  );
   const livesIn = residenceLabel(locale, profile as TalentProfile);
   const originallyFrom = originLabel(locale, profile as TalentProfile);
   const headerHeightCm = resolveHeaderHeightCm(profile as TalentProfile, fieldValues);
   const talentType =
     primaryTalentType(locale, profile.talent_profile_taxonomy ?? []) ?? ui.card.footerTalent;
+
+  // Phase 5/6 M3 — compose final presentation. On the freelancer/hub/admin
+  // surface the overlay is ignored regardless of what agencyOverlay holds
+  // (Gate 3 enforced inside composeTalentPresentation). On the agency
+  // surface, overlay fields substitute canonical ones when non-blank.
+  const presentation = composeTalentPresentation({
+    surface,
+    canonical: {
+      name: canonicalName,
+      bio: canonicalAboutText,
+      bannerUrl: canonicalBannerUrl,
+    },
+    overlay: agencyOverlay
+      ? {
+          display_headline: agencyOverlay.display_headline,
+          local_bio: agencyOverlay.local_bio,
+          local_tags: agencyOverlay.local_tags,
+        }
+      : null,
+    overlayBannerUrl,
+  });
+  const name = presentation.name;
+  const aboutText = presentation.bio;
+  const bannerUrl = presentation.bannerUrl;
+  const hasCover = Boolean(bannerUrl);
+
+  // Phase 5/6 M5 — share URL must be the app-host canonical, so recipients
+  // land on the global view even when sharing happens from an agency overlay.
+  const siteBase =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+    "http://localhost:3000";
+  const canonicalShareUrl =
+    (await canonicalTalentUrl(profile.profile_code)) ??
+    `${siteBase}/t/${encodeURIComponent(profile.profile_code)}`;
+  const shareLabels = {
+    heading: t("public.profile.share.heading"),
+    copyLink: t("public.profile.share.copyLink"),
+    copyLinkDone: t("public.profile.share.copyLinkDone"),
+    shareWhatsapp: t("public.profile.share.shareWhatsapp"),
+    shareSystem: t("public.profile.share.shareSystem"),
+    whatsappTemplate: t("public.profile.share.whatsappTemplate"),
+  };
 
   // Language summary line from taxonomy
   const langLine = languages.length > 0 ? languages.join(" · ") : null;
@@ -763,22 +893,15 @@ export default async function PublicTalentProfilePage({
                 )}
               </section>
 
-              {/* About */}
-              {(() => {
-                const aboutText = publicBioForLocale(
-                  locale,
-                  canonicalBioEn(profile.bio_en, profile.short_bio),
-                  profile.bio_es,
-                );
-                return aboutText.trim() ? (
+              {/* About — overlaid by agency local_bio when on agency surface */}
+              {aboutText.trim() ? (
                 <section aria-labelledby="about-heading">
                   <SectionLabel id="about-heading">{t("public.profile.about")}</SectionLabel>
                   <p className="mt-4 max-w-2xl text-base leading-[1.8] text-[var(--impronta-muted)]">
                     {aboutText}
                   </p>
                 </section>
-                ) : null;
-              })()}
+              ) : null}
 
               {/* Basic Information — extra dynamic fields in basic_info group (canonical bio is About above) */}
               {basicInfoDetailRows.length > 0 ? (
@@ -957,6 +1080,16 @@ export default async function PublicTalentProfilePage({
                     mode="sidebar"
                     profileCta={ui.profileCta}
                     inquiry={ui.inquiry}
+                  />
+                </div>
+                <div className="mt-5 border-t border-[var(--impronta-gold-border)] pt-4">
+                  <ShareProfileMenu
+                    talentId={profile.id}
+                    profileCode={profile.profile_code}
+                    displayName={name}
+                    canonicalUrl={canonicalShareUrl}
+                    sourcePage={`/t/${encodeURIComponent(profile.profile_code)}`}
+                    labels={shareLabels}
                   />
                 </div>
               </div>

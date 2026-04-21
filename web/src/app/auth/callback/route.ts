@@ -6,6 +6,10 @@ import {
 } from "@/lib/auth-flow";
 import { loadAccessProfile } from "@/lib/access-profile";
 import { AUTH_POPUP_MESSAGE_TYPE, type AuthPopupMessage } from "@/lib/auth-popup";
+import { readInviteFromCookieStore } from "@/lib/invites/cookie";
+import { redeemInvitePayload } from "@/lib/invites/redeem";
+import { logAnalyticsEventServer } from "@/lib/analytics/server-log";
+import { PRODUCT_ANALYTICS_EVENTS } from "@/lib/analytics/product-events";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -54,6 +58,31 @@ export async function GET(request: Request) {
       response.cookies.getAll().forEach((cookie) => {
         successResponse.cookies.set(cookie);
       });
+
+      // Phase 5/6 M5 — if an invite cookie is riding along, try to redeem
+      // it now. Failures are non-fatal: missing profile keeps the cookie
+      // set for a later session bounce; submit errors are logged but the
+      // user still lands on their post-auth destination.
+      const invitePayload = readInviteFromCookieStore(cookieStore);
+      if (invitePayload && user) {
+        const redeemed = await redeemInvitePayload(
+          invitePayload,
+          successResponse,
+        );
+        if (redeemed.ok) {
+          logAnalyticsEventServer({
+            name: PRODUCT_ANALYTICS_EVENTS.invite_converted,
+            userId: user.id,
+            payload: {
+              inviter_tenant_id: invitePayload.inviterTenantId,
+              inviter_user_id: invitePayload.inviterUserId,
+              outcome: redeemed.outcome,
+              source: "auth_callback",
+            },
+          }).catch(() => {});
+        }
+      }
+
       return successResponse;
     }
   }

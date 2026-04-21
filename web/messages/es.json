@@ -45,6 +45,14 @@
       "sidebarAgencyTitle": "Representación de agencia",
       "sidebarAgencyBody": "Las reservas y consultas se gestionan solo a través de Impronta, no desde este perfil.",
       "refCodePrefix": "ref:",
+      "share": {
+        "heading": "Compartir este perfil",
+        "copyLink": "Copiar enlace",
+        "copyLinkDone": "Enlace copiado",
+        "shareWhatsapp": "Compartir por WhatsApp",
+        "shareSystem": "Compartir…",
+        "whatsappTemplate": "{name} en Impronta — {url}"
+      },
       "ctaSectionAria": "Llamada a la acción",
       "footerCtaTitle": "¿Listo para trabajar con {firstName}?",
       "footerCtaBody": "Añade este talento a tu lista de consulta, explora más talento representado o contacta directamente a la agencia.",

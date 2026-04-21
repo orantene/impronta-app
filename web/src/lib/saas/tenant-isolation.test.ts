@@ -90,6 +90,35 @@ test("admin inquiry/booking action files delegate through requireStaffTenantActi
   }
 });
 
+test("site-admin data access is kind-agnostic (M1 abstraction gate)", () => {
+  // Phase 5/6 M1 — the CMS write/read primitives (site-settings actions +
+  // site-admin server libs) must operate on an opaque tenantId. Branching on
+  // `org.kind === 'hub'` or `org.kind === 'agency'` inside these paths
+  // re-introduces the coupling M1 removed: any hub-only or agency-only
+  // behavior belongs in a render-time dispatch (page.tsx), not in data
+  // access code. If a future slice legitimately needs kind branching here,
+  // add the file to the allow-list below and document the reason.
+  const hits = gitGrepLines("kind[[:space:]]*===[[:space:]]*['\\\"](hub|agency)['\\\"]", {
+    extraArgs: ["--"],
+  }).filter((line) => {
+    const path = line.split(":")[0];
+    return (
+      path.startsWith("src/app/(dashboard)/admin/site-settings/") ||
+      path.startsWith("src/lib/site-admin/")
+    );
+  });
+  const allowed: string[] = [];
+  const stray = hits.filter((line) => {
+    const path = line.split(":")[0];
+    return !allowed.includes(path);
+  });
+  assert.deepEqual(
+    stray,
+    [],
+    `Site-admin primitives must not branch on org kind. M1 abstraction gate violated:\n${stray.join("\n")}`,
+  );
+});
+
 test("no admin action uses bare requireStaff + tenant-scoped table write", () => {
   // Heuristic: in files under admin/inquiries|bookings|actions.ts, if
   // `requireStaff(` appears, there should also be a `tenant_id` check nearby.
@@ -130,6 +159,26 @@ test("no admin action uses bare requireStaff + tenant-scoped table write", () =>
         "src/app/(dashboard)/admin/site-settings/content/pages/actions.ts",
         "src/app/(dashboard)/admin/site-settings/content/navigation/actions.ts",
         "src/app/(dashboard)/admin/site-settings/content/cms-revision-actions.ts",
+        // Phase 5 site-admin — uses requireStaff + requireTenantScope pattern
+        // (see scope.ts). tenantId is threaded into lib-layer writes that
+        // enforce capability + RLS + revision guards per-call.
+        "src/app/(dashboard)/admin/site-settings/branding/actions.ts",
+        "src/app/(dashboard)/admin/site-settings/branding/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/design/actions.ts",
+        "src/app/(dashboard)/admin/site-settings/design/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/identity/actions.ts",
+        "src/app/(dashboard)/admin/site-settings/identity/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/navigation/actions.ts",
+        "src/app/(dashboard)/admin/site-settings/navigation/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/pages/actions.ts",
+        "src/app/(dashboard)/admin/site-settings/pages/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/pages/new/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/pages/[id]/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/sections/actions.ts",
+        "src/app/(dashboard)/admin/site-settings/sections/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/sections/new/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/sections/[id]/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/structure/actions.ts",
         "src/app/(dashboard)/admin/analytics/talent/page.tsx",
         "src/app/(dashboard)/admin/analytics/seo/page.tsx",
         "src/app/(dashboard)/admin/analytics/search/page.tsx",
@@ -137,6 +186,7 @@ test("no admin action uses bare requireStaff + tenant-scoped table write", () =>
         "src/app/(dashboard)/admin/analytics/funnels/page.tsx",
         "src/app/(dashboard)/admin/analytics/acquisition/page.tsx",
         "src/app/(dashboard)/admin/bookings/new/page.tsx",
+        "src/app/(dashboard)/admin/site-settings/structure/page.tsx",
       ];
       return !exemptions.includes(path);
     });

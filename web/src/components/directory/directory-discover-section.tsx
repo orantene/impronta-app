@@ -14,7 +14,10 @@ import {
   serializeCanonicalDirectoryListingParams,
 } from "@/lib/directory/search-params";
 import { getCachedTaxonomyFilterOptions } from "@/lib/directory/taxonomy-filters";
-import { getCachedDirectoryFilterSidebarModel } from "@/lib/directory/field-driven-filters";
+import {
+  directorySurfaceFromTenantId,
+  getCachedDirectoryFilterSidebarModel,
+} from "@/lib/directory/field-driven-filters";
 import { getPublicHostContext, getPublicTenantScope } from "@/lib/saas/scope";
 import {
   DirectoryFiltersSkeleton,
@@ -164,7 +167,7 @@ async function DirectoryDiscoverInner({
           query,
           fieldFacets,
         },
-        publicScope?.tenantId ?? null,
+        directorySurfaceFromTenantId(publicScope?.tenantId ?? null),
       );
     } catch (e) {
       logServerError("directory/discover-filter-sections", e);

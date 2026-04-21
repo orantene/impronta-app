@@ -118,6 +118,28 @@ export type DirectoryFilterRequestContext = {
   fieldFacets?: DirectoryFieldFacetSelection[];
 };
 
+/**
+ * Which directory surface is being rendered. Agency storefronts scope sections
+ * to the agency's roster (`tenantId`); the hub renders cross-agency approved
+ * talent (no tenant scope). Making the surface explicit at the type level
+ * prevents callers from accidentally passing `tenantId=null` for reasons
+ * other than "this is the hub" — see docs/saas/phase-5-6/m6-scope-pre-m0.md §2B.
+ */
+export type DirectorySurface =
+  | { kind: "hub" }
+  | { kind: "agency"; tenantId: string };
+
+export function directorySurfaceFromTenantId(
+  tenantId: string | null,
+): DirectorySurface {
+  if (tenantId === null) return { kind: "hub" };
+  return { kind: "agency", tenantId };
+}
+
+function tenantIdFromDirectorySurface(surface: DirectorySurface): string | null {
+  return surface.kind === "agency" ? surface.tenantId : null;
+}
+
 type FieldDefinitionRow = {
   key: string;
   label_en: string;
@@ -1127,9 +1149,10 @@ async function loadDirectoryFilterSectionsUncached(
 export function getCachedDirectoryFilterSidebarModel(
   locale: string,
   ctx: DirectoryFilterRequestContext,
-  tenantId: string | null,
+  surface: DirectorySurface,
 ) {
   const key = serializeFilterContextKey(ctx);
+  const tenantId = tenantIdFromDirectorySurface(surface);
   const tenantKey = tenantId ?? "__hub__";
   return unstable_cache(
     () => loadDirectoryFilterSectionsUncached(locale, ctx, tenantId),
@@ -1142,9 +1165,9 @@ export function getCachedDirectoryFilterSidebarModel(
 export async function getCachedDirectoryFilterSections(
   locale: string,
   ctx: DirectoryFilterRequestContext,
-  tenantId: string | null,
+  surface: DirectorySurface,
 ): Promise<DirectoryFilterSection[]> {
-  const { blocks } = await getCachedDirectoryFilterSidebarModel(locale, ctx, tenantId);
+  const { blocks } = await getCachedDirectoryFilterSidebarModel(locale, ctx, surface);
   return blocks
     .filter((b): b is { kind: "section"; section: DirectoryFilterSection } => b.kind === "section")
     .map((b) => b.section);

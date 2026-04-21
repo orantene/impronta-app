@@ -7,6 +7,7 @@ import {
   TalentSectionLabel,
 } from "@/components/talent/talent-dashboard-primitives";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
+import { HUB_AGENCY_ID } from "@/lib/saas";
 import { loadTalentDashboardData } from "@/lib/talent-dashboard-data";
 import {
   TalentApplyToAgencyForm,
@@ -21,7 +22,10 @@ const sectionCardTalent =
 
 const titleTalent = "text-[15px] font-semibold tracking-tight";
 
-type AgencyEmbed = { id: string; name: string | null } | { id: string; name: string | null }[] | null;
+type AgencyEmbed =
+  | { id: string; display_name: string | null }
+  | { id: string; display_name: string | null }[]
+  | null;
 
 type RosterRow = {
   id: string;
@@ -45,9 +49,9 @@ type RepresentationRequestRow = {
   target?: AgencyEmbed;
 };
 
-type AgencyRow = { id: string; name: string | null };
+type AgencyRow = { id: string; display_name: string | null };
 
-function firstAgency(embed: AgencyEmbed): { id: string; name: string | null } | null {
+function firstAgency(embed: AgencyEmbed): { id: string; display_name: string | null } | null {
   if (!embed) return null;
   return Array.isArray(embed) ? (embed[0] ?? null) : embed;
 }
@@ -111,7 +115,7 @@ export default async function TalentRepresentationsPage() {
     supabase
       .from("agency_talent_roster")
       .select(
-        "id, tenant_id, status, agency_visibility, hub_visibility_status, is_primary, tenant:agencies!agency_talent_roster_tenant_id_fkey(id, name)",
+        "id, tenant_id, status, agency_visibility, hub_visibility_status, is_primary, tenant:agencies!agency_talent_roster_tenant_id_fkey(id, display_name)",
       )
       .eq("talent_profile_id", profile.id)
       .in("status", ["pending", "active", "inactive"])
@@ -119,15 +123,18 @@ export default async function TalentRepresentationsPage() {
     supabase
       .from("talent_representation_requests")
       .select(
-        "id, target_type, target_id, status, requester_note, reviewer_reason, requested_at, reviewed_at, target:agencies!talent_representation_requests_target_id_fkey(id, name)",
+        "id, target_type, target_id, status, requester_note, reviewer_reason, requested_at, reviewed_at, target:agencies!talent_representation_requests_target_id_fkey(id, display_name)",
       )
       .eq("talent_profile_id", profile.id)
       .order("requested_at", { ascending: false })
       .limit(25),
+    // Agency picker: exclude the reserved hub UUID. We filter by id rather
+    // than `agencies.kind` because that column only exists post P5/6 M0.
     supabase
       .from("agencies")
-      .select("id, name")
-      .order("name", { ascending: true }),
+      .select("id, display_name")
+      .neq("id", HUB_AGENCY_ID)
+      .order("display_name", { ascending: true }),
   ]);
 
   const roster = (rosterRes.data ?? []) as unknown as RosterRow[];
@@ -142,10 +149,10 @@ export default async function TalentRepresentationsPage() {
   );
 
   const agencyOptions = allAgencies
-    .filter((a) => a.name)
+    .filter((a) => a.display_name)
     .filter((a) => !rosteredTenantIds.has(a.id))
     .filter((a) => !openAgencyRequestTenantIds.has(a.id))
-    .map((a) => ({ id: a.id, name: a.name as string }));
+    .map((a) => ({ id: a.id, name: a.display_name as string }));
 
   const hubRequestAlreadyOpen = requests.some(
     (r) => r.target_type === "hub" && (r.status === "requested" || r.status === "under_review"),
@@ -193,7 +200,7 @@ export default async function TalentRepresentationsPage() {
                   <li key={r.id} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <span className="font-medium text-foreground">
-                        {firstAgency(r.tenant ?? null)?.name ?? r.tenant_id}
+                        {firstAgency(r.tenant ?? null)?.display_name ?? r.tenant_id}
                         {r.is_primary ? (
                           <span className="ml-2 rounded-full border border-[var(--impronta-gold)]/40 bg-[var(--impronta-gold)]/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--impronta-gold)]">
                             Primary
@@ -257,7 +264,7 @@ export default async function TalentRepresentationsPage() {
                       <p className="font-medium text-foreground">
                         {r.target_type === "hub"
                           ? "Hub visibility"
-                          : firstAgency(r.target ?? null)?.name ?? r.target_id}
+                          : firstAgency(r.target ?? null)?.display_name ?? r.target_id}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {statusLabel(r.status)} · sent{" "}
@@ -293,7 +300,7 @@ export default async function TalentRepresentationsPage() {
                       <span className="font-medium text-foreground">
                         {r.target_type === "hub"
                           ? "Hub visibility"
-                          : firstAgency(r.target ?? null)?.name ?? r.target_id}
+                          : firstAgency(r.target ?? null)?.display_name ?? r.target_id}
                       </span>
                       <span className="text-xs uppercase tracking-wide text-muted-foreground">
                         {statusLabel(r.status)}

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import {
-  LEGACY_TENANT_ID,
+  HUB_AGENCY_ID,
   submitRepresentationRequest,
   withdrawRepresentationRequest,
 } from "@/lib/saas";
@@ -71,10 +71,10 @@ export async function talentRequestHubVisibilityAction(
   const result = await submitRepresentationRequest({
     talentProfileId,
     targetType: "hub",
-    // Hub requests reference the hub tenant (tenant #1 — see migration
-    // 20260604100000 header). Reviewer population is derived from target_type
-    // in the engine; only platform admins can review hub requests.
-    targetId: LEGACY_TENANT_ID,
+    // Hub requests reference the hub agency tenant (kind='hub', seeded in
+    // 20260625100000). Reviewer gating is derived from target_type in the
+    // engine; only platform admins can review hub requests.
+    targetId: HUB_AGENCY_ID,
     note: note || null,
   });
   if (!result.ok) return { ok: false, error: result.error };

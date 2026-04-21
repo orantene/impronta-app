@@ -7,6 +7,8 @@ import { getPublicHostContext } from "@/lib/saas/scope";
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
+import { isLocale } from "@/lib/site-admin/locales";
 
 /** Server reads cookies (Supabase / host-context header); must not be statically prerendered. */
 export const dynamic = "force-dynamic";
@@ -16,16 +18,45 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = createTranslator(locale);
   const ctx = await getPublicHostContext();
 
-  if (ctx.kind === "agency") {
+  if (ctx.kind === "agency" || ctx.kind === "hub") {
+    // Phase 5 / M5: CMS-driven meta overrides the i18n defaults when the
+    // operator has published the homepage. Snapshot is read through a
+    // cached, tag-invalidated RPC — no extra DB hit on cache hits.
+    //
+    // Phase 5/6 M1: hub goes through this same code path because hub is
+    // a first-class tenant on the org abstraction (kind='hub' agency,
+    // seeded in 20260625100000). The only kind branch is render-time
+    // dispatch below; data access is unified.
+    const cmsLocale = isLocale(locale) ? locale : undefined;
+    const homepage = cmsLocale
+      ? await loadPublicHomepage(ctx.tenantId, cmsLocale)
+      : null;
+    const fallbackTitle =
+      ctx.kind === "hub"
+        ? "Impronta — Agencies on the platform"
+        : t("public.meta.homeTitle");
+    const fallbackDescription = t("public.meta.homeDescription");
+    const title = homepage?.metaTitle || homepage?.title || fallbackTitle;
+    const description = homepage?.metaDescription || fallbackDescription;
+    const ogImage = homepage?.ogImageUrl ?? undefined;
+    const localeAlternates = buildPublicLocaleAlternates(locale, "/");
     return {
-      title: t("public.meta.homeTitle"),
-      description: t("public.meta.homeDescription"),
-      ...buildPublicLocaleAlternates(locale, "/"),
+      title,
+      description,
+      robots: homepage?.noindex ? { index: false, follow: false } : undefined,
+      openGraph: {
+        title: homepage?.ogTitle || title,
+        description: homepage?.ogDescription || description,
+        images: ogImage ? [{ url: ogImage }] : undefined,
+      },
+      ...localeAlternates,
+      alternates: {
+        ...localeAlternates.alternates,
+        ...(homepage?.canonicalUrl
+          ? { canonical: homepage.canonicalUrl }
+          : {}),
+      },
     };
-  }
-
-  if (ctx.kind === "hub") {
-    return { title: "Impronta — Agencies on the platform" };
   }
 
   if (ctx.kind === "marketing") {
@@ -43,7 +74,9 @@ export default async function HomePage() {
     case "agency":
       return <AgencyHomeStorefront tenantId={ctx.tenantId} />;
     case "hub":
-      return <HubLanding />;
+      // Phase 5/6 M1 — hub now carries its tenantId (the hub agency UUID)
+      // so it consumes the same CMS reads as agency tenants.
+      return <HubLanding tenantId={ctx.tenantId} />;
     case "marketing":
       return <MarketingLanding />;
     case "app":

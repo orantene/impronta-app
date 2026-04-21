@@ -14,6 +14,36 @@ const SECTIONS: {
     match: (p) => p === "/admin/site-settings" || p === "/admin/site-settings/",
   },
   {
+    href: "/admin/site-settings/identity",
+    label: "Identity",
+    match: (p) => p.startsWith("/admin/site-settings/identity"),
+  },
+  {
+    href: "/admin/site-settings/branding",
+    label: "Branding",
+    match: (p) => p.startsWith("/admin/site-settings/branding"),
+  },
+  {
+    href: "/admin/site-settings/design",
+    label: "Design",
+    match: (p) => p.startsWith("/admin/site-settings/design"),
+  },
+  {
+    href: "/admin/site-settings/navigation",
+    label: "Navigation",
+    match: (p) => p.startsWith("/admin/site-settings/navigation"),
+  },
+  {
+    href: "/admin/site-settings/pages",
+    label: "Pages",
+    match: (p) => p.startsWith("/admin/site-settings/pages"),
+  },
+  {
+    href: "/admin/site-settings/sections",
+    label: "Sections",
+    match: (p) => p.startsWith("/admin/site-settings/sections"),
+  },
+  {
     href: "/admin/site-settings/content",
     label: "Content",
     match: (p) => p.startsWith("/admin/site-settings/content"),

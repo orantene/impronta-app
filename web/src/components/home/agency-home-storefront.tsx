@@ -8,6 +8,7 @@ import { BestForSection } from "@/components/home/best-for-section";
 import { LocationSection } from "@/components/home/location-section";
 import { HowItWorks } from "@/components/home/how-it-works";
 import { CtaSection } from "@/components/home/cta-section";
+import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { getHomepageData } from "@/lib/home-data";
 import { PublicDiscoveryStateProvider } from "@/components/directory/public-discovery-state";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
@@ -17,6 +18,8 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
+import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
+import { isLocale } from "@/lib/site-admin/locales";
 
 /**
  * Agency-surface storefront (what was the old root homepage).
@@ -28,8 +31,20 @@ import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
 export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   const locale: Locale = await getRequestLocale();
   const t = createTranslator(locale);
-  const { talentTypes, featuredTalent, fitLabels, locations } =
-    await getHomepageData({ tenantId });
+  // Phase 5 / M5: CMS-composed homepage snapshot. When published, its
+  // `hero` slot (if present) replaces the template hero copy below.
+  // Platform locales are a subset of request locales; fall through silently
+  // when the request locale isn't a platform locale.
+  const cmsLocale = isLocale(locale) ? locale : null;
+  const [{ talentTypes, featuredTalent, fitLabels, locations }, cmsHomepage] =
+    await Promise.all([
+      getHomepageData({ tenantId }),
+      cmsLocale ? loadPublicHomepage(tenantId, cmsLocale) : Promise.resolve(null),
+    ]);
+  const cmsHeroSlot = cmsHomepage?.snapshot?.slots.some(
+    (s) => s.slotKey === "hero",
+  );
+  const cmsIntroTagline = cmsHomepage?.snapshot?.fields.introTagline ?? null;
 
   const [aiFlags, publicSettings] = await Promise.all([
     getAiFeatureFlags(),
@@ -114,19 +129,33 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(212,175,55,0.12),transparent)]"
             />
             <div className="relative w-full max-w-3xl text-center">
-              <p className="font-display text-sm font-medium uppercase tracking-[0.35em] text-[var(--impronta-gold-dim)]">
-                {t("public.home.hero.kicker")}
-              </p>
-              <h1 className="mt-6 font-display text-3xl font-normal leading-tight tracking-[0.06em] text-foreground sm:text-4xl md:text-5xl">
-                {t("public.home.hero.titleBefore")}{" "}
-                <span className="text-[var(--impronta-gold)]">
-                  {t("public.home.hero.titleHighlight")}
-                </span>{" "}
-                {t("public.home.hero.titleAfter")}
-              </h1>
-              <p className="mx-auto mt-6 max-w-xl text-base text-[var(--impronta-muted)] sm:text-lg">
-                {t("public.home.hero.subtitle")}
-              </p>
+              {cmsHeroSlot && cmsHomepage?.snapshot ? (
+                // CMS-composed hero (from published_homepage_snapshot).
+                // Storefront-search functionality is stitched back in below
+                // — it's platform behavior, not CMS content.
+                <HomepageCmsSections
+                  snapshot={cmsHomepage.snapshot}
+                  tenantId={tenantId}
+                  locale={locale}
+                  onlySlot="hero"
+                />
+              ) : (
+                <>
+                  <p className="font-display text-sm font-medium uppercase tracking-[0.35em] text-[var(--impronta-gold-dim)]">
+                    {cmsIntroTagline ?? t("public.home.hero.kicker")}
+                  </p>
+                  <h1 className="mt-6 font-display text-3xl font-normal leading-tight tracking-[0.06em] text-foreground sm:text-4xl md:text-5xl">
+                    {t("public.home.hero.titleBefore")}{" "}
+                    <span className="text-[var(--impronta-gold)]">
+                      {t("public.home.hero.titleHighlight")}
+                    </span>{" "}
+                    {t("public.home.hero.titleAfter")}
+                  </h1>
+                  <p className="mx-auto mt-6 max-w-xl text-base text-[var(--impronta-muted)] sm:text-lg">
+                    {t("public.home.hero.subtitle")}
+                  </p>
+                </>
+              )}
               <div className="mt-10">
                 <Suspense
                   fallback={

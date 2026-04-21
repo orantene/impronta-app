@@ -1,5 +1,6 @@
 export {
   LEGACY_TENANT_ID,
+  HUB_AGENCY_ID,
   getCurrentUserTenants,
   requireStaffOfTenant,
   findTenantMembership,

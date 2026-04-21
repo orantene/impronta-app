@@ -10,7 +10,9 @@ import {
 } from "@/lib/profile-completion";
 import { AdminTalentCockpitClient } from "./admin-talent-cockpit-client";
 import { AdminTalentAiSearchDebug } from "./admin-talent-ai-search-debug";
+import { AdminTalentOverlaySection } from "./admin-talent-overlay-section";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
+import { getTenantScope } from "@/lib/saas/scope";
 
 export default async function AdminTalentDetailPage({
   params,
@@ -278,6 +280,50 @@ export default async function AdminTalentDetailPage({
 
   const openAiBioAvailable = await isResolvedAiChatConfigured();
 
+  // Phase 5/6 M3 — agency overlay (tenant-scoped presentation editor).
+  // Only surfaced when an active tenant scope resolves. RLS + the action
+  // guard enforce the tenant boundary; this read is just for the form's
+  // initial values.
+  const tenantScope = await getTenantScope();
+  let overlayInitial: Parameters<typeof AdminTalentOverlaySection>[0]["initial"] = null;
+  let rosterOnTenant = false;
+  let tenantName = "Agency overlay";
+  if (tenantScope) {
+    const [{ data: overlayRow }, { data: rosterRow }, { data: tenantRow }] =
+      await Promise.all([
+        supabase
+          .from("agency_talent_overlays")
+          .select("display_headline, local_bio, cover_media_asset_id, local_tags")
+          .eq("tenant_id", tenantScope.tenantId)
+          .eq("talent_profile_id", id)
+          .maybeSingle(),
+        supabase
+          .from("agency_talent_roster")
+          .select("status")
+          .eq("tenant_id", tenantScope.tenantId)
+          .eq("talent_profile_id", id)
+          .maybeSingle(),
+        supabase
+          .from("agencies")
+          .select("display_name")
+          .eq("id", tenantScope.tenantId)
+          .maybeSingle(),
+      ]);
+    rosterOnTenant = Boolean(rosterRow);
+    if (tenantRow?.display_name) tenantName = tenantRow.display_name as string;
+    if (overlayRow) {
+      overlayInitial = {
+        display_headline: (overlayRow.display_headline as string | null) ?? null,
+        local_bio: (overlayRow.local_bio as string | null) ?? null,
+        cover_media_asset_id:
+          (overlayRow.cover_media_asset_id as string | null) ?? null,
+        local_tags: Array.isArray(overlayRow.local_tags)
+          ? (overlayRow.local_tags as string[])
+          : [],
+      };
+    }
+  }
+
   return (
     <>
     <AdminTalentCockpitClient
@@ -318,6 +364,14 @@ export default async function AdminTalentDetailPage({
       }}
       fieldValues={fieldValues as unknown as Parameters<typeof AdminTalentCockpitClient>[0]["fieldValues"]}
     />
+    {tenantScope ? (
+      <AdminTalentOverlaySection
+        talentProfileId={id}
+        initial={overlayInitial}
+        tenantName={tenantName}
+        rosterOnTenant={rosterOnTenant}
+      />
+    ) : null}
     <AdminTalentAiSearchDebug talentId={id} />
     </>
   );

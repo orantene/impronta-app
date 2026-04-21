@@ -19,6 +19,8 @@ export const PRODUCT_ANALYTICS_EVENTS = {
   contact_whatsapp: "contact_whatsapp",
   click_email: "click_email",
   click_phone: "click_phone",
+  invite_link_clicked: "invite_link_clicked",
+  invite_converted: "invite_converted",
 } as const;
 
 export type ProductAnalyticsEventName =

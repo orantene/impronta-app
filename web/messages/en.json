@@ -45,6 +45,14 @@
       "sidebarAgencyTitle": "Agency represented",
       "sidebarAgencyBody": "Bookings and inquiries are handled exclusively through Impronta — not via this profile.",
       "refCodePrefix": "ref:",
+      "share": {
+        "heading": "Share this profile",
+        "copyLink": "Copy link",
+        "copyLinkDone": "Link copied",
+        "shareWhatsapp": "Share on WhatsApp",
+        "shareSystem": "Share…",
+        "whatsappTemplate": "{name} on Impronta — {url}"
+      },
       "ctaSectionAria": "Call to action",
       "footerCtaTitle": "Ready to work with {firstName}?",
       "footerCtaBody": "Add this talent to your inquiry list, browse more represented talent, or reach out to the agency directly.",

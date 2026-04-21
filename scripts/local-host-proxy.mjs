@@ -13,7 +13,24 @@ const UPSTREAM_HOST = "127.0.0.1";
 const UPSTREAM_PORT = 3000;
 
 const server = http.createServer((clientReq, clientRes) => {
-  const headers = { ...clientReq.headers, host: hostHeader };
+  // Rewrite Host, Origin and Referer so Next.js Server Actions CSRF check
+  // sees a consistent origin. Without this the dev request comes in with
+  // Host: hostHeader but Origin: http://localhost:<proxyPort>, which
+  // triggers "Invalid Server Actions request" (500) on every form POST.
+  const proxyProto = "http";
+  const hdrs = { ...clientReq.headers, host: hostHeader };
+  if (hdrs.origin) hdrs.origin = `${proxyProto}://${hostHeader}`;
+  if (hdrs.referer) {
+    try {
+      const r = new URL(hdrs.referer);
+      r.host = hostHeader;
+      r.protocol = `${proxyProto}:`;
+      hdrs.referer = r.toString();
+    } catch {
+      // leave referer as-is if unparseable
+    }
+  }
+  const headers = hdrs;
   const proxy = http.request(
     {
       host: UPSTREAM_HOST,

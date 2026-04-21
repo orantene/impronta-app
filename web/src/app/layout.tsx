@@ -8,6 +8,13 @@ import { getLocaleMetadata } from "@/i18n/config";
 import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicFontPreset } from "@/lib/site-font-preset";
 import { getSiteTheme } from "@/lib/site-theme";
+import { getPublicTenantScope } from "@/lib/saas/scope";
+import {
+  designTokensToCssVars,
+  designTokensToDataAttrs,
+  resolveDesignTokens,
+} from "@/lib/site-admin";
+import { loadPublicBranding } from "@/lib/site-admin/server/reads";
 
 import "./globals.css";
 
@@ -65,12 +72,26 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [siteTheme, publicFontPreset] = await Promise.all([
+  const [siteTheme, publicFontPreset, publicScope] = await Promise.all([
     getSiteTheme(),
     getPublicFontPreset(),
+    getPublicTenantScope(),
   ]);
   const locale = await getRequestLocale();
   const { dir, hreflang } = getLocaleMetadata(locale);
+
+  // M6 — Governed design tokens. Public scope is non-null only for
+  // tenant-resolved storefront requests (middleware sets the header).
+  // Platform routes (auth, onboarding, platform admin) fall through to
+  // registry defaults, which keeps the root layout safe on any path.
+  // We read the LIVE row (never draft); the read is cached + tagged
+  // `branding`, so publishDesign's updateTag(branding) busts this.
+  const publicBranding = publicScope
+    ? await loadPublicBranding(publicScope.tenantId)
+    : null;
+  const designTokens = resolveDesignTokens(publicBranding);
+  const tokenCssVars = designTokensToCssVars(designTokens);
+  const tokenDataAttrs = designTokensToDataAttrs(designTokens);
 
   return (
     <html
@@ -78,6 +99,8 @@ export default async function RootLayout({
       dir={dir}
       suppressHydrationWarning
       data-public-font-preset={publicFontPreset}
+      {...tokenDataAttrs}
+      style={tokenCssVars as React.CSSProperties}
       className={`${bodySans.variable} ${geistMono.variable} ${cinzel.variable} ${interBody.variable} ${playfairDisplay.variable} h-full antialiased`}
     >
       <body

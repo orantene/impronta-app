@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { cookies, headers } from "next/headers";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { logServerError } from "@/lib/server/safe-error";
+import { improntaLog } from "@/lib/server/structured-log";
 import { getCurrentUserTenants, type TenantMembership } from "@/lib/saas/tenant";
 
 /**
@@ -11,8 +12,10 @@ import { getCurrentUserTenants, type TenantMembership } from "@/lib/saas/tenant"
  * Resolved from (in order of precedence):
  *   1. An explicit `x-impronta-tenant-id` header set by middleware or tests.
  *   2. The `impronta.active_tenant_id` cookie (admin workspace switcher).
- *   3. The user's primary membership.
- *   4. The user's single membership if they have exactly one.
+ *   3. The user's first active membership (single-membership users land
+ *      here; multi-membership users must pick via the switcher cookie —
+ *      `agency_memberships` has no `is_primary` column, so there's no
+ *      DB-level default to honour).
  *
  * Fail-hard (Plan L37): if a scope cannot be resolved, returns `null` and
  * callers MUST refuse the request. There is no fallback to tenant #1 at
@@ -46,8 +49,10 @@ async function readPreferredTenantId(): Promise<string | null> {
 
 function pickDefault(memberships: TenantMembership[]): TenantMembership | null {
   if (memberships.length === 0) return null;
-  const primary = memberships.find((m) => m.is_primary && m.status === "active");
-  if (primary) return primary;
+  // No DB-backed "primary" flag on agency_memberships, so selection is:
+  //   first active row → else first row at all.
+  // Multi-workspace users are expected to pick via the switcher cookie
+  // (handled before this helper runs in getTenantScope).
   const firstActive = memberships.find((m) => m.status === "active");
   if (firstActive) return firstActive;
   return memberships[0] ?? null;
@@ -80,6 +85,21 @@ export const getTenantScope = cache(
       }
       // Preferred tenant not in memberships → do NOT silently downgrade.
       // Fail-hard: the app layer must clear the cookie or prompt a switch.
+      //
+      // Plan M3 exit criterion: "Tampered cookie … is rejected server-side
+      // with audit log entry." This is the single choke point on the read
+      // side — every admin/action path funnels through here — so we log
+      // here exactly once per request (getTenantScope is request-cached).
+      // Structured log is grep-friendly and bubbles to our log store; we
+      // deliberately do NOT insert into platform_audit_log here because
+      // that table's SECURITY DEFINER wrappers all require
+      // is_staff_of_tenant() and the whole point is this actor is NOT
+      // staff of the attempted tenant.
+      void improntaLog("security.tenant_cookie_tamper", {
+        actor_id: session.user.id,
+        attempted_tenant_id: preferred,
+        membership_count: memberships.length,
+      });
       return null;
     }
 
@@ -166,7 +186,11 @@ const HOST_NAME_HEADER = "x-impronta-host-name";
  */
 export type PublicHostContext =
   | { kind: "agency"; tenantId: string; hostname: string | null }
-  | { kind: "hub"; tenantId: null; hostname: string | null }
+  // Phase 5/6 M1 — hub carries the hub agency tenantId so render code can
+  // call CMS reads (loadPublicHomepage, identity, branding, menus) using
+  // the same tenant-scoped path that agency tenants use. The host kind
+  // remains "hub" so surface allow-list / dispatch behavior is unchanged.
+  | { kind: "hub"; tenantId: string; hostname: string | null }
   | { kind: "app"; tenantId: null; hostname: string | null }
   | { kind: "marketing"; tenantId: null; hostname: string | null }
   | { kind: "unknown"; tenantId: null; hostname: null };
@@ -188,7 +212,12 @@ export async function getPublicHostContext(): Promise<PublicHostContext> {
         if (!tenantId) return { kind: "unknown", tenantId: null, hostname: null };
         return { kind: "agency", tenantId, hostname };
       case "hub":
-        return { kind: "hub", tenantId: null, hostname };
+        // Middleware sets the tenant header for hub the same way it does
+        // for agency (post-M1). Missing header on a hub context means
+        // mid-deploy state — fall back to "unknown" rather than render
+        // a hub surface that can't reach its CMS.
+        if (!tenantId) return { kind: "unknown", tenantId: null, hostname: null };
+        return { kind: "hub", tenantId, hostname };
       case "app":
         return { kind: "app", tenantId: null, hostname };
       case "marketing":
