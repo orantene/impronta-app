@@ -21,7 +21,7 @@
  *     gate.
  */
 
-import { useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { useActionState } from "react";
 
 import { SectionStatusBadge } from "@/components/admin/section-status-badge";
@@ -136,6 +136,47 @@ export function SectionEditor({
   const initialProps = (section?.props_jsonb ?? {}) as Record<string, unknown>;
   const [props, setProps] = useState<Record<string, unknown>>(initialProps);
 
+  // ── Autosave plumbing ────────────────────────────────────────────────
+  // Edit-mode only: once a section exists we debounce Editor changes and
+  // submit the form programmatically. Create-mode requires a name + type
+  // first, so the admin still clicks "Create section" explicitly.
+  const saveFormRef = useRef<HTMLFormElement>(null);
+  const [autosaveLabel, setAutosaveLabel] = useState<
+    "idle" | "dirty" | "saving" | "saved" | "error"
+  >("idle");
+  const lastSyncedJson = useRef<string>(JSON.stringify(initialProps));
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (mode !== "edit" || !section?.id) return;
+    const currentJson = JSON.stringify(props);
+    if (currentJson === lastSyncedJson.current) return;
+    setAutosaveLabel("dirty");
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setAutosaveLabel("saving");
+      saveFormRef.current?.requestSubmit();
+    }, 1200);
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [props, mode, section?.id]);
+
+  // When the save action resolves, update autosave label + last-synced
+  // fingerprint. Sync fingerprint on OK so a subsequent identical edit
+  // doesn't retrigger autosave.
+  useEffect(() => {
+    if (!saveState) return;
+    if (saveState.ok) {
+      lastSyncedJson.current = JSON.stringify(props);
+      setAutosaveLabel("saved");
+    } else {
+      setAutosaveLabel("error");
+    }
+    // deliberately exclude `props` — we're reacting to the server result.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveState]);
+
   const schemaVersion =
     section?.schema_version ?? registryEntry?.currentVersion ?? 1;
 
@@ -187,7 +228,7 @@ export function SectionEditor({
       <Banner state={saveState} />
 
       {/* ---- core form ---- */}
-      <form action={saveAction} className="space-y-6">
+      <form action={saveAction} className="space-y-6" ref={saveFormRef}>
         {section?.id && <input type="hidden" name="id" value={section.id} />}
         <input
           type="hidden"
@@ -248,8 +289,48 @@ export function SectionEditor({
               ? "Saving…"
               : mode === "create"
                 ? "Create section"
-                : "Save draft"}
+                : "Save now"}
           </Button>
+          {mode === "edit" ? (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium transition ${
+                autosaveLabel === "saving"
+                  ? "bg-muted/40 text-muted-foreground"
+                  : autosaveLabel === "saved"
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : autosaveLabel === "dirty"
+                      ? "bg-amber-400/15 text-amber-300"
+                      : autosaveLabel === "error"
+                        ? "bg-destructive/15 text-destructive"
+                        : "text-muted-foreground"
+              }`}
+              aria-live="polite"
+            >
+              <span
+                className={`size-1.5 rounded-full ${
+                  autosaveLabel === "saving"
+                    ? "animate-pulse bg-muted-foreground"
+                    : autosaveLabel === "saved"
+                      ? "bg-emerald-300"
+                      : autosaveLabel === "dirty"
+                        ? "bg-amber-300"
+                        : autosaveLabel === "error"
+                          ? "bg-destructive"
+                          : "bg-muted-foreground/50"
+                }`}
+                aria-hidden
+              />
+              {autosaveLabel === "saving"
+                ? "Saving…"
+                : autosaveLabel === "saved"
+                  ? "All changes saved"
+                  : autosaveLabel === "dirty"
+                    ? "Unsaved changes"
+                    : autosaveLabel === "error"
+                      ? "Save failed — try again"
+                      : "Autosave ready"}
+            </span>
+          ) : null}
         </div>
       </form>
 
