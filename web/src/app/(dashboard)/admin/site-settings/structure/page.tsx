@@ -12,10 +12,12 @@ import { ensureHomepageRow, loadHomepageForStaff } from "@/lib/site-admin/server
 import { loadHomepageRevisionsForStaff } from "@/lib/site-admin/server/homepage-reads";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { SECTION_REGISTRY } from "@/lib/site-admin/sections/registry";
+import { getTenantPreviewOrigin } from "@/lib/site-admin/server/tenant-hosts";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 
 import { HomepageComposer } from "./homepage-composer";
+import { LivePreviewPanel } from "./live-preview-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -122,13 +124,28 @@ export default async function SiteSettingsStructurePage() {
     );
   }
 
-  const [sections, revisions] = await Promise.all([
+  const [sections, revisions, previewOrigin] = await Promise.all([
     listSectionsForStaff(auth.supabase, scope.tenantId),
     loadHomepageRevisionsForStaff(auth.supabase, scope.tenantId, state.page.id),
+    getTenantPreviewOrigin(auth.supabase, scope.tenantId),
   ]);
 
   return (
     <div className="space-y-4">
+      {previewOrigin && (
+        <DashboardSectionCard
+          title="Live preview"
+          description="Inline view of your published storefront. Reload after you publish to see changes."
+          titleClassName={ADMIN_SECTION_TITLE_CLASS}
+        >
+          <LivePreviewPanel
+            origin={previewOrigin}
+            path="/"
+            lastPublishedAt={state.page.published_at ?? null}
+          />
+        </DashboardSectionCard>
+      )}
+
       <DashboardSectionCard
         title="Homepage"
         description="Compose the storefront homepage from published reusable sections. Draft saves don't affect the live site; publishing promotes the draft composition and freezes section content into the published snapshot."
