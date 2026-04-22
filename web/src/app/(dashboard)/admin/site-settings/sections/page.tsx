@@ -163,7 +163,7 @@ export default async function SiteSettingsSectionsIndexPage() {
                   <th className="px-3 py-2">Type</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Used by</th>
-                  <th className="px-3 py-2">Schema v.</th>
+                  <th className="px-3 py-2">Needs attention</th>
                   <th className="px-3 py-2">Last updated</th>
                   <th className="px-3 py-2 text-right">Actions</th>
                 </tr>
@@ -179,8 +179,8 @@ export default async function SiteSettingsSectionsIndexPage() {
                   const schemaOutdated =
                     registry && registry.currentVersion !== row.schema_version;
                   const schemaDriftLabel = schemaOutdated
-                    ? `stored v${row.schema_version} · current v${registry.currentVersion}`
-                    : `v${row.schema_version}`;
+                    ? "Needs re-save"
+                    : "—";
                   return (
                     <tr
                       key={row.id}
@@ -205,7 +205,7 @@ export default async function SiteSettingsSectionsIndexPage() {
                         }`}
                         title={
                           schemaOutdated
-                            ? "The platform schema for this section type has been bumped. Saving migrates the payload forward; publishing re-validates against the current version — a re-author may be required."
+                            ? "This section uses an older content shape. Open + save it to migrate forward — a quick re-author may be needed before you can publish."
                             : undefined
                         }
                       >

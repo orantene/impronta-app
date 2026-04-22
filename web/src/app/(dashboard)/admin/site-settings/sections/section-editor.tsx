@@ -209,20 +209,21 @@ export function SectionEditor({
       {/* ---- status pill + meta ---- */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <SectionStatusBadge status={section?.status ?? "draft"} />
-        <span>type: {registryEntry.meta.label}</span>
-        <span>schema v{schemaVersion}</span>
+        <span>
+          <span className="text-muted-foreground">Type:</span>{" "}
+          <span className="text-foreground">{registryEntry.meta.label}</span>
+        </span>
         {registryEntry.currentVersion !== schemaVersion && (
           <span
             className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-amber-300"
-            title={`This section was saved at schema v${schemaVersion}. The platform is now at v${registryEntry.currentVersion}. Saving migrates the payload forward; publishing re-validates against v${registryEntry.currentVersion} and may require a re-author if the new shape added required fields.`}
+            title="This section was saved on an older content shape. Saving here migrates it forward; publishing re-checks against the current shape and may ask you to fill a new field or two."
           >
-            upgrade: v{schemaVersion} → v{registryEntry.currentVersion}
+            Needs re-save
           </span>
         )}
-        <span>version v{version}</span>
         {section?.updated_at && (
           <span>
-            last edited{" "}
+            Last edited{" "}
             {(() => {
               try {
                 return new Date(section.updated_at).toLocaleString();
