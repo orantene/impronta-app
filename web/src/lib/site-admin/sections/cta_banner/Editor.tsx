@@ -2,6 +2,7 @@
 
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { CtaBannerV1 } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -147,29 +148,35 @@ export function CtaBannerEditor({
       </div>
 
       {/* ── Presentation ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <label className={FIELD}>
-          <span className={LABEL}>Variant</span>
-          <select
-            className={INPUT}
-            value={value.variant}
-            onChange={(e) =>
-              patch({ variant: e.target.value as CtaBannerV1["variant"] })
-            }
-          >
-            <option value="centered-overlay">Centered overlay</option>
-            <option value="split-image">Split image</option>
-            <option value="minimal-band">Minimal band</option>
-          </select>
-          <span className={HINT}>
-            {value.variant === "centered-overlay"
-              ? "Full-bleed image, text centered over it."
-              : value.variant === "split-image"
-                ? "Image on one side, text + CTAs on the other."
-                : "Flat band — no image. Great for high-density pages."}
-          </span>
-        </label>
+      <VariantPicker
+        name="cta_banner.variant"
+        legend="Variant"
+        sectionKey="cta_banner"
+        options={[
+          {
+            value: "centered-overlay",
+            label: "Centered overlay",
+            hint: "Full-bleed image, text centered over it.",
+            schematic: "overlay",
+          },
+          {
+            value: "split-image",
+            label: "Split image",
+            hint: "Image on one side, text + CTAs on the other.",
+            schematic: "split",
+          },
+          {
+            value: "minimal-band",
+            label: "Minimal band",
+            hint: "Flat band — no image. Great for high-density pages.",
+            schematic: "band",
+          },
+        ]}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
 
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
           <span className={LABEL}>Image side (split)</span>
           <select

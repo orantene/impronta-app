@@ -2,6 +2,7 @@
 
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { TestimonialsTrioV1, TestimonialsTrioItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -40,15 +41,20 @@ export function TestimonialsTrioEditor({
         </label>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className={FIELD}>
-          <span className={LABEL}>Variant</span>
-          <select className={INPUT} value={value.variant} onChange={(e) => patch({ variant: e.target.value as TestimonialsTrioV1["variant"] })}>
-            <option value="trio-card">Trio card</option>
-            <option value="single-hero">Single hero quote</option>
-            <option value="carousel-row">Carousel row</option>
-          </select>
-        </label>
+      <VariantPicker
+        name="testimonials_trio.variant"
+        legend="Variant"
+        sectionKey="testimonials_trio"
+        options={[
+          { value: "trio-card", label: "Trio card", hint: "Three accent cards in a row.", schematic: "grid" },
+          { value: "single-hero", label: "Single hero", hint: "One oversized pull-quote.", schematic: "overlay" },
+          { value: "carousel-row", label: "Carousel row", hint: "Horizontal scroll rail.", schematic: "carousel" },
+        ]}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-1">
         <label className={FIELD}>
           <span className={LABEL}>Default accent</span>
           <select className={INPUT} value={value.defaultAccent} onChange={(e) => patch({ defaultAccent: e.target.value as TestimonialsTrioV1["defaultAccent"] })}>

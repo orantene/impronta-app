@@ -1,6 +1,7 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { SectionEditorProps } from "../types";
 import type { ValuesTrioV1, ValuesTrioItem } from "./schema";
 
@@ -53,20 +54,19 @@ export function ValuesTrioEditor({
           />
         </label>
       </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className={FIELD}>
-          <span className={LABEL}>Variant</span>
-          <select
-            className={INPUT}
-            value={value.variant}
-            onChange={(e) =>
-              patch({ variant: e.target.value as ValuesTrioV1["variant"] })
-            }
-          >
-            <option value="numbered-cards">Numbered cards</option>
-            <option value="iconed">Iconed cards</option>
-          </select>
-        </label>
+      <VariantPicker
+        name="values_trio.variant"
+        legend="Variant"
+        sectionKey="values_trio"
+        options={[
+          { value: "numbered-cards", label: "Numbered cards", hint: "Three cards with large numerals.", schematic: "grid" },
+          { value: "iconed", label: "Iconed cards", hint: "Icon above each value.", schematic: "row" },
+        ]}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-1">
         <label className={FIELD}>
           <span className={LABEL}>Number style</span>
           <select

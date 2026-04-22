@@ -2,6 +2,7 @@
 
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { TrustStripV1, TrustStripItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -94,27 +95,20 @@ export function TrustStripEditor({
         </label>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <label className={FIELD}>
-          <span className={LABEL}>Layout variant</span>
-          <select
-            className={INPUT}
-            value={value.variant}
-            onChange={(e) =>
-              patch({ variant: e.target.value as TrustStripV1["variant"] })
-            }
-          >
-            {VARIANTS.map((v) => (
-              <option key={v.value} value={v.value}>
-                {v.label}
-              </option>
-            ))}
-          </select>
-          <span className={HINT}>
-            {VARIANTS.find((v) => v.value === value.variant)?.hint}
-          </span>
-        </label>
+      <VariantPicker
+        name="trust_strip.variant"
+        legend="Layout variant"
+        sectionKey="trust_strip"
+        options={VARIANTS.map((v) => ({
+          value: v.value as NonNullable<TrustStripV1["variant"]>,
+          label: v.label,
+          hint: v.hint,
+        }))}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
 
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
           <span className={LABEL}>Background</span>
           <select

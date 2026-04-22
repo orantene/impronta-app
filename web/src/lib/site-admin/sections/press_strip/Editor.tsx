@@ -1,6 +1,7 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { SectionEditorProps } from "../types";
 import type { PressStripV1, PressStripItem } from "./schema";
 
@@ -31,31 +32,28 @@ export function PressStripEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className={FIELD}>
-          <span className={LABEL}>Eyebrow (optional)</span>
-          <input
-            className={INPUT}
-            maxLength={60}
-            value={value.eyebrow ?? ""}
-            onChange={(e) => patch({ eyebrow: e.target.value })}
-          />
-        </label>
-        <label className={FIELD}>
-          <span className={LABEL}>Variant</span>
-          <select
-            className={INPUT}
-            value={value.variant}
-            onChange={(e) =>
-              patch({ variant: e.target.value as PressStripV1["variant"] })
-            }
-          >
-            <option value="text-italic-serif">Text (italic serif)</option>
-            <option value="logo-row">Logo row</option>
-            <option value="mixed">Mixed (logo if set, else name)</option>
-          </select>
-        </label>
-      </div>
+      <label className={FIELD}>
+        <span className={LABEL}>Eyebrow (optional)</span>
+        <input
+          className={INPUT}
+          maxLength={60}
+          value={value.eyebrow ?? ""}
+          onChange={(e) => patch({ eyebrow: e.target.value })}
+        />
+      </label>
+
+      <VariantPicker
+        name="press_strip.variant"
+        legend="Variant"
+        sectionKey="press_strip"
+        options={[
+          { value: "text-italic-serif", label: "Text (italic serif)", hint: "Publication names in serif italic.", schematic: "row" },
+          { value: "logo-row", label: "Logo row", hint: "Uploaded publication logos.", schematic: "row" },
+          { value: "mixed", label: "Mixed", hint: "Logo when set, else name.", schematic: "row" },
+        ]}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">

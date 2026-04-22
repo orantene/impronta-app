@@ -1,6 +1,7 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { SectionEditorProps } from "../types";
 import type { GalleryStripV1, GalleryStripItem } from "./schema";
 
@@ -48,21 +49,20 @@ export function GalleryStripEditor({
         </label>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className={FIELD}>
-          <span className={LABEL}>Variant</span>
-          <select
-            className={INPUT}
-            value={value.variant}
-            onChange={(e) =>
-              patch({ variant: e.target.value as GalleryStripV1["variant"] })
-            }
-          >
-            <option value="mosaic">Mosaic (mixed ratios)</option>
-            <option value="scroll-rail">Scroll rail</option>
-            <option value="grid-uniform">Uniform grid</option>
-          </select>
-        </label>
+      <VariantPicker
+        name="gallery_strip.variant"
+        legend="Variant"
+        sectionKey="gallery_strip"
+        options={[
+          { value: "mosaic", label: "Mosaic", hint: "Mixed aspect ratios.", schematic: "mosaic" },
+          { value: "scroll-rail", label: "Scroll rail", hint: "Horizontal scroll on desktop.", schematic: "carousel" },
+          { value: "grid-uniform", label: "Uniform grid", hint: "Consistent tile size.", schematic: "grid" },
+        ]}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-1">
         <label className={FIELD}>
           <span className={LABEL}>Italic caption (optional)</span>
           <input

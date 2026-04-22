@@ -2,6 +2,7 @@
 
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type {
   DestinationsMosaicV1,
   DestinationsMosaicItem,
@@ -61,14 +62,18 @@ export function DestinationsMosaicEditor({
         <span className={LABEL}>Italic footnote</span>
         <input className={INPUT} maxLength={200} value={value.footnote ?? ""} onChange={(e) => patch({ footnote: e.target.value })} />
       </label>
-      <label className={FIELD}>
-        <span className={LABEL}>Variant</span>
-        <select className={INPUT} value={value.variant} onChange={(e) => patch({ variant: e.target.value as DestinationsMosaicV1["variant"] })}>
-          <option value="portrait-mosaic">Portrait mosaic (hero + 2x2)</option>
-          <option value="tile-grid">Uniform tile grid</option>
-          <option value="map-inspired">Map-inspired</option>
-        </select>
-      </label>
+      <VariantPicker
+        name="destinations_mosaic.variant"
+        legend="Variant"
+        sectionKey="destinations_mosaic"
+        options={[
+          { value: "portrait-mosaic", label: "Portrait mosaic", hint: "Hero + 2×2 grid.", schematic: "mosaic" },
+          { value: "tile-grid", label: "Tile grid", hint: "Uniform tiles.", schematic: "grid" },
+          { value: "map-inspired", label: "Map inspired", hint: "Decorative map-styled.", schematic: "mosaic" },
+        ]}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

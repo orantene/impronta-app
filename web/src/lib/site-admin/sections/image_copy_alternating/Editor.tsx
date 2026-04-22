@@ -1,6 +1,7 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { SectionEditorProps } from "../types";
 import type {
   ImageCopyAlternatingV1,
@@ -54,20 +55,19 @@ export function ImageCopyAlternatingEditor({
         </label>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <label className={FIELD}>
-          <span className={LABEL}>Variant</span>
-          <select
-            className={INPUT}
-            value={value.variant}
-            onChange={(e) =>
-              patch({ variant: e.target.value as ImageCopyAlternatingV1["variant"] })
-            }
-          >
-            <option value="editorial-alternating">Editorial alternating</option>
-            <option value="info-forward">Info forward</option>
-          </select>
-        </label>
+      <VariantPicker
+        name="image_copy_alternating.variant"
+        legend="Variant"
+        sectionKey="image_copy_alternating"
+        options={[
+          { value: "editorial-alternating", label: "Editorial alternating", hint: "Image alternates left/right.", schematic: "split" },
+          { value: "info-forward", label: "Info forward", hint: "Text-heavy with supporting image.", schematic: "stack" },
+        ]}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
           <span className={LABEL}>Gap</span>
           <select

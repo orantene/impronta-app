@@ -2,6 +2,7 @@
 
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { CategoryGridV1, CategoryGridItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -102,26 +103,20 @@ export function CategoryGridEditor({
         />
       </label>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <label className={FIELD}>
-          <span className={LABEL}>Variant</span>
-          <select
-            className={INPUT}
-            value={value.variant}
-            onChange={(e) =>
-              patch({ variant: e.target.value as CategoryGridV1["variant"] })
-            }
-          >
-            {VARIANTS.map((v) => (
-              <option key={v.value} value={v.value}>
-                {v.label}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-muted-foreground">
-            {VARIANTS.find((v) => v.value === value.variant)?.hint}
-          </span>
-        </label>
+      <VariantPicker
+        name="category_grid.variant"
+        legend="Variant"
+        sectionKey="category_grid"
+        options={VARIANTS.map((v) => ({
+          value: v.value as NonNullable<CategoryGridV1["variant"]>,
+          label: v.label,
+          hint: v.hint,
+        }))}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>
           <span className={LABEL}>Columns (desktop)</span>
           <input

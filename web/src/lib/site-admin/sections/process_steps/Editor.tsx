@@ -1,6 +1,7 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { SectionEditorProps } from "../types";
 import type { ProcessStepsV1, ProcessStepsStep } from "./schema";
 
@@ -60,21 +61,20 @@ export function ProcessStepsEditor({
         </label>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className={FIELD}>
-          <span className={LABEL}>Variant</span>
-          <select
-            className={INPUT}
-            value={value.variant}
-            onChange={(e) =>
-              patch({ variant: e.target.value as ProcessStepsV1["variant"] })
-            }
-          >
-            <option value="numbered-column">Numbered column</option>
-            <option value="horizontal-timeline">Horizontal timeline</option>
-            <option value="alternating-image">Alternating image</option>
-          </select>
-        </label>
+      <VariantPicker
+        name="process_steps.variant"
+        legend="Variant"
+        sectionKey="process_steps"
+        options={[
+          { value: "numbered-column", label: "Numbered column", hint: "Stacked cards with large numerals.", schematic: "stack" },
+          { value: "horizontal-timeline", label: "Horizontal timeline", hint: "Steps across a line.", schematic: "timeline" },
+          { value: "alternating-image", label: "Alternating image", hint: "Each step pairs with an image.", schematic: "split" },
+        ]}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-1">
         <label className={FIELD}>
           <span className={LABEL}>Number style</span>
           <select
