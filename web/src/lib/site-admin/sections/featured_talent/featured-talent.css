@@ -1,0 +1,54 @@
+/**
+ * Featured-talent section — grid / card / empty-state styling.
+ *
+ * Co-located with the Component so the section ships self-contained;
+ * shell-level rules (.site-featured-talent, __inner, __head, etc.) live in
+ * the global token-presets stylesheet. Card-family repaints (Editorial
+ * Bridal, etc.) attach to `.talent-card` in the global sheet — this file
+ * only owns layout-grid + empty-state styling.
+ */
+
+/* Grid: --ft-cols is set inline on the section from props.columnsDesktop (2–4).
+ * Mobile: 2-col fallback. md: clamped to ft-cols ≤3. lg: ft-cols. */
+.site-featured-talent__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(12px, 1.4vw, 20px);
+}
+@media (min-width: 768px) {
+  .site-featured-talent__grid {
+    grid-template-columns: repeat(min(var(--ft-cols, 3), 3), minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .site-featured-talent__grid {
+    grid-template-columns: repeat(var(--ft-cols, 3), minmax(0, 1fr));
+  }
+}
+
+/* Carousel variant: horizontal scroll rail on desktop too. */
+.site-featured-talent__grid[data-grid-variant="carousel"] {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 1fr);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 12px;
+}
+.site-featured-talent__grid[data-grid-variant="carousel"] > * {
+  scroll-snap-align: start;
+}
+
+/* Card wrapper — base sizing; directory card families override visuals. */
+.site-featured-talent__card { min-width: 0; }
+
+/* Empty state — admin-visible, calm. */
+.site-featured-talent__empty {
+  padding: 56px 24px;
+  text-align: center;
+  border: 1px dashed var(--token-color-line);
+  border-radius: var(--site-radius);
+  background: var(--token-color-secondary);
+  color: var(--token-color-muted);
+}
+.site-featured-talent__empty-note { font-size: 14px; line-height: 1.6; }
