@@ -3,22 +3,29 @@
 /**
  * Live-preview iframe for the structure composer.
  *
- * V1 scope: renders the tenant's LIVE (published) storefront in an
- * iframe with viewport toggle + manual reload. Draft-state preview
- * requires extending middleware to accept a signed `?preview=<jwt>`
- * query param (today's middleware only reads the preview cookie) —
- * that's a follow-up; committing this v1 unblocks the composer having
- * ANY preview at all.
+ * Renders the tenant's draft state (preview mode) or live storefront
+ * (fallback / no JWT) in an iframe with viewport toggle + manual
+ * reload. A preview token is minted on mount via the server action
+ * `mintPreviewTokenAction`; the iframe src carries it as
+ * `?preview=<jwt>`. The storefront middleware on the first load
+ * verifies the token, sets a tenant-scoped HttpOnly cookie, and
+ * 302-redirects to a clean URL — so the JWT never persists in browser
+ * history or server access logs.
+ *
+ * Refresh cycle: tokens are 15-min TTL, we refresh every 10 min (before
+ * the TTL hits) so long editing sessions keep the preview alive.
  *
  * Viewport sizes mirror the most common responsive breakpoints. We
  * change the iframe's width (not scale) so the rendered page uses its
  * real mobile CSS at 375px, not a shrunken desktop.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Monitor, Smartphone, Tablet, RefreshCw, ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+
+import { mintPreviewTokenAction } from "./preview-token-action";
 
 type Viewport = "desktop" | "tablet" | "mobile";
 
@@ -50,15 +57,55 @@ export function LivePreviewPanel({
 }: LivePreviewPanelProps) {
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [nonce, setNonce] = useState(0);
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Mint / refresh the preview token. A failed mint degrades to
+  // published-state preview — better than a blocking error UI.
+  const refreshToken = useCallback(async () => {
+    try {
+      const result = await mintPreviewTokenAction("homepage");
+      if (result.ok && result.token) {
+        setPreviewToken(result.token);
+        setTokenError(null);
+      } else {
+        setPreviewToken(null);
+        setTokenError(result.error ?? "Preview token unavailable.");
+      }
+    } catch (e) {
+      setPreviewToken(null);
+      setTokenError(
+        e instanceof Error
+          ? e.message
+          : "Preview token unavailable — showing published state.",
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshToken();
+    // JWT TTL is 15 min; refresh at 10 min so the iframe never carries
+    // an expired token across a long editing session.
+    const id = window.setInterval(
+      () => {
+        void refreshToken();
+      },
+      10 * 60 * 1000,
+    );
+    return () => window.clearInterval(id);
+  }, [refreshToken]);
 
   const src = useMemo(() => {
     const url = new URL(path, origin);
+    // The first render uses ?preview=<jwt> — middleware strips it + sets
+    // the cookie. Subsequent reloads in the iframe run on the cookie.
+    if (previewToken) url.searchParams.set("preview", previewToken);
     // Hash-nonce busts the iframe document without also busting CDN caches
     // on the storefront side (query string would flow to fetch keys).
     url.hash = `preview-${nonce}`;
     return url.toString();
-  }, [origin, path, nonce]);
+  }, [origin, path, nonce, previewToken]);
 
   // Auto-reload after a publish event — parent bumps lastPublishedAt.
   useEffect(() => {
@@ -70,6 +117,7 @@ export function LivePreviewPanel({
   }
 
   const current = VIEWPORTS[viewport];
+  const previewActive = Boolean(previewToken);
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border/60 bg-muted/10 p-3">
@@ -78,9 +126,29 @@ export function LivePreviewPanel({
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Preview
           </span>
-          <span className="text-[10px] text-muted-foreground">
-            shows published state · reload after you publish
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+              previewActive
+                ? "bg-amber-400/20 text-amber-300"
+                : "bg-muted/40 text-muted-foreground"
+            }`}
+          >
+            <span
+              className={`size-1.5 rounded-full ${
+                previewActive ? "bg-amber-300" : "bg-muted-foreground"
+              }`}
+              aria-hidden
+            />
+            {previewActive ? "Draft" : "Published"}
           </span>
+          {tokenError ? (
+            <span
+              className="text-[10px] text-destructive"
+              title={tokenError}
+            >
+              token unavailable — showing published state
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-1">
           {(Object.keys(VIEWPORTS) as Viewport[]).map((key) => {

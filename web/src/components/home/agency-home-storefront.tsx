@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { PublicHeader } from "@/components/public-header";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { HeroSearch } from "@/components/home/hero-search";
+import { LifestyleBackdrop } from "@/components/home/lifestyle-backdrop";
 import { TalentTypeShortcuts } from "@/components/home/talent-type-shortcuts";
 import { FeaturedTalentSection } from "@/components/home/featured-talent-section";
 import { BestForSection } from "@/components/home/best-for-section";
@@ -9,6 +10,7 @@ import { LocationSection } from "@/components/home/location-section";
 import { HowItWorks } from "@/components/home/how-it-works";
 import { CtaSection } from "@/components/home/cta-section";
 import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
+import { resolveStorefrontLifestyleSlides } from "@/lib/site-admin/storefront-lifestyle";
 import { getHomepageData } from "@/lib/home-data";
 import { PublicDiscoveryStateProvider } from "@/components/directory/public-discovery-state";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
@@ -18,7 +20,11 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { getPublicSettings } from "@/lib/public-settings";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { readGoogleMapsBrowserKey } from "@/lib/env/google-maps-browser-key";
-import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
+import {
+  isPreviewActiveForTenant,
+  loadHomepageForRender,
+} from "@/lib/site-admin/server/homepage-reads";
+import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isLocale } from "@/lib/site-admin/locales";
 
 /**
@@ -36,15 +42,67 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   // Platform locales are a subset of request locales; fall through silently
   // when the request locale isn't a platform locale.
   const cmsLocale = isLocale(locale) ? locale : null;
-  const [{ talentTypes, featuredTalent, fitLabels, locations }, cmsHomepage] =
-    await Promise.all([
-      getHomepageData({ tenantId }),
-      cmsLocale ? loadPublicHomepage(tenantId, cmsLocale) : Promise.resolve(null),
-    ]);
+  const [
+    { talentTypes, featuredTalent, fitLabels, locations },
+    cmsHomepage,
+    identity,
+    previewActive,
+  ] = await Promise.all([
+    getHomepageData({ tenantId }),
+    cmsLocale
+      ? loadHomepageForRender(tenantId, cmsLocale)
+      : Promise.resolve(null),
+    loadPublicIdentity(tenantId),
+    isPreviewActiveForTenant(tenantId),
+  ]);
+  const brandLabel = identity?.public_name?.trim() || "Roster";
+  const footerTagline =
+    identity?.footer_tagline?.trim() || t("public.home.footer.tagline");
   const cmsHeroSlot = cmsHomepage?.snapshot?.slots.some(
     (s) => s.slotKey === "hero",
   );
+  /**
+   * M7.1 — when the operator has composed additional homepage slots beyond
+   * the hero (trust_band, services, featured, process, destinations,
+   * gallery, testimonials, final_cta), render those instead of the legacy
+   * hardcoded stack. A snapshot with ONLY `hero` keeps the existing
+   * hardcoded fallback sections so legacy tenants continue to work.
+   */
+  const cmsComposedSlotKeys = new Set(
+    (cmsHomepage?.snapshot?.slots ?? []).map((s) => s.slotKey),
+  );
+  const hasCmsComposition = (
+    [
+      "trust_band",
+      "services",
+      "featured",
+      "process",
+      "destinations",
+      "gallery",
+      "testimonials",
+      "final_cta",
+      "primary",
+      "secondary",
+      "footer-callout",
+    ] as const
+  ).some((slotKey) => cmsComposedSlotKeys.has(slotKey));
   const cmsIntroTagline = cmsHomepage?.snapshot?.fields.introTagline ?? null;
+  /**
+   * Hero kicker precedence (tenant-safe):
+   * 1. CMS field `introTagline` (operator-curated on homepage).
+   * 2. Identity `tagline` (operator-curated on /admin/site-settings/identity).
+   * 3. i18n fallback (platform-neutral copy).
+   * Falling straight to the i18n string leaked Impronta-specific copy
+   * ("Models & image agency") to every storefront that hadn't overridden it.
+   */
+  const heroKicker =
+    cmsIntroTagline ??
+    identity?.tagline?.trim() ??
+    t("public.home.hero.kicker");
+  /** Curated lifestyle reel for the fallback hero (Nova et al.). */
+  const lifestyleSlides = cmsHeroSlot
+    ? null
+    : resolveStorefrontLifestyleSlides(tenantId);
 
   const [aiFlags, publicSettings] = await Promise.all([
     getAiFeatureFlags(),
@@ -118,17 +176,53 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   const year = new Date().getFullYear();
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-background">
+    <div
+      className="flex min-h-full flex-1 flex-col bg-background"
+      data-preview={previewActive ? "draft" : undefined}
+    >
+      {previewActive ? (
+        <div
+          role="status"
+          aria-label="Preview mode — showing draft"
+          className="sticky top-0 z-[60] flex items-center justify-center gap-2 bg-amber-400/95 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-950 shadow-sm"
+        >
+          <span className="size-1.5 rounded-full bg-zinc-950" aria-hidden />
+          Preview — showing draft. Publish from the composer to go live.
+        </div>
+      ) : null}
       <PublicDiscoveryStateProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
         <PublicHeader />
         <main className="flex flex-1 flex-col">
-          <section className="relative flex flex-col items-center justify-center px-4 pb-6 pt-16 sm:px-6 sm:pb-12 sm:pt-28 lg:px-8">
+          <section
+            className={
+              lifestyleSlides
+                ? "site-hero relative flex flex-col items-center justify-center overflow-hidden"
+                : "relative flex flex-col items-center justify-center px-4 pb-6 pt-16 sm:px-6 sm:pb-12 sm:pt-28 lg:px-8"
+            }
+            data-hero-mood={lifestyleSlides ? "cinematic" : undefined}
+            data-hero-overlay={lifestyleSlides ? "gradient-scrim" : undefined}
+            data-hero-variant={lifestyleSlides ? "slider" : undefined}
+          >
+            {lifestyleSlides ? (
+              <LifestyleBackdrop
+                slides={[...lifestyleSlides]}
+                perSlideMs={7000}
+                overlay="gradient-scrim"
+              />
+            ) : (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(212,175,55,0.12),transparent)]"
+              />
+            )}
             <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(212,175,55,0.12),transparent)]"
-            />
-            <div className="relative w-full max-w-3xl text-center">
+              className={
+                lifestyleSlides
+                  ? "site-hero__inner relative w-full max-w-3xl text-center"
+                  : "relative w-full max-w-3xl text-center"
+              }
+            >
               {cmsHeroSlot && cmsHomepage?.snapshot ? (
                 // CMS-composed hero (from published_homepage_snapshot).
                 // Storefront-search functionality is stitched back in below
@@ -142,7 +236,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
               ) : (
                 <>
                   <p className="font-display text-sm font-medium uppercase tracking-[0.35em] text-[var(--impronta-gold-dim)]">
-                    {cmsIntroTagline ?? t("public.home.hero.kicker")}
+                    {heroKicker}
                   </p>
                   <h1 className="mt-6 font-display text-3xl font-normal leading-tight tracking-[0.06em] text-foreground sm:text-4xl md:text-5xl">
                     {t("public.home.hero.titleBefore")}{" "}
@@ -174,52 +268,89 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
             </div>
           </section>
 
-          <TalentTypeShortcuts
-            types={talentTypes}
-            locale={locale}
-            sectionKicker={t("public.home.browseByType.sectionKicker")}
-          />
+          {/* M7.1 — CMS composition vs legacy hardcoded fallback.
+           *
+           * When the operator has assigned sections to any non-hero slot
+           * (trust_band, services, featured, process, destinations, gallery,
+           * testimonials, final_cta, …), render those sections in snapshot
+           * order. The legacy TalentTypeShortcuts / FeaturedTalentSection /
+           * BestFor / Location / HowItWorks / CtaSection stack stays as the
+           * fallback for tenants that haven't composed a homepage yet.
+           *
+           * Rendering skips the `hero` slot because it's already rendered
+           * above — the hero lives inside a specific `<section>` that
+           * includes the search bar and lifestyle backdrop. */}
+          {hasCmsComposition && cmsHomepage?.snapshot ? (
+            cmsHomepage.snapshot.slots
+              .filter((s) => s.slotKey !== "hero")
+              .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+              .map((entry) => {
+                const snap = cmsHomepage.snapshot!;
+                return (
+                  <HomepageCmsSections
+                    key={`cms-slot-${entry.slotKey}-${entry.sectionId}-${entry.sortOrder}`}
+                    snapshot={{ ...snap, slots: [entry] }}
+                    tenantId={tenantId}
+                    locale={locale}
+                  />
+                );
+              })
+          ) : (
+            <>
+              <TalentTypeShortcuts
+                types={talentTypes}
+                locale={locale}
+                sectionKicker={t("public.home.browseByType.sectionKicker")}
+              />
 
-          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-            <hr className="border-[var(--impronta-gold-border)]" />
-          </div>
+              <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+                <hr className="border-[var(--impronta-gold-border)]" />
+              </div>
 
-          <FeaturedTalentSection
-            talent={featuredTalent}
-            locale={locale}
-            copy={featuredCopy}
-          />
+              <FeaturedTalentSection
+                talent={featuredTalent}
+                locale={locale}
+                copy={featuredCopy}
+              />
 
-          <BestForSection labels={fitLabels} locale={locale} copy={bestForCopy} />
+              <BestForSection
+                labels={fitLabels}
+                locale={locale}
+                copy={bestForCopy}
+              />
 
-          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-            <hr className="border-[var(--impronta-gold-border)]" />
-          </div>
+              <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+                <hr className="border-[var(--impronta-gold-border)]" />
+              </div>
 
-          <LocationSection
-            locations={locations}
-            locale={locale}
-            copy={locationCopy}
-            mapsApiKey={mapsApiKey}
-          />
+              <LocationSection
+                locations={locations}
+                locale={locale}
+                copy={locationCopy}
+                mapsApiKey={mapsApiKey}
+              />
 
-          <HowItWorks copy={howItWorksCopy} />
+              <HowItWorks copy={howItWorksCopy} />
 
-          <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
-            <hr className="border-[var(--impronta-gold-border)]" />
-          </div>
+              <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+                <hr className="border-[var(--impronta-gold-border)]" />
+              </div>
 
-          <CtaSection locale={locale} copy={ctaCopy} />
+              <CtaSection locale={locale} copy={ctaCopy} />
+            </>
+          )}
 
           <footer className="border-t border-border px-4 py-10 sm:px-6 lg:px-8">
             <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-center text-sm text-[var(--impronta-muted)]">
               <PublicCmsFooterNav locale={locale} />
-              <p className="font-display text-m tracking-[0.2em] text-foreground">
-                IMPRONTA
+              <p className="font-display text-m uppercase tracking-[0.2em] text-foreground">
+                {brandLabel}
               </p>
-              <p>{t("public.home.footer.tagline")}</p>
+              <p>{footerTagline}</p>
               <p>
-                {t("public.home.footer.copyright").replace("{year}", String(year))}
+                {t("public.home.footer.copyright")
+                  .replace("{year}", String(year))
+                  .replace("{brand}", brandLabel)}
               </p>
             </div>
           </footer>

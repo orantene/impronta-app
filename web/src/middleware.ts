@@ -24,6 +24,12 @@ import {
 import { TENANT_HEADER_NAME } from "@/lib/saas/scope";
 import { isPathAllowedForHostKind } from "@/lib/saas/surface-allow-list";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
+import {
+  PREVIEW_COOKIE_OPTIONS,
+  PREVIEW_QUERY_PARAM,
+  previewCookieNameFor,
+} from "@/lib/site-admin/preview/cookie";
+import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -55,6 +61,39 @@ export async function middleware(request: NextRequest) {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
+  }
+
+  // ── Preview handoff ─────────────────────────────────────────────────────
+  // Admin iframes the storefront with `?preview=<jwt>`. On the first hit we
+  // verify the token, set a tenant-scoped HttpOnly cookie, and 302-redirect
+  // to the same URL with the param stripped. Subsequent loads within the
+  // iframe are cookie-driven so the JWT never touches browser history or
+  // server access logs past the entry.
+  if (
+    (hostContext.kind === "agency" || hostContext.kind === "hub") &&
+    request.nextUrl.searchParams.has(PREVIEW_QUERY_PARAM)
+  ) {
+    const previewResult = await readPreviewFromQueryParam(
+      request,
+      hostContext.tenantId,
+    );
+    if (previewResult.ok) {
+      const clean = request.nextUrl.clone();
+      clean.searchParams.delete(PREVIEW_QUERY_PARAM);
+      const res = NextResponse.redirect(clean, 302);
+      res.cookies.set(
+        previewCookieNameFor(hostContext.tenantId),
+        previewResult.token,
+        { ...PREVIEW_COOKIE_OPTIONS },
+      );
+      return res;
+    }
+    // Invalid / expired / wrong-tenant token: strip the param silently and
+    // proceed as a normal published request. No error UI here — the panel
+    // will mint a fresh token on the next cycle.
+    const clean = request.nextUrl.clone();
+    clean.searchParams.delete(PREVIEW_QUERY_PARAM);
+    return NextResponse.redirect(clean, 302);
   }
 
   const langSettings = await getLanguageSettingsForMiddleware();
