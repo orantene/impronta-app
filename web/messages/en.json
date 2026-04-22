@@ -1,14 +1,14 @@
 {
   "public": {
     "meta": {
-      "homeTitle": "Models & image agency",
-      "homeDescription": "Discover represented talent, save shortlists, and work with Impronta — agency-managed discovery and representation.",
+      "homeTitle": "Represented talent",
+      "homeDescription": "Discover represented talent, save shortlists, and work with the agency — managed discovery and representation.",
       "directoryTitle": "Directory",
-      "directoryDescription": "Browse represented talent — save profiles to your shortlist and contact the agency through Impronta.",
+      "directoryDescription": "Browse represented talent — save profiles to your shortlist and contact the agency.",
       "modelsTitle": "Models",
-      "modelsDescription": "Explore models and talent represented by Impronta — agency-managed discovery and representation.",
+      "modelsDescription": "Explore represented models and talent — agency-managed discovery and representation.",
       "contactTitle": "Contact",
-      "contactDescription": "Get in touch with Impronta — agency inquiries and representation."
+      "contactDescription": "Get in touch with the agency — inquiries and representation."
     },
     "header": {
       "searchTalentAria": "Search talent",
@@ -43,15 +43,28 @@
       "aiPanelTitle": "AI assist",
       "aiPanelBody": "Similar profiles and smart summaries will appear here when AI features are enabled.",
       "sidebarAgencyTitle": "Agency represented",
-      "sidebarAgencyBody": "Bookings and inquiries are handled exclusively through Impronta — not via this profile.",
+      "sidebarAgencyBody": "Bookings and inquiries are handled exclusively through the agency — not via this profile.",
       "refCodePrefix": "ref:",
+      "editorial": {
+        "specialties": "Specialties",
+        "destinations": "Destinations",
+        "destinationReady": "Destination-ready",
+        "packages": "Packages",
+        "bookingDetails": "Booking details",
+        "bookingNote": "Booking note",
+        "social": "Connect",
+        "watchListen": "Watch & listen",
+        "teamSize": "Team",
+        "leadTime": "Lead time",
+        "startingFrom": "Starting from"
+      },
       "share": {
         "heading": "Share this profile",
         "copyLink": "Copy link",
         "copyLinkDone": "Link copied",
         "shareWhatsapp": "Share on WhatsApp",
         "shareSystem": "Share…",
-        "whatsappTemplate": "{name} on Impronta — {url}"
+        "whatsappTemplate": "{name} — {url}"
       },
       "ctaSectionAria": "Call to action",
       "footerCtaTitle": "Ready to work with {firstName}?",
@@ -62,33 +75,33 @@
         "contactAboutTalent": "Contact About Talent",
         "openInquiryCart": "Open Inquiry Cart",
         "browseMoreTalent": "Browse More Talent",
-        "contactImpronta": "Contact Impronta"
+        "contactImpronta": "Contact the agency"
       }
     },
     "common": {
-      "brand": "Impronta"
+      "brand": "Roster"
     },
     "home": {
       "hero": {
-        "kicker": "Models & image agency",
+        "kicker": "Agency-managed roster",
         "titleBefore": "Find the",
         "titleHighlight": "right talent",
-        "titleAfter": "for your event",
+        "titleAfter": "for your brief",
         "subtitle": "Search the directory by role, location, or fit using natural language. Agency-managed, no direct contact.",
         "searchPlaceholder": "Describe your event or talent needs…",
         "searchAria": "Search directory",
         "searchSubmit": "Search",
         "typedExamples": [
-          "Bilingual hostesses for a resort event in Cancún",
-          "3 models for a luxury brand launch in Playa del Carmen",
+          "Bilingual hosts for a resort launch",
+          "Editorial models for a luxury brand shoot",
           "VIP host for a corporate gala — English and Spanish",
-          "Promotional models for a beach club opening",
+          "Promotional models for a boutique venue opening",
           "Brand ambassadors for a hospitality activation"
         ]
       },
       "footer": {
-        "tagline": "Models & Talent · Agency-managed discovery and representation",
-        "copyright": "© {year} Impronta. All rights reserved."
+        "tagline": "Agency-managed discovery and representation",
+        "copyright": "© {year} {brand}. All rights reserved."
       },
       "featured": {
         "sectionKicker": "Featured talent",
@@ -365,7 +378,7 @@
         "formSending": "Sending…",
         "formSubmitInquiry": "Submit inquiry",
         "formWhatsAppCompose": "Compose in WhatsApp",
-        "formWhatsAppTitleOn": "Open a pre-filled message to Impronta on WhatsApp.",
+        "formWhatsAppTitleOn": "Open a pre-filled message to the agency on WhatsApp.",
         "formWhatsAppTitleOff": "WhatsApp is not configured by the agency yet.",
         "formLabelYourName": "Your name",
         "formLabelEmail": "Email",
@@ -388,7 +401,7 @@
         "formDraftError": "Could not generate a draft. Try again or write your own brief.",
         "formDraftPolishNeedText": "Add some text in the brief first to polish it.",
         "formDraftHint": "AI suggests text you can edit before sending. The agency reviews every inquiry.",
-        "formPrivacyNotice": "By sending this, you contact Impronta only. Talent is not notified directly and does not receive your details."
+        "formPrivacyNotice": "By sending this, you contact the agency only. Talent is not notified directly and does not receive your details."
       }
     },
     "errors": {

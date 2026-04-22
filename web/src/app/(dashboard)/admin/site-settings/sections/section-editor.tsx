@@ -28,13 +28,21 @@ import { SectionStatusBadge } from "@/components/admin/section-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SECTION_NAME_MAX } from "@/lib/site-admin/forms/sections";
+// Mirrored from @/lib/site-admin/forms/sections — importing that module
+// from a client component transitively pulls in the full server-side
+// registry (featured_talent/fetch.ts → next/headers). The value is a
+// stable constant and isn't expected to drift; if it ever does, align
+// both sites. A follow-up could extract a client-safe constants module.
+const SECTION_NAME_MAX = 140;
 import {
-  getSectionType,
-  type SectionTypeKey,
-} from "@/lib/site-admin/sections/registry";
+  getSectionEditorEntry,
+  type SectionEditorRegistryEntry,
+} from "@/lib/site-admin/sections/registry-editors";
 import type { SectionEditorProps } from "@/lib/site-admin/sections/types";
 import type { SectionRow } from "@/lib/site-admin/server/sections";
+
+/** Legacy alias — downstream code expected SectionTypeKey from the full registry. */
+type SectionTypeKey = string;
 
 import {
   archiveSectionAction,
@@ -129,7 +137,8 @@ export function SectionEditor({
   const version = effectiveVersion ?? section?.version ?? 0;
 
   const typeKey = section?.section_type_key ?? initialTypeKey ?? "hero";
-  const registryEntry = getSectionType(typeKey);
+  const registryEntry: SectionEditorRegistryEntry | null =
+    getSectionEditorEntry(typeKey);
 
   // Registry-governed props shape. `any`-less: the editor is generic over
   // the registry entry's schema payload type.

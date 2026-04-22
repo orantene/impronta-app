@@ -42,6 +42,14 @@ import {
   type CanonicalLocationEmbed,
 } from "@/lib/canonical-location-display";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import {
+  loadPublicIdentity,
+  loadPublicBranding,
+} from "@/lib/site-admin/server/reads";
+import {
+  EditorialBridalProfileBlocks,
+  type EmbeddedMediaProvider,
+} from "./editorial-bridal-profile-blocks";
 import { canonicalTalentUrl } from "@/lib/saas/canonical-hosts";
 import {
   resolveTalentVisibility,
@@ -97,6 +105,23 @@ type TalentProfile = {
   legacy_location: CanonicalLocationEmbed | CanonicalLocationEmbed[] | null;
   origin_city: CanonicalLocationEmbed | CanonicalLocationEmbed[] | null;
   talent_profile_taxonomy: TaxonomyRow[];
+
+  // ── M8 editorial columns ─────────────────────────────────────────────
+  // All nullable on the DB; the editorial profile variant is the only
+  // render path that reads them today. Classic family ignores them.
+  intro_italic?: string | null;
+  event_styles?: string[] | null;
+  destinations?: string[] | null;
+  languages?: string[] | null;
+  travels_globally?: boolean | null;
+  team_size?: string | null;
+  lead_time_weeks?: string | null;
+  starting_from?: string | null;
+  booking_note?: string | null;
+  service_category_slug?: string | null;
+  package_teasers?: unknown | null;
+  social_links?: unknown | null;
+  embedded_media?: unknown | null;
 };
 
 type PublicFieldDefinitionEmbed = {
@@ -216,7 +241,20 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
             talent_profile_taxonomy (
               is_primary,
               taxonomy_terms ( kind, slug, name_en, name_es )
-            )
+            ),
+            intro_italic,
+            event_styles,
+            destinations,
+            languages,
+            travels_globally,
+            team_size,
+            lead_time_weeks,
+            starting_from,
+            booking_note,
+            service_category_slug,
+            package_teasers,
+            social_links,
+            embedded_media
           `,
           )
           .eq("profile_code", profileCode)
@@ -264,7 +302,20 @@ async function fetchTalentProfile(profileCode: string, preview: boolean) {
       talent_profile_taxonomy (
         is_primary,
         taxonomy_terms ( kind, slug, name_en, name_es )
-      )
+      ),
+      intro_italic,
+      event_styles,
+      destinations,
+      languages,
+      travels_globally,
+      team_size,
+      lead_time_weeks,
+      starting_from,
+      booking_note,
+      service_category_slug,
+      package_teasers,
+      social_links,
+      embedded_media
     `,
     )
     .eq("profile_code", profileCode)
@@ -460,7 +511,6 @@ export default async function PublicTalentProfilePage({
   const { preview } = sp;
   const locale = await getRequestLocale();
   const t = createTranslator(locale);
-  const ui = buildDirectoryUiCopy(t);
   const previewMode = preview === "1";
 
   // Phase 5/6 M2 — surface gate. Hub hosts never serve /t/* (the hub has its
@@ -471,6 +521,22 @@ export default async function PublicTalentProfilePage({
   if (hostCtx.kind === "hub") {
     notFound();
   }
+  const [tenantBrandIdentity, tenantBranding] = await Promise.all([
+    hostCtx.kind === "agency"
+      ? loadPublicIdentity(hostCtx.tenantId)
+      : Promise.resolve(null),
+    hostCtx.kind === "agency"
+      ? loadPublicBranding(hostCtx.tenantId)
+      : Promise.resolve(null),
+  ]);
+  const tenantBrand = tenantBrandIdentity?.public_name ?? null;
+  // Resolve the profile layout family token (template.profile-layout-family)
+  // — drives whether the editorial-bridal extensions render below.
+  const profileLayoutFamily =
+    ((tenantBranding?.theme_json ?? null) as Record<string, unknown> | null)?.[
+      "template.profile-layout-family"
+    ] as string | null | undefined;
+  const ui = buildDirectoryUiCopy(t, tenantBrand);
   const surface: TalentSurface =
     hostCtx.kind === "agency" ? "agency" : "freelancer";
 
@@ -727,7 +793,7 @@ export default async function PublicTalentProfilePage({
       <PublicHeader />
       <DiscoveryStateBridge savedIds={initialSavedIds} />
 
-      <main className="flex-1 bg-[var(--impronta-black)]">
+      <main className="flex-1 bg-[var(--impronta-black)]" data-profile-shell>
         {resolvedPreview ? (
           <div className="border-b border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] px-4 py-3 text-center text-sm uppercase tracking-[0.2em] text-[var(--impronta-gold)] sm:px-6 lg:px-8">
             {t("public.profile.previewModeBanner")}
@@ -781,11 +847,15 @@ export default async function PublicTalentProfilePage({
             "relative z-10 px-4 sm:px-6 lg:px-8",
             hasCover ? "-mt-16" : "mt-10",
           ].join(" ")}
+          data-profile-hero
         >
           <div className="mx-auto max-w-5xl">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
               {profileImageUrl ? (
-                <div className="relative h-32 w-24 shrink-0 overflow-hidden rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] sm:h-40 sm:w-28">
+                <div
+                  className="relative h-32 w-24 shrink-0 overflow-hidden rounded-lg border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)] sm:h-40 sm:w-28"
+                  data-profile-portrait
+                >
                   <Image
                     src={profileImageUrl}
                     alt={t("public.profile.profileImageAlt").replace("{name}", name)}
@@ -798,11 +868,17 @@ export default async function PublicTalentProfilePage({
               {/* Text block */}
               <div className="flex-1 space-y-3">
                 {/* Talent type pill */}
-                <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--impronta-gold)]">
+                <p
+                  className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--impronta-gold)]"
+                  data-profile-kicker
+                >
                   {talentType}
                 </p>
                 {/* Name */}
-                <h1 className="font-[family-name:var(--font-cinzel)] text-4xl font-medium leading-tight tracking-wide text-[var(--impronta-foreground)] sm:text-5xl lg:text-6xl">
+                <h1
+                  className="font-[family-name:var(--font-cinzel)] text-4xl font-medium leading-tight tracking-wide text-[var(--impronta-foreground)] sm:text-5xl lg:text-6xl"
+                  data-profile-name
+                >
                   {name}
                 </h1>
                 {/* Lives in / Originally from + languages */}
@@ -857,10 +933,12 @@ export default async function PublicTalentProfilePage({
 
             {/* Divider */}
             <div className="mt-10 border-t border-[var(--impronta-gold-border)]" />
-            <ProfileAiStrip
-              title={t("public.profile.aiPanelTitle")}
-              body={t("public.profile.aiPanelBody")}
-            />
+            <div data-profile-section="ai-strip">
+              <ProfileAiStrip
+                title={t("public.profile.aiPanelTitle")}
+                body={t("public.profile.aiPanelBody")}
+              />
+            </div>
           </div>
         </div>
 
@@ -873,8 +951,81 @@ export default async function PublicTalentProfilePage({
             {/* ── Left column ─────────────────────────────────────── */}
             <div className="space-y-14">
 
+              {/* Editorial-bridal extensions. No-op on other families. */}
+              <EditorialBridalProfileBlocks
+                layoutFamily={profileLayoutFamily ?? null}
+                introItalic={profile.intro_italic ?? null}
+                eventStyles={Array.isArray(profile.event_styles)
+                  ? (profile.event_styles as string[]).filter(Boolean)
+                  : []}
+                destinations={Array.isArray(profile.destinations)
+                  ? (profile.destinations as string[]).filter(Boolean)
+                  : []}
+                travelsGlobally={Boolean(profile.travels_globally)}
+                teamSize={profile.team_size ?? null}
+                leadTimeWeeks={profile.lead_time_weeks ?? null}
+                startingFrom={profile.starting_from ?? null}
+                bookingNote={profile.booking_note ?? null}
+                packageTeasers={(() => {
+                  const raw = profile.package_teasers;
+                  if (!Array.isArray(raw)) return [];
+                  return (raw as unknown[]).flatMap((p) => {
+                    if (typeof p !== "object" || p === null) return [];
+                    const label = (p as { label?: unknown }).label;
+                    if (typeof label !== "string" || !label.trim()) return [];
+                    const detail = (p as { detail?: unknown }).detail;
+                    return [{
+                      label: label.trim(),
+                      detail: typeof detail === "string" ? detail : null,
+                    }];
+                  });
+                })()}
+                socialLinks={(() => {
+                  const raw = profile.social_links;
+                  if (!Array.isArray(raw)) return [];
+                  return (raw as unknown[]).flatMap((p) => {
+                    if (typeof p !== "object" || p === null) return [];
+                    const label = (p as { label?: unknown }).label;
+                    const href = (p as { href?: unknown }).href;
+                    if (typeof label !== "string" || typeof href !== "string") return [];
+                    return [{ label: label.trim(), href: href.trim() }];
+                  });
+                })()}
+                embeddedMedia={(() => {
+                  const raw = profile.embedded_media;
+                  if (!Array.isArray(raw)) return [];
+                  const allowed: EmbeddedMediaProvider[] = ["spotify", "soundcloud", "vimeo", "youtube"];
+                  return (raw as unknown[]).flatMap((p) => {
+                    if (typeof p !== "object" || p === null) return [];
+                    const provider = (p as { provider?: unknown }).provider;
+                    const url = (p as { url?: unknown }).url;
+                    if (typeof url !== "string" || typeof provider !== "string") return [];
+                    if (!allowed.includes(provider as EmbeddedMediaProvider)) return [];
+                    const label = (p as { label?: unknown }).label;
+                    return [{
+                      provider: provider as EmbeddedMediaProvider,
+                      url,
+                      label: typeof label === "string" ? label : null,
+                    }];
+                  });
+                })()}
+                copy={{
+                  specialties: t("public.profile.editorial.specialties"),
+                  destinations: t("public.profile.editorial.destinations"),
+                  destinationReady: t("public.profile.editorial.destinationReady"),
+                  packages: t("public.profile.editorial.packages"),
+                  bookingDetails: t("public.profile.editorial.bookingDetails"),
+                  bookingNote: t("public.profile.editorial.bookingNote"),
+                  social: t("public.profile.editorial.social"),
+                  watchListen: t("public.profile.editorial.watchListen"),
+                  teamSize: t("public.profile.editorial.teamSize"),
+                  leadTime: t("public.profile.editorial.leadTime"),
+                  startingFrom: t("public.profile.editorial.startingFrom"),
+                }}
+              />
+
               {/* Portfolio gallery */}
-              <section aria-labelledby="portfolio-heading">
+              <section aria-labelledby="portfolio-heading" data-profile-section="portfolio">
                 <SectionLabel id="portfolio-heading">{t("public.profile.portfolio")}</SectionLabel>
                 {galleryItems.length > 0 ? (
                   <PortfolioGalleryLightbox
@@ -895,7 +1046,7 @@ export default async function PublicTalentProfilePage({
 
               {/* About — overlaid by agency local_bio when on agency surface */}
               {aboutText.trim() ? (
-                <section aria-labelledby="about-heading">
+                <section aria-labelledby="about-heading" data-profile-section="about">
                   <SectionLabel id="about-heading">{t("public.profile.about")}</SectionLabel>
                   <p className="mt-4 max-w-2xl text-base leading-[1.8] text-[var(--impronta-muted)]">
                     {aboutText}
@@ -1111,7 +1262,7 @@ export default async function PublicTalentProfilePage({
         >
           <div className="mx-auto flex max-w-5xl flex-col items-center gap-6 px-4 py-16 text-center sm:px-6 lg:px-8">
             <p className="font-[family-name:var(--font-cinzel)] text-sm uppercase tracking-[0.28em] text-[var(--impronta-gold)]">
-              {t("public.common.brand")}
+              {ui.common.brand}
             </p>
             <h2 className="font-[family-name:var(--font-cinzel)] text-2xl font-medium tracking-wide text-[var(--impronta-foreground)] sm:text-3xl">
               {t("public.profile.footerCtaTitle").replace("{firstName}", firstName)}
@@ -1134,6 +1285,33 @@ export default async function PublicTalentProfilePage({
           </div>
         </section>
       </main>
+
+      {/* M8 — Sticky inquiry bar (only visible when the tenant has
+        * `profile.sticky-inquiry-bar = on` in their theme). Always rendered
+        * to keep payload stable; CSS hides/shows based on data-token. */}
+      <div
+        data-profile-sticky-bar="visible"
+        className="fixed inset-x-0 bottom-0 z-50"
+        style={{ display: "none" }}
+      >
+        <div className="mx-auto flex max-w-4xl items-center gap-4 rounded-full border border-[var(--token-color-line,#e5dcce)] bg-[var(--token-color-surface-raised,#fff)] px-6 py-2.5 shadow-[0_26px_60px_-26px_rgba(74,64,58,0.32)] m-3">
+          <div className="flex min-w-0 flex-1 items-baseline gap-3">
+            <span className="font-[family-name:var(--font-fraunces,var(--font-cinzel))] text-lg text-[var(--token-color-ink,#2a221e)] truncate">
+              {name}
+            </span>
+            <span className="text-[11px] uppercase tracking-[0.22em] text-[var(--token-color-muted,#8c7f75)]">
+              {talentType}
+            </span>
+          </div>
+          <a
+            href={`/contact?pro=${encodeURIComponent(name)}`}
+            className="inline-flex h-9 items-center rounded-full bg-[var(--token-color-primary,#4a403a)] px-5 text-xs font-medium uppercase tracking-[0.08em] text-[var(--token-color-surface-raised,#f6f1ea)]"
+          >
+            Inquire
+          </a>
+        </div>
+      </div>
+
       <footer className="border-t border-[var(--impronta-gold-border)]/40 bg-[var(--impronta-black)] px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-3 text-center text-sm text-[var(--impronta-muted)]">
           <PublicCmsFooterNav locale={locale} />

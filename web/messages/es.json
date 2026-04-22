@@ -1,14 +1,14 @@
 {
   "public": {
     "meta": {
-      "homeTitle": "Agencia de modelos e imagen",
-      "homeDescription": "Descubre talento representado, guarda listas y trabaja con Impronta — descubrimiento y representación gestionados por la agencia.",
+      "homeTitle": "Talento representado",
+      "homeDescription": "Descubre talento representado, guarda listas y trabaja con la agencia — descubrimiento y representación gestionados por la agencia.",
       "directoryTitle": "Directorio",
-      "directoryDescription": "Explora el talento representado: guarda perfiles en tu lista y contacta a la agencia a través de Impronta.",
+      "directoryDescription": "Explora el talento representado: guarda perfiles en tu lista y contacta con la agencia.",
       "modelsTitle": "Modelos",
-      "modelsDescription": "Explora modelos y talento representado por Impronta: descubrimiento y representación gestionados por la agencia.",
+      "modelsDescription": "Explora modelos y talento representado — descubrimiento y representación gestionados por la agencia.",
       "contactTitle": "Contacto",
-      "contactDescription": "Contacta con Impronta: consultas y representación de la agencia."
+      "contactDescription": "Contacta con la agencia: consultas y representación."
     },
     "header": {
       "searchTalentAria": "Buscar talento",
@@ -43,15 +43,28 @@
       "aiPanelTitle": "Asistencia IA",
       "aiPanelBody": "Perfiles similares y resúmenes inteligentes aparecerán aquí cuando las funciones de IA estén activadas.",
       "sidebarAgencyTitle": "Representación de agencia",
-      "sidebarAgencyBody": "Las reservas y consultas se gestionan solo a través de Impronta, no desde este perfil.",
+      "sidebarAgencyBody": "Las reservas y consultas se gestionan solo a través de la agencia, no desde este perfil.",
       "refCodePrefix": "ref:",
+      "editorial": {
+        "specialties": "Especialidades",
+        "destinations": "Destinos",
+        "destinationReady": "Listo para destino",
+        "packages": "Paquetes",
+        "bookingDetails": "Detalles de reserva",
+        "bookingNote": "Nota de reserva",
+        "social": "Conecta",
+        "watchListen": "Mira & escucha",
+        "teamSize": "Equipo",
+        "leadTime": "Tiempo de reserva",
+        "startingFrom": "Desde"
+      },
       "share": {
         "heading": "Compartir este perfil",
         "copyLink": "Copiar enlace",
         "copyLinkDone": "Enlace copiado",
         "shareWhatsapp": "Compartir por WhatsApp",
         "shareSystem": "Compartir…",
-        "whatsappTemplate": "{name} en Impronta — {url}"
+        "whatsappTemplate": "{name} — {url}"
       },
       "ctaSectionAria": "Llamada a la acción",
       "footerCtaTitle": "¿Listo para trabajar con {firstName}?",
@@ -62,33 +75,33 @@
         "contactAboutTalent": "Contactar sobre este talento",
         "openInquiryCart": "Abrir carrito de consulta",
         "browseMoreTalent": "Ver más talento",
-        "contactImpronta": "Contactar a Impronta"
+        "contactImpronta": "Contactar a la agencia"
       }
     },
     "common": {
-      "brand": "Impronta"
+      "brand": "Roster"
     },
     "home": {
       "hero": {
-        "kicker": "Agencia de modelos e imagen",
+        "kicker": "Roster gestionado por la agencia",
         "titleBefore": "Encuentra el",
         "titleHighlight": "talento adecuado",
-        "titleAfter": "para tu evento",
+        "titleAfter": "para tu brief",
         "subtitle": "Busca en el directorio por rol, ubicación o encaje con lenguaje natural. Gestionado por la agencia, sin contacto directo.",
         "searchPlaceholder": "Describe tu evento o el talento que necesitas…",
         "searchAria": "Buscar en el directorio",
         "searchSubmit": "Buscar",
         "typedExamples": [
-          "Anfitrionas bilingües para un evento resort en Cancún",
-          "3 modelos para el lanzamiento de una marca de lujo en Playa del Carmen",
+          "Anfitriones bilingües para el lanzamiento de un resort",
+          "Modelos editoriales para una sesión de marca de lujo",
           "Anfitrión VIP para gala corporativa — inglés y español",
-          "Modelos promocionales para la apertura de un beach club",
+          "Modelos promocionales para la apertura de un venue boutique",
           "Embajadores de marca para una activación de hospitalidad"
         ]
       },
       "footer": {
-        "tagline": "Modelos y talento · Descubrimiento y representación gestionados por la agencia",
-        "copyright": "© {year} Impronta. Todos los derechos reservados."
+        "tagline": "Descubrimiento y representación gestionados por la agencia",
+        "copyright": "© {year} {brand}. Todos los derechos reservados."
       },
       "featured": {
         "sectionKicker": "Talento destacado",
@@ -365,7 +378,7 @@
         "formSending": "Enviando…",
         "formSubmitInquiry": "Enviar consulta",
         "formWhatsAppCompose": "Redactar en WhatsApp",
-        "formWhatsAppTitleOn": "Abre un mensaje prellenado a Impronta en WhatsApp.",
+        "formWhatsAppTitleOn": "Abre un mensaje prellenado a la agencia en WhatsApp.",
         "formWhatsAppTitleOff": "WhatsApp aún no está configurado por la agencia.",
         "formLabelYourName": "Tu nombre",
         "formLabelEmail": "Correo",
@@ -388,7 +401,7 @@
         "formDraftError": "No se pudo generar un borrador. Inténtalo de nuevo o escribe tu propio brief.",
         "formDraftPolishNeedText": "Añade texto en el brief antes de pulirlo.",
         "formDraftHint": "La IA sugiere texto que puedes editar antes de enviar. La agencia revisa cada consulta.",
-        "formPrivacyNotice": "Al enviar esto, contactas solo a Impronta. El talento no recibe una notificación directa ni tus datos."
+        "formPrivacyNotice": "Al enviar esto, contactas solo a la agencia. El talento no recibe una notificación directa ni tus datos."
       }
     },
     "errors": {
