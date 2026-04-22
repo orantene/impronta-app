@@ -2,6 +2,7 @@
 
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { MediaPicker } from "../shared/MediaPicker";
 import type { SectionEditorProps } from "../types";
 import type { PressStripV1, PressStripItem } from "./schema";
 
@@ -13,6 +14,7 @@ const INPUT =
 export function PressStripEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<PressStripV1>) {
   const value: PressStripV1 = {
     eyebrow: initial.eyebrow ?? "As seen in",
@@ -78,14 +80,23 @@ export function PressStripEditor({
               value={item.name}
               onChange={(e) => patchItem(i, { name: e.target.value })}
             />
-            <input
-              className={INPUT}
-              placeholder="Logo URL (optional)"
-              value={item.logoUrl ?? ""}
-              onChange={(e) =>
-                patchItem(i, { logoUrl: e.target.value || undefined })
-              }
-            />
+            <div className="flex items-center gap-2">
+              <input
+                className={`${INPUT} flex-1`}
+                placeholder="Logo URL (optional)"
+                value={item.logoUrl ?? ""}
+                onChange={(e) =>
+                  patchItem(i, { logoUrl: e.target.value || undefined })
+                }
+              />
+              {tenantId ? (
+                <MediaPicker
+                  tenantId={tenantId}
+                  onPick={(url) => patchItem(i, { logoUrl: url })}
+                  label=""
+                />
+              ) : null}
+            </div>
             <button
               type="button"
               disabled={value.items.length <= 1}

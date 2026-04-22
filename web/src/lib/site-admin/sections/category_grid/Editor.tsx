@@ -3,6 +3,7 @@
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { MediaPicker } from "../shared/MediaPicker";
 import type { CategoryGridV1, CategoryGridItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -38,6 +39,7 @@ const ICONS: CategoryGridItem["iconKey"][] = [
 export function CategoryGridEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<CategoryGridV1>) {
   const value: CategoryGridV1 = {
     eyebrow: initial.eyebrow ?? "",
@@ -195,14 +197,23 @@ export function CategoryGridEditor({
               value={item.tagline ?? ""}
               onChange={(e) => patchItem(i, { tagline: e.target.value })}
             />
-            <input
-              className={INPUT}
-              placeholder="Image URL (optional)"
-              value={item.imageUrl ?? ""}
-              onChange={(e) =>
-                patchItem(i, { imageUrl: e.target.value || undefined })
-              }
-            />
+            <div className="flex items-center gap-2">
+              <input
+                className={`${INPUT} flex-1`}
+                placeholder="Image URL (optional)"
+                value={item.imageUrl ?? ""}
+                onChange={(e) =>
+                  patchItem(i, { imageUrl: e.target.value || undefined })
+                }
+              />
+              {tenantId ? (
+                <MediaPicker
+                  tenantId={tenantId}
+                  onPick={(url) => patchItem(i, { imageUrl: url })}
+                  label=""
+                />
+              ) : null}
+            </div>
             <select
               className={INPUT}
               value={item.iconKey ?? ""}

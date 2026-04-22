@@ -2,6 +2,7 @@
 
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { MediaPicker } from "../shared/MediaPicker";
 import type { SectionEditorProps } from "../types";
 import type {
   ImageCopyAlternatingV1,
@@ -16,6 +17,7 @@ const INPUT =
 export function ImageCopyAlternatingEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<ImageCopyAlternatingV1>) {
   const value: ImageCopyAlternatingV1 = {
     eyebrow: initial.eyebrow ?? "",
@@ -140,14 +142,23 @@ export function ImageCopyAlternatingEditor({
                 value={item.italicTagline ?? ""}
                 onChange={(e) => patchItem(i, { italicTagline: e.target.value })}
               />
-              <input
-                className={INPUT}
-                placeholder="Image URL"
-                value={item.imageUrl ?? ""}
-                onChange={(e) =>
-                  patchItem(i, { imageUrl: e.target.value || undefined })
-                }
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  className={`${INPUT} flex-1`}
+                  placeholder="Image URL"
+                  value={item.imageUrl ?? ""}
+                  onChange={(e) =>
+                    patchItem(i, { imageUrl: e.target.value || undefined })
+                  }
+                />
+                {tenantId ? (
+                  <MediaPicker
+                    tenantId={tenantId}
+                    onPick={(url) => patchItem(i, { imageUrl: url })}
+                    label=""
+                  />
+                ) : null}
+              </div>
               <textarea
                 className={`${INPUT} md:col-span-2 min-h-[68px]`}
                 placeholder="Body copy"

@@ -3,6 +3,7 @@
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { MediaPicker } from "../shared/MediaPicker";
 import type {
   DestinationsMosaicV1,
   DestinationsMosaicItem,
@@ -16,6 +17,7 @@ const INPUT =
 export function DestinationsMosaicEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<DestinationsMosaicV1>) {
   const value: DestinationsMosaicV1 = {
     eyebrow: initial.eyebrow ?? "",
@@ -86,7 +88,23 @@ export function DestinationsMosaicEditor({
             <input className={INPUT} placeholder="Region" maxLength={80} value={item.region ?? ""} onChange={(e) => patchItem(i, { region: e.target.value })} />
             <input className={INPUT} placeholder="Tagline" maxLength={180} value={item.tagline ?? ""} onChange={(e) => patchItem(i, { tagline: e.target.value })} />
             <button type="button" onClick={() => removeItem(i)} disabled={value.items.length <= 2} className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-30">×</button>
-            <input className={`${INPUT} md:col-span-4`} placeholder="Image URL" value={item.imageUrl ?? ""} onChange={(e) => patchItem(i, { imageUrl: e.target.value || undefined })} />
+            <div className="flex items-center gap-2 md:col-span-4">
+              <input
+                className={`${INPUT} flex-1`}
+                placeholder="Image URL"
+                value={item.imageUrl ?? ""}
+                onChange={(e) =>
+                  patchItem(i, { imageUrl: e.target.value || undefined })
+                }
+              />
+              {tenantId ? (
+                <MediaPicker
+                  tenantId={tenantId}
+                  onPick={(url) => patchItem(i, { imageUrl: url })}
+                  label=""
+                />
+              ) : null}
+            </div>
             <input className={`${INPUT} md:col-span-4`} placeholder="Link href (optional)" value={item.href ?? ""} onChange={(e) => patchItem(i, { href: e.target.value || undefined })} />
           </div>
         ))}
