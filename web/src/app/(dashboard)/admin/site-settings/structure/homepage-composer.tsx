@@ -27,7 +27,8 @@
  * atomic save (matches the sections editor props pattern).
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Undo2, Redo2 } from "lucide-react";
 import { useActionState } from "react";
 import {
   DndContext,
@@ -340,6 +341,84 @@ export function HomepageComposer({
     initialEntries,
   );
 
+  // ── Undo/redo history for structural changes (add / remove / reorder /
+  // library insert). Content-level edits inside section editors are out
+  // of scope — those run through autosave per-section. Capped at 50 to
+  // keep memory bounded during long sessions.
+  const historyRef = useRef<Array<Record<string, SlotEntry[]>>>([initialEntries]);
+  const historyIdxRef = useRef<number>(0);
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const canUndo = historyVersion > 0 && historyIdxRef.current > 0;
+  const canRedo =
+    historyVersion > 0 &&
+    historyIdxRef.current < historyRef.current.length - 1;
+
+  const commitEntries = useCallback(
+    (
+      updater: (
+        prev: Record<string, SlotEntry[]>,
+      ) => Record<string, SlotEntry[]>,
+    ) => {
+      setEntries((prev) => {
+        const next = updater(prev);
+        if (JSON.stringify(next) === JSON.stringify(prev)) return prev;
+        const truncated = historyRef.current.slice(
+          0,
+          historyIdxRef.current + 1,
+        );
+        truncated.push(next);
+        const HISTORY_CAP = 50;
+        const trimmed =
+          truncated.length > HISTORY_CAP
+            ? truncated.slice(truncated.length - HISTORY_CAP)
+            : truncated;
+        historyRef.current = trimmed;
+        historyIdxRef.current = trimmed.length - 1;
+        setHistoryVersion((n) => n + 1);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const undo = useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current -= 1;
+    setEntries(historyRef.current[historyIdxRef.current]);
+    setHistoryVersion((n) => n + 1);
+  }, []);
+
+  const redo = useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current += 1;
+    setEntries(historyRef.current[historyIdxRef.current]);
+    setHistoryVersion((n) => n + 1);
+  }, []);
+
+  // Cmd+Z / Ctrl+Z undo, Cmd+Shift+Z redo. Scoped to the composer tab
+  // via document listener; skips when the target is a form field so
+  // typing text doesn't trigger it.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key !== "z" && e.key !== "Z") return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          (target as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
+
   // Sections created in this browser tab via the library overlay. Not yet in
   // `availableSections` (which is server-rendered) but need to display in
   // sectionsById so slot rows render the new name instead of "Unknown section".
@@ -439,7 +518,7 @@ export function HomepageComposer({
   }
 
   function appendToSlot(slotKey: string, sectionId: string) {
-    setEntries((prev) => {
+    commitEntries((prev) => {
       const current = prev[slotKey] ?? [];
       const nextOrder = current.length;
       return {
@@ -450,7 +529,7 @@ export function HomepageComposer({
   }
 
   function removeFromSlot(slotKey: string, index: number) {
-    setEntries((prev) => {
+    commitEntries((prev) => {
       const current = prev[slotKey] ?? [];
       const next = current.filter((_, i) => i !== index);
       return {
@@ -464,7 +543,7 @@ export function HomepageComposer({
   }
 
   function moveInSlot(slotKey: string, index: number, dir: -1 | 1) {
-    setEntries((prev) => {
+    commitEntries((prev) => {
       const current = (prev[slotKey] ?? []).slice();
       const target = index + dir;
       if (target < 0 || target >= current.length) return prev;
@@ -493,7 +572,7 @@ export function HomepageComposer({
   function handleDragEnd(slotKey: string, event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setEntries((prev) => {
+    commitEntries((prev) => {
       const current = (prev[slotKey] ?? []).slice();
       const from = current.findIndex((e) => e.sectionId === active.id);
       const to = current.findIndex((e) => e.sectionId === over.id);
@@ -599,7 +678,7 @@ export function HomepageComposer({
 
   return (
     <div className="space-y-8">
-      {/* ---- status pill + meta ---- */}
+      {/* ---- status pill + meta + undo/redo ---- */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <PageStatusBadge status={page.status} />
         <span>locale: {locale}</span>
@@ -607,6 +686,31 @@ export function HomepageComposer({
         <span>template v{template.currentVersion}</span>
         <span>last edited {formatWhen(page.updated_at)}</span>
         <span>last published {formatWhen(page.published_at)}</span>
+
+        <span className="ml-auto flex items-center gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!canUndo}
+            onClick={undo}
+            title="Undo (Cmd/Ctrl + Z) — reverses the last add / remove / reorder"
+            aria-label="Undo last structural change"
+          >
+            <Undo2 className="size-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!canRedo}
+            onClick={redo}
+            title="Redo (Cmd/Ctrl + Shift + Z)"
+            aria-label="Redo last undone change"
+          >
+            <Redo2 className="size-3.5" />
+          </Button>
+        </span>
       </div>
 
       <Banner state={saveState} />
