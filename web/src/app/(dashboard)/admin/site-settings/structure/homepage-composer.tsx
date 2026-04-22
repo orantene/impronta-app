@@ -73,6 +73,10 @@ import {
   type PreflightBlocker,
   type PreflightWarning,
 } from "./publish-preflight-modal";
+import {
+  RevisionPreviewModal,
+  type RevisionOpenDescriptor,
+} from "./revision-preview-modal";
 
 // ---- shapes --------------------------------------------------------------
 
@@ -349,6 +353,11 @@ export function HomepageComposer({
 
   const [preflightOpen, setPreflightOpen] = useState(false);
   const publishFormRef = useRef<HTMLFormElement>(null);
+
+  const [revisionPreview, setRevisionPreview] =
+    useState<RevisionOpenDescriptor | null>(null);
+  const restoreFormRef = useRef<HTMLFormElement>(null);
+  const [restoreTargetId, setRestoreTargetId] = useState<string>("");
 
   const [title, setTitle] = useState(page.title ?? "Homepage");
   const [metaDescription, setMetaDescription] = useState<string>(
@@ -804,40 +813,57 @@ export function HomepageComposer({
                   </span>
                 </span>
                 {canCompose && (
-                  <form action={restoreAction}>
-                    <input type="hidden" name="locale" value={locale} />
-                    <input
-                      type="hidden"
-                      name="revisionId"
-                      value={rev.id}
-                    />
-                    <input
-                      type="hidden"
-                      name="expectedVersion"
-                      value={effectiveVersion ?? 0}
-                    />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="sm"
-                      disabled={restorePending}
-                      onClick={(e) => {
-                        const confirmed = window.confirm(
-                          `Restore this ${rev.kind} revision (v${rev.version}) as the current draft? Your unsaved changes will be overwritten.`,
-                        );
-                        if (!confirmed) e.preventDefault();
-                      }}
-                      title="Restore this revision as a new draft"
-                    >
-                      {restorePending ? "Restoring…" : "Restore as draft"}
-                    </Button>
-                  </form>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setRevisionPreview({
+                        id: rev.id,
+                        kind: rev.kind,
+                        version: rev.version,
+                        createdAt: rev.createdAt,
+                      })
+                    }
+                    title="Preview this revision's contents before restoring"
+                  >
+                    Preview
+                  </Button>
                 )}
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {/* Hidden restore form — submitted by the revision preview modal. */}
+      <form action={restoreAction} ref={restoreFormRef} className="sr-only">
+        <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="revisionId" value={restoreTargetId} />
+        <input
+          type="hidden"
+          name="expectedVersion"
+          value={effectiveVersion ?? 0}
+        />
+        <button type="submit" aria-hidden tabIndex={-1} />
+      </form>
+
+      <RevisionPreviewModal
+        open={revisionPreview}
+        onCancel={() => {
+          if (!restorePending) setRevisionPreview(null);
+        }}
+        onRestore={(revisionId) => {
+          setRestoreTargetId(revisionId);
+          // Let React flush the hidden input's value before submitting.
+          window.setTimeout(() => {
+            restoreFormRef.current?.requestSubmit();
+            setRevisionPreview(null);
+          }, 0);
+        }}
+        restorePending={restorePending}
+        labelForType={labelForType}
+      />
 
       <PublishPreflightModal
         open={preflightOpen}
