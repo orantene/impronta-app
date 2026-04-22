@@ -85,6 +85,7 @@ export default async function NewSectionRoute({
           initialTypeKey={selectedType as "hero"}
           canEdit={canEdit}
           canPublish={canPublish}
+          tenantId={scope.tenantId}
         />
       </DashboardSectionCard>
     </div>

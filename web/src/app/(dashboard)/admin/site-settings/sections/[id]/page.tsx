@@ -117,6 +117,7 @@ export default async function EditSectionRoute({
           canEdit={canEdit}
           canPublish={canPublish}
           sectionInUse={usage.totalReferences > 0}
+          tenantId={scope.tenantId}
         />
       </DashboardSectionCard>
 

@@ -58,6 +58,11 @@ interface Props {
    * Defaults to FALSE for the create path.
    */
   sectionInUse?: boolean;
+  /**
+   * Tenant scope, threaded to the inner registry Editor so affordances like
+   * MediaPicker can query tenant-scoped resources.
+   */
+  tenantId?: string;
 }
 
 function FieldError({
@@ -95,6 +100,7 @@ export function SectionEditor({
   canEdit,
   canPublish,
   sectionInUse = false,
+  tenantId,
 }: Props) {
   const [saveState, saveAction, savePending] = useActionState<
     SectionActionState,
@@ -232,6 +238,7 @@ export function SectionEditor({
           <Editor
             initial={props}
             onChange={(next) => setProps(next)}
+            tenantId={tenantId}
           />
         </fieldset>
 

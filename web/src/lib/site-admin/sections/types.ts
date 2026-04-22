@@ -45,6 +45,13 @@ export interface SectionComponentProps<TShape> {
 export interface SectionEditorProps<TShape> {
   initial: TShape;
   onChange: (next: TShape) => void;
+  /**
+   * Tenant scope for editor affordances like MediaPicker that need to
+   * query tenant-scoped resources. Optional so existing tests / editors
+   * keep working; any editor that uses it should render a degraded path
+   * (no picker) when tenantId is undefined.
+   */
+  tenantId?: string;
 }
 
 export interface SectionRegistryEntry<TShape = unknown> {

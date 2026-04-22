@@ -3,6 +3,7 @@
 import { useState, type ChangeEvent } from "react";
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { MediaPicker } from "../shared/MediaPicker";
 import type { HeroSlide, HeroV1 } from "./schema";
 
 type OverlayFlavor = NonNullable<HeroV1["overlay"]>;
@@ -65,7 +66,11 @@ const HINT = "text-xs text-muted-foreground";
  * auto-advancing CSS slider. Each slide can override copy or leave it blank
  * to act as a pure background frame.
  */
-export function HeroEditor({ initial, onChange }: SectionEditorProps<HeroV1>) {
+export function HeroEditor({
+  initial,
+  onChange,
+  tenantId,
+}: SectionEditorProps<HeroV1>) {
   const [state, setState] = useState<HeroV1>(initial);
 
   function commit(next: HeroV1) {
@@ -256,19 +261,30 @@ export function HeroEditor({ initial, onChange }: SectionEditorProps<HeroV1>) {
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className={FIELD}>
                     <span className={LABEL}>Background image URL</span>
-                    <input
-                      type="url"
-                      className={INPUT}
-                      placeholder="https://…"
-                      value={slide.backgroundImageUrl ?? ""}
-                      maxLength={2048}
-                      onChange={(e) =>
-                        patchSlide(i, { backgroundImageUrl: e.target.value })
-                      }
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="url"
+                        className={`${INPUT} flex-1`}
+                        placeholder="https://…"
+                        value={slide.backgroundImageUrl ?? ""}
+                        maxLength={2048}
+                        onChange={(e) =>
+                          patchSlide(i, { backgroundImageUrl: e.target.value })
+                        }
+                      />
+                      {tenantId ? (
+                        <MediaPicker
+                          tenantId={tenantId}
+                          onPick={(url) =>
+                            patchSlide(i, { backgroundImageUrl: url })
+                          }
+                          label="Library"
+                        />
+                      ) : null}
+                    </div>
                     <span className={HINT}>
-                      Absolute URL. Media-library assets (M5) will populate the
-                      asset-id field instead.
+                      Paste an absolute URL or pick from the workspace media
+                      library.
                     </span>
                   </label>
                   <label className={FIELD}>
