@@ -26,6 +26,7 @@ import {
   designSaveDraftSchema,
 } from "@/lib/site-admin";
 import {
+  applyThemePreset,
   publishDesign,
   restoreDesignRevision,
   saveDesignDraft,
@@ -52,15 +53,12 @@ function single(formData: FormData, name: string): string {
   return typeof v === "string" ? v : "";
 }
 
+import { coachZodFieldErrors } from "@/lib/site-admin/validation-coach";
+
 function zodErrorsToFieldMap(error: {
   issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>;
 }): Record<string, string> {
-  const fieldErrors: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = issue.path.map((p) => String(p)).join(".") || "_form";
-    if (!fieldErrors[key]) fieldErrors[key] = issue.message;
-  }
-  return fieldErrors;
+  return coachZodFieldErrors(error);
 }
 
 function mapResultError(result: {
@@ -226,6 +224,57 @@ export async function publishDesignAction(
     };
   } catch (error) {
     logServerError("site-admin/design/publish", error);
+    if (error instanceof Error && /forbidden/i.test(error.message)) {
+      return { ok: false, error: "Not authorized." };
+    }
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+}
+
+// ---- apply preset (M7) ---------------------------------------------------
+
+/**
+ * Apply a theme preset bundle to the current draft. Merges the preset's
+ * token values on top of the existing draft (preserves orthogonal
+ * customisations). Sets `agency_branding.theme_preset_slug` to the chosen
+ * preset so the admin UI can render "Editorial Bridal (modified)" state.
+ */
+export async function applyThemePresetAction(
+  _prev: DesignActionState,
+  formData: FormData,
+): Promise<DesignActionState> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before applying a preset.",
+    };
+  }
+
+  const presetSlug = single(formData, "presetSlug");
+  const expectedVersion = Number(single(formData, "expectedVersion") || "0");
+
+  if (!presetSlug) {
+    return { ok: false, error: "Choose a preset before applying." };
+  }
+
+  try {
+    const result = await applyThemePreset(auth.supabase, {
+      tenantId: scope.tenantId,
+      presetSlug,
+      expectedVersion,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) return mapResultError(result);
+    return {
+      ok: true,
+      message: `Applied preset "${result.data.presetSlug}" to draft. Review and publish to go live.`,
+      version: result.data.version,
+    };
+  } catch (error) {
+    logServerError("site-admin/design/apply-preset", error);
     if (error instanceof Error && /forbidden/i.test(error.message)) {
       return { ok: false, error: "Not authorized." };
     }

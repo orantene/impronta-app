@@ -50,15 +50,12 @@ function single(formData: FormData, name: string): string {
   return typeof v === "string" ? v : "";
 }
 
+import { coachZodFieldErrors } from "@/lib/site-admin/validation-coach";
+
 function zodErrorsToFieldMap(error: {
   issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>;
 }): Record<string, string> {
-  const fieldErrors: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = issue.path.map((p) => String(p)).join(".") || "_form";
-    if (!fieldErrors[key]) fieldErrors[key] = issue.message;
-  }
-  return fieldErrors;
+  return coachZodFieldErrors(error);
 }
 
 function mapActionError(result: {
