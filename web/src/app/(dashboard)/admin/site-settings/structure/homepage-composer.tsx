@@ -27,7 +27,7 @@
  * atomic save (matches the sections editor props pattern).
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useActionState } from "react";
 import {
   DndContext,
@@ -68,6 +68,11 @@ import {
   saveHomepageDraftAction,
 } from "./actions";
 import { SectionLibraryOverlay } from "./section-library-overlay";
+import {
+  PublishPreflightModal,
+  type PreflightBlocker,
+  type PreflightWarning,
+} from "./publish-preflight-modal";
 
 // ---- shapes --------------------------------------------------------------
 
@@ -339,6 +344,9 @@ export function HomepageComposer({
     slotLabel: string;
   } | null>(null);
 
+  const [preflightOpen, setPreflightOpen] = useState(false);
+  const publishFormRef = useRef<HTMLFormElement>(null);
+
   const [title, setTitle] = useState(page.title ?? "Homepage");
   const [metaDescription, setMetaDescription] = useState<string>(
     page.meta_description ?? "",
@@ -577,7 +585,8 @@ export function HomepageComposer({
             return (
               <fieldset
                 key={slot.key}
-                className="space-y-3 rounded-md border border-border/60 p-4"
+                id={`slot-${slot.key}`}
+                className="space-y-3 scroll-mt-24 rounded-md border border-border/60 p-4"
               >
                 <legend className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {slot.label}
@@ -697,51 +706,31 @@ export function HomepageComposer({
 
       {/* ---- publish ---- */}
       {canPublish && (
-        <form
-          action={publishAction}
-          className="space-y-2 rounded-md border border-border/60 p-4"
-          onSubmit={(e) => {
-            if (draftRefs.length > 0) {
-              const confirmed = window.confirm(
-                `The draft references ${draftRefs.length} draft section${draftRefs.length === 1 ? "" : "s"}: ${draftRefs
-                  .map((r) => r.sectionName)
-                  .join(
-                    ", ",
-                  )}. Publish will fail until each referenced section is published. Continue anyway?`,
-              );
-              if (!confirmed) {
-                e.preventDefault();
-                return;
-              }
-            }
-            if (missingRequired.length > 0) {
-              const confirmed = window.confirm(
-                `Required slot${missingRequired.length === 1 ? "" : "s"} empty: ${missingRequired
-                  .map((s) => s.label)
-                  .join(", ")}. Publish will fail. Continue anyway?`,
-              );
-              if (!confirmed) {
-                e.preventDefault();
-                return;
-              }
-            }
-          }}
-        >
-          <input type="hidden" name="locale" value={locale} />
-          <input
-            type="hidden"
-            name="expectedVersion"
-            value={effectiveVersion ?? 0}
-          />
+        <div className="space-y-2 rounded-md border border-border/60 p-4">
+          {/* Hidden form that the modal submits on confirm. Stays
+              attached so publishAction + useActionState keep working. */}
+          <form action={publishAction} ref={publishFormRef} className="sr-only">
+            <input type="hidden" name="locale" value={locale} />
+            <input
+              type="hidden"
+              name="expectedVersion"
+              value={effectiveVersion ?? 0}
+            />
+            <button type="submit" aria-hidden tabIndex={-1} />
+          </form>
+
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={publishPending}>
-              {publishPending ? "Publishing…" : "Publish homepage"}
+            <Button
+              type="button"
+              onClick={() => setPreflightOpen(true)}
+              disabled={publishPending}
+            >
+              {publishPending ? "Publishing…" : "Review + publish"}
             </Button>
             <p className="text-xs text-muted-foreground">
-              Promotes the draft to the live storefront. Section content is
-              frozen into the published snapshot at this moment — a later
-              section edit does NOT change the live homepage until you
-              re-publish.
+              Opens a pre-flight review so you can confirm what will land
+              on the live storefront before committing. Publishing is
+              reversible from the Revisions panel.
             </p>
           </div>
           {(draftRefs.length > 0 || missingRequired.length > 0) && (
@@ -762,7 +751,7 @@ export function HomepageComposer({
               )}
             </p>
           )}
-        </form>
+        </div>
       )}
 
       {/* ---- revisions ---- */}
@@ -823,6 +812,66 @@ export function HomepageComposer({
           </ul>
         )}
       </section>
+
+      <PublishPreflightModal
+        open={preflightOpen}
+        pending={publishPending}
+        onCancel={() => {
+          if (!publishPending) setPreflightOpen(false);
+        }}
+        onConfirm={() => {
+          // Submit the hidden publish form. publishAction runs via
+          // useActionState; modal stays open while pending, then the
+          // outer banner reflects success/failure.
+          publishFormRef.current?.requestSubmit();
+          setPreflightOpen(false);
+        }}
+        blockers={[
+          ...missingRequired.map<PreflightBlocker>((s) => ({
+            kind: "missing-required-slot",
+            label: `Required slot "${s.label}" is empty`,
+            detail:
+              "Every required slot must contain at least one published section before the homepage can go live.",
+            anchor: `#slot-${s.key}`,
+          })),
+          ...draftRefs.map<PreflightBlocker>((r) => ({
+            kind: "draft-section-ref",
+            label: `"${r.sectionName}" is still a draft`,
+            detail: `Slot: ${r.slotKey}. Publish the section from /admin/site-settings/sections to include it on the live homepage.`,
+            anchor: `#slot-${r.slotKey}`,
+          })),
+        ]}
+        warnings={[
+          ...(saveState?.ok === false
+            ? [
+                {
+                  label: "Last draft save failed",
+                  detail:
+                    "Your most recent draft save didn't complete. Save again before publishing or the live site may miss your latest edits.",
+                } as PreflightWarning,
+              ]
+            : []),
+          ...(Object.values(entries).every((arr) => arr.length === 0)
+            ? [
+                {
+                  label: "No sections composed yet",
+                  detail:
+                    "Publishing an empty homepage is allowed but will hide all CMS sections on the live storefront.",
+                } as PreflightWarning,
+              ]
+            : []),
+        ]}
+        summary={{
+          slotsWithSections: Object.values(entries).filter(
+            (arr) => arr.length > 0,
+          ).length,
+          totalSections: Object.values(entries).reduce(
+            (n, arr) => n + arr.length,
+            0,
+          ),
+          draftRefs: draftRefs.length,
+        }}
+      />
 
       <SectionLibraryOverlay
         open={libraryOpen}
