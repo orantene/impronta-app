@@ -29,6 +29,24 @@
 
 import { useMemo, useState } from "react";
 import { useActionState } from "react";
+import {
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 
 import { PageStatusBadge } from "@/components/admin/page-status-badge";
 import { SectionStatusBadge } from "@/components/admin/section-status-badge";
@@ -152,6 +170,136 @@ function formatWhen(iso: string | null | undefined): string {
   } catch {
     return iso;
   }
+}
+
+// ---- sortable row ---------------------------------------------------------
+
+/**
+ * One drag-and-drop sortable row inside a slot's SortableContext. Kept as a
+ * dedicated component because `useSortable` is a hook and can't be called
+ * inside the `items.map` lambda of the parent. The arrow buttons stay as
+ * keyboard-reachable fallbacks for drag-averse or AT users.
+ */
+function SortableSlotItem({
+  sectionId,
+  section,
+  idx,
+  isLast,
+  canCompose,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+}: {
+  sectionId: string;
+  section?: {
+    id: string;
+    name: string;
+    sectionTypeKey: string;
+    status: "draft" | "published" | "archived";
+    updatedAt: string;
+  };
+  idx: number;
+  isLast: boolean;
+  canCompose: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: sectionId, disabled: !canCompose });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.55 : 1,
+    boxShadow: isDragging ? "0 10px 24px rgba(0,0,0,0.18)" : undefined,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 rounded border border-border/40 bg-muted/20 px-3 py-2"
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        disabled={!canCompose}
+        className="cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label={`Drag to reorder`}
+        title="Drag to reorder"
+      >
+        <GripVertical className="size-4" />
+      </button>
+
+      <span className="flex-1 text-sm">
+        {section ? (
+          <span>
+            <strong>{section.name}</strong>
+            <span className="ml-2 text-xs text-muted-foreground">
+              ({section.sectionTypeKey})
+            </span>
+          </span>
+        ) : (
+          <span className="text-destructive">
+            Unknown section ({sectionId.slice(0, 8)}…)
+          </span>
+        )}
+      </span>
+
+      {section && (
+        <span className="text-xs">
+          <SectionStatusBadge status={section.status} />
+        </span>
+      )}
+      {section?.status === "draft" && (
+        <span
+          className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase text-amber-300"
+          title="This section is a draft. Publish it before publishing the homepage."
+        >
+          draft ref
+        </span>
+      )}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={!canCompose || idx === 0}
+        onClick={onMoveUp}
+        title="Move up (keyboard)"
+      >
+        ↑
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={!canCompose || isLast}
+        onClick={onMoveDown}
+        title="Move down (keyboard)"
+      >
+        ↓
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={!canCompose}
+        onClick={onRemove}
+        title="Remove from slot"
+      >
+        Remove
+      </Button>
+    </li>
+  );
 }
 
 // ---- main component ------------------------------------------------------
@@ -300,6 +448,34 @@ export function HomepageComposer({
     });
   }
 
+  // ── Drag-and-drop plumbing ────────────────────────────────────────────────
+  // One DndContext per slot (see render). PointerSensor has a 4px activation
+  // distance to prevent accidental drags when the operator just clicks a
+  // button inside the row.
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(slotKey: string, event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setEntries((prev) => {
+      const current = (prev[slotKey] ?? []).slice();
+      const from = current.findIndex((e) => e.sectionId === active.id);
+      const to = current.findIndex((e) => e.sectionId === over.id);
+      if (from < 0 || to < 0) return prev;
+      const moved = arrayMove(current, from, to);
+      return {
+        ...prev,
+        [slotKey]: moved.map((entry, i) => ({
+          sectionId: entry.sectionId,
+          sortOrder: i,
+        })),
+      };
+    });
+  }
+
   const slotsJson = JSON.stringify(entries);
 
   // Detect whether any slot entry references a section that is not currently
@@ -418,75 +594,35 @@ export function HomepageComposer({
                     Empty — {slot.required ? "publish is blocked until you add a section." : "optional slot."}
                   </p>
                 ) : (
-                  <ul className="space-y-2">
-                    {items.map((entry, idx) => {
-                      const section = sectionsById.get(entry.sectionId);
-                      return (
-                        <li
-                          key={`${slot.key}:${entry.sectionId}:${idx}`}
-                          className="flex items-center gap-2 rounded border border-border/40 bg-muted/20 px-3 py-2"
-                        >
-                          <span className="flex-1 text-sm">
-                            {section ? (
-                              <span>
-                                <strong>{section.name}</strong>
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  ({section.sectionTypeKey})
-                                </span>
-                              </span>
-                            ) : (
-                              <span className="text-destructive">
-                                Unknown section ({entry.sectionId.slice(0, 8)}…)
-                              </span>
-                            )}
-                          </span>
-                          {section && (
-                            <span className="text-xs">
-                              <SectionStatusBadge status={section.status} />
-                            </span>
-                          )}
-                          {section?.status === "draft" && (
-                            <span
-                              className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase text-amber-300"
-                              title="This section is a draft. Publish it before publishing the homepage."
-                            >
-                              draft ref
-                            </span>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!canCompose || idx === 0}
-                            onClick={() => moveInSlot(slot.key, idx, -1)}
-                            title="Move up"
-                          >
-                            ↑
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!canCompose || idx === items.length - 1}
-                            onClick={() => moveInSlot(slot.key, idx, 1)}
-                            title="Move down"
-                          >
-                            ↓
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={!canCompose}
-                            onClick={() => removeFromSlot(slot.key, idx)}
-                            title="Remove from slot"
-                          >
-                            Remove
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <DndContext
+                    sensors={dndSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(e) => handleDragEnd(slot.key, e)}
+                  >
+                    <SortableContext
+                      items={items.map((entry) => entry.sectionId)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <ul className="space-y-2">
+                        {items.map((entry, idx) => {
+                          const section = sectionsById.get(entry.sectionId);
+                          return (
+                            <SortableSlotItem
+                              key={`${slot.key}:${entry.sectionId}`}
+                              sectionId={entry.sectionId}
+                              section={section}
+                              idx={idx}
+                              isLast={idx === items.length - 1}
+                              canCompose={canCompose}
+                              onMoveUp={() => moveInSlot(slot.key, idx, -1)}
+                              onMoveDown={() => moveInSlot(slot.key, idx, 1)}
+                              onRemove={() => removeFromSlot(slot.key, idx)}
+                            />
+                          );
+                        })}
+                      </ul>
+                    </SortableContext>
+                  </DndContext>
                 )}
 
                 {canCompose && (
