@@ -71,6 +71,7 @@ import { SectionLibraryOverlay } from "./section-library-overlay";
 import {
   PublishPreflightModal,
   type PreflightBlocker,
+  type PreflightChange,
   type PreflightWarning,
 } from "./publish-preflight-modal";
 import {
@@ -526,6 +527,72 @@ export function HomepageComposer({
     return out;
   }, [entries, sectionsById]);
 
+  /** Draft-vs-live structural diff used by the publish pre-flight surface. */
+  const preflightChanges = useMemo<PreflightChange[]>(() => {
+    type Pos = { slotKey: string; sortOrder: number };
+    const livePos = new Map<string, Pos>();
+    for (const row of liveSlots) {
+      livePos.set(row.section_id, {
+        slotKey: row.slot_key,
+        sortOrder: row.sort_order,
+      });
+    }
+    const draftPos = new Map<string, Pos>();
+    for (const [slotKey, list] of Object.entries(entries)) {
+      for (const entry of list) {
+        draftPos.set(entry.sectionId, {
+          slotKey,
+          sortOrder: entry.sortOrder,
+        });
+      }
+    }
+    const out: PreflightChange[] = [];
+    for (const [sectionId, draft] of draftPos.entries()) {
+      const live = livePos.get(sectionId);
+      const section = sectionsById.get(sectionId);
+      const name = section?.name ?? "Unknown section";
+      const typeLabel = section
+        ? labelForType(section.sectionTypeKey)
+        : "unknown";
+      if (!live) {
+        out.push({
+          kind: "added",
+          slotKey: draft.slotKey,
+          sectionName: name,
+          sectionTypeLabel: typeLabel,
+          to: draft,
+        });
+        continue;
+      }
+      if (live.slotKey !== draft.slotKey || live.sortOrder !== draft.sortOrder) {
+        out.push({
+          kind: "moved",
+          slotKey: draft.slotKey,
+          sectionName: name,
+          sectionTypeLabel: typeLabel,
+          from: live,
+          to: draft,
+        });
+      }
+    }
+    for (const [sectionId, live] of livePos.entries()) {
+      if (draftPos.has(sectionId)) continue;
+      const section = sectionsById.get(sectionId);
+      const name = section?.name ?? "Unknown section";
+      const typeLabel = section
+        ? labelForType(section.sectionTypeKey)
+        : "unknown";
+      out.push({
+        kind: "removed",
+        slotKey: live.slotKey,
+        sectionName: name,
+        sectionTypeLabel: typeLabel,
+        from: live,
+      });
+    }
+    return out;
+  }, [entries, liveSlots, sectionsById, labelForType]);
+
   const missingRequired = template.slots.filter(
     (s) => s.required && (entries[s.key]?.length ?? 0) === 0,
   );
@@ -923,6 +990,7 @@ export function HomepageComposer({
           ),
           draftRefs: draftRefs.length,
         }}
+        changes={preflightChanges}
       />
 
       <SectionLibraryOverlay

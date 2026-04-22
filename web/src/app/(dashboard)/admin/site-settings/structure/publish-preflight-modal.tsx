@@ -43,6 +43,16 @@ export interface PreflightWarning {
   detail?: string;
 }
 
+export interface PreflightChange {
+  /** "added" | "removed" | "moved" — content edits aren't tracked in v1. */
+  kind: "added" | "removed" | "moved";
+  slotKey: string;
+  sectionName: string;
+  sectionTypeLabel: string;
+  from?: { slotKey: string; sortOrder: number };
+  to?: { slotKey: string; sortOrder: number };
+}
+
 interface Props {
   open: boolean;
   onCancel: () => void;
@@ -59,6 +69,8 @@ interface Props {
     totalSections: number;
     draftRefs: number;
   };
+  /** Draft-vs-live diff. Empty array = "no structural changes from live". */
+  changes: PreflightChange[];
 }
 
 export function PublishPreflightModal({
@@ -69,7 +81,11 @@ export function PublishPreflightModal({
   blockers,
   warnings,
   summary,
+  changes,
 }: Props) {
+  const added = changes.filter((c) => c.kind === "added");
+  const removed = changes.filter((c) => c.kind === "removed");
+  const moved = changes.filter((c) => c.kind === "moved");
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -158,6 +174,113 @@ export function PublishPreflightModal({
 
         {/* ── Body ── */}
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+          {/* What will change vs. live */}
+          {changes.length > 0 ? (
+            <section aria-labelledby="preflight-changes-heading">
+              <h3
+                id="preflight-changes-heading"
+                className="text-sm font-semibold"
+              >
+                What's changing from the live site
+              </h3>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-2">
+                  <div className="text-lg font-semibold text-emerald-300">
+                    +{added.length}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    added
+                  </div>
+                </div>
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-2">
+                  <div className="text-lg font-semibold text-destructive">
+                    −{removed.length}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    removed
+                  </div>
+                </div>
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-2">
+                  <div className="text-lg font-semibold text-amber-300">
+                    ↕{moved.length}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    reordered
+                  </div>
+                </div>
+              </div>
+              <ul className="mt-3 space-y-1 text-sm">
+                {added.map((c, i) => (
+                  <li
+                    key={`add-${i}`}
+                    className="flex items-center justify-between gap-2 rounded border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5"
+                  >
+                    <span>
+                      <span className="mr-2 font-semibold text-emerald-300">
+                        +
+                      </span>
+                      <strong>{c.sectionName}</strong>{" "}
+                      <span className="text-xs text-muted-foreground">
+                        → {c.slotKey}
+                      </span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {c.sectionTypeLabel}
+                    </span>
+                  </li>
+                ))}
+                {removed.map((c, i) => (
+                  <li
+                    key={`rem-${i}`}
+                    className="flex items-center justify-between gap-2 rounded border border-destructive/20 bg-destructive/5 px-3 py-1.5"
+                  >
+                    <span>
+                      <span className="mr-2 font-semibold text-destructive">
+                        −
+                      </span>
+                      <strong>{c.sectionName}</strong>{" "}
+                      <span className="text-xs text-muted-foreground">
+                        ← {c.slotKey}
+                      </span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {c.sectionTypeLabel}
+                    </span>
+                  </li>
+                ))}
+                {moved.map((c, i) => (
+                  <li
+                    key={`mov-${i}`}
+                    className="flex items-center justify-between gap-2 rounded border border-amber-500/20 bg-amber-500/5 px-3 py-1.5"
+                  >
+                    <span>
+                      <span className="mr-2 font-semibold text-amber-300">
+                        ↕
+                      </span>
+                      <strong>{c.sectionName}</strong>{" "}
+                      <span className="text-xs text-muted-foreground">
+                        {c.from && c.to && c.from.slotKey !== c.to.slotKey
+                          ? `${c.from.slotKey} → ${c.to.slotKey}`
+                          : `in ${c.slotKey}`}
+                      </span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {c.sectionTypeLabel}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <section className="rounded-md border border-border/50 bg-muted/10 px-3 py-3">
+              <p className="text-sm text-muted-foreground">
+                <strong className="text-foreground">No structural changes</strong>{" "}
+                since the last publish — slot composition is identical. If you
+                publish now, only in-section content edits promote to live.
+              </p>
+            </section>
+          )}
+
           {hasBlockers ? (
             <section aria-labelledby="preflight-blockers-heading">
               <h3
