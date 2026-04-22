@@ -38,8 +38,12 @@ import {
 
 // ---- registry surface -----------------------------------------------------
 
-test("ALL_SECTION_TYPE_KEYS is locked to ['hero'] in M4", () => {
-  assert.deepEqual([...ALL_SECTION_TYPE_KEYS].sort(), ["hero"]);
+test("ALL_SECTION_TYPE_KEYS includes the M4 baseline ('hero')", () => {
+  // M4 locked the tuple to ['hero']; subsequent milestones (M7, M8) extended
+  // it. The invariant we still assert: hero is always registered. The full
+  // tuple is intentionally derived from SECTION_REGISTRY so we don't re-lock
+  // it here.
+  assert.ok([...ALL_SECTION_TYPE_KEYS].includes("hero"));
 });
 
 // ---- sectionUpsertSchema --------------------------------------------------

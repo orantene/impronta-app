@@ -1,0 +1,96 @@
+"use client";
+
+import type { SectionEditorProps } from "../types";
+import { PresentationPanel } from "../shared/PresentationPanel";
+import type {
+  DestinationsMosaicV1,
+  DestinationsMosaicItem,
+} from "./schema";
+
+const FIELD = "flex flex-col gap-1.5 text-sm";
+const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
+const INPUT =
+  "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm";
+
+export function DestinationsMosaicEditor({
+  initial,
+  onChange,
+}: SectionEditorProps<DestinationsMosaicV1>) {
+  const value: DestinationsMosaicV1 = {
+    eyebrow: initial.eyebrow ?? "",
+    headline: initial.headline ?? "",
+    copy: initial.copy ?? "",
+    items: initial.items ?? [
+      { label: "Tulum", region: "Quintana Roo" },
+      { label: "Los Cabos", region: "Baja California Sur" },
+    ],
+    footnote: initial.footnote ?? "",
+    variant: initial.variant ?? "portrait-mosaic",
+    presentation: initial.presentation,
+  };
+
+  const patch = (p: Partial<DestinationsMosaicV1>) => onChange({ ...value, ...p });
+  const patchItem = (i: number, p: Partial<DestinationsMosaicItem>) =>
+    patch({ items: value.items.map((it, j) => (j === i ? { ...it, ...p } : it)) });
+  const addItem = () => {
+    if (value.items.length >= 5) return;
+    patch({ items: [...value.items, { label: "New destination" }] });
+  };
+  const removeItem = (i: number) => {
+    if (value.items.length <= 2) return;
+    patch({ items: value.items.filter((_, j) => j !== i) });
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <label className={FIELD}>
+          <span className={LABEL}>Eyebrow</span>
+          <input className={INPUT} maxLength={60} value={value.eyebrow ?? ""} onChange={(e) => patch({ eyebrow: e.target.value })} placeholder="Destinations" />
+        </label>
+        <label className={FIELD}>
+          <span className={LABEL}>Headline</span>
+          <input className={INPUT} maxLength={200} value={value.headline ?? ""} onChange={(e) => patch({ headline: e.target.value })} />
+        </label>
+      </div>
+      <label className={FIELD}>
+        <span className={LABEL}>Copy</span>
+        <textarea className={`${INPUT} min-h-[60px]`} maxLength={400} value={value.copy ?? ""} onChange={(e) => patch({ copy: e.target.value })} />
+      </label>
+      <label className={FIELD}>
+        <span className={LABEL}>Italic footnote</span>
+        <input className={INPUT} maxLength={200} value={value.footnote ?? ""} onChange={(e) => patch({ footnote: e.target.value })} />
+      </label>
+      <label className={FIELD}>
+        <span className={LABEL}>Variant</span>
+        <select className={INPUT} value={value.variant} onChange={(e) => patch({ variant: e.target.value as DestinationsMosaicV1["variant"] })}>
+          <option value="portrait-mosaic">Portrait mosaic (hero + 2x2)</option>
+          <option value="tile-grid">Uniform tile grid</option>
+          <option value="map-inspired">Map-inspired</option>
+        </select>
+      </label>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <span className={LABEL}>Tiles ({value.items.length} / 5 · first tile renders hero)</span>
+          <button type="button" onClick={addItem} disabled={value.items.length >= 5} className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-50">+ Add</button>
+        </div>
+        {value.items.map((item, i) => (
+          <div key={i} className="grid grid-cols-1 gap-2 rounded-md border border-border/60 bg-muted/30 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto]">
+            <input className={INPUT} placeholder="Label (e.g. Tulum)" maxLength={80} value={item.label} onChange={(e) => patchItem(i, { label: e.target.value })} />
+            <input className={INPUT} placeholder="Region" maxLength={80} value={item.region ?? ""} onChange={(e) => patchItem(i, { region: e.target.value })} />
+            <input className={INPUT} placeholder="Tagline" maxLength={180} value={item.tagline ?? ""} onChange={(e) => patchItem(i, { tagline: e.target.value })} />
+            <button type="button" onClick={() => removeItem(i)} disabled={value.items.length <= 2} className="rounded-md border border-border/60 px-2 py-1 text-xs disabled:opacity-30">×</button>
+            <input className={`${INPUT} md:col-span-4`} placeholder="Image URL" value={item.imageUrl ?? ""} onChange={(e) => patchItem(i, { imageUrl: e.target.value || undefined })} />
+            <input className={`${INPUT} md:col-span-4`} placeholder="Link href (optional)" value={item.href ?? ""} onChange={(e) => patchItem(i, { href: e.target.value || undefined })} />
+          </div>
+        ))}
+      </div>
+
+      <PresentationPanel
+        value={value.presentation}
+        onChange={(next) => patch({ presentation: next })}
+      />
+    </div>
+  );
+}
