@@ -11,6 +11,7 @@ import {
 import { AdminTalentCockpitClient } from "./admin-talent-cockpit-client";
 import { AdminTalentAiSearchDebug } from "./admin-talent-ai-search-debug";
 import { AdminTalentOverlaySection } from "./admin-talent-overlay-section";
+import { AdminTalentEditorialForm } from "./admin-talent-editorial-form";
 import { isResolvedAiChatConfigured } from "@/lib/ai/resolve-provider";
 import { getTenantScope } from "@/lib/saas/scope";
 
@@ -65,6 +66,19 @@ export default async function AdminTalentDetailPage({
       created_at,
       updated_at,
       deleted_at,
+      intro_italic,
+      event_styles,
+      destinations,
+      languages,
+      travels_globally,
+      team_size,
+      lead_time_weeks,
+      starting_from,
+      booking_note,
+      service_category_slug,
+      package_teasers,
+      social_links,
+      embedded_media,
       profiles(display_name, account_status, app_role)
     `,
     )
@@ -372,6 +386,51 @@ export default async function AdminTalentDetailPage({
         rosterOnTenant={rosterOnTenant}
       />
     ) : null}
+    <section className="rounded-lg border border-border/60 bg-muted/10 p-4">
+      <div className="mb-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          Editorial fields (M8)
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Drives editorial profile variants, directory Destination-Ready
+          ribbon, and <code>featured_talent</code> source-mode filters.
+        </p>
+      </div>
+      <AdminTalentEditorialForm
+        talentId={id}
+        initial={{
+          intro_italic:
+            (profile as { intro_italic?: string | null }).intro_italic ?? null,
+          event_styles:
+            (profile as { event_styles?: string[] | null }).event_styles ?? null,
+          destinations:
+            (profile as { destinations?: string[] | null }).destinations ?? null,
+          languages:
+            (profile as { languages?: string[] | null }).languages ?? null,
+          travels_globally:
+            (profile as { travels_globally?: boolean | null }).travels_globally ??
+            null,
+          team_size:
+            (profile as { team_size?: string | null }).team_size ?? null,
+          lead_time_weeks:
+            (profile as { lead_time_weeks?: string | null }).lead_time_weeks ??
+            null,
+          starting_from:
+            (profile as { starting_from?: string | null }).starting_from ?? null,
+          booking_note:
+            (profile as { booking_note?: string | null }).booking_note ?? null,
+          service_category_slug:
+            (profile as { service_category_slug?: string | null })
+              .service_category_slug ?? null,
+          package_teasers:
+            (profile as { package_teasers?: unknown }).package_teasers ?? null,
+          social_links:
+            (profile as { social_links?: unknown }).social_links ?? null,
+          embedded_media:
+            (profile as { embedded_media?: unknown }).embedded_media ?? null,
+        }}
+      />
+    </section>
     <AdminTalentAiSearchDebug talentId={id} />
     </>
   );
