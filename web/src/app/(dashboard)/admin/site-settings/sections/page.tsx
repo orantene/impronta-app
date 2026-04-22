@@ -179,7 +179,7 @@ export default async function SiteSettingsSectionsIndexPage() {
                   const schemaOutdated =
                     registry && registry.currentVersion !== row.schema_version;
                   const schemaDriftLabel = schemaOutdated
-                    ? "Needs re-save"
+                    ? "Update available"
                     : "—";
                   return (
                     <tr
@@ -205,7 +205,7 @@ export default async function SiteSettingsSectionsIndexPage() {
                         }`}
                         title={
                           schemaOutdated
-                            ? "This section uses an older content shape. Open + save it to migrate forward — a quick re-author may be needed before you can publish."
+                            ? "The section template has been updated. Open and save this section to migrate it forward — a short re-author may be needed before publishing."
                             : undefined
                         }
                       >

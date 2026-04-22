@@ -143,10 +143,10 @@ export function LivePreviewPanel({
           </span>
           {tokenError ? (
             <span
-              className="text-[10px] text-destructive"
+              className="text-[10px] text-muted-foreground"
               title={tokenError}
             >
-              token unavailable — showing published state
+              Showing the live site — draft preview isn't available right now.
             </span>
           ) : null}
         </div>

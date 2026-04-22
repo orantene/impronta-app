@@ -113,12 +113,12 @@ export default async function SiteSettingsStructurePage() {
       <div className="space-y-4">
         <DashboardSectionCard
           title="Homepage"
-          description="Homepage not initialised yet. Your first visit as an editor seeds a draft row automatically; reload to try again."
+          description="Setting up your homepage — reload in a moment if this screen doesn't refresh automatically."
           titleClassName={ADMIN_SECTION_TITLE_CLASS}
         >
           <p className="text-sm text-muted-foreground">
-            No homepage row exists for this workspace. Check that an editor
-            has opened this page at least once.
+            Your homepage is being prepared. Refresh this page to start
+            composing.
           </p>
         </DashboardSectionCard>
       </div>

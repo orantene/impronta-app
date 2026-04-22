@@ -288,9 +288,10 @@ function SortableSlotItem({
         size="sm"
         disabled={!canCompose || idx === 0}
         onClick={onMoveUp}
-        title="Move up (keyboard)"
+        title="Move this section up in the slot"
+        aria-label="Move section up"
       >
-        ↑
+        <span aria-hidden>↑</span>
       </Button>
       <Button
         type="button"
@@ -298,9 +299,10 @@ function SortableSlotItem({
         size="sm"
         disabled={!canCompose || isLast}
         onClick={onMoveDown}
-        title="Move down (keyboard)"
+        title="Move this section down in the slot"
+        aria-label="Move section down"
       >
-        ↓
+        <span aria-hidden>↓</span>
       </Button>
       <Button
         type="button"
@@ -681,11 +683,26 @@ export function HomepageComposer({
       {/* ---- status pill + meta + undo/redo ---- */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <PageStatusBadge status={page.status} />
-        <span>locale: {locale}</span>
-        <span>version v{effectiveVersion}</span>
-        <span>template v{template.currentVersion}</span>
-        <span>last edited {formatWhen(page.updated_at)}</span>
-        <span>last published {formatWhen(page.published_at)}</span>
+        <span>
+          Last edited {formatWhen(page.updated_at)}
+        </span>
+        {page.published_at ? (
+          <span>Last published {formatWhen(page.published_at)}</span>
+        ) : (
+          <span>Not yet published</span>
+        )}
+        <details className="group/meta">
+          <summary className="cursor-pointer select-none text-[10px] uppercase tracking-wide text-muted-foreground/60 hover:text-muted-foreground">
+            Details
+          </summary>
+          <span className="ml-2 inline-flex items-center gap-2 text-[11px]">
+            <span>Language: {locale === "en" ? "English" : locale}</span>
+            <span>·</span>
+            <span>Version {effectiveVersion}</span>
+            <span>·</span>
+            <span>Template v{template.currentVersion}</span>
+          </span>
+        </details>
 
         <span className="ml-auto flex items-center gap-1">
           <Button

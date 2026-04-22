@@ -216,9 +216,9 @@ export function SectionEditor({
         {registryEntry.currentVersion !== schemaVersion && (
           <span
             className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-amber-300"
-            title="This section was saved on an older content shape. Saving here migrates it forward; publishing re-checks against the current shape and may ask you to fill a new field or two."
+            title="The section template has been updated. Saving here migrates this section forward; publishing may ask you to fill in a new field or two."
           >
-            Needs re-save
+            Update available
           </span>
         )}
         {section?.updated_at && (
@@ -385,8 +385,8 @@ export function SectionEditor({
                 action={deleteAction}
                 onSubmit={(e) => {
                   const confirmBody = sectionInUse
-                    ? `Delete section “${section.name}” (type ${registryEntry.meta.label})?\n\nThis section is currently referenced by at least one page (see the "In use" block above). The database will REFUSE the delete until you remove every reference. Cancel, unlink the section from those pages, and try again — or use Archive to hide it without losing content.`
-                    : `Delete section “${section.name}” (type ${registryEntry.meta.label})?\n\nThis is a hard delete — the draft, every revision, and the published copy are removed. Archive is the usual choice; it keeps history and is reversible.`;
+                    ? `Delete "${section.name}"?\n\nThis section is in use on at least one page (see the "In use" block above). Delete is blocked until you remove it from those pages — or use Archive to hide it while keeping all content and history.`
+                    : `Delete "${section.name}"?\n\nThis removes the section and its history permanently. Archive is usually the right choice — it hides the section from the live site but keeps everything recoverable.`;
                   const ok = window.confirm(confirmBody);
                   if (!ok) e.preventDefault();
                 }}
@@ -403,8 +403,8 @@ export function SectionEditor({
                   disabled={deletePending}
                   title={
                     sectionInUse
-                      ? "This section is referenced by one or more pages. The DB will reject the delete until every reference is removed — unlink first, or archive instead."
-                      : "Hard delete. Not reversible. Archive is the usual choice."
+                      ? "This section is in use on one or more pages. Remove it from those pages first, or use Archive instead."
+                      : "Permanent delete. Archive is usually the right choice — it hides without losing content."
                   }
                 >
                   {deletePending
