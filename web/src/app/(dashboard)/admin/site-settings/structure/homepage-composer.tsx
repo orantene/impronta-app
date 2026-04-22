@@ -188,6 +188,7 @@ function formatWhen(iso: string | null | undefined): string {
 function SortableSlotItem({
   sectionId,
   section,
+  sectionTypeLabel,
   idx,
   isLast,
   canCompose,
@@ -203,6 +204,8 @@ function SortableSlotItem({
     status: "draft" | "published" | "archived";
     updatedAt: string;
   };
+  /** Human label for the section's type (looked up in the registry). */
+  sectionTypeLabel: string;
   idx: number;
   isLast: boolean;
   canCompose: boolean;
@@ -249,7 +252,7 @@ function SortableSlotItem({
           <span>
             <strong>{section.name}</strong>
             <span className="ml-2 text-xs text-muted-foreground">
-              ({section.sectionTypeKey})
+              {sectionTypeLabel}
             </span>
           </span>
         ) : (
@@ -266,10 +269,10 @@ function SortableSlotItem({
       )}
       {section?.status === "draft" && (
         <span
-          className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase text-amber-300"
+          className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300"
           title="This section is a draft. Publish it before publishing the homepage."
         >
-          draft ref
+          Needs publishing
         </span>
       )}
 
@@ -383,6 +386,18 @@ export function HomepageComposer({
         : restoreState?.ok && typeof restoreState.version === "number"
           ? restoreState.version
           : page.version;
+
+  /** Map sectionTypeKey → human-friendly label from the registry prop. */
+  const sectionTypeLabels = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const entry of sectionRegistry) {
+      out.set(entry.key, entry.label);
+    }
+    return out;
+  }, [sectionRegistry]);
+  function labelForType(key: string): string {
+    return sectionTypeLabels.get(key) ?? key;
+  }
 
   const mergedSections = useMemo(() => {
     const seen = new Set<string>();
@@ -620,6 +635,11 @@ export function HomepageComposer({
                               key={`${slot.key}:${entry.sectionId}`}
                               sectionId={entry.sectionId}
                               section={section}
+                              sectionTypeLabel={
+                                section
+                                  ? labelForType(section.sectionTypeKey)
+                                  : ""
+                              }
                               idx={idx}
                               isLast={idx === items.length - 1}
                               canCompose={canCompose}
@@ -663,10 +683,16 @@ export function HomepageComposer({
                           }}
                           aria-label={`Pick an existing section for ${slot.label}`}
                         >
-                          <option value="">pick existing section…</option>
+                          <option value="">Reuse a saved section…</option>
                           {candidates.map((c) => (
                             <option key={c.id} value={c.id}>
-                              {c.name} — {c.sectionTypeKey} ({c.status})
+                              {c.name} — {labelForType(c.sectionTypeKey)} (
+                              {c.status === "draft"
+                                ? "draft"
+                                : c.status === "published"
+                                  ? "published"
+                                  : "archived"}
+                              )
                             </option>
                           ))}
                         </select>
