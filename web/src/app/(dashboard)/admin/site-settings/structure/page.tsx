@@ -130,8 +130,65 @@ export default async function SiteSettingsStructurePage() {
     getTenantPreviewOrigin(auth.supabase, scope.tenantId),
   ]);
 
+  const isEmptyTenant =
+    state.draftSlots.length === 0 &&
+    state.liveSlots.length === 0 &&
+    sections.length === 0;
+
   return (
     <div className="space-y-4">
+      {isEmptyTenant && canCompose && (
+        <DashboardSectionCard
+          title="Welcome — let's set up your homepage"
+          description="You don't have any sections yet. Every slot below has an Add from library button that creates a section with sensible defaults — pick one and start composing."
+          titleClassName={ADMIN_SECTION_TITLE_CLASS}
+        >
+          <div className="grid gap-3 md:grid-cols-3">
+            {[
+              {
+                title: "1. Pick a theme",
+                body:
+                  "Visit Design → Theme preset to choose a look. Editorial Bridal is a good starting point for premium storefronts.",
+                href: "/admin/site-settings/design",
+                cta: "Open Design",
+              },
+              {
+                title: "2. Add a hero",
+                body:
+                  "In the Hero slot below, click + Add from library → Hero. You'll land in an editor with real-looking placeholder copy.",
+                href: null,
+                cta: null,
+              },
+              {
+                title: "3. Compose + publish",
+                body:
+                  "Keep adding sections (trust band, featured talent, gallery, CTA…), save the draft, and hit Publish when you're ready.",
+                href: null,
+                cta: null,
+              },
+            ].map((step) => (
+              <div
+                key={step.title}
+                className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/10 p-4"
+              >
+                <h3 className="text-sm font-semibold">{step.title}</h3>
+                <p className="flex-1 text-xs text-muted-foreground">
+                  {step.body}
+                </p>
+                {step.href && step.cta ? (
+                  <a
+                    href={step.href}
+                    className="inline-flex w-fit items-center rounded-md border border-foreground/30 bg-foreground/10 px-3 py-1.5 text-xs font-medium transition hover:bg-foreground/20"
+                  >
+                    {step.cta}
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </DashboardSectionCard>
+      )}
+
       {previewOrigin && (
         <DashboardSectionCard
           title="Live preview"
