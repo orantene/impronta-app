@@ -2,6 +2,7 @@
 
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { MediaPicker } from "../shared/MediaPicker";
 import type { SectionEditorProps } from "../types";
 import type { GalleryStripV1, GalleryStripItem } from "./schema";
 
@@ -13,6 +14,7 @@ const INPUT =
 export function GalleryStripEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<GalleryStripV1>) {
   const value: GalleryStripV1 = {
     eyebrow: initial.eyebrow ?? "Moments",
@@ -95,12 +97,21 @@ export function GalleryStripEditor({
             key={i}
             className="grid grid-cols-1 gap-2 rounded-md border border-border/60 bg-muted/30 p-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,120px)_auto]"
           >
-            <input
-              className={INPUT}
-              placeholder="Image URL"
-              value={item.src}
-              onChange={(e) => patchItem(i, { src: e.target.value })}
-            />
+            <div className="flex items-center gap-2">
+              <input
+                className={`${INPUT} flex-1`}
+                placeholder="Image URL"
+                value={item.src}
+                onChange={(e) => patchItem(i, { src: e.target.value })}
+              />
+              {tenantId ? (
+                <MediaPicker
+                  tenantId={tenantId}
+                  onPick={(url) => patchItem(i, { src: url })}
+                  label=""
+                />
+              ) : null}
+            </div>
             <input
               className={INPUT}
               placeholder="Alt text"

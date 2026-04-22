@@ -3,18 +3,19 @@
 /**
  * Shared media picker for section editors.
  *
- * V1: a button that opens a dialog listing the current tenant's approved
- * media_assets. Clicking a tile returns its public URL to the caller (via
- * `onPick`). No upload UI in v1 — agencies with their own imagery upload
- * via the talent-media manager today; a dedicated uploader lands next.
+ * Dialog that lists the current tenant's approved media_assets with
+ * thumbnails + sizes. Click a tile → caller receives its public URL.
+ * Upload button on the dialog toolbar sends the selected file through
+ * POST /api/admin/media/upload, prepends the new item to the list, and
+ * auto-picks it so the admin's next click is on the section field.
  *
- * Tenant scope: the caller passes `tenantId`. The /api/admin/media/library
- * route verifies it matches the caller's server-resolved tenant scope, so
- * a bad tenantId in props still returns 403 instead of leaking content.
+ * Tenant scope: the caller passes `tenantId`. Both /list and /upload
+ * verify it matches the caller's server-resolved scope, so a bad
+ * tenantId in props returns 403 instead of leaking or landing content.
  */
 
-import { useEffect, useState } from "react";
-import { ImageIcon, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ImageIcon, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -48,34 +49,64 @@ export function MediaPicker({
   const [items, setItems] = useState<MediaItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadLibrary = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/media/library?tenantId=${encodeURIComponent(tenantId)}`,
+        { cache: "no-store" },
+      );
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      setItems(body.items as MediaItem[]);
+    } catch (e) {
+      setError(String(e).slice(0, 200));
+    } finally {
+      setLoading(false);
+    }
+  }, [tenantId]);
 
   useEffect(() => {
     if (!open || items !== null || loading) return;
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(
-          `/api/admin/media/library?tenantId=${encodeURIComponent(tenantId)}`,
-          { cache: "no-store" },
-        );
-        const body = await res.json();
-        if (!res.ok || !body.ok) {
-          throw new Error(body.error ?? `HTTP ${res.status}`);
-        }
-        if (!cancelled) setItems(body.items as MediaItem[]);
-      } catch (e) {
-        if (!cancelled) setError(String(e).slice(0, 200));
-      } finally {
-        if (!cancelled) setLoading(false);
+    void loadLibrary();
+  }, [open, items, loading, loadLibrary]);
+
+  async function handleFileChosen(file: File) {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const form = new FormData();
+      form.set("tenantId", tenantId);
+      form.set("file", file);
+      const res = await fetch("/api/admin/media/upload", {
+        method: "POST",
+        body: form,
+      });
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
+        throw new Error(body.error ?? `HTTP ${res.status}`);
       }
+      const item = body.item as MediaItem;
+      // Prepend immediately so the uploaded tile is first + highlighted.
+      setItems((prev) => [item, ...(prev ?? [])]);
+      // Auto-pick the freshly-uploaded asset — most common flow is
+      // "upload + use it here" in one motion.
+      onPick(item.publicUrl);
+      setOpen(false);
+    } catch (e) {
+      setUploadError(String(e).slice(0, 200));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, items, loading, tenantId]);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -113,20 +144,47 @@ export function MediaPicker({
               <div>
                 <h2 className="text-base font-semibold">Media library</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Approved imagery for this workspace. Click a tile to pick
-                  its URL.
+                  Upload new imagery or pick from this workspace's library.
                 </p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setOpen(false)}
-                aria-label="Close media library"
-              >
-                <X className="size-3.5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void handleFileChosen(file);
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Upload an image from your computer"
+                >
+                  <Upload className="mr-1.5 size-3.5" />
+                  {uploading ? "Uploading…" : "Upload"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOpen(false)}
+                  aria-label="Close media library"
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
             </div>
+
+            {uploadError ? (
+              <p className="border-b border-destructive/40 bg-destructive/10 px-5 py-2 text-sm text-destructive">
+                Upload failed — {uploadError}
+              </p>
+            ) : null}
 
             <div className="flex-1 overflow-y-auto p-4">
               {loading ? (

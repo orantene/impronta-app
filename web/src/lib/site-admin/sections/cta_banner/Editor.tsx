@@ -3,6 +3,7 @@
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { MediaPicker } from "../shared/MediaPicker";
 import type { CtaBannerV1 } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -14,6 +15,7 @@ const HINT = "text-xs text-muted-foreground";
 export function CtaBannerEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<CtaBannerV1>) {
   const value: CtaBannerV1 = {
     eyebrow: initial.eyebrow ?? "",
@@ -213,15 +215,24 @@ export function CtaBannerEditor({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>
           <span className={LABEL}>Background image URL</span>
-          <input
-            className={INPUT}
-            maxLength={2048}
-            placeholder="https://… (or leave blank)"
-            value={value.backgroundImageUrl ?? ""}
-            onChange={(e) =>
-              patch({ backgroundImageUrl: e.target.value || undefined })
-            }
-          />
+          <div className="flex items-center gap-2">
+            <input
+              className={`${INPUT} flex-1`}
+              maxLength={2048}
+              placeholder="https://… (or leave blank)"
+              value={value.backgroundImageUrl ?? ""}
+              onChange={(e) =>
+                patch({ backgroundImageUrl: e.target.value || undefined })
+              }
+            />
+            {tenantId ? (
+              <MediaPicker
+                tenantId={tenantId}
+                onPick={(url) => patch({ backgroundImageUrl: url })}
+                label="Library"
+              />
+            ) : null}
+          </div>
         </label>
         <label className={FIELD}>
           <span className={LABEL}>Overlay darkness (0–100)</span>
