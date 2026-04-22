@@ -38,6 +38,10 @@ import { Label } from "@/components/ui/label";
 import type { Locale } from "@/lib/site-admin/locales";
 import type { PageRow } from "@/lib/site-admin/server/pages";
 import type { HomepagePageSectionRow } from "@/lib/site-admin/server/homepage";
+import type {
+  SectionBusinessPurpose,
+  SectionMeta,
+} from "@/lib/site-admin/sections/types";
 
 import {
   type HomepageActionState,
@@ -45,6 +49,7 @@ import {
   restoreHomepageRevisionAction,
   saveHomepageDraftAction,
 } from "./actions";
+import { SectionLibraryOverlay } from "./section-library-overlay";
 
 // ---- shapes --------------------------------------------------------------
 
@@ -83,6 +88,12 @@ interface Props {
   availableSections: readonly AvailableSection[];
   template: TemplateMeta;
   revisions: readonly RevisionLite[];
+  sectionRegistry: ReadonlyArray<
+    Pick<
+      SectionMeta,
+      "key" | "label" | "description" | "businessPurpose" | "visibleToAgency"
+    >
+  >;
   canCompose: boolean;
   canPublish: boolean;
 }
@@ -153,6 +164,7 @@ export function HomepageComposer({
   availableSections,
   template,
   revisions,
+  sectionRegistry,
   canCompose,
   canPublish,
 }: Props) {
@@ -166,6 +178,18 @@ export function HomepageComposer({
   const [entries, setEntries] = useState<Record<string, SlotEntry[]>>(
     initialEntries,
   );
+
+  // Sections created in this browser tab via the library overlay. Not yet in
+  // `availableSections` (which is server-rendered) but need to display in
+  // sectionsById so slot rows render the new name instead of "Unknown section".
+  const [libraryCreated, setLibraryCreated] = useState<
+    ReadonlyArray<AvailableSection>
+  >([]);
+
+  const [libraryOpen, setLibraryOpen] = useState<{
+    slotKey: string;
+    slotLabel: string;
+  } | null>(null);
 
   const [title, setTitle] = useState(page.title ?? "Homepage");
   const [metaDescription, setMetaDescription] = useState<string>(
@@ -204,9 +228,20 @@ export function HomepageComposer({
           ? restoreState.version
           : page.version;
 
+  const mergedSections = useMemo(() => {
+    const seen = new Set<string>();
+    const out: AvailableSection[] = [];
+    for (const s of [...libraryCreated, ...availableSections]) {
+      if (seen.has(s.id)) continue;
+      seen.add(s.id);
+      out.push(s);
+    }
+    return out;
+  }, [availableSections, libraryCreated]);
+
   const sectionsById = useMemo(() => {
-    return new Map(availableSections.map((s) => [s.id, s] as const));
-  }, [availableSections]);
+    return new Map(mergedSections.map((s) => [s.id, s] as const));
+  }, [mergedSections]);
 
   // Per slot, the subset of sections the picker should show. Filters:
   //   - status != archived
@@ -215,7 +250,7 @@ export function HomepageComposer({
     const allowed = slot.allowedSectionTypes
       ? new Set(slot.allowedSectionTypes)
       : null;
-    return availableSections.filter((s) => {
+    return mergedSections.filter((s) => {
       if (s.status === "archived") return false;
       if (allowed && !allowed.has(s.sectionTypeKey)) return false;
       return true;
@@ -454,34 +489,54 @@ export function HomepageComposer({
                   </ul>
                 )}
 
-                {canCompose && candidates.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="rounded border border-border/60 bg-background px-2 py-1 text-sm"
-                      defaultValue=""
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) return;
-                        appendToSlot(slot.key, val);
-                        e.currentTarget.value = "";
-                      }}
-                      aria-label={`Add a section to ${slot.label}`}
+                {canCompose && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() =>
+                        setLibraryOpen({
+                          slotKey: slot.key,
+                          slotLabel: slot.label,
+                        })
+                      }
+                      title="Open the section library to create a new section with sensible defaults"
                     >
-                      <option value="">+ add section…</option>
-                      {candidates.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} — {c.sectionTypeKey} ({c.status})
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-xs text-muted-foreground">
-                      {candidates.length} eligible
-                    </span>
+                      + Add from library
+                    </Button>
+                    {candidates.length > 0 && (
+                      <>
+                        <span className="text-xs text-muted-foreground">or</span>
+                        <select
+                          className="rounded border border-border/60 bg-background px-2 py-1 text-sm"
+                          defaultValue=""
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (!val) return;
+                            appendToSlot(slot.key, val);
+                            e.currentTarget.value = "";
+                          }}
+                          aria-label={`Pick an existing section for ${slot.label}`}
+                        >
+                          <option value="">pick existing section…</option>
+                          {candidates.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} — {c.sectionTypeKey} ({c.status})
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-xs text-muted-foreground">
+                          {candidates.length} eligible
+                        </span>
+                      </>
+                    )}
                   </div>
                 )}
                 {canCompose && candidates.length === 0 && (
                   <p className="text-xs text-muted-foreground">
-                    No eligible sections — create one in the Sections tab
+                    No existing sections eligible — use{" "}
+                    <em>Add from library</em> above, or create one in the
+                    Sections tab
                     {slot.allowedSectionTypes
                       ? ` (type: ${slot.allowedSectionTypes.join(", ")})`
                       : ""}
@@ -632,6 +687,35 @@ export function HomepageComposer({
           </ul>
         )}
       </section>
+
+      <SectionLibraryOverlay
+        open={libraryOpen}
+        onCancel={() => setLibraryOpen(null)}
+        onSectionCreated={(slotKey, section) => {
+          // Cache the new instance locally so the composer renders its name.
+          setLibraryCreated((prev) => [
+            {
+              id: section.id,
+              name: section.name,
+              sectionTypeKey: section.sectionTypeKey,
+              status: section.status,
+              updatedAt: new Date().toISOString(),
+            },
+            ...prev,
+          ]);
+          // Append to the target slot's entries — save is still explicit via
+          // the composer's Save Draft button.
+          appendToSlot(slotKey, section.id);
+          setLibraryOpen(null);
+        }}
+        registry={sectionRegistry}
+        allowedSectionTypes={
+          libraryOpen
+            ? (template.slots.find((s) => s.key === libraryOpen.slotKey)
+                ?.allowedSectionTypes ?? null)
+            : null
+        }
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
 import { ensureHomepageRow, loadHomepageForStaff } from "@/lib/site-admin/server/homepage";
 import { loadHomepageRevisionsForStaff } from "@/lib/site-admin/server/homepage-reads";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
+import { SECTION_REGISTRY } from "@/lib/site-admin/sections/registry";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 
@@ -159,6 +160,13 @@ export default async function SiteSettingsStructurePage() {
             kind: r.kind,
             version: r.version,
             createdAt: r.created_at,
+          }))}
+          sectionRegistry={Object.values(SECTION_REGISTRY).map((entry) => ({
+            key: entry.meta.key,
+            label: entry.meta.label,
+            description: entry.meta.description,
+            businessPurpose: entry.meta.businessPurpose,
+            visibleToAgency: entry.meta.visibleToAgency,
           }))}
           canCompose={canCompose}
           canPublish={canPublish}
