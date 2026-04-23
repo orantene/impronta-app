@@ -1,0 +1,42 @@
+name: Vercel post-deploy alias
+
+# Re-aliases the two ghost-locked domains (tulala.digital, app.tulala.digital)
+# onto the latest successful production deployment. These domains can't be
+# attached at the Vercel project level (a deleted predecessor project still
+# "owns" them), so autoAssignCustomDomains skips them. See
+# .claude/.../memory/project_vercel_deployment.md "Ghost project alias workaround".
+#
+# Fires on `deployment_status` — Vercel's GitHub App creates GitHub Deployments
+# for every push, so this runs right after each prod deploy finishes.
+
+on:
+  deployment_status:
+
+jobs:
+  alias:
+    name: Re-alias ghost-locked domains
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Re-alias tulala.digital + app.tulala.digital
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOY_URL: ${{ github.event.deployment_status.target_url }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEPLOY_URL:-}" ]]; then
+            echo "::error::no deployment_status.target_url"; exit 1
+          fi
+          echo "Aliasing $DEPLOY_URL -> tulala.digital + app.tulala.digital"
+          for D in tulala.digital app.tulala.digital; do
+            vercel alias set "$DEPLOY_URL" "$D" \
+              --scope oran-tenes-projects \
+              --token "$VERCEL_TOKEN" \
+              --yes
+          done
