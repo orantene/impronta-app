@@ -157,6 +157,30 @@ html[data-token-background-mode="editorial-noir"] body {
   color: var(--token-color-ink);
 }
 
+/* Storefront `site-theme-tenant-override` on <body> remaps --impronta-* to
+ * --token-color-* vars and --background to --token-color-background. That
+ * latter is *platform-governed* (not agency-configurable), so without an
+ * explicit override the noir palette would still resolve to the default
+ * white --token-color-background. Re-pin the noir values at body scope so
+ * they beat the tenant-override remap for any tenant using this mode. */
+html[data-token-background-mode="editorial-noir"] body.site-theme-tenant-override {
+  --impronta-black: #0a0a0a;
+  --impronta-surface: #0f0f0f;
+  --impronta-foreground: #f4f4f5;
+  --impronta-muted: #a1a1aa;
+  --impronta-gold: #c9a227;
+  --impronta-gold-bright: #d4af37;
+  --impronta-gold-dim: #9a7b2c;
+  --impronta-gold-border: rgba(201, 162, 39, 0.18);
+  --background: #0a0a0a;
+  --foreground: #f4f4f5;
+  --primary: #c9a227;
+  --primary-foreground: #0a0a0a;
+  --ring: #d4af37;
+  --accent: rgba(201, 162, 39, 0.14);
+  --site-ambient-base: #0a0a0a;
+}
+
 html[data-token-background-mode="champagne-gradient"] body {
   background:
     radial-gradient(ellipse 80% 50% at 50% 0%, rgba(232, 216, 195, 0.45), transparent 70%),
