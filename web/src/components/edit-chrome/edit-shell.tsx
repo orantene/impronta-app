@@ -27,6 +27,8 @@ import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
 import { CompositionInserters } from "./composition-inserter";
 import { CompositionLibraryOverlay } from "./composition-library";
+import { InlineEditor } from "./inline-editor";
+import { PublishDrawer } from "./publish-drawer";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
@@ -57,6 +59,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     canRedo,
     undo,
     redo,
+    openPublish,
   } = useEditContext();
 
   // Keyboard shortcuts for undo/redo. Mirror the platform convention:
@@ -96,6 +99,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         canRedo={canRedo}
         onUndo={() => void undo()}
         onRedo={() => void redo()}
+        onPublish={openPublish}
       />
       <div
         id="edit-overlay-portal"
@@ -104,8 +108,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       />
       <SelectionLayer />
       <CompositionInserters />
+      <InlineEditor />
       <InspectorDock />
       <CompositionLibraryOverlay />
+      <PublishDrawer />
       {children}
       <DeviceFrameStyle device={device} />
     </>
@@ -121,6 +127,7 @@ function TopBar({
   canRedo,
   onUndo,
   onRedo,
+  onPublish,
 }: {
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
@@ -130,6 +137,7 @@ function TopBar({
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  onPublish: () => void;
 }) {
   return (
     <div
@@ -170,9 +178,10 @@ function TopBar({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          disabled
-          className="rounded-md border border-transparent bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-400"
-          title="Publish drawer — Phase 5"
+          onClick={onPublish}
+          disabled={saving}
+          className="rounded-md border border-zinc-900 bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+          title="Open publish drawer"
         >
           Publish
         </button>
