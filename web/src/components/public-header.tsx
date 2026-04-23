@@ -87,7 +87,10 @@ export async function PublicHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
+    <header
+      data-public-header
+      className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md"
+    >
       <div className="relative grid h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:h-[4.25rem] sm:gap-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-start gap-1 sm:gap-2">
           <Button variant="ghost" size="icon" className="shrink-0" asChild>

@@ -142,7 +142,7 @@ function TopBar({
   return (
     <div
       data-edit-topbar
-      className="fixed inset-x-0 top-0 z-[90] flex h-[52px] items-center justify-between border-b border-black/10 bg-white/95 px-4 text-sm text-zinc-900 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur"
+      className="fixed inset-x-0 top-0 z-[90] flex h-[52px] items-center justify-between border-b border-zinc-200 bg-white/[0.97] px-4 text-sm text-zinc-900 shadow-[0_4px_20px_-12px_rgba(0,0,0,0.12),0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-md"
     >
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 font-semibold tracking-tight">
@@ -260,10 +260,13 @@ function SaveIndicator({ dirty, saving }: { dirty: boolean; saving: boolean }) {
       </span>
     );
   }
+  // Clean state: the operator may have just entered edit mode and not yet
+  // changed anything, so "Draft saved" overclaims. "Draft" is the honest
+  // steady state — signals we're on the draft surface, nothing pending.
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
       <span className="size-1.5 rounded-full bg-emerald-500" />
-      Draft saved
+      Draft
     </span>
   );
 }

@@ -26,6 +26,7 @@ import {
   loadHomepageForRender,
 } from "@/lib/site-admin/server/homepage-reads";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isLocale } from "@/lib/site-admin/locales";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
@@ -50,6 +51,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     cmsHomepage,
     identity,
     previewActive,
+    editActive,
   ] = await Promise.all([
     getHomepageData({ tenantId }),
     cmsLocale
@@ -57,7 +59,12 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       : Promise.resolve(null),
     loadPublicIdentity(tenantId),
     isPreviewActiveForTenant(tenantId),
+    isEditModeActiveForTenant(tenantId),
   ]);
+  // Suppress the draft banner when the in-place edit chrome is engaged — the
+  // top bar already signals draft state and its "Publish" button replaces the
+  // "go to the composer" instruction. Showing both is contradictory.
+  const showPreviewBanner = previewActive && !editActive;
   const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
   const footerTagline =
     identity?.footer_tagline?.trim() || t("public.home.footer.tagline");
@@ -183,7 +190,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       className="flex min-h-full flex-1 flex-col bg-background"
       data-preview={previewActive ? "draft" : undefined}
     >
-      {previewActive ? (
+      {showPreviewBanner ? (
         <div
           role="status"
           aria-label="Preview mode — showing draft"
