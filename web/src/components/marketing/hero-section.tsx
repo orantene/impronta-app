@@ -14,25 +14,12 @@ export function HeroSection() {
             </MarketingEyebrow>
 
             <h1
-              className="plt-display mkt-rise mkt-rise-delay-1 mt-5 text-[2.75rem] leading-[1.02] sm:text-[3.5rem] lg:text-[4.5rem]"
-              style={{
-                color: "var(--plt-ink)",
-                fontVariationSettings: "\"opsz\" 144, \"SOFT\" 50",
-                fontWeight: 380,
-                letterSpacing: "-0.025em",
-              }}
+              className="plt-display mkt-rise mkt-rise-delay-1 mt-5 text-[2.75rem] sm:text-[3.5rem] lg:text-[4.5rem]"
+              style={{ color: "var(--plt-ink)" }}
             >
               <span className="block">Run your talent business</span>
-              <span className="block">
-                <span
-                  style={{
-                    color: "var(--plt-forest)",
-                    fontStyle: "italic",
-                    fontVariationSettings: "\"opsz\" 144, \"SOFT\" 70",
-                  }}
-                >
-                  like one.
-                </span>
+              <span className="block" style={{ color: "var(--plt-forest)" }}>
+                like one.
               </span>
             </h1>
 

@@ -31,11 +31,10 @@ export function PoweredByTulala({ className }: { className?: string }) {
         aria-hidden
         className="inline-flex items-baseline leading-none"
         style={{
-          fontFamily: "var(--font-fraunces), ui-serif, Georgia, serif",
-          fontVariationSettings: "\"opsz\" 144, \"SOFT\" 60",
-          fontWeight: 400,
-          fontSize: "1rem",
-          letterSpacing: "-0.015em",
+          fontFamily: "var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif",
+          fontWeight: 700,
+          fontSize: "0.9375rem",
+          letterSpacing: "-0.045em",
         }}
       >
         tulala

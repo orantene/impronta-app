@@ -212,11 +212,10 @@ export function MarketingHeader() {
 }
 
 /**
- * Tulala wordmark — all-lowercase Fraunces, a full-stop as the punctuation
- * mark that carries the brand. No secondary glyph; the wordmark is the logo.
- * The period is intentionally in `--tl-forest` so the brand accent lives on
- * the mark itself. Uses the `plt-display` class so Fraunces + optical sizing
- * come through even outside a heading context.
+ * Tulala wordmark — all-lowercase bold sans (Geist), with a full-stop as the
+ * punctuation mark that carries the brand. No secondary glyph; the wordmark
+ * is the logo. The period is intentionally in `--tl-forest` so the brand
+ * accent lives on the mark itself.
  */
 function TulalaWordmark() {
   return (
@@ -224,10 +223,9 @@ function TulalaWordmark() {
       aria-hidden
       className="plt-display inline-flex items-baseline leading-none"
       style={{
-        fontVariationSettings: "\"opsz\" 144, \"SOFT\" 60",
-        fontWeight: 380,
-        letterSpacing: "-0.015em",
-        fontSize: "1.55rem",
+        fontWeight: 700,
+        letterSpacing: "-0.045em",
+        fontSize: "1.5rem",
         color: "var(--plt-ink)",
       }}
     >

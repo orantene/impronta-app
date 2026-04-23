@@ -791,8 +791,12 @@ html[data-public-font-preset="editorial"] {
     0 8px 22px -12px rgba(22, 26, 22, 0.08);
   --tl-shadow-forest: 0 14px 34px -16px rgba(30, 58, 45, 0.42);
 
-  /* Typography — Fraunces display, Inter body, Geist Mono micro. */
-  --tl-font-display: var(--font-fraunces), "Fraunces", ui-serif, Georgia,
+  /* Typography — Geist display + UI (bold geometric sans), Inter body, Geist Mono micro.
+   * Fraunces is still loaded as `--tl-font-display-serif` for surfaces that want
+   * an editorial serif, but the default display voice is sans. */
+  --tl-font-display: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tl-font-display-serif: var(--font-fraunces), "Fraunces", ui-serif, Georgia,
     "Times New Roman", serif;
   --tl-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -886,13 +890,25 @@ html[data-public-font-preset="editorial"] {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Headings / display lines — Fraunces editorial serif, optical-sizing
- * at display, gentle softness axis, tight tracking. This is the Tulala
- * voice: editorial luxury on a SaaS chassis. */
+/* Headings / display lines — Geist sans at heavy weight, tight tracking,
+ * pulled-in leading. This is the Tulala voice: modern SaaS with
+ * editorial composure. Two-tone treatment (primary line + forest
+ * accent line) is applied at the component level. */
 [data-platform-surface="marketing"] .plt-display,
 [data-platform-surface="marketing"] .tl-display,
 [data-platform-surface="marketing"] .mkt-display {
   font-family: var(--tl-font-display);
+  font-feature-settings: "ss01", "ss02", "cv11";
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+/* Serif display — opt-in for surfaces that specifically want the
+ * editorial Fraunces voice (not the default). */
+[data-platform-surface="marketing"] .plt-display-serif,
+[data-platform-surface="marketing"] .tl-display-serif {
+  font-family: var(--tl-font-display-serif);
   font-optical-sizing: auto;
   font-variation-settings: "opsz" 144, "SOFT" 40;
   font-weight: 400;
@@ -900,14 +916,15 @@ html[data-public-font-preset="editorial"] {
   line-height: 1.02;
 }
 
-/* Sans display — use sparingly; the default display is serif now. */
+/* Back-compat: .plt-display-sans used to mean "the sans override".
+ * Now that the default display IS sans, this is just an alias. */
 [data-platform-surface="marketing"] .plt-display-sans,
 [data-platform-surface="marketing"] .tl-display-sans {
   font-family: var(--tl-font-sans);
   font-feature-settings: "ss01", "ss02", "cv11";
-  font-weight: 500;
-  letter-spacing: -0.025em;
-  line-height: 1.04;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
 }
 
 /* Body / UI text */
