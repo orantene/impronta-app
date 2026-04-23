@@ -51,6 +51,18 @@ export async function middleware(request: NextRequest) {
   // `agency_domains`. No hostnames are hardcoded in code. Downstream
   // server code reads the resulting context from request headers.
   const hostHeader = request.headers.get("host") ?? "";
+
+  // Canonical apex redirect. Vercel's own domain-level redirect for
+  // `www.tulala.digital → tulala.digital` can't be configured while the apex
+  // is ghost-attached to a deleted Vercel project (see project memory). Handle
+  // it here so SEO stays consistent regardless of which host the request lands on.
+  if (hostHeader.toLowerCase() === "www.tulala.digital") {
+    const target = new URL(request.url);
+    target.hostname = "tulala.digital";
+    target.port = "";
+    return NextResponse.redirect(target, 308);
+  }
+
   const hostContext = await resolveTenantContext(request, hostHeader);
 
   if (hostContext.kind === "not_found") {
