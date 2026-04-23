@@ -283,10 +283,90 @@ const studioMinimalPreset: ThemePreset = {
   },
 };
 
+/**
+ * EDITORIAL NOIR — the original Impronta register. Black canvas, ivory type,
+ * bright-gold accents, serif display headlines. Designed for premium talent,
+ * modelling, and image agencies whose brand equity is built on cinematic
+ * darkness + metal-leaf wordmarks.
+ *
+ * Ships as the fourth preset so an operator can pick it from the design
+ * picker, or carry it via `theme_json` on tenants that have always looked
+ * this way (e.g. Impronta Models Tulum).
+ */
+const editorialNoirPreset: ThemePreset = {
+  slug: "editorial-noir",
+  label: "Editorial Noir",
+  summary:
+    "Black canvas, bright-gold accents, serif headlines — the cinematic Impronta register.",
+  idealFor: [
+    "Talent agencies",
+    "Modelling rosters",
+    "Image + brand agencies",
+    "Luxury editorial brands",
+  ],
+  order: 40,
+  previewSwatch: {
+    primary: "#c9a227",
+    secondary: "#9a7b2c",
+    accent: "#d4af37",
+    background: "#0a0a0a",
+  },
+  tokens: {
+    // colors — noir with gold accents
+    "color.primary": "#c9a227",
+    "color.secondary": "#9a7b2c",
+    "color.accent": "#d4af37",
+    "color.neutral": "#a1a1aa",
+    "color.blush": "#d8b7b0",
+    "color.sage": "#a8b1a0",
+    "color.ink": "#f4f4f5",
+    "color.muted": "#a1a1aa",
+    "color.line": "#1f1f22",
+    "color.surface-raised": "#0f0f0f",
+    // typography — serif display with tracked uppercase eyebrows
+    "typography.heading-preset": "editorial-serif",
+    "typography.body-preset": "refined-sans",
+    "typography.label-preset": "uppercase-tracked",
+    "typography.scale-preset": "editorial",
+    "typography.tracking-preset": "editorial",
+    // shape & feel — soft radii, ambient shadow against black
+    "radius.base": "md",
+    "radius.scale-preset": "soft",
+    "shadow.preset": "ambient",
+    // motion & density
+    "motion.preset": "refined",
+    "spacing.scale": "comfortable",
+    "density.section-padding": "editorial",
+    "density.container-width": "standard",
+    // icons
+    "icon.family": "editorial-line",
+    // shell — transparent-on-hero over cinematic imagery, espresso footer
+    "shell.header-variant": "editorial-sticky",
+    "shell.header-sticky": "on",
+    "shell.header-transparent-on-hero": "on",
+    "shell.footer-variant": "espresso-column",
+    "shell.mobile-nav-variant": "full-screen-fade",
+    "background.mode": "editorial-noir",
+    // template families — stay on classic (most neutral) so the noir palette
+    // is what does the heavy lifting, not a bridal-specific card layout.
+    "template.directory-card-family": "classic",
+    "template.profile-layout-family": "classic",
+    // polish
+    "shell.logo-variant": "wordmark",
+    "motion.stagger-preset": "editorial",
+    "directory.card.show-destination-ready-ribbon": "off",
+    "directory.card.show-starting-from-price": "off",
+    "directory.card.specialty-chips-max": "3",
+    "profile.sticky-inquiry-bar": "on",
+    "profile.blocks-visibility": "all-visible",
+  },
+};
+
 export const THEME_PRESETS: ThemePreset[] = [
   classicPreset,
   editorialBridalPreset,
   studioMinimalPreset,
+  editorialNoirPreset,
 ].sort((a, b) => a.order - b.order);
 
 export function getThemePreset(slug: string | null | undefined): ThemePreset | null {

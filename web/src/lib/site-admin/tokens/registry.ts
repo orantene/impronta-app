@@ -506,13 +506,14 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
       "plain",
       "aurora",
       "editorial-ivory",
+      "editorial-noir",
       "champagne-gradient",
       "noise-texture",
     ]),
     defaultValue: "plain",
     group: "Site shell",
     description:
-      "`editorial-ivory` is the warm Muse Bridal canvas. `aurora` is the existing default radial glow. `plain` = neutral solid background.",
+      "`editorial-ivory` is the warm Muse Bridal canvas. `editorial-noir` is the black-canvas gold-serif register (original Impronta). `aurora` is the existing default radial glow. `plain` = neutral solid background.",
   },
 };
 

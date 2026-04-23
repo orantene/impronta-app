@@ -110,6 +110,53 @@ html[data-token-background-mode="editorial-ivory"] body {
   background: var(--site-page-background);
   color: var(--token-color-ink);
 }
+
+/* Editorial Noir — black canvas, bright gold accents, ivory type.
+ * This is the original Impronta register: black page, gold eyebrow / brand
+ * marks, serif headlines. Mirrors the legacy `.site-theme-dark` utility but
+ * plumbs through the token system so any tenant can opt in. */
+html[data-token-background-mode="editorial-noir"] {
+  --site-page-background: #0a0a0a;
+  --token-color-surface-raised: #0f0f0f;
+  --token-color-line: rgba(201, 162, 39, 0.18);
+  --token-color-muted: #a1a1aa;
+  --token-color-ink: #f4f4f5;
+  /* Legacy bridge: storefront chrome reads --impronta-* vars and shadcn
+   * --background. Alias them to the noir palette so every component that
+   * uses those vars (hero copy, cards, chips, profile page) repaints to
+   * black/gold without touching component code. */
+  --impronta-black: #0a0a0a;
+  --impronta-surface: #0f0f0f;
+  --impronta-foreground: #f4f4f5;
+  --impronta-muted: #a1a1aa;
+  --impronta-gold: #c9a227;
+  --impronta-gold-bright: #d4af37;
+  --impronta-gold-dim: #9a7b2c;
+  --impronta-gold-border: rgba(201, 162, 39, 0.18);
+  --background: #0a0a0a;
+  --foreground: #f4f4f5;
+  --card: #0f0f0f;
+  --card-foreground: #f4f4f5;
+  --popover: #18181b;
+  --popover-foreground: #f4f4f5;
+  --primary: #c9a227;
+  --primary-foreground: #0a0a0a;
+  --secondary: #18181b;
+  --secondary-foreground: #f4f4f5;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --accent: rgba(201, 162, 39, 0.09);
+  --accent-foreground: #fafafa;
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.07);
+  --ring: #d4af37;
+  --radius: 0.5rem;
+}
+html[data-token-background-mode="editorial-noir"] body {
+  background: var(--site-page-background);
+  color: var(--token-color-ink);
+}
+
 html[data-token-background-mode="champagne-gradient"] body {
   background:
     radial-gradient(ellipse 80% 50% at 50% 0%, rgba(232, 216, 195, 0.45), transparent 70%),
