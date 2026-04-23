@@ -37,6 +37,5 @@ jobs:
           for D in tulala.digital app.tulala.digital; do
             vercel alias set "$DEPLOY_URL" "$D" \
               --scope oran-tenes-projects \
-              --token "$VERCEL_TOKEN" \
-              --yes
+              --token "$VERCEL_TOKEN"
           done
