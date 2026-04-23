@@ -3,26 +3,30 @@
 /**
  * EditShell — engaged-state chrome rendered on the live storefront.
  *
- * Phase 1 scope:
- *   - Top bar: brand mark, device toggle (desktop/tablet/mobile), Exit.
- *     Publish is a placeholder; wired in Phase 5.
- *   - Overlay portal host (`#edit-overlay-portal`): a fixed, pointer-events:none
- *     layer above the document so Phase 2 can draw selection rings + hover
- *     outlines on top of real DOM without disturbing layout.
- *   - Inspector dock on the right is a placeholder state ("Select a section
- *     to edit"). Phase 2 replaces it with curated per-section inspectors.
+ * Renders above the storefront DOM:
+ *   - Top bar: brand mark, save indicator, device toggle, undo/redo, Publish
+ *     (placeholder), Exit.
+ *   - #edit-overlay-portal: fixed pointer-events:none layer where SelectionLayer
+ *     draws hover/selection rings and CompositionInserters renders "+" zones.
+ *   - InspectorDock: curated per-section editor on the right.
+ *   - CompositionLibraryOverlay: modal section picker that opens from an
+ *     inserter click.
  *
- * The storefront itself stays in the normal document flow — we do NOT wrap
- * the page in an iframe, we do NOT transform the body. Same-origin edit
- * chrome sitting above the real DOM is the whole point.
+ * The storefront itself stays in normal document flow — no iframe, no
+ * transforms. Composition mutations trigger `router.refresh()` so the
+ * server re-renders sections in the new order; the overlays recompute
+ * positions via MutationObserver + scroll/resize listeners.
  */
 
+import { useEffect } from "react";
 import { useFormStatus } from "react-dom";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
 import { EditProvider, useEditContext, type EditDevice } from "./edit-context";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
+import { CompositionInserters } from "./composition-inserter";
+import { CompositionLibraryOverlay } from "./composition-library";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
@@ -44,7 +48,42 @@ export function EditShell({ tenantId, children }: EditShellProps) {
 }
 
 function EditShellInner({ children }: { children?: React.ReactNode }) {
-  const { device, setDevice, dirty, saving } = useEditContext();
+  const {
+    device,
+    setDevice,
+    dirty,
+    saving,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+  } = useEditContext();
+
+  // Keyboard shortcuts for undo/redo. Mirror the platform convention:
+  // Cmd/Ctrl+Z → undo, Cmd/Ctrl+Shift+Z → redo. Ignore when the user is
+  // typing in an editable field so we don't eat their typing.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() !== "z") return;
+      const tgt = e.target as HTMLElement | null;
+      const tag = tgt?.tagName;
+      const editable =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tgt?.isContentEditable === true;
+      if (editable) return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        void redo();
+      } else {
+        void undo();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
 
   return (
     <>
@@ -53,6 +92,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         setDevice={setDevice}
         dirty={dirty}
         saving={saving}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={() => void undo()}
+        onRedo={() => void redo()}
       />
       <div
         id="edit-overlay-portal"
@@ -60,7 +103,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         aria-hidden
       />
       <SelectionLayer />
+      <CompositionInserters />
       <InspectorDock />
+      <CompositionLibraryOverlay />
       {children}
       <DeviceFrameStyle device={device} />
     </>
@@ -72,11 +117,19 @@ function TopBar({
   setDevice,
   dirty,
   saving,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: {
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
   dirty: boolean;
   saving: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }) {
   return (
     <div
@@ -104,6 +157,12 @@ function TopBar({
           <span>Editing</span>
         </div>
         <SaveIndicator dirty={dirty} saving={saving} />
+        <HistoryButtons
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={onUndo}
+          onRedo={onRedo}
+        />
       </div>
 
       <DeviceToggle device={device} setDevice={setDevice} />
@@ -121,6 +180,43 @@ function TopBar({
           <ExitButton />
         </form>
       </div>
+    </div>
+  );
+}
+
+function HistoryButtons({
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+}: {
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+}) {
+  return (
+    <div className="ml-1 inline-flex items-center gap-0.5 rounded-md border border-zinc-200 bg-white p-0.5">
+      <button
+        type="button"
+        onClick={onUndo}
+        disabled={!canUndo}
+        title="Undo (⌘Z)"
+        aria-label="Undo"
+        className="inline-flex size-7 items-center justify-center rounded text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 0 0-15-6.7L3 13" /></svg>
+      </button>
+      <button
+        type="button"
+        onClick={onRedo}
+        disabled={!canRedo}
+        title="Redo (⇧⌘Z)"
+        aria-label="Redo"
+        className="inline-flex size-7 items-center justify-center rounded text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:text-zinc-300 disabled:hover:bg-transparent"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 0 1 15-6.7L21 13" /></svg>
+      </button>
     </div>
   );
 }
