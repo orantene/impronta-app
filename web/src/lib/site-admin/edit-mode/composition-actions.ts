@@ -27,6 +27,7 @@ import {
 } from "@/lib/site-admin/forms/homepage";
 import {
   ensureHomepageRow,
+  publishHomepage,
   saveHomepageDraftComposition,
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
@@ -490,4 +491,81 @@ export async function createAndInsertSectionAction(input: {
     },
     pageVersion: saveRes.pageVersion,
   };
+}
+
+// ── publish ───────────────────────────────────────────────────────────────
+
+export type PublishResult =
+  | {
+      ok: true;
+      pageVersion: number;
+      publishedAt: string;
+    }
+  | {
+      ok: false;
+      error: string;
+      code?: string;
+      currentVersion?: number;
+    };
+
+/**
+ * Edit-chrome publish action. Thin typed wrapper over the lib-layer
+ * `publishHomepage` op — runs identical capability / CAS / required-slot /
+ * draft-ref / media-live gates. Returns a tagged union the canvas drawer
+ * can render directly (no FormData round-trip).
+ */
+export async function publishHomepageFromEditModeAction(input: {
+  locale: string;
+  expectedVersion: number;
+}): Promise<PublishResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) {
+    return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  }
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Tenant scope required",
+      code: "TENANT_SCOPE",
+    };
+  }
+  if (!isLocale(input.locale)) {
+    return { ok: false, error: "Invalid locale", code: "VALIDATION_FAILED" };
+  }
+
+  try {
+    const result = await publishHomepage(auth.supabase, {
+      tenantId: scope.tenantId,
+      values: {
+        tenantId: scope.tenantId,
+        locale: input.locale,
+        expectedVersion: input.expectedVersion,
+      },
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) {
+      if (result.code === "VERSION_CONFLICT") {
+        return {
+          ok: false,
+          error: "Someone else edited the homepage — reload and try again.",
+          code: result.code,
+          currentVersion: result.currentVersion,
+        };
+      }
+      return {
+        ok: false,
+        error: result.message ?? CLIENT_ERROR.update,
+        code: result.code,
+      };
+    }
+    return {
+      ok: true,
+      pageVersion: result.data.version,
+      publishedAt: result.data.publishedAt,
+    };
+  } catch (error) {
+    logServerError("edit-mode/publish-homepage", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
 }

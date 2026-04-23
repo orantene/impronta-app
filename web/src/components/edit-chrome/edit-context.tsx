@@ -137,6 +137,11 @@ export interface EditContextValue {
   libraryTarget: LibraryTarget | null;
   openLibrary: (target: LibraryTarget) => void;
   closeLibrary: () => void;
+
+  // ── publish drawer ──
+  publishOpen: boolean;
+  openPublish: () => void;
+  closePublish: () => void;
 }
 
 const EditContext = createContext<EditContextValue | null>(null);
@@ -229,6 +234,9 @@ export function EditProvider({
   const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(
     null,
   );
+
+  // publish drawer state
+  const [publishOpen, setPublishOpen] = useState(false);
 
   const applyComposition = useCallback((data: CompositionData) => {
     setPageVersion(data.pageVersion);
@@ -467,6 +475,9 @@ export function EditProvider({
   }, []);
   const closeLibrary = useCallback(() => setLibraryTarget(null), []);
 
+  const openPublish = useCallback(() => setPublishOpen(true), []);
+  const closePublish = useCallback(() => setPublishOpen(false), []);
+
   const value = useMemo<EditContextValue>(
     () => ({
       tenantId,
@@ -508,6 +519,10 @@ export function EditProvider({
       libraryTarget,
       openLibrary,
       closeLibrary,
+
+      publishOpen,
+      openPublish,
+      closePublish,
     }),
     [
       tenantId,
@@ -539,6 +554,9 @@ export function EditProvider({
       libraryTarget,
       openLibrary,
       closeLibrary,
+      publishOpen,
+      openPublish,
+      closePublish,
     ],
   );
 
