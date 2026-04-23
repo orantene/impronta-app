@@ -131,6 +131,7 @@ const nextConfig: NextConfig = {
     "hub.local",
     "impronta.local",
     "nova.local",
+    "midnight.local",
   ],
   /**
    * npm often hoists `@radix-ui/react-id` to the app root while other

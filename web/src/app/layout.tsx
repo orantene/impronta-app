@@ -13,6 +13,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
+import { EditChromeMount } from "@/components/edit-chrome/edit-chrome-mount";
 import { WebVitalsReporter } from "@/components/web-vitals-reporter";
 import { getLocaleMetadata } from "@/i18n/config";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -154,6 +155,7 @@ export default async function RootLayout({
         <CspViolationReporter />
         <AnalyticsConsentBanner />
         {children}
+        <EditChromeMount />
         <Analytics />
         <SpeedInsights />
       </body>

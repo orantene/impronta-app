@@ -44,6 +44,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
   // Platform locales are a subset of request locales; fall through silently
   // when the request locale isn't a platform locale.
   const cmsLocale = isLocale(locale) ? locale : null;
+
   const [
     { talentTypes, featuredTalent, fitLabels, locations },
     cmsHomepage,

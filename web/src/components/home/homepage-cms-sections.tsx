@@ -20,6 +20,7 @@
  *     goes through a registry entry with a Zod-parsed payload.
  */
 import type { HomepageSnapshot } from "@/lib/site-admin/server/homepage";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import {
   SECTION_REGISTRY,
   type SectionTypeKey,
@@ -37,7 +38,7 @@ interface HomepageCmsSectionsProps {
   onlySlot?: string;
 }
 
-export function HomepageCmsSections({
+export async function HomepageCmsSections({
   snapshot,
   tenantId,
   locale,
@@ -47,6 +48,11 @@ export function HomepageCmsSections({
     ? snapshot.slots.filter((s) => s.slotKey === onlySlot)
     : snapshot.slots;
   if (entries.length === 0) return null;
+
+  // Edit-mode wrapper: when active, each rendered section is wrapped in a
+  // div carrying section identity so the client chrome can target it for
+  // hover/selection overlays. View mode renders identically to before.
+  const editMode = await isEditModeActiveForTenant(tenantId);
 
   return (
     <>
@@ -89,14 +95,28 @@ export function HomepageCmsSections({
           return null;
         }
         const Component = registryEntry.Component;
-        return (
+        const key = `${entry.slotKey}:${entry.sectionId}:${entry.sortOrder}`;
+        const rendered = (
           <Component
-            key={`${entry.slotKey}:${entry.sectionId}:${entry.sortOrder}`}
+            key={key}
             props={migrated.payload as never}
             tenantId={tenantId}
             locale={locale}
             preview={false}
           />
+        );
+        if (!editMode) return rendered;
+        return (
+          <div
+            key={`wrap:${key}`}
+            data-cms-section=""
+            data-section-id={entry.sectionId}
+            data-section-type-key={entry.sectionTypeKey}
+            data-slot-key={entry.slotKey}
+            data-sort-order={entry.sortOrder}
+          >
+            {rendered}
+          </div>
         );
       })}
     </>
