@@ -44,6 +44,7 @@
  */
 
 import { z } from "zod";
+import { pgUuidSchema } from "../validators";
 
 import { localeSchema } from "../locales";
 import { homepageMeta } from "../templates/homepage/meta";
@@ -124,7 +125,7 @@ export type HomepageMetadataValues = z.output<typeof homepageMetadataSchema>;
  * no-collision.
  */
 export const homepageSlotEntrySchema = z.object({
-  sectionId: z.string().uuid(),
+  sectionId: pgUuidSchema(),
   sortOrder: z.number().int().min(0),
 });
 
@@ -173,7 +174,7 @@ export type HomepageSlotsValues = z.output<typeof homepageSlotsSchema>;
  * normalises that.
  */
 export const homepageSaveDraftSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: pgUuidSchema(),
   locale: localeSchema,
   expectedVersion: z.number().int().min(0),
   metadata: homepageMetadataSchema,
@@ -191,7 +192,7 @@ export type HomepageSaveDraftValues = z.output<typeof homepageSaveDraftSchema>;
  * live) live in the server op; this Zod shape is only the envelope.
  */
 export const homepagePublishSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: pgUuidSchema(),
   locale: localeSchema,
   expectedVersion: z.number().int().min(0),
 });
@@ -207,9 +208,9 @@ export type HomepagePublishValues = z.output<typeof homepagePublishSchema>;
  * (same as page rollback — guardrail §5).
  */
 export const homepageRestoreRevisionSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: pgUuidSchema(),
   locale: localeSchema,
-  revisionId: z.string().uuid(),
+  revisionId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 

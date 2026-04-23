@@ -46,7 +46,7 @@ export default async function EditPageRoute({
       <div className="space-y-4">
         <DashboardSectionCard
           title={page.title}
-          description="This page is system-owned. Edit it from the Homepage tab (coming in M5); slug, locale, and template are locked here."
+          description="This page is system-owned. Use the Structure tab to compose the homepage — slug, locale, and template are locked here."
           titleClassName={ADMIN_SECTION_TITLE_CLASS}
         >
           <p className="text-sm text-muted-foreground">

@@ -14,7 +14,7 @@ export default function SiteSettingsLayout({
       <AdminPageHeader
         icon={Settings}
         title="Site Settings"
-        description="CMS hub — pages, posts, navigation, and redirects under Content (8.6)."
+        description="Everything that shapes your public storefront — identity, branding, homepage composition, sections, and content."
       />
       <SiteSettingsSectionNav />
       {children}

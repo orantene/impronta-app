@@ -22,6 +22,10 @@ import { Button } from "@/components/ui/button";
 import { getSavedTalentIds } from "@/lib/public-discovery";
 import { getPublicCmsNavigationLinks } from "@/lib/cms/public-navigation";
 import { getCachedActorSession } from "@/lib/server/request-cache";
+import { getPublicHostContext } from "@/lib/saas";
+import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
+import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 export async function PublicHeader() {
   const locale = await getRequestLocale();
@@ -48,6 +52,28 @@ export async function PublicHeader() {
   const savedIds = await getSavedTalentIds();
   const cmsHeaderLinks = await getPublicCmsNavigationLinks(locale, "header");
 
+  const hostContext = await getPublicHostContext();
+  const tenantIdForIdentity =
+    hostContext.kind === "agency" || hostContext.kind === "hub"
+      ? hostContext.tenantId
+      : null;
+  const [identity, branding] = tenantIdForIdentity
+    ? await Promise.all([
+        loadPublicIdentity(tenantIdForIdentity),
+        loadPublicBranding(tenantIdForIdentity),
+      ])
+    : [null, null];
+  const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
+
+  // Re-sanitize at render time — defense in depth. The admin path already
+  // sanitized at save, but render-side sanitize is cheap and guarantees we
+  // never ship arbitrary markup if the column got populated out-of-band
+  // (seeding script, direct SQL, etc).
+  const brandMarkRaw = branding?.brand_mark_svg ?? null;
+  const brandMarkSvg = brandMarkRaw
+    ? (sanitizeBrandMarkSvg(brandMarkRaw).svg ?? null)
+    : null;
+
   const directoryHeaderCopy = {
     shortlistAria: t("public.header.directoryShortlistAria"),
     shortlistTooltipEmpty: t("public.header.directoryShortlistTooltipEmpty"),
@@ -62,8 +88,8 @@ export async function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
-      <div className="relative flex h-16 w-full items-center justify-between px-4 sm:h-[4.25rem] sm:px-6 lg:px-8">
-        <div className="flex min-w-0 flex-1 items-center justify-start gap-1 sm:gap-2">
+      <div className="relative grid h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:h-[4.25rem] sm:gap-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-start gap-1 sm:gap-2">
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link
               href={withLocalePath("/directory", locale)}
@@ -92,12 +118,19 @@ export async function PublicHeader() {
 
         <Link
           href={withLocalePath("/", locale)}
-          className="font-display absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-medium tracking-[0.2em] text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:text-xl"
+          className="font-display flex min-w-0 items-center justify-center gap-2 whitespace-nowrap text-[0.7rem] font-medium uppercase tracking-[0.16em] text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:text-base sm:tracking-[0.2em] lg:text-lg xl:text-xl"
         >
-          IMPRONTA
+          {brandMarkSvg ? (
+            <span
+              aria-hidden
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-primary sm:h-6 sm:w-6 [&>svg]:h-full [&>svg]:w-full"
+              dangerouslySetInnerHTML={{ __html: brandMarkSvg }}
+            />
+          ) : null}
+          <span className="truncate">{brandLabel}</span>
         </Link>
 
-        <div className="flex flex-1 items-center justify-end gap-0.5 sm:gap-1">
+        <div className="flex items-center justify-end gap-0.5 sm:gap-1">
           <Suspense
             fallback={
               <div className="mr-1 hidden h-7 w-[4.25rem] shrink-0 rounded-md border border-border/60 bg-background/80 sm:block" />

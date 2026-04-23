@@ -77,10 +77,18 @@ export {
   type TokenScope,
   getToken,
   listAgencyConfigurableTokens,
+  listAgencyConfigurableTokensByGroup,
   isTokenOverridable,
   validateThemePatch,
   tokenDefaults,
 } from "./tokens/registry";
+
+export {
+  THEME_PRESETS,
+  type ThemePreset,
+  getThemePreset,
+  listThemePresets,
+} from "./presets/theme-presets";
 
 export {
   resolveDesignTokens,

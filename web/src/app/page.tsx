@@ -9,6 +9,7 @@ import { getRequestLocale } from "@/i18n/request-locale";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { loadPublicHomepage } from "@/lib/site-admin/server/homepage-reads";
+import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isLocale } from "@/lib/site-admin/locales";
 
 /** Server reads cookies (Supabase / host-context header); must not be statically prerendered. */
@@ -29,14 +30,20 @@ export async function generateMetadata(): Promise<Metadata> {
     // seeded in 20260625100000). The only kind branch is render-time
     // dispatch below; data access is unified.
     const cmsLocale = isLocale(locale) ? locale : undefined;
-    const homepage = cmsLocale
-      ? await loadPublicHomepage(ctx.tenantId, cmsLocale)
-      : null;
+    const [homepage, identity] = await Promise.all([
+      cmsLocale ? loadPublicHomepage(ctx.tenantId, cmsLocale) : Promise.resolve(null),
+      loadPublicIdentity(ctx.tenantId),
+    ]);
+    const brandName = identity?.public_name?.trim() || PLATFORM_BRAND.name;
     const fallbackTitle =
       ctx.kind === "hub"
-        ? `Agencies on the platform · ${PLATFORM_BRAND.name}`
-        : t("public.meta.homeTitle");
-    const fallbackDescription = t("public.meta.homeDescription");
+        ? `Agencies on the platform · ${brandName}`
+        : identity?.seo_default_title?.trim() ||
+          (identity?.public_name?.trim()
+            ? `${identity.public_name.trim()} — ${identity.tagline?.trim() || t("public.meta.homeTitle")}`
+            : t("public.meta.homeTitle"));
+    const fallbackDescription =
+      identity?.seo_default_description?.trim() || t("public.meta.homeDescription");
     const title = homepage?.metaTitle || homepage?.title || fallbackTitle;
     const description = homepage?.metaDescription || fallbackDescription;
     const ogImage = homepage?.ogImageUrl ?? undefined;

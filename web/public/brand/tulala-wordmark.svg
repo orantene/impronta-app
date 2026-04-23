@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 56" role="img" aria-label="tulala.">
+  <title>tulala.</title>
+  <style>
+    .tl-wm { font-family: "Fraunces", "Times New Roman", Georgia, serif; font-weight: 360; font-size: 48px; font-style: normal; font-variation-settings: "opsz" 144, "SOFT" 40; letter-spacing: -0.01em; fill: currentColor; }
+  </style>
+  <text x="0" y="42" class="tl-wm">tulala<tspan dx="1" fill="currentColor">.</tspan></text>
+</svg>

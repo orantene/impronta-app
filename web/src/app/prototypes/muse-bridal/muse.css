@@ -1,0 +1,796 @@
+/**
+ * Muse Bridal Collective — scoped design tokens + baseline.
+ *
+ * Everything is namespaced under `.muse-root` so these styles never leak
+ * into platform chrome (admin, marketing, onboarding). The container sets
+ * its own background, typography stack, and CSS variables; child
+ * components consume them via `var(--muse-*)`.
+ *
+ * Palette, typography, motion, and spacing here are the design-system
+ * source of truth for the prototype. Edit one variable, cascade to every
+ * page.
+ */
+
+.muse-root {
+  /* ── Palette ─────────────────────────────────────────────────────── */
+  --muse-ivory: #f6f1ea;
+  --muse-ivory-warm: #efe7db;
+  --muse-champagne: #e8d8c3;
+  --muse-champagne-soft: #f1e5d1;
+  --muse-blush: #d8b7b0;
+  --muse-blush-soft: #ead3ce;
+  --muse-sage: #a8b1a0;
+  --muse-sage-soft: #c7cdc0;
+  --muse-espresso: #4a403a;
+  --muse-espresso-deep: #2d2623;
+  --muse-ink: #2a221e;
+  --muse-line: #e5dcce;
+  --muse-line-soft: #efe8dc;
+  --muse-muted: #8c7f75;
+
+  /* ── Typography ──────────────────────────────────────────────────── */
+  --muse-font-display: var(--muse-display), "Fraunces", "Cormorant Garamond",
+    ui-serif, Georgia, serif;
+  --muse-font-body: var(--muse-body), "Inter", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", sans-serif;
+
+  /* ── Spacing ─────────────────────────────────────────────────────── */
+  --muse-shell: min(1240px, 100% - 48px);
+  --muse-shell-narrow: min(980px, 100% - 48px);
+  --muse-section-y: clamp(72px, 9vw, 132px);
+  --muse-gutter: clamp(20px, 3vw, 44px);
+
+  /* ── Radii & shadow ──────────────────────────────────────────────── */
+  --muse-radius-xs: 6px;
+  --muse-radius-sm: 10px;
+  --muse-radius: 18px;
+  --muse-radius-lg: 28px;
+  --muse-radius-pill: 999px;
+  --muse-shadow-soft: 0 22px 48px -28px rgba(74, 64, 58, 0.22);
+  --muse-shadow-lift: 0 34px 70px -30px rgba(74, 64, 58, 0.32);
+  --muse-shadow-press: 0 8px 20px -14px rgba(74, 64, 58, 0.25);
+
+  /* ── Motion ──────────────────────────────────────────────────────── */
+  --muse-ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --muse-ease-refined: cubic-bezier(0.32, 0.04, 0.1, 1);
+
+  background: var(--muse-ivory);
+  color: var(--muse-ink);
+  font-family: var(--muse-font-body);
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.muse-root * {
+  box-sizing: border-box;
+}
+
+/* Reset a handful of platform globals that would otherwise leak in.
+ * `:not([class*="muse-btn"])` keeps this reset off our button anchors so
+ * they can set their own color without specificity wars. */
+.muse-root a:not([class*="muse-btn"]) {
+  color: inherit;
+}
+.muse-root a {
+  text-decoration: none;
+}
+.muse-root img,
+.muse-root video {
+  max-width: 100%;
+  display: block;
+}
+.muse-root button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.muse-root input,
+.muse-root textarea,
+.muse-root select {
+  font: inherit;
+  color: inherit;
+}
+.muse-root h1,
+.muse-root h2,
+.muse-root h3,
+.muse-root h4,
+.muse-root h5 {
+  font-family: var(--muse-font-display);
+  font-weight: 400;
+  letter-spacing: -0.012em;
+  line-height: 1.08;
+  margin: 0;
+  color: var(--muse-espresso-deep);
+}
+.muse-root p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--muse-espresso);
+}
+
+/* ── Utility classes ──────────────────────────────────────────────── */
+.muse-shell {
+  width: var(--muse-shell);
+  margin: 0 auto;
+}
+.muse-shell--narrow {
+  width: var(--muse-shell-narrow);
+  margin: 0 auto;
+}
+.muse-section {
+  padding-block: var(--muse-section-y);
+}
+.muse-section--compact {
+  padding-block: clamp(48px, 6vw, 88px);
+}
+.muse-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--muse-font-body);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muse-espresso);
+}
+.muse-eyebrow::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--muse-espresso);
+  opacity: 0.6;
+  display: inline-block;
+}
+.muse-eyebrow--light {
+  color: var(--muse-ivory);
+}
+.muse-eyebrow--light::before {
+  background: var(--muse-ivory);
+}
+.muse-divider {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--muse-line) 20%,
+    var(--muse-line) 80%,
+    transparent 100%
+  );
+  border: 0;
+  margin: 0;
+}
+
+/* ── Reveal-on-scroll (IntersectionObserver driven) ──────────────── */
+/*
+ * Graceful degradation: default is VISIBLE. Only when the client JS has
+ * mounted + started observing do we set `data-ready="true"`, which
+ * switches the element to the hidden starting state. Then the observer
+ * flips `data-visible="true"` on intersection and the element fades up.
+ *
+ * If JS never runs (bundle failure, old browser, crawler), content stays
+ * visible — no permanently-hidden text. Previous version started opacity:0
+ * which caused entire sections to appear blank on any hydration hiccup.
+ */
+.muse-reveal {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 900ms var(--muse-ease-soft),
+    transform 900ms var(--muse-ease-soft);
+  will-change: opacity, transform;
+}
+.muse-reveal[data-ready="true"] {
+  opacity: 0;
+  transform: translate3d(0, 18px, 0);
+}
+.muse-reveal[data-ready="true"][data-visible="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+.muse-reveal[data-delay="1"] {
+  transition-delay: 90ms;
+}
+.muse-reveal[data-delay="2"] {
+  transition-delay: 180ms;
+}
+.muse-reveal[data-delay="3"] {
+  transition-delay: 270ms;
+}
+.muse-reveal[data-delay="4"] {
+  transition-delay: 360ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .muse-reveal,
+  .muse-reveal[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────── */
+.muse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px 28px;
+  border-radius: var(--muse-radius-pill);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
+  transition:
+    transform 280ms var(--muse-ease-soft),
+    background 280ms var(--muse-ease-soft),
+    color 280ms var(--muse-ease-soft),
+    box-shadow 280ms var(--muse-ease-soft),
+    border-color 280ms var(--muse-ease-soft);
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.muse-btn:hover {
+  transform: translateY(-1px);
+}
+.muse-btn--primary {
+  background: var(--muse-espresso);
+  color: var(--muse-ivory);
+  box-shadow: var(--muse-shadow-press);
+}
+.muse-btn--primary:hover {
+  background: var(--muse-espresso-deep);
+  box-shadow: var(--muse-shadow-lift);
+}
+.muse-btn--outline {
+  background: transparent;
+  border-color: var(--muse-espresso);
+  color: var(--muse-espresso);
+}
+.muse-btn--outline:hover {
+  background: var(--muse-espresso);
+  color: var(--muse-ivory);
+}
+.muse-btn--ghost {
+  background: transparent;
+  color: var(--muse-espresso);
+  padding: 10px 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--muse-espresso);
+  letter-spacing: 0.16em;
+  font-size: 11px;
+}
+.muse-btn--ghost:hover {
+  color: var(--muse-blush);
+  border-color: var(--muse-blush);
+  transform: none;
+}
+.muse-btn--light {
+  background: var(--muse-ivory);
+  color: var(--muse-espresso);
+}
+.muse-btn--light:hover {
+  background: var(--muse-champagne);
+}
+.muse-btn--outline-light {
+  background: transparent;
+  border-color: rgba(246, 241, 234, 0.75);
+  color: var(--muse-ivory);
+}
+.muse-btn--outline-light:hover {
+  background: var(--muse-ivory);
+  color: var(--muse-espresso);
+}
+.muse-btn--sm {
+  padding: 11px 20px;
+  font-size: 12px;
+}
+
+/* ── Chips ────────────────────────────────────────────────────────── */
+.muse-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--muse-radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--muse-champagne-soft);
+  color: var(--muse-espresso);
+  border: 1px solid transparent;
+  transition:
+    background 240ms var(--muse-ease-soft),
+    border-color 240ms var(--muse-ease-soft),
+    color 240ms var(--muse-ease-soft);
+  cursor: pointer;
+}
+.muse-chip:hover {
+  background: var(--muse-champagne);
+}
+.muse-chip[data-active="true"] {
+  background: var(--muse-espresso);
+  color: var(--muse-ivory);
+  border-color: var(--muse-espresso);
+}
+.muse-chip--soft {
+  background: rgba(232, 216, 195, 0.45);
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-size: 13px;
+  padding: 7px 14px;
+}
+.muse-chip--soft:hover {
+  background: var(--muse-champagne-soft);
+}
+.muse-chip--outline {
+  background: transparent;
+  border: 1px solid var(--muse-line);
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 12.5px;
+  padding: 7px 13px;
+  color: var(--muse-espresso);
+}
+
+/* ── Focus ring ───────────────────────────────────────────────────── */
+.muse-root :focus-visible {
+  outline: 2px solid var(--muse-espresso);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ── Tiny helpers ────────────────────────────────────────────────── */
+.muse-surface-raised {
+  background: #ffffff;
+  border: 1px solid var(--muse-line-soft);
+  border-radius: var(--muse-radius);
+  box-shadow: var(--muse-shadow-soft);
+}
+.muse-surface-champagne {
+  background: linear-gradient(
+    180deg,
+    var(--muse-champagne-soft) 0%,
+    var(--muse-ivory-warm) 100%
+  );
+}
+
+/* ── Header ───────────────────────────────────────────────────────── */
+.muse-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 60;
+  transition:
+    background 400ms var(--muse-ease-soft),
+    border-color 400ms var(--muse-ease-soft),
+    box-shadow 400ms var(--muse-ease-soft),
+    color 400ms var(--muse-ease-soft);
+  border-bottom: 1px solid transparent;
+}
+.muse-header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 0;
+  gap: 24px;
+}
+.muse-header--over {
+  background: transparent;
+  color: var(--muse-ivory);
+}
+.muse-header--solid {
+  background: rgba(246, 241, 234, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-color: var(--muse-line-soft);
+  color: var(--muse-espresso-deep);
+  box-shadow: 0 10px 30px -26px rgba(74, 64, 58, 0.25);
+}
+.muse-header__logo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--muse-font-display);
+  font-size: 22px;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: inherit;
+}
+.muse-header__logo small {
+  font-family: var(--muse-font-body);
+  letter-spacing: 0.32em;
+  font-size: 9px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.muse-header__nav {
+  display: none;
+}
+@media (min-width: 960px) {
+  .muse-header__nav {
+    display: inline-flex;
+    gap: 32px;
+    align-items: center;
+  }
+}
+.muse-header__nav a {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  position: relative;
+  padding: 6px 0;
+  color: inherit;
+  transition: opacity 240ms var(--muse-ease-soft);
+}
+.muse-header__nav a::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -2px 0;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 320ms var(--muse-ease-refined);
+  opacity: 0.7;
+}
+.muse-header__nav a:hover::after,
+.muse-header__nav a[data-active="true"]::after {
+  transform: scaleX(1);
+}
+.muse-header__cta {
+  display: none;
+}
+@media (min-width: 960px) {
+  .muse-header__cta {
+    display: inline-flex;
+  }
+}
+.muse-header__burger {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px;
+  margin: -10px;
+  color: inherit;
+}
+@media (min-width: 960px) {
+  .muse-header__burger {
+    display: none;
+  }
+}
+.muse-header__burger span {
+  display: block;
+  width: 22px;
+  height: 1px;
+  background: currentColor;
+}
+
+/* ── Mobile overlay nav ──────────────────────────────────────────── */
+.muse-mobile-nav {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: var(--muse-ivory);
+  color: var(--muse-espresso);
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(0, -12px, 0);
+  transition:
+    opacity 480ms var(--muse-ease-soft),
+    transform 520ms var(--muse-ease-soft);
+}
+.muse-mobile-nav[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.muse-mobile-nav__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--muse-line-soft);
+}
+.muse-mobile-nav__close {
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+.muse-mobile-nav__links {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 32px 24px;
+}
+.muse-mobile-nav__links a {
+  font-family: var(--muse-font-display);
+  font-size: 34px;
+  line-height: 1.05;
+  color: var(--muse-espresso-deep);
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 520ms var(--muse-ease-soft),
+    transform 520ms var(--muse-ease-soft);
+}
+.muse-mobile-nav[data-open="true"] .muse-mobile-nav__links a {
+  opacity: 1;
+  transform: none;
+}
+.muse-mobile-nav[data-open="true"] .muse-mobile-nav__links a:nth-child(1) {
+  transition-delay: 120ms;
+}
+.muse-mobile-nav[data-open="true"] .muse-mobile-nav__links a:nth-child(2) {
+  transition-delay: 170ms;
+}
+.muse-mobile-nav[data-open="true"] .muse-mobile-nav__links a:nth-child(3) {
+  transition-delay: 220ms;
+}
+.muse-mobile-nav[data-open="true"] .muse-mobile-nav__links a:nth-child(4) {
+  transition-delay: 270ms;
+}
+.muse-mobile-nav[data-open="true"] .muse-mobile-nav__links a:nth-child(5) {
+  transition-delay: 320ms;
+}
+.muse-mobile-nav[data-open="true"] .muse-mobile-nav__links a:nth-child(6) {
+  transition-delay: 370ms;
+}
+.muse-mobile-nav__sticky {
+  padding: 20px 24px calc(20px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--muse-line-soft);
+  background: var(--muse-ivory-warm);
+}
+
+/* lock scroll when mobile nav is open */
+body.muse-nav-locked {
+  overflow: hidden;
+}
+
+/* ── Cards (professional) ────────────────────────────────────────── */
+.muse-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--muse-line-soft);
+  border-radius: var(--muse-radius);
+  overflow: hidden;
+  transition:
+    transform 480ms var(--muse-ease-soft),
+    box-shadow 480ms var(--muse-ease-soft),
+    border-color 480ms var(--muse-ease-soft);
+}
+.muse-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--muse-shadow-lift);
+  border-color: var(--muse-line);
+}
+.muse-card__media {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--muse-champagne-soft);
+}
+.muse-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1200ms var(--muse-ease-refined);
+}
+.muse-card:hover .muse-card__media img {
+  transform: scale(1.04);
+}
+.muse-card__ribbon {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(246, 241, 234, 0.92);
+  color: var(--muse-espresso);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  border-radius: var(--muse-radius-pill);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(74, 64, 58, 0.08);
+}
+.muse-card__body {
+  padding: 22px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+.muse-card__kicker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muse-muted);
+}
+.muse-card__name {
+  font-family: var(--muse-font-display);
+  font-size: 23px;
+  line-height: 1.1;
+  color: var(--muse-espresso-deep);
+}
+.muse-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.muse-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--muse-line-soft);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--muse-muted);
+}
+.muse-card__footer strong {
+  color: var(--muse-espresso);
+  font-weight: 500;
+}
+
+/* ── Category tiles ──────────────────────────────────────────────── */
+.muse-category {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--muse-radius);
+  overflow: hidden;
+  padding: 22px;
+  color: var(--muse-ivory);
+  background: var(--muse-espresso);
+  transition: transform 500ms var(--muse-ease-soft);
+}
+.muse-category::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(42, 34, 30, 0.05) 0%,
+    rgba(42, 34, 30, 0.55) 80%,
+    rgba(42, 34, 30, 0.75) 100%
+  );
+  z-index: 2;
+}
+.muse-category img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 1400ms var(--muse-ease-refined);
+  z-index: 1;
+}
+.muse-category:hover {
+  transform: translateY(-3px);
+}
+.muse-category:hover img {
+  transform: scale(1.05);
+}
+.muse-category__icon {
+  position: relative;
+  z-index: 3;
+  color: var(--muse-ivory);
+  margin-bottom: auto;
+  opacity: 0.88;
+}
+.muse-category__label {
+  position: relative;
+  z-index: 3;
+  font-family: var(--muse-font-display);
+  font-size: 24px;
+  line-height: 1.1;
+}
+.muse-category__meta {
+  position: relative;
+  z-index: 3;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: rgba(246, 241, 234, 0.85);
+  margin-top: 4px;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────── */
+.muse-footer {
+  background: var(--muse-espresso-deep);
+  color: var(--muse-ivory);
+  padding-block: clamp(72px, 9vw, 120px) 40px;
+}
+.muse-footer a {
+  color: rgba(246, 241, 234, 0.78);
+  transition: color 240ms var(--muse-ease-soft);
+}
+.muse-footer a:hover {
+  color: var(--muse-ivory);
+}
+.muse-footer__brand {
+  font-family: var(--muse-font-display);
+  font-size: 38px;
+  line-height: 1.05;
+  color: var(--muse-ivory);
+}
+.muse-footer__grid {
+  display: grid;
+  gap: 48px;
+  grid-template-columns: 1fr;
+  padding-top: 40px;
+}
+@media (min-width: 768px) {
+  .muse-footer__grid {
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  }
+}
+.muse-footer__col h4 {
+  font-family: var(--muse-font-body);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(246, 241, 234, 0.56);
+  margin: 0 0 16px;
+}
+.muse-footer__col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+.muse-footer__legal {
+  margin-top: 64px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(246, 241, 234, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(246, 241, 234, 0.55);
+}
+@media (min-width: 768px) {
+  .muse-footer__legal {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+/* ── Misc prose tweaks ───────────────────────────────────────────── */
+.muse-hr-script {
+  font-family: var(--muse-font-display);
+  font-style: italic;
+  font-weight: 300;
+  color: var(--muse-blush);
+}

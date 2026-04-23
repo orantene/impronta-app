@@ -243,9 +243,16 @@ function replaceCount(template: string, count: number): string {
   return template.replace(/\{count\}/g, String(count));
 }
 
-export function buildDirectoryUiCopy(t: T): DirectoryUiCopy {
+/**
+ * `brand` overrides the i18n fallback `public.common.brand`. Pass the tenant
+ * `identity.public_name` from `loadPublicIdentity()` so directory cards and
+ * profile surfaces always show the tenant's own brand, not the platform
+ * placeholder.
+ */
+export function buildDirectoryUiCopy(t: T, brand?: string | null): DirectoryUiCopy {
+  const resolvedBrand = brand?.trim() || t("public.common.brand");
   return {
-    common: { brand: t("public.common.brand") },
+    common: { brand: resolvedBrand },
     discoverLoadError: t("public.directory.discoverLoadError"),
     loadResultsError: t("public.directory.loadResultsError"),
     emptyResults: t("public.directory.emptyResults"),

@@ -10,7 +10,7 @@ import { MarketingCta } from "./cta-link";
 type NavItem = { label: string; href: string; description?: string };
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Product", href: "/how-it-works", description: "The roster operating system, end to end" },
+  { label: "Product", href: "/how-it-works", description: "The talent business platform, end to end" },
   { label: "Operators", href: "/operators", description: "For independents running solo" },
   { label: "Agencies", href: "/agencies", description: "For representation teams" },
   { label: "Network", href: "/network", description: "The shared discovery layer" },
@@ -75,16 +75,11 @@ export function MarketingHeader() {
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-6 px-5 sm:h-[72px] sm:px-8">
         <Link
           href="/"
-          className="group relative -mx-1 flex items-center gap-2.5 rounded-md px-1 py-1"
+          className="group relative -mx-1 flex items-center rounded-md px-1 py-1"
           aria-label={`${PLATFORM_BRAND.name} — home`}
           style={{ color: "var(--plt-ink)" }}
         >
-          <RostraMark />
-          <span
-            className="plt-display text-[1.15rem] font-semibold leading-none tracking-[-0.03em] sm:text-[1.25rem]"
-          >
-            {PLATFORM_BRAND.name}
-          </span>
+          <TulalaWordmark />
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">
@@ -217,42 +212,28 @@ export function MarketingHeader() {
 }
 
 /**
- * Rostra wordmark mark — a single geometric glyph. Two intersecting diagonals
- * suggest a "network crossing" / roster connection inside a rounded square.
- * Kept monochrome so it reads on light + dark surfaces.
+ * Tulala wordmark — all-lowercase Fraunces, a full-stop as the punctuation
+ * mark that carries the brand. No secondary glyph; the wordmark is the logo.
+ * The period is intentionally in `--tl-forest` so the brand accent lives on
+ * the mark itself. Uses the `plt-display` class so Fraunces + optical sizing
+ * come through even outside a heading context.
  */
-function RostraMark() {
+function TulalaWordmark() {
   return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 28 28"
-      fill="none"
+    <span
       aria-hidden
-      className="shrink-0"
+      className="plt-display inline-flex items-baseline leading-none"
+      style={{
+        fontVariationSettings: "\"opsz\" 144, \"SOFT\" 60",
+        fontWeight: 380,
+        letterSpacing: "-0.015em",
+        fontSize: "1.55rem",
+        color: "var(--plt-ink)",
+      }}
     >
-      <rect
-        x="1.5"
-        y="1.5"
-        width="25"
-        height="25"
-        rx="7.5"
-        fill="var(--plt-forest)"
-      />
-      <path
-        d="M9 19V10.5C9 9.67 9.67 9 10.5 9H14.5C16.43 9 18 10.57 18 12.5V12.5C18 14.43 16.43 16 14.5 16H11.5"
-        stroke="var(--plt-forest-on)"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M13.5 15.5L19 19.5"
-        stroke="var(--plt-forest-on)"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-    </svg>
+      tulala
+      <span style={{ color: "var(--plt-forest)" }}>.</span>
+    </span>
   );
 }
 

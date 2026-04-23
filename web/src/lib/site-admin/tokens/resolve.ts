@@ -87,6 +87,13 @@ const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   "color.accent": "--token-color-accent",
   "color.neutral": "--token-color-neutral",
   "color.background": "--token-color-background",
+  // M7 editorial extensions
+  "color.blush": "--token-color-blush",
+  "color.sage": "--token-color-sage",
+  "color.ink": "--token-color-ink",
+  "color.muted": "--token-color-muted",
+  "color.line": "--token-color-line",
+  "color.surface-raised": "--token-color-surface-raised",
 };
 
 /**
@@ -121,6 +128,34 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "typography.body-preset": "data-token-typography-body-preset",
   "radius.base": "data-token-radius-base",
   "spacing.scale": "data-token-spacing-scale",
+  // M7 editorial extensions
+  "typography.label-preset": "data-token-typography-label-preset",
+  "typography.scale-preset": "data-token-typography-scale-preset",
+  "typography.tracking-preset": "data-token-typography-tracking-preset",
+  "radius.scale-preset": "data-token-radius-scale-preset",
+  "shadow.preset": "data-token-shadow-preset",
+  "motion.preset": "data-token-motion-preset",
+  "density.section-padding": "data-token-density-section-padding",
+  "density.container-width": "data-token-density-container-width",
+  "icon.family": "data-token-icon-family",
+  "shell.header-variant": "data-token-shell-header-variant",
+  "shell.header-sticky": "data-token-shell-header-sticky",
+  "shell.header-transparent-on-hero": "data-token-shell-header-transparent-on-hero",
+  "shell.footer-variant": "data-token-shell-footer-variant",
+  "shell.mobile-nav-variant": "data-token-shell-mobile-nav-variant",
+  "background.mode": "data-token-background-mode",
+  // M7.1 template families
+  "template.directory-card-family": "data-token-template-directory-card-family",
+  "template.profile-layout-family": "data-token-template-profile-layout-family",
+  // M8 shell + badge + profile controls
+  "shell.logo-variant": "data-token-shell-logo-variant",
+  "motion.stagger-preset": "data-token-motion-stagger-preset",
+  "directory.card.show-destination-ready-ribbon":
+    "data-token-card-ribbon",
+  "directory.card.show-starting-from-price": "data-token-card-price",
+  "directory.card.specialty-chips-max": "data-token-card-chips-max",
+  "profile.sticky-inquiry-bar": "data-token-profile-sticky-bar",
+  "profile.blocks-visibility": "data-token-profile-blocks",
 };
 
 /**

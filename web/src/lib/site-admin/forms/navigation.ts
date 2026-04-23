@@ -17,6 +17,7 @@
  */
 
 import { z } from "zod";
+import { pgUuidSchema } from "../validators";
 
 import { localeSchema } from "../locales";
 import { isReservedSlug } from "../reserved-routes";
@@ -76,10 +77,10 @@ export const navHrefSchema = z
 
 export const navItemDraftSchema = z.object({
   /** `null` on create; set on update/move/reorder. */
-  id: z.string().uuid().nullable().optional(),
+  id: pgUuidSchema().nullable().optional(),
   zone: navZoneSchema,
   locale: localeSchema,
-  parentId: z.string().uuid().nullable().optional(),
+  parentId: pgUuidSchema().nullable().optional(),
   label: z
     .string()
     .trim()
@@ -108,8 +109,8 @@ export const navReorderSchema = z.object({
   items: z
     .array(
       z.object({
-        id: z.string().uuid(),
-        parentId: z.string().uuid().nullable(),
+        id: pgUuidSchema(),
+        parentId: pgUuidSchema().nullable(),
         sortOrder: z.number().int().min(0).max(9999),
         expectedVersion: z.number().int().min(0),
       }),
@@ -124,7 +125,7 @@ export type NavReorderValues = z.output<typeof navReorderSchema>;
 // ---- delete --------------------------------------------------------------
 
 export const navItemDeleteSchema = z.object({
-  id: z.string().uuid(),
+  id: pgUuidSchema(),
   zone: navZoneSchema,
   locale: localeSchema,
   expectedVersion: z.number().int().min(0),
@@ -140,7 +141,7 @@ export type NavItemDeleteValues = z.output<typeof navItemDeleteSchema>;
  * storefront consumes — no database ids required (snapshot is self-contained).
  */
 const navTreeNodeBase = z.object({
-  id: z.string().uuid(),
+  id: pgUuidSchema(),
   label: z
     .string()
     .trim()

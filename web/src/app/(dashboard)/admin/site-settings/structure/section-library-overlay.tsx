@@ -27,9 +27,8 @@ import {
   type LibraryActionState,
 } from "./library-actions";
 
-interface LibraryTileMeta extends SectionMeta {
-  /** Agency-visible only (internal types are filtered out upstream). */
-}
+/** Agency-visible only (internal types are filtered out upstream). */
+type LibraryTileMeta = SectionMeta;
 
 interface Props {
   /** When not null, overlay is open targeting this slot. */

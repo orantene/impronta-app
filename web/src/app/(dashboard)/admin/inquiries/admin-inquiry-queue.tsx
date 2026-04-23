@@ -322,9 +322,17 @@ export function AdminInquiryQueue({
       <EmptyState
         icon={Inbox}
         title="No requests match this view"
-        description="Try another status tab or clear filters."
-        className="rounded-2xl border-dashed py-10"
-      />
+        description="Try another status tab, broaden the filters, or capture a new lead."
+        hint="Tip: press ⌘K to jump to Composer, a talent, or any admin route."
+        className="py-12"
+      >
+        <Link
+          href="/admin/inquiries"
+          className="inline-flex items-center rounded-xl border border-border/60 bg-background/70 px-4 py-2 text-sm text-muted-foreground transition hover:border-[var(--impronta-gold)]/40 hover:text-foreground"
+        >
+          Clear filters
+        </Link>
+      </EmptyState>
     );
   }
 

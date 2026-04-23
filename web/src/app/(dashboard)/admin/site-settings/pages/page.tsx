@@ -73,23 +73,35 @@ export default async function SiteSettingsPagesIndexPage() {
         </div>
 
         {rows.length === 0 ? (
-          <div className="mt-4 rounded-md border border-dashed border-border/60 bg-muted/10 p-8 text-center">
-            <p className="text-sm font-medium">No pages yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Create your first page — About, Services, a legal page, anything
-              tenant-authored. Drafts stay private until you publish.
+          <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-gradient-to-br from-[var(--impronta-gold)]/[0.04] via-card/30 to-muted/10 p-10 text-center">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)]">
+              <svg viewBox="0 0 24 24" fill="none" className="size-6" aria-hidden>
+                <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </div>
+            <p className="mt-4 text-base font-semibold text-foreground">No pages yet</p>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+              Pages are standalone tenant-authored surfaces — About, Services,
+              a legal page, a journal. Drafts stay private until you publish.
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              The homepage is managed separately — it ships with your
-              workspace and is edited in the Homepage tab (arriving in M5).
+            <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground/80">
+              The homepage lives in Composer — it ships with your workspace
+              and is edited there.
             </p>
             {canEdit && (
-              <div className="mt-4">
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
                 <Link
                   href="/admin/site-settings/pages/new"
-                  className="inline-flex items-center rounded-md border border-foreground/40 bg-foreground/10 px-3 py-1.5 text-sm transition hover:bg-foreground/20"
+                  className="inline-flex items-center rounded-xl bg-[var(--impronta-gold)] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[var(--impronta-gold)]/92"
                 >
                   Create first page
+                </Link>
+                <Link
+                  href="/admin/site-settings/structure"
+                  className="inline-flex items-center rounded-xl border border-border/60 bg-background/70 px-4 py-2 text-sm text-muted-foreground transition hover:border-[var(--impronta-gold)]/40 hover:text-foreground"
+                >
+                  Open Composer →
                 </Link>
               </div>
             )}
@@ -141,7 +153,7 @@ export default async function SiteSettingsPagesIndexPage() {
                         {isSystem ? (
                           <span
                             className="text-xs text-muted-foreground"
-                            title="System-owned pages are managed in the Homepage tab (M5)."
+                            title="System-owned pages are edited from the Structure tab."
                           >
                             locked
                           </span>

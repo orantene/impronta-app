@@ -1,4 +1,5 @@
 import { cache } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadTranslationCenterBootstrap } from "@/lib/translation-center/bootstrap";
 import {
   mapBootstrapToAdminPulse,
@@ -7,6 +8,56 @@ import {
 import { requireStaff } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { getTenantScope } from "@/lib/saas/scope";
+import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
+
+// Sentinel id used to force an `in("id", [...])` filter to match nothing when
+// the tenant has no rows on its roster / client list. Using an unguessable
+// UUID instead of an empty array keeps PostgREST happy (`.in("id", [])` is a
+// parse error on PostgREST) while also guaranteeing zero matches.
+const IMPOSSIBLE_ID = "00000000-0000-0000-0000-000000000000";
+
+function nonEmptyIdList(ids: string[]): string[] {
+  return ids.length > 0 ? ids : [IMPOSSIBLE_ID];
+}
+
+async function listTenantClientUserIds(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("inquiries")
+    .select("client_user_id")
+    .eq("tenant_id", tenantId)
+    .not("client_user_id", "is", null);
+  if (error) {
+    logServerError("admin/listTenantClientUserIds", error);
+    return [];
+  }
+  const seen = new Set<string>();
+  for (const row of data ?? []) {
+    const uid = row.client_user_id as string | null;
+    if (uid) seen.add(uid);
+  }
+  return [...seen];
+}
+
+async function listTenantStaffUserIds(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("agency_memberships")
+    .select("profile_id")
+    .eq("tenant_id", tenantId)
+    .eq("status", "active");
+  if (error) {
+    logServerError("admin/listTenantStaffUserIds", error);
+    return [];
+  }
+  return (data ?? [])
+    .map((r) => r.profile_id as string | null)
+    .filter((v): v is string => Boolean(v));
+}
 
 export type AdminOverviewActivityItem = {
   id: string;
@@ -49,14 +100,28 @@ export const loadAdminShellPulseCounts = cache(
     if (!scope) return null;
     const tenantId = scope.tenantId;
 
+    const [rosterTalentIds, clientUserIds] = await Promise.all([
+      listAdminRosterTalentIds(supabase, tenantId),
+      listTenantClientUserIds(supabase, tenantId),
+    ]);
+    const scopedTalentIds = nonEmptyIdList(rosterTalentIds);
+    const scopedClientIds = nonEmptyIdList(clientUserIds);
+
     const [talentRes, pendingTalentRes, clientsRes, inquiriesRes, mediaRes] =
       await Promise.all([
-        supabase.from("talent_profiles").select("id", { count: "exact", head: true }),
         supabase
           .from("talent_profiles")
           .select("id", { count: "exact", head: true })
+          .in("id", scopedTalentIds),
+        supabase
+          .from("talent_profiles")
+          .select("id", { count: "exact", head: true })
+          .in("id", scopedTalentIds)
           .in("workflow_status", ["submitted", "under_review"]),
-        supabase.from("client_profiles").select("user_id", { count: "exact", head: true }),
+        supabase
+          .from("client_profiles")
+          .select("user_id", { count: "exact", head: true })
+          .in("user_id", scopedClientIds),
         supabase
           .from("inquiries")
           .select("id", { count: "exact", head: true })
@@ -72,7 +137,8 @@ export const loadAdminShellPulseCounts = cache(
           .from("media_assets")
           .select("id", { count: "exact", head: true })
           .eq("approval_state", "pending")
-          .is("deleted_at", null),
+          .is("deleted_at", null)
+          .in("owner_talent_profile_id", scopedTalentIds),
       ]);
 
     return {
@@ -243,6 +309,9 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
   const counts = await loadAdminShellPulseCounts();
   if (!counts) return null;
 
+  const rosterTalentIds = await listAdminRosterTalentIds(supabase, tenantId);
+  const scopedTalentIds = nonEmptyIdList(rosterTalentIds);
+
   const [engineHealth, recentInquiries, recentTalent, recentMedia] = await Promise.all([
     (async (): Promise<InquiryEngineHealth | null> => {
       const [failed, needs, froz] = await Promise.all([
@@ -279,6 +348,7 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
     supabase
       .from("talent_profiles")
       .select("id, display_name, profile_code, workflow_status, updated_at")
+      .in("id", scopedTalentIds)
       .order("updated_at", { ascending: false })
       .limit(4),
     supabase
@@ -286,6 +356,7 @@ export const loadAdminOverviewData = cache(async (): Promise<AdminOverviewData |
       .select("id, owner_talent_profile_id, variant_kind, created_at, talent_profiles(profile_code, display_name)")
       .eq("approval_state", "pending")
       .is("deleted_at", null)
+      .in("owner_talent_profile_id", scopedTalentIds)
       .order("created_at", { ascending: false })
       .limit(4),
   ]);
@@ -346,6 +417,8 @@ export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]
   const scope = await getTenantScope();
   if (!scope) return [];
   const tenantId = scope.tenantId;
+  const tenantClientIds = await listTenantClientUserIds(supabase, tenantId);
+  if (tenantClientIds.length === 0) return [];
   const { data, error } = await supabase
     .from("client_profiles")
     .select(
@@ -360,6 +433,7 @@ export const loadAdminClientsData = cache(async (): Promise<AdminClientListRow[]
       profiles!inner(display_name, app_role, account_status, avatar_url)
     `,
     )
+    .in("user_id", tenantClientIds)
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -461,9 +535,14 @@ export const loadAdminStaffRows = cache(async (): Promise<AdminStaffRow[]> => {
   if (!auth.ok) return [];
 
   const { supabase } = auth;
+  const scope = await getTenantScope();
+  if (!scope) return [];
+  const staffIds = await listTenantStaffUserIds(supabase, scope.tenantId);
+  if (staffIds.length === 0) return [];
   const { data: profiles, error: pErr } = await supabase
     .from("profiles")
     .select("id, display_name, avatar_url, app_role, account_status, updated_at")
+    .in("id", staffIds)
     .in("app_role", ["agency_staff", "super_admin"])
     .order("display_name", { ascending: true });
 
@@ -598,6 +677,10 @@ export const loadAdminPendingMediaData = cache(async (): Promise<AdminPendingMed
   if (!auth.ok) return [];
 
   const { supabase } = auth;
+  const scope = await getTenantScope();
+  if (!scope) return [];
+  const rosterTalentIds = await listAdminRosterTalentIds(supabase, scope.tenantId);
+  if (rosterTalentIds.length === 0) return [];
   const { data, error } = await supabase
     .from("media_assets")
     .select(
@@ -605,6 +688,7 @@ export const loadAdminPendingMediaData = cache(async (): Promise<AdminPendingMed
     )
     .eq("approval_state", "pending")
     .is("deleted_at", null)
+    .in("owner_talent_profile_id", rosterTalentIds)
     .order("created_at", { ascending: false })
     .limit(120);
 
@@ -644,6 +728,10 @@ export const loadAdminApprovedMediaLibraryData = cache(async (): Promise<AdminPe
   if (!auth.ok) return [];
 
   const { supabase } = auth;
+  const scope = await getTenantScope();
+  if (!scope) return [];
+  const rosterTalentIds = await listAdminRosterTalentIds(supabase, scope.tenantId);
+  if (rosterTalentIds.length === 0) return [];
   const { data, error } = await supabase
     .from("media_assets")
     .select(
@@ -651,6 +739,7 @@ export const loadAdminApprovedMediaLibraryData = cache(async (): Promise<AdminPe
     )
     .eq("approval_state", "approved")
     .is("deleted_at", null)
+    .in("owner_talent_profile_id", rosterTalentIds)
     .order("updated_at", { ascending: false })
     .limit(96);
 

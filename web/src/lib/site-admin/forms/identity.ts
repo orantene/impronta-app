@@ -21,6 +21,7 @@
  */
 
 import { z } from "zod";
+import { pgUuidSchema } from "../validators";
 
 import { localeSchema, supportedLocalesSchema } from "../locales";
 
@@ -71,7 +72,7 @@ const hrefOptional = z
   .optional();
 
 const uuidOptional = z
-  .union([z.literal(""), z.string().uuid()])
+  .union([z.literal(""), pgUuidSchema()])
   .transform((v) => (v === "" ? null : v ?? null))
   .nullable()
   .optional();

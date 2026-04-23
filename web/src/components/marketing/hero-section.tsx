@@ -1,4 +1,4 @@
-import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { PLATFORM_BRAND, TENANT_EXAMPLE_BRAND } from "@/lib/platform/brand";
 import { MarketingContainer, MarketingEyebrow } from "./container";
 import { MarketingCta } from "./cta-link";
 
@@ -10,27 +10,40 @@ export function HeroSection() {
         <div className="grid items-center gap-12 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] md:gap-14 lg:gap-20">
           <div className="relative">
             <MarketingEyebrow className="mkt-rise">
-              {PLATFORM_BRAND.tagline}
+              The talent business platform
             </MarketingEyebrow>
 
             <h1
-              className="plt-display mkt-rise mkt-rise-delay-1 mt-5 text-[2.5rem] font-semibold sm:text-[3.25rem] lg:text-[4.25rem]"
-              style={{ color: "var(--plt-ink)" }}
+              className="plt-display mkt-rise mkt-rise-delay-1 mt-5 text-[2.75rem] leading-[1.02] sm:text-[3.5rem] lg:text-[4.5rem]"
+              style={{
+                color: "var(--plt-ink)",
+                fontVariationSettings: "\"opsz\" 144, \"SOFT\" 50",
+                fontWeight: 380,
+                letterSpacing: "-0.025em",
+              }}
             >
-              <span className="block">Turn your roster</span>
+              <span className="block">Run your talent business</span>
               <span className="block">
-                <span style={{ color: "var(--plt-forest)" }}>into a business.</span>
+                <span
+                  style={{
+                    color: "var(--plt-forest)",
+                    fontStyle: "italic",
+                    fontVariationSettings: "\"opsz\" 144, \"SOFT\" 70",
+                  }}
+                >
+                  like one.
+                </span>
               </span>
             </h1>
 
             <p
-              className="mkt-rise mkt-rise-delay-2 mt-6 max-w-[34rem] text-[1.0625rem] leading-[1.6] sm:text-[1.125rem]"
+              className="mkt-rise mkt-rise-delay-2 mt-6 max-w-[36rem] text-[1.0625rem] leading-[1.6] sm:text-[1.125rem]"
               style={{ color: "var(--plt-muted)" }}
             >
-              The operating system for people-based rosters — built for independent
-              operators, agencies, and teams that coordinate talent. Claim your free
-              subdomain, publish your roster, and share one polished link instead of
-              another WhatsApp thread.
+              {PLATFORM_BRAND.name} is a branded storefront, a structured booking
+              pipeline, and a shared discovery network — built for agencies, coordinators,
+              and independents whose business is the people they represent. One place
+              your roster lives, your inquiries land, and your bookings close.
             </p>
 
             <div className="mkt-rise mkt-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">
@@ -59,13 +72,13 @@ export function HeroSection() {
               style={{ color: "var(--plt-muted)" }}
             >
               <li className="inline-flex items-center gap-2">
-                <TrustTick /> Free plan · your subdomain
+                <TrustTick /> Free plan · your own subdomain
               </li>
               <li className="inline-flex items-center gap-2">
                 <TrustTick /> No credit card
               </li>
               <li className="inline-flex items-center gap-2">
-                <TrustTick /> Upgrade to your own domain any time
+                <TrustTick /> Bring your own domain any time
               </li>
             </ul>
           </div>
@@ -83,18 +96,28 @@ function HeroBackdrop() {
   return (
     <>
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+        {/* Deep forest wash from top-left — anchors the brand accent. */}
         <div
-          className="absolute -left-32 top-[-12%] h-[42rem] w-[42rem] rounded-full opacity-[0.5] blur-[120px]"
+          className="absolute -left-32 top-[-12%] h-[44rem] w-[44rem] rounded-full opacity-[0.55] blur-[130px]"
           style={{
             background:
-              "radial-gradient(closest-side, rgba(31,74,58,0.18), rgba(245,242,234,0))",
+              "radial-gradient(closest-side, rgba(30,58,45,0.22), rgba(244,239,230,0))",
           }}
         />
+        {/* Clay warmth at mid-right — editorial, not brand. Softens the composition. */}
         <div
-          className="absolute right-[-14%] top-[22%] h-[34rem] w-[34rem] rounded-full opacity-[0.45] blur-[140px]"
+          className="absolute right-[-14%] top-[22%] h-[34rem] w-[34rem] rounded-full opacity-[0.35] blur-[150px]"
           style={{
             background:
-              "radial-gradient(closest-side, rgba(46,107,82,0.18), rgba(245,242,234,0))",
+              "radial-gradient(closest-side, rgba(179,136,107,0.18), rgba(244,239,230,0))",
+          }}
+        />
+        {/* Sage wash low-left — keeps the bottom of the hero from feeling empty. */}
+        <div
+          className="absolute -left-20 bottom-[-40%] h-[30rem] w-[30rem] rounded-full opacity-[0.3] blur-[140px]"
+          style={{
+            background:
+              "radial-gradient(closest-side, rgba(138,144,123,0.22), rgba(244,239,230,0))",
           }}
         />
       </div>
@@ -184,7 +207,9 @@ function HeroVisual() {
               className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
               style={{ background: "var(--plt-forest-bright)" }}
             />
-            <span className="truncate">{PLATFORM_BRAND.domain}/sofia-m</span>
+            <span className="truncate">
+              {TENANT_EXAMPLE_BRAND.subdomain}.{PLATFORM_BRAND.domain}/sofia-m
+            </span>
           </span>
           <span
             className="plt-mono shrink-0 rounded-full border px-2 py-0.5 uppercase tracking-[0.18em]"

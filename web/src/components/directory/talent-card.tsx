@@ -155,12 +155,23 @@ export function TalentCard({
   return (
     <div
       className={cn(
-        "group/card flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/95 to-black shadow-sm transition-shadow duration-200 hover:shadow-lg hover:shadow-[var(--impronta-gold)]/8",
+        // M7.1 — `talent-card` is the namespace class that per-family CSS
+        // rules target (see `token-presets.css` →
+        // `[data-token-template-directory-card-family="editorial-bridal"] .talent-card`).
+        // Legacy Tailwind classes stay as the DEFAULT look; family rules
+        // override specific properties per variant without touching this
+        // component. Data-card-* attributes below act as stable hooks.
+        "talent-card group/card flex flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-zinc-900/95 to-black shadow-sm transition-shadow duration-200 hover:shadow-lg hover:shadow-[var(--impronta-gold)]/8",
         className,
       )}
     >
       {/* ── Hero image with overlays ── */}
-      <Link href={profileHref} className="relative block w-full overflow-hidden" style={aspectStyle}>
+      <Link
+        href={profileHref}
+        className="relative block w-full overflow-hidden"
+        style={aspectStyle}
+        data-card-media
+      >
         {card.thumbnail.url ? (
           <Image
             src={card.thumbnail.url}
@@ -185,8 +196,13 @@ export function TalentCard({
           aria-hidden
         />
 
-        {/* Top-left: availability + featured badges */}
-        <div className="absolute left-2 top-2 z-[1] flex flex-wrap items-center gap-1.5">
+        {/* Top-left: availability + featured badges
+         * data-card-ribbon marks the element used by editorial-bridal CSS
+         * to repaint as an ivory "Destination-ready"-style ribbon. */}
+        <div
+          className="absolute left-2 top-2 z-[1] flex flex-wrap items-center gap-1.5"
+          data-card-ribbon
+        >
           {card.isFeatured ? (
             <span className="pointer-events-none rounded-full border border-[var(--impronta-gold)]/30 bg-black/50 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.18em] text-[var(--impronta-gold)] backdrop-blur-sm sm:text-[9px]">
               {c.featuredLabel}
@@ -237,10 +253,16 @@ export function TalentCard({
 
         {/* Bottom overlay: name, type, location */}
         <div className="absolute inset-x-0 bottom-0 z-[1] px-3 pb-3 sm:px-4 sm:pb-4">
-          <h2 className="font-[family-name:var(--font-cinzel)] text-base font-semibold leading-tight tracking-wide text-white drop-shadow-sm sm:text-lg">
+          <h2
+            className="font-[family-name:var(--font-cinzel)] text-base font-semibold leading-tight tracking-wide text-white drop-shadow-sm sm:text-lg"
+            data-card-name
+          >
             {card.displayName}
           </h2>
-          <p className="mt-0.5 truncate text-xs text-white/75 sm:text-sm">
+          <p
+            className="mt-0.5 truncate text-xs text-white/75 sm:text-sm"
+            data-card-kicker
+          >
             {card.primaryTalentTypeLabel}
             {card.locationLabel ? (
               <>
@@ -253,7 +275,10 @@ export function TalentCard({
       </Link>
 
       {/* ── Card body ── */}
-      <div className="flex flex-col gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3">
+      <div
+        className="flex flex-col gap-2.5 px-3 pb-3 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3"
+        data-card-body
+      >
         {/* Fit labels */}
         {fitLabels.length > 0 ? (
           <ul className="flex flex-wrap gap-1">
@@ -262,6 +287,7 @@ export function TalentCard({
                 key={f.slug}
                 className="max-w-full truncate rounded-md border border-[var(--impronta-gold-border)] bg-black/25 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--impronta-gold)] sm:text-[10px]"
                 title={f.label}
+                data-card-chip
               >
                 {f.label}
               </li>

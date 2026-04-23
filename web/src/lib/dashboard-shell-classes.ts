@@ -67,15 +67,19 @@ export const ADMIN_POPOVER_CONTENT_CLASS = "w-[360px] rounded-2xl border-border/
 export const ADMIN_SECTION_TITLE_CLASS = "font-display text-base font-medium tracking-wide";
 
 /**
- * Unified admin page tab bar — attached strip above main content (rounded top, shared border).
- * Use with {@link ADMIN_TAB_BAR_SCROLL} + {@link ADMIN_TAB_ITEM} / active / idle.
+ * Unified admin page tab bar — flush with content, single bottom border.
+ *
+ * Previous version wrapped tabs in a rounded-top card with its own background
+ * + shadow, which floated as a visible "box" above the page body and produced
+ * a visible seam between the tab area and the content. Flattened now: the
+ * tab bar is a transparent row with only a bottom divider, so the active-tab
+ * indicator is the only visual separator.
  */
-export const ADMIN_TAB_BAR =
-  "w-full min-w-0 overflow-hidden rounded-t-2xl border border-border/60 bg-card/40 shadow-sm";
+export const ADMIN_TAB_BAR = "w-full min-w-0 overflow-hidden";
 
 /** Horizontal scroll row inside the tab bar (scrollbar hidden; snap on mobile). */
 export const ADMIN_TAB_BAR_SCROLL =
-  "flex w-full min-w-0 snap-x snap-mandatory gap-0 overflow-x-auto border-b border-border/50 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+  "flex w-full min-w-0 snap-x snap-mandatory gap-0 overflow-x-auto border-b border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 /** Base classes for each tab link (min 44px tap target on mobile). */
 export const ADMIN_TAB_ITEM =
@@ -192,3 +196,60 @@ export const ADMIN_ACTION_PRIMARY_CLASS = LUXURY_GOLD_BUTTON_CLASS;
 export const ADMIN_ACTION_SECONDARY_CLASS = `${ADMIN_OUTLINE_CONTROL_CLASS} h-9 text-sm`;
 export const ADMIN_ACTION_TERTIARY_CLASS =
   "h-8 rounded-lg px-2 text-xs font-medium text-muted-foreground hover:bg-muted/40 hover:text-foreground";
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Phase 15 / Admin shell v2 — committed typography + motion primitives.
+ *
+ * Keep these named so callers don't invent new sizes. Every new admin
+ * surface uses this scale; legacy surfaces migrate surface-by-surface.
+ * ──────────────────────────────────────────────────────────────────── */
+
+/** 32px display — Home greeting, hero metric values (non-mono). */
+export const ADMIN_TEXT_DISPLAY_XL =
+  "font-display text-[32px] font-medium leading-[1.1] tracking-tight text-foreground";
+
+/** 24px — page H1, large section headers. */
+export const ADMIN_TEXT_DISPLAY_LG =
+  "font-display text-2xl font-medium leading-tight tracking-tight text-foreground";
+
+/** 18px — card titles, panel headers. Sans, not display, for calm density. */
+export const ADMIN_TEXT_TITLE_LG =
+  "text-lg font-semibold leading-snug tracking-tight text-foreground";
+
+/** 16px — subsection titles, list item primary text. */
+export const ADMIN_TEXT_TITLE =
+  "text-base font-semibold leading-snug tracking-tight text-foreground";
+
+/** 14px — body default. */
+export const ADMIN_TEXT_BODY = "text-sm leading-relaxed text-foreground";
+
+/** 13px — meta lines under titles, secondary copy. */
+export const ADMIN_TEXT_META = "text-[13px] leading-snug text-muted-foreground";
+
+/** 11px uppercase — category labels, "Used by" hints, eyebrow kickers. */
+export const ADMIN_TEXT_EYEBROW =
+  "font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground";
+
+/**
+ * Hover primitive for clickable surfaces (cards, tiles, object rows).
+ * 1px lift + subtle shadow + gold-tint border on hover. Use alongside
+ * `.transition-*` at the consumer site when composing with other
+ * transition-property declarations.
+ */
+export const ADMIN_CARD_INTERACTIVE =
+  "transition-[border-color,box-shadow,background-color,transform] duration-200 hover:-translate-y-[1px] hover:border-[var(--impronta-gold-border)]/55 hover:bg-[var(--impronta-gold)]/[0.03] hover:shadow-[0_14px_36px_-24px_rgba(0,0,0,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
+/**
+ * Page-transition wrapper — applied around `{children}` in the admin
+ * layout to cross-fade on route change. Works with Next.js App Router
+ * because the key swaps on segment change.
+ */
+export const ADMIN_PAGE_TRANSITION =
+  "motion-safe:animate-[fadeIn_200ms_ease-out] motion-safe:[animation-fill-mode:both]";
+
+/** Attention strip card — amber wash + rose left-border. Home Phase 15. */
+export const ADMIN_ATTENTION_CARD =
+  "rounded-2xl border border-rose-500/30 border-l-[3px] border-l-rose-500/70 bg-rose-500/[0.04] px-4 py-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-rose-500/50 hover:shadow-[0_14px_36px_-24px_rgba(0,0,0,0.6)]";
+
+/** Section rhythm for Home: vertical gap between strips/cards. */
+export const ADMIN_HOME_SECTION_GAP = "space-y-6 sm:space-y-8";

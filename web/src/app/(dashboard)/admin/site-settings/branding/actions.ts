@@ -61,6 +61,7 @@ export async function saveBrandingAction(
     fontPreset: singleOrNull(formData, "fontPreset"),
     headingFont: singleOrNull(formData, "headingFont"),
     bodyFont: singleOrNull(formData, "bodyFont"),
+    brandMarkSvg: singleOrNull(formData, "brandMarkSvg"),
     expectedVersion: Number(single(formData, "expectedVersion") || "0"),
   });
 

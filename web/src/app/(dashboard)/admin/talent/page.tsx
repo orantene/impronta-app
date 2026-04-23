@@ -18,6 +18,11 @@ import {
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { AdminTalentHelpPopover } from "@/components/admin/admin-talent-help-popover";
+import { getTenantScope } from "@/lib/saas/scope";
+import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
+import { AdminNewTalentLink } from "@/app/(dashboard)/admin/talent/admin-new-talent-link";
+
+const IMPOSSIBLE_ID = "00000000-0000-0000-0000-000000000000";
 
 const TABS = [
   { key: "all", label: "All" },
@@ -175,6 +180,17 @@ export default async function AdminTalentListPage({
     );
   }
 
+  const scope = await getTenantScope();
+  if (!scope) {
+    return (
+      <p className="text-sm text-destructive">
+        No agency workspace selected. Use the workspace switcher to pick a tenant.
+      </p>
+    );
+  }
+  const rosterTalentIds = await listAdminRosterTalentIds(supabase, scope.tenantId);
+  const scopedTalentIds = rosterTalentIds.length > 0 ? rosterTalentIds : [IMPOSSIBLE_ID];
+
   const RICH_SELECT = `
     id,
     user_id,
@@ -189,14 +205,14 @@ export default async function AdminTalentListPage({
     deleted_at,
     profile_completeness_score,
     phone,
-    profiles(display_name, app_role, account_status, avatar_url),
+    profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status, avatar_url),
     talent_profile_taxonomy(is_primary, taxonomy_terms(kind, name_en)),
     res_city:locations!talent_profiles_residence_city_id_fkey(display_name_en),
     res_ctry:countries!talent_profiles_residence_country_id_fkey(name_en, iso2)
   `;
 
   const BASIC_SELECT =
-    "id, user_id, profile_code, display_name, workflow_status, visibility, membership_tier, is_featured, created_at, updated_at, deleted_at, profile_completeness_score, phone, profiles(display_name, app_role, account_status, avatar_url), talent_profile_taxonomy(is_primary, taxonomy_terms(kind, name_en))";
+    "id, user_id, profile_code, display_name, workflow_status, visibility, membership_tier, is_featured, created_at, updated_at, deleted_at, profile_completeness_score, phone, profiles!talent_profiles_user_id_fkey(display_name, app_role, account_status, avatar_url), talent_profile_taxonomy(is_primary, taxonomy_terms(kind, name_en))";
 
   const activeTab = TABS.find((tab) => tab.key === statusFilter)?.key ?? "all";
   const activeMediaTab = MEDIA_TABS.find((tab) => tab.key === mediaFilter)?.key ?? "all";
@@ -224,7 +240,8 @@ export default async function AdminTalentListPage({
   const buildTalentQuery = (selectClause: string, count = false) => {
     let query = supabase
       .from("talent_profiles")
-      .select(selectClause, count ? { count: "exact" } : undefined);
+      .select(selectClause, count ? { count: "exact" } : undefined)
+      .in("id", scopedTalentIds);
 
     query = applyStatusFilter(query, activeTab);
     query = applySearchFilter(query, q);
@@ -315,7 +332,10 @@ export default async function AdminTalentListPage({
   });
   const tabCountsEntries = await Promise.all(
     TABS.map(async (tab) => {
-      let query = supabase.from("talent_profiles").select("id", { count: "exact", head: true });
+      let query = supabase
+        .from("talent_profiles")
+        .select("id", { count: "exact", head: true })
+        .in("id", scopedTalentIds);
       query = applyStatusFilter(query, tab.key);
       const { count, error } = await query;
       if (error) {
@@ -336,7 +356,12 @@ export default async function AdminTalentListPage({
         icon={Users}
         title="Talent"
         description="Triage → open a hub → review workflow, then profile, then media. Pending uploads also appear on the global Media page."
-        right={<AdminTalentHelpPopover />}
+        right={
+          <div className="flex items-center gap-2">
+            <AdminNewTalentLink />
+            <AdminTalentHelpPopover />
+          </div>
+        }
       />
 
       <AdminPageTabs

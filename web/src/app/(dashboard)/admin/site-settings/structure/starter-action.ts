@@ -27,7 +27,6 @@
 import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import {
   getSectionType,
-  SECTION_REGISTRY,
   type SectionTypeKey,
 } from "@/lib/site-admin/sections/registry";
 import { getLibraryDefault } from "@/lib/site-admin/sections/shared/default-content";
@@ -105,10 +104,6 @@ const RECIPES: Record<string, Recipe> = {
     ],
   },
 };
-
-export function listStarterRecipes(): Array<{ slug: string; label: string }> {
-  return Object.values(RECIPES).map((r) => ({ slug: r.slug, label: r.label }));
-}
 
 function shortToken(): string {
   return randomBytes(3).toString("hex");
@@ -283,6 +278,3 @@ export async function applyStarterComposition(
     presetSlug: recipe.presetSlug,
   };
 }
-
-// Guard against unused-import stripping for the registry constant.
-export const _touchRegistry = SECTION_REGISTRY;

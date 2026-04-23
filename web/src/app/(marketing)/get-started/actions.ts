@@ -48,6 +48,7 @@ const RESERVED_SUBDOMAINS = new Set([
   "logout",
   "impronta",
   "rostra",
+  "tulala",
   "marketing",
   "cdn",
   "assets",

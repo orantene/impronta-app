@@ -50,6 +50,15 @@ export type HostKind = "agency" | "app" | "hub" | "marketing";
 const STATIC_PATHS = ["/sitemap.xml", "/robots.txt"] as const;
 
 /**
+ * Self-contained brand/design prototypes under `/prototypes/*`. These are
+ * standalone demo surfaces (no tenant reads, no auth, no platform chrome)
+ * used to explore brand directions before committing them to the tenant
+ * theme system. Allowed on every host kind so they're reachable from any
+ * dev hostname without seeding `agency_domains`.
+ */
+const PROTOTYPE_PREFIX = "/prototypes" as const;
+
+/**
  * API paths reachable on every surface:
  *   - `/api/cron/*`          → scheduler bearer-token protected
  *   - `/api/analytics/events`→ write-only, name allow-listed
@@ -165,6 +174,7 @@ export function isPathAllowedForHostKind(
 ): boolean {
   if (pathname === "/") return true;
   if (anyExact(pathname, STATIC_PATHS)) return true;
+  if (hasPrefix(pathname, PROTOTYPE_PREFIX)) return true;
   if (anyPrefix(pathname, SHARED_API_PREFIXES)) return true;
 
   if (kind === "agency") {

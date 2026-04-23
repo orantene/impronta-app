@@ -157,7 +157,7 @@ export function RevisionPreviewModal({
             <p className="text-sm text-muted-foreground">Loading revision…</p>
           ) : error ? (
             <p className="rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              Couldn't load revision — {error}
+              Couldn&apos;t load revision — {error}
             </p>
           ) : summary ? (
             <div className="space-y-5">

@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   // tags (e.g. the global "directory" tag) that tagFor() doesn't construct.
   const rawTag = url.searchParams.get("rawTag");
   if (rawTag) {
-    revalidateTag(rawTag);
+    revalidateTag(rawTag, "max");
     return NextResponse.json({ ok: true, tag: rawTag });
   }
 
@@ -39,6 +39,6 @@ export async function POST(req: Request) {
   }
   const kind = kindRaw as Parameters<typeof tagFor>[1];
   const tag = tagFor(tenantId, kind);
-  revalidateTag(tag);
+  revalidateTag(tag, "max");
   return NextResponse.json({ ok: true, tag });
 }

@@ -203,27 +203,6 @@ export async function loadInquiryRosterPeekMany(
     applyPeekRows((parts ?? []) as Array<Record<string, unknown>>);
   }
 
-  const legacyIds = ids.filter((id) => !map.has(id));
-  if (legacyIds.length) {
-    const { data: rows, error } = await supabase
-      .from("inquiry_talent")
-      .select(
-        `
-        inquiry_id,
-        sort_order,
-        talent_profiles ( profile_code, display_name )
-      `,
-      )
-      .in("inquiry_id", legacyIds)
-      .order("inquiry_id", { ascending: true })
-      .order("sort_order", { ascending: true });
-    if (error) {
-      logServerError("inquiry-workspace-data/loadInquiryRosterPeekMany/legacy", error);
-    } else {
-      applyPeekRows((rows ?? []) as Array<Record<string, unknown>>);
-    }
-  }
-
   // Ensure every requested id has a default entry.
   for (const id of ids) {
     if (!map.has(id)) map.set(id, { count: 0, labelLine: "No talent on shortlist" });

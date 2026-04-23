@@ -43,7 +43,10 @@ export interface BrandingRow {
   font_preset: string | null;
   heading_font: string | null;
   body_font: string | null;
+  brand_mark_svg: string | null;
   theme_json: Record<string, unknown>;
+  /** M7 — optional; null on legacy / never-applied rows. Metadata only. */
+  theme_preset_slug?: string | null;
   version: number;
   updated_by: string | null;
   created_at: string;
@@ -63,6 +66,7 @@ const BRANDING_SELECT = `
   font_preset,
   heading_font,
   body_font,
+  brand_mark_svg,
   theme_json,
   version,
   updated_by,
@@ -87,6 +91,7 @@ function diffSummary(
     "font_preset",
     "heading_font",
     "body_font",
+    "brand_mark_svg",
   ];
   const changed = keys.filter(
     (k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]),
@@ -143,6 +148,7 @@ export async function saveBranding(
     font_preset: values.fontPreset ?? null,
     heading_font: values.headingFont ?? null,
     body_font: values.bodyFont ?? null,
+    brand_mark_svg: values.brandMarkSvg ?? null,
     updated_by: actorProfileId,
   };
 

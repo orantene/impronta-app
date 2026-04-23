@@ -293,26 +293,34 @@ export async function getHomepageData({ tenantId }: { tenantId: string }) {
     }
   }
 
-  const locations: LocationItem[] = locationData.map((l) => {
-    const dbLat = parseLocationCoord(l.latitude);
-    const dbLng = parseLocationCoord(l.longitude);
-    const resolved = resolveLocationMapCoordinates(l.city_slug, dbLat, dbLng);
-    const previewIds = locationPreviewIds[l.id] ?? [];
-    const featuredPreviews: LocationFeaturedPreview[] = previewIds.map((tid) => ({
-      talentId: tid,
-      thumbnailUrl: locationThumbnailMap[tid] ?? null,
-    }));
-    return {
-      id: l.id,
-      citySlug: l.city_slug,
-      displayName: l.display_name_en,
-      countryCode: l.country_code,
-      talentCount: locationCounts[l.id] ?? 0,
-      latitude: resolved?.lat ?? null,
-      longitude: resolved?.lng ?? null,
-      featuredPreviews,
-    };
-  });
+  /**
+   * Tenant scope: only surface cities where this tenant's roster actually has
+   * talent. The `locations` table is global, so rendering the raw list would
+   * leak peer tenants' cities (e.g. Impronta's Tulum/Cancún showing under
+   * Midnight Muse). `hasRoster=false` → hide the whole section.
+   */
+  const locations: LocationItem[] = locationData
+    .filter((l) => (locationCounts[l.id] ?? 0) > 0)
+    .map((l) => {
+      const dbLat = parseLocationCoord(l.latitude);
+      const dbLng = parseLocationCoord(l.longitude);
+      const resolved = resolveLocationMapCoordinates(l.city_slug, dbLat, dbLng);
+      const previewIds = locationPreviewIds[l.id] ?? [];
+      const featuredPreviews: LocationFeaturedPreview[] = previewIds.map((tid) => ({
+        talentId: tid,
+        thumbnailUrl: locationThumbnailMap[tid] ?? null,
+      }));
+      return {
+        id: l.id,
+        citySlug: l.city_slug,
+        displayName: l.display_name_en,
+        countryCode: l.country_code,
+        talentCount: locationCounts[l.id] ?? 0,
+        latitude: resolved?.lat ?? null,
+        longitude: resolved?.lng ?? null,
+        featuredPreviews,
+      };
+    });
 
   return { talentTypes, featuredTalent, fitLabels, locations };
 }

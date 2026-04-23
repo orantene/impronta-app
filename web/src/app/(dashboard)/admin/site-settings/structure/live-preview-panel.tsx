@@ -146,7 +146,7 @@ export function LivePreviewPanel({
               className="text-[10px] text-muted-foreground"
               title={tokenError}
             >
-              Showing the live site — draft preview isn't available right now.
+              Showing the live site — draft preview isn&apos;t available right now.
             </span>
           ) : null}
         </div>

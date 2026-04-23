@@ -7,7 +7,7 @@ import { createPublicSupabaseClient } from "@/lib/supabase/public";
 // anon-only (RLS: approved + public + not-deleted) and the route is
 // statically optimized by Next 16 based on the data dependencies.
 
-export const alt = "Impronta talent profile";
+export const alt = "Talent profile";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

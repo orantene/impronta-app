@@ -1,8 +1,26 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { VariantPicker } from "../shared/VariantPicker";
 import type { SectionEditorProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
+
+const LAYOUT_VARIANTS: ReadonlyArray<{
+  value: NonNullable<FeaturedTalentV1["variant"]>;
+  label: string;
+  hint: string;
+}> = [
+  {
+    value: "grid",
+    label: "Grid",
+    hint: "Uniform card grid — dense, scannable.",
+  },
+  {
+    value: "carousel",
+    label: "Carousel",
+    hint: "Horizontal rail with scroll affordance — editorial.",
+  },
+];
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
 const LABEL = "text-xs font-medium uppercase tracking-wide text-muted-foreground";
@@ -61,6 +79,15 @@ export function FeaturedTalentEditor({
           onChange={(e) => patch({ copy: e.target.value })}
         />
       </label>
+
+      <VariantPicker
+        name="featured_talent.variant"
+        legend="Layout"
+        sectionKey="featured_talent"
+        options={LAYOUT_VARIANTS}
+        value={value.variant}
+        onChange={(next) => patch({ variant: next })}
+      />
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <label className={FIELD}>

@@ -34,6 +34,7 @@ import { ImpersonationBanner } from "@/components/dashboard/impersonation-banner
 import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 import { resolveDashboardIdentity } from "@/lib/impersonation/dashboard-identity";
 import { subjectUserId } from "@/lib/impersonation/subject-user";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import {
   qaClientUserIdEnv,
   qaTalentUserIdEnv,
@@ -198,7 +199,7 @@ export default async function DashboardLayout({
             href="/"
             className="font-display text-m font-semibold tracking-widest text-[var(--impronta-gold)] uppercase"
           >
-            IMPRONTA
+            {PLATFORM_BRAND.name.toUpperCase()}
           </Link>
         </div>
 
@@ -262,7 +263,7 @@ export default async function DashboardLayout({
             href="/"
             className="shrink-0 font-display text-sm font-semibold tracking-[0.18em] text-[var(--impronta-gold)] uppercase lg:hidden"
           >
-            IMPRONTA
+            {PLATFORM_BRAND.name.toUpperCase()}
           </Link>
 
           <div

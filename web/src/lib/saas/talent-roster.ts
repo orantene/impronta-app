@@ -63,6 +63,28 @@ export async function listTalentIdsOnTenantRoster(
 }
 
 /**
+ * Admin-side roster view: every talent_profile_id on the tenant's roster in
+ * any non-removed state (active, pending, inactive) and any
+ * agency_visibility (roster_only, site_visible, featured).
+ *
+ * Use this to scope admin workspace queries (talent list, media queue,
+ * overview counts). Storefront rendering should stay on
+ * `listTalentIdsOnTenantRoster` above.
+ */
+export async function listAdminRosterTalentIds(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("agency_talent_roster")
+    .select("talent_profile_id")
+    .eq("tenant_id", tenantId)
+    .neq("status", "removed");
+  if (error) return [];
+  return (data ?? []).map((row) => row.talent_profile_id as string);
+}
+
+/**
  * True when the requested id is on the tenant's visible roster.
  */
 export async function isTalentOnTenantRoster(

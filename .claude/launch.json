@@ -33,6 +33,24 @@
       "port": 3104
     },
     {
+      "name": "Nova storefront (nova.local)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3105", "nova.local"],
+      "port": 3105
+    },
+    {
+      "name": "Midnight storefront (midnight.local)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3106", "midnight.local"],
+      "port": 3106
+    },
+    {
+      "name": "Luma storefront (luma.local)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3107", "luma.local"],
+      "port": 3107
+    },
+    {
       "name": "Mockup Preview",
       "runtimeExecutable": "bash",
       "runtimeArgs": ["-c", "cd '/Users/oranpersonal/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/4bc0f6c3-4301-4328-8d55-c9d3317c7f98/75ead64a-1650-45eb-a4fb-eb877a85ec85/skills/web-artifacts-builder/impronta-directory-mockup' && npx pnpm dev --port 5174"],

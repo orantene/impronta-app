@@ -125,6 +125,13 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns,
   },
+  allowedDevOrigins: [
+    "marketing.local",
+    "app.local",
+    "hub.local",
+    "impronta.local",
+    "nova.local",
+  ],
   /**
    * npm often hoists `@radix-ui/react-id` to the app root while other
    * `@radix-ui/*` deps stay nested under `@radix-ui/react-dialog`. Bundlers can

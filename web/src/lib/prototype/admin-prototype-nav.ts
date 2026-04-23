@@ -110,15 +110,33 @@ export function prototypeNavItemMap(nav: PrototypeNavGroup[]): Map<string, Proto
   return m;
 }
 
+/**
+ * Phase 15 / Admin shell v2 — IA promoted to operator-first order.
+ *
+ * Primary groups (Home, Pipeline, Talent, Site, Clients) surface the
+ * five jobs an agency admin does daily. Secondary groups (Media,
+ * Directory, AI, Analytics, Docs, System) hold configuration and
+ * diagnostic surfaces — still reachable, visually de-emphasised by
+ * rendering order.
+ *
+ * The Site group leads with the Composer — the builder is no longer
+ * buried under /site-settings. Reach from anywhere is ≤ 2 clicks
+ * (sidebar group → Composer) or 1 keystroke (Cmd+K → "Open composer").
+ *
+ * Route hrefs are not yet renamed — that migration lives in a follow-up
+ * stage. Labels and grouping are the product call; hrefs still resolve
+ * under the existing `/admin/site-settings/*` tree.
+ */
 export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
+  // ── Primary ───────────────────────────────────────────────────────
   {
     id: "dashboard",
-    label: "Dashboard",
+    label: "Home",
     items: [navItem("Overview", `${ADMIN_PROTOTYPE_BASE}`, LayoutDashboard)],
   },
   {
     id: "operations",
-    label: "Operations",
+    label: "Pipeline",
     items: [
       navItem("Inquiries", `${ADMIN_PROTOTYPE_BASE}/inquiries`, Inbox),
       navItem("Bookings", `${ADMIN_PROTOTYPE_BASE}/bookings`, CalendarCheck),
@@ -127,7 +145,7 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
   },
   {
     id: "talent",
-    label: "Talent",
+    label: "Roster",
     items: [
       navItem("All talent", `${ADMIN_PROTOTYPE_BASE}/talent`, Users),
       navItem("Applications", `${ADMIN_PROTOTYPE_BASE}/talent`, UserSearch, "talent-applications"),
@@ -136,27 +154,33 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
     ],
   },
   {
+    id: "site",
+    label: "Site",
+    items: [
+      // Composer first — the builder is the headline of the Site area.
+      navItem("Composer", `${ADMIN_PROTOTYPE_BASE}/site-settings/structure`, LayoutDashboard, "site-composer"),
+      navItem("Design", `${ADMIN_PROTOTYPE_BASE}/site-settings/design`, Sparkles, "site-design"),
+      navItem("Sections", `${ADMIN_PROTOTYPE_BASE}/site-settings/sections`, LayoutGrid, "site-sections"),
+      navItem("Pages", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/pages`, FileText, "site-pages"),
+      navItem("Navigation", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/navigation`, Menu, "site-nav"),
+      navItem("Posts", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/posts`, Newspaper, "site-posts"),
+      navItem("SEO", `${ADMIN_PROTOTYPE_BASE}/site-settings/seo`, Search, "site-seo"),
+      navItem("Brand", `${ADMIN_PROTOTYPE_BASE}/site-settings/identity`, Building2, "site-brand"),
+      navItem("Redirects", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/redirects`, Undo2, "site-redirects"),
+    ],
+  },
+  {
     id: "clients",
     label: "Clients",
     items: [navItem("Clients", `${ADMIN_PROTOTYPE_BASE}/clients`, UserRound)],
   },
+  // ── Secondary ─────────────────────────────────────────────────────
   {
     id: "media",
     label: "Media",
     items: [
       navItem("Pending approvals", `${ADMIN_PROTOTYPE_BASE}/media`, Images),
       navItem("Library", `${ADMIN_PROTOTYPE_BASE}/media?tab=library`, LayoutGrid),
-    ],
-  },
-  {
-    id: "website",
-    label: "Website",
-    items: [
-      navItem("Pages", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/pages`, FileText),
-      navItem("Navigation", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/navigation`, Menu),
-      navItem("Posts", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/posts`, Newspaper),
-      navItem("Redirects", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/redirects`, Undo2),
-      navItem("SEO", `${ADMIN_PROTOTYPE_BASE}/site-settings/seo`, Search),
     ],
   },
   {
@@ -167,6 +191,29 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
       navItem("Filters", `${ADMIN_PROTOTYPE_BASE}/directory/filters`, ListFilter),
       navItem("Taxonomy", `${ADMIN_PROTOTYPE_BASE}/taxonomy`, Tags),
       navItem("Locations", `${ADMIN_PROTOTYPE_BASE}/locations`, MapPinned),
+    ],
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    items: [
+      navItem("Executive", `${ADMIN_PROTOTYPE_BASE}/analytics/overview`, BarChart3, "analytics-overview"),
+      navItem("Traffic", `${ADMIN_PROTOTYPE_BASE}/analytics/acquisition`, BarChart3, "analytics-traffic"),
+      navItem("Funnels", `${ADMIN_PROTOTYPE_BASE}/analytics/funnels`, BarChart3, "analytics-funnels"),
+      navItem("Marketplace", `${ADMIN_PROTOTYPE_BASE}/analytics/talent`, BarChart3, "analytics-marketplace"),
+      navItem("AI / Search", `${ADMIN_PROTOTYPE_BASE}/analytics/search`, BarChart3, "analytics-ai-search"),
+      navItem("SEO", `${ADMIN_PROTOTYPE_BASE}/analytics/seo`, BarChart3, "analytics-seo"),
+    ],
+  },
+  {
+    id: "ai",
+    label: "AI",
+    items: [
+      navItem("AI workspace", `${ADMIN_PROTOTYPE_BASE}/ai-workspace`, Sparkles),
+      navItem("AI Settings", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/settings`, SlidersHorizontal),
+      navItem("Search logs", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/logs`, Search),
+      navItem("Match preview", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/match-preview`, ScanSearch),
+      navItem("Console", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/console`, Terminal),
     ],
   },
   {
@@ -195,37 +242,23 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
     }),
   },
   {
-    id: "ai",
-    label: "AI",
-    items: [
-      navItem("AI workspace", `${ADMIN_PROTOTYPE_BASE}/ai-workspace`, Sparkles),
-      navItem("AI Settings", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/settings`, SlidersHorizontal),
-      navItem("Search logs", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/logs`, Search),
-      navItem("Match preview", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/match-preview`, ScanSearch),
-      navItem("Console", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/console`, Terminal),
-    ],
-  },
-  {
-    id: "analytics",
-    label: "Analytics",
-    items: [
-      navItem("Executive", `${ADMIN_PROTOTYPE_BASE}/analytics/overview`, BarChart3, "analytics-overview"),
-      navItem("Traffic", `${ADMIN_PROTOTYPE_BASE}/analytics/acquisition`, BarChart3, "analytics-traffic"),
-      navItem("Funnels", `${ADMIN_PROTOTYPE_BASE}/analytics/funnels`, BarChart3, "analytics-funnels"),
-      navItem("Marketplace", `${ADMIN_PROTOTYPE_BASE}/analytics/talent`, BarChart3, "analytics-marketplace"),
-      navItem("AI / Search", `${ADMIN_PROTOTYPE_BASE}/analytics/search`, BarChart3, "analytics-ai-search"),
-      navItem("SEO", `${ADMIN_PROTOTYPE_BASE}/analytics/seo`, BarChart3, "analytics-seo"),
-    ],
-  },
-  {
     id: "system",
     label: "System",
     items: [
       navItem("Translations", `${ADMIN_PROTOTYPE_BASE}/translations`, Languages),
-      navItem("Site settings", `${ADMIN_PROTOTYPE_BASE}/settings`, SlidersHorizontal, "system-feature-flags"),
+      navItem("Feature flags", `${ADMIN_PROTOTYPE_BASE}/settings`, SlidersHorizontal, "system-feature-flags"),
       navItem("Users — search", `${ADMIN_PROTOTYPE_BASE}/users/search`, UserSearch),
       navItem("Users — admins", `${ADMIN_PROTOTYPE_BASE}/users/admins`, Shield),
       navItem("Account", `${ADMIN_PROTOTYPE_BASE}/account`, UserRound),
     ],
   },
 ];
+
+/** IDs of the primary (operator-daily) nav groups — used for sidebar visual priority. */
+export const ADMIN_PROTOTYPE_PRIMARY_GROUP_IDS = new Set([
+  "dashboard",
+  "operations",
+  "talent",
+  "site",
+  "clients",
+]);

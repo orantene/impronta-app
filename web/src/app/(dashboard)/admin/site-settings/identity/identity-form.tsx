@@ -132,10 +132,9 @@ export function IdentityForm({ canEdit, row }: Props) {
 
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Pick the locales this tenant publishes. The default locale is what
-            the storefront renders when a page is missing a translation —
-            temporary safety only; a future milestone surfaces missing-locale
-            warnings.
+            Pick the locales this tenant publishes. When a page is missing a
+            translation, the storefront falls back to the default locale below
+            so visitors never see an empty surface.
           </p>
           <div className="flex flex-wrap gap-3">
             {PLATFORM_LOCALES.map((loc) => {

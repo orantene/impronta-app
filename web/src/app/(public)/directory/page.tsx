@@ -19,18 +19,13 @@ import { getCachedActorSession } from "@/lib/server/request-cache";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
 import { parseDirectoryQuery } from "@/lib/directory/search-params";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
-  const t = createTranslator(locale);
-  return {
-    title: t("public.meta.directoryTitle"),
-    description: t("public.meta.directoryDescription"),
-    ...buildPublicLocaleAlternates(locale, "/directory"),
-  };
+  return buildPublicPageMetadata("directory", locale);
 }
 
 export default async function DirectoryPage({

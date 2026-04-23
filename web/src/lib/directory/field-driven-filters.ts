@@ -420,18 +420,35 @@ async function rpcFacetTaxonomy(
 async function rpcFacetLocation(
   supabase: SupabaseClient,
   args: {
+    p_tenant_id: string | null;
     p_height_min: number | null;
     p_height_max: number | null;
     p_selected_taxonomy_ids: string[];
     p_search: string | null;
   },
 ): Promise<FacetLocRow[] | null> {
-  const { data, error } = await supabase.rpc("directory_facet_location_counts", {
-    p_height_min: args.p_height_min,
-    p_height_max: args.p_height_max,
-    p_selected_taxonomy_ids: args.p_selected_taxonomy_ids,
-    p_search: args.p_search,
-  });
+  // Tenant storefronts use the 5-arg overload (added 2026-06-27) which
+  // restricts counts to the agency's active roster. Hub/marketing callers
+  // pass tenant_id=null and hit the legacy 4-arg signature for cross-agency
+  // aggregates.
+  const rpcArgs = args.p_tenant_id
+    ? {
+        p_tenant_id: args.p_tenant_id,
+        p_height_min: args.p_height_min,
+        p_height_max: args.p_height_max,
+        p_selected_taxonomy_ids: args.p_selected_taxonomy_ids,
+        p_search: args.p_search,
+      }
+    : {
+        p_height_min: args.p_height_min,
+        p_height_max: args.p_height_max,
+        p_selected_taxonomy_ids: args.p_selected_taxonomy_ids,
+        p_search: args.p_search,
+      };
+  const { data, error } = await supabase.rpc(
+    "directory_facet_location_counts",
+    rpcArgs,
+  );
   if (error) {
     if (isPostgrestMissingColumnError(error)) {
       console.warn(
@@ -700,11 +717,54 @@ async function loadDirectoryFilterSectionsUncached(
           .order("sort_order")
           .order("slug")
       : Promise.resolve({ data: [] as TaxonomyTermRow[], error: null }),
-    supabase
-      .from("locations")
-      .select("id, city_slug, display_name_en, display_name_es, country_code")
-      .is("archived_at", null)
-      .order("display_name_en"),
+    (async () => {
+      // Tenant-scope the location facet options: show only cities where this
+      // tenant has at least one approved/public talent. `directory_facet_
+      // location_counts` RPC is tenant-blind today (counts everyone), so
+      // without this pre-filter the sidebar listed other tenants' cities.
+      if (!tenantId) {
+        return supabase
+          .from("locations")
+          .select("id, city_slug, display_name_en, display_name_es, country_code")
+          .is("archived_at", null)
+          .order("display_name_en");
+      }
+      const rosterRes = await supabase
+        .from("agency_talent_roster")
+        .select("talent_profile_id")
+        .eq("tenant_id", tenantId)
+        .eq("status", "active");
+      const talentIds = ((rosterRes.data ?? []) as { talent_profile_id: string }[])
+        .map((r) => r.talent_profile_id)
+        .filter(Boolean);
+      if (!talentIds.length) {
+        return { data: [] as LocationRow[], error: null as null };
+      }
+      const profRes = await supabase
+        .from("talent_profiles")
+        .select("residence_city_id, location_id")
+        .in("id", talentIds)
+        .eq("workflow_status", "approved")
+        .eq("visibility", "public")
+        .is("deleted_at", null);
+      const cityIdSet = new Set<string>();
+      for (const r of (profRes.data ?? []) as {
+        residence_city_id: string | null;
+        location_id: string | null;
+      }[]) {
+        if (r.residence_city_id) cityIdSet.add(r.residence_city_id);
+        if (r.location_id) cityIdSet.add(r.location_id);
+      }
+      if (!cityIdSet.size) {
+        return { data: [] as LocationRow[], error: null as null };
+      }
+      return supabase
+        .from("locations")
+        .select("id, city_slug, display_name_en, display_name_es, country_code")
+        .is("archived_at", null)
+        .in("id", [...cityIdSet])
+        .order("display_name_en");
+    })(),
   ]);
 
   if (taxonomyRes.error) {
@@ -879,6 +939,7 @@ async function loadDirectoryFilterSectionsUncached(
   const locTask = locSection
     ? (async () => {
         const rows = await rpcFacetLocation(rpcClient, {
+          p_tenant_id: tenantId,
           p_height_min: rpcHeightMin,
           p_height_max: rpcHeightMax,
           p_selected_taxonomy_ids: ctx.taxonomyTermIds,
@@ -989,6 +1050,7 @@ async function loadDirectoryFilterSectionsUncached(
         locSection.options.some((o) => o.count === undefined) &&
         (async () => {
           const rows = await rpcFacetLocation(svc, {
+            p_tenant_id: tenantId,
             p_height_min: rpcHeightMin,
             p_height_max: rpcHeightMax,
             p_selected_taxonomy_ids: ctx.taxonomyTermIds,

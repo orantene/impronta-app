@@ -43,7 +43,7 @@ export default async function SiteSettingsBrandingPage() {
     <div className="space-y-4">
       <DashboardSectionCard
         title="Branding"
-        description="Logo, favicon, colors, typography. Full design-token controls arrive in M6; M1 covers the basics."
+        description="Logo, favicon, colors, and typography. These values flow through every storefront surface — header, footer, email, social cards. Advanced design tokens live under Design."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
         <BrandingForm canEdit={canEdit} row={row} />

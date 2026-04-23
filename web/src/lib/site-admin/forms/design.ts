@@ -32,6 +32,7 @@
  */
 
 import { z } from "zod";
+import { pgUuidSchema } from "../validators";
 
 import { validateThemePatch } from "../tokens/registry";
 
@@ -82,7 +83,7 @@ export type DesignPatchValues = z.output<typeof designPatchSchema>;
 // ---- save draft -----------------------------------------------------------
 
 export const designSaveDraftSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
   patch: designPatchSchema,
 });
@@ -98,7 +99,7 @@ export type DesignSaveDraftValues = z.output<typeof designSaveDraftSchema>;
  * the server op.
  */
 export const designPublishSchema = z.object({
-  tenantId: z.string().uuid(),
+  tenantId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 
@@ -108,8 +109,8 @@ export type DesignPublishValues = z.output<typeof designPublishSchema>;
 // ---- restore revision -----------------------------------------------------
 
 export const designRestoreRevisionSchema = z.object({
-  tenantId: z.string().uuid(),
-  revisionId: z.string().uuid(),
+  tenantId: pgUuidSchema(),
+  revisionId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 

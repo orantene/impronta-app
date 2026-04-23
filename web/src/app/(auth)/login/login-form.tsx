@@ -64,7 +64,7 @@ export function LoginForm({ nextPath, defaultEmail }: { nextPath?: string; defau
       <Button type="submit" className="w-full" disabled={pending}>
         {pending ? "Signing in…" : "Log in with email"}
       </Button>
-      <p className="text-center text-sm text-smuted-foreground">
+      <p className="text-center text-sm text-muted-foreground">
         No account?{" "}
         <Link
           href={nextPath ? `/register?next=${encodeURIComponent(nextPath)}` : "/register"}

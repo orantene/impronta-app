@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { PublicHeader } from "@/components/public-header";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
+import { PoweredByTulala } from "@/components/powered-by-tulala";
 import { HeroSearch } from "@/components/home/hero-search";
 import { LifestyleBackdrop } from "@/components/home/lifestyle-backdrop";
 import { TalentTypeShortcuts } from "@/components/home/talent-type-shortcuts";
@@ -26,6 +27,7 @@ import {
 } from "@/lib/site-admin/server/homepage-reads";
 import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isLocale } from "@/lib/site-admin/locales";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
 /**
  * Agency-surface storefront (what was the old root homepage).
@@ -55,7 +57,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     loadPublicIdentity(tenantId),
     isPreviewActiveForTenant(tenantId),
   ]);
-  const brandLabel = identity?.public_name?.trim() || "Roster";
+  const brandLabel = identity?.public_name?.trim() || PLATFORM_BRAND.name;
   const footerTagline =
     identity?.footer_tagline?.trim() || t("public.home.footer.tagline");
   const cmsHeroSlot = cmsHomepage?.snapshot?.slots.some(
@@ -352,6 +354,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                   .replace("{year}", String(year))
                   .replace("{brand}", brandLabel)}
               </p>
+              <PoweredByTulala className="mt-2" />
             </div>
           </footer>
         </main>

@@ -25,6 +25,7 @@ import { z } from "zod";
 import { localeSchema } from "../locales";
 import { tenantSlugRefinement } from "../reserved-routes";
 import { TEMPLATE_REGISTRY } from "../templates/registry";
+import { pgUuidSchema } from "../validators";
 
 // ---- constants ------------------------------------------------------------
 
@@ -116,8 +117,8 @@ export const pageHeroSchema = z
  */
 export const pageUpsertSchema = z
   .object({
-    id: z.string().uuid().nullable().optional(),
-    tenantId: z.string().uuid(),
+    id: pgUuidSchema().nullable().optional(),
+    tenantId: pgUuidSchema(),
     locale: localeSchema,
     slug: pageSlugSchema,
     /**
@@ -163,7 +164,7 @@ export const pageUpsertSchema = z
       .max(PAGE_OG_DESCRIPTION_MAX)
       .nullable()
       .optional(),
-    ogImageMediaAssetId: z.string().uuid().nullable().optional(),
+    ogImageMediaAssetId: pgUuidSchema().nullable().optional(),
     noindex: z.boolean().default(false),
     includeInSitemap: z.boolean().default(true),
     canonicalUrl: z
@@ -193,8 +194,8 @@ export type PageUpsertValues = z.output<typeof pageUpsertSchema>;
 // ---- lifecycle mutation shapes (CAS only) ---------------------------------
 
 export const pagePublishSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 
@@ -202,8 +203,8 @@ export type PagePublishInput = z.input<typeof pagePublishSchema>;
 export type PagePublishValues = z.output<typeof pagePublishSchema>;
 
 export const pageArchiveSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 
@@ -211,8 +212,8 @@ export type PageArchiveInput = z.input<typeof pageArchiveSchema>;
 export type PageArchiveValues = z.output<typeof pageArchiveSchema>;
 
 export const pageDeleteSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 
@@ -222,9 +223,9 @@ export type PageDeleteValues = z.output<typeof pageDeleteSchema>;
 // ---- restore-from-revision ------------------------------------------------
 
 export const pageRestoreRevisionSchema = z.object({
-  pageId: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  revisionId: z.string().uuid(),
+  pageId: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
+  revisionId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 
@@ -239,8 +240,8 @@ export type PageRestoreRevisionValues = z.output<typeof pageRestoreRevisionSchem
  * entity types even if the cookie is stolen cross-surface.
  */
 export const pagePreviewStartSchema = z.object({
-  pageId: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  pageId: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
 });
 
 export type PagePreviewStartInput = z.input<typeof pagePreviewStartSchema>;

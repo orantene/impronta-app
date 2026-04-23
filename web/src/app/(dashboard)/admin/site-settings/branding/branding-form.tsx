@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { BrandingRow } from "@/lib/site-admin/server/branding";
 
 import { saveBrandingAction, type BrandingActionState } from "./actions";
@@ -76,6 +77,13 @@ export function BrandingForm({ canEdit, row }: Props) {
 
   const fieldErrors =
     state && state.ok === false ? state.fieldErrors : undefined;
+
+  // Local state purely for the live preview — the form still submits via the
+  // server action on the textarea's `name="brandMarkSvg"`. Empty string is
+  // fine for preview; the sanitizer runs server-side before persistence.
+  const [brandMarkDraft, setBrandMarkDraft] = useState<string>(
+    row?.brand_mark_svg ?? "",
+  );
 
   return (
     <form action={action} className="space-y-8">
@@ -171,6 +179,49 @@ export function BrandingForm({ canEdit, row }: Props) {
               placeholder="UUID"
             />
             <FieldError messages={fieldErrors} name="ogImageMediaAssetId" />
+          </div>
+        </div>
+      </fieldset>
+
+      {/* ---------- Brand mark (inline SVG) ---------- */}
+      <fieldset disabled={!canEdit || pending} className="space-y-4">
+        <legend className="font-display text-sm font-medium tracking-wide text-muted-foreground">
+          Brand mark
+        </legend>
+        <p className="text-sm text-muted-foreground">
+          Paste an inline SVG that renders next to the text brand name in the
+          public header. Use <code className="font-mono text-xs">currentColor</code>{" "}
+          for strokes/fills so the design-token palette drives the color. An
+          allowlist rejects scripts, event handlers, external URLs, and
+          inline styles. Max ~20 KB.
+        </p>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="space-y-1.5">
+            <Label htmlFor="brandMarkSvg">SVG markup</Label>
+            <Textarea
+              id="brandMarkSvg"
+              name="brandMarkSvg"
+              defaultValue={row?.brand_mark_svg ?? ""}
+              onChange={(e) => setBrandMarkDraft(e.target.value)}
+              rows={8}
+              placeholder={'<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">…</svg>'}
+              className="font-mono text-xs"
+            />
+            <FieldError messages={fieldErrors} name="brandMarkSvg" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Preview</Label>
+            <div
+              aria-label="Brand mark preview"
+              className="flex h-20 w-20 items-center justify-center rounded-md border border-border/60 bg-muted/20 text-foreground [&>svg]:h-10 [&>svg]:w-10"
+              dangerouslySetInnerHTML={{
+                __html: brandMarkDraft.trim().length > 0 ? brandMarkDraft : "",
+              }}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Live preview renders the textarea as-is; the server re-sanitizes
+              on save.
+            </p>
           </div>
         </div>
       </fieldset>

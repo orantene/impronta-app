@@ -274,7 +274,7 @@ function WhoItsForSection() {
             className="mt-5 text-[1rem] leading-[1.6]"
             style={{ color: "var(--plt-muted)" }}
           >
-            {PLATFORM_BRAND.name} is the roster operating system for anyone whose product is{" "}
+            {PLATFORM_BRAND.name} is the talent business platform for anyone whose product is{" "}
             <em>people they represent</em> — solo operators, internal rosters, full
             agencies, and large placement operations. One engine, four shapes.
           </p>

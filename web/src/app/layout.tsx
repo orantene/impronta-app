@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { Cinzel, Geist, Geist_Mono, Inter, Playfair_Display, Raleway } from "next/font/google";
+import {
+  Cinzel,
+  Fraunces,
+  Geist,
+  Geist_Mono,
+  Inter,
+  Playfair_Display,
+  Raleway,
+} from "next/font/google";
 import { AnalyticsConsentBanner } from "@/components/analytics/analytics-consent-banner";
 import { AnalyticsScripts } from "@/components/analytics/analytics-scripts";
 import { CspViolationReporter } from "@/components/csp-violation-reporter";
@@ -62,6 +70,20 @@ const playfairDisplay = Playfair_Display({
   weight: ["400", "500", "600", "700"],
 });
 
+/**
+ * M7 — editorial variable serif used by the `editorial-serif` heading preset
+ * and by any storefront that opts into the Editorial Bridal theme. Hidden
+ * behind a CSS var so legacy tenants on Raleway/Playfair don't pay for the
+ * payload unless their heading preset references it.
+ */
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  display: "swap",
+  axes: ["opsz", "SOFT"],
+  style: ["normal", "italic"],
+});
+
 export const metadata: Metadata = {
   title: {
     default: `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`,
@@ -119,11 +141,11 @@ export default async function RootLayout({
       data-public-font-preset={publicFontPreset}
       {...tokenDataAttrs}
       style={tokenCssVars as React.CSSProperties}
-      className={`${bodySans.variable} ${geistSans.variable} ${geistMono.variable} ${cinzel.variable} ${interBody.variable} ${playfairDisplay.variable} h-full antialiased`}
+      className={`${bodySans.variable} ${geistSans.variable} ${geistMono.variable} ${cinzel.variable} ${interBody.variable} ${playfairDisplay.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body
         suppressHydrationWarning
-        className={`site-theme-${siteTheme} flex min-h-full flex-col text-foreground`}
+        className={`site-theme-${siteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
         <AnalyticsScripts />
         <WebVitalsReporter />

@@ -71,6 +71,12 @@ export interface DesignBrandingRow {
   tenant_id: string;
   theme_json: Record<string, string>;
   theme_json_draft: Record<string, string>;
+  /**
+   * M7 — slug of the last applied preset (e.g. 'editorial-bridal').
+   * Null for tenants that have never applied a preset / are fully custom.
+   * Metadata only — not read at render time.
+   */
+  theme_preset_slug: string | null;
   theme_published_at: string | null;
   version: number;
   updated_by: string | null;
@@ -83,6 +89,8 @@ export interface DesignRevisionSnapshot {
   kind: "draft" | "published" | "rollback";
   theme_json: Record<string, string>;
   theme_json_draft: Record<string, string>;
+  /** M7 — preset slug at revision time (may be null on legacy revisions). */
+  theme_preset_slug?: string | null;
   theme_published_at: string | null;
   version: number;
 }
@@ -101,6 +109,7 @@ const DESIGN_SELECT = `
   tenant_id,
   theme_json,
   theme_json_draft,
+  theme_preset_slug,
   theme_published_at,
   version,
   updated_by,
@@ -519,6 +528,139 @@ export async function restoreDesignRevision(
   return ok({
     version: updatedRow.version,
     themeDraft: updatedRow.theme_json_draft,
+  });
+}
+
+// ---- apply theme preset (M7) ---------------------------------------------
+
+/**
+ * M7 — apply a named theme preset.
+ *
+ * Unlike `saveDesignDraft` which replaces `theme_json_draft` entirely with
+ * the patch, preset application is an **additive merge**:
+ *   1. Start from the current `theme_json_draft` (operator's working copy).
+ *   2. Overlay the preset's `tokens` map on top — only the preset's keys
+ *      are overwritten; every orthogonal token the operator has customised
+ *      (logo, custom primary, etc.) is preserved.
+ *   3. Stamp `theme_preset_slug = preset.slug` so the admin UI can show
+ *      "Editorial Bridal" as the active preset.
+ *
+ * The operator can still tweak individual tokens after applying — the
+ * preset slug stays as a hint ("you're on Editorial Bridal with overrides").
+ *
+ * Capability: `agency.site_admin.design.edit` (same as draft save).
+ * Cache: NO bust — this lands as a draft; publish is a separate step.
+ */
+export async function applyThemePreset(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    presetSlug: string;
+    expectedVersion: number;
+    actorProfileId: string | null;
+    correlationId?: string;
+  },
+): Promise<
+  Phase5Result<{
+    version: number;
+    themeDraft: Record<string, string>;
+    presetSlug: string;
+  }>
+> {
+  const { tenantId, presetSlug, expectedVersion, actorProfileId } = params;
+  const correlationId = params.correlationId ?? randomUUID();
+
+  await requirePhase5Capability("agency.site_admin.design.edit", tenantId);
+
+  // Lazy-load to avoid a circular dep between server/design.ts and presets.
+  const { getThemePreset } = await import("@/lib/site-admin/presets/theme-presets");
+  const preset = getThemePreset(presetSlug);
+  if (!preset) {
+    return fail("NOT_FOUND", `Unknown theme preset: ${presetSlug}`);
+  }
+
+  const beforeRow = await loadRow(supabase, tenantId);
+  if (!beforeRow) {
+    return fail(
+      "NOT_FOUND",
+      "Branding row missing. Initialise branding before applying a theme preset.",
+    );
+  }
+  if (beforeRow.version !== expectedVersion) {
+    return versionConflict(beforeRow.version);
+  }
+
+  // Merge: operator draft + preset bundle. Preset wins on its keys only.
+  const merged: Record<string, string> = {
+    ...beforeRow.theme_json_draft,
+    ...preset.tokens,
+  };
+
+  // Defensive: run the merged map through the registry gate so a bad preset
+  // (caught by the module-load validator) or a stale draft key still gets
+  // filtered out before it hits the database.
+  const gate = validateThemePatch(merged);
+  if (!gate.ok) {
+    return fail(
+      "TOKEN_NOT_OVERRIDABLE",
+      `Preset produced rejected keys: ${gate.rejected.join(", ")}`,
+    );
+  }
+
+  const nextVersion = beforeRow.version + 1;
+  const { data: updatedRow, error: updateError } = await supabase
+    .from("agency_branding")
+    .update({
+      theme_json_draft: gate.normalized,
+      theme_preset_slug: preset.slug,
+      version: nextVersion,
+      updated_by: actorProfileId,
+    })
+    .eq("tenant_id", tenantId)
+    .eq("version", beforeRow.version)
+    .select(DESIGN_SELECT)
+    .maybeSingle<DesignBrandingRow>();
+  if (updateError) {
+    return fail("FORBIDDEN", updateError.message);
+  }
+  if (!updatedRow) {
+    const fresh = await loadRow(supabase, tenantId);
+    return versionConflict(fresh?.version ?? beforeRow.version + 1);
+  }
+
+  await insertDesignRevision(supabase, {
+    tenantId,
+    kind: "draft",
+    version: updatedRow.version,
+    snapshot: {
+      kind: "draft",
+      theme_json: updatedRow.theme_json,
+      theme_json_draft: updatedRow.theme_json_draft,
+      theme_preset_slug: updatedRow.theme_preset_slug,
+      theme_published_at: updatedRow.theme_published_at,
+      version: updatedRow.version,
+    },
+    actorProfileId,
+  });
+
+  await emitAuditEvent(supabase, {
+    tenantId,
+    actorProfileId,
+    action: "agency.site_admin.design.edit",
+    entityType: "agency_branding",
+    entityId: tenantId,
+    diffSummary: `applied preset "${preset.slug}" → draft (${Object.keys(preset.tokens).length} tokens)`,
+    beforeSnapshot: beforeRow,
+    afterSnapshot: updatedRow,
+    correlationId,
+  });
+
+  // NO cache bust — preset application lands in draft, not live.
+
+  return ok({
+    version: updatedRow.version,
+    themeDraft: updatedRow.theme_json_draft,
+    presetSlug: preset.slug,
   });
 }
 

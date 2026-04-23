@@ -14,6 +14,8 @@
  */
 
 import { z } from "zod";
+import { pgUuidSchema } from "../validators";
+import { sanitizeBrandMarkSvg } from "../sanitize-svg";
 
 // Hex color `#rgb` or `#rrggbb`. DB CHECK on secondary_color enforces the
 // 6-char form; the Zod layer accepts both for UX, then normalizes to lowercase
@@ -42,7 +44,7 @@ const hexColorOptional = z
   .optional();
 
 const uuidOptional = z
-  .union([z.literal(""), z.string().uuid()])
+  .union([z.literal(""), pgUuidSchema()])
   .transform((v) => (v === "" ? null : v ?? null))
   .nullable()
   .optional();
@@ -74,8 +76,39 @@ export const brandingFormSchema = z.object({
   headingFont: trimmedOptional(120),
   bodyFont: trimmedOptional(120),
 
+  // Brand mark ---------------------------------------------------------------
+  // Inline SVG sanitized via the allowlist. Empty → null. We run the
+  // sanitizer in a `superRefine` so operators see every reason the SVG was
+  // rejected (not just the first), and we attach the error to the
+  // `brandMarkSvg` path so the form can highlight the field.
+  brandMarkSvg: z
+    .string()
+    .optional()
+    .nullable()
+    .transform((v) => (typeof v === "string" ? v : "")),
+
   // Concurrency --------------------------------------------------------------
   expectedVersion: z.number().int().min(0),
+}).superRefine((values, ctx) => {
+  const raw = values.brandMarkSvg ?? "";
+  if (raw.trim().length === 0) return;
+  const result = sanitizeBrandMarkSvg(raw);
+  if (!result.ok) {
+    for (const err of result.errors) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["brandMarkSvg"],
+        message: err,
+      });
+    }
+  }
+}).transform((values) => {
+  const raw = values.brandMarkSvg ?? "";
+  const result = sanitizeBrandMarkSvg(raw);
+  return {
+    ...values,
+    brandMarkSvg: result.ok ? (result.svg ?? null) : null,
+  };
 });
 
 export type BrandingFormInput = z.input<typeof brandingFormSchema>;

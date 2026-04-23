@@ -124,7 +124,7 @@ export function PublishPreflightModal({
             <h2 className="text-base font-semibold">Review + publish</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Publishing promotes the draft composition to the live
-              storefront and freezes each section's content into the
+              storefront and freezes each section&apos;s content into the
               published snapshot. You can always roll back from the
               Revisions panel.
             </p>
@@ -181,7 +181,7 @@ export function PublishPreflightModal({
                 id="preflight-changes-heading"
                 className="text-sm font-semibold"
               >
-                What's changing from the live site
+                What&apos;s changing from the live site
               </h3>
               <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-2">

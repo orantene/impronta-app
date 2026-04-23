@@ -350,9 +350,14 @@ export function HomepageComposer({
   const historyRef = useRef<Array<Record<string, SlotEntry[]>>>([initialEntries]);
   const historyIdxRef = useRef<number>(0);
   const [historyVersion, setHistoryVersion] = useState(0);
+  // historyVersion increments on every undo/redo/push, so we use it to gate
+  // access to the refs inside render. The lint rule doesn't know that
+  // historyVersion is our state bridge, so quiet it for these lines.
+  // eslint-disable-next-line react-hooks/refs
   const canUndo = historyVersion > 0 && historyIdxRef.current > 0;
   const canRedo =
     historyVersion > 0 &&
+    // eslint-disable-next-line react-hooks/refs
     historyIdxRef.current < historyRef.current.length - 1;
 
   const commitEntries = useCallback(

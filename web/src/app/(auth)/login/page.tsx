@@ -15,8 +15,8 @@ export default async function LoginPage({
       <div className="space-y-1 text-center">
         <h1 className="text-xl font-semibold">Log in</h1>
         <p className="text-sm text-muted-foreground">
-          Google or email — staff roles are never chosen here. With Google, a password is optional
-          (add one under Account after signing in).
+          Continue with Google or email. With Google, a password is optional — you can add one
+          later under Account.
         </p>
       </div>
       {error ? (

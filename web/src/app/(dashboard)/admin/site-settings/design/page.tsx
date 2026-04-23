@@ -5,6 +5,7 @@ import { ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
 import {
   hasPhase5Capability,
   listAgencyConfigurableTokens,
+  listThemePresets,
   resolveDesignTokens,
   tokenDefaults,
 } from "@/lib/site-admin";
@@ -15,7 +16,23 @@ import {
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 
-import { DesignEditor } from "./design-editor";
+import { DesignEditor, type TokenView } from "./design-editor";
+import {
+  ThemePresetPicker,
+  type ThemePresetView,
+} from "./theme-preset-picker";
+
+/**
+ * RSC serialization boundary: `TokenSpec.validator` is a Zod class instance
+ * which cannot cross the server → client component wire. Project it down to
+ * the plain-object shape the client actually needs (enum options resolved
+ * here, server-side).
+ */
+function enumOptionsFor(validator: unknown): readonly string[] | null {
+  const candidate = validator as { options?: readonly string[] };
+  if (Array.isArray(candidate.options)) return [...candidate.options];
+  return null;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -112,15 +129,46 @@ export default async function SiteSettingsDesignPage() {
   });
   const liveMerged = resolveDesignTokens({ theme_json: row.theme_json });
 
+  // M7 — preset registry projection. Same RSC-safe pattern as TokenSpec:
+  // strip runtime functions (Zod validators aren't serializable); keep the
+  // static metadata the picker needs.
+  const presetViews: ThemePresetView[] = listThemePresets().map((p) => ({
+    slug: p.slug,
+    label: p.label,
+    summary: p.summary,
+    idealFor: [...p.idealFor],
+    previewSwatch: p.previewSwatch ? { ...p.previewSwatch } : undefined,
+  }));
+
   return (
     <div className="space-y-4">
       <DashboardSectionCard
+        title="Theme preset"
+        description="Apply a whole design system at once. Presets populate every design token; individual tweaks are still possible below."
+        titleClassName={ADMIN_SECTION_TITLE_CLASS}
+      >
+        <ThemePresetPicker
+          presets={presetViews}
+          activeSlug={row.theme_preset_slug ?? null}
+          version={row.version}
+          canEdit={canEdit}
+        />
+      </DashboardSectionCard>
+
+      <DashboardSectionCard
         title="Design tokens"
-        description="Govern storefront colours, type presets and radius. Changes land as a draft; publish promotes them to the live storefront."
+        description="Fine-tune colours, type presets, radius, motion, density, shell and more. Changes land as a draft; publish promotes them to the live storefront."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
         <DesignEditor
-          tokens={listAgencyConfigurableTokens()}
+          tokens={listAgencyConfigurableTokens().map<TokenView>((spec) => ({
+            key: spec.key,
+            label: spec.label,
+            scope: spec.scope,
+            options: enumOptionsFor(spec.validator),
+            group: spec.group,
+            description: spec.description,
+          }))}
           draftValues={draftMerged}
           liveValues={liveMerged}
           defaults={defaults}

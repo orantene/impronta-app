@@ -3,6 +3,9 @@ import { loadAccessProfile } from "@/lib/access-profile";
 import { isStaffRole } from "@/lib/auth-flow";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { getTenantScope } from "@/lib/saas/scope";
+import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
+
+const IMPOSSIBLE_ID = "00000000-0000-0000-0000-000000000000";
 
 const LIMIT = 8;
 
@@ -98,6 +101,45 @@ export async function GET(request: Request) {
   }
   const tenantId = scope.tenantId;
 
+  const rosterTalentIds = await listAdminRosterTalentIds(supabase, tenantId);
+  const scopedTalentIds = rosterTalentIds.length > 0 ? rosterTalentIds : [IMPOSSIBLE_ID];
+
+  const [{ data: inquiryClientRows }, { data: staffMembershipRows }] =
+    await Promise.all([
+      supabase
+        .from("inquiries")
+        .select("client_user_id")
+        .eq("tenant_id", tenantId)
+        .not("client_user_id", "is", null),
+      supabase
+        .from("agency_memberships")
+        .select("profile_id")
+        .eq("tenant_id", tenantId)
+        .eq("status", "active"),
+    ]);
+
+  const tenantClientIds = [
+    ...new Set(
+      (inquiryClientRows ?? [])
+        .map((r) => r.client_user_id as string | null)
+        .filter((v): v is string => Boolean(v)),
+    ),
+  ];
+  const scopedClientIds = tenantClientIds.length > 0 ? tenantClientIds : [IMPOSSIBLE_ID];
+
+  const tenantStaffIds = (staffMembershipRows ?? [])
+    .map((r) => r.profile_id as string | null)
+    .filter((v): v is string => Boolean(v));
+  const talentUserIds = (
+    await supabase.from("talent_profiles").select("user_id").in("id", scopedTalentIds)
+  ).data
+    ?.map((r) => r.user_id as string | null)
+    .filter((v): v is string => Boolean(v)) ?? [];
+  const accountProfileIds = [
+    ...new Set([...tenantStaffIds, ...talentUserIds, ...tenantClientIds]),
+  ];
+  const scopedAccountIds = accountProfileIds.length > 0 ? accountProfileIds : [IMPOSSIBLE_ID];
+
   const pattern = ilikePattern(q);
   const qUuid = isUuid(q);
 
@@ -120,6 +162,7 @@ export async function GET(request: Request) {
     supabase
       .from("talent_profiles")
       .select("id, profile_code, display_name")
+      .in("id", scopedTalentIds)
       .is("deleted_at", null)
       .ilike("display_name", pattern)
       .order("created_at", { ascending: false })
@@ -127,6 +170,7 @@ export async function GET(request: Request) {
     supabase
       .from("talent_profiles")
       .select("id, profile_code, display_name")
+      .in("id", scopedTalentIds)
       .is("deleted_at", null)
       .ilike("profile_code", pattern)
       .order("created_at", { ascending: false })
@@ -134,6 +178,7 @@ export async function GET(request: Request) {
     supabase
       .from("talent_profiles")
       .select("id, profile_code, display_name")
+      .in("id", scopedTalentIds)
       .is("deleted_at", null)
       .filter("id::text", "ilike", pattern)
       .order("created_at", { ascending: false })
@@ -162,19 +207,22 @@ export async function GET(request: Request) {
     supabase
       .from("profiles")
       .select("id, display_name")
+      .in("id", scopedClientIds)
       .eq("app_role", "client")
       .ilike("display_name", pattern)
       .order("created_at", { ascending: false })
       .limit(LIMIT),
     supabase
       .from("profiles")
-      .select("id, display_name, app_role, talent_profiles(id)")
+      .select("id, display_name, app_role, talent_profiles!talent_profiles_user_id_fkey(id)")
+      .in("id", scopedAccountIds)
       .ilike("display_name", pattern)
       .order("created_at", { ascending: false })
       .limit(LIMIT),
     supabase
       .from("profiles")
-      .select("id, display_name, app_role, talent_profiles(id)")
+      .select("id, display_name, app_role, talent_profiles!talent_profiles_user_id_fkey(id)")
+      .in("id", scopedAccountIds)
       .filter("id::text", "ilike", pattern)
       .order("created_at", { ascending: false })
       .limit(LIMIT),
@@ -182,6 +230,7 @@ export async function GET(request: Request) {
       ? supabase
           .from("talent_profiles")
           .select("id, profile_code, display_name")
+          .in("id", scopedTalentIds)
           .is("deleted_at", null)
           .eq("id", q)
           .limit(1)
@@ -190,6 +239,7 @@ export async function GET(request: Request) {
       ? supabase
           .from("talent_profiles")
           .select("id, profile_code, display_name")
+          .in("id", scopedTalentIds)
           .is("deleted_at", null)
           .eq("user_id", q)
           .limit(1)
@@ -205,7 +255,8 @@ export async function GET(request: Request) {
     qUuid
       ? supabase
           .from("profiles")
-          .select("id, display_name, app_role, talent_profiles(id)")
+          .select("id, display_name, app_role, talent_profiles!talent_profiles_user_id_fkey(id)")
+          .in("id", scopedAccountIds)
           .eq("id", q)
           .limit(1)
       : Promise.resolve({ data: [] as ProfileAccountRow[], error: null }),

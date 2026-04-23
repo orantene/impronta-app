@@ -89,7 +89,7 @@ export default function OperatorsPage() {
             <span style={{ color: "var(--plt-forest)" }}>a real business.</span>
           </>
         }
-        subtitle={`${PLATFORM_BRAND.name} is the roster operating system for coordinators, freelance scouts, managers, and one-person agencies. Get a polished directory site, a structured inquiry inbox, and exposure on a shared discovery network \u2014 free to start.`}
+        subtitle={`${PLATFORM_BRAND.name} is the talent business platform for coordinators, freelance scouts, managers, and one-person agencies. Get a polished storefront, a structured inquiry inbox, and exposure on a shared discovery network \u2014 free to start.`}
         primary={{ label: "Start free", href: "/get-started?audience=operator", intent: "get-started" }}
         secondary={{ label: "See how it works", href: "/how-it-works", intent: "learn" }}
         sourcePage="operators-hero"

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   booleanFromEquals,
@@ -11,6 +12,8 @@ import {
   workflowStatusSchema,
 } from "@/lib/admin/validation";
 import { requireStaff } from "@/lib/server/action-guards";
+import { getTenantScope } from "@/lib/saas/scope";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import {
   readCanonicalLocationSelection,
   resolveCanonicalLocationSelection,
@@ -733,4 +736,131 @@ export async function restoreTalentProfile(
   revalidatePath("/admin/talent");
   revalidatePath(`/admin/talent/${id}`);
   return { success: true };
+}
+
+export type CreateTalentFormState =
+  | { error?: string; success?: boolean }
+  | undefined;
+
+const trimmedField = z
+  .string()
+  .optional()
+  .transform((v) => (typeof v === "string" ? v.trim() : ""));
+
+const createTalentSchema = z.object({
+  display_name: z
+    .string()
+    .transform((v) => v.trim())
+    .pipe(z.string().min(1, "Display name is required.")),
+  first_name: trimmedField,
+  last_name: trimmedField,
+  short_bio: trimmedField,
+  phone: trimmedField,
+  talent_type_term_id: z
+    .string()
+    .uuid()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  agency_visibility: z
+    .enum(["roster_only", "site_visible", "featured"])
+    .default("roster_only"),
+});
+
+export async function createTalentProfile(
+  _prev: CreateTalentFormState,
+  formData: FormData,
+): Promise<CreateTalentFormState> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { error: auth.error };
+  const { supabase, user } = auth;
+
+  const scope = await getTenantScope();
+  if (!scope) {
+    return { error: "No agency workspace selected." };
+  }
+
+  const parsed = parseWithSchema(createTalentSchema, {
+    display_name: formData.get("display_name"),
+    first_name: formData.get("first_name"),
+    last_name: formData.get("last_name"),
+    short_bio: formData.get("short_bio"),
+    phone: formData.get("phone"),
+    talent_type_term_id: formData.get("talent_type_term_id") || undefined,
+    agency_visibility: formData.get("agency_visibility") || "roster_only",
+  });
+  if ("error" in parsed) return { error: parsed.error };
+
+  const admin = createServiceRoleClient();
+  if (!admin) {
+    return {
+      error:
+        "Server is missing SUPABASE_SERVICE_ROLE_KEY. Add it to enable admin-created talent profiles.",
+    };
+  }
+
+  const { data: codeRow, error: codeErr } = await admin.rpc("generate_profile_code");
+  if (codeErr || !codeRow) {
+    logServerError("admin/createTalentProfile/code", codeErr);
+    return { error: "Could not allocate a profile code." };
+  }
+  const profileCode = String(codeRow);
+
+  const displayName = parsed.data.display_name;
+  const firstName = parsed.data.first_name || null;
+  const lastName = parsed.data.last_name || null;
+  const shortBio = parsed.data.short_bio || null;
+  const phone = parsed.data.phone || null;
+
+  const { data: inserted, error: insertErr } = await admin
+    .from("talent_profiles")
+    .insert({
+      profile_code: profileCode,
+      display_name: displayName,
+      first_name: firstName,
+      last_name: lastName,
+      short_bio: shortBio,
+      phone,
+      workflow_status: "draft",
+      visibility: "hidden",
+      membership_tier: "free",
+      membership_status: "active",
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !inserted) {
+    logServerError("admin/createTalentProfile/insert", insertErr);
+    return { error: CLIENT_ERROR.update };
+  }
+  const talentProfileId = inserted.id as string;
+
+  const { error: rosterErr } = await admin.from("agency_talent_roster").insert({
+    tenant_id: scope.tenantId,
+    talent_profile_id: talentProfileId,
+    source_type: "agency_created",
+    status: "active",
+    agency_visibility: parsed.data.agency_visibility,
+    added_by: user.id,
+  });
+  if (rosterErr) {
+    logServerError("admin/createTalentProfile/roster", rosterErr);
+    await admin.from("talent_profiles").delete().eq("id", talentProfileId);
+    return { error: "Could not add profile to your agency roster." };
+  }
+
+  if (parsed.data.talent_type_term_id) {
+    const { error: taxErr } = await admin.from("talent_profile_taxonomy").insert({
+      talent_profile_id: talentProfileId,
+      taxonomy_term_id: parsed.data.talent_type_term_id,
+      is_primary: true,
+    });
+    if (taxErr) {
+      logServerError("admin/createTalentProfile/taxonomy", taxErr);
+    }
+  }
+
+  await scheduleRebuildAiSearchDocument(supabase, talentProfileId);
+
+  revalidatePath("/admin/talent");
+  redirect(`/admin/talent/${talentProfileId}`);
 }

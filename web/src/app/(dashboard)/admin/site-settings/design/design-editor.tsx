@@ -23,13 +23,11 @@
  *     generic so a future registry change doesn't need UI work.
  */
 
-import { useActionState } from "react";
-import { z } from "zod";
+import { useActionState, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { TokenSpec } from "@/lib/site-admin/tokens/registry";
 
 import {
   publishDesignAction,
@@ -37,6 +35,30 @@ import {
   saveDesignDraftAction,
   type DesignActionState,
 } from "./actions";
+
+// Client-safe projection of TokenSpec — the server resolves enum options and
+// strips the Zod validator, which can't cross the RSC boundary.
+export interface TokenView {
+  key: string;
+  label: string;
+  scope:
+    | "color"
+    | "typography"
+    | "spacing"
+    | "radius"
+    | "shadow"
+    | "motion"
+    | "density"
+    | "icon"
+    | "shell"
+    | "background"
+    | "template";
+  options: readonly string[] | null;
+  /** M7 — optional grouping hint for the admin UI. */
+  group?: string;
+  /** M7 — optional operator-facing help text. */
+  description?: string;
+}
 
 interface RevisionEntry {
   id: string;
@@ -46,7 +68,7 @@ interface RevisionEntry {
 }
 
 interface Props {
-  tokens: ReadonlyArray<TokenSpec>;
+  tokens: ReadonlyArray<TokenView>;
   draftValues: Record<string, string>;
   liveValues: Record<string, string>;
   defaults: Record<string, string>;
@@ -80,23 +102,23 @@ function formatTs(ts: string | null): string {
 }
 
 /**
- * Extract enum options for a token whose validator is a Zod enum. Returns
- * `null` for non-enum validators (colors) so the caller can fall back to a
- * text input.
+ * Group tokens by their `group` annotation, preserving registry order.
+ * Tokens without a group land in "Other".
  */
-function enumOptions(spec: TokenSpec): string[] | null {
-  // z.ZodEnum exposes its members via `.options`. Any other validator path
-  // (z.string().regex(...) for hex colors) returns `null`.
-  const candidate = spec.validator as unknown as { options?: readonly string[] };
-  if (Array.isArray(candidate.options)) return [...candidate.options];
-  // Also support validators that expose a `_def.values` map (older Zod).
-  const deprecatedDef = (spec.validator as unknown as {
-    _def?: { values?: readonly string[] };
-  })._def;
-  if (deprecatedDef?.values && Array.isArray(deprecatedDef.values)) {
-    return [...deprecatedDef.values];
+function groupTokens(
+  tokens: ReadonlyArray<TokenView>,
+): Array<{ name: string; tokens: ReadonlyArray<TokenView> }> {
+  const order: string[] = [];
+  const buckets = new Map<string, TokenView[]>();
+  for (const t of tokens) {
+    const g = t.group ?? "Other";
+    if (!buckets.has(g)) {
+      buckets.set(g, []);
+      order.push(g);
+    }
+    buckets.get(g)!.push(t);
   }
-  return null;
+  return order.map((name) => ({ name, tokens: buckets.get(name)! }));
 }
 
 function TokenInput({
@@ -105,13 +127,13 @@ function TokenInput({
   disabled,
   fieldErrors,
 }: {
-  spec: TokenSpec;
+  spec: TokenView;
   draftValue: string;
   disabled: boolean;
   fieldErrors?: Record<string, string>;
 }) {
   const name = `token.${spec.key}`;
-  const options = enumOptions(spec);
+  const { options } = spec;
 
   if (options) {
     return (
@@ -178,11 +200,6 @@ function TokenInput({
   );
 }
 
-// `z` import check — kept only so unused-imports linter doesn't scrub the
-// dep; the runtime path doesn't need Zod here (server re-validates).
-const _zEnumWitness: typeof z.ZodEnum | undefined = z.ZodEnum;
-void _zEnumWitness;
-
 export function DesignEditor({
   tokens,
   draftValues,
@@ -194,6 +211,7 @@ export function DesignEditor({
   canEdit,
   canPublish,
 }: Props) {
+  const [showHelp, setShowHelp] = useState(false);
   const [saveState, saveAction, savePending] = useActionState<
     DesignActionState,
     FormData
@@ -238,30 +256,68 @@ export function DesignEditor({
       {/* Save draft */}
       <form action={saveAction} className="space-y-6">
         <input type="hidden" name="expectedVersion" value={version} />
-        <div className="grid gap-6 md:grid-cols-2">
-          {tokens.map((spec) => (
-            <div key={spec.key} className="rounded-md border border-border/40 p-3">
-              <TokenInput
-                spec={spec}
-                draftValue={draftValues[spec.key] ?? ""}
-                disabled={!canEdit || savePending}
-                fieldErrors={fieldErrors}
-              />
-              <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                <span>
-                  Live:{" "}
-                  <span className="font-mono">
-                    {liveValues[spec.key] ?? defaults[spec.key] ?? "—"}
-                  </span>
-                </span>
-                <span>
-                  Default:{" "}
-                  <span className="font-mono">{defaults[spec.key] ?? "—"}</span>
-                </span>
-              </div>
-            </div>
-          ))}
+
+        {/* Help toggle — hide long per-token descriptions + live/default meta
+            by default so the page reads as a dense token grid, not a wall of
+            text. Tooltip on each row title still carries the full description. */}
+        <div className="flex items-center justify-end gap-2 text-xs">
+          <label className="inline-flex cursor-pointer select-none items-center gap-2 rounded-full border border-border/60 bg-card px-3 py-1 text-muted-foreground hover:text-foreground">
+            <input
+              type="checkbox"
+              checked={showHelp}
+              onChange={(e) => setShowHelp(e.target.checked)}
+              className="size-3.5 cursor-pointer"
+            />
+            Show token descriptions
+          </label>
         </div>
+
+        {groupTokens(tokens).map((group) => (
+          <section key={group.name} className="space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+              <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {group.name}
+              </h4>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {group.tokens.map((spec) => (
+                <div
+                  key={spec.key}
+                  className="rounded-md border border-border/40 bg-card p-3"
+                  title={spec.description ?? undefined}
+                >
+                  <TokenInput
+                    spec={spec}
+                    draftValue={draftValues[spec.key] ?? ""}
+                    disabled={!canEdit || savePending}
+                    fieldErrors={fieldErrors}
+                  />
+                  {showHelp && spec.description ? (
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      {spec.description}
+                    </p>
+                  ) : null}
+                  {showHelp ? (
+                    <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>
+                        Live:{" "}
+                        <span className="font-mono">
+                          {liveValues[spec.key] ?? defaults[spec.key] ?? "—"}
+                        </span>
+                      </span>
+                      <span>
+                        Default:{" "}
+                        <span className="font-mono">
+                          {defaults[spec.key] ?? "—"}
+                        </span>
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
 
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={!canEdit || savePending}>

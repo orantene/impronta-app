@@ -14,7 +14,7 @@ type QA = {
 
 const FAQS: QA[] = [
   {
-    id: "what-is-rostra",
+    id: "what-is-tulala",
     q: `Who is ${PLATFORM_BRAND.name} for?`,
     a: `Anyone whose business is built on representing people — independent coordinators, talent and model agencies, casting operations, staffing firms, speaker bureaus, and any roster-based business where the product is the people you represent. If you've ever sent profiles on WhatsApp, ${PLATFORM_BRAND.name} is for you.`,
   },

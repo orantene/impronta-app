@@ -129,27 +129,39 @@ export default async function SiteSettingsSectionsIndexPage() {
         </div>
 
         {rows.length === 0 ? (
-          <div className="mt-4 rounded-md border border-dashed border-border/60 bg-muted/10 p-8 text-center">
-            <p className="text-sm font-medium">No sections yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">
+          <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-gradient-to-br from-[var(--impronta-gold)]/[0.04] via-card/30 to-muted/10 p-10 text-center">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)]">
+              <svg viewBox="0 0 24 24" fill="none" className="size-6" aria-hidden>
+                <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <p className="mt-4 text-base font-semibold text-foreground">No sections yet</p>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
               Sections are reusable content blocks — a hero, a feature list,
-              a CTA banner. Once published, they compose onto pages and the
-              homepage without re-authoring copy in every place.
+              a CTA banner. Once published, they compose onto the homepage
+              and other pages without re-authoring copy anywhere.
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
+            <p className="mx-auto mt-2 max-w-md text-xs text-muted-foreground/80">
               Drafts stay private until you publish. <strong>Archive</strong>{" "}
-              pauses a section without deleting its content.{" "}
-              <strong>Delete</strong> is blocked while any page still
-              references it — remove it from those pages first, or archive
-              instead.
+              pauses without deleting. <strong>Delete</strong> is blocked
+              while any page references the section.
             </p>
             {canEdit && (
-              <div className="mt-4">
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
                 <Link
                   href="/admin/site-settings/sections/new"
-                  className="inline-flex items-center rounded-md border border-foreground/40 bg-foreground/10 px-3 py-1.5 text-sm transition hover:bg-foreground/20"
+                  className="inline-flex items-center rounded-xl bg-[var(--impronta-gold)] px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-[var(--impronta-gold)]/92"
                 >
                   Create first section
+                </Link>
+                <Link
+                  href="/admin/site-settings/structure"
+                  className="inline-flex items-center rounded-xl border border-border/60 bg-background/70 px-4 py-2 text-sm text-muted-foreground transition hover:border-[var(--impronta-gold)]/40 hover:text-foreground"
+                >
+                  Or start from a starter recipe →
                 </Link>
               </div>
             )}

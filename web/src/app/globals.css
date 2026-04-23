@@ -2,6 +2,10 @@
 @import "tailwindcss" source(none);
 @source "../**/*.{js,ts,jsx,tsx,mdx}";
 
+/* M7 — storefront token presets. Keyed off data-token-* attrs set by the
+ * token resolver. Additive: missing attrs fall through to defaults here. */
+@import "./token-presets.css";
+
 :root {
   /* Brand aliases (used by directory + legacy utilities) */
   /* Defaults match the dashboard light theme — eliminates flash on initial paint. */
@@ -220,6 +224,329 @@ html[data-public-font-preset="editorial"] {
   .font-display {
     font-family: var(--font-cinzel), ui-serif, Georgia, serif;
   }
+
+  /*
+   * Tenant token overrides: the root <html> carries inline --token-color-*
+   * variables (set by resolveDesignTokens in the layout) whenever the
+   * request resolves to a tenant storefront. This opt-in class, added by
+   * the layout when publicScope is non-null, remaps the legacy impronta
+   * palette + the shadcn semantic anchors to those tokens while keeping
+   * the original values as fallbacks for unset tenants and admin pages.
+   */
+  .site-theme-tenant-override {
+    --impronta-gold: var(--token-color-primary, var(--impronta-gold));
+    --impronta-gold-bright: var(--token-color-primary, var(--impronta-gold-bright));
+    --impronta-gold-dim: var(--token-color-primary, var(--impronta-gold-dim));
+    --impronta-gold-border: color-mix(
+      in oklab,
+      var(--token-color-primary, var(--impronta-gold)) 18%,
+      transparent
+    );
+    --impronta-black: var(--token-color-background, var(--impronta-black));
+    --impronta-surface: var(--token-color-background, var(--impronta-surface));
+    --impronta-foreground: var(--token-color-neutral, var(--impronta-foreground));
+    --impronta-muted: var(--token-color-neutral, var(--impronta-muted));
+    --background: var(--impronta-black);
+    --foreground: var(--impronta-foreground);
+    --primary: var(--impronta-gold);
+    --ring: var(--impronta-gold-bright);
+    --accent: color-mix(
+      in oklab,
+      var(--token-color-accent, var(--impronta-gold)) 14%,
+      transparent
+    );
+    /* Tenant storefront ambient layer: a soft aurora built from the brand
+     * palette sits behind the storefront so the background reads as lived-in
+     * rather than a flat dark field. Tokens supply the hues; tenants without
+     * explicit accents fall back to a neutral violet glow. */
+    --site-ambient-base: var(--token-color-background, var(--impronta-black));
+    --site-ambient-glow-a: color-mix(
+      in oklab,
+      var(--token-color-primary, #a855f7) 32%,
+      transparent
+    );
+    --site-ambient-glow-b: color-mix(
+      in oklab,
+      var(--token-color-accent, #22d3ee) 22%,
+      transparent
+    );
+    --site-ambient-glow-c: color-mix(
+      in oklab,
+      var(--token-color-secondary, #2a1855) 50%,
+      transparent
+    );
+  }
+
+  /* Paint the aurora on the storefront frame (the `bg-background` flex
+   * column inside body) so the ambient gradient sits above the tenant
+   * background-color wash but below every rendered section.
+   * `background-attachment: fixed` keeps it anchored while the page scrolls. */
+  body.site-theme-tenant-override > div.bg-background {
+    background-image:
+      radial-gradient(
+        ellipse 70% 45% at 18% 0%,
+        var(--site-ambient-glow-a),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse 55% 40% at 90% 12%,
+        var(--site-ambient-glow-b),
+        transparent 65%
+      ),
+      radial-gradient(
+        ellipse 120% 60% at 50% 120%,
+        var(--site-ambient-glow-c),
+        transparent 70%
+      );
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+}
+
+/* ===========================================================================
+ * CMS hero section (sections/hero/Component.tsx)
+ *
+ * Renders in three modes driven by `data-hero-variant`:
+ *   clean   — no imagery, ambient backdrop shows through
+ *   image   — single photographic backdrop with scrim
+ *   slider  — CSS-only cross-fade reel (no client JS)
+ *
+ * Overlay flavor is selected with `data-hero-overlay`. Mood (editorial vs
+ * cinematic) drives type scale + spacing.
+ * ========================================================================= */
+
+.site-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: clamp(3rem, 8vw, 6rem) clamp(1rem, 4vw, 3rem);
+  min-height: clamp(28rem, 65vh, 44rem);
+  border-radius: 1.25rem;
+  margin-inline: clamp(1rem, 4vw, 2.5rem);
+  margin-block: clamp(1.5rem, 3vw, 2.5rem);
+  color: var(--foreground);
+}
+
+.site-hero[data-hero-mood="cinematic"] {
+  min-height: clamp(34rem, 78vh, 56rem);
+  padding-block: clamp(4rem, 10vw, 8rem);
+}
+
+.site-hero[data-hero-mood="clean"] {
+  min-height: clamp(22rem, 48vh, 32rem);
+  padding-block: clamp(2rem, 6vw, 4rem);
+}
+
+.site-hero__inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 52rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.site-hero__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+.site-hero__headline {
+  font-family: var(--font-cinzel), var(--font-playfair-display), ui-serif, Georgia, serif;
+  font-weight: 500;
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: color-mix(in oklab, var(--foreground) 96%, white);
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+  margin: 0;
+}
+
+.site-hero[data-hero-mood="cinematic"] .site-hero__headline {
+  font-size: clamp(2.5rem, 7vw, 5rem);
+  letter-spacing: 0.01em;
+}
+
+.site-hero__subheadline {
+  font-size: clamp(1rem, 1.4vw, 1.25rem);
+  line-height: 1.55;
+  max-width: 38rem;
+  color: color-mix(in oklab, var(--foreground) 78%, transparent);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+  margin: 0;
+}
+
+.site-hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.site-hero__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1.6rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition:
+    transform 200ms ease,
+    background-color 200ms ease,
+    border-color 200ms ease;
+}
+
+.site-hero__cta:hover {
+  transform: translateY(-1px);
+}
+
+.site-hero__cta--primary {
+  background: var(--token-color-primary, var(--primary));
+  color: var(--primary-foreground, #fff);
+  box-shadow:
+    0 18px 45px -15px color-mix(in oklab, var(--token-color-primary, var(--primary)) 65%, transparent),
+    inset 0 0 0 1px color-mix(in oklab, white 10%, transparent);
+}
+
+.site-hero__cta--secondary {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  color: var(--foreground);
+  border: 1px solid color-mix(in oklab, var(--foreground) 22%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+/* ---- background layers -------------------------------------------------- */
+
+.site-hero__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.site-hero__bg--static {
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.02);
+}
+
+.site-hero__bg--slider {
+  display: grid;
+}
+
+.site-hero__slide {
+  grid-area: 1 / 1;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  animation: hero-slide-fade var(--hero-slider-total) ease-in-out infinite;
+  animation-delay: var(--hero-slide-delay, 0ms);
+  will-change: opacity, transform;
+  transform: scale(1.04);
+}
+
+@keyframes hero-slide-fade {
+  0% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  8% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  38% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+
+/* Respect reduced motion: pause the fade and rely on scroll-snap. */
+@media (prefers-reduced-motion: reduce) {
+  .site-hero__bg--slider {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+  .site-hero__slide {
+    flex: 0 0 100%;
+    opacity: 1;
+    animation: none;
+    scroll-snap-align: start;
+    transform: none;
+  }
+}
+
+/* ---- overlay flavors ---------------------------------------------------- */
+
+.site-hero__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.site-hero[data-hero-overlay="gradient-scrim"] .site-hero__overlay,
+.site-hero__overlay[data-hero-overlay="gradient-scrim"] {
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--token-color-background, var(--background)) 55%, transparent) 0%,
+      color-mix(in oklab, var(--token-color-background, var(--background)) 90%, transparent) 100%
+    ),
+    linear-gradient(
+      105deg,
+      color-mix(in oklab, var(--token-color-secondary, var(--background)) 72%, transparent) 0%,
+      color-mix(in oklab, var(--token-color-secondary, var(--background)) 10%, transparent) 55%,
+      transparent 75%
+    ),
+    radial-gradient(
+      ellipse 55% 45% at 50% 50%,
+      transparent 0%,
+      color-mix(in oklab, var(--token-color-background, var(--background)) 35%, transparent) 80%
+    );
+}
+
+.site-hero[data-hero-overlay="aurora"] .site-hero__overlay,
+.site-hero__overlay[data-hero-overlay="aurora"] {
+  background:
+    radial-gradient(
+      ellipse 55% 60% at 18% 20%,
+      color-mix(in oklab, var(--token-color-primary, var(--primary)) 38%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 45% 55% at 85% 15%,
+      color-mix(in oklab, var(--token-color-accent, var(--primary)) 30%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 100% 70% at 50% 110%,
+      color-mix(in oklab, var(--token-color-secondary, var(--background)) 65%, transparent) 0%,
+      transparent 70%
+    );
+}
+
+.site-hero[data-hero-overlay="soft-vignette"] .site-hero__overlay,
+.site-hero__overlay[data-hero-overlay="soft-vignette"] {
+  background: radial-gradient(
+    ellipse 80% 70% at 50% 50%,
+    transparent 40%,
+    color-mix(in oklab, var(--token-color-background, var(--background)) 80%, transparent) 100%
+  );
 }
 
 /**
@@ -260,23 +587,31 @@ html[data-public-font-preset="editorial"] {
   --admin-code-bg: rgba(255, 255, 255, 0.08);
 }
 
+/**
+ * Admin light theme — cool neutral (zinc-based).
+ *
+ * The admin is an operator tool, not a tenant-facing surface. It does NOT
+ * inherit the warm Impronta cream/brown; that palette belongs on the
+ * storefront. Gold survives as a single accent for active nav, primary
+ * CTAs, and focus rings — not as a background wash.
+ */
 [data-admin-prototype="1"][data-admin-prototype-theme="light"] {
-  --admin-gold: #9b7a21;
-  --admin-gold-bright: #b18a24;
-  --admin-gold-soft: rgba(155, 122, 33, 0.14);
-  --admin-gold-border: rgba(155, 122, 33, 0.24);
-  --admin-sidebar-bg: #faf7f2;
-  --admin-sidebar-hover: rgba(155, 122, 33, 0.11);
-  --admin-gold-muted: rgba(90, 70, 22, 0.62);
-  --admin-nav-active-label: #1c1810;
-  --admin-nav-idle: #6b5f4a;
-  --admin-nav-hover-fg: #231d10;
-  --admin-workspace-bg: #f2ede3;
-  --admin-workspace-fg: #1a1508;
-  --admin-workspace-surface: #fffdf8;
-  --admin-workspace-elevated: rgba(255, 253, 248, 0.97);
-  --admin-panel-bg: #fffdf8;
-  --admin-code-bg: rgba(35, 29, 16, 0.06);
+  --admin-gold: #a16207;
+  --admin-gold-bright: #b45309;
+  --admin-gold-soft: rgba(161, 98, 7, 0.08);
+  --admin-gold-border: rgba(161, 98, 7, 0.18);
+  --admin-gold-muted: rgba(113, 63, 18, 0.55);
+  --admin-sidebar-bg: #fafafa;
+  --admin-sidebar-hover: rgba(24, 24, 27, 0.05);
+  --admin-nav-active-label: #09090b;
+  --admin-nav-idle: #52525b;
+  --admin-nav-hover-fg: #18181b;
+  --admin-workspace-bg: #fafafa;
+  --admin-workspace-fg: #18181b;
+  --admin-workspace-surface: #ffffff;
+  --admin-workspace-elevated: #ffffff;
+  --admin-panel-bg: #ffffff;
+  --admin-code-bg: rgba(24, 24, 27, 0.05);
 }
 
 /**
@@ -284,23 +619,32 @@ html[data-public-font-preset="editorial"] {
  * (independent of site body theme).
  */
 [data-admin-prototype="1"][data-admin-prototype-theme="light"] .admin-prototype-main {
-  --background: #f2ede3;
-  --foreground: #1a1508;
-  --card: #fffefb;
-  --card-foreground: #1a1508;
-  --muted: #e6dfd1;
-  --muted-foreground: #5c5346;
-  --border: rgba(155, 122, 33, 0.16);
-  --input: rgba(35, 29, 16, 0.07);
+  --background: #fafafa;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
   --primary: var(--admin-gold);
-  --primary-foreground: #fffdf8;
-  --secondary: #e8e0d2;
-  --secondary-foreground: #2a2418;
-  --accent: rgba(155, 122, 33, 0.1);
-  --accent-foreground: #1a1508;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --accent: rgba(161, 98, 7, 0.08);
+  --accent-foreground: #18181b;
   --ring: var(--admin-gold-bright);
-  --popover: #fffefb;
-  --popover-foreground: #1a1508;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  /* Also remap impronta-* so legacy shell classes that reach through to
+   * these vars pick up the neutral palette instead of the cream carry-over. */
+  --impronta-black: #fafafa;
+  --impronta-surface: #ffffff;
+  --impronta-foreground: #18181b;
+  --impronta-muted: #71717a;
+  --impronta-gold: var(--admin-gold);
+  --impronta-gold-bright: var(--admin-gold-bright);
+  --impronta-gold-border: var(--admin-gold-border);
 }
 
 [data-admin-prototype="1"][data-admin-prototype-theme="dark"] .admin-prototype-main {
@@ -343,6 +687,18 @@ html[data-public-font-preset="editorial"] {
   }
 }
 
+/* Admin shell v2 page-transition crossfade (200ms, motion-safe only). */
+@keyframes fadeIn {
+  from {
+    opacity: 0.6;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Hide scrollbar for horizontal scroll strips */
 .scrollbar-none {
   -ms-overflow-style: none;
@@ -353,105 +709,176 @@ html[data-public-font-preset="editorial"] {
 }
 
 /**
- * Platform surface — the public Rostra marketing site.
+ * Platform surface — the public Tulala marketing site.
  *
  * Scoped with `data-platform-surface="marketing"` so tokens never leak into
- * tenant storefronts or workspace chrome. Direction "Atelier": warm paper
- * background, deep ink type, muted forest accent, Geist Sans display +
- * Inter body + Geist Mono for numerals.
+ * tenant storefronts or workspace chrome. Direction "Editorial System":
+ * warm bone paper, deep ink type, forest as the singular brand accent,
+ * sage/stone/clay as editorial supports, Fraunces for display serif +
+ * Inter body + Geist Mono for numerals & micro-copy.
  *
- * Legacy `--mkt-*` tokens alias onto `--plt-*` so existing sections that
- * reference the old names pick up the new brand automatically during the
- * migration; new code should prefer `--plt-*` directly.
+ * The new `--tl-*` tokens are the canonical names. `--plt-*` and `--mkt-*`
+ * are kept as aliases so every existing component (home, pricing, hero,
+ * etc.) picks up the new palette automatically without a touch-every-file
+ * migration. New code should prefer `--tl-*` directly.
  */
 [data-platform-surface="marketing"] {
-  /* Paper & ink — warm neutrals, high contrast */
-  --plt-bg: #f5f2ea;
-  --plt-bg-raised: #fffdf7;
-  --plt-bg-elevated: #ffffff;
-  --plt-bg-deep: #ece7dc;
-  --plt-bg-inverse: #0f1714;
-  --plt-bg-inverse-soft: #18211d;
+  /* ─ Canonical Tulala palette ────────────────────────────────────────── */
 
-  /* Ink — deep forest-tinted black for warmth */
-  --plt-ink: #0f1714;
-  --plt-ink-soft: #2c332f;
-  --plt-ink-strong: #05110d;
-  --plt-muted: #5c6561;
-  --plt-muted-soft: #8a918c;
-  --plt-on-inverse: #f1ede3;
-  --plt-on-inverse-muted: rgba(241, 237, 227, 0.68);
-  --plt-on-inverse-soft: rgba(241, 237, 227, 0.48);
+  /* Paper — warm bone neutrals with a little more warmth than Rostra */
+  --tl-bone: #f4efe6;
+  --tl-surface: #faf6ee;
+  --tl-surface-raised: #ffffff;
+  --tl-surface-deep: #ebe4d5;
+  --tl-surface-inverse: #111612;
+  --tl-surface-inverse-soft: #1a201c;
 
-  /* Hairlines */
-  --plt-hairline: rgba(15, 23, 20, 0.08);
-  --plt-hairline-strong: rgba(15, 23, 20, 0.16);
-  --plt-hairline-inverse: rgba(241, 237, 227, 0.1);
-  --plt-hairline-inverse-strong: rgba(241, 237, 227, 0.18);
+  /* Ink — deeper near-black with a green undertone */
+  --tl-ink: #161a16;
+  --tl-ink-soft: #3e4640;
+  --tl-ink-strong: #0a0e0b;
+  --tl-muted: #6b7065;
+  --tl-muted-soft: #8e938a;
+  --tl-on-inverse: #f1ede3;
+  --tl-on-inverse-muted: rgba(241, 237, 227, 0.68);
+  --tl-on-inverse-soft: rgba(241, 237, 227, 0.48);
 
-  /* Forest accent — the single brand accent */
-  --plt-forest: #1f4a3a;
-  --plt-forest-deep: #143226;
-  --plt-forest-bright: #2e6b52;
-  --plt-forest-soft: rgba(31, 74, 58, 0.08);
-  --plt-forest-ring: rgba(31, 74, 58, 0.22);
-  --plt-forest-glow: rgba(46, 107, 82, 0.18);
-  --plt-forest-on: #f1ede3;
+  /* Hairlines — low-contrast dividers */
+  --tl-hairline: #e0d8c8;
+  --tl-hairline-strong: #c7beac;
+  --tl-hairline-inverse: rgba(241, 237, 227, 0.1);
+  --tl-hairline-inverse-strong: rgba(241, 237, 227, 0.18);
 
-  /* Signal colors — sparingly used */
-  --plt-positive: #2e6b52;
-  --plt-positive-bg: rgba(46, 107, 82, 0.12);
-  --plt-warning: #a7691a;
-  --plt-warning-bg: rgba(167, 105, 26, 0.12);
-  --plt-info: #2b4f7a;
-  --plt-info-bg: rgba(43, 79, 122, 0.1);
+  /* Forest — the single brand accent. Deeper than the Rostra forest. */
+  --tl-forest: #1e3a2d;
+  --tl-forest-deep: #132419;
+  --tl-forest-bright: #2e6b52;
+  --tl-forest-soft: rgba(30, 58, 45, 0.08);
+  --tl-forest-ring: rgba(30, 58, 45, 0.22);
+  --tl-forest-glow: rgba(46, 107, 82, 0.18);
+  --tl-forest-on: #f4efe6;
 
-  /* Radii */
-  --plt-radius-sm: 8px;
-  --plt-radius-md: 14px;
-  --plt-radius-lg: 20px;
-  --plt-radius-xl: 28px;
-  --plt-radius-pill: 999px;
+  /* Editorial supports — used as accents in editorial composition, not UI */
+  --tl-sage: #8a907b;
+  --tl-sage-soft: rgba(138, 144, 123, 0.16);
+  --tl-stone: #d4ccbd;
+  --tl-stone-soft: rgba(212, 204, 189, 0.4);
+  --tl-clay: #b3886b;
+  --tl-clay-soft: rgba(179, 136, 107, 0.16);
 
-  /* Shadows — restrained, warm */
-  --plt-shadow-sm: 0 1px 2px rgba(15, 23, 20, 0.04), 0 1px 1px rgba(15, 23, 20, 0.04);
-  --plt-shadow-md: 0 10px 28px -14px rgba(15, 23, 20, 0.18),
-    0 2px 6px rgba(15, 23, 20, 0.04);
-  --plt-shadow-lg: 0 28px 64px -28px rgba(15, 23, 20, 0.28),
-    0 8px 22px -12px rgba(15, 23, 20, 0.08);
-  --plt-shadow-forest: 0 14px 32px -16px rgba(31, 74, 58, 0.42);
+  /* Signal — calm, editorial */
+  --tl-positive: #2e6b52;
+  --tl-positive-bg: rgba(46, 107, 82, 0.12);
+  --tl-warning: #9c7b2e;
+  --tl-warning-bg: rgba(156, 123, 46, 0.12);
+  --tl-error: #8e3f2e;
+  --tl-error-bg: rgba(142, 63, 46, 0.12);
+  --tl-info: #2b4f7a;
+  --tl-info-bg: rgba(43, 79, 122, 0.1);
 
-  /* Typography */
-  --plt-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+  /* Radii — slightly looser than Rostra for editorial softness */
+  --tl-radius-sm: 8px;
+  --tl-radius-md: 14px;
+  --tl-radius-lg: 22px;
+  --tl-radius-xl: 32px;
+  --tl-radius-pill: 999px;
+
+  /* Shadows — warm, restrained, editorial */
+  --tl-shadow-sm: 0 1px 2px rgba(22, 26, 22, 0.04), 0 1px 1px rgba(22, 26, 22, 0.04);
+  --tl-shadow-md: 0 10px 30px -14px rgba(22, 26, 22, 0.18),
+    0 2px 6px rgba(22, 26, 22, 0.04);
+  --tl-shadow-lg: 0 30px 72px -32px rgba(22, 26, 22, 0.28),
+    0 8px 22px -12px rgba(22, 26, 22, 0.08);
+  --tl-shadow-forest: 0 14px 34px -16px rgba(30, 58, 45, 0.42);
+
+  /* Typography — Fraunces display, Inter body, Geist Mono micro. */
+  --tl-font-display: var(--font-fraunces), "Fraunces", ui-serif, Georgia,
+    "Times New Roman", serif;
+  --tl-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --plt-font-body: var(--font-inter-body), ui-sans-serif, system-ui, -apple-system,
+  --tl-font-body: var(--font-inter-body), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --plt-font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
+  --tl-font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
     Monaco, Consolas, monospace;
 
-  /* Legacy `--mkt-*` aliases — keep existing sections visually consistent
-   * until each section is migrated to `--plt-*` directly. */
-  --mkt-ink: var(--plt-ink);
-  --mkt-ink-soft: var(--plt-ink-soft);
-  --mkt-muted: var(--plt-muted);
-  --mkt-muted-soft: var(--plt-muted-soft);
-  --mkt-cream: var(--plt-bg);
-  --mkt-cream-deep: var(--plt-bg-deep);
-  --mkt-surface: var(--plt-bg-raised);
-  --mkt-surface-raised: var(--plt-bg-elevated);
-  --mkt-hairline: var(--plt-hairline);
-  --mkt-hairline-strong: var(--plt-hairline-strong);
-  --mkt-gold: var(--plt-forest);
-  --mkt-gold-bright: var(--plt-forest-bright);
-  --mkt-gold-soft: var(--plt-forest-soft);
-  --mkt-gold-ring: var(--plt-forest-ring);
-  --mkt-display-font: var(--plt-font-sans);
-  --mkt-body-font: var(--plt-font-body);
-  --mkt-mono-font: var(--plt-font-mono);
+  /* ─ Back-compat alias layer ────────────────────────────────────────── */
+  /* `--plt-*` was the Rostra-era name. Keep it resolving to the Tulala
+   * values so every existing `var(--plt-bg)`, `var(--plt-forest)` call
+   * picks up the new palette without a component-level touch. */
+  --plt-bg: var(--tl-bone);
+  --plt-bg-raised: var(--tl-surface);
+  --plt-bg-elevated: var(--tl-surface-raised);
+  --plt-bg-deep: var(--tl-surface-deep);
+  --plt-bg-inverse: var(--tl-surface-inverse);
+  --plt-bg-inverse-soft: var(--tl-surface-inverse-soft);
 
-  background: var(--plt-bg);
-  color: var(--plt-ink);
-  font-family: var(--plt-font-body);
+  --plt-ink: var(--tl-ink);
+  --plt-ink-soft: var(--tl-ink-soft);
+  --plt-ink-strong: var(--tl-ink-strong);
+  --plt-muted: var(--tl-muted);
+  --plt-muted-soft: var(--tl-muted-soft);
+  --plt-on-inverse: var(--tl-on-inverse);
+  --plt-on-inverse-muted: var(--tl-on-inverse-muted);
+  --plt-on-inverse-soft: var(--tl-on-inverse-soft);
+
+  --plt-hairline: var(--tl-hairline);
+  --plt-hairline-strong: var(--tl-hairline-strong);
+  --plt-hairline-inverse: var(--tl-hairline-inverse);
+  --plt-hairline-inverse-strong: var(--tl-hairline-inverse-strong);
+
+  --plt-forest: var(--tl-forest);
+  --plt-forest-deep: var(--tl-forest-deep);
+  --plt-forest-bright: var(--tl-forest-bright);
+  --plt-forest-soft: var(--tl-forest-soft);
+  --plt-forest-ring: var(--tl-forest-ring);
+  --plt-forest-glow: var(--tl-forest-glow);
+  --plt-forest-on: var(--tl-forest-on);
+
+  --plt-positive: var(--tl-positive);
+  --plt-positive-bg: var(--tl-positive-bg);
+  --plt-warning: var(--tl-warning);
+  --plt-warning-bg: var(--tl-warning-bg);
+  --plt-info: var(--tl-info);
+  --plt-info-bg: var(--tl-info-bg);
+
+  --plt-radius-sm: var(--tl-radius-sm);
+  --plt-radius-md: var(--tl-radius-md);
+  --plt-radius-lg: var(--tl-radius-lg);
+  --plt-radius-xl: var(--tl-radius-xl);
+  --plt-radius-pill: var(--tl-radius-pill);
+
+  --plt-shadow-sm: var(--tl-shadow-sm);
+  --plt-shadow-md: var(--tl-shadow-md);
+  --plt-shadow-lg: var(--tl-shadow-lg);
+  --plt-shadow-forest: var(--tl-shadow-forest);
+
+  --plt-font-sans: var(--tl-font-sans);
+  --plt-font-body: var(--tl-font-body);
+  --plt-font-mono: var(--tl-font-mono);
+  --plt-font-display: var(--tl-font-display);
+
+  /* Older `--mkt-*` aliases (pre-platform-surface era). */
+  --mkt-ink: var(--tl-ink);
+  --mkt-ink-soft: var(--tl-ink-soft);
+  --mkt-muted: var(--tl-muted);
+  --mkt-muted-soft: var(--tl-muted-soft);
+  --mkt-cream: var(--tl-bone);
+  --mkt-cream-deep: var(--tl-surface-deep);
+  --mkt-surface: var(--tl-surface);
+  --mkt-surface-raised: var(--tl-surface-raised);
+  --mkt-hairline: var(--tl-hairline);
+  --mkt-hairline-strong: var(--tl-hairline-strong);
+  --mkt-gold: var(--tl-forest);
+  --mkt-gold-bright: var(--tl-forest-bright);
+  --mkt-gold-soft: var(--tl-forest-soft);
+  --mkt-gold-ring: var(--tl-forest-ring);
+  --mkt-display-font: var(--tl-font-display);
+  --mkt-body-font: var(--tl-font-body);
+  --mkt-mono-font: var(--tl-font-mono);
+
+  background: var(--tl-bone);
+  color: var(--tl-ink);
+  font-family: var(--tl-font-body);
   font-feature-settings: "ss01", "cv11", "cv06";
   letter-spacing: -0.01em;
   text-rendering: optimizeLegibility;
@@ -459,74 +886,94 @@ html[data-public-font-preset="editorial"] {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Headings / display lines — Geist Sans, tight tracking, clean. */
+/* Headings / display lines — Fraunces editorial serif, optical-sizing
+ * at display, gentle softness axis, tight tracking. This is the Tulala
+ * voice: editorial luxury on a SaaS chassis. */
 [data-platform-surface="marketing"] .plt-display,
+[data-platform-surface="marketing"] .tl-display,
 [data-platform-surface="marketing"] .mkt-display {
-  font-family: var(--plt-font-sans);
+  font-family: var(--tl-font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 144, "SOFT" 40;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+}
+
+/* Sans display — use sparingly; the default display is serif now. */
+[data-platform-surface="marketing"] .plt-display-sans,
+[data-platform-surface="marketing"] .tl-display-sans {
+  font-family: var(--tl-font-sans);
   font-feature-settings: "ss01", "ss02", "cv11";
   font-weight: 500;
   letter-spacing: -0.025em;
-  line-height: 1.02;
+  line-height: 1.04;
 }
 
 /* Body / UI text */
 [data-platform-surface="marketing"] .plt-body,
+[data-platform-surface="marketing"] .tl-body,
 [data-platform-surface="marketing"] .mkt-body {
-  font-family: var(--plt-font-body);
+  font-family: var(--tl-font-body);
 }
 
-/* Numerals / data (inquiries, counts, prices). */
+/* Numerals / data (inquiries, counts, prices). Sans, tabular. */
 [data-platform-surface="marketing"] .plt-numeral,
+[data-platform-surface="marketing"] .tl-numeral,
 [data-platform-surface="marketing"] .mkt-numeral {
-  font-family: var(--plt-font-sans);
+  font-family: var(--tl-font-sans);
   font-variant-numeric: lining-nums tabular-nums;
   font-feature-settings: "lnum", "tnum", "ss01";
   letter-spacing: -0.02em;
 }
 
 /* Mono — micro-copy, URL pills, event ids. */
-[data-platform-surface="marketing"] .plt-mono {
-  font-family: var(--plt-font-mono);
+[data-platform-surface="marketing"] .plt-mono,
+[data-platform-surface="marketing"] .tl-mono {
+  font-family: var(--tl-font-mono);
   font-feature-settings: "ss01", "cv01";
   letter-spacing: 0;
 }
 
 /* Eyebrows — compact uppercase label, forest accent. */
 [data-platform-surface="marketing"] .plt-eyebrow,
+[data-platform-surface="marketing"] .tl-eyebrow,
 [data-platform-surface="marketing"] .mkt-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: var(--plt-font-mono);
+  font-family: var(--tl-font-mono);
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--plt-forest);
+  color: var(--tl-forest);
 }
 
 [data-platform-surface="marketing"] ::selection {
-  background: rgba(31, 74, 58, 0.22);
-  color: var(--plt-ink);
+  background: var(--tl-forest-ring);
+  color: var(--tl-ink);
 }
 
-/* Subtle paper grain — hero-scoped. */
+/* Subtle paper grain — hero-scoped. Uses the Tulala ink tone so the grain
+ * reads as fiber in the bone paper, not a cool grey haze. */
 .mkt-grain::before,
-.plt-grain::before {
+.plt-grain::before,
+.tl-grain::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(15, 23, 20, 0.04) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(22, 26, 22, 0.045) 1px, transparent 1px);
   background-size: 3px 3px;
   mix-blend-mode: multiply;
-  opacity: 0.55;
+  opacity: 0.6;
   mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.7), transparent 78%);
 }
 
 /* Focus ring — forest, accessible on paper */
 [data-platform-surface="marketing"] :focus-visible {
-  outline: 2px solid var(--plt-forest-ring);
+  outline: 2px solid var(--tl-forest-ring);
   outline-offset: 2px;
   border-radius: 2px;
 }

@@ -8,6 +8,7 @@ import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
+import { EmptyState } from "@/components/ui/empty-state";
 import { loadAdminClientsData } from "@/lib/dashboard/admin-dashboard-data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -201,10 +202,19 @@ export default async function AdminClientsPage({
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No client logins yet. When people sign up on the client side, they appear here.
-            Commercial billing lives under Accounts.
-          </p>
+          <EmptyState
+            icon={UserRound}
+            title="No client portal logins yet"
+            description="When someone signs up on the public client side — browsing, inquiring, or saving talent — their account appears here."
+            hint="Need to invoice a villa, brand, or venue? Those are Accounts, not Clients."
+          >
+            <Link
+              href="/admin/accounts"
+              className="inline-flex items-center rounded-xl border border-border/60 bg-background/70 px-4 py-2 text-sm text-muted-foreground transition hover:border-[var(--impronta-gold)]/40 hover:text-foreground"
+            >
+              Manage accounts →
+            </Link>
+          </EmptyState>
         ) : (
           <AdminClientQueue rows={sortedRows} />
         )}

@@ -42,6 +42,7 @@ import { AdminContextualInspector } from "@/components/admin/inspector/admin-con
 import { AgencySwitcher } from "@/components/admin/agency-switcher";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import type { TenantMembership } from "@/lib/saas";
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -592,7 +593,7 @@ export function AdminDashboardShell({
           <div className="flex h-14 items-center gap-2 border-b border-[var(--admin-gold-border)] px-3">
             {!collapsed ? (
               <span className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-[var(--admin-gold)]">
-                Impronta
+                {PLATFORM_BRAND.name}
               </span>
             ) : null}
             <Button

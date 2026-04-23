@@ -29,6 +29,7 @@
  */
 
 import { z } from "zod";
+import { pgUuidSchema } from "../validators";
 
 import { getSectionType, SECTION_REGISTRY } from "../sections/registry";
 
@@ -137,8 +138,8 @@ export function validateSectionProps(
  */
 export const sectionUpsertSchema = z
   .object({
-    id: z.string().uuid().nullable().optional(),
-    tenantId: z.string().uuid(),
+    id: pgUuidSchema().nullable().optional(),
+    tenantId: pgUuidSchema(),
     sectionTypeKey: sectionTypeKeySchema,
     /**
      * The registry version the editor loaded. Persisted with the row so
@@ -198,8 +199,8 @@ export type SectionUpsertValues = z.output<typeof sectionUpsertSchema>;
 // ---- lifecycle mutation shapes (CAS only) ---------------------------------
 
 export const sectionPublishSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 
@@ -207,8 +208,8 @@ export type SectionPublishInput = z.input<typeof sectionPublishSchema>;
 export type SectionPublishValues = z.output<typeof sectionPublishSchema>;
 
 export const sectionArchiveSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 
@@ -216,8 +217,8 @@ export type SectionArchiveInput = z.input<typeof sectionArchiveSchema>;
 export type SectionArchiveValues = z.output<typeof sectionArchiveSchema>;
 
 export const sectionDeleteSchema = z.object({
-  id: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  id: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 
@@ -239,8 +240,8 @@ export type SectionDeleteValues = z.output<typeof sectionDeleteSchema>;
  * Does NOT bust cache — a brand-new draft has no public effect.
  */
 export const sectionDuplicateSchema = z.object({
-  sourceId: z.string().uuid(),
-  tenantId: z.string().uuid(),
+  sourceId: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
   newName: sectionNameSchema,
 });
 
@@ -250,9 +251,9 @@ export type SectionDuplicateValues = z.output<typeof sectionDuplicateSchema>;
 // ---- restore-from-revision ------------------------------------------------
 
 export const sectionRestoreRevisionSchema = z.object({
-  sectionId: z.string().uuid(),
-  tenantId: z.string().uuid(),
-  revisionId: z.string().uuid(),
+  sectionId: pgUuidSchema(),
+  tenantId: pgUuidSchema(),
+  revisionId: pgUuidSchema(),
   expectedVersion: z.number().int().min(0),
 });
 

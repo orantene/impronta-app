@@ -36,14 +36,14 @@ const DELIVERY_MODES: DeliveryMode[] = [
     index: "01",
     title: "Full platform sites",
     headline: "Your branded roster site, end to end.",
-    body: "A polished directory experience on your own domain — roster, profiles, posts, contact — rendered by Rostra and managed in the CMS. Best when the public site is part of the product.",
+    body: `A polished directory experience on your own domain — roster, profiles, posts, contact — rendered by ${PLATFORM_BRAND.name} and managed in the CMS. Best when the public site is part of the product.`,
     bullets: [
       "Custom domain + design tokens",
       "Editorial pages, posts, navigation",
       "Structured profiles with inquiry CTA",
       "Zero build / no deploy pipeline to run",
     ],
-    footnote: "Managed end-to-end by Rostra",
+    footnote: `Managed end-to-end by ${PLATFORM_BRAND.name}`,
   },
   {
     id: "widgets",
@@ -66,7 +66,7 @@ const DELIVERY_MODES: DeliveryMode[] = [
     index: "03",
     title: "API-driven frontends",
     headline: "One public read API. Anywhere you need the data.",
-    body: "An org-scoped JSON API for teams building bespoke frontends, partner experiences, or internal tooling on top of Rostra. Visibility rules carry through unchanged.",
+    body: `An org-scoped JSON API for teams building bespoke frontends, partner experiences, or internal tooling on top of ${PLATFORM_BRAND.name}. Visibility rules carry through unchanged.`,
     bullets: [
       "Org-scoped read access, keyed per surface",
       "Respects per-field visibility automatically",
@@ -94,7 +94,7 @@ const CONSUMERS: Consumer[] = [
   {
     name: "Webflow",
     surface: "Embed element",
-    line: "Use Rostra as the roster source without rebuilding CMS collections. Publish from Rostra, render in Webflow.",
+    line: `Use ${PLATFORM_BRAND.name} as the roster source without rebuilding CMS collections. Publish from ${PLATFORM_BRAND.name}, render in Webflow.`,
     art: "webflow",
   },
   {
@@ -160,7 +160,7 @@ export default function IntegrationsPage() {
             <span style={{ color: "var(--plt-forest)" }}>Rendered anywhere.</span>
           </>
         }
-        subtitle={`Rostra is the source of truth for your people, profiles, and representation data — then it renders that truth wherever your business actually lives. A polished platform site. An embed inside the site you already have. A public read API for the frontends you haven't built yet.`}
+        subtitle={`${PLATFORM_BRAND.name} is the source of truth for your people, profiles, and representation data — then it renders that truth wherever your business actually lives. A polished platform site. An embed inside the site you already have. A public read API for the frontends you haven't built yet.`}
         primary={{ label: "Start free", href: "/get-started", intent: "get-started" }}
         secondary={{ label: "See pricing", href: "/pricing", intent: "pricing" }}
         sourcePage="integrations-hero"
@@ -718,7 +718,7 @@ function WidgetsArt() {
                 className="plt-mono text-[0.5rem] font-medium tracking-[0.18em]"
                 style={{ color: "var(--plt-forest)" }}
               >
-                {"<ROSTRA-ROSTER ORG=\"NOVA\" />"}
+                {"<TULALA-ROSTER ORG=\"NOVA\" />"}
               </span>
               <span
                 className="rounded-full px-1.5 py-0.5 text-[0.5rem]"

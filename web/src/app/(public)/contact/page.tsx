@@ -2,16 +2,11 @@ import type { Metadata } from "next";
 
 import { createTranslator } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
-import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
+import { buildPublicPageMetadata } from "@/lib/seo/public-metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getRequestLocale();
-  const t = createTranslator(locale);
-  return {
-    title: t("public.meta.contactTitle"),
-    description: t("public.meta.contactDescription"),
-    ...buildPublicLocaleAlternates(locale, "/contact"),
-  };
+  return buildPublicPageMetadata("contact", locale);
 }
 
 export default async function ContactPage() {

@@ -1,12 +1,39 @@
 /**
  * Simple transactional email HTML templates.
  * Plain structure — no heavy dependencies. Inline styles for email client compat.
+ *
+ * Branding: wordmark + footer use the platform brand as a safe default. Per-tenant
+ * branding (agency name in the wordmark, custom domain in the footer) is passed in
+ * through the `brand` argument when the caller has the tenant identity available.
  */
 
-const siteUrl = () =>
-  (process.env.NEXT_PUBLIC_SITE_URL ?? "https://impronta.com").replace(/\/$/, "");
+import { PLATFORM_BRAND } from "@/lib/platform/brand";
 
-function layout(body: string): string {
+const siteUrl = () =>
+  (process.env.NEXT_PUBLIC_SITE_URL ?? `https://${PLATFORM_BRAND.domain}`).replace(/\/$/, "");
+
+export interface EmailBrand {
+  /** Wordmark label rendered in the header. Defaults to the platform brand. */
+  wordmark?: string;
+  /** Human name used in the footer "account with ..." line. */
+  accountName?: string;
+  /** Short domain rendered as the footer link. Defaults to the platform domain. */
+  footerDomain?: string;
+  /** Home link for the wordmark. Defaults to `NEXT_PUBLIC_SITE_URL` / platform domain. */
+  homeHref?: string;
+}
+
+function resolveBrand(brand?: EmailBrand) {
+  return {
+    wordmark: brand?.wordmark ?? PLATFORM_BRAND.name.toUpperCase(),
+    accountName: brand?.accountName ?? PLATFORM_BRAND.name,
+    footerDomain: brand?.footerDomain ?? PLATFORM_BRAND.domain,
+    homeHref: brand?.homeHref ?? siteUrl(),
+  };
+}
+
+function layout(body: string, brand?: EmailBrand): string {
+  const b = resolveBrand(brand);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,7 +48,7 @@ function layout(body: string): string {
           <!-- Brand header -->
           <tr>
             <td style="padding-bottom:24px;text-align:center;">
-              <a href="${siteUrl()}" style="font-family:Georgia,serif;font-size:18px;letter-spacing:0.2em;color:#1a1a1a;text-decoration:none;font-weight:600;">IMPRONTA</a>
+              <a href="${b.homeHref}" style="font-family:Georgia,serif;font-size:18px;letter-spacing:0.2em;color:#1a1a1a;text-decoration:none;font-weight:600;">${b.wordmark}</a>
             </td>
           </tr>
           <!-- Card -->
@@ -33,9 +60,9 @@ function layout(body: string): string {
           <!-- Footer -->
           <tr>
             <td style="padding-top:20px;text-align:center;font-size:12px;color:#888888;">
-              You received this because you have an account with Impronta Agency.
+              You received this because you have an account with ${b.accountName}.
               <br/>
-              <a href="${siteUrl()}" style="color:#888888;">impronta.com</a>
+              <a href="${b.homeHref}" style="color:#888888;">${b.footerDomain}</a>
             </td>
           </tr>
         </table>
@@ -56,6 +83,7 @@ export function offerSentEmail(data: {
   inquiryId: string;
   contactName: string | null;
   totalAmount: string;
+  brand?: EmailBrand;
 }): { subject: string; html: string } {
   const name = data.clientName ?? "there";
   const event = data.contactName ?? "your inquiry";
@@ -63,7 +91,8 @@ export function offerSentEmail(data: {
 
   return {
     subject: `Offer ready for ${event}`,
-    html: layout(`
+    html: layout(
+      `
       <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">Your offer is ready</h2>
       <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
         Hi ${name}, the agency has prepared an offer for <strong>${event}</strong>.
@@ -78,7 +107,9 @@ export function offerSentEmail(data: {
         Review the offer and accept or decline from your dashboard.
       </p>
       ${button(href, "Review offer →")}
-    `),
+    `,
+      data.brand,
+    ),
   };
 }
 
@@ -90,6 +121,7 @@ export function bookingConfirmedEmail(data: {
   contactName: string | null;
   eventDate: string | null;
   eventLocation: string | null;
+  brand?: EmailBrand;
 }): { subject: string; html: string } {
   const name = data.recipientName ?? "there";
   const event = data.contactName ?? "your booking";
@@ -102,7 +134,8 @@ export function bookingConfirmedEmail(data: {
 
   return {
     subject: `Booking confirmed — ${event}`,
-    html: layout(`
+    html: layout(
+      `
       <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">Booking confirmed</h2>
       <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
         Hi ${name}, <strong>${event}</strong> has been confirmed.
@@ -121,7 +154,9 @@ export function bookingConfirmedEmail(data: {
           : "You're confirmed for this event. The coordinator will share any additional details."}
       </p>
       ${button(href, data.role === "client" ? "View booking →" : "View my inquiries →")}
-    `),
+    `,
+      data.brand,
+    ),
   };
 }
 
@@ -133,6 +168,7 @@ export function talentInvitedEmail(data: {
   contactName: string | null;
   eventDate: string | null;
   eventLocation: string | null;
+  brand?: EmailBrand;
 }): { subject: string; html: string } {
   const name = data.talentName ?? "there";
   const event = data.contactName ?? "a new inquiry";
@@ -141,7 +177,8 @@ export function talentInvitedEmail(data: {
 
   return {
     subject: `You've been added to ${event}`,
-    html: layout(`
+    html: layout(
+      `
       <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#1a1a1a;">You've been added to an inquiry</h2>
       <p style="margin:0 0 16px;font-size:15px;color:#444444;line-height:1.6;">
         Hi ${name}, the agency has added you to <strong>${event}</strong>.
@@ -158,6 +195,8 @@ export function talentInvitedEmail(data: {
         You'll be notified when an offer is ready for your review. Log in to see the full details.
       </p>
       ${button(href, "View inquiry →")}
-    `),
+    `,
+      data.brand,
+    ),
   };
 }
