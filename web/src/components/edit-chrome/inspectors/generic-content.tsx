@@ -54,8 +54,8 @@ export function GenericContent({
       <Editor
         initial={draftProps as never}
         onChange={(next) => {
-          const n = next as Record<string, unknown>;
-          const { presentation: _ignored, ...rest } = n;
+          const rest = { ...(next as Record<string, unknown>) };
+          delete rest.presentation;
           onChange({ ...draftProps, ...rest });
         }}
         tenantId={tenantId}

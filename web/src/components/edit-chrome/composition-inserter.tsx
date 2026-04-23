@@ -150,7 +150,6 @@ export function CompositionInserters() {
       mo.disconnect();
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compositionLoaded]);
 
   // Also recompute when slots state changes (after a mutation). MutationObserver
