@@ -31,6 +31,7 @@ import { useEditContext } from "./edit-context";
 import { ContentTab } from "./inspectors/content-dispatch";
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
+import { PanelSaveChip } from "./inspectors/kit";
 
 type TabKey = "content" | "layout" | "style";
 
@@ -115,11 +116,23 @@ export function InspectorDock() {
     if (!dirty) return;
     if (!loadedSection || !draftProps) return;
 
+    // Capture the section id at scheduling time so an in-flight save that
+    // returns after the operator switches sections can't clobber the new
+    // section's loaded state. The effect's cleanup also clears the timer
+    // on section change, so in practice the race window is small — but
+    // server round-trips can be slow and this guard is cheap.
+    const scheduledSectionId = loadedSection.id;
+
     const timer = setTimeout(async () => {
       setSaving(true);
       setSaveError(null);
       const snapshot = { ...draftProps };
       const loaded = latestLoadedRef.current ?? loadedSection;
+      if (loaded.id !== scheduledSectionId) {
+        // Operator switched sections while the save was queued — abort.
+        setSaving(false);
+        return;
+      }
       // Pre-edit props snapshot — used to record the undo entry on success
       // so ⌘Z can replay the field state that existed before this save.
       const preProps = { ...loaded.props };
@@ -131,6 +144,15 @@ export function InspectorDock() {
         props: snapshot,
         expectedVersion: loaded.version,
       });
+      // Post-round-trip identity check — during the server call the
+      // operator may have selected a different section, in which case we
+      // must NOT update loadedSection or fire recordFieldEdit (that would
+      // attach the old save's result to the new section's state).
+      const currentLoaded = latestLoadedRef.current;
+      if (!currentLoaded || currentLoaded.id !== scheduledSectionId) {
+        setSaving(false);
+        return;
+      }
       setSaving(false);
       if (result.ok) {
         setLoadedSection({
@@ -260,9 +282,16 @@ export function InspectorDock() {
                   somehow has no name. Type key is always visible below as
                   a small uppercase caption, so the section's kind is still
                   discoverable. */}
-              <div className="mt-1 truncate text-sm font-semibold tracking-tight text-zinc-900">
-                {loadedSection.name?.trim() ||
-                  humanizeTypeKey(loadedSection.sectionTypeKey)}
+              <div className="mt-1 flex items-center gap-2">
+                <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-zinc-900">
+                  {loadedSection.name?.trim() ||
+                    humanizeTypeKey(loadedSection.sectionTypeKey)}
+                </div>
+                <PanelSaveChip
+                  dirty={dirty}
+                  saving={saving}
+                  error={saveError}
+                />
               </div>
               <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-400">
                 {humanizeTypeKey(loadedSection.sectionTypeKey)}
