@@ -28,6 +28,7 @@ import { loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { isLocale } from "@/lib/site-admin/locales";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { EmptyCanvasStarter } from "@/components/edit-chrome/empty-canvas-starter";
 
 /**
  * Agency-surface storefront (what was the old root homepage).
@@ -203,6 +204,20 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
         <PublicHeader />
         <main className="flex flex-1 flex-col">
+          {/* Edit-mode empty-canvas short-circuit.
+           *
+           * When the operator has engaged edit mode but the homepage has no
+           * CMS sections composed (no hero slot, no other slots), render the
+           * starter picker in place of the legacy hero + fallback stack.
+           * Without this, the chrome mounts but the canvas looks like the
+           * hardcoded Impronta layout with no way to select or edit anything
+           * — the operator is stranded. The picker dispatches the same
+           * `applyStarterComposition` the admin composer uses, so the two
+           * paths converge on the same seeded-draft state. */}
+          {editActive && !cmsHeroSlot && !hasCmsComposition ? (
+            <EmptyCanvasStarter />
+          ) : (
+            <>
           <section
             className={
               lifestyleSlides
@@ -338,6 +353,8 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
               </div>
 
               <CtaSection locale={locale} copy={ctaCopy} />
+            </>
+          )}
             </>
           )}
 
