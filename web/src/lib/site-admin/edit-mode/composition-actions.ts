@@ -32,6 +32,7 @@ import {
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
+import { publishSection } from "@/lib/site-admin/server/sections";
 import {
   listAgencyVisibleSections,
   getSectionType,
@@ -720,6 +721,70 @@ export async function publishHomepageFromEditModeAction(input: {
   }
 
   try {
+    // Workflow step — auto-publish referenced draft sections.
+    //
+    // The lib-layer `publishHomepage` op requires every referenced section to
+    // already be `status='published'`. For the admin composer that's fine —
+    // the composer has a separate "publish section" affordance. In-place edit
+    // mode has no such affordance: the operator edits a section inline and
+    // expects Publish on the page to mean "ship my edits live." Treating
+    // section draft vs. published as an operator concern leaks CMS mechanics
+    // through the UI and strands the user on "publish the section first" with
+    // nowhere to click.
+    //
+    // So the page-level publish now resolves that dependency itself: query
+    // the page's is_draft=TRUE composition rows, join to cms_sections to
+    // find which are still status='draft', and call publishSection on each.
+    // Each call is a CAS write on cms_sections.version; if one fails mid-
+    // loop, earlier sections stay published (acceptable — they were already
+    // the operator's intent). The homepage publish gate re-runs on the
+    // updated rows and either proceeds or surfaces the first blocker.
+    const { data: pageRow } = await auth.supabase
+      .from("cms_pages")
+      .select("id")
+      .eq("tenant_id", scope.tenantId)
+      .eq("locale", input.locale)
+      .eq("is_system_owned", true)
+      .eq("system_template_key", "homepage")
+      .maybeSingle<{ id: string }>();
+    if (pageRow) {
+      const { data: draftRefs } = await auth.supabase
+        .from("cms_page_sections")
+        .select("section_id")
+        .eq("tenant_id", scope.tenantId)
+        .eq("page_id", pageRow.id)
+        .eq("is_draft", true);
+      const sectionIds = (draftRefs ?? []).map((r) => r.section_id as string);
+      if (sectionIds.length > 0) {
+        const { data: sectionRows } = await auth.supabase
+          .from("cms_sections")
+          .select("id, name, status, version")
+          .eq("tenant_id", scope.tenantId)
+          .in("id", sectionIds);
+        const draftSections = (sectionRows ?? []).filter(
+          (s) => (s as { status: string }).status === "draft",
+        ) as Array<{ id: string; name: string; status: string; version: number }>;
+        for (const section of draftSections) {
+          const pub = await publishSection(auth.supabase, {
+            tenantId: scope.tenantId,
+            values: {
+              id: section.id,
+              tenantId: scope.tenantId,
+              expectedVersion: section.version,
+            },
+            actorProfileId: auth.user.id,
+          });
+          if (!pub.ok) {
+            return {
+              ok: false,
+              error: `Couldn't auto-publish section "${section.name}": ${pub.message ?? "unknown error"}`,
+              code: pub.code,
+            };
+          }
+        }
+      }
+    }
+
     const result = await publishHomepage(auth.supabase, {
       tenantId: scope.tenantId,
       values: {
