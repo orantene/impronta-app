@@ -38,10 +38,10 @@ const INTERACTIVE_CLASSES =
 
 const TONE_CLASSES: Record<AdminSurfaceCardTone, string> = {
   neutral: "",
-  draft: "border-l-[3px] border-l-amber-500/60",
-  live: "border-l-[3px] border-l-emerald-500/60",
-  attention: "border-l-[3px] border-l-rose-500/70 bg-rose-500/[0.04]",
-  pending: "border-l-[3px] border-l-sky-500/60",
+  draft: "border-l-[3px] border-l-foreground/40",
+  live: "border-l-[3px] border-l-foreground/60",
+  attention: "border-l-[3px] border-l-foreground bg-foreground/[0.02]",
+  pending: "border-l-[3px] border-l-foreground/30",
 };
 
 interface BaseProps {

@@ -152,7 +152,7 @@ export default async function AdminHomePage() {
         <section aria-labelledby="attention-heading" className="space-y-3">
           <h2
             id="attention-heading"
-            className={cn(ADMIN_TEXT_EYEBROW, "text-rose-400/90")}
+            className={cn(ADMIN_TEXT_EYEBROW, "text-foreground")}
           >
             Needs attention
           </h2>
@@ -167,7 +167,7 @@ export default async function AdminHomePage() {
                 <AdminSurfaceCardBody className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <AdminStatusChip state="attention" label={item.tag} />
-                    <ArrowRight className="size-4 text-rose-400/70" aria-hidden />
+                    <ArrowRight className="size-4 text-muted-foreground" aria-hidden />
                   </div>
                   <p className="text-sm font-semibold leading-snug text-foreground">
                     {item.title}

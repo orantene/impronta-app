@@ -78,7 +78,12 @@ export function AnalyticsConsentBanner() {
           <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={decline}>
             Decline
           </Button>
-          <Button type="button" size="sm" className="rounded-xl" onClick={accept}>
+          <Button
+            type="button"
+            size="sm"
+            className="rounded-xl bg-foreground text-background hover:bg-foreground/90"
+            onClick={accept}
+          >
             Accept analytics
           </Button>
         </div>
