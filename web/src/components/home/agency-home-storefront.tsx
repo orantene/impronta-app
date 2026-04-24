@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { PublicHeader } from "@/components/public-header";
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { PoweredByTulala } from "@/components/powered-by-tulala";
@@ -261,19 +260,11 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                 </>
               )}
               <div className="mt-10">
-                <Suspense
-                  fallback={
-                    <div className="mx-auto w-full max-w-2xl">
-                      <div className="relative h-14 rounded-xl border border-[var(--impronta-gold-border)] bg-[var(--impronta-surface)]/40 sm:h-16" />
-                    </div>
-                  }
-                >
-                  <HeroSearch
-                    copy={heroSearchCopy}
-                    aiSearchEnabled={aiHeroSearchEnabled}
-                    locale={locale === "es" ? "es" : "en"}
-                  />
-                </Suspense>
+                <HeroSearch
+                  copy={heroSearchCopy}
+                  aiSearchEnabled={aiHeroSearchEnabled}
+                  locale={locale === "es" ? "es" : "en"}
+                />
               </div>
             </div>
           </section>

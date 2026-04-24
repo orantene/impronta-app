@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { headers } from "next/headers";
 import { LogOut, Search, UserRound } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
@@ -134,17 +133,11 @@ export async function PublicHeader() {
         </Link>
 
         <div className="flex items-center justify-end gap-0.5 sm:gap-1">
-          <Suspense
-            fallback={
-              <div className="mr-1 hidden h-7 w-[4.25rem] shrink-0 rounded-md border border-border/60 bg-background/80 sm:block" />
-            }
-          >
-            <PublicLanguageToggle
-              className="mr-1 hidden sm:flex"
-              activeLocale={locale}
-              pathnameWithoutLocale={pathnameWithoutLocale}
-            />
-          </Suspense>
+          <PublicLanguageToggle
+            className="mr-1 hidden sm:flex"
+            activeLocale={locale}
+            pathnameWithoutLocale={pathnameWithoutLocale}
+          />
           <PublicHeaderDiscoveryTools
             locale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
