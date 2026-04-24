@@ -60,16 +60,22 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     undo,
     redo,
     openPublish,
+    selectedSectionId,
+    setSelectedSectionId,
+    duplicateSection,
+    removeSection,
   } = useEditContext();
 
-  // Keyboard shortcuts for undo/redo. Mirror the platform convention:
-  // Cmd/Ctrl+Z → undo, Cmd/Ctrl+Shift+Z → redo. Ignore when the user is
-  // typing in an editable field so we don't eat their typing.
+  // Keyboard shortcuts. Mirror the platform convention:
+  //   Cmd/Ctrl+Z         → undo
+  //   Cmd/Ctrl+Shift+Z   → redo
+  //   Cmd/Ctrl+D         → duplicate the selected section
+  //                        (intercepts the browser's "Add bookmark" default)
+  //   Delete / Backspace → remove the selected section
+  // Ignore all of these while the user is typing in an editable field so we
+  // don't eat their keystrokes.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-      if (e.key.toLowerCase() !== "z") return;
       const tgt = e.target as HTMLElement | null;
       const tag = tgt?.tagName;
       const editable =
@@ -77,16 +83,52 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         tag === "TEXTAREA" ||
         tgt?.isContentEditable === true;
       if (editable) return;
-      e.preventDefault();
-      if (e.shiftKey) {
-        void redo();
-      } else {
-        void undo();
+
+      const mod = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      if (mod && key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) void redo();
+        else void undo();
+        return;
+      }
+
+      if (mod && key === "d" && selectedSectionId) {
+        e.preventDefault();
+        void duplicateSection(selectedSectionId).then((res) => {
+          if (res.ok && res.newSectionId) {
+            setSelectedSectionId(res.newSectionId);
+          }
+        });
+        return;
+      }
+
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedSectionId &&
+        !e.metaKey &&
+        !e.ctrlKey
+      ) {
+        // Backspace/Delete on a selected section removes it. Use the same
+        // path as the toolbar chip — no extra confirm here because the
+        // keyboard is a deliberate action and undo is one keystroke away.
+        e.preventDefault();
+        void removeSection(selectedSectionId).then((res) => {
+          if (res.ok) setSelectedSectionId(null);
+        });
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  }, [
+    undo,
+    redo,
+    selectedSectionId,
+    setSelectedSectionId,
+    duplicateSection,
+    removeSection,
+  ]);
 
   return (
     <>

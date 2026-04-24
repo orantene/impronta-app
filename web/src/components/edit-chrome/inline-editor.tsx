@@ -169,8 +169,15 @@ export function InlineEditor() {
       if (!original) return;
       el.setAttribute("data-inline-editing", "1");
       el.setAttribute("contenteditable", "true");
-      el.style.setProperty("outline", "2px solid rgba(37,99,235,0.9)");
+      // Match the selection ring's ink palette so the active text edit reads
+      // as the SAME editor chrome the operator just clicked into, not a
+      // secondary indicator in a different color family.
+      el.style.setProperty("outline", "1px solid rgba(17, 24, 39, 0.92)");
       el.style.setProperty("outline-offset", "2px");
+      el.style.setProperty(
+        "box-shadow",
+        "0 0 0 4px rgba(17, 24, 39, 0.12)",
+      );
       el.style.setProperty("border-radius", "2px");
       el.style.setProperty("cursor", "text");
       // select all
@@ -214,6 +221,7 @@ export function InlineEditor() {
         el.removeAttribute("data-inline-editing");
         el.style.removeProperty("outline");
         el.style.removeProperty("outline-offset");
+        el.style.removeProperty("box-shadow");
         el.style.removeProperty("border-radius");
         el.style.removeProperty("cursor");
         el.removeEventListener("keydown", onKey);
