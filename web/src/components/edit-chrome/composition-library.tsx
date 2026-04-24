@@ -19,6 +19,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useEditContext } from "./edit-context";
+import { InfoTip } from "@/components/ui/info-tip";
+import { SectionWire } from "./starter-wireframes";
 
 const PURPOSE_ORDER = [
   "hero",
@@ -209,19 +211,30 @@ export function CompositionLibraryOverlay() {
                             type="button"
                             disabled={busyTypeKey !== null}
                             onClick={() => void handlePick(entry.typeKey)}
-                            className="group flex flex-col items-start gap-1.5 rounded-lg border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 hover:shadow-md disabled:opacity-50 disabled:hover:border-zinc-200 disabled:hover:shadow-none"
+                            className="group flex flex-col items-stretch gap-2 rounded-lg border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 hover:shadow-md disabled:opacity-50 disabled:hover:border-zinc-200 disabled:hover:shadow-none"
                           >
-                            <div className="flex w-full items-center justify-between gap-2">
-                              <span className="text-sm font-semibold text-zinc-900">
-                                {entry.label}
-                              </span>
+                            <div className="overflow-hidden rounded-md bg-zinc-50 p-2">
+                              <SectionWire
+                                typeKey={entry.typeKey}
+                                className="h-20 w-full text-zinc-400"
+                              />
+                            </div>
+                            <div className="flex w-full items-center justify-between gap-2 px-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-semibold text-zinc-900">
+                                  {entry.label}
+                                </span>
+                                <InfoTip
+                                  label={`${entry.description} · Type key: ${entry.typeKey}`}
+                                />
+                              </div>
                               {busy ? (
                                 <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
                                   Adding…
                                 </span>
                               ) : null}
                             </div>
-                            <p className="line-clamp-3 text-xs leading-relaxed text-zinc-500">
+                            <p className="line-clamp-2 px-0.5 text-xs leading-relaxed text-zinc-500">
                               {entry.description}
                             </p>
                           </button>
