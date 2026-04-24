@@ -31,6 +31,7 @@ import {
   saveHomepageDraftComposition,
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
+import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
 import {
   listAgencyVisibleSections,
   getSectionType,
@@ -460,6 +461,190 @@ export async function createAndInsertSectionAction(input: {
       ? 0
       : (input.insertAfterSortOrder ?? -1) + 1;
 
+  for (const e of targetList) {
+    if (e.sortOrder >= insertAt) e.sortOrder += 1;
+  }
+  targetList.push({ sectionId: created.id, sortOrder: insertAt });
+  targetList.sort((a, b) => a.sortOrder - b.sortOrder);
+
+  const saveRes = await saveHomepageCompositionAction({
+    locale,
+    expectedVersion: input.expectedVersion,
+    metadata: input.metadata,
+    slots: slotsCopy,
+  });
+  if (!saveRes.ok) {
+    return {
+      ok: false,
+      error: saveRes.error,
+      code: saveRes.code,
+      currentVersion: saveRes.currentVersion,
+    };
+  }
+
+  return {
+    ok: true,
+    section: {
+      id: created.id,
+      name: created.name,
+      sectionTypeKey: typeKey,
+      version: created.version,
+    },
+    pageVersion: saveRes.pageVersion,
+  };
+}
+
+// ── duplicate ─────────────────────────────────────────────────────────────
+
+/**
+ * Duplicate an existing section into the same slot, right after the source.
+ *
+ * Flow mirrors {@link createAndInsertSectionAction} except the new draft
+ * inherits the source section's type + props + schema version + a derived
+ * name ("<original> copy"). The slots payload is spliced the same way — the
+ * server re-validates every gate (capability, slot allow-list, tenant scope)
+ * via the standard `saveHomepageCompositionAction` path, so duplication is
+ * safe even if the operator is on a stale snapshot.
+ */
+export async function duplicateSectionAction(input: {
+  locale: string;
+  expectedVersion: number;
+  metadata: {
+    title: string;
+    metaDescription?: string | null;
+    introTagline?: string | null;
+  };
+  slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
+  sourceSectionId: string;
+}): Promise<CreateAndInsertResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) {
+    return {
+      ok: false,
+      error: "Select an agency workspace before editing the homepage.",
+    };
+  }
+  const locale = asLocale(input.locale);
+  if (!locale) {
+    return { ok: false, error: `Unsupported locale "${input.locale}".` };
+  }
+
+  // Find where the source lives in the current snapshot so we know which
+  // slot to splice the duplicate into and at what position.
+  let sourceSlot: string | null = null;
+  let sourceSortOrder: number | null = null;
+  for (const [slotKey, entries] of Object.entries(input.slots)) {
+    const hit = entries.find((e) => e.sectionId === input.sourceSectionId);
+    if (hit) {
+      sourceSlot = slotKey;
+      sourceSortOrder = hit.sortOrder;
+      break;
+    }
+  }
+  if (sourceSlot === null || sourceSortOrder === null) {
+    return {
+      ok: false,
+      error: "Couldn't find that section in the current page.",
+      code: "NOT_FOUND",
+    };
+  }
+
+  const source = await loadSectionByIdForStaff(
+    auth.supabase,
+    scope.tenantId,
+    input.sourceSectionId,
+  );
+  if (!source) {
+    return { ok: false, error: "Section not found.", code: "NOT_FOUND" };
+  }
+
+  const typeKey = source.section_type_key as SectionTypeKey;
+  const entry = getSectionType(typeKey);
+  if (!entry) {
+    return {
+      ok: false,
+      error: "Section type missing from registry — refresh and try again.",
+      code: "UNKNOWN_SECTION_TYPE",
+    };
+  }
+
+  const baseValues = {
+    tenantId: scope.tenantId,
+    sectionTypeKey: typeKey,
+    schemaVersion: source.schema_version,
+    props: (source.props_jsonb ?? {}) as Record<string, unknown>,
+    expectedVersion: 0 as const,
+  };
+  const originalName = (source.name ?? "").trim() || "Section";
+
+  let created: { id: string; name: string; version: number } | null = null;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const suffix =
+      attempt === 0 ? " copy" : ` copy ${shortToken()}`;
+    const name = `${originalName}${suffix}`;
+    const parsed = sectionUpsertSchema.safeParse({ ...baseValues, name });
+    if (!parsed.success) {
+      logServerError(
+        "composition-actions/duplicate/safeParse",
+        new Error(
+          parsed.error.issues
+            .map((i) => `${i.path.join(".")}: ${i.message}`)
+            .join("; "),
+        ),
+      );
+      return {
+        ok: false,
+        error: "Couldn't validate the duplicated section.",
+        code: "VALIDATION_FAILED",
+      };
+    }
+    try {
+      const res = await upsertSection(auth.supabase, {
+        tenantId: scope.tenantId,
+        values: parsed.data,
+        actorProfileId: auth.user.id,
+      });
+      if (res.ok) {
+        created = { id: res.data.id, name, version: res.data.version };
+        break;
+      }
+      if (isUniqueNameViolation(res.code, res.message) && attempt < 2) {
+        continue;
+      }
+      return {
+        ok: false,
+        error: res.message ?? CLIENT_ERROR.update,
+        code: res.code,
+      };
+    } catch (err) {
+      logServerError("composition-actions/duplicate-section", err);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
+  }
+  if (!created) {
+    return {
+      ok: false,
+      error: "Couldn't duplicate the section.",
+      code: "CREATE_FAILED",
+    };
+  }
+
+  // Splice the new section in immediately after the source, renumbering
+  // any later siblings. The target slot by construction is where the
+  // source lives, so allowedSectionTypes is already satisfied.
+  const slotsCopy: Record<
+    string,
+    Array<{ sectionId: string; sortOrder: number }>
+  > = Object.fromEntries(
+    Object.entries(input.slots).map(([k, v]) => [
+      k,
+      v.map((e) => ({ ...e })),
+    ]),
+  );
+  const targetList = (slotsCopy[sourceSlot] ??= []);
+  const insertAt = sourceSortOrder + 1;
   for (const e of targetList) {
     if (e.sortOrder >= insertAt) e.sortOrder += 1;
   }

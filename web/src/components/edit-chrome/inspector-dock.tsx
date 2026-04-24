@@ -241,9 +241,21 @@ export function InspectorDock() {
             Inspector
           </div>
           {loadedSection ? (
-            <div className="mt-1 truncate text-sm font-semibold tracking-tight text-zinc-900">
-              {humanizeTypeKey(loadedSection.sectionTypeKey)}
-            </div>
+            <>
+              {/* Operator's section name leads — it's the label they chose
+                  ("Muse — hero"), which reads better than the platform type
+                  key. Fall back to the humanized type key only if the row
+                  somehow has no name. Type key is always visible below as
+                  a small uppercase caption, so the section's kind is still
+                  discoverable. */}
+              <div className="mt-1 truncate text-sm font-semibold tracking-tight text-zinc-900">
+                {loadedSection.name?.trim() ||
+                  humanizeTypeKey(loadedSection.sectionTypeKey)}
+              </div>
+              <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-400">
+                {humanizeTypeKey(loadedSection.sectionTypeKey)}
+              </div>
+            </>
           ) : (
             <div className="mt-1 text-sm font-semibold text-zinc-400">
               {selectedSectionId && loadingId
@@ -251,11 +263,6 @@ export function InspectorDock() {
                 : "No selection"}
             </div>
           )}
-          {loadedSection ? (
-            <div className="mt-0.5 truncate text-xs text-zinc-500">
-              {loadedSection.name}
-            </div>
-          ) : null}
         </div>
         {selectedSectionId ? (
           <button
@@ -352,14 +359,17 @@ export function InspectorDock() {
 
           <footer className="flex items-center justify-between border-t border-zinc-100 px-4 py-2 text-[11px] text-zinc-400">
             <span>
-              v{loadedSection.version} · schema v{loadedSection.schemaVersion}
+              {/* Just the version — the schema version is a platform concern
+                  the operator can't act on and its dot-separated presence
+                  made the footer read like a debug line. */}v
+              {loadedSection.version}
             </span>
             <span>
               {saving
                 ? "Saving…"
                 : dirty
                   ? "Unsaved changes"
-                  : "Draft saved"}
+                  : "Draft"}
             </span>
           </footer>
         </>

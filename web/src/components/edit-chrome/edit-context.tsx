@@ -36,6 +36,7 @@ import type { ReactNode } from "react";
 
 import {
   createAndInsertSectionAction,
+  duplicateSectionAction,
   loadHomepageCompositionAction,
   saveHomepageCompositionAction,
   type CompositionData,
@@ -126,6 +127,9 @@ export interface EditContextValue {
     sectionId: string,
     direction: "up" | "down",
   ) => Promise<{ ok: boolean; error?: string }>;
+  duplicateSection: (
+    sectionId: string,
+  ) => Promise<{ ok: boolean; error?: string; newSectionId?: string }>;
 
   // ── history ──
   canUndo: boolean;
@@ -396,6 +400,43 @@ export function EditProvider({
     [dispatchMutation],
   );
 
+  // ── duplicate ──────────────────────────────────────────────────────
+  const duplicateSection = useCallback<EditContextValue["duplicateSection"]>(
+    async (sectionId) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      const snap = currentSnapshot();
+      setPast((p) => [...p, cloneSnapshot(snap)]);
+      setFuture([]);
+      setSaving(true);
+
+      const res = await duplicateSectionAction({
+        locale,
+        expectedVersion: pageVersion,
+        metadata: snap.metadata,
+        slots: stripSnapshotForSave(snap).slots,
+        sourceSectionId: sectionId,
+      });
+      setSaving(false);
+
+      if (!res.ok) {
+        setPast((p) => p.slice(0, -1));
+        if (res.code === "VERSION_CONFLICT") {
+          await refreshComposition();
+        }
+        return { ok: false, error: res.error };
+      }
+      // Refresh authoritative composition so the client-side slot order and
+      // the server-rendered section DOM wrappers match. router.refresh then
+      // re-streams the sections with the new wrapper for the duplicate.
+      await refreshComposition();
+      router.refresh();
+      return { ok: true, newSectionId: res.section.id };
+    },
+    [pageVersion, currentSnapshot, locale, refreshComposition, router],
+  );
+
   // ── move up/down ───────────────────────────────────────────────────
   const moveSection = useCallback<EditContextValue["moveSection"]>(
     async (sectionId, direction) => {
@@ -510,6 +551,7 @@ export function EditProvider({
       insertSection,
       removeSection,
       moveSection,
+      duplicateSection,
 
       canUndo: past.length > 0,
       canRedo: future.length > 0,
@@ -547,6 +589,7 @@ export function EditProvider({
       insertSection,
       removeSection,
       moveSection,
+      duplicateSection,
       past.length,
       future.length,
       undo,
