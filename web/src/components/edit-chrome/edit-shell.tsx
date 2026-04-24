@@ -154,9 +154,38 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <InspectorDock />
       <CompositionLibraryOverlay />
       <PublishDrawer />
+      <MutationErrorToast />
       {children}
       <DeviceFrameStyle device={device} />
     </>
+  );
+}
+
+/**
+ * Lightweight toast for mutation errors. Rendered once at the shell level
+ * so remove / move / duplicate / publish all share one place for feedback.
+ * Reads the most recent error from context; the context auto-clears it
+ * after 5s, and the operator can dismiss earlier with the close button.
+ */
+function MutationErrorToast() {
+  const { mutationError, clearMutationError } = useEditContext();
+  if (!mutationError) return null;
+  return (
+    <div
+      data-edit-overlay="mutation-toast"
+      className="pointer-events-auto fixed left-1/2 top-[64px] z-[120] flex -translate-x-1/2 items-center gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900 shadow-lg"
+    >
+      <span>{mutationError}</span>
+      <button
+        type="button"
+        onClick={clearMutationError}
+        className="rounded-sm px-1 text-amber-700 transition hover:bg-amber-100 hover:text-amber-900"
+        aria-label="Dismiss"
+        title="Dismiss"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
   );
 }
 

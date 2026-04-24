@@ -146,6 +146,11 @@ export interface EditContextValue {
   publishOpen: boolean;
   openPublish: () => void;
   closePublish: () => void;
+
+  // ── transient toast for mutation errors ──
+  /** Most recent mutation error that's still on screen; null when clear. */
+  mutationError: string | null;
+  clearMutationError: () => void;
 }
 
 const EditContext = createContext<EditContextValue | null>(null);
@@ -251,6 +256,17 @@ export function EditProvider({
   // publish drawer state
   const [publishOpen, setPublishOpen] = useState(false);
 
+  // Most recent mutation error. Auto-clears after 5s — the operator
+  // probably already undid or retried, and we'd rather err toward quiet
+  // than keep a stale error chip up.
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const clearMutationError = useCallback(() => setMutationError(null), []);
+  useEffect(() => {
+    if (!mutationError) return;
+    const t = setTimeout(() => setMutationError(null), 5000);
+    return () => clearTimeout(t);
+  }, [mutationError]);
+
   const applyComposition = useCallback((data: CompositionData) => {
     setPageVersion(data.pageVersion);
     setPageMetadata(data.metadata);
@@ -340,6 +356,7 @@ export function EditProvider({
         if (save.code === "VERSION_CONFLICT") {
           await refreshComposition();
         }
+        setMutationError(save.error);
         return { ok: false, error: save.error };
       }
       setPageVersion(save.pageVersion);
@@ -378,6 +395,7 @@ export function EditProvider({
         if (res.code === "VERSION_CONFLICT") {
           await refreshComposition();
         }
+        setMutationError(res.error);
         return { ok: false, error: res.error };
       }
       // Splice the new section into local slots using the response payload
@@ -457,6 +475,7 @@ export function EditProvider({
         if (res.code === "VERSION_CONFLICT") {
           await refreshComposition();
         }
+        setMutationError(res.error);
         return { ok: false, error: res.error };
       }
       // Optimistically splice the duplicate right after the source so the
@@ -626,6 +645,9 @@ export function EditProvider({
       publishOpen,
       openPublish,
       closePublish,
+
+      mutationError,
+      clearMutationError,
     }),
     [
       tenantId,
@@ -661,6 +683,8 @@ export function EditProvider({
       publishOpen,
       openPublish,
       closePublish,
+      mutationError,
+      clearMutationError,
     ],
   );
 
