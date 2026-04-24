@@ -44,6 +44,10 @@ import {
   type CompositionSectionRef,
   type CompositionSlotDef,
 } from "@/lib/site-admin/edit-mode/composition-actions";
+import {
+  loadSectionForEditAction,
+  saveSectionDraftAction,
+} from "@/lib/site-admin/edit-mode/section-actions";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
 
@@ -146,6 +150,21 @@ export interface EditContextValue {
   canRedo: boolean;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
+  /**
+   * Inspector autosave bridge. Call on a successful field edit round-trip
+   * so ⌘Z reverses the change. `pre` is the section props BEFORE the edit,
+   * `post` is the saved state. Version numbers aren't stored — undo loads
+   * the section's current version fresh to stay CAS-safe after any
+   * intervening edits.
+   */
+  recordFieldEdit: (entry: {
+    sectionId: string;
+    sectionTypeKey: string;
+    schemaVersion: number;
+    name: string;
+    pre: Record<string, unknown>;
+    post: Record<string, unknown>;
+  }) => void;
 
   // ── library overlay ──
   libraryTarget: LibraryTarget | null;
@@ -170,6 +189,28 @@ const DEFAULT_METADATA: PageMetadata = {
   metaDescription: null,
   introTagline: null,
 };
+
+/**
+ * Unified undo/redo stack entry. Composition entries capture slots +
+ * metadata and revert by re-saving the composition. Field entries
+ * capture a single section's pre/post props and revert by re-saving
+ * that section through its autosave action. Keeping both on one
+ * timeline means ⌘Z honours LIFO across structural and content edits.
+ */
+type HistoryEntry =
+  | {
+      kind: "composition";
+      snapshot: CompositionSnapshot;
+    }
+  | {
+      kind: "field";
+      sectionId: string;
+      sectionTypeKey: string;
+      schemaVersion: number;
+      name: string;
+      pre: Record<string, unknown>;
+      post: Record<string, unknown>;
+    };
 
 function cloneSnapshot(s: CompositionSnapshot): CompositionSnapshot {
   return {
@@ -249,11 +290,16 @@ export function EditProvider({
   // is Figma-ish and well past what any realistic undo chain needs for a
   // page-composition tool (the tool has ~12 slots total; 50 states of
   // that is hundreds of individual moves).
-  const [past, setPast] = useState<CompositionSnapshot[]>([]);
-  const [future, setFuture] = useState<CompositionSnapshot[]>([]);
+  //
+  // Entries are a discriminated union: `composition` captures slots +
+  // metadata for structural moves; `field` captures a single section's
+  // pre/post props for inline text / image / URL edits. A single LIFO
+  // timeline so ⌘Z honours the most recent change regardless of kind.
+  const [past, setPast] = useState<HistoryEntry[]>([]);
+  const [future, setFuture] = useState<HistoryEntry[]>([]);
   const HISTORY_CAP = 50;
   const capHistory = useCallback(
-    (next: CompositionSnapshot[]) =>
+    (next: HistoryEntry[]) =>
       next.length > HISTORY_CAP ? next.slice(-HISTORY_CAP) : next,
     [],
   );
@@ -346,7 +392,9 @@ export function EditProvider({
       if (!next) return { ok: false, error: "Mutation produced no change." };
 
       // optimistic apply
-      setPast((p) => capHistory([...p, cloneSnapshot(snap)]));
+      setPast((p) =>
+        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+      );
       setFuture([]);
       setSlots(next.slots);
       setPageMetadata(next.metadata);
@@ -385,7 +433,9 @@ export function EditProvider({
       const snap = currentSnapshot();
       // capture history + clear future BEFORE the round-trip so if the
       // operator navigates away mid-flight, undo still sees the pre-state
-      setPast((p) => capHistory([...p, cloneSnapshot(snap)]));
+      setPast((p) =>
+        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+      );
       setFuture([]);
       setSaving(true);
 
@@ -467,7 +517,9 @@ export function EditProvider({
         return { ok: false, error: "Composition not loaded yet." };
       }
       const snap = currentSnapshot();
-      setPast((p) => capHistory([...p, cloneSnapshot(snap)]));
+      setPast((p) =>
+        capHistory([...p, { kind: "composition", snapshot: cloneSnapshot(snap) }]),
+      );
       setFuture([]);
       setSaving(true);
 
@@ -655,23 +707,108 @@ export function EditProvider({
     [pageVersion, locale, refreshComposition, router],
   );
 
+  /**
+   * Revert (or replay) a single section's props via the same autosave
+   * action inline edits use. Loads the section fresh for its current
+   * version so CAS stays correct even after intervening edits; if the
+   * section is currently selected in the inspector, sync local state
+   * so the UI doesn't stale-read.
+   */
+  const applyFieldEdit = useCallback(
+    async (sectionId: string, props: Record<string, unknown>) => {
+      const loaded = await loadSectionForEditAction(sectionId);
+      if (!loaded.ok) return;
+      setSaving(true);
+      const save = await saveSectionDraftAction({
+        id: sectionId,
+        sectionTypeKey: loaded.section.sectionTypeKey,
+        schemaVersion: loaded.section.schemaVersion,
+        name: loaded.section.name,
+        props,
+        expectedVersion: loaded.section.version,
+      });
+      setSaving(false);
+      if (!save.ok) {
+        setMutationError(save.error);
+        return;
+      }
+      if (selectedSectionId === sectionId) {
+        setLoadedSection({
+          ...loaded.section,
+          version: save.version,
+          props,
+        });
+        setDraftPropsState({ ...props });
+        setDirty(false);
+      }
+      router.refresh();
+    },
+    [selectedSectionId, router],
+  );
+
   const undo = useCallback(async () => {
     if (past.length === 0) return;
-    const target = past[past.length - 1]!;
-    const presentSnap = currentSnapshot();
+    const entry = past[past.length - 1]!;
     setPast((p) => p.slice(0, -1));
-    setFuture((f) => capHistory([...f, cloneSnapshot(presentSnap)]));
-    await restoreSnapshot(target);
-  }, [past, currentSnapshot, restoreSnapshot, capHistory]);
+    if (entry.kind === "composition") {
+      const presentSnap = currentSnapshot();
+      setFuture((f) =>
+        capHistory([
+          ...f,
+          { kind: "composition", snapshot: cloneSnapshot(presentSnap) },
+        ]),
+      );
+      await restoreSnapshot(entry.snapshot);
+    } else {
+      setFuture((f) => capHistory([...f, entry]));
+      await applyFieldEdit(entry.sectionId, entry.pre);
+    }
+  }, [past, currentSnapshot, restoreSnapshot, applyFieldEdit, capHistory]);
 
   const redo = useCallback(async () => {
     if (future.length === 0) return;
-    const target = future[future.length - 1]!;
-    const presentSnap = currentSnapshot();
+    const entry = future[future.length - 1]!;
     setFuture((f) => f.slice(0, -1));
-    setPast((p) => capHistory([...p, cloneSnapshot(presentSnap)]));
-    await restoreSnapshot(target);
-  }, [future, currentSnapshot, restoreSnapshot, capHistory]);
+    if (entry.kind === "composition") {
+      const presentSnap = currentSnapshot();
+      setPast((p) =>
+        capHistory([
+          ...p,
+          { kind: "composition", snapshot: cloneSnapshot(presentSnap) },
+        ]),
+      );
+      await restoreSnapshot(entry.snapshot);
+    } else {
+      setPast((p) => capHistory([...p, entry]));
+      await applyFieldEdit(entry.sectionId, entry.post);
+    }
+  }, [future, currentSnapshot, restoreSnapshot, applyFieldEdit, capHistory]);
+
+  /**
+   * Called by inspector-dock when an autosave field edit completes. Pushes
+   * a history entry so ⌘Z reverts the change; clears the redo stack
+   * because any new edit branches away from a previous undo path.
+   */
+  const recordFieldEdit = useCallback<EditContextValue["recordFieldEdit"]>(
+    (entry) => {
+      setPast((p) =>
+        capHistory([
+          ...p,
+          {
+            kind: "field",
+            sectionId: entry.sectionId,
+            sectionTypeKey: entry.sectionTypeKey,
+            schemaVersion: entry.schemaVersion,
+            name: entry.name,
+            pre: entry.pre,
+            post: entry.post,
+          },
+        ]),
+      );
+      setFuture([]);
+    },
+    [capHistory],
+  );
 
   const openLibrary = useCallback((target: LibraryTarget) => {
     setLibraryTarget(target);
@@ -720,6 +857,7 @@ export function EditProvider({
       canRedo: future.length > 0,
       undo,
       redo,
+      recordFieldEdit,
 
       libraryTarget,
       openLibrary,
@@ -761,6 +899,7 @@ export function EditProvider({
       future.length,
       undo,
       redo,
+      recordFieldEdit,
       libraryTarget,
       openLibrary,
       closeLibrary,

@@ -61,6 +61,7 @@ export function InspectorDock() {
     setDirty,
     saving,
     setSaving,
+    recordFieldEdit,
   } = useEditContext();
 
   const [tab, setTab] = useState<TabKey>("content");
@@ -119,6 +120,9 @@ export function InspectorDock() {
       setSaveError(null);
       const snapshot = { ...draftProps };
       const loaded = latestLoadedRef.current ?? loadedSection;
+      // Pre-edit props snapshot — used to record the undo entry on success
+      // so ⌘Z can replay the field state that existed before this save.
+      const preProps = { ...loaded.props };
       const result = await saveSectionDraftAction({
         id: loaded.id,
         sectionTypeKey: loaded.sectionTypeKey,
@@ -135,6 +139,14 @@ export function InspectorDock() {
           props: snapshot,
         });
         setDirty(false);
+        recordFieldEdit({
+          sectionId: loaded.id,
+          sectionTypeKey: loaded.sectionTypeKey,
+          schemaVersion: loaded.schemaVersion,
+          name: loaded.name,
+          pre: preProps,
+          post: snapshot,
+        });
         return;
       }
       if (result.code === "VERSION_CONFLICT") {
