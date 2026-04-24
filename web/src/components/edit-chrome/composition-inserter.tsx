@@ -71,7 +71,10 @@ export function CompositionInserters() {
   }, []);
 
   const recompute = () => {
-    if (rafRef.current !== null) return;
+    // Cancel any pending frame instead of bailing — a stale non-null ref
+    // (e.g. from strict-mode double-invoke or a missed cleanup path) would
+    // otherwise deadlock the inserter layer permanently.
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
       const sections = readSectionsInOrder();
@@ -148,7 +151,12 @@ export function CompositionInserters() {
       } as EventListenerOptions);
       window.removeEventListener("resize", onResize);
       mo.disconnect();
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      // See note in selection-layer: must null the ref too or subsequent
+      // recomputes bail out under React 19 strict-mode remount.
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
   }, [compositionLoaded]);
 
@@ -184,8 +192,8 @@ export function CompositionInserters() {
           }}
           aria-label="Add a section here"
         >
-          <span className="flex h-px w-full items-center justify-center bg-transparent transition-colors group-hover:bg-[rgba(37,99,235,0.35)]">
-            <span className="relative flex size-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all group-hover:border-[rgba(37,99,235,0.9)] group-hover:bg-[rgba(37,99,235,0.95)] group-hover:text-white group-hover:shadow-md">
+          <span className="flex h-px w-full items-center justify-center bg-transparent transition-colors group-hover:bg-[rgba(17,24,39,0.25)]">
+            <span className="relative flex size-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm transition-all group-hover:border-zinc-900 group-hover:bg-zinc-900 group-hover:text-white group-hover:shadow-md">
               <svg
                 width="14"
                 height="14"

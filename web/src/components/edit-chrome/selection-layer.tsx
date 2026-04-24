@@ -51,6 +51,16 @@ function humanizeTypeKey(key: string | null | undefined): string {
     .join(" ");
 }
 
+// Editor chrome accents. Zinc-900 ink matches the top-bar Publish button so
+// the whole editor surface reads as one calm ink palette, not a neon overlay
+// bolted onto a branded storefront. Opacity varies by state so a hover never
+// fights with a selection, and the selected halo lives in a second, outer
+// box-shadow for depth without a second outline.
+const INK = "17, 24, 39"; // zinc-900 rgb triplet (shared with topbar)
+const HOVER_STROKE = `rgba(${INK}, 0.35)`;
+const SELECT_STROKE = `rgba(${INK}, 0.92)`;
+const SELECT_HALO = `rgba(${INK}, 0.12)`;
+
 export function SelectionLayer() {
   const {
     selectedSectionId,
@@ -61,6 +71,7 @@ export function SelectionLayer() {
     moveSection,
     removeSection,
     saving,
+    loadedSection,
   } = useEditContext();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
@@ -77,7 +88,12 @@ export function SelectionLayer() {
   }, []);
 
   const scheduleRectRecompute = () => {
-    if (rafRef.current !== null) return;
+    // Always cancel any pending frame and queue a fresh one. If we only bail
+    // out when a ref is set, a cancelled-but-not-cleared ref (from strict
+    // mode's effect double-run, or a missed cleanup path) will deadlock the
+    // layer: the ref stays non-null forever and every future schedule call
+    // silently returns. Cancel-then-queue is idempotent and safe.
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
       if (selectedSectionId) {
@@ -179,7 +195,14 @@ export function SelectionLayer() {
       } as EventListenerOptions);
       window.removeEventListener("resize", onScrollOrResize);
       window.removeEventListener("keydown", onKey);
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      // Cancelling the frame without also nulling the ref leaves a dangling
+      // "request id" that scheduleRectRecompute treats as still-pending,
+      // so every future selection silently bails out. React 19 strict mode
+      // runs this cleanup on mount, which is how the bug manifested.
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoveredSectionId]);
@@ -199,8 +222,8 @@ export function SelectionLayer() {
             left: hoverRect.left,
             width: hoverRect.width,
             height: hoverRect.height,
-            outline: "2px solid rgba(59,130,246,0.45)",
-            outlineOffset: "-2px",
+            outline: `1px solid ${HOVER_STROKE}`,
+            outlineOffset: "-1px",
             borderRadius: 2,
             transition: "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
           }}
@@ -215,21 +238,24 @@ export function SelectionLayer() {
               left: selectedRect.left,
               width: selectedRect.width,
               height: selectedRect.height,
-              outline: "2px solid rgba(37,99,235,0.9)",
-              outlineOffset: "-2px",
+              outline: `1px solid ${SELECT_STROKE}`,
+              outlineOffset: "-1px",
               borderRadius: 2,
-              boxShadow: "0 0 0 1px rgba(37,99,235,0.15)",
+              // Outer halo gives depth without needing a second outline line;
+              // a 4 px soft shadow reads as "selected in place" rather than
+              // "highlighted with a debug ring".
+              boxShadow: `0 0 0 4px ${SELECT_HALO}`,
             }}
           />
           <div
             style={{
               position: "fixed",
-              top: Math.max(selectedRect.top - 28, 56),
+              top: Math.max(selectedRect.top - 30, 56),
               left: selectedRect.left,
-              height: 24,
+              height: 26,
               display: "flex",
               alignItems: "center",
-              gap: 2,
+              gap: 1,
               pointerEvents: "auto",
               whiteSpace: "nowrap",
             }}
@@ -237,18 +263,37 @@ export function SelectionLayer() {
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
-                padding: "0 8px",
+                alignItems: "baseline",
+                padding: "0 10px",
                 height: "100%",
-                background: "rgba(37,99,235,0.95)",
+                background: `rgba(${INK}, 0.96)`,
                 color: "white",
                 fontSize: 11,
                 fontWeight: 500,
-                letterSpacing: "0.02em",
-                borderRadius: "4px 0 0 4px",
+                letterSpacing: "0.01em",
+                borderRadius: "3px 0 0 3px",
+                gap: 6,
               }}
             >
-              {humanizeTypeKey(selectedTypeKey)}
+              <span>
+                {loadedSection?.id === selectedSectionId && loadedSection?.name
+                  ? loadedSection.name
+                  : humanizeTypeKey(selectedTypeKey)}
+              </span>
+              {loadedSection?.id === selectedSectionId &&
+              loadedSection?.name ? (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 400,
+                    opacity: 0.55,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {humanizeTypeKey(selectedTypeKey)}
+                </span>
+              ) : null}
             </div>
             <SectionToolBar
               disabled={saving}
@@ -303,7 +348,7 @@ function SectionToolBar({
   onRemoveCancel: () => void;
 }) {
   const baseBtn =
-    "inline-flex size-6 items-center justify-center bg-[rgba(37,99,235,0.95)] text-white transition hover:bg-[rgba(29,78,216,1)] disabled:opacity-60 disabled:hover:bg-[rgba(37,99,235,0.95)]";
+    "inline-flex size-[26px] items-center justify-center bg-[rgba(17,24,39,0.96)] text-white/85 transition hover:text-white hover:bg-[rgba(17,24,39,1)] disabled:opacity-50 disabled:hover:bg-[rgba(17,24,39,0.96)] border-l border-white/10";
   if (confirmRemove) {
     return (
       <div
@@ -311,7 +356,7 @@ function SectionToolBar({
           display: "flex",
           alignItems: "center",
           height: "100%",
-          borderRadius: "0 4px 4px 0",
+          borderRadius: "0 3px 3px 0",
           overflow: "hidden",
         }}
       >
@@ -319,14 +364,14 @@ function SectionToolBar({
           type="button"
           disabled={disabled}
           onClick={onRemoveConfirm}
-          className="inline-flex h-full items-center bg-red-600 px-2 text-[11px] font-semibold tracking-wide text-white transition hover:bg-red-700 disabled:opacity-60"
+          className="inline-flex h-full items-center border-l border-white/10 bg-red-600 px-2.5 text-[11px] font-semibold tracking-wide text-white transition hover:bg-red-700 disabled:opacity-50"
         >
           Remove?
         </button>
         <button
           type="button"
           onClick={onRemoveCancel}
-          className="inline-flex h-full items-center bg-zinc-800 px-2 text-[11px] font-medium tracking-wide text-white transition hover:bg-zinc-900"
+          className="inline-flex h-full items-center border-l border-white/10 bg-[rgba(17,24,39,0.96)] px-2.5 text-[11px] font-medium tracking-wide text-white/80 transition hover:bg-[rgba(17,24,39,1)] hover:text-white"
         >
           Cancel
         </button>
@@ -339,7 +384,7 @@ function SectionToolBar({
         display: "flex",
         alignItems: "center",
         height: "100%",
-        borderRadius: "0 4px 4px 0",
+        borderRadius: "0 3px 3px 0",
         overflow: "hidden",
       }}
     >
@@ -351,7 +396,7 @@ function SectionToolBar({
         aria-label="Move section up"
         title="Move up"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
       </button>
       <button
         type="button"
@@ -361,7 +406,7 @@ function SectionToolBar({
         aria-label="Move section down"
         title="Move down"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
       </button>
       <button
         type="button"
@@ -371,7 +416,7 @@ function SectionToolBar({
         aria-label="Remove section"
         title="Remove"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
       </button>
     </div>
   );
