@@ -161,20 +161,24 @@ html[data-public-font-preset="editorial"] {
     --ring: #b3891d;
   }
 
+  /* Dashboard shells (admin, client, talent) — monochrome neutral.
+   * Gold belongs on the tenant-facing storefront. Token names kept for
+   * backward compatibility with 100+ callsites that read --impronta-gold.
+   */
   .dashboard-theme-dark {
     --impronta-black: #0a0a0a;
-    --impronta-surface: #0f0f0f;
-    --impronta-gold: #c9a227;
-    --impronta-gold-bright: #d4af37;
-    --impronta-gold-dim: #9a7b2c;
-    --impronta-gold-border: rgba(201, 162, 39, 0.18);
+    --impronta-surface: #141416;
+    --impronta-gold: #fafafa;
+    --impronta-gold-bright: #ffffff;
+    --impronta-gold-dim: #a1a1aa;
+    --impronta-gold-border: rgba(255, 255, 255, 0.12);
     --impronta-foreground: #f4f4f5;
     --impronta-muted: #a1a1aa;
     --background: var(--impronta-black);
     --foreground: var(--impronta-foreground);
     --card: var(--impronta-surface);
     --card-foreground: #f4f4f5;
-    --popover: #3d3932;
+    --popover: #1a1a1c;
     --popover-foreground: #f4f4f5;
     --primary: var(--impronta-gold);
     --primary-foreground: #0a0a0a;
@@ -182,43 +186,43 @@ html[data-public-font-preset="editorial"] {
     --secondary-foreground: #f4f4f5;
     --muted: #18181b;
     --muted-foreground: #a1a1aa;
-    --accent: rgba(201, 162, 39, 0.09);
+    --accent: rgba(255, 255, 255, 0.06);
     --accent-foreground: #fafafa;
     --destructive: #991b1b;
     --destructive-foreground: #fef2f2;
-    --border: rgba(255, 255, 255, 0.06);
+    --border: rgba(255, 255, 255, 0.08);
     --input: rgba(255, 255, 255, 0.07);
     --ring: var(--impronta-gold-bright);
   }
 
   .dashboard-theme-light {
-    --impronta-black: #f7f4ec;
-    --impronta-surface: #fffdf8;
-    --impronta-gold: #9b7a21;
-    --impronta-gold-bright: #b18a24;
-    --impronta-gold-dim: #7b6424;
-    --impronta-gold-border: rgba(155, 122, 33, 0.18);
-    --impronta-foreground: #231d10;
-    --impronta-muted: #7a6f58;
+    --impronta-black: #fafafa;
+    --impronta-surface: #ffffff;
+    --impronta-gold: #18181b;
+    --impronta-gold-bright: #09090b;
+    --impronta-gold-dim: #52525b;
+    --impronta-gold-border: rgba(24, 24, 27, 0.12);
+    --impronta-foreground: #18181b;
+    --impronta-muted: #71717a;
     --background: var(--impronta-black);
     --foreground: var(--impronta-foreground);
     --card: var(--impronta-surface);
-    --card-foreground: #231d10;
-    --popover: rgba(255, 253, 248, 1);
-    --popover-foreground: #231d10;
-    --primary: #8d6f1d;
-    --primary-foreground: #fffaf0;
-    --secondary: #efe9da;
-    --secondary-foreground: #231d10;
-    --muted: #f2ede2;
-    --muted-foreground: #7a6f58;
-    --accent: rgba(155, 122, 33, 0.1);
-    --accent-foreground: #231d10;
+    --card-foreground: #18181b;
+    --popover: #ffffff;
+    --popover-foreground: #18181b;
+    --primary: #18181b;
+    --primary-foreground: #fafafa;
+    --secondary: #f4f4f5;
+    --secondary-foreground: #18181b;
+    --muted: #f4f4f5;
+    --muted-foreground: #71717a;
+    --accent: rgba(24, 24, 27, 0.04);
+    --accent-foreground: #18181b;
     --destructive: #b42318;
     --destructive-foreground: #fff5f5;
-    --border: rgba(35, 29, 16, 0.09);
-    --input: rgba(35, 29, 16, 0.08);
-    --ring: #b18a24;
+    --border: rgba(24, 24, 27, 0.1);
+    --input: rgba(24, 24, 27, 0.08);
+    --ring: #09090b;
   }
 
   .font-display {
@@ -569,13 +573,16 @@ html[data-public-font-preset="editorial"] {
 }
 
 [data-admin-prototype="1"][data-admin-prototype-theme="dark"] {
-  --admin-gold: #c9a227;
-  --admin-gold-bright: #d4af37;
-  --admin-gold-soft: rgba(201, 162, 39, 0.16);
-  --admin-gold-border: rgba(201, 162, 39, 0.22);
-  --admin-sidebar-bg: #0f0d0a;
-  --admin-sidebar-hover: rgba(201, 162, 39, 0.1);
-  --admin-gold-muted: rgba(212, 175, 55, 0.55);
+  /* Admin accent (dark) — neutral near-white. The admin is an operator
+   * tool; gold lives on the storefront, not here. Token name kept as
+   * --admin-gold for backward compatibility with 100+ callsites. */
+  --admin-gold: #fafafa;
+  --admin-gold-bright: #ffffff;
+  --admin-gold-soft: rgba(255, 255, 255, 0.05);
+  --admin-gold-border: rgba(255, 255, 255, 0.12);
+  --admin-sidebar-bg: #0f0f10;
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.05);
+  --admin-gold-muted: rgba(228, 228, 231, 0.45);
   --admin-nav-active-label: #fafafa;
   --admin-nav-idle: rgba(228, 228, 231, 0.58);
   --admin-nav-hover-fg: #f4f4f5;
@@ -596,11 +603,14 @@ html[data-public-font-preset="editorial"] {
  * CTAs, and focus rings — not as a background wash.
  */
 [data-admin-prototype="1"][data-admin-prototype-theme="light"] {
-  --admin-gold: #a16207;
-  --admin-gold-bright: #b45309;
-  --admin-gold-soft: rgba(161, 98, 7, 0.08);
-  --admin-gold-border: rgba(161, 98, 7, 0.18);
-  --admin-gold-muted: rgba(113, 63, 18, 0.55);
+  /* Admin accent (light) — solid near-black. Gold belongs on the
+   * tenant-facing storefront, not the operator shell. Token name kept
+   * as --admin-gold for backward compatibility. */
+  --admin-gold: #18181b;
+  --admin-gold-bright: #09090b;
+  --admin-gold-soft: rgba(24, 24, 27, 0.04);
+  --admin-gold-border: rgba(24, 24, 27, 0.12);
+  --admin-gold-muted: rgba(82, 82, 91, 0.55);
   --admin-sidebar-bg: #fafafa;
   --admin-sidebar-hover: rgba(24, 24, 27, 0.05);
   --admin-nav-active-label: #09090b;
