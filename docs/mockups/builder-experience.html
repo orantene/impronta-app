@@ -442,6 +442,10 @@
     <li class="toc-sep">Bespoke panels</li>
     <li><a href="#s23"><span class="toc-num">23</span>Talent picker</a></li>
 
+    <li class="toc-sep">Site &amp; import</li>
+    <li><a href="#s24"><span class="toc-num">24</span>Pages picker</a></li>
+    <li><a href="#s25"><span class="toc-num">25</span>Import prototype</a></li>
+
     <li class="toc-sep">Reference</li>
     <li><a href="#tokens"><span class="toc-num" style="background:var(--ink);color:white;border-color:var(--ink);font-size:9px;">§</span>Tokens · type</a></li>
   </ul>
@@ -3268,6 +3272,267 @@
     on the left (selected tiles get a violet ring + checkmark), ordered selected list on the right
     (drag to reorder). Footer shows the selection count and the commit action. Same structure is
     reused for gallery multi-select, icon picker, page picker.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     24. PAGES — picker expanded (multi-page navigation)
+     ═══════════════════════════════════════════════════════════════════════ -->
+<section class="surface" id="s24">
+  <div class="surface-head">
+    <h2 class="surface-title"><span class="surface-num">24</span>Pages picker — multi-page sites</h2>
+    <p class="surface-blurb">
+      The page picker in the top bar expands into a floating menu with every page: search, reorder,
+      add, settings per page, and a visual indicator for unpublished changes. Homepage and system
+      pages (404, legal) are grouped separately.
+    </p>
+  </div>
+  <div class="surface-frame">
+    <div class="editor-viewport">
+      <div class="topbar">
+        <div class="tb-brand"><div class="tb-mark">T</div><div class="tb-brand-name">Tulala</div></div>
+        <div class="tb-divider"></div>
+        <button class="tb-page-picker" style="background:var(--paper-2);border-color:var(--line-mid);"><span class="tb-page-icon"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="tb-page-name">Homepage</span><span class="tb-page-chev" style="transform:rotate(180deg);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg></span></button>
+        <span class="tb-status dirty">Unsaved</span>
+        <div class="tb-spacer"></div>
+        <div class="tb-spacer"></div>
+        <button class="tb-text-btn">Save draft</button>
+        <div class="btn-split"><button class="btn-split-main">Publish</button><div class="btn-split-divider"></div><button class="btn-split-arrow"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg></button></div>
+      </div>
+
+      <div class="canvas" style="opacity:0.5;">
+        <div class="canvas-frame"><div class="storefront"><div class="sf-nav"><span class="sf-brand">IMPRONTA</span></div><div class="sf-hero"><h1 class="sf-h1">A house of <em>curated</em> talent.</h1></div></div></div>
+      </div>
+
+      <!-- Pages menu popover -->
+      <div style="position:absolute;top:50px;left:140px;width:420px;background:var(--surface);border-radius:12px;box-shadow:var(--shadow-popover);z-index:110;overflow:hidden;">
+        <!-- Search header -->
+        <div style="padding:12px 14px;border-bottom:1px solid var(--line);">
+          <div style="position:relative;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted-2);"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input class="input sm" style="padding-left:30px;" placeholder="Search or add page…"/>
+          </div>
+        </div>
+
+        <!-- Main pages -->
+        <div style="padding:6px 4px;max-height:360px;overflow-y:auto;">
+          <div style="padding:6px 12px 4px;font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2);">Main</div>
+          <div style="padding:8px 10px;border-radius:7px;background:var(--ink);color:white;display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.7;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:600;">Homepage <span style="font-size:10px;font-weight:500;opacity:0.6;margin-left:4px;font-family:var(--font-mono);">/</span></div><div style="font-size:10.5px;opacity:0.65;">6 sections · edited 2 min ago</div></div>
+            <span style="font-size:9px;font-weight:700;background:rgba(255,255,255,0.18);color:white;padding:2px 6px;border-radius:3px;letter-spacing:0.04em;text-transform:uppercase;">Current</span>
+          </div>
+          <div style="padding:8px 10px;border-radius:7px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a7 7 0 0 1 14 0v2"/></svg>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--ink);">Roster <span style="font-size:10px;font-weight:500;color:var(--muted);margin-left:4px;font-family:var(--font-mono);">/roster</span></div><div style="font-size:10.5px;color:var(--muted);">4 sections · last published 5 days ago</div></div>
+            <span style="font-size:9px;font-weight:700;background:var(--blue-bg);color:var(--blue);padding:2px 6px;border-radius:3px;letter-spacing:0.04em;text-transform:uppercase;border:1px solid var(--blue-line);">2 drafts</span>
+          </div>
+          <div style="padding:8px 10px;border-radius:7px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);"><polyline points="2 3 10 10 2 17"/><line x1="12" y1="19" x2="22" y2="19"/></svg>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--ink);">Services <span style="font-size:10px;font-weight:500;color:var(--muted);margin-left:4px;font-family:var(--font-mono);">/services</span></div><div style="font-size:10.5px;color:var(--muted);">5 sections · published 12 days ago</div></div>
+          </div>
+          <div style="padding:8px 10px;border-radius:7px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--ink);">About <span style="font-size:10px;font-weight:500;color:var(--muted);margin-left:4px;font-family:var(--font-mono);">/about</span></div><div style="font-size:10.5px;color:var(--muted);">3 sections · not yet published</div></div>
+            <span style="font-size:9px;font-weight:700;background:var(--amber-bg);color:var(--amber);padding:2px 6px;border-radius:3px;letter-spacing:0.04em;text-transform:uppercase;border:1px solid var(--amber-line);">Draft only</span>
+          </div>
+          <div style="padding:8px 10px;border-radius:7px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--ink);">Contact <span style="font-size:10px;font-weight:500;color:var(--muted);margin-left:4px;font-family:var(--font-mono);">/contact</span></div><div style="font-size:10.5px;color:var(--muted);">2 sections · published</div></div>
+          </div>
+
+          <div style="padding:10px 12px 4px;font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2);">System pages</div>
+          <div style="padding:8px 10px;border-radius:7px;display:flex;align-items:center;gap:10px;cursor:pointer;opacity:0.8;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--ink);">Not found (404)</div><div style="font-size:10.5px;color:var(--muted);">Default template</div></div>
+          </div>
+          <div style="padding:8px 10px;border-radius:7px;display:flex;align-items:center;gap:10px;cursor:pointer;opacity:0.8;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--ink);">Privacy &amp; Terms</div><div style="font-size:10.5px;color:var(--muted);">Legal boilerplate</div></div>
+          </div>
+        </div>
+
+        <!-- Footer actions -->
+        <div style="padding:10px 14px;border-top:1px solid var(--line);background:var(--paper);display:flex;gap:8px;">
+          <button class="btn-ghost" style="flex:1;height:30px;font-size:11.5px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New page</button>
+          <button class="btn-ghost" style="flex:1;height:30px;font-size:11.5px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>Manage order</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="surface-caption">
+    <strong>Multi-page sites get a real navigator.</strong> Current page highlighted in ink with
+    a "Current" badge. Pages with unpublished changes get coloured tags: blue for "2 drafts" (named
+    checkpoints), amber for "Draft only" (unpublished). Page icons are contextual (home, people,
+    chevron, globe, chat). System pages (404, legal) grouped separately at lower opacity. Footer
+    has quick <em>New page</em> and <em>Manage order</em>.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     25. IMPORT FROM PROTOTYPE — the design-ingestion flow
+     ═══════════════════════════════════════════════════════════════════════ -->
+<section class="surface" id="s25">
+  <div class="surface-head">
+    <h2 class="surface-title"><span class="surface-num">25</span>Import from prototype — the strategic differentiator</h2>
+    <p class="surface-blurb">
+      The promise: drop a designer's coded prototype (HTML + CSS, a Figma Dev-mode export, a URL to
+      scrape) and the builder turns it into editable sections using the shared design system. This
+      spec has to support every CSS property an imported design might carry — which is why the
+      Layout / Style / Motion tabs in this doc cover the full web property surface.
+    </p>
+  </div>
+  <div class="surface-frame">
+    <div class="editor-viewport tall">
+      <div class="topbar">
+        <div class="tb-brand"><div class="tb-mark">T</div><div class="tb-brand-name">Tulala</div></div>
+        <div class="tb-divider"></div>
+        <span class="dw-eyebrow" style="margin-left:8px;"><span class="dw-eyebrow-dot"></span>Import prototype</span>
+        <div class="tb-spacer"></div>
+        <button class="tb-text-btn">Cancel</button>
+      </div>
+
+      <!-- Wizard full-viewport -->
+      <div style="position:absolute;top:54px;bottom:0;left:0;right:0;background:var(--paper-2);overflow-y:auto;padding:40px 32px;">
+        <div style="max-width:960px;margin:0 auto;">
+          <!-- Stepper -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.10);">1</div>
+              <span style="font-size:12.5px;font-weight:600;color:var(--ink);">Source</span>
+            </div>
+            <div style="flex:0 0 48px;height:1px;background:var(--ink);"></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">2</div>
+              <span style="font-size:12.5px;font-weight:600;color:var(--ink);">Map sections</span>
+            </div>
+            <div style="flex:0 0 48px;height:1px;background:var(--line-mid);"></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:28px;height:28px;border-radius:50%;background:var(--surface);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:1px solid var(--line-mid);">3</div>
+              <span style="font-size:12.5px;font-weight:500;color:var(--muted);">Review &amp; apply</span>
+            </div>
+          </div>
+
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="font-family:var(--font-display);font-size:32px;font-weight:500;letter-spacing:-0.014em;color:var(--ink);margin-bottom:8px;">Map your sections</div>
+            <p style="font-size:14px;color:var(--muted);max-width:600px;margin:0 auto;line-height:1.55;">We analysed your prototype and detected 6 top-level sections. Pick the section type each should become — our design tokens will carry through so the imported look stays intact.</p>
+          </div>
+
+          <!-- Side-by-side: prototype preview + section mapping -->
+          <div style="display:grid;grid-template-columns:340px 1fr;gap:16px;">
+            <!-- Prototype preview (scaled down screenshot-ish) -->
+            <div class="card" style="margin:0;">
+              <div class="card-head"><span class="card-head-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="card-title">Uploaded prototype</span></div>
+              <div class="card-body" style="padding:10px;">
+                <div style="border-radius:8px;background:var(--canvas-dark);overflow:hidden;color:#f5f0e8;">
+                  <div style="padding:14px 18px;font-size:8px;letter-spacing:0.18em;color:rgba(245,240,232,0.6);display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.05);"><span>IMPRONTA</span><span>MENU</span></div>
+                  <div style="padding:40px 20px;text-align:center;position:relative;background:linear-gradient(180deg,transparent,rgba(201,162,39,0.05));">
+                    <div style="font-family:var(--font-display);font-size:20px;color:#f5f0e8;">A house of <em>curated</em> talent.</div>
+                    <div style="position:absolute;top:6px;right:6px;font-size:8px;font-weight:700;background:var(--blue);color:white;padding:2px 5px;border-radius:3px;letter-spacing:0.04em;">→ Hero</div>
+                  </div>
+                  <div style="padding:14px 20px;border-top:1px solid rgba(255,255,255,0.05);position:relative;">
+                    <div style="display:flex;justify-content:space-around;color:rgba(245,240,232,0.6);font-size:7px;">LOGO · LOGO · LOGO · LOGO</div>
+                    <div style="position:absolute;top:6px;right:6px;font-size:8px;font-weight:700;background:var(--blue);color:white;padding:2px 5px;border-radius:3px;letter-spacing:0.04em;">→ Trust strip</div>
+                  </div>
+                  <div style="padding:22px 20px;border-top:1px solid rgba(255,255,255,0.05);position:relative;">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+                      <div style="height:40px;background:rgba(245,240,232,0.08);border-radius:3px;"></div>
+                      <div style="height:40px;background:rgba(245,240,232,0.08);border-radius:3px;"></div>
+                      <div style="height:40px;background:rgba(245,240,232,0.08);border-radius:3px;"></div>
+                    </div>
+                    <div style="position:absolute;top:6px;right:6px;font-size:8px;font-weight:700;background:var(--amber);color:white;padding:2px 5px;border-radius:3px;letter-spacing:0.04em;">? Unknown</div>
+                  </div>
+                  <div style="padding:20px;border-top:1px solid rgba(255,255,255,0.05);position:relative;">
+                    <div style="font-family:var(--font-display);font-size:14px;color:#f5f0e8;font-style:italic;text-align:center;">"Calm and confident."</div>
+                    <div style="position:absolute;top:6px;right:6px;font-size:8px;font-weight:700;background:var(--blue);color:white;padding:2px 5px;border-radius:3px;letter-spacing:0.04em;">→ Testimonials</div>
+                  </div>
+                </div>
+                <div style="padding:10px 2px 0;font-size:10px;color:var(--muted);">Source: <strong style="color:var(--text-2);">impronta-v2.zip</strong> · 142 KB · uploaded 2 min ago</div>
+              </div>
+            </div>
+
+            <!-- Section mapping list -->
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <!-- Hero row: auto-detected -->
+              <div class="card" style="margin:0;border-color:var(--green-line);box-shadow:0 0 0 1px rgba(20,115,46,0.10), var(--shadow-card);">
+                <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:28px;height:28px;border-radius:6px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-line);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;color:var(--ink);">Block 1 · 640×420 px</div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:1px;">Large headline + backdrop image · full-bleed</div>
+                  </div>
+                  <span class="savechip">Auto-detected</span>
+                  <div class="seg" style="display:inline-flex;gap:0;">
+                    <button class="seg-btn" style="padding:5px 8px;">Skip</button>
+                    <button class="seg-btn active" style="padding:5px 10px;display:inline-flex;align-items:center;gap:5px;"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="12" height="9" rx="1.2"/><path d="M5 6.5h6M6 8.5h4"/></svg>Hero</button>
+                    <button class="seg-btn" style="padding:5px 8px;">Custom</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;border-color:var(--green-line);">
+                <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:28px;height:28px;border-radius:6px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-line);display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Block 2 · 640×78 px</div><div style="font-size:11px;color:var(--muted);margin-top:1px;">Four aligned inline elements · horizontal row</div></div>
+                  <span class="savechip">Auto-detected</span>
+                  <button class="seg-btn active" style="padding:5px 10px;display:inline-flex;align-items:center;gap:5px;"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><line x1="1" y1="8" x2="15" y2="8" stroke-dasharray="0.5 1.4"/><circle cx="3.5" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="12.5" cy="8" r="1.2"/></svg>Trust strip</button>
+                </div>
+              </div>
+
+              <!-- Unknown row -->
+              <div class="card" style="margin:0;border-color:var(--amber-line);background:linear-gradient(180deg,var(--amber-bg) 0%, var(--surface) 20%);">
+                <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:28px;height:28px;border-radius:6px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line);display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                  <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Block 3 · 640×180 px</div><div style="font-size:11px;color:var(--amber);margin-top:1px;">3-column grid · no section type matched automatically</div></div>
+                  <div class="seg">
+                    <button class="seg-btn">Skip</button>
+                    <button class="seg-btn">Services</button>
+                    <button class="seg-btn">Process</button>
+                    <button class="seg-btn">Gallery</button>
+                    <button class="seg-btn">Custom</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="margin:0;border-color:var(--green-line);">
+                <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:28px;height:28px;border-radius:6px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-line);display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+                  <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Block 4 · 640×160 px</div><div style="font-size:11px;color:var(--muted);margin-top:1px;">Italic quote · centered · single column</div></div>
+                  <button class="seg-btn active" style="padding:5px 10px;display:inline-flex;align-items:center;gap:5px;"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="3" width="4.2" height="10" rx="0.8"/><rect x="5.9" y="3" width="4.2" height="10" rx="0.8"/><rect x="10.8" y="3" width="4.2" height="10" rx="0.8"/></svg>Testimonials</button>
+                </div>
+              </div>
+
+              <!-- Tokens preview bar -->
+              <div class="card" style="margin:0;background:var(--paper-2);border-style:dashed;">
+                <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;">
+                  <div style="width:28px;height:28px;border-radius:6px;background:var(--ink);color:white;display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20"/></svg></div>
+                  <div style="flex:1;"><div style="font-size:13px;font-weight:600;color:var(--ink);">Design tokens we found</div><div style="font-size:11px;color:var(--muted);margin-top:1px;">Will be added to your Theme drawer</div></div>
+                  <div style="display:flex;gap:4px;align-items:center;">
+                    <div style="width:20px;height:20px;border-radius:4px;background:#0a0a0a;border:1px solid var(--line);"></div>
+                    <div style="width:20px;height:20px;border-radius:4px;background:#f5f0e8;border:1px solid var(--line);"></div>
+                    <div style="width:20px;height:20px;border-radius:4px;background:#c9a227;border:1px solid var(--line);"></div>
+                    <span style="font-size:10px;color:var(--muted);margin-left:4px;">+3 more</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wizard footer -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--line);">
+            <div style="font-size:12px;color:var(--muted);"><strong style="color:var(--text-2);">3 of 4 sections mapped</strong> · fix the unknown one above to continue</div>
+            <div style="display:flex;gap:8px;"><button class="btn-ghost">Back</button><button class="btn-primary">Review &amp; apply →</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="surface-caption">
+    <strong>Import doesn't have to mean guesswork.</strong> Step 1 picks the source (ZIP / Figma / URL).
+    Step 2 auto-detects section boundaries from the DOM / design-frames, matches them to section types
+    in the library with colour-coded confidence (green = auto-detected, amber = needs operator picking).
+    Design tokens (colors, type, spacing) found in the source are extracted and added to the Theme
+    drawer so the imported look stays intact. Step 3 (not shown) gives a final preview and applies.
   </div>
 </section>
 
