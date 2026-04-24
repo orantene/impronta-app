@@ -26,6 +26,8 @@ import { HeroContentInspector } from "./hero-content";
 import { CategoryGridContentInspector } from "./category-grid-content";
 import { CtaBannerContentInspector } from "./cta-banner-content";
 import { FeaturedTalentContentInspector } from "./featured-talent-content";
+import { TestimonialsTrioContentInspector } from "./testimonials-trio-content";
+import { GalleryStripContentInspector } from "./gallery-strip-content";
 import { GenericContent } from "./generic-content";
 
 interface ContentTabProps {
@@ -47,6 +49,8 @@ const CURATED: Record<string, ComponentType<CuratedInspectorProps>> = {
   category_grid: CategoryGridContentInspector,
   cta_banner: CtaBannerContentInspector,
   featured_talent: FeaturedTalentContentInspector,
+  testimonials_trio: TestimonialsTrioContentInspector,
+  gallery_strip: GalleryStripContentInspector,
 };
 
 export function ContentTab({

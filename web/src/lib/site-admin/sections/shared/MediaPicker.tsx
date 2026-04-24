@@ -31,12 +31,24 @@ interface MediaItem {
 
 export interface MediaPickerProps {
   tenantId: string;
-  /** Called with the picked public URL. */
+  /**
+   * Called with the picked public URL (single-select mode).
+   * Still required for backward compat; ignored in multi mode if
+   * `onMultiPick` is provided.
+   */
   onPick: (publicUrl: string) => void;
   /** Shown inside the trigger button. */
   label?: string;
   /** Disable the trigger. */
   disabled?: boolean;
+  /**
+   * When true the modal stays open and lets the operator select multiple
+   * assets. "Add N images" button in the header confirms and calls
+   * `onMultiPick` with the ordered URL array.
+   */
+  multi?: boolean;
+  /** Required when `multi` is true. Called with all selected URLs on confirm. */
+  onMultiPick?: (publicUrls: string[]) => void;
 }
 
 export function MediaPicker({
@@ -44,6 +56,8 @@ export function MediaPicker({
   onPick,
   label = "Browse library",
   disabled,
+  multi = false,
+  onMultiPick,
 }: MediaPickerProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<MediaItem[] | null>(null);
@@ -52,6 +66,8 @@ export function MediaPicker({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Multi-select pending set — URLs selected but not yet confirmed.
+  const [pending, setPending] = useState<string[]>([]);
 
   const loadLibrary = useCallback(async () => {
     setLoading(true);
@@ -96,10 +112,17 @@ export function MediaPicker({
       const item = body.item as MediaItem;
       // Prepend immediately so the uploaded tile is first + highlighted.
       setItems((prev) => [item, ...(prev ?? [])]);
-      // Auto-pick the freshly-uploaded asset — most common flow is
-      // "upload + use it here" in one motion.
-      onPick(item.publicUrl);
-      setOpen(false);
+      if (multi) {
+        // In multi mode: add to pending set so the operator can confirm in bulk.
+        setPending((prev) =>
+          prev.includes(item.publicUrl) ? prev : [...prev, item.publicUrl],
+        );
+      } else {
+        // Single mode: auto-pick and close — most common flow is
+        // "upload + use it here" in one motion.
+        onPick(item.publicUrl);
+        setOpen(false);
+      }
     } catch (e) {
       setUploadError(String(e).slice(0, 200));
     } finally {
@@ -108,13 +131,32 @@ export function MediaPicker({
     }
   }
 
+  function handleClose() {
+    setOpen(false);
+    setPending([]);
+  }
+
+  function confirmMulti() {
+    if (onMultiPick && pending.length > 0) {
+      onMultiPick(pending);
+    }
+    handleClose();
+  }
+
+  function togglePending(url: string) {
+    setPending((prev) =>
+      prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url],
+    );
+  }
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") handleClose();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
@@ -136,15 +178,19 @@ export function MediaPicker({
           role="dialog"
           aria-label="Media library"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setOpen(false);
+            if (e.target === e.currentTarget) handleClose();
           }}
         >
           <div className="flex h-[80vh] w-[min(100%,960px)] flex-col overflow-hidden rounded-lg border border-border/60 bg-background shadow-2xl">
             <div className="flex items-center justify-between gap-4 border-b border-border/50 px-5 py-3">
               <div>
-                <h2 className="text-base font-semibold">Media library</h2>
+                <h2 className="text-base font-semibold">
+                  {multi ? "Pick images" : "Media library"}
+                </h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  Upload new imagery or pick from this workspace's library.
+                  {multi
+                    ? `Click tiles to select · ${pending.length} selected`
+                    : "Upload new imagery or pick from this workspace's library."}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -168,15 +214,37 @@ export function MediaPicker({
                   <Upload className="mr-1.5 size-3.5" />
                   {uploading ? "Uploading…" : "Upload"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setOpen(false)}
-                  aria-label="Close media library"
-                >
-                  <X className="size-3.5" />
-                </Button>
+                {multi ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClose}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={pending.length === 0}
+                      onClick={confirmMulti}
+                    >
+                      Add {pending.length || ""}{" "}
+                      {pending.length === 1 ? "image" : "images"}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleClose}
+                    aria-label="Close media library"
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -195,33 +263,70 @@ export function MediaPicker({
                 </p>
               ) : items && items.length > 0 ? (
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                  {items.map((m) => (
-                    <li key={m.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onPick(m.publicUrl);
-                          setOpen(false);
-                        }}
-                        className="group/tile flex w-full flex-col gap-1 overflow-hidden rounded-lg border border-border/60 bg-muted/10 p-1 text-left transition hover:border-foreground/40 hover:bg-muted/20"
-                      >
-                        <span
-                          className="aspect-[3/4] w-full overflow-hidden rounded-md bg-muted/30 bg-cover bg-center"
-                          style={{ backgroundImage: `url(${m.publicUrl})` }}
-                          aria-hidden
-                        />
-                        <span className="px-1 pb-1 text-[10px] text-muted-foreground">
-                          {m.variantKind}
-                          {m.width && m.height ? (
-                            <>
-                              {" "}
-                              · {m.width}×{m.height}
-                            </>
+                  {items.map((m) => {
+                    const selected = multi && pending.includes(m.publicUrl);
+                    return (
+                      <li key={m.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (multi) {
+                              togglePending(m.publicUrl);
+                            } else {
+                              onPick(m.publicUrl);
+                              setOpen(false);
+                            }
+                          }}
+                          className={`group/tile relative flex w-full flex-col gap-1 overflow-hidden rounded-lg border bg-muted/10 p-1 text-left transition hover:bg-muted/20 ${
+                            selected
+                              ? "border-foreground shadow-[0_0_0_2px] shadow-foreground/60"
+                              : "border-border/60 hover:border-foreground/40"
+                          }`}
+                        >
+                          <span
+                            className="aspect-[3/4] w-full overflow-hidden rounded-md bg-muted/30 bg-cover bg-center"
+                            style={{ backgroundImage: `url(${m.publicUrl})` }}
+                            aria-hidden
+                          />
+                          {/* Multi-select checkmark */}
+                          {multi ? (
+                            <span
+                              className={`absolute right-2 top-2 flex size-5 items-center justify-center rounded-full border-2 transition ${
+                                selected
+                                  ? "border-foreground bg-foreground text-background"
+                                  : "border-border/60 bg-background/80"
+                              }`}
+                              aria-hidden
+                            >
+                              {selected ? (
+                                <svg
+                                  width="10"
+                                  height="10"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              ) : null}
+                            </span>
                           ) : null}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                          <span className="px-1 pb-1 text-[10px] text-muted-foreground">
+                            {m.variantKind}
+                            {m.width && m.height ? (
+                              <>
+                                {" "}
+                                · {m.width}×{m.height}
+                              </>
+                            ) : null}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <div className="rounded-md border border-dashed border-border/60 bg-muted/10 p-8 text-center">
