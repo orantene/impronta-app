@@ -371,9 +371,32 @@ export function EditProvider({
         }
         return { ok: false, error: res.error };
       }
-      // Reload authoritative composition — avoids drift between our local
-      // splice guess and the server's (identical) result.
-      await refreshComposition();
+      // Splice the new section into local slots using the response payload
+      // instead of awaiting a second round-trip to refreshComposition. The
+      // server-rendered DOM wrappers still need router.refresh() to catch
+      // up, but the inspector / overlays read from context state and can
+      // engage the new section immediately.
+      const insertAt =
+        target.insertAfterSortOrder === null
+          ? 0
+          : target.insertAfterSortOrder + 1;
+      setSlots((prev) => {
+        const next: Record<string, CompositionSectionRef[]> = {};
+        for (const [k, list] of Object.entries(prev)) {
+          next[k] = list.map((e) => ({ ...e }));
+        }
+        const bucket = (next[target.slotKey] ??= []);
+        for (const e of bucket) if (e.sortOrder >= insertAt) e.sortOrder += 1;
+        bucket.push({
+          sectionId: res.section.id,
+          sortOrder: insertAt,
+          sectionTypeKey: res.section.sectionTypeKey,
+          name: res.section.name,
+        });
+        bucket.sort((a, b) => a.sortOrder - b.sortOrder);
+        return next;
+      });
+      setPageVersion(res.pageVersion);
       router.refresh();
       return { ok: true };
     },
@@ -427,10 +450,39 @@ export function EditProvider({
         }
         return { ok: false, error: res.error };
       }
-      // Refresh authoritative composition so the client-side slot order and
-      // the server-rendered section DOM wrappers match. router.refresh then
-      // re-streams the sections with the new wrapper for the duplicate.
-      await refreshComposition();
+      // Optimistically splice the duplicate right after the source so the
+      // inspector + overlays can engage it immediately — then router.refresh
+      // fills in the server-rendered section wrapper in the background.
+      // Skip the blocking refreshComposition round-trip (~300 ms saved).
+      setSlots((prev) => {
+        const next: Record<string, CompositionSectionRef[]> = {};
+        for (const [k, list] of Object.entries(prev)) {
+          next[k] = list.map((e) => ({ ...e }));
+        }
+        let sourceSlot: string | null = null;
+        let sourceOrder: number | null = null;
+        for (const [slotKey, list] of Object.entries(next)) {
+          const hit = list.find((e) => e.sectionId === sectionId);
+          if (hit) {
+            sourceSlot = slotKey;
+            sourceOrder = hit.sortOrder;
+            break;
+          }
+        }
+        if (sourceSlot === null || sourceOrder === null) return next;
+        const bucket = next[sourceSlot]!;
+        const insertAt = sourceOrder + 1;
+        for (const e of bucket) if (e.sortOrder >= insertAt) e.sortOrder += 1;
+        bucket.push({
+          sectionId: res.section.id,
+          sortOrder: insertAt,
+          sectionTypeKey: res.section.sectionTypeKey,
+          name: res.section.name,
+        });
+        bucket.sort((a, b) => a.sortOrder - b.sortOrder);
+        return next;
+      });
+      setPageVersion(res.pageVersion);
       router.refresh();
       return { ok: true, newSectionId: res.section.id };
     },
