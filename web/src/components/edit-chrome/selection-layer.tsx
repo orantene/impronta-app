@@ -412,7 +412,20 @@ export function SelectionLayer() {
         delta =
           ((y - (vh - AUTOSCROLL_BAND)) / AUTOSCROLL_BAND) * AUTOSCROLL_MAX;
       }
-      if (delta !== 0) window.scrollBy(0, delta);
+      if (delta !== 0) {
+        window.scrollBy(0, delta);
+        // Recompute drop under the NEW scroll position even though the
+        // cursor hasn't moved — otherwise the drop line freezes on the
+        // section that was under the cursor before the page scrolled.
+        const fresh = computeDrop(drag.pointerX, drag.pointerY, drag.typeKey);
+        if (
+          fresh?.slotKey !== drag.drop?.slotKey ||
+          fresh?.sortOrder !== drag.drop?.sortOrder ||
+          fresh?.indicatorY !== drag.drop?.indicatorY
+        ) {
+          setDrag({ ...drag, drop: fresh });
+        }
+      }
       autoscrollRafRef.current = requestAnimationFrame(tick);
     }
     autoscrollRafRef.current = requestAnimationFrame(tick);
@@ -423,6 +436,11 @@ export function SelectionLayer() {
         autoscrollRafRef.current = null;
       }
     };
+    // computeDrop is recreated every render but only reads live DOM +
+    // slotDefs; re-running this rAF loop on every paint would tear down +
+    // re-queue the frame and risk auto-scroll jitter. Depending on `drag`
+    // is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag]);
 
   const startDrag = (e: React.PointerEvent<HTMLElement>) => {
