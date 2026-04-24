@@ -230,9 +230,18 @@ export function EditProvider({
   const [slotDefs, setSlotDefs] = useState<CompositionSlotDef[]>([]);
   const [library, setLibrary] = useState<CompositionLibraryEntry[]>([]);
 
-  // history stacks
+  // history stacks. Capped so a long session doesn't leak memory — 50 deep
+  // is Figma-ish and well past what any realistic undo chain needs for a
+  // page-composition tool (the tool has ~12 slots total; 50 states of
+  // that is hundreds of individual moves).
   const [past, setPast] = useState<CompositionSnapshot[]>([]);
   const [future, setFuture] = useState<CompositionSnapshot[]>([]);
+  const HISTORY_CAP = 50;
+  const capHistory = useCallback(
+    (next: CompositionSnapshot[]) =>
+      next.length > HISTORY_CAP ? next.slice(-HISTORY_CAP) : next,
+    [],
+  );
 
   // library overlay target
   const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(
@@ -311,7 +320,7 @@ export function EditProvider({
       if (!next) return { ok: false, error: "Mutation produced no change." };
 
       // optimistic apply
-      setPast((p) => [...p, cloneSnapshot(snap)]);
+      setPast((p) => capHistory([...p, cloneSnapshot(snap)]));
       setFuture([]);
       setSlots(next.slots);
       setPageMetadata(next.metadata);
@@ -349,7 +358,7 @@ export function EditProvider({
       const snap = currentSnapshot();
       // capture history + clear future BEFORE the round-trip so if the
       // operator navigates away mid-flight, undo still sees the pre-state
-      setPast((p) => [...p, cloneSnapshot(snap)]);
+      setPast((p) => capHistory([...p, cloneSnapshot(snap)]));
       setFuture([]);
       setSaving(true);
 
@@ -430,7 +439,7 @@ export function EditProvider({
         return { ok: false, error: "Composition not loaded yet." };
       }
       const snap = currentSnapshot();
-      setPast((p) => [...p, cloneSnapshot(snap)]);
+      setPast((p) => capHistory([...p, cloneSnapshot(snap)]));
       setFuture([]);
       setSaving(true);
 
@@ -550,7 +559,7 @@ export function EditProvider({
     const target = past[past.length - 1]!;
     const presentSnap = currentSnapshot();
     setPast((p) => p.slice(0, -1));
-    setFuture((f) => [...f, cloneSnapshot(presentSnap)]);
+    setFuture((f) => capHistory([...f, cloneSnapshot(presentSnap)]));
     await restoreSnapshot(target);
   }, [past, currentSnapshot, restoreSnapshot]);
 
@@ -559,7 +568,7 @@ export function EditProvider({
     const target = future[future.length - 1]!;
     const presentSnap = currentSnapshot();
     setFuture((f) => f.slice(0, -1));
-    setPast((p) => [...p, cloneSnapshot(presentSnap)]);
+    setPast((p) => capHistory([...p, cloneSnapshot(presentSnap)]));
     await restoreSnapshot(target);
   }, [future, currentSnapshot, restoreSnapshot]);
 
