@@ -349,28 +349,41 @@ function DeviceToggle({
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
 }) {
+  const activeWidth = DEVICE_WIDTHS[device];
   return (
-    <div className="inline-flex rounded-full border border-zinc-200 bg-white p-0.5 text-xs">
-      {(
-        [
-          ["desktop", "Desktop"],
-          ["tablet", "Tablet"],
-          ["mobile", "Mobile"],
-        ] as const
-      ).map(([key, label]) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() => setDevice(key)}
-          className={`rounded-full px-3 py-1 transition ${
-            device === key
-              ? "bg-zinc-900 text-white"
-              : "text-zinc-500 hover:text-zinc-900"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="inline-flex items-center gap-2">
+      <div className="inline-flex rounded-full border border-zinc-200 bg-white p-0.5 text-xs">
+        {(
+          [
+            ["desktop", "Desktop", "Full width"],
+            ["tablet", "Tablet", "834 px"],
+            ["mobile", "Mobile", "390 px"],
+          ] as const
+        ).map(([key, label, hint]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setDevice(key)}
+            title={`${label} — ${hint}`}
+            className={`rounded-full px-3 py-1 transition ${
+              device === key
+                ? "bg-zinc-900 text-white"
+                : "text-zinc-500 hover:text-zinc-900"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {/* Narrow-mode honesty: CSS media queries still fire against the real
+          viewport, so "Mobile" here is visually-constrained preview, not a
+          true breakpoint reflow. Show the px width next to the toggle so
+          the operator knows what they're looking at. */}
+      {activeWidth !== null ? (
+        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400 tabular-nums">
+          {activeWidth} px
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -383,9 +396,23 @@ function DeviceToggle({
 function DeviceFrameStyle({ device }: { device: EditDevice }) {
   const width = DEVICE_WIDTHS[device];
   if (!width) return null;
+  // Narrow-mode frame: pin body to the device width + centered, wrap in a
+  // soft editor surround (rounded corners + depth shadow) so the preview
+  // reads as a framed device artefact and not as a "broken" storefront
+  // sitting on blank canvas.
   return (
     <style>{`
-      body { max-width: ${width}px !important; margin-left: auto !important; margin-right: auto !important; box-shadow: 0 0 0 1px rgba(0,0,0,0.08), 0 30px 80px -30px rgba(0,0,0,0.25) !important; }
+      body {
+        max-width: ${width}px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        border-radius: 18px !important;
+        overflow: hidden !important;
+        box-shadow:
+          0 0 0 1px rgba(0, 0, 0, 0.08),
+          0 30px 80px -30px rgba(0, 0, 0, 0.28),
+          0 8px 24px -12px rgba(0, 0, 0, 0.12) !important;
+      }
     `}</style>
   );
 }

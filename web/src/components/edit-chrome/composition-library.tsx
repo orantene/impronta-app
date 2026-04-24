@@ -16,7 +16,7 @@
  * Errors are surfaced inline (toast-free for Phase 3 — adds polish later).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useEditContext } from "./edit-context";
 
@@ -48,6 +48,17 @@ export function CompositionLibraryOverlay() {
   } = useEditContext();
   const [busyTypeKey, setBusyTypeKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const queryInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Reset + auto-focus the search input each time the library opens so the
+  // operator can start typing immediately — a premium editor habit.
+  useEffect(() => {
+    if (!libraryTarget) return;
+    setQuery("");
+    const t = setTimeout(() => queryInputRef.current?.focus(), 30);
+    return () => clearTimeout(t);
+  }, [libraryTarget]);
 
   useEffect(() => {
     if (!libraryTarget) return;
@@ -63,12 +74,21 @@ export function CompositionLibraryOverlay() {
     return slotDefs.find((s) => s.key === libraryTarget.slotKey) ?? null;
   }, [libraryTarget, slotDefs]);
 
-  const filtered = useMemo(() => {
+  const slotFiltered = useMemo(() => {
     if (!slotDef) return library;
     const allowed = slotDef.allowedSectionTypes;
     if (!allowed) return library;
     return library.filter((l) => allowed.includes(l.typeKey));
   }, [library, slotDef]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return slotFiltered;
+    return slotFiltered.filter((entry) => {
+      const hay = `${entry.label} ${entry.description} ${entry.typeKey}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [slotFiltered, query]);
 
   const grouped = useMemo(() => {
     const by: Record<string, typeof filtered> = {};
@@ -124,6 +144,40 @@ export function CompositionLibraryOverlay() {
             Cancel
           </button>
         </header>
+        {/* Search filter sits between the header and the grid so the grid
+            scrolls under a stable filter input. Operators can narrow long
+            libraries with "gallery", "cta", etc. without scrolling. */}
+        <div className="border-b border-zinc-100 px-5 py-3">
+          <div className="relative">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              ref={queryInputRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                slotFiltered.length === 0
+                  ? "No sections available"
+                  : `Filter ${slotFiltered.length} section type${slotFiltered.length === 1 ? "" : "s"}…`
+              }
+              className="w-full rounded-md border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+            />
+          </div>
+        </div>
         {error ? (
           <div className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-700">
             {error}
@@ -132,7 +186,9 @@ export function CompositionLibraryOverlay() {
         <div className="flex-1 overflow-y-auto p-5">
           {filtered.length === 0 ? (
             <p className="py-12 text-center text-sm text-zinc-500">
-              No section types available for this slot.
+              {query.trim()
+                ? `No section types match "${query.trim()}".`
+                : "No section types available for this slot."}
             </p>
           ) : (
             <div className="space-y-6">
