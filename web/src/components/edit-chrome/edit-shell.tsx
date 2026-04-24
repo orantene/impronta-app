@@ -63,6 +63,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     selectedSectionId,
     setSelectedSectionId,
     duplicateSection,
+    moveSection,
     removeSection,
   } = useEditContext();
 
@@ -104,6 +105,18 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         return;
       }
 
+      // Alt+↑ / Alt+↓ reorders the selected section one position. Mirrors
+      // the chevron chips in the selection toolbar and the drag gesture —
+      // the three paths share one mutation so undo replays them uniformly.
+      if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown") && selectedSectionId) {
+        e.preventDefault();
+        void moveSection(
+          selectedSectionId,
+          e.key === "ArrowUp" ? "up" : "down",
+        );
+        return;
+      }
+
       if (
         (e.key === "Delete" || e.key === "Backspace") &&
         selectedSectionId &&
@@ -127,6 +140,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     selectedSectionId,
     setSelectedSectionId,
     duplicateSection,
+    moveSection,
     removeSection,
   ]);
 

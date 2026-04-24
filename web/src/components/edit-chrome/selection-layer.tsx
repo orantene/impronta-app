@@ -61,6 +61,50 @@ const HOVER_STROKE = `rgba(${INK}, 0.35)`;
 const SELECT_STROKE = `rgba(${INK}, 0.92)`;
 const SELECT_HALO = `rgba(${INK}, 0.12)`;
 
+interface DropTarget {
+  slotKey: string;
+  /** Index in the slot's section list the source will end at AFTER the move. */
+  sortOrder: number;
+  /** True when the cursor is over a slot that accepts the source section type. */
+  allowed: boolean;
+  /** Screen-space y where we'll draw the drop indicator line. */
+  indicatorY: number;
+  indicatorLeft: number;
+  indicatorWidth: number;
+}
+
+type DragState =
+  | { phase: "idle" }
+  | {
+      phase: "armed";
+      id: string;
+      slot: string;
+      sortOrder: number;
+      typeKey: string | null;
+      name: string | null;
+      pointerId: number;
+      startX: number;
+      startY: number;
+      sourceRect: Rect;
+    }
+  | {
+      phase: "dragging";
+      id: string;
+      slot: string;
+      sortOrder: number;
+      typeKey: string | null;
+      name: string | null;
+      pointerId: number;
+      pointerX: number;
+      pointerY: number;
+      sourceRect: Rect;
+      drop: DropTarget | null;
+    };
+
+const DRAG_THRESHOLD = 4; // px before an armed drag actually begins
+const AUTOSCROLL_BAND = 80; // px edge band that triggers auto-scroll
+const AUTOSCROLL_MAX = 14; // px per frame at the edge
+
 export function SelectionLayer() {
   const {
     selectedSectionId,
@@ -69,10 +113,12 @@ export function SelectionLayer() {
     setHoveredSectionId,
     device,
     moveSection,
+    moveSectionTo,
     removeSection,
     duplicateSection,
     saving,
     loadedSection,
+    slotDefs,
   } = useEditContext();
 
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
@@ -80,6 +126,8 @@ export function SelectionLayer() {
   const [selectedRect, setSelectedRect] = useState<Rect | null>(null);
   const [selectedTypeKey, setSelectedTypeKey] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [drag, setDrag] = useState<DragState>({ phase: "idle" });
+  const autoscrollRafRef = useRef<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
 
@@ -208,6 +256,203 @@ export function SelectionLayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoveredSectionId]);
 
+  // ── drag-to-reorder ──────────────────────────────────────────────
+  // Drop target under the cursor given the current section layout.
+  const computeDrop = (
+    cursorX: number,
+    cursorY: number,
+    sourceTypeKey: string | null,
+  ): DropTarget | null => {
+    const nodes = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        "[data-cms-section][data-section-id][data-slot-key]",
+      ),
+    );
+    if (nodes.length === 0) return null;
+    // Flat list of sections with their slot / order / rect.
+    const items = nodes
+      .map((el) => {
+        const id = el.getAttribute("data-section-id")!;
+        const slotKey = el.getAttribute("data-slot-key")!;
+        const order = Number(el.getAttribute("data-sort-order") ?? "");
+        const r = el.getBoundingClientRect();
+        return Number.isFinite(order) && id && slotKey
+          ? { id, slotKey, order, top: r.top, bottom: r.bottom, left: r.left, width: r.width }
+          : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+    // Find the item whose vertical midpoint is closest to the cursor; cursor
+    // in top half → insert before it, bottom half → insert after it.
+    let best: (typeof items)[number] | null = null;
+    let bestDist = Infinity;
+    for (const it of items) {
+      const mid = (it.top + it.bottom) / 2;
+      const d = Math.abs(cursorY - mid);
+      if (d < bestDist) {
+        bestDist = d;
+        best = it;
+      }
+    }
+    if (!best) return null;
+    const mid = (best.top + best.bottom) / 2;
+    const insertBefore = cursorY < mid;
+    const targetSlot = best.slotKey;
+    const siblings = items.filter((it) => it.slotKey === targetSlot);
+    const bestSibIdx = siblings.findIndex((s) => s.id === best!.id);
+    const sortOrder = insertBefore ? bestSibIdx : bestSibIdx + 1;
+    // allowedSectionTypes gating. Same slot as source is always allowed.
+    const slotDef = slotDefs.find((s) => s.key === targetSlot);
+    const allowed =
+      !slotDef ||
+      !slotDef.allowedSectionTypes ||
+      (sourceTypeKey != null &&
+        slotDef.allowedSectionTypes.includes(sourceTypeKey));
+    const indicatorY = insertBefore ? best.top : best.bottom;
+    return {
+      slotKey: targetSlot,
+      sortOrder,
+      allowed,
+      indicatorY,
+      indicatorLeft: best.left,
+      indicatorWidth: best.width,
+    };
+  };
+
+  // Global pointer listeners while a drag is armed or active.
+  useEffect(() => {
+    if (drag.phase === "idle") return;
+
+    function onMove(e: PointerEvent) {
+      if (drag.phase === "armed" && e.pointerId === drag.pointerId) {
+        const dx = e.clientX - drag.startX;
+        const dy = e.clientY - drag.startY;
+        if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+        const drop = computeDrop(e.clientX, e.clientY, drag.typeKey);
+        setDrag({
+          phase: "dragging",
+          id: drag.id,
+          slot: drag.slot,
+          sortOrder: drag.sortOrder,
+          typeKey: drag.typeKey,
+          name: drag.name,
+          pointerId: drag.pointerId,
+          pointerX: e.clientX,
+          pointerY: e.clientY,
+          sourceRect: drag.sourceRect,
+          drop,
+        });
+        return;
+      }
+      if (drag.phase === "dragging" && e.pointerId === drag.pointerId) {
+        const drop = computeDrop(e.clientX, e.clientY, drag.typeKey);
+        setDrag({
+          ...drag,
+          pointerX: e.clientX,
+          pointerY: e.clientY,
+          drop,
+        });
+      }
+    }
+
+    function onUp(e: PointerEvent) {
+      if (drag.phase === "dragging" && e.pointerId === drag.pointerId) {
+        const drop = drag.drop;
+        // No drop target or invalid → cancel silently (no save round trip).
+        if (drop && drop.allowed) {
+          const sameSpot =
+            drop.slotKey === drag.slot &&
+            (drop.sortOrder === drag.sortOrder ||
+              drop.sortOrder === drag.sortOrder + 1);
+          if (!sameSpot) {
+            void moveSectionTo(drag.id, drop.slotKey, drop.sortOrder);
+          }
+        }
+      }
+      setDrag({ phase: "idle" });
+    }
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && drag.phase !== "idle") {
+        e.preventDefault();
+        setDrag({ phase: "idle" });
+      }
+    }
+
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("keydown", onKey);
+    };
+    // computeDrop is recreated every render but closes over the current
+    // slotDefs/DOM. Re-running this effect on drag/moveSectionTo/slotDefs
+    // is sufficient; dropping it in deps would churn listeners every paint.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag, moveSectionTo, slotDefs]);
+
+  // Auto-scroll rAF loop: when actively dragging and cursor is in an edge
+  // band, scroll the window so the operator can reach any destination
+  // without releasing. Ramps linearly from 0 at the edge of the band to
+  // AUTOSCROLL_MAX at the viewport edge.
+  useEffect(() => {
+    if (drag.phase !== "dragging") return;
+    let cancelled = false;
+    function tick() {
+      if (cancelled || drag.phase !== "dragging") return;
+      const y = drag.pointerY;
+      const vh = window.innerHeight;
+      let delta = 0;
+      if (y < AUTOSCROLL_BAND) {
+        delta = -((AUTOSCROLL_BAND - y) / AUTOSCROLL_BAND) * AUTOSCROLL_MAX;
+      } else if (y > vh - AUTOSCROLL_BAND) {
+        delta =
+          ((y - (vh - AUTOSCROLL_BAND)) / AUTOSCROLL_BAND) * AUTOSCROLL_MAX;
+      }
+      if (delta !== 0) window.scrollBy(0, delta);
+      autoscrollRafRef.current = requestAnimationFrame(tick);
+    }
+    autoscrollRafRef.current = requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      if (autoscrollRafRef.current !== null) {
+        cancelAnimationFrame(autoscrollRafRef.current);
+        autoscrollRafRef.current = null;
+      }
+    };
+  }, [drag]);
+
+  const startDrag = (e: React.PointerEvent<HTMLElement>) => {
+    if (!selectedSectionId || !selectedRect) return;
+    // Locate source slot + sortOrder from DOM attrs.
+    const el = document.querySelector<HTMLElement>(
+      `[data-cms-section][data-section-id="${CSS.escape(selectedSectionId)}"]`,
+    );
+    if (!el) return;
+    const slot = el.getAttribute("data-slot-key");
+    const order = Number(el.getAttribute("data-sort-order") ?? "");
+    if (!slot || !Number.isFinite(order)) return;
+    const name =
+      loadedSection?.id === selectedSectionId
+        ? (loadedSection?.name ?? null)
+        : null;
+    setDrag({
+      phase: "armed",
+      id: selectedSectionId,
+      slot,
+      sortOrder: order,
+      typeKey: selectedTypeKey,
+      name,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      sourceRect: selectedRect,
+    });
+  };
+
   if (!portalEl) return null;
 
   const showHover =
@@ -246,6 +491,13 @@ export function SelectionLayer() {
               // a 4 px soft shadow reads as "selected in place" rather than
               // "highlighted with a debug ring".
               boxShadow: `0 0 0 4px ${SELECT_HALO}`,
+              // Source section fades while dragging — space reserved, halo
+              // kept so the operator can still see where the section "is".
+              opacity:
+                drag.phase === "dragging" && drag.id === selectedSectionId
+                  ? 0.35
+                  : 1,
+              transition: "opacity 120ms linear",
             }}
           />
           <div
@@ -259,9 +511,16 @@ export function SelectionLayer() {
               gap: 1,
               pointerEvents: "auto",
               whiteSpace: "nowrap",
+              opacity:
+                drag.phase === "dragging" && drag.id === selectedSectionId
+                  ? 0
+                  : 1,
+              transition: "opacity 120ms linear",
             }}
           >
             <div
+              onPointerDown={startDrag}
+              title="Drag to reorder — or use ↑/↓"
               style={{
                 display: "flex",
                 alignItems: "baseline",
@@ -274,6 +533,9 @@ export function SelectionLayer() {
                 letterSpacing: "0.01em",
                 borderRadius: "3px 0 0 3px",
                 gap: 6,
+                cursor: drag.phase === "idle" ? "grab" : "grabbing",
+                userSelect: "none",
+                touchAction: "none",
               }}
             >
               <span>
@@ -330,6 +592,72 @@ export function SelectionLayer() {
             />
           </div>
         </>
+      ) : null}
+      {drag.phase === "dragging" && drag.drop ? (
+        <div
+          data-edit-overlay="drag-drop-line"
+          style={{
+            position: "fixed",
+            top: drag.drop.indicatorY - 1,
+            left: drag.drop.indicatorLeft,
+            width: drag.drop.indicatorWidth,
+            height: 2,
+            background: drag.drop.allowed
+              ? `rgba(${INK}, 0.92)`
+              : "rgba(239, 68, 68, 0.6)", // red-500 muted for invalid
+            boxShadow: drag.drop.allowed
+              ? `0 0 0 3px rgba(${INK}, 0.12)`
+              : "0 0 0 3px rgba(239, 68, 68, 0.1)",
+            borderRadius: 2,
+            transition: "top 80ms linear, left 80ms linear, width 80ms linear",
+            pointerEvents: "none",
+          }}
+        />
+      ) : null}
+      {drag.phase === "dragging" ? (
+        <div
+          data-edit-overlay="drag-ghost"
+          style={{
+            position: "fixed",
+            top: drag.pointerY + 10,
+            left: drag.pointerX + 12,
+            pointerEvents: "none",
+            zIndex: 10,
+            transform: "rotate(1.5deg)",
+            background: `rgba(${INK}, 0.96)`,
+            color: "white",
+            padding: "6px 12px",
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 500,
+            letterSpacing: "0.01em",
+            whiteSpace: "nowrap",
+            boxShadow:
+              "0 10px 30px -8px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08) inset",
+            display: "flex",
+            alignItems: "baseline",
+            gap: 8,
+          }}
+        >
+          <span>
+            {drag.name ?? humanizeTypeKey(drag.typeKey)}
+          </span>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 400,
+              opacity: 0.6,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {drag.drop
+              ? drag.drop.allowed
+                ? "Drop"
+                : "Not allowed"
+              : "Drag to reorder"}
+          </span>
+        </div>
       ) : null}
     </div>,
     portalEl,

@@ -127,6 +127,16 @@ export interface EditContextValue {
     sectionId: string,
     direction: "up" | "down",
   ) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Move a section to an explicit slot + position. `targetSortOrder` is the
+   * index within the target slot *after* the move (0 = first). Drag-reorder
+   * uses this; the older `moveSection(id, "up"|"down")` is a thin wrapper.
+   */
+  moveSectionTo: (
+    sectionId: string,
+    targetSlotKey: string,
+    targetSortOrder: number,
+  ) => Promise<{ ok: boolean; error?: string }>;
   duplicateSection: (
     sectionId: string,
   ) => Promise<{ ok: boolean; error?: string; newSectionId?: string }>;
@@ -363,7 +373,7 @@ export function EditProvider({
       router.refresh();
       return { ok: true };
     },
-    [pageVersion, currentSnapshot, locale, refreshComposition, router],
+    [pageVersion, currentSnapshot, locale, refreshComposition, router, capHistory],
   );
 
   // ── insert ─────────────────────────────────────────────────────────
@@ -427,7 +437,7 @@ export function EditProvider({
       router.refresh();
       return { ok: true };
     },
-    [pageVersion, currentSnapshot, locale, refreshComposition, router],
+    [pageVersion, currentSnapshot, locale, refreshComposition, router, capHistory],
   );
 
   // ── remove ─────────────────────────────────────────────────────────
@@ -514,38 +524,110 @@ export function EditProvider({
       router.refresh();
       return { ok: true, newSectionId: res.section.id };
     },
-    [pageVersion, currentSnapshot, locale, refreshComposition, router],
+    [pageVersion, currentSnapshot, locale, refreshComposition, router, capHistory],
   );
 
-  // ── move up/down ───────────────────────────────────────────────────
-  const moveSection = useCallback<EditContextValue["moveSection"]>(
-    async (sectionId, direction) => {
+  // ── move to explicit slot + position ──────────────────────────────
+  const moveSectionTo = useCallback<EditContextValue["moveSectionTo"]>(
+    async (sectionId, targetSlotKey, targetSortOrder) => {
       return dispatchMutation((prev) => {
-        // Find the section across slots
-        let slotKey: string | null = null;
-        let idx = -1;
+        // Locate the source section.
+        let sourceSlot: string | null = null;
+        let sourceIdx = -1;
         for (const [k, entries] of Object.entries(prev.slots)) {
           const i = entries.findIndex((e) => e.sectionId === sectionId);
           if (i !== -1) {
-            slotKey = k;
-            idx = i;
+            sourceSlot = k;
+            sourceIdx = i;
             break;
           }
         }
-        if (slotKey === null) return null;
-        const entries = prev.slots[slotKey]!;
-        const newIdx = direction === "up" ? idx - 1 : idx + 1;
-        if (newIdx < 0 || newIdx >= entries.length) return null;
-        const next = entries.slice();
-        [next[idx], next[newIdx]] = [next[newIdx]!, next[idx]!];
-        const renumbered = next.map((e, i) => ({ ...e, sortOrder: i }));
-        return {
-          slots: { ...prev.slots, [slotKey]: renumbered },
-          metadata: prev.metadata,
-        };
+        if (sourceSlot === null) return null;
+        const isSameSlot = sourceSlot === targetSlotKey;
+        const sourceList = prev.slots[sourceSlot]!;
+        const source = sourceList[sourceIdx]!;
+        // No-op if dropping at current position (same slot + same index, or
+        // adjacent position that swaps to itself after remove-then-insert).
+        if (isSameSlot) {
+          if (
+            targetSortOrder === sourceIdx ||
+            targetSortOrder === sourceIdx + 1
+          ) {
+            return null;
+          }
+        }
+
+        // Remove from source slot.
+        const nextSourceList = sourceList.filter((_, i) => i !== sourceIdx);
+        // Insert into target slot at the requested index. If same slot, the
+        // target index reference is for the PRE-removal list — after removal
+        // we need to shift down by 1 when targetIdx > sourceIdx.
+        const targetBase = isSameSlot
+          ? (prev.slots[targetSlotKey] ?? []).filter((_, i) => i !== sourceIdx)
+          : prev.slots[targetSlotKey]
+            ? [...prev.slots[targetSlotKey]!]
+            : [];
+        const adjustedTargetIdx =
+          isSameSlot && targetSortOrder > sourceIdx
+            ? targetSortOrder - 1
+            : targetSortOrder;
+        const clampedIdx = Math.max(
+          0,
+          Math.min(adjustedTargetIdx, targetBase.length),
+        );
+        targetBase.splice(clampedIdx, 0, source);
+
+        // Renumber both slots so sortOrder is dense + correct.
+        const nextSlots: Record<string, CompositionSectionRef[]> = {};
+        for (const [k, entries] of Object.entries(prev.slots)) {
+          if (k === sourceSlot && !isSameSlot) {
+            nextSlots[k] = nextSourceList.map((e, i) => ({
+              ...e,
+              sortOrder: i,
+            }));
+          } else if (k === targetSlotKey) {
+            nextSlots[k] = targetBase.map((e, i) => ({ ...e, sortOrder: i }));
+          } else {
+            nextSlots[k] = entries.map((e) => ({ ...e }));
+          }
+        }
+        // Same-slot case: handled by overwriting targetSlotKey above.
+        return { slots: nextSlots, metadata: prev.metadata };
       });
     },
     [dispatchMutation],
+  );
+
+  // ── move up/down (thin wrapper over moveSectionTo) ────────────────
+  const moveSection = useCallback<EditContextValue["moveSection"]>(
+    async (sectionId, direction) => {
+      // Find the source so we can compute the explicit target index.
+      let slotKey: string | null = null;
+      let idx = -1;
+      for (const [k, entries] of Object.entries(slots)) {
+        const i = entries.findIndex((e) => e.sectionId === sectionId);
+        if (i !== -1) {
+          slotKey = k;
+          idx = i;
+          break;
+        }
+      }
+      if (slotKey === null) return { ok: false, error: "Section not found." };
+      const list = slots[slotKey]!;
+      // For "up": drop before idx-1 (i.e., at list-position idx-1, which after
+      // the remove-then-insert is the index before source). For "down": drop
+      // after idx+1 (i.e., list-position idx+2 which, given the same-slot
+      // adjustment inside moveSectionTo, lands the section one step lower).
+      const target =
+        direction === "up"
+          ? idx - 1
+          : idx + 2;
+      if (target < 0 || target > list.length) {
+        return { ok: false, error: "Already at the edge of the slot." };
+      }
+      return moveSectionTo(sectionId, slotKey, target);
+    },
+    [slots, moveSectionTo],
   );
 
   // ── undo / redo ────────────────────────────────────────────────────
@@ -580,7 +662,7 @@ export function EditProvider({
     setPast((p) => p.slice(0, -1));
     setFuture((f) => capHistory([...f, cloneSnapshot(presentSnap)]));
     await restoreSnapshot(target);
-  }, [past, currentSnapshot, restoreSnapshot]);
+  }, [past, currentSnapshot, restoreSnapshot, capHistory]);
 
   const redo = useCallback(async () => {
     if (future.length === 0) return;
@@ -589,7 +671,7 @@ export function EditProvider({
     setFuture((f) => f.slice(0, -1));
     setPast((p) => capHistory([...p, cloneSnapshot(presentSnap)]));
     await restoreSnapshot(target);
-  }, [future, currentSnapshot, restoreSnapshot]);
+  }, [future, currentSnapshot, restoreSnapshot, capHistory]);
 
   const openLibrary = useCallback((target: LibraryTarget) => {
     setLibraryTarget(target);
@@ -631,6 +713,7 @@ export function EditProvider({
       insertSection,
       removeSection,
       moveSection,
+      moveSectionTo,
       duplicateSection,
 
       canUndo: past.length > 0,
@@ -672,6 +755,7 @@ export function EditProvider({
       insertSection,
       removeSection,
       moveSection,
+      moveSectionTo,
       duplicateSection,
       past.length,
       future.length,
