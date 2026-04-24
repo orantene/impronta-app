@@ -26,6 +26,7 @@ import {
   type StarterActionState,
 } from "@/app/(dashboard)/admin/site-settings/structure/starter-action";
 import { InfoTip } from "@/components/ui/info-tip";
+import { useEditContext } from "./edit-context";
 import {
   WireClassic,
   WireEditorial,
@@ -71,6 +72,7 @@ const TILES: RecipeTile[] = [
 
 export function EmptyCanvasStarter() {
   const router = useRouter();
+  const { refreshComposition } = useEditContext();
   const [state, dispatch, pending] = useActionState<StarterActionState, FormData>(
     applyStarterComposition,
     undefined,
@@ -79,12 +81,18 @@ export function EmptyCanvasStarter() {
 
   useEffect(() => {
     if (state?.ok) {
-      // router.refresh() pulls the freshly-seeded composition into the live
-      // canvas. The EditProvider's composition state also re-loads — the
-      // card unmounts on next render because the empty check flips false.
+      // Two things need to re-sync after the starter writes:
+      //   1. router.refresh() rebuilds the server-rendered canvas so the
+      //      seeded sections mount with their chrome wrappers.
+      //   2. refreshComposition() re-reads `cms_page_sections`/`cms_sections`
+      //      into the EditContext so `slots` + `pageVersion` reflect the
+      //      new draft. Without this, the Publish drawer and inspector
+      //      would read their original (empty) snapshot even though the
+      //      DOM shows sections.
       router.refresh();
+      void refreshComposition();
     }
-  }, [state, router]);
+  }, [state, router, refreshComposition]);
 
   const error = state && !state.ok ? state.error : null;
 
