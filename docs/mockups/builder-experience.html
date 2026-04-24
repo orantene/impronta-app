@@ -445,6 +445,7 @@
     <li class="toc-sep">Site &amp; import</li>
     <li><a href="#s24"><span class="toc-num">24</span>Pages picker</a></li>
     <li><a href="#s25"><span class="toc-num">25</span>Import prototype</a></li>
+    <li><a href="#s26"><span class="toc-num">26</span>Keyboard ?</a></li>
 
     <li class="toc-sep">Reference</li>
     <li><a href="#tokens"><span class="toc-num" style="background:var(--ink);color:white;border-color:var(--ink);font-size:9px;">§</span>Tokens · type</a></li>
@@ -3533,6 +3534,117 @@
     in the library with colour-coded confidence (green = auto-detected, amber = needs operator picking).
     Design tokens (colors, type, spacing) found in the source are extracted and added to the Theme
     drawer so the imported look stays intact. Step 3 (not shown) gives a final preview and applies.
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     26. KEYBOARD SHORTCUTS OVERLAY
+     ═══════════════════════════════════════════════════════════════════════ -->
+<section class="surface" id="s26">
+  <div class="surface-head">
+    <h2 class="surface-title"><span class="surface-num">26</span>Keyboard shortcuts — <code style="font-family:var(--font-mono);font-size:14px;background:var(--paper-2);padding:1px 6px;border-radius:4px;">?</code> to open</h2>
+    <p class="surface-blurb">
+      Every premium tool has a keyboard shortcut reference one keystroke away. Grouped by domain,
+      kbd-styled keys, searchable.
+    </p>
+  </div>
+  <div class="surface-frame">
+    <div class="editor-viewport" style="background:rgba(11,11,13,0.55);backdrop-filter:blur(6px);">
+      <!-- Dimmed editor -->
+      <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:var(--paper-2);opacity:0.35;">
+        <div style="height:54px;background:white;border-bottom:1px solid var(--line);"></div>
+        <div style="padding:14px;"><div style="height:calc(100% - 14px);background:var(--canvas-dark);border-radius:10px;"></div></div>
+      </div>
+
+      <!-- Overlay modal -->
+      <div style="position:absolute;top:60px;left:50%;transform:translateX(-50%);width:min(720px,calc(100% - 32px));max-height:calc(100% - 120px);background:var(--surface);border-radius:16px;box-shadow:0 40px 80px -20px rgba(0,0,0,0.45), 0 0 0 1px var(--line);overflow:hidden;z-index:110;display:flex;flex-direction:column;">
+        <!-- Head -->
+        <div class="dw-head" style="padding:16px 20px;">
+          <div class="dw-head-text">
+            <div class="dw-eyebrow"><span class="dw-eyebrow-dot"></span>Keyboard shortcuts</div>
+            <div class="dw-title-row">
+              <span class="dw-section-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/></svg></span>
+              <span class="dw-name dw-name-display">Every shortcut, one keystroke away</span>
+            </div>
+            <div class="dw-meta">Cmd ⌘ on macOS · Ctrl on Windows/Linux · keys auto-adapt</div>
+          </div>
+          <div class="dw-tools">
+            <button class="dw-tool"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+          </div>
+        </div>
+
+        <!-- Search -->
+        <div style="padding:12px 20px;border-bottom:1px solid var(--line);background:var(--paper);">
+          <div style="position:relative;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted-2);"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input class="input sm" style="padding-left:30px;" placeholder="Search shortcuts…"/>
+          </div>
+        </div>
+
+        <!-- Grouped shortcuts -->
+        <div style="flex:1;overflow-y:auto;padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:24px 32px;">
+          <!-- Essentials column -->
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2);margin-bottom:10px;">Essentials</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Command palette</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;box-shadow:inset 0 -1px 0 var(--line-mid);font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;box-shadow:inset 0 -1px 0 var(--line-mid);font-weight:600;color:var(--ink);">K</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Save draft</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">S</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Publish</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">↵</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Preview as visitor</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">P</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Undo / Redo</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘Z</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⇧⌘Z</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Open this panel</span><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">?</kbd></div>
+            </div>
+          </div>
+
+          <!-- Navigation -->
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2);margin-bottom:10px;">Navigation</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Next / prev section</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">J</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">K</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Deselect</span><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">Esc</kbd></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Switch viewport</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">1/2/3</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Switch page</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⇧</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">P</kbd></span></div>
+            </div>
+          </div>
+
+          <!-- Section actions -->
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2);margin-bottom:10px;">Section actions</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Duplicate</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">D</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Remove</span><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌫</kbd></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Move up / down</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌥↑</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌥↓</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Inline edit text</span><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">Double-click</kbd></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Commit inline edit</span><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">↵</kbd></div>
+            </div>
+          </div>
+
+          <!-- Drawers -->
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted-2);margin-bottom:10px;">Drawers</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Page settings</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">,</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Revisions</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">H</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Add section</span><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">A</kbd></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Navigator (left rail)</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">\</kbd></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;"><span>Toggle comment mode</span><span style="display:inline-flex;gap:3px;"><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">⌘</kbd><kbd style="font-family:var(--font-mono);font-size:10.5px;padding:3px 7px;background:var(--paper-2);border:1px solid var(--line-mid);border-radius:4px;font-weight:600;color:var(--ink);">/</kbd></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="pub-foot" style="padding:10px 20px;">
+          <div class="pub-foot-meta">Shortcuts auto-adapt to your OS · macOS ⌘ · Windows/Linux Ctrl</div>
+          <button class="btn-ghost">Customise</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="surface-caption">
+    <strong>Premium-craft detail.</strong> Four columns grouped by domain (Essentials · Navigation ·
+    Section actions · Drawers). <kbd>kbd</kbd>-styled keys with an inset bottom shadow so they read as
+    physical keycaps. Compound shortcuts shown inline (e.g. <kbd>⌘</kbd><kbd>K</kbd>). The overlay
+    appears above a dimmed-and-blurred editor, so the operator knows they're in an ephemeral layer.
   </div>
 </section>
 
