@@ -23,6 +23,9 @@
 import type { ComponentType } from "react";
 
 import { HeroContentInspector } from "./hero-content";
+import { CategoryGridContentInspector } from "./category-grid-content";
+import { CtaBannerContentInspector } from "./cta-banner-content";
+import { FeaturedTalentContentInspector } from "./featured-talent-content";
 import { GenericContent } from "./generic-content";
 
 interface ContentTabProps {
@@ -41,6 +44,9 @@ interface CuratedInspectorProps {
 
 const CURATED: Record<string, ComponentType<CuratedInspectorProps>> = {
   hero: HeroContentInspector,
+  category_grid: CategoryGridContentInspector,
+  cta_banner: CtaBannerContentInspector,
+  featured_talent: FeaturedTalentContentInspector,
 };
 
 export function ContentTab({
