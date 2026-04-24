@@ -19,14 +19,12 @@
  */
 
 import { useActionState, useEffect, useState, type ComponentType } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   applyStarterComposition,
   type StarterActionState,
 } from "@/app/(dashboard)/admin/site-settings/structure/starter-action";
 import { InfoTip } from "@/components/ui/info-tip";
-import { useEditContext } from "./edit-context";
 import {
   WireClassic,
   WireEditorial,
@@ -71,8 +69,6 @@ const TILES: RecipeTile[] = [
 ];
 
 export function EmptyCanvasStarter() {
-  const router = useRouter();
-  const { refreshComposition } = useEditContext();
   const [state, dispatch, pending] = useActionState<StarterActionState, FormData>(
     applyStarterComposition,
     undefined,
@@ -81,18 +77,17 @@ export function EmptyCanvasStarter() {
 
   useEffect(() => {
     if (state?.ok) {
-      // Two things need to re-sync after the starter writes:
-      //   1. router.refresh() rebuilds the server-rendered canvas so the
-      //      seeded sections mount with their chrome wrappers.
-      //   2. refreshComposition() re-reads `cms_page_sections`/`cms_sections`
-      //      into the EditContext so `slots` + `pageVersion` reflect the
-      //      new draft. Without this, the Publish drawer and inspector
-      //      would read their original (empty) snapshot even though the
-      //      DOM shows sections.
-      router.refresh();
-      void refreshComposition();
+      // Full reload — the storefront tree and the EditShell tree are
+      // siblings (chrome sits beside the page, not around it), so this
+      // component can't reach `refreshComposition` through context.
+      // router.refresh() alone would rebuild the server HTML but leave
+      // the EditShell's in-memory `slots` snapshot empty until a second
+      // interaction. A hard reload is the simplest way to get both trees
+      // aligned — and it's a tenant-fresh path, so there's nothing
+      // in-flight to preserve.
+      window.location.reload();
     }
-  }, [state, router, refreshComposition]);
+  }, [state]);
 
   const error = state && !state.ok ? state.error : null;
 
