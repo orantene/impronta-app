@@ -18,7 +18,7 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
@@ -315,6 +315,22 @@ function ExitButton() {
 }
 
 function SaveIndicator({ dirty, saving }: { dirty: boolean; saving: boolean }) {
+  // Transient "Saved" chip shown for ~1.6 s after a save completes, so the
+  // save-round-trip → green state transition has a confidence moment the
+  // operator can notice. After that, settles back to the "Draft" steady
+  // state. Flipping back to "Unsaved" before the timer naturally preempts.
+  const [justSaved, setJustSaved] = useState(false);
+  const wasSavingRef = useRef(false);
+  useEffect(() => {
+    if (wasSavingRef.current && !saving && !dirty) {
+      setJustSaved(true);
+      const t = setTimeout(() => setJustSaved(false), 1600);
+      wasSavingRef.current = saving;
+      return () => clearTimeout(t);
+    }
+    wasSavingRef.current = saving;
+  }, [saving, dirty]);
+
   if (saving) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-500">
@@ -331,12 +347,21 @@ function SaveIndicator({ dirty, saving }: { dirty: boolean; saving: boolean }) {
       </span>
     );
   }
-  // Clean state: the operator may have just entered edit mode and not yet
-  // changed anything, so "Draft saved" overclaims. "Draft" is the honest
-  // steady state — signals we're on the draft surface, nothing pending.
+  if (justSaved) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+        <span className="size-1.5 rounded-full bg-emerald-500" />
+        Saved
+      </span>
+    );
+  }
+  // Steady clean state: the operator may have just entered edit mode and
+  // not yet changed anything, so "Draft saved" overclaims. "Draft" is the
+  // honest idle state — signals we're on the draft surface, nothing
+  // pending. "Saved" above is the transient confirmation state.
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-      <span className="size-1.5 rounded-full bg-emerald-500" />
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50/70 px-2 py-0.5 text-[11px] font-medium text-emerald-700/80">
+      <span className="size-1.5 rounded-full bg-emerald-500/70" />
       Draft
     </span>
   );
