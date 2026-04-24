@@ -81,6 +81,10 @@ export function PublishDrawer() {
         label: def.label,
         required: def.required,
         count: entries.length,
+        // Section names in slot order — shows the operator exactly what's
+        // going live, not just "3 sections". Truncated in render so long
+        // names don't break the drawer layout.
+        names: entries.map((e) => e.name),
         missingRequired: def.required && entries.length === 0,
       };
     });
@@ -190,42 +194,40 @@ export function PublishDrawer() {
                 </div>
               ) : null}
 
-              <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                Structure
+              <div className="mb-2 flex items-baseline justify-between gap-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                <span>What goes live</span>
+                <span className="text-zinc-400 tabular-nums">
+                  {summary.totalSections} section
+                  {summary.totalSections === 1 ? "" : "s"}
+                </span>
               </div>
               <ul className="space-y-1.5">
                 {summary.byDef.map((s) => (
                   <li
                     key={s.key}
-                    className="flex items-center justify-between gap-3 rounded-md border border-zinc-100 px-3 py-2"
+                    className="rounded-md border border-zinc-100 px-3 py-2"
                   >
-                    <div className="min-w-0">
-                      <div className="truncate text-[13px] font-medium text-zinc-900">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 truncate text-[13px] font-medium text-zinc-900">
                         {s.label}
                       </div>
-                      {s.required ? (
-                        <div className="text-[10px] uppercase tracking-wider text-zinc-400">
-                          Required
-                        </div>
-                      ) : null}
+                      <div className="shrink-0 text-[10px] uppercase tracking-wider text-zinc-400 tabular-nums">
+                        {s.missingRequired ? (
+                          <span className="font-medium text-amber-600">
+                            Required
+                          </span>
+                        ) : s.count === 0 ? (
+                          "Empty"
+                        ) : (
+                          `${s.count}`
+                        )}
+                      </div>
                     </div>
-                    <div className="shrink-0 text-xs tabular-nums text-zinc-500">
-                      {s.count === 0 ? (
-                        <span
-                          className={
-                            s.missingRequired
-                              ? "font-medium text-amber-600"
-                              : "text-zinc-400"
-                          }
-                        >
-                          Empty
-                        </span>
-                      ) : (
-                        <span>
-                          {s.count} section{s.count === 1 ? "" : "s"}
-                        </span>
-                      )}
-                    </div>
+                    {s.names.length > 0 ? (
+                      <div className="mt-1 truncate text-[11px] text-zinc-500">
+                        {s.names.join(" · ")}
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>
