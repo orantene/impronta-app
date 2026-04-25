@@ -15,7 +15,7 @@ items — the user has authorised end-to-end execution.
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
 - **Last commit on phase-1 branch:** _pending_
-- **Next action:** Build remaining kit primitives (`pill-tabs`, `savechip`, `kbd`) then move to `section-type-icon.tsx` and selection-layer upgrade.
+- **Next action:** Restore `section-type-icon.tsx` from stash (with `JSX.Element → ReactElement` fix), then begin selection-layer upgrade.
 
 ---
 
@@ -51,10 +51,10 @@ items — the user has authorised end-to-end execution.
 - [x] `segmented.tsx` — segmented control (used everywhere)
 - [x] `toggle.tsx` — iOS-style switch
 - [x] `swatch.tsx` — color swatch + hex input row
-- [ ] `pill-tabs.tsx` — pill-style tab bar (already partially exists, formalise)
-- [ ] `savechip.tsx` — savechip with state variants (Saved / Saving / Unsaved / counts)
-- [ ] `kbd.tsx` — keyboard key styling
-- [ ] `index.ts` — barrel export
+- [x] `pill-tabs.tsx` — folded into `drawer.tsx` (DrawerTabs / DrawerTab) — same component
+- [x] `savechip.tsx` — savechip with state variants (Saved / Saving / Unsaved / counts)
+- [x] `kbd.tsx` — keyboard key styling
+- [x] `index.ts` — barrel export
 
 #### Section-type icons
 - [ ] `section-type-icon.tsx` — re-create from the wave-3 stash with `JSX.Element → ReactElement` fix; wire all 12 type keys
@@ -324,4 +324,5 @@ The big one. Three parallel tracks:
 | 2026-04-24 (manual) | A.1 | 02a9a8b | Chrome kit foundation + Drawer primitive |
 | 2026-04-24 (manual) | A.1 | 631ed0e | Card primitive (Card / Head / Body / Action) |
 | 2026-04-24 (manual) | A.1 | 7bb1b60 | Field primitives (Field / Label / Helper / Counter) |
-| 2026-04-24 (manual) | A.1 | _pending_ | Stepper + Segmented + Toggle + Swatch + ColorRow |
+| 2026-04-24 (manual) | A.1 | fe974a3 | Stepper + Segmented + Toggle + Swatch + ColorRow |
+| 2026-04-24 (manual) | A.1 | _pending_ | SaveChip + Kbd primitives — kit complete (10/10) |
