@@ -43,7 +43,7 @@ import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  emitAuditEvent,
+  scheduleAuditEvent,
   fail,
   ok,
   requirePhase5Capability,
@@ -308,7 +308,7 @@ export async function saveDesignDraft(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.design.edit",
@@ -399,7 +399,7 @@ export async function publishDesign(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.design.publish",
@@ -511,7 +511,7 @@ export async function restoreDesignRevision(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.design.edit",
@@ -643,7 +643,7 @@ export async function applyThemePreset(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.design.edit",

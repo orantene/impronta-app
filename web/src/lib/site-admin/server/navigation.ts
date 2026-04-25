@@ -23,7 +23,7 @@ import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  emitAuditEvent,
+  scheduleAuditEvent,
   fail,
   ok,
   requirePhase5Capability,
@@ -141,7 +141,7 @@ export async function upsertNavItem(
     if (error || !data) {
       return fail("FORBIDDEN", error?.message ?? "Insert failed");
     }
-    await emitAuditEvent(supabase, {
+    scheduleAuditEvent(supabase, {
       tenantId,
       actorProfileId,
       action: "agency.site_admin.navigation.edit",
@@ -188,7 +188,7 @@ export async function upsertNavItem(
     return versionConflict(beforeRow.version + 1);
   }
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.navigation.edit",
@@ -242,7 +242,7 @@ export async function deleteNavItem(
   if (error) return fail("FORBIDDEN", error.message);
   if (!count) return versionConflict(beforeRow.version + 1);
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.navigation.edit",
@@ -306,7 +306,7 @@ export async function reorderNavItems(
     updated += 1;
   }
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.navigation.edit",
@@ -444,7 +444,7 @@ export async function publishNavigationMenu(
   }
 
   // 6. Audit.
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.navigation.publish",

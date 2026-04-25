@@ -22,7 +22,7 @@ import { updateTag } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  emitAuditEvent,
+  scheduleAuditEvent,
   requirePhase5Capability,
   tagFor,
   versionConflict,
@@ -247,7 +247,7 @@ export async function saveIdentity(
   }
 
   // 5. Audit.
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.identity.edit",

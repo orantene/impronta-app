@@ -40,7 +40,7 @@ import { updateTag } from "next/cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 
 import {
-  emitAuditEvent,
+  scheduleAuditEvent,
   fail,
   ok,
   requirePhase5Capability,
@@ -289,7 +289,7 @@ export async function upsertSection(
       actorProfileId,
     });
 
-    await emitAuditEvent(supabase, {
+    scheduleAuditEvent(supabase, {
       tenantId,
       actorProfileId,
       action: "agency.site_admin.sections.edit",
@@ -351,7 +351,7 @@ export async function upsertSection(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.sections.edit",
@@ -410,7 +410,7 @@ export async function deleteSection(
   if (error) return mapTriggerError(error);
   if (!count) return versionConflict(beforeRow.version + 1);
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.sections.edit",
@@ -529,7 +529,7 @@ export async function publishSection(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.sections.publish",
@@ -598,7 +598,7 @@ export async function archiveSection(
   if (updErr) return mapTriggerError(updErr);
   if (!afterRow) return versionConflict(beforeRow.version + 1);
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.sections.publish",
@@ -711,7 +711,7 @@ export async function duplicateSection(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.sections.edit",
@@ -823,7 +823,7 @@ export async function restoreSectionRevision(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.sections.edit",

@@ -19,6 +19,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { after } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const AUDIT_DIFF_SUMMARY_MAX = 240;
@@ -73,4 +74,24 @@ export async function emitAuditEvent(
       error: error.message,
     });
   }
+}
+
+/**
+ * Defer the audit-log RPC until after the response is flushed via Next's
+ * `after()`. The mutation has already committed by the time this runs, and
+ * the audit row is best-effort (failures only warn, never throw) — so there
+ * is no reason to make the user wait on the RPC round-trip. Net effect: the
+ * staff-facing publish/edit acknowledgement returns one Postgres round-trip
+ * sooner, while the audit row is still written reliably right after.
+ *
+ * Call sites previously did `await emitAuditEvent(supabase, event);` —
+ * swap that for `scheduleAuditEvent(supabase, event);` (no `await`).
+ */
+export function scheduleAuditEvent(
+  supabase: SupabaseClient,
+  event: Phase5AuditEvent,
+): void {
+  after(async () => {
+    await emitAuditEvent(supabase, event);
+  });
 }

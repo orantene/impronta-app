@@ -38,8 +38,39 @@ export type HostContext =
   | { kind: "not_found"; tenantId: null; hostname: string };
 
 type CacheEntry = { value: HostContext; expiresAt: number };
-const cache = new Map<string, CacheEntry>();
+
+/**
+ * Bounded LRU. The Map preserves insertion order, so the oldest entry is the
+ * first iterator key. Each get on a still-valid entry refreshes recency by
+ * delete+set. Bound prevents random-hostname scanners from pushing the cache
+ * unbounded across an edge worker's lifetime.
+ */
 const CACHE_TTL_MS = 60 * 1000;
+const CACHE_MAX_ENTRIES = 256;
+const cache = new Map<string, CacheEntry>();
+
+function cacheGet(host: string): HostContext | null {
+  const entry = cache.get(host);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    cache.delete(host);
+    return null;
+  }
+  // refresh LRU recency
+  cache.delete(host);
+  cache.set(host, entry);
+  return entry.value;
+}
+
+function cacheSet(host: string, value: HostContext): void {
+  if (cache.has(host)) cache.delete(host);
+  cache.set(host, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+  while (cache.size > CACHE_MAX_ENTRIES) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey === undefined) break;
+    cache.delete(oldestKey);
+  }
+}
 
 function normalize(host: string): string {
   const stripped = host.split(":")[0] ?? host;
@@ -76,10 +107,8 @@ export async function resolveTenantContext(
     return { kind: "not_found", tenantId: null, hostname: "" };
   }
 
-  const cached = cache.get(hostname);
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.value;
-  }
+  const cached = cacheGet(hostname);
+  if (cached) return cached;
 
   const supabase = buildEdgeSupabase(request);
   if (!supabase) {
@@ -137,7 +166,7 @@ export async function resolveTenantContext(
     }
   }
 
-  cache.set(hostname, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+  cacheSet(hostname, value);
   return value;
 }
 

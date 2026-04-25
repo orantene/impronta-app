@@ -37,7 +37,7 @@ import { updateTag } from "next/cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 
 import {
-  emitAuditEvent,
+  scheduleAuditEvent,
   fail,
   ok,
   requirePhase5Capability,
@@ -335,7 +335,7 @@ export async function upsertPage(
       actorProfileId,
     });
 
-    await emitAuditEvent(supabase, {
+    scheduleAuditEvent(supabase, {
       tenantId,
       actorProfileId,
       action: "agency.site_admin.pages.edit",
@@ -403,7 +403,7 @@ export async function upsertPage(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.pages.edit",
@@ -469,7 +469,7 @@ export async function deletePage(
   if (error) return mapTriggerError(error);
   if (!count) return versionConflict(beforeRow.version + 1);
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.pages.edit",
@@ -616,7 +616,7 @@ export async function publishPage(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.pages.publish",
@@ -691,7 +691,7 @@ export async function archivePage(
   if (updErr) return mapTriggerError(updErr);
   if (!afterRow) return versionConflict(beforeRow.version + 1);
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.pages.publish",
@@ -852,7 +852,7 @@ export async function restorePageRevision(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.pages.edit",

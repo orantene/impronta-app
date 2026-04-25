@@ -60,7 +60,7 @@ import { updateTag } from "next/cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 
 import {
-  emitAuditEvent,
+  scheduleAuditEvent,
   fail,
   ok,
   requirePhase5Capability,
@@ -447,7 +447,7 @@ export async function ensureHomepageRow(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",
@@ -749,7 +749,7 @@ export async function saveHomepageDraftComposition(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",
@@ -1045,7 +1045,7 @@ export async function publishHomepage(
     actorProfileId,
   });
 
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.publish",
@@ -1249,7 +1249,7 @@ export async function restoreHomepageRevision(
 
   const diffSuffix =
     dropped.length > 0 ? ` (${dropped.length} dropped: ${dropped.join(", ")})` : "";
-  await emitAuditEvent(supabase, {
+  scheduleAuditEvent(supabase, {
     tenantId,
     actorProfileId,
     action: "agency.site_admin.homepage.compose",

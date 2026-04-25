@@ -45,6 +45,7 @@ export {
   AUDIT_DIFF_SUMMARY_MAX,
   type Phase5AuditEvent,
   emitAuditEvent,
+  scheduleAuditEvent,
 } from "./audit";
 
 export {
