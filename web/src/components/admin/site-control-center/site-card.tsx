@@ -79,25 +79,14 @@ export function SiteCard({
           <Icon className="size-[15px]" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3
-              className={cn(
-                "truncate text-[13.5px] font-semibold tracking-[-0.005em]",
-                locked ? "text-foreground/80" : "text-foreground",
-              )}
-            >
-              {capability.label}
-            </h3>
-            {locked ? (
-              <span
-                className="inline-flex items-center gap-1 rounded-full bg-white px-[7px] py-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em] shadow-[inset_0_0_0_1px_currentColor]"
-                style={{ color: accent.fg }}
-              >
-                <Lock className="size-2" aria-hidden />
-                {capability.tier}
-              </span>
-            ) : null}
-          </div>
+          <h3
+            className={cn(
+              "truncate text-[13.5px] font-semibold tracking-[-0.005em]",
+              locked ? "text-foreground/80" : "text-foreground",
+            )}
+          >
+            {capability.label}
+          </h3>
           <p
             className={cn(
               "mt-0.5 truncate text-[11.5px] leading-[1.3]",
@@ -107,12 +96,20 @@ export function SiteCard({
             {locked ? capability.lockedCopy : capability.stat}
           </p>
         </div>
-        {!locked ? (
+        {locked ? (
+          <span
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-[7px] py-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em] shadow-[inset_0_0_0_1px_currentColor]"
+            style={{ color: accent.fg }}
+          >
+            <Lock className="size-2" aria-hidden />
+            {capability.tier}
+          </span>
+        ) : (
           <ChevronRight
             className="size-3.5 shrink-0 self-center text-muted-foreground/70 opacity-0 transition-[opacity,transform] group-hover:translate-x-0.5 group-hover:text-foreground group-hover:opacity-100"
             aria-hidden
           />
-        ) : null}
+        )}
       </div>
     </button>
   );
