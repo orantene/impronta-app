@@ -192,7 +192,18 @@ These documents are binding product logic. Code, schema, or copy that conflicts 
   - Relationship-gated capabilities (the "explain why" UI rule)
   - 14 capability keys reserved in `lib/access/capabilities.ts`
 
-When working on the dashboard restructure (Track B.5), the talent surface (`/talent/*`), or any inquiry / roster / visibility surface — read this doc first.
+- [`docs/transaction-architecture.md`](docs/transaction-architecture.md) — v1 payment / transaction model. Establishes:
+  - **One booking = one payout receiver in v1.** Receiver explicitly selected per booking; not auto-derived.
+  - Eligible receiver types: agency / admin / coordinator / talent. All require a connected `payout_accounts` row.
+  - **Tulala takes platform fee first**, snapshotted on the transaction; receiver gets net.
+  - Source-ownership invariants extend through transactions: workspace owning the inquiry owns the booking owns the transaction.
+  - Booking payment state machine (draft → payment_requested → pending → paid → payout_pending → payout_sent, plus refunded / cancelled / disputed / failed off-paths).
+  - Payment events extend `inquiry_events` with a nullable `booking_id`. New event types reserved.
+  - Provider seam: v1 `'manual'`, v2 `'stripe'` / `'stripe_connect'`. Same schema.
+  - 10 capability keys reserved in `lib/access/capabilities.ts`.
+  - Reserved tables (deferred migrations): `booking_transactions`, `payout_accounts`. Reserved column on future `plans` table: `platform_fee_basis_points`.
+
+When working on the dashboard restructure (Track B.5), the talent surface (`/talent/*`), or any inquiry / roster / visibility / payment surface — read these docs first.
 
 ## 13. Where to find more
 

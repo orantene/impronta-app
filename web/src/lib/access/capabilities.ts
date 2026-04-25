@@ -574,6 +574,96 @@ export const CAPABILITIES = {
     gating: "platform_role",
     deprecated: false,
   }),
+
+  // ─── Transactions, payouts, platform fees ────────────────────────────
+  // See docs/transaction-architecture.md for the v1 payment model.
+  // Capability names are locked product contracts; most have no callers
+  // in v1 — Track B.5 (booking detail) wires them when the receiver-
+  // selection UI is built.
+
+  "booking.payment.select_receiver": define({
+    key: "booking.payment.select_receiver",
+    displayName: "Select payout receiver",
+    description: "Choose who receives payment for a booking.",
+    category: "billing",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "booking.payment.change_receiver": define({
+    key: "booking.payment.change_receiver",
+    displayName: "Change payout receiver",
+    description: "Change the selected payout receiver before payment is received.",
+    category: "billing",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "booking.payment.request": define({
+    key: "booking.payment.request",
+    displayName: "Request payment from client",
+    description: "Send the client payment instructions or a payment link.",
+    category: "billing",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "booking.payment.mark_received": define({
+    key: "booking.payment.mark_received",
+    displayName: "Mark payment received",
+    description: "Confirm that the client's payment has arrived (manual provider).",
+    category: "billing",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "booking.payment.refund": define({
+    key: "booking.payment.refund",
+    displayName: "Refund a booking payment",
+    description: "Initiate a refund of a paid booking transaction.",
+    category: "billing",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "booking.payment.payout_mark_external": define({
+    key: "booking.payment.payout_mark_external",
+    displayName: "Mark payout sent externally",
+    description: "Confirm you've paid the receiver outside the platform (manual provider).",
+    category: "billing",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "payout_account.connect_self": define({
+    key: "payout_account.connect_self",
+    displayName: "Connect your payout account",
+    description: "Connect your own bank or payment provider to receive payouts.",
+    category: "billing",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "agency.payout_account.manage": define({
+    key: "agency.payout_account.manage",
+    displayName: "Manage workspace payout account",
+    description: "Configure the agency-level account that receives platform payouts.",
+    category: "billing",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "platform.payments.view_all": define({
+    key: "platform.payments.view_all",
+    displayName: "View all transactions",
+    description: "Cross-tenant view of every booking transaction on the platform.",
+    category: "platform",
+    scope: "platform",
+    gating: "platform_role",
+    deprecated: false,
+  }),
+  "platform.fee.configure": define({
+    key: "platform.fee.configure",
+    displayName: "Configure platform fee",
+    description: "Set the platform fee rate per plan or per tenant.",
+    category: "platform",
+    scope: "platform",
+    gating: "platform_role",
+    deprecated: false,
+  }),
 } as const;
 
 export type CapabilityKey = keyof typeof CAPABILITIES;

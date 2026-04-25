@@ -72,9 +72,11 @@ test("registry has no duplicates", () => {
   assert.equal(keys.size, CAPABILITY_KEYS.length, "duplicate capability key in registry");
 });
 
-test("registry contains all legacy + phase-5 + talent-relationship capabilities", () => {
-  // Legacy: 29 keys. Phase 5: 14 keys. Talent-relationship model
-  // (docs/talent-relationship-model.md): 14 keys. Total: 57.
+test("registry contains all expected capability sets", () => {
+  // Legacy: 29 keys. Phase 5: 14 keys.
+  // Talent-relationship model (docs/talent-relationship-model.md): 14 keys.
+  // Transaction architecture (docs/transaction-architecture.md): 10 keys.
+  // Total: 67.
   const TALENT_RELATIONSHIP_KEYS: readonly CapabilityKey[] = [
     "agency.settings.edit_join_mode",
     "agency.talent.create",
@@ -91,13 +93,26 @@ test("registry contains all legacy + phase-5 + talent-relationship capabilities"
     "platform.hub.create",
     "platform.hub.set_criteria",
   ];
-  for (const key of TALENT_RELATIONSHIP_KEYS) {
-    assert.ok(isKnownCapability(key), `talent-relationship capability "${key}" missing`);
+  const TRANSACTION_KEYS: readonly CapabilityKey[] = [
+    "booking.payment.select_receiver",
+    "booking.payment.change_receiver",
+    "booking.payment.request",
+    "booking.payment.mark_received",
+    "booking.payment.refund",
+    "booking.payment.payout_mark_external",
+    "payout_account.connect_self",
+    "agency.payout_account.manage",
+    "platform.payments.view_all",
+    "platform.fee.configure",
+  ];
+  for (const key of [...TALENT_RELATIONSHIP_KEYS, ...TRANSACTION_KEYS]) {
+    assert.ok(isKnownCapability(key), `capability "${key}" missing`);
   }
   const expected =
     LEGACY_CAPABILITIES.length +
     PHASE_5_CAPABILITIES.length +
-    TALENT_RELATIONSHIP_KEYS.length;
+    TALENT_RELATIONSHIP_KEYS.length +
+    TRANSACTION_KEYS.length;
   assert.equal(CAPABILITY_KEYS.length, expected, `expected ${expected} capability keys`);
 });
 
