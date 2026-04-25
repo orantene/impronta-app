@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
-- **Last commit on phase-1 branch:** _pending_
-- **Next action:** Begin selection-layer upgrade — dual-tone ring + premium chip with section-type icon (mockup surface 2).
+- **Last commit on phase-1 branch:** 1eb8679 — selection-layer premium upgrade
+- **Next action:** Strip debug labels — InspectorDock header (remove `(Classic starter) {hash}`) + footer (`v{schemaVersion} / Draft`) + PublishDrawer slot rows.
 
 ---
 
@@ -60,11 +60,11 @@ items — the user has authorised end-to-end execution.
 - [x] `section-type-icon.tsx` — re-create from the wave-3 stash with `JSX.Element → ReactElement` fix; wire all 12 type keys
 
 #### Selection layer upgrade
-- [ ] Dual-tone ring (white inset 1px + ink outset 2px + halo 6px) — works on dark and light backgrounds
-- [ ] Premium chip — 34px height, 10px radius, gradient bg, grip dots + section icon + name + type div + toolbar
-- [ ] Drop indicator — blue gradient line with end-cap dots and glow (visible on dark bg)
-- [ ] Drag ghost — substantial card with section icon + name + dynamic state line
-- [ ] Source-section drag state — desaturate filter + dashed outline + opacity 0.4
+- [x] Dual-tone ring (white inset 1px + ink outset 2px + halo 6px) — works on dark and light backgrounds
+- [x] Premium chip — 34px height, 10px radius, gradient bg, grip dots + section icon + name + type div + toolbar
+- [x] Drop indicator — blue gradient line with end-cap dots and glow (visible on dark bg)
+- [x] Drag ghost — substantial card with section icon + name + dynamic state line
+- [x] Source-section drag state — desaturate filter + dashed outline + opacity 0.4
 
 #### Strip debug labels everywhere
 - [ ] InspectorDock header — remove `(Classic starter) {hash}` from name; show name + type icon + saved state only
@@ -329,3 +329,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | d21bcf6 | autonomous re-shipped SaveChip+Kbd (no-op merge, fire was 1 cycle behind) |
 | 2026-04-24 (autonomous) | A.1 | 557380d | autonomous shipped SectionTypeIcon — 12 SVG glyphs |
 | 2026-04-24 (manual) | A.1 | 3941772 | manual SectionTypeIcon merge / tracker advance |
+| 2026-04-24 (autonomous) | A.1 | 1eb8679 | Selection layer premium upgrade — dual-tone ring, chip, drop indicator, ghost |
