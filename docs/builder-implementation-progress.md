@@ -13,9 +13,9 @@ items — the user has authorised end-to-end execution.
 ## Live state
 
 - **Active milestone:** D — "Velocity"
-- **Active phase:** Phase 9 v1 closed — share-link half (JWT + public viewer + topbar + palette wiring) shipped & smoked on prod. `?preview=1` floating-pill chrome deferred to Phase 9 v2. Visual screenshots still pending.
-- **Last commit on phase-1 branch:** 367b641 — palette Share row + shortcut registry entry. Phase 9 v1 promoted to prod via `dpl_4ehhDfSCLHG8C7KepPVFKiFtudVQ`; agency host returns 200 (ShareError UI) on `/share/badtoken`; marketing/hub correctly reject.
-- **Next action:** Phase 9 v2 — `?preview=1` floating-pill chrome (clean preview for staff with edit-session cookies, device switcher + Share + back-to-edit), label + TTL popover on the topbar Share button (server action already accepts both fields, only UI is missing), and `share:${ip}` rate-limit branch in `web/src/middleware.ts` to bound `/share/<random>` brute-force scans. Then Phase 10 — Keyboard shortcuts overlay (`?` global keybind, modal grouped reference, reads from the centralised `SHORTCUTS` registry).
+- **Active phase:** Phase 9 fully closed (v1 + v2) and Phase 10 closed — preview pill, share popover, share rate-limit, and keyboard shortcuts overlay all shipped & smoked on prod. Visual screenshot pass still pending across phases 3-10.
+- **Last commit on phase-1 branch:** 6ba1171 — Phase 9 v2 + Phase 10 (preview pill, share popover, shortcut overlay). Promoted to prod via `dpl_GbNbgYjPrMZgYoNTcGds6Bkb2Rdw`; rate-limit smoke confirmed (70-burst → 59× 200 + 11× 429 — exactly the configured `60/min/IP` band).
+- **Next action:** Visual screenshot pass (requires staff-authenticated session) → Milestone E groundwork (Phase 11 — Comments + client review: `comments` schema, Realtime channel, comment-mode toggle reusing the Phase 9 share-link JWT path with a `commentMode=true` claim).
 
 ---
 
@@ -268,8 +268,8 @@ items — the user has authorised end-to-end execution.
 - [ ] Visual screenshots committed under `docs/qa/phase-8/` — pending manual capture against `impronta.tulala.digital?edit=1`
 
 ### Phase 9 — Preview mode + share link
-- [ ] `?preview=1` query collapses editor chrome _(deferred to Phase 9 v2 — share-link half landed first; the floating pill chrome reuses the same JWT module for the staff-session deep-link variant)_
-- [ ] Floating preview pill (device switcher + share + back) _(deferred to Phase 9 v2)_
+- [x] `?preview=1` query collapses editor chrome — `edit-chrome.tsx` rewritten as `"use client"` with `useSearchParams()` called unconditionally for stable hook order; routes to `EditPill` (cookie off), `PreviewPill` (cookie on + `?preview=1`), or `EditShell` (default). Flipping the param remounts the right surface without a hard reload (6ba1171)
+- [x] Floating preview pill (device switcher + share + back) — `preview-pill.tsx` (NEW, ~470 lines): inverse `<style>` reset that REVERTS the editor's body padding + header-hide rules so the storefront DOM renders as a visitor sees it; fixed bottom-right pill with device switcher, full Share popover (mirrors topbar UX), and "Back to edit" button via `router.replace` (6ba1171)
 - [x] Share link generator: signed JWT with expiration, page + revision binding — `lib/site-admin/share-link/jwt.ts` (HS256, issuer `impronta-share`, TTL clamped 1h–30d, default 7d) + `share-actions.ts` server action picks latest `cms_page_revisions` row and signs `(tid, pid, rev, lbl)` claims (21ec2eb)
 - [x] Visitor view at signed URL renders draft state without auth — `app/share/[token]/page.tsx`, force-dynamic, robots noindex/nofollow, JWT verified with host cross-check (resolved tenantId vs `claims.tid`), then service-role read of the revision filtered by all three signed identifiers, snapshot rendered through `HomepageCmsSections` slot-by-slot. Sticky banner labels kind ("Draft preview" / "Published version preview" / "Rollback preview") + brand + expiry; footer surfaces issued-at + expires-at. Seven ShareError branches (`expired / bad_signature / bad_issuer / malformed / tenant_mismatch / not_found / empty`) with contextual copy + "Go to homepage" exit (21ec2eb)
 - [x] Topbar Share button mints + clipboard-copies link, with green-checkmark "Link copied" confirmation and `window.prompt` fallback when clipboard is unavailable. Failure paths route through `EditContext.reportMutationError` so they reuse the standard chrome toast (21ec2eb)
@@ -283,10 +283,35 @@ items — the user has authorised end-to-end execution.
 - [x] QA evidence — `docs/qa/phase-9/README.md` committed
 - [ ] Visual screenshots — pending staff-authenticated session at `impronta.tulala.digital?edit=1`
 
+#### Phase 9 v2 — UX completion
+- [x] `?preview=1` floating-pill chrome — preview-pill.tsx (6ba1171)
+- [x] Share button label + TTL popover — `ShareIconWithPopover` in topbar.tsx with label `<input>`, 4-choice TTL radio group (1h/24h/7d/30d, default 7d), Cancel/Generate buttons, outside-click + Escape dismiss (6ba1171)
+- [x] `share:${ip}` rate-limit branch in middleware — `web/src/middleware.ts` checks `pathname.startsWith("/share/") && method === "GET"` against an in-memory `60 req / 60 s / IP` bucket; bucket exhaustion returns a self-contained 429 HTML response from `web/src/lib/rate-limit.ts:rateLimitHtmlResponse()`. Smoked: 70-burst → 59× 200 + 11× 429, matching the configured band exactly (6ba1171)
+
+#### Phase 9 v2 acceptance gate
+- [x] TS clean — `tsc --noEmit` zero errors at HEAD (6ba1171)
+- [x] Production build green — `next build` exits 0; `/share/[token]` in route manifest
+- [x] Production deploy READY — `dpl_GbNbgYjPrMZgYoNTcGds6Bkb2Rdw` `state=READY` `target=production`, promoted from preview `dpl_HPyeEqrurC5wyZTEQyxnU6k6L8p1`
+- [x] Smoke — three prod aliases return 200 on `/`; share endpoint behavior unchanged (agency 200, marketing/app 404 by allow-list)
+- [x] Rate-limit smoke — 70-burst against `https://impronta.tulala.digital/share/x{n}` returns `59× 200 + 11× 429` exactly per the configured band
+- [x] QA evidence — `docs/qa/phase-9/README-v2.md` committed
+- [ ] Visual screenshots — pending staff-authenticated session
+
 ### Phase 10 — Keyboard shortcuts overlay
-- [ ] `?` global keybind
-- [ ] `kbd-overlay.tsx` modal with grouped reference
-- [ ] Reads from shortcut registry (Phase 8 already needs it)
+- [x] `?` global keybind — `edit-shell.tsx` keyboard handler matches `e.key === "?"` (handles US Shift+/ + non-US layouts that yield `?` directly), gated by `!mod && !alt` so `⌘?`/Ctrl-? stay reserved for browser-native help; respects the editable-target check so typing `?` in inputs doesn't toggle (6ba1171)
+- [x] `shortcut-overlay.tsx` modal with grouped reference — paper-tinted card on translucent ink scrim, 720px max-width, viewport-bounded scroll. One `<section>` per `ShortcutCategory` with table of `<KbdSequence>` chips. Backdrop click + Escape both dismiss; footer prints the `⌘ → Ctrl` mapping note once (6ba1171)
+- [x] Reads from shortcut registry — pulls from `SHORTCUTS` + `SHORTCUT_CATEGORY_LABELS` in `kit/shortcuts.ts`. Adding/moving a keybind happens in exactly one place; chips can't drift between the palette result rows and the overlay by construction (6ba1171)
+- [x] Command palette row — `actionRow("shortcut-overlay", "Show keyboard shortcuts", ...)` in the action group; the `?` chip pulls automatically from the registry by id (6ba1171)
+- [x] EditContext surface — `shortcutOverlayOpen / openShortcutOverlay / closeShortcutOverlay / toggleShortcutOverlay` added to `EditContextValue` + `EditProvider` value memo + deps array (6ba1171)
+- [x] Escape priority chain — `edit-shell.tsx`'s Escape handler dismisses overlay → palette → drawer mutex set in that order, so closing the overlay never accidentally also dismisses an underlying drawer (6ba1171)
+
+#### Phase 10 acceptance gate
+- [x] TS clean — `tsc --noEmit` zero errors at HEAD (6ba1171)
+- [x] Production build green — `next build` exits 0
+- [x] Production deploy READY — `dpl_GbNbgYjPrMZgYoNTcGds6Bkb2Rdw` `state=READY` `target=production`
+- [x] Smoke — three prod aliases return 200 on `/`
+- [x] QA evidence — `docs/qa/phase-10/README.md` committed
+- [ ] Visual screenshots — pending staff-authenticated session
 
 ---
 
@@ -405,3 +430,5 @@ The big one. Three parallel tracks:
 | 2026-04-25 (autonomous) | D.8 acceptance | _this commit_ | Phase 8 acceptance gate — TS clean, `dpl_DoYLBoSoGYtUNtB3sWccwDYDFh3X` `state=READY` `target=production`, smoke check 200 on all three aliases, QA evidence committed under `docs/qa/phase-8/README.md`. Active phase advances to D.9 (Preview mode + share link). |
 | 2026-04-25 (autonomous) | D.9 v1 | 21ec2eb + 367b641 | Phase 9 v1 — share-link half. Six-file diff at 21ec2eb (HS256 JWT module `lib/site-admin/share-link/jwt.ts` with issuer `impronta-share` and 1h–30d TTL clamp; `share-actions.ts` server action that picks the latest `cms_page_revisions` row by `created_at DESC` and signs `(tid, pid, rev, lbl)` claims; `app/share/[token]/page.tsx` public viewer that verifies the JWT, cross-checks the resolved host's tenantId against `claims.tid`, then service-role reads the revision filtered by all three signed identifiers and renders through `HomepageCmsSections`; sticky banner with kind label + brand + expiry; seven ShareError branches; topbar Share icon now mints + clipboard-copies via `onShare`; EditContext exposes `reportMutationError` so chrome surfaces share the standard 5s toast; surface allow-list adds `/share` to `AGENCY_STOREFRONT_PREFIXES`). Two-file follow-up at 367b641 (command palette Share row + shortcut registry entry `share-link` ⌘⇧S). The `?preview=1` floating-pill chrome was deferred to Phase 9 v2 — landing the share-link half first lets us QA the JWT path standalone and matches Phase 11's eventual layering of comment-mode on top of the same auth gate. Service-role on a public route is justified because the JWT IS the auth boundary: three signed identifiers bound the read, host cross-check rejects replays. |
 | 2026-04-25 (autonomous) | D.9 v1 acceptance | _this commit_ | Phase 9 v1 acceptance gate — TS clean at HEAD, `dpl_4ehhDfSCLHG8C7KepPVFKiFtudVQ` `state=READY` `target=production` (promoted from preview `dpl_F9CbAJ2BgRvrG1rxJiYAie4Ui1mj`), three prod aliases return 200 on `/`, agency host returns 200 (ShareError UI rendered) on `/share/badtoken`, marketing + hub hosts return 404 on `/share/badtoken` (allow-list rejection — share links are tenant-scoped to the agency surface, expected). QA evidence committed under `docs/qa/phase-9/README.md`. Active phase advances to D.9 v2 (`?preview=1` floating-pill chrome + label/TTL popover + middleware rate-limit branch) → D.10 (Keyboard shortcuts overlay). |
+| 2026-04-25 (autonomous) | D.9 v2 + D.10 | 6ba1171 | Phase 9 v2 (UX completion) + Phase 10 (Keyboard shortcuts overlay) shipped together. Phase 9 v2 closes the three v1 deferred items: (1) `preview-pill.tsx` (NEW, ~470 lines) — floating bottom-right chrome with device switcher, full Share popover, and Back-to-edit; injects an inverse `<style>` block that REVERTS the editor's body padding + header-hide rules so the storefront DOM renders as a visitor sees it. `edit-chrome.tsx` rewritten as `"use client"` to route between EditPill / PreviewPill / EditShell based on `useSearchParams()`. (2) `ShareIconWithPopover` in `topbar.tsx` — label `<input>` + 4-choice TTL radio (1h/24h/7d/30d, default 7d) + Cancel/Generate; `onShare` widened to `(opts: {label?, ttlSeconds?}) => Promise<string \| null>` with `edit-shell.tsx` converting `ttlSeconds → ttlHours` for the server action. (3) Middleware rate-limit branch — `pathname.startsWith("/share/") && method === "GET"` against an in-memory `60 req / 60 s / IP` bucket, exhaustion returns a self-contained 429 HTML doc from new `rateLimitHtmlResponse()` in `lib/rate-limit.ts`. Phase 10 adds `shortcut-overlay.tsx` (paper-tinted modal grouped by category, reads from the centralised `SHORTCUTS` registry so chips never drift between palette and overlay) wired through new `shortcutOverlayOpen / open / close / toggle` fields on EditContext, a `?` global keybind (matching `e.key === "?"` so US Shift+/ + non-US layouts both work, gated by `!mod && !alt` so `⌘?` stays for browser-native help), an Escape priority chain (overlay → palette → drawer mutex), and a "Show keyboard shortcuts" action row in the command palette. |
+| 2026-04-25 (autonomous) | D.9 v2 + D.10 acceptance | _this commit_ | Phase 9 v2 + Phase 10 acceptance gate — TS clean at HEAD `6ba1171`, `next build` clean. `dpl_GbNbgYjPrMZgYoNTcGds6Bkb2Rdw` `state=READY` `target=production` (promoted from preview `dpl_HPyeEqrurC5wyZTEQyxnU6k6L8p1`). Three prod aliases return 200 on `/`. Share endpoint behavior unchanged from v1 (agency 200 on bad token = ShareError UI; marketing/app 404 = allow-list reject — correct). Rate-limit smoke: 70-burst against `https://impronta.tulala.digital/share/x{n}` returned `59× 200 + 11× 429`, matching the configured `60 req / 60 s / IP` band exactly. QA evidence committed under `docs/qa/phase-9/README-v2.md` and `docs/qa/phase-10/README.md`. Phase 9 fully closed (v1 + v2). Phase 10 closed. Active phase advances to Milestone E (Phase 11 — Comments + client review, the comment-mode toggle layers on top of the Phase 9 share-link JWT path with a `commentMode=true` claim). Visual screenshot pass across phases 3-10 still pending a staff-authenticated session. |
