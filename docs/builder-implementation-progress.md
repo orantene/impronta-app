@@ -12,10 +12,10 @@ items — the user has authorised end-to-end execution.
 
 ## Live state
 
-- **Active milestone:** C — "Theme + responsive"
-- **Active phase:** Phase 5 closed (pending visual screenshot capture); next Phase 6 — Responsive + Motion tabs
-- **Last commit on phase-1 branch:** d7cf4a9 — Phase 5 ThemeDrawer + typed `loadDesignAction` / `saveDesignDraftFromEditAction` / `publishDesignFromEditAction` wrappers + EditContext mutex extension + DRAWER_WIDTHS theme entry + TopBar palette icon + Navigator footer wiring. Promoted to prod via `dpl_kZt5KwgeuD393BJRn6USoeRjQoZH`; all three prod aliases return 200.
-- **Next action:** Phase 6 — Responsive + Motion tabs. Schema extension first: `presentation.breakpoints: { desktop: {...}, tablet: {...}, mobile: {...} }` with override inheritance, plus `animation: { entry, scroll, hover, reducedMotion }`. Then `inspectors/responsive-panel.tsx` (active breakpoint follows the topbar viewport switcher; "↳ Override · Desktop is X" inheritance hints) and `inspectors/motion-panel.tsx`. Storefront runtime: section components apply animations and respect `prefers-reduced-motion`. Schema-first plan was *not* needed: M6 already shipped `agency_branding.theme_json` + `theme_json_draft` + `theme_preset_slug` + the token registry + storefront token application via `web/src/app/layout.tsx` + `token-presets.css`. Phase 5 build connects the existing pipe to the editor chrome. Theme history surface (restore-as-draft over `loadDesignRevisionsForStaff`), font-upload flow, and a token-usage scanner are tracked as Milestone C follow-ups; Phase 6 (Responsive + Motion) starts after the acceptance gate closes.
+- **Active milestone:** D — "Velocity"
+- **Active phase:** Milestone C closed (pending visual screenshot capture for Phases 3-6); next Phase 7 — Assets manager
+- **Last commit on phase-1 branch:** c3a2675 — Phase 6 Responsive + Motion tabs. Promoted to prod via `dpl_F1YNLRV9Pu9UKuJpyF4237RGm22J`; all three prod aliases return 200.
+- **Next action:** Phase 7 — Assets manager. Promote the existing `MediaPicker` to a full `assets-drawer.tsx` (Drawer kind="assets") with Images / Videos / Documents / Brand tabs. Per-asset usage scanner — search section props for asset references, surface reference counts. Multi-select already landed in wave 3 — confirm it survives the promotion. Schema-light: today's `agency_assets` table already carries the metadata; the upgrade is an editor-chrome surface, not a data migration. Milestone D continues with Phase 8 (Command palette ⌘K) → Phase 9 (Preview mode + share link) → Phase 10 (Keyboard shortcuts overlay). Schema-first plan was *not* needed: M6 already shipped `agency_branding.theme_json` + `theme_json_draft` + `theme_preset_slug` + the token registry + storefront token application via `web/src/app/layout.tsx` + `token-presets.css`. Phase 5 build connects the existing pipe to the editor chrome. Theme history surface (restore-as-draft over `loadDesignRevisionsForStaff`), font-upload flow, and a token-usage scanner are tracked as Milestone C follow-ups; Phase 6 (Responsive + Motion) starts after the acceptance gate closes.
 
 ---
 
@@ -219,14 +219,21 @@ items — the user has authorised end-to-end execution.
 - [ ] Visual screenshots committed under `docs/qa/phase-5/` — pending manual capture against `impronta.tulala.digital?edit=1`
 
 ### Phase 6 — Responsive + Motion tabs
-- [ ] Schema extension: `presentation.breakpoints: { desktop: {...}, tablet: {...}, mobile: {...} }` with override inheritance
-- [ ] Migration to populate empty breakpoint objects on existing rows
-- [ ] `inspectors/responsive-panel.tsx` — reads/writes per-breakpoint values, active follows viewport switcher
-- [ ] Override inheritance UI: "↳ Override · Desktop is X" hints
-- [ ] Schema extension: `animation: { entry, scroll, hover, reducedMotion }`
-- [ ] `inspectors/motion-panel.tsx` — entry / scroll / hover sections
-- [ ] Runtime: section components apply animations, respect `prefers-reduced-motion`
-- [ ] Custom breakpoint addition
+- [x] Schema extension: `presentation.breakpoints: { tablet: {...}, mobile: {...} }` with override inheritance — desktop is the inherited base, tablet overrides take effect at ≤ 1023px and mobile at ≤ 640px (matches the Tailwind `lg` / `sm` boundaries and the editor's tablet preview at 834px / mobile at 390px). Shipped under commit 0946500 (bundled with admin styling work; misleading commit title).
+- [x] Migration to populate empty breakpoint objects on existing rows — _not required_; every breakpoint field is optional, so existing rows continue to parse with no migration.
+- [x] `inspectors/responsive-panel.tsx` — reads / writes per-breakpoint values, active follows viewport switcher (c3a2675)
+- [x] Override inheritance UI: "↳ Override · Desktop is X" hints — rendered below each select when the value diverges from the desktop base (c3a2675)
+- [x] Schema extension: `animation: { entry, scroll, hover, reducedMotion }` (0946500)
+- [x] `inspectors/motion-panel.tsx` — entry / scroll / hover + accessibility group with amber warning when reducedMotion = "always" (c3a2675)
+- [x] Runtime: section components apply animations + respect `prefers-reduced-motion` — sections already spread `presentationDataAttrs(props.presentation)`; `presentationDataAttrs` was extended in 0946500 to emit per-breakpoint and animation data-attrs, and `token-presets.css` (c3a2675) added the matching @media + @starting-style rules. `data-section-anim-reduced-motion="always"` is the explicit opt-out for operators who want motion regardless of the user's preference; default behavior gates animation behind `@media (prefers-reduced-motion: no-preference)`. (c3a2675)
+- [ ] Custom breakpoint addition — _deferred_ to a follow-up. Today the three preset breakpoints (desktop / tablet / mobile) cover 99% of the operator's needs and match the topbar's device switcher; tenant-defined custom breakpoints layer cleanly on top of the same `data-section-*` cascade pattern when we ship them.
+
+#### Phase 6 acceptance gate
+- [x] All TS errors fixed (`tsc --noEmit` clean)
+- [x] Vercel build green for c3a2675 — `dpl_F1YNLRV9Pu9UKuJpyF4237RGm22J` `state=READY`, promoted to prod
+- [x] Smoke check 200 on `tulala.digital` + `impronta.tulala.digital` + `app.tulala.digital` after promote
+- [x] QA evidence committed under `docs/qa/phase-6/README.md`
+- [ ] Visual screenshots committed under `docs/qa/phase-6/` — pending manual capture against `impronta.tulala.digital?edit=1`
 
 ---
 
@@ -361,4 +368,6 @@ The big one. Three parallel tracks:
 | 2026-04-25 (concurrent) | B.3 | be20786 | Visibility wiring — extends CompositionSectionRef.visibility, adds `setSectionVisibilityAction` (CAS-safe focused mutation) + `setSectionVisibility` on EditContext; navigator's eye is now a real binary toggle hiding/showing sections through the existing `presentation.visibility` enum (no schema migration). Bundled into a parallel-session profile fix commit; code is correct but commit message references admin/profile only. |
 | 2026-04-25 (manual) | B.4 | aee8504 | Phase 4 — RevisionsDrawer + restore. New typed actions `loadHomepageRevisionsAction` / `restoreHomepageRevisionAction` over the existing `cms_page_revisions` table (no schema migration). Drawer kind="revisions" (480px) lazy-fetches on open, joins `display_name` from `profiles`, surfaces kind chip + Live badge + relative time + section count, and runs a two-step Restore confirm that round-trips through the existing CAS-safe `restoreHomepageRevision` lib op. Topbar's clock-arrow icon is now wired through `onRevisions`. |
 | 2026-04-25 (autonomous) | C.5 | d7cf4a9 | Phase 5 — ThemeDrawer + design tokens. New `web/src/lib/site-admin/edit-mode/design-actions.ts` typed wrappers (`loadDesignAction`, `saveDesignDraftFromEditAction`, `publishDesignFromEditAction`) over existing M6 lib ops; new `theme-drawer.tsx` (~700 lines) with Colors / Typography / Layout / Effects / Code tabs, full working-copy patch semantics, in-row publish confirm, VERSION_CONFLICT snapshot refresh. EditContext gains `themeOpen` + mutex extended to four right-side drawers; DRAWER_WIDTHS gains `theme: 540 / themeExpanded: 760`; TopBar palette icon button after Revisions; Navigator footer Theme shortcut wired; EditShell mounts `<ThemeDrawer />` and Escape dismisses it alongside the other drawers. |
+| 2026-04-25 (autonomous) | C.6 schema | 0946500 | Phase 6 schema extension shipped under a misleading admin-styling commit message — `sectionPresentationSchema` gains `breakpoints: { tablet, mobile }` and `animation: { entry, scroll, hover, reducedMotion }`; `presentationDataAttrs` extended to emit `data-section-tablet-*`, `data-section-mobile-*`, `data-section-anim-*` attrs alongside the base set. |
+| 2026-04-25 (autonomous) | C.6 ui+runtime | c3a2675 | Phase 6 — Responsive + Motion tabs. New `inspectors/responsive-panel.tsx` (breakpoint switcher synced with topbar device toggle, six override fields with inheritance hints) + `inspectors/motion-panel.tsx` (entry / scroll / hover + accessibility group with amber warning for `reducedMotion: 'always'`). InspectorDock TabKey extended to five members (content / layout / style / responsive / motion) + deep-merge `handlePresentationDeepPatch`. `token-presets.css` gets media-query rules under `data-section-tablet-*` (≤ 1023px) / `data-section-mobile-*` (≤ 640px) and animation rules gated behind `@media (prefers-reduced-motion: no-preference)`; `@starting-style` drives entry animations with a clean fallback on browsers that haven't shipped the spec. |
 | 2026-04-25 (autonomous) | C.5 acceptance | 36c8030 | Phase 5 acceptance gate — TS clean, `dpl_kZt5KwgeuD393BJRn6USoeRjQoZH` promoted to prod, smoke check 200 on `tulala.digital` + `impronta.tulala.digital` + `app.tulala.digital`, QA evidence committed under `docs/qa/phase-5/README.md`. Active phase advances to C.6 (Responsive + Motion). |
