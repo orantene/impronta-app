@@ -18,12 +18,21 @@
  * pointer-events:none layer EditShell already mounts). Ring positions are
  * viewport coordinates (getBoundingClientRect), matching the portal's fixed
  * coordinate space.
+ *
+ * Visual treatment matches mockup surfaces 2, 3, 9, 17:
+ *   - Dual-tone ring: white inset 1px + ink outset 2px + halo 8px
+ *   - Premium chip: 34px height, 10px radius, dark gradient, grip dots +
+ *     section-type icon + name + type divider + toolbar
+ *   - Drop indicator: blue gradient line + end-cap glow dots
+ *   - Drag ghost: substantial dark card with icon + name + dynamic state
+ *   - Source section while dragging: desaturate filter + dashed ring + 0.4 opacity
  */
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useEditContext } from "./edit-context";
+import { SectionTypeIcon } from "./kit/section-type-icon";
 
 interface Rect {
   top: number;
@@ -51,15 +60,25 @@ function humanizeTypeKey(key: string | null | undefined): string {
     .join(" ");
 }
 
-// Editor chrome accents. Zinc-900 ink matches the top-bar Publish button so
-// the whole editor surface reads as one calm ink palette, not a neon overlay
-// bolted onto a branded storefront. Opacity varies by state so a hover never
-// fights with a selection, and the selected halo lives in a second, outer
-// box-shadow for depth without a second outline.
-const INK = "17, 24, 39"; // zinc-900 rgb triplet (shared with topbar)
-const HOVER_STROKE = `rgba(${INK}, 0.35)`;
-const SELECT_STROKE = `rgba(${INK}, 0.92)`;
-const SELECT_HALO = `rgba(${INK}, 0.12)`;
+// ── Design tokens (from mockup --select-* variables) ──────────────────────
+// White inset + ink outset + soft halo. Same values as the spec's
+// `.ring-selected` and `.ring-hover` CSS classes.
+const SELECT_OUTER = "rgba(11,11,13,0.95)";
+const SELECT_HALO = "rgba(11,11,13,0.10)";
+const SELECT_INSET = "rgba(255,255,255,0.70)";
+const HOVER_INSET = "rgba(255,255,255,0.40)";
+const HOVER_STROKE = "rgba(11,11,13,0.45)";
+
+// Blue (#2c5fdb) used only for drop indicators — matches mockup var(--blue)
+// end-cap dots use the 58,123,255 lighter shade for the glow.
+const BLUE = "#2c5fdb";
+const BLUE_RGB = "58,123,255";
+
+// Chip gradient matches mockup `.chip` background.
+const CHIP_BG =
+  "linear-gradient(180deg, rgba(24,24,27,0.97), rgba(11,11,13,0.97))";
+const CHIP_SHADOW =
+  "0 12px 32px -8px rgba(0,0,0,0.45), 0 2px 6px -2px rgba(0,0,0,0.20), inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.18)";
 
 interface DropTarget {
   slotKey: string;
@@ -476,8 +495,20 @@ export function SelectionLayer() {
   const showHover =
     hoverRect && hoveredSectionId && hoveredSectionId !== selectedSectionId;
 
+  const isDragging =
+    drag.phase === "dragging" && drag.id === selectedSectionId;
+
+  // Derived display values for the chip / ghost.
+  const sectionName =
+    loadedSection?.id === selectedSectionId && loadedSection?.name
+      ? loadedSection.name
+      : null;
+  const chipLabel = sectionName ?? humanizeTypeKey(selectedTypeKey);
+  const chipType = humanizeTypeKey(selectedTypeKey);
+
   return createPortal(
     <div data-edit-overlay className="pointer-events-none absolute inset-0">
+      {/* ── Hover ring ────────────────────────────────────────────── */}
       {showHover ? (
         <div
           style={{
@@ -486,13 +517,16 @@ export function SelectionLayer() {
             left: hoverRect.left,
             width: hoverRect.width,
             height: hoverRect.height,
-            outline: `1px solid ${HOVER_STROKE}`,
-            outlineOffset: "-1px",
-            borderRadius: 2,
-            transition: "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+            borderRadius: 6,
+            boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}`,
+            pointerEvents: "none",
+            transition:
+              "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
           }}
         />
       ) : null}
+
+      {/* ── Selection ring ────────────────────────────────────────── */}
       {selectedRect ? (
         <>
           <div
@@ -502,81 +536,144 @@ export function SelectionLayer() {
               left: selectedRect.left,
               width: selectedRect.width,
               height: selectedRect.height,
-              outline: `1px solid ${SELECT_STROKE}`,
-              outlineOffset: "-1px",
-              borderRadius: 2,
-              // Outer halo gives depth without needing a second outline line;
-              // a 4 px soft shadow reads as "selected in place" rather than
-              // "highlighted with a debug ring".
-              boxShadow: `0 0 0 4px ${SELECT_HALO}`,
-              // Source section fades while dragging — space reserved, halo
-              // kept so the operator can still see where the section "is".
-              opacity:
-                drag.phase === "dragging" && drag.id === selectedSectionId
-                  ? 0.35
-                  : 1,
-              transition: "opacity 120ms linear",
+              borderRadius: 6,
+              // Dual-tone: white inset 1px, ink outset 2px, soft outer halo 8px.
+              // Uses box-shadow so inset + outset coexist without a second element.
+              boxShadow: isDragging
+                ? `0 0 0 2px rgba(11,11,13,0.30)`
+                : `inset 0 0 0 1px ${SELECT_INSET}, 0 0 0 2px ${SELECT_OUTER}, 0 0 0 8px ${SELECT_HALO}`,
+              outline: isDragging
+                ? "2px dashed rgba(11,11,13,0.35)"
+                : "none",
+              outlineOffset: isDragging ? 4 : 0,
+              // Source section desaturates while being dragged.
+              filter: isDragging ? "grayscale(0.9)" : "none",
+              opacity: isDragging ? 0.4 : 1,
+              transition:
+                "opacity 120ms linear, filter 120ms linear, box-shadow 120ms",
+              pointerEvents: "none",
             }}
           />
+
+          {/* ── Premium selection chip ────────────────────────────── */}
           <div
             style={{
               position: "fixed",
-              top: Math.max(selectedRect.top - 30, 56),
+              // Pin just above the section (within top-bar boundary).
+              top: Math.max(selectedRect.top - 38, 56),
               left: selectedRect.left,
-              height: 26,
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              pointerEvents: "auto",
+              height: 34,
+              display: "inline-flex",
+              alignItems: "stretch",
+              background: CHIP_BG,
+              color: "white",
+              borderRadius: 10,
+              boxShadow: CHIP_SHADOW,
+              backdropFilter: "blur(12px)",
+              overflow: "hidden",
+              zIndex: 90,
+              fontFamily:
+                'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
               whiteSpace: "nowrap",
-              opacity:
-                drag.phase === "dragging" && drag.id === selectedSectionId
-                  ? 0
-                  : 1,
+              pointerEvents: "auto",
+              opacity: isDragging ? 0 : 1,
               transition: "opacity 120ms linear",
+              userSelect: "none",
             }}
           >
+            {/* Grip area — drag handle */}
             <div
               onPointerDown={startDrag}
-              title="Drag to reorder — or use ↑/↓"
+              title="Drag to reorder"
               style={{
-                display: "flex",
-                alignItems: "baseline",
-                padding: "0 10px",
-                height: "100%",
-                background: `rgba(${INK}, 0.96)`,
-                color: "white",
-                fontSize: 11,
-                fontWeight: 500,
-                letterSpacing: "0.01em",
-                borderRadius: "3px 0 0 3px",
-                gap: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "0 14px 0 10px",
+                gap: 9,
                 cursor: drag.phase === "idle" ? "grab" : "grabbing",
-                userSelect: "none",
                 touchAction: "none",
               }}
             >
-              <span>
-                {loadedSection?.id === selectedSectionId && loadedSection?.name
-                  ? loadedSection.name
-                  : humanizeTypeKey(selectedTypeKey)}
+              {/* 2×3 grip dot grid */}
+              <span style={{ color: "rgba(255,255,255,0.50)", lineHeight: 0 }}>
+                <svg
+                  width="9"
+                  height="14"
+                  viewBox="0 0 9 14"
+                  fill="currentColor"
+                  aria-hidden
+                >
+                  <circle cx="2" cy="2" r="1" />
+                  <circle cx="7" cy="2" r="1" />
+                  <circle cx="2" cy="7" r="1" />
+                  <circle cx="7" cy="7" r="1" />
+                  <circle cx="2" cy="12" r="1" />
+                  <circle cx="7" cy="12" r="1" />
+                </svg>
               </span>
-              {loadedSection?.id === selectedSectionId &&
-              loadedSection?.name ? (
+
+              {/* Section-type icon tile */}
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 5,
+                  background: "rgba(255,255,255,0.08)",
+                  color: "rgba(255,255,255,0.92)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.06)",
+                  flexShrink: 0,
+                }}
+              >
+                <SectionTypeIcon typeKey={selectedTypeKey} size={13} />
+              </span>
+
+              {/* Section name */}
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                {chipLabel}
+              </span>
+
+              {/* Divider + type label */}
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0,
+                }}
+              >
+                <span
+                  style={{
+                    width: 1,
+                    height: 16,
+                    background: "rgba(255,255,255,0.16)",
+                    margin: "0 4px",
+                    flexShrink: 0,
+                  }}
+                />
                 <span
                   style={{
                     fontSize: 10,
-                    fontWeight: 400,
-                    opacity: 0.55,
-                    letterSpacing: "0.04em",
+                    fontWeight: 600,
+                    letterSpacing: "0.10em",
                     textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.55)",
                   }}
                 >
-                  {humanizeTypeKey(selectedTypeKey)}
+                  {chipType}
                 </span>
-              ) : null}
+              </span>
             </div>
-            <SectionToolBar
+
+            {/* Toolbar buttons */}
+            <ChipToolBar
               disabled={saving}
               confirmRemove={confirmRemove}
               onMoveUp={() => {
@@ -591,9 +688,6 @@ export function SelectionLayer() {
                 if (!selectedSectionId) return;
                 void duplicateSection(selectedSectionId).then((res) => {
                   if (res.ok && res.newSectionId) {
-                    // Select the new duplicate so the operator can immediately
-                    // edit it — matches platform-wide "act on the thing you
-                    // just created" convention.
                     setSelectedSectionId(res.newSectionId);
                   }
                 });
@@ -611,70 +705,135 @@ export function SelectionLayer() {
           </div>
         </>
       ) : null}
+
+      {/* ── Drop indicator ────────────────────────────────────────── */}
       {drag.phase === "dragging" && drag.drop ? (
         <div
           data-edit-overlay="drag-drop-line"
           style={{
             position: "fixed",
-            top: drag.drop.indicatorY - 1,
+            top: drag.drop.indicatorY - 1.5,
             left: drag.drop.indicatorLeft,
             width: drag.drop.indicatorWidth,
-            height: 2,
+            height: 3,
             background: drag.drop.allowed
-              ? `rgba(${INK}, 0.92)`
-              : "rgba(239, 68, 68, 0.6)", // red-500 muted for invalid
+              ? `linear-gradient(90deg, transparent, ${BLUE}, transparent)`
+              : "linear-gradient(90deg, transparent, rgba(239,68,68,0.8), transparent)",
             boxShadow: drag.drop.allowed
-              ? `0 0 0 3px rgba(${INK}, 0.12)`
-              : "0 0 0 3px rgba(239, 68, 68, 0.1)",
+              ? `0 0 0 4px rgba(${BLUE_RGB},0.12), 0 0 16px 4px rgba(${BLUE_RGB},0.40)`
+              : "0 0 0 4px rgba(239,68,68,0.10), 0 0 16px 4px rgba(239,68,68,0.20)",
             borderRadius: 2,
-            transition: "top 80ms linear, left 80ms linear, width 80ms linear",
+            transition:
+              "top 80ms linear, left 80ms linear, width 80ms linear",
             pointerEvents: "none",
           }}
-        />
+        >
+          {/* Left end-cap dot */}
+          {drag.drop.allowed ? (
+            <>
+              <span
+                style={{
+                  position: "absolute",
+                  top: -5,
+                  left: -6,
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  background: BLUE,
+                  boxShadow: `0 0 0 3px rgba(${BLUE_RGB},0.20), 0 0 12px rgba(${BLUE_RGB},0.50)`,
+                }}
+              />
+              {/* Right end-cap dot */}
+              <span
+                style={{
+                  position: "absolute",
+                  top: -5,
+                  right: -6,
+                  width: 12,
+                  height: 12,
+                  borderRadius: "50%",
+                  background: BLUE,
+                  boxShadow: `0 0 0 3px rgba(${BLUE_RGB},0.20), 0 0 12px rgba(${BLUE_RGB},0.50)`,
+                }}
+              />
+            </>
+          ) : null}
+        </div>
       ) : null}
+
+      {/* ── Drag ghost ────────────────────────────────────────────── */}
       {drag.phase === "dragging" ? (
         <div
           data-edit-overlay="drag-ghost"
           style={{
             position: "fixed",
-            top: drag.pointerY + 10,
-            left: drag.pointerX + 12,
+            top: drag.pointerY + 14,
+            left: drag.pointerX + 16,
             pointerEvents: "none",
-            zIndex: 10,
-            transform: "rotate(1.5deg)",
-            background: `rgba(${INK}, 0.96)`,
+            zIndex: 100,
+            transform: "rotate(-1deg)",
+            background:
+              "linear-gradient(180deg, rgba(24,24,27,0.97), rgba(11,11,13,0.97))",
             color: "white",
-            padding: "6px 12px",
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 500,
-            letterSpacing: "0.01em",
-            whiteSpace: "nowrap",
+            padding: "12px 16px",
+            borderRadius: 12,
             boxShadow:
-              "0 10px 30px -8px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.08) inset",
+              "0 24px 56px -12px rgba(0,0,0,0.50), 0 4px 12px -2px rgba(0,0,0,0.30), inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.18)",
             display: "flex",
-            alignItems: "baseline",
-            gap: 8,
+            alignItems: "center",
+            gap: 12,
+            fontFamily:
+              'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+            backdropFilter: "blur(12px)",
           }}
         >
-          <span>
-            {drag.name ?? humanizeTypeKey(drag.typeKey)}
-          </span>
+          {/* Section-type icon tile */}
           <span
             style={{
-              fontSize: 10,
-              fontWeight: 400,
-              opacity: 0.6,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              background: "rgba(255,255,255,0.10)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            {drag.drop
-              ? drag.drop.allowed
-                ? "Drop"
-                : "Not allowed"
-              : "Drag to reorder"}
+            <SectionTypeIcon
+              typeKey={drag.typeKey}
+              size={18}
+              style={{ opacity: 0.9 }}
+            />
           </span>
+
+          <div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                letterSpacing: "-0.005em",
+              }}
+            >
+              {drag.name ?? humanizeTypeKey(drag.typeKey)}
+            </div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                opacity: 0.55,
+                marginTop: 2,
+              }}
+            >
+              {drag.drop
+                ? drag.drop.allowed
+                  ? "Drop to place"
+                  : "Not allowed here"
+                : "Drag to reorder"}
+            </div>
+          </div>
         </div>
       ) : null}
     </div>,
@@ -683,12 +842,10 @@ export function SelectionLayer() {
 }
 
 /**
- * SectionToolBar — the ↑/↓/🗑 chip that sits to the right of the section-type
- * label above a selected section. Lives in the portal's pointer-events:auto
- * subtree so clicks land. Remove is a two-step confirm (click → confirm) so
- * operators don't nuke a section with a stray click on a tiny trash icon.
+ * ChipToolBar — the icon-button cluster on the right side of the selection chip.
+ * 34×34px per button, matching `.chip-tool` from the mockup.
  */
-function SectionToolBar({
+function ChipToolBar({
   disabled,
   confirmRemove,
   onMoveUp,
@@ -707,87 +864,144 @@ function SectionToolBar({
   onRemoveConfirm: () => void;
   onRemoveCancel: () => void;
 }) {
-  const baseBtn =
-    "inline-flex size-[26px] items-center justify-center bg-[rgba(17,24,39,0.96)] text-white/85 transition hover:text-white hover:bg-[rgba(17,24,39,1)] disabled:opacity-50 disabled:hover:bg-[rgba(17,24,39,0.96)] border-l border-white/10";
   if (confirmRemove) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          height: "100%",
-          borderRadius: "0 3px 3px 0",
-          overflow: "hidden",
-        }}
-      >
+      <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
         <button
           type="button"
           disabled={disabled}
           onClick={onRemoveConfirm}
-          className="inline-flex h-full items-center border-l border-white/10 bg-red-600 px-2.5 text-[11px] font-semibold tracking-wide text-white transition hover:bg-red-700 disabled:opacity-50"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 12px",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.02em",
+            background: "rgba(196,61,61,0.90)",
+            color: "white",
+            border: "none",
+            borderLeft: "1px solid rgba(255,255,255,0.10)",
+            cursor: "pointer",
+          }}
         >
           Remove?
         </button>
         <button
           type="button"
           onClick={onRemoveCancel}
-          className="inline-flex h-full items-center border-l border-white/10 bg-[rgba(17,24,39,0.96)] px-2.5 text-[11px] font-medium tracking-wide text-white/80 transition hover:bg-[rgba(17,24,39,1)] hover:text-white"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 12px",
+            fontSize: 11,
+            fontWeight: 500,
+            background: "transparent",
+            color: "rgba(255,255,255,0.72)",
+            border: "none",
+            borderLeft: "1px solid rgba(255,255,255,0.10)",
+            cursor: "pointer",
+          }}
         >
           Cancel
         </button>
       </div>
     );
   }
+
+  const btnStyle: React.CSSProperties = {
+    width: 34,
+    height: 34,
+    background: "transparent",
+    color: "rgba(255,255,255,0.72)",
+    border: "none",
+    borderLeft: "1px solid rgba(255,255,255,0.10)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    transition: "background 100ms, color 100ms",
+  };
+
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        height: "100%",
-        borderRadius: "0 3px 3px 0",
-        overflow: "hidden",
-      }}
-    >
-      <button
-        type="button"
+    <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
+      <ChipBtn
+        style={btnStyle}
         disabled={disabled}
         onClick={onMoveUp}
-        className={baseBtn}
         aria-label="Move section up"
         title="Move up"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
-      </button>
-      <button
-        type="button"
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
         disabled={disabled}
         onClick={onMoveDown}
-        className={baseBtn}
         aria-label="Move section down"
         title="Move down"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-      </button>
-      <button
-        type="button"
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
         disabled={disabled}
         onClick={onDuplicate}
-        className={baseBtn}
         aria-label="Duplicate section"
         title="Duplicate"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-      </button>
-      <button
-        type="button"
+      </ChipBtn>
+      <ChipBtn
+        style={btnStyle}
         disabled={disabled}
         onClick={onRemoveTrigger}
-        className={baseBtn}
         aria-label="Remove section"
         title="Remove"
+        danger
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
-      </button>
+      </ChipBtn>
     </div>
+  );
+}
+
+/** Thin wrapper so we can add hover-state CSS for the chip tool buttons. */
+function ChipBtn({
+  children,
+  style,
+  disabled,
+  onClick,
+  danger,
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  danger?: boolean;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      style={{
+        ...style,
+        background: hovered
+          ? danger
+            ? "rgba(196,61,61,0.20)"
+            : "rgba(255,255,255,0.10)"
+          : "transparent",
+        color: hovered
+          ? danger
+            ? "#ff8b8b"
+            : "white"
+          : "rgba(255,255,255,0.72)",
+        opacity: disabled ? 0.4 : 1,
+      }}
+      {...rest}
+    >
+      {children}
+    </button>
   );
 }
