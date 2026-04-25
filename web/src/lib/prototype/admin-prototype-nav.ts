@@ -9,6 +9,7 @@ import {
   UserCog,
   UserRound,
   Users,
+  Wand2,
 } from "lucide-react";
 
 /** Real admin IA — sidebar links under `/admin`. */
@@ -169,6 +170,13 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
     id: "site-and-ai",
     label: "Site & AI",
     items: [
+      navItem(
+        "Setup",
+        `${ADMIN_PROTOTYPE_BASE}/site/setup`,
+        Wand2,
+        "site-setup",
+        "Six-step walkthrough \u2014 homepage, pages, posts, nav, theme, SEO",
+      ),
       navItem(
         "Public site",
         `${ADMIN_PROTOTYPE_BASE}/site`,
