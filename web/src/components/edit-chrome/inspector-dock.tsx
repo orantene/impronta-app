@@ -33,6 +33,7 @@ import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
 import { PanelSaveChip } from "./inspectors/kit";
 import {
+  CHROME,
   Drawer,
   DrawerHead,
   DrawerTabs,
@@ -285,7 +286,7 @@ export function InspectorDock() {
 
   const dockOpen = !!selectedSectionId;
 
-  const dockTitle = loadedSection
+  const sectionTitle = loadedSection
     ? (cleanSectionName(loadedSection.name) ||
         humanizeTypeKey(loadedSection.sectionTypeKey))
     : selectedSectionId && loadingId
@@ -295,14 +296,14 @@ export function InspectorDock() {
   return (
     <Drawer
       kind="dock"
+      open={dockOpen}
       zIndex={85}
-      className={`max-lg:hidden transition-transform duration-200 ease-out ${
-        dockOpen ? "translate-x-0" : "translate-x-full"
-      }`}
+      className="max-lg:hidden"
+      testId="inspector-dock"
     >
       <DrawerHead
         eyebrow="Inspector"
-        title={dockTitle}
+        title={sectionTitle}
         icon={
           loadedSection ? (
             <SectionTypeIcon
@@ -316,47 +317,58 @@ export function InspectorDock() {
             <PanelSaveChip dirty={dirty} saving={saving} error={saveError} />
           ) : undefined
         }
-        meta={
-          loadedSection
-            ? humanizeTypeKey(loadedSection.sectionTypeKey)
-            : undefined
+        onClose={
+          selectedSectionId ? () => setSelectedSectionId(null) : undefined
         }
-        onClose={() => setSelectedSectionId(null)}
       />
 
       {!selectedSectionId ? (
-        <DrawerBody>
-          <EmptyState />
-        </DrawerBody>
+        <EmptyState />
       ) : loadError ? (
-        <DrawerBody>
-          <div className="text-xs text-amber-700">{loadError}</div>
-        </DrawerBody>
+        <div
+          className="flex-1 overflow-y-auto px-4 py-6 text-xs"
+          style={{ color: CHROME.amber }}
+        >
+          {loadError}
+        </div>
       ) : !loadedSection || !registryEntry ? (
-        <DrawerBody>
-          <div className="text-xs text-zinc-400">Loading…</div>
-        </DrawerBody>
+        <div
+          className="flex-1 overflow-y-auto px-4 py-6 text-xs"
+          style={{ color: CHROME.muted }}
+        >
+          Loading…
+        </div>
       ) : (
         <>
-          <DrawerTabs>
-            {TABS.map((t) => (
-              <DrawerTab
-                key={t.key}
-                active={tab === t.key}
-                onClick={() => setTab(t.key)}
-              >
-                {t.label}
-              </DrawerTab>
-            ))}
-          </DrawerTabs>
+          <div
+            style={{ borderBottom: `1px solid ${CHROME.line}`, paddingBottom: 10 }}
+          >
+            <DrawerTabs>
+              {TABS.map((t) => (
+                <DrawerTab
+                  key={t.key}
+                  active={tab === t.key}
+                  onClick={() => setTab(t.key)}
+                >
+                  {t.label}
+                </DrawerTab>
+              ))}
+            </DrawerTabs>
+          </div>
 
-          <DrawerBody>
+          <DrawerBody padding="14px 14px 32px">
             {saveError ? (
-              <div className="mb-3 rounded-md border border-amber-200/60 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+              <div
+                className="mb-3 rounded-md px-3 py-2 text-[11px]"
+                style={{
+                  background: CHROME.amberBg,
+                  border: `1px solid ${CHROME.amberLine}`,
+                  color: CHROME.amber,
+                }}
+              >
                 {saveError}
               </div>
             ) : null}
-
             {tab === "content" ? (
               <ContentTab
                 sectionTypeKey={loadedSection.sectionTypeKey}
@@ -392,10 +404,18 @@ export function InspectorDock() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 text-center text-zinc-400">
-      <div className="mb-3 size-10 rounded-full border border-dashed border-zinc-200" />
-      <p className="text-sm font-medium text-zinc-600">Select a section</p>
-      <p className="mt-1 max-w-[220px] text-xs text-zinc-400">
+    <div
+      className="flex flex-1 flex-col items-center justify-center px-6 text-center"
+      style={{ color: CHROME.muted }}
+    >
+      <div
+        className="mb-3 size-10 rounded-full border border-dashed"
+        style={{ borderColor: CHROME.lineMid }}
+      />
+      <p className="text-sm font-medium" style={{ color: CHROME.text2 }}>
+        Select a section
+      </p>
+      <p className="mt-1 max-w-[220px] text-xs" style={{ color: CHROME.muted }}>
         Click any section on the page to edit its content, layout, and styling
         here.
       </p>
