@@ -38,6 +38,8 @@ import {
 } from "@/lib/prototype/admin-prototype-prefs";
 import { AdminContextualInspector } from "@/components/admin/inspector/admin-contextual-inspector";
 import { PlanViewbar } from "@/components/prototype/plan-viewbar";
+import { UpgradeModalProvider } from "@/components/admin/site-control-center/upgrade-context";
+import { GlobalUpgradeModal } from "@/components/admin/site-control-center/global-upgrade-modal";
 import { AgencySwitcher } from "@/components/admin/agency-switcher";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import type { TenantMembership } from "@/lib/saas";
@@ -561,6 +563,7 @@ export function AdminDashboardShell({
 
   return (
     <TooltipProvider delayDuration={0}>
+      <UpgradeModalProvider>
       <div
         data-dashboard-theme={dashboardTheme}
         className={cn(
@@ -581,10 +584,21 @@ export function AdminDashboardShell({
             collapsed ? "w-[4.5rem]" : "w-60",
           )}
         >
-          <div className="flex h-14 items-center gap-2 border-b border-[var(--admin-gold-border)] px-3">
+          <div className="flex h-14 items-center gap-2.5 border-b border-[var(--admin-gold-border)] px-3">
+            <span
+              className="flex size-7 shrink-0 items-center justify-center rounded-[8px] text-[14px] font-bold leading-none"
+              style={{
+                backgroundColor: "var(--admin-gold)",
+                color: "#0b0b0d",
+              }}
+              aria-hidden
+            >
+              {PLATFORM_BRAND.name.charAt(0).toUpperCase()}
+            </span>
             {!collapsed ? (
-              <span className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-[var(--admin-gold)]">
-                {PLATFORM_BRAND.name}
+              <span className="truncate text-[13.5px] font-semibold tracking-[0.02em] text-[#f2f2f2]">
+                {PLATFORM_BRAND.name.charAt(0).toUpperCase() +
+                  PLATFORM_BRAND.name.slice(1).toLowerCase()}
               </span>
             ) : null}
             <Button
@@ -831,6 +845,8 @@ export function AdminDashboardShell({
           </button>
         </nav>
       </div>
+      <GlobalUpgradeModal />
+      </UpgradeModalProvider>
     </TooltipProvider>
   );
 }

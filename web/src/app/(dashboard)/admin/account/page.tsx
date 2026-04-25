@@ -1,5 +1,6 @@
 import { StaffAccountPasswordForm } from "@/app/(dashboard)/admin/account/staff-account-password-form";
 import { signOut } from "@/app/auth/actions";
+import { AccountBillingPanels } from "@/components/admin/account/account-billing-panels";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { Button } from "@/components/ui/button";
@@ -34,19 +35,11 @@ export default async function AdminAccountPage() {
     <div className={ADMIN_PAGE_STACK}>
       <AdminPageHeader
         icon={UserRound}
-        eyebrow="Admin"
         title="Account"
-        description={
-          <>
-            Staff sign-in security. If you use Google, adding a password is optional and lets you use
-            email login too. Forgot your password? Use{" "}
-            <Link href="/forgot-password" className="text-primary underline-offset-4 hover:underline">
-              Forgot password
-            </Link>{" "}
-            while signed out.
-          </>
-        }
+        description="Workspace billing, organization details, and your staff sign-in."
       />
+
+      <AccountBillingPanels />
 
       <DashboardSectionCard
         title="Your session"
@@ -67,7 +60,7 @@ export default async function AdminAccountPage() {
         title="Password"
         description={
           hasEmailPassword
-            ? "Change the password you use with your email on the log-in screen."
+            ? <>Change the password you use with your email on the log-in screen. Forgot your password? Use <Link href="/forgot-password" className="text-primary underline-offset-4 hover:underline">Forgot password</Link> while signed out.</>
             : "Optional: add a password to sign in with email as well as Google."
         }
         titleClassName={ADMIN_SECTION_TITLE_CLASS}

@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+
+import { useUpgradeModal } from "./upgrade-context";
 import {
   Activity,
   Code2,
@@ -44,8 +45,6 @@ import {
   RosterDrawerBody,
   StubDrawerBody,
 } from "./site-drawer-content";
-import { UpgradeModal } from "./upgrade-modal";
-
 /**
  * SiteShell — client component that owns drawer state for the Site control
  * center. Renders the four tier bands (every-plan / studio / agency /
@@ -210,14 +209,11 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
 };
 
 export function SiteShell({ activePlan }: { activePlan: Plan }) {
-  const router = useRouter();
-  const pathname = usePathname() ?? "/admin/site";
-  const searchParams = useSearchParams();
+  const upgradeModal = useUpgradeModal();
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [openCapability, setOpenCapability] =
     React.useState<Capability | null>(null);
   const [openLocked, setOpenLocked] = React.useState(false);
-  const [upgradeOpen, setUpgradeOpen] = React.useState(false);
 
   function handleOpen(cap: Capability, locked: boolean) {
     setOpenId(cap.id);
@@ -225,17 +221,11 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
     setOpenLocked(locked);
   }
 
-  function handleUpgradeSelect(plan: Plan) {
-    const params = new URLSearchParams(
-      searchParams ? Array.from(searchParams.entries()) : [],
-    );
-    if (plan === "free") {
-      params.delete("plan");
-    } else {
-      params.set("plan", plan);
-    }
-    const qs = params.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  function openUpgrade() {
+    setOpenId(null);
+    setOpenCapability(null);
+    setOpenLocked(false);
+    upgradeModal.setOpen(true);
   }
 
   const entry = openId ? DRAWER_REGISTRY[openId] : null;
@@ -298,7 +288,7 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setUpgradeOpen(true)}
+                      onClick={() => openUpgrade()}
                       className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
                       style={{ color: accent.fg }}
                     >
@@ -342,25 +332,13 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
               tier={openCapability.tier}
               copy={openCapability.lockedCopy}
               activePlan={activePlan}
-              onUpgrade={() => {
-                setOpenId(null);
-                setOpenCapability(null);
-                setOpenLocked(false);
-                setUpgradeOpen(true);
-              }}
+              onUpgrade={openUpgrade}
             />
           ) : (
             drawer.body({ activePlan, capability: openCapability })
           )
         ) : null}
       </DrawerShell>
-
-      <UpgradeModal
-        open={upgradeOpen}
-        onOpenChange={setUpgradeOpen}
-        activePlan={activePlan}
-        onSelect={handleUpgradeSelect}
-      />
     </>
   );
 }

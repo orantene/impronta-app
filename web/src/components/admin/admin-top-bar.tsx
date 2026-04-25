@@ -23,6 +23,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronDown, ChevronRight, ExternalLink, Rocket } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useUpgradeModal } from "@/components/admin/site-control-center/upgrade-context";
 
 const TIER_DOT: Record<string, string> = {
   free: "#a1a1aa",
@@ -36,6 +37,13 @@ const TIER_LABEL: Record<string, string> = {
   studio: "Studio",
   agency: "Agency",
   network: "Network",
+};
+
+const TIER_USAGE: Record<string, string> = {
+  free: "8 / 10 talents",
+  studio: "34 / 50 talents",
+  agency: "87 / 200 talents",
+  network: "Unlimited talents",
 };
 
 const LABELS: Record<string, string> = {
@@ -117,6 +125,7 @@ export function AdminTopBar() {
   const pathname = usePathname() ?? "/admin";
   const searchParams = useSearchParams();
   const crumbs = useMemo(() => buildCrumbs(pathname), [pathname]);
+  const upgradeModal = useUpgradeModal();
 
   const isSiteArea = pathname.startsWith("/admin/site-settings");
   const isComposer = pathname.startsWith("/admin/site-settings/structure");
@@ -132,6 +141,7 @@ export function AdminTopBar() {
     : "free";
   const planLabel = TIER_LABEL[planKey] ?? "Free";
   const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
+  const planUsage = TIER_USAGE[planKey] ?? TIER_USAGE.free;
 
   // Never render the bar on routes where it'd fight composer chrome.
   if (isComposer) {
@@ -173,13 +183,16 @@ export function AdminTopBar() {
 
       {/* Right cluster — contextual actions + tier chip */}
       <div className="flex shrink-0 items-center gap-2">
-        <span
+        <button
+          type="button"
+          onClick={() => upgradeModal.setOpen(true)}
           className={cn(
             "inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[12px] text-foreground/80",
             "border border-[rgba(24,24,27,0.18)] transition-[border-color,box-shadow] duration-150",
             "hover:border-[rgba(201,162,39,0.4)] hover:shadow-[0_4px_12px_-6px_rgba(0,0,0,0.2)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(201,162,39,0.5)]",
           )}
-          title="Workspace plan"
+          title="Click to view plans"
         >
           <span
             className="size-2 shrink-0 rounded-full"
@@ -191,10 +204,10 @@ export function AdminTopBar() {
             <span className="mx-1 text-muted-foreground/70">·</span>
             <span>{planLabel}</span>
             <span className="mx-1 text-muted-foreground/70">·</span>
-            <span className="text-muted-foreground">8 / 10 talents</span>
+            <span className="text-muted-foreground">{planUsage}</span>
           </span>
           <ChevronDown className="size-3 shrink-0 text-muted-foreground/70" aria-hidden />
-        </span>
+        </button>
         {showPublishPill ? (
           <Link
             href="/admin/site-settings/structure"
