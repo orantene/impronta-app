@@ -27,6 +27,7 @@ import {
   User,
   UserRound,
   Users,
+  Wand2,
 } from "lucide-react";
 import type {
   DashboardNavGroup,
@@ -134,6 +135,8 @@ function NavIcon({ icon }: { icon: DashboardNavIconKey }) {
       return <Languages className="size-4" aria-hidden />;
     case "siteSettings":
       return <Globe className="size-4" aria-hidden />;
+    case "siteSetup":
+      return <Wand2 className="size-4" aria-hidden />;
     case "aiWorkspace":
       return <Sparkles className="size-4" aria-hidden />;
     default:

@@ -18,6 +18,7 @@ import {
   User,
   UserRound,
   Users,
+  Wand2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -195,6 +196,14 @@ const NAV_LINKS: NavLink[] = [
     hint: "CMS hub — content, SEO, structure",
     keywords: "cms pages posts redirects navigation seo sitemap site content",
     icon: <Globe className="size-4" />,
+  },
+  {
+    href: "/admin/site/setup",
+    label: "Site Setup",
+    category: "Site & AI",
+    hint: "Six-step walkthrough: homepage, pages, posts, nav, theme, SEO",
+    keywords: "setup hub onboarding theme kit gallery walkthrough launch live",
+    icon: <Wand2 className="size-4" />,
   },
   {
     href: "/admin/ai-workspace",

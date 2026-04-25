@@ -25,6 +25,7 @@ export type DashboardNavIconKey =
   | "admins"
   | "translations"
   | "siteSettings"
+  | "siteSetup"
   | "aiWorkspace";
 
 export type DashboardNavItem = {
@@ -291,6 +292,13 @@ export const ADMIN_DASHBOARD_GROUPS: DashboardNavGroup[] = [
     label: "Site & AI",
     collapsible: true,
     items: [
+      {
+        id: "admin-site-setup",
+        href: "/admin/site/setup",
+        label: "Setup",
+        match: "prefix",
+        icon: "siteSetup",
+      },
       {
         id: "admin-site-settings",
         href: "/admin/site-settings",
