@@ -225,7 +225,7 @@ export function CompositionLibraryOverlay() {
                                   {entry.label}
                                 </span>
                                 <InfoTip
-                                  label={`${entry.description} · Type key: ${entry.typeKey}`}
+                                  label={entry.description}
                                 />
                               </div>
                               {busy ? (

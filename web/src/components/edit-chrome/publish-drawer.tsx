@@ -30,6 +30,17 @@ import { publishHomepageFromEditModeAction } from "@/lib/site-admin/edit-mode/co
 import { ResizableDrawer } from "@/components/ui/resizable-drawer";
 import { useEditContext } from "./edit-context";
 
+/** Strip seeder debug suffixes like "(Classic starter) d7b14f" from stored names. */
+function cleanSectionName(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return (
+    raw
+      .replace(/\s*\([^)]*starter[^)]*\)\s*/gi, "")
+      .replace(/\s+[0-9a-f]{6,8}$/i, "")
+      .trim() || raw.trim()
+  );
+}
+
 type PublishState =
   | { kind: "idle" }
   | { kind: "publishing" }
@@ -68,13 +79,13 @@ export function PublishDrawer() {
       const entries = slots[def.key] ?? [];
       return {
         key: def.key,
-        label: def.label,
+        label: def.label.replace(/\s*\(legacy\)\s*$/i, ""),
         required: def.required,
         count: entries.length,
         // Section names in slot order — shows the operator exactly what's
         // going live, not just "3 sections". Truncated in render so long
         // names don't break the drawer layout.
-        names: entries.map((e) => e.name),
+        names: entries.map((e) => cleanSectionName(e.name)),
         missingRequired: def.required && entries.length === 0,
       };
     });

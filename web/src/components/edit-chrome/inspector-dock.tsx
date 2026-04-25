@@ -32,6 +32,7 @@ import { ContentTab } from "./inspectors/content-dispatch";
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
 import { PanelSaveChip } from "./inspectors/kit";
+import { SectionTypeIcon } from "./kit";
 
 type TabKey = "content" | "layout" | "style";
 
@@ -47,6 +48,17 @@ function humanizeTypeKey(key: string | null | undefined): string {
     .split("_")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+}
+
+/** Strip seeder debug suffixes like "(Classic starter) d7b14f" from stored names. */
+function cleanSectionName(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return (
+    raw
+      .replace(/\s*\([^)]*starter[^)]*\)\s*/gi, "")
+      .replace(/\s+[0-9a-f]{6,8}$/i, "")
+      .trim() || null
+  );
 }
 
 export function InspectorDock() {
@@ -283,8 +295,13 @@ export function InspectorDock() {
                   a small uppercase caption, so the section's kind is still
                   discoverable. */}
               <div className="mt-1 flex items-center gap-2">
+                <SectionTypeIcon
+                  typeKey={loadedSection.sectionTypeKey}
+                  size={15}
+                  className="shrink-0 text-zinc-500"
+                />
                 <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-zinc-900">
-                  {loadedSection.name?.trim() ||
+                  {cleanSectionName(loadedSection.name) ||
                     humanizeTypeKey(loadedSection.sectionTypeKey)}
                 </div>
                 <PanelSaveChip
@@ -398,21 +415,6 @@ export function InspectorDock() {
             </div>
           </div>
 
-          <footer className="flex items-center justify-between border-t border-zinc-100 px-4 py-2 text-[11px] text-zinc-400">
-            <span>
-              {/* Just the version — the schema version is a platform concern
-                  the operator can't act on and its dot-separated presence
-                  made the footer read like a debug line. */}v
-              {loadedSection.version}
-            </span>
-            <span>
-              {saving
-                ? "Saving…"
-                : dirty
-                  ? "Unsaved changes"
-                  : "Draft"}
-            </span>
-          </footer>
         </>
       )}
     </aside>
