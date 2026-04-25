@@ -15,7 +15,7 @@ items — the user has authorised end-to-end execution.
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
 - **Last commit on phase-1 branch:** _pending_
-- **Next action:** Build `field.tsx` primitive (Field, FieldLabel, Helper, HelperCounter)
+- **Next action:** Build `stepper.tsx` primitive (numeric stepper with unit suffix)
 
 ---
 
@@ -46,7 +46,7 @@ items — the user has authorised end-to-end execution.
 #### Kit primitives — `web/src/components/edit-chrome/kit/`
 - [x] `drawer.tsx` — `Drawer`, `DrawerHead`, `DrawerBody`, `DrawerFoot`, `DrawerTabs`, `DrawerTools` (the three-button expand/fullscreen/close cluster)
 - [x] `card.tsx` — `Card`, `CardHead`, `CardBody`, `CardAction`
-- [ ] `field.tsx` — `Field`, `FieldLabel`, `Helper`, `HelperCounter`
+- [x] `field.tsx` — `Field`, `FieldLabel`, `Helper`, `HelperCounter`
 - [ ] `stepper.tsx` — numeric stepper with unit
 - [ ] `segmented.tsx` — segmented control (used everywhere)
 - [ ] `toggle.tsx` — iOS-style switch
@@ -322,4 +322,5 @@ The big one. Three parallel tracks:
 |---|---|---|---|
 | _initial_ | A.1 | b5fa5b8 | Tracker created, Phase 1 staged |
 | 2026-04-24 (manual) | A.1 | 02a9a8b | Chrome kit foundation + Drawer primitive |
-| 2026-04-24 (manual) | A.1 | _pending_ | Card primitive (Card / Head / Body / Action) |
+| 2026-04-24 (manual) | A.1 | 631ed0e | Card primitive (Card / Head / Body / Action) |
+| 2026-04-24 (manual) | A.1 | _pending_ | Field primitives (Field / Label / Helper / Counter) |
