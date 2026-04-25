@@ -287,17 +287,24 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                   }}
                 />
                 {bandLocked && band.ctaLabel ? (
-                  <Link
-                    href={
-                      band.tier === "network"
-                        ? "mailto:hello@impronta.group"
-                        : `?plan=${band.tier}`
-                    }
-                    className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
-                    style={{ color: accent.fg }}
-                  >
-                    {band.ctaLabel} →
-                  </Link>
+                  band.tier === "network" ? (
+                    <Link
+                      href="mailto:hello@impronta.group"
+                      className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
+                      style={{ color: accent.fg }}
+                    >
+                      {band.ctaLabel} →
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setUpgradeOpen(true)}
+                      className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
+                      style={{ color: accent.fg }}
+                    >
+                      {band.ctaLabel} →
+                    </button>
+                  )
                 ) : null}
               </div>
               <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -335,7 +342,12 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
               tier={openCapability.tier}
               copy={openCapability.lockedCopy}
               activePlan={activePlan}
-              onUpgrade={() => setUpgradeOpen(true)}
+              onUpgrade={() => {
+                setOpenId(null);
+                setOpenCapability(null);
+                setOpenLocked(false);
+                setUpgradeOpen(true);
+              }}
             />
           ) : (
             drawer.body({ activePlan, capability: openCapability })
