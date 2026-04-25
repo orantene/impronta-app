@@ -603,19 +603,19 @@ html[data-public-font-preset="editorial"] {
  * CTAs, and focus rings — not as a background wash.
  */
 [data-admin-prototype="1"][data-admin-prototype-theme="light"] {
-  /* Admin accent (light) — solid near-black. Gold belongs on the
-   * tenant-facing storefront, not the operator shell. Token name kept
-   * as --admin-gold for backward compatibility. */
-  --admin-gold: #18181b;
-  --admin-gold-bright: #09090b;
-  --admin-gold-soft: rgba(24, 24, 27, 0.04);
-  --admin-gold-border: rgba(24, 24, 27, 0.12);
-  --admin-gold-muted: rgba(82, 82, 91, 0.55);
-  --admin-sidebar-bg: #fafafa;
-  --admin-sidebar-hover: rgba(24, 24, 27, 0.05);
-  --admin-nav-active-label: #09090b;
-  --admin-nav-idle: #52525b;
-  --admin-nav-hover-fg: #18181b;
+  /* Admin accent (light) — dark sidebar with gold accent, matching the
+   * site-control-center mockup. Gold is the active-nav highlight only;
+   * everywhere else uses neutral ink. */
+  --admin-gold: #c9a227;
+  --admin-gold-bright: #b8941e;
+  --admin-gold-soft: rgba(201, 162, 39, 0.12);
+  --admin-gold-border: rgba(201, 162, 39, 0.4);
+  --admin-gold-muted: rgba(242, 242, 242, 0.62);
+  --admin-sidebar-bg: #0d0d10;
+  --admin-sidebar-hover: rgba(255, 255, 255, 0.04);
+  --admin-nav-active-label: #c9a227;
+  --admin-nav-idle: rgba(242, 242, 242, 0.62);
+  --admin-nav-hover-fg: #f2f2f2;
   --admin-workspace-bg: #f2efe6;
   --admin-workspace-fg: #18181b;
   --admin-workspace-surface: #ffffff;
@@ -629,32 +629,32 @@ html[data-public-font-preset="editorial"] {
  * (independent of site body theme).
  */
 [data-admin-prototype="1"][data-admin-prototype-theme="light"] .admin-prototype-main {
-  --background: #fafafa;
+  --background: var(--admin-workspace-bg);
   --foreground: #18181b;
   --card: #ffffff;
   --card-foreground: #18181b;
   --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --primary: var(--admin-gold);
+  --muted-foreground: #60606a;
+  --border: rgba(24, 24, 27, 0.1);
+  --input: rgba(24, 24, 27, 0.18);
+  --primary: #18181b;
   --primary-foreground: #ffffff;
   --secondary: #f4f4f5;
   --secondary-foreground: #18181b;
-  --accent: rgba(161, 98, 7, 0.08);
+  --accent: rgba(201, 162, 39, 0.08);
   --accent-foreground: #18181b;
-  --ring: var(--admin-gold-bright);
+  --ring: rgba(201, 162, 39, 0.5);
   --popover: #ffffff;
   --popover-foreground: #18181b;
-  /* Also remap impronta-* so legacy shell classes that reach through to
-   * these vars pick up the neutral palette instead of the cream carry-over. */
-  --impronta-black: #fafafa;
+  /* Sidebar uses gold; main column keeps a neutral ink primary so existing
+   * shell CTAs don't suddenly turn gold. --impronta-gold stays neutral. */
+  --impronta-black: #18181b;
   --impronta-surface: #ffffff;
   --impronta-foreground: #18181b;
-  --impronta-muted: #71717a;
-  --impronta-gold: var(--admin-gold);
-  --impronta-gold-bright: var(--admin-gold-bright);
-  --impronta-gold-border: var(--admin-gold-border);
+  --impronta-muted: #60606a;
+  --impronta-gold: #18181b;
+  --impronta-gold-bright: #09090b;
+  --impronta-gold-border: rgba(24, 24, 27, 0.18);
 }
 
 [data-admin-prototype="1"][data-admin-prototype-theme="dark"] .admin-prototype-main {

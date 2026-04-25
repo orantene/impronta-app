@@ -19,10 +19,24 @@
  */
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronRight, ExternalLink, Rocket } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { ChevronDown, ChevronRight, ExternalLink, Rocket } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+
+const TIER_DOT: Record<string, string> = {
+  free: "#a1a1aa",
+  studio: "#3a7bff",
+  agency: "#c9a227",
+  network: "#146b3a",
+};
+
+const TIER_LABEL: Record<string, string> = {
+  free: "Free",
+  studio: "Studio",
+  agency: "Agency",
+  network: "Network",
+};
 
 const LABELS: Record<string, string> = {
   admin: "Admin",
@@ -101,11 +115,23 @@ function buildCrumbs(pathname: string): Crumb[] {
 
 export function AdminTopBar() {
   const pathname = usePathname() ?? "/admin";
+  const searchParams = useSearchParams();
   const crumbs = useMemo(() => buildCrumbs(pathname), [pathname]);
 
   const isSiteArea = pathname.startsWith("/admin/site-settings");
   const isComposer = pathname.startsWith("/admin/site-settings/structure");
   const showPublishPill = isSiteArea && !isComposer;
+
+  // Tier-chip — mirrors the mockup's right-side workspace pill. Plan is
+  // surfaced via `?plan=` for prototype routes; fallback to free.
+  const planParam = searchParams?.get("plan") ?? "free";
+  const planKey = (["free", "studio", "agency", "network"] as const).includes(
+    planParam as never,
+  )
+    ? planParam
+    : "free";
+  const planLabel = TIER_LABEL[planKey] ?? "Free";
+  const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
 
   // Never render the bar on routes where it'd fight composer chrome.
   if (isComposer) {
@@ -145,8 +171,30 @@ export function AdminTopBar() {
         )}
       </nav>
 
-      {/* Right cluster — contextual actions + cmd+k hint */}
+      {/* Right cluster — contextual actions + tier chip */}
       <div className="flex shrink-0 items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[12px] text-foreground/80",
+            "border border-[rgba(24,24,27,0.18)] transition-[border-color,box-shadow] duration-150",
+            "hover:border-[rgba(201,162,39,0.4)] hover:shadow-[0_4px_12px_-6px_rgba(0,0,0,0.2)]",
+          )}
+          title="Workspace plan"
+        >
+          <span
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: planDot }}
+            aria-hidden
+          />
+          <span className="truncate">
+            <strong className="font-semibold text-foreground">Nova Roster</strong>
+            <span className="mx-1 text-muted-foreground/70">·</span>
+            <span>{planLabel}</span>
+            <span className="mx-1 text-muted-foreground/70">·</span>
+            <span className="text-muted-foreground">8 / 10 talents</span>
+          </span>
+          <ChevronDown className="size-3 shrink-0 text-muted-foreground/70" aria-hidden />
+        </span>
         {showPublishPill ? (
           <Link
             href="/admin/site-settings/structure"

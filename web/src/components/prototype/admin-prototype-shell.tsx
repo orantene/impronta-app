@@ -19,7 +19,6 @@ import {
   PanelLeftClose,
   PanelLeft,
   Pin,
-  Sparkles,
   Sun,
   Users,
 } from "lucide-react";
@@ -37,7 +36,6 @@ import {
   togglePinnedId,
   toggleTopShortcutId,
 } from "@/lib/prototype/admin-prototype-prefs";
-import { AdminCommandPalette } from "@/components/admin/admin-command-palette";
 import { AdminContextualInspector } from "@/components/admin/inspector/admin-contextual-inspector";
 import { AgencySwitcher } from "@/components/admin/agency-switcher";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
@@ -521,18 +519,6 @@ export function AdminDashboardShell({
     }
   }, []);
 
-  const toggleInspectorPanel = useCallback(() => {
-    setPanelOpen((o) => {
-      const next = !o;
-      try {
-        localStorage.setItem(ADMIN_INSPECTOR_PANEL_OPEN_KEY, next ? "1" : "0");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }, []);
-
   useEffect(() => {
     const pins = loadPinnedIds().filter((id) => KNOWN_PROTOTYPE_NAV_IDS.has(id));
     const shorts = loadTopShortcutIds().filter((id) => KNOWN_PROTOTYPE_NAV_IDS.has(id));
@@ -725,76 +711,42 @@ export function AdminDashboardShell({
         </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col bg-[var(--admin-workspace-bg)] text-[var(--admin-workspace-fg)]">
-          {/* Top bar — search left; actions right (mobile: search row, then menu + actions) */}
-          <header className="relative sticky top-0 z-40 flex flex-col gap-2 border-b border-[var(--admin-gold-border)] bg-gradient-to-b from-[var(--admin-gold)]/[0.12] via-[var(--admin-workspace-bg)]/96 to-[var(--admin-workspace-bg)]/92 px-4 py-2.5 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--admin-workspace-bg)]/88 sm:flex-row sm:items-center sm:gap-3 sm:py-2 lg:px-6 lg:gap-4">
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--admin-gold)]/40 to-transparent"
-              aria-hidden
-            />
-            <div className="w-full min-w-0 max-w-2xl shrink-0">
-              <AdminCommandPalette variant="header" />
-            </div>
-
-            <div className="flex min-h-11 shrink-0 items-center gap-2">
+          {/* Top bar — slim mockup-style strip: mobile menu, theme toggle,
+              and sign out. The contextual breadcrumb + tier-chip live in
+              AdminTopBar below this header. */}
+          <header className="sticky top-0 z-40 flex h-11 items-center gap-2 border-b border-[rgba(24,24,27,0.08)] bg-[var(--admin-workspace-bg)]/92 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--admin-workspace-bg)]/85 sm:px-4 lg:px-6">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 rounded-lg text-foreground/70 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground lg:hidden"
+              aria-label="Open menu"
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu className="size-4" />
+            </Button>
+            <div className="flex-1" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 rounded-lg text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground"
+              aria-label={chromeTheme === "dark" ? "Use light workspace" : "Use dark workspace"}
+              onClick={() => setTheme(chromeTheme === "dark" ? "light" : "dark")}
+            >
+              {chromeTheme === "dark" ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
+            </Button>
+            <form action={signOut}>
               <Button
-                type="button"
+                type="submit"
                 variant="ghost"
                 size="icon"
-                className="relative size-11 shrink-0 rounded-xl text-[var(--admin-nav-idle)] transition-colors duration-150 hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-gold-bright)] lg:hidden"
-                aria-label="Open menu"
-                onClick={() => setMobileOpen(true)}
+                className="size-8 shrink-0 rounded-lg text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground"
+                aria-label="Sign out"
               >
-                <Menu className="size-5" />
+                <LogOut className="size-4" aria-hidden />
               </Button>
-              <span className="font-display text-xs font-semibold uppercase tracking-[0.22em] text-[var(--admin-gold-muted)] md:hidden">
-                Admin
-              </span>
-            </div>
-
-            <div className="relative flex shrink-0 flex-wrap items-center justify-end gap-2 sm:ml-auto">
-              <DashboardLocaleToggle variant="prototype" className="hidden shrink-0 sm:flex" />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-11 shrink-0 rounded-xl text-[var(--admin-nav-idle)] transition-colors duration-150 hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-gold-bright)]"
-                aria-label={chromeTheme === "dark" ? "Use light workspace" : "Use dark workspace"}
-                onClick={() => setTheme(chromeTheme === "dark" ? "light" : "dark")}
-              >
-                {chromeTheme === "dark" ? <Sun className="size-5" aria-hidden /> : <Moon className="size-5" aria-hidden />}
-              </Button>
-              <Button
-                type="button"
-                variant={panelOpen ? "secondary" : "outline"}
-                size="sm"
-                className={cn(
-                  "hidden h-10 min-h-10 rounded-xl border-[var(--admin-gold-border)]/60 px-3 text-sm transition-colors duration-150 sm:inline-flex",
-                  panelOpen &&
-                    "border-[var(--admin-gold-border)] bg-[var(--admin-gold-soft)]/40 text-[var(--admin-workspace-fg)]",
-                )}
-                onClick={toggleInspectorPanel}
-              >
-                <Sparkles className="mr-1.5 size-4 text-[var(--admin-gold)]" aria-hidden />
-                Panel
-              </Button>
-              <form action={signOut} className="hidden sm:block">
-                <Button
-                  type="submit"
-                  variant="outline"
-                  size="sm"
-                  className="h-10 min-h-10 rounded-xl border-[var(--admin-gold-border)]/60 px-3"
-                >
-                  <LogOut className="mr-1.5 size-4" aria-hidden />
-                  Sign out
-                </Button>
-              </form>
-              <Button variant="ghost" size="sm" className="h-10 min-h-10 rounded-xl sm:hidden" asChild>
-                <Link href="/">
-                  <Home className="mr-1 size-4" aria-hidden />
-                  Site
-                </Link>
-              </Button>
-            </div>
+            </form>
           </header>
 
           <PrototypeTopShortcutsBar shortcutIds={shortcutIds} />
