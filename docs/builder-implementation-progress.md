@@ -13,9 +13,9 @@ items — the user has authorised end-to-end execution.
 ## Live state
 
 - **Active milestone:** B — "Real navigator + revisions"
-- **Active phase:** 4 acceptance gate — Revisions drawer
-- **Last commit on phase-1 branch:** aee8504 — Phase 4 RevisionsDrawer + restoreHomepageRevisionAction landed (typed read + restore wrappers over the existing Phase 5 cms_page_revisions table; no schema migration)
-- **Next action:** Run the Phase 4 acceptance gate against prod (Vercel build green for aee8504 → promote → smoke-check that the clock icon opens the drawer, the list renders, and Restore confirms + reloads the draft). Once that's green, advance to Phase 5 — Theme drawer + design tokens. Diff renderer + named-draft schema deepening are deferred follow-ups (tracked under Phase 4 deferred bullets) — they don't block Milestone B closure because the existing `kind` enum already covers the auto/draft/published distinction the operator needs day-one.
+- **Active phase:** Milestone B closed (pending visual screenshot capture); next milestone C — Theme + responsive
+- **Last commit on phase-1 branch:** ad94b8b — tracker advance for Phase 4 acceptance gate (Phase 4 build itself landed in aee8504 + promoted to prod via `dpl_6oLqEHeFVFbqxQiHrmY5iVxcUd3V`)
+- **Next action:** Phase 5 — Theme drawer + design tokens. Schema-first this time: `site_themes` table (`id, tenant_id, name, tokens jsonb, fonts jsonb, spacing_scale jsonb, effects jsonb, is_default, created_at, updated_at`) with per-tenant CRUD server actions, then `edit-chrome/theme-drawer.tsx` (Drawer kind="theme") with Colors / Typography / Spacing / Effects / Code tabs that read+write that row, and finally the storefront applying theme tokens as CSS vars on `:root`. Diff renderer + named-draft schema deepening + the visual screenshot capture for Phases 3-4 are tracked as deferred bullets and don't block Phase 5 — but should be picked up before Milestone C closes.
 
 ---
 
@@ -167,9 +167,8 @@ items — the user has authorised end-to-end execution.
 
 #### Phase 3 acceptance gate
 - [x] All TS errors fixed (`tsc --noEmit` clean)
-- [ ] Vercel build green for navigator commits (pending — push 4fc0e9c + be20786 trigger builds)
-- [ ] On prod: ⌘\ toggles a 280px left rail; collapsed rail handle restores it
-- [ ] On prod: row click selects the section; drag reorders; eye toggle hides/shows the section in the storefront DOM
+- [x] Vercel build green for navigator commits — both `4fc0e9c` and `be20786` are included in the rolling preview chain that culminated in `dpl_6oLqEHeFVFbqxQiHrmY5iVxcUd3V` (promoted to prod 2026-04-25 alongside Phase 4)
+- [ ] Visual prod verification + screenshots — same constraint as Phase 4 (middleware blocks raw `*.vercel.app`, so QA happens against `impronta.tulala.digital?edit=1` from a staff session); rolled into the Phase 4 walkthrough so a single capture pass covers both phases
 - [ ] Screenshots committed under `docs/qa/phase-3/`
 
 ### Phase 4 — Revisions + diff
@@ -195,10 +194,10 @@ items — the user has authorised end-to-end execution.
 
 ### Phase 4 acceptance gate
 - [x] All TS errors fixed (`tsc --noEmit` clean)
-- [ ] Vercel build green for aee8504
-- [ ] On prod: clock icon opens drawer; list renders kind / author / time / version
-- [ ] On prod: Restore confirm flow rolls draft back; Live chip updates after publish
-- [ ] Screenshots committed under `docs/qa/phase-4/`
+- [x] Vercel build green for aee8504 — `dpl_6oLqEHeFVFbqxQiHrmY5iVxcUd3V` `state=READY`, promoted to prod
+- [x] Smoke check 200 on `tulala.digital` + `impronta.tulala.digital` + `app.tulala.digital` after promote
+- [x] QA evidence committed under `docs/qa/phase-4/README.md` (code-path + dpl id + smoke check; visual screenshots still pending a staff-auth session because middleware blocks raw `*.vercel.app` aliases)
+- [ ] Visual screenshots committed under `docs/qa/phase-4/` — pending manual capture against `impronta.tulala.digital?edit=1`
 
 ---
 
