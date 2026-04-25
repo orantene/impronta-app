@@ -30,7 +30,7 @@
  * and lights up the rest as the schema lands.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   Card,
@@ -216,10 +216,20 @@ export function PageSettingsDrawer() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [host, setHost] = useState<string>("");
 
-  // Resync the working copy whenever the drawer opens or the upstream
-  // metadata changes from outside (e.g. another tab published).
+  // Reset the working copy + tab on every closed→open transition.
+  //
+  // We deliberately do NOT resync on `pageMetadata` changes while the drawer
+  // is open — once batch-7 wired idle-autosave, every successful save bumps
+  // `pageMetadata` from this drawer itself. Resyncing on that signal would
+  // (a) snap the user back to the Basics tab mid-typing, and (b) flicker the
+  // working copy through a loop. The upstream-publish-from-another-tab case
+  // becomes a CAS conflict on next save, which is the right place to recover
+  // (we already auto-refresh + show a 3.5s notice on VERSION_CONFLICT).
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (pageSettingsOpen) {
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = pageSettingsOpen;
+    if (pageSettingsOpen && !wasOpen) {
       setDraft(pageMetadata);
       setErrorMsg(null);
       setTab("basics");

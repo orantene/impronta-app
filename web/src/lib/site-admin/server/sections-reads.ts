@@ -31,6 +31,10 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
+
+import { createServiceRoleClient } from "@/lib/supabase/admin";
+import { tagFor } from "@/lib/site-admin";
 
 import type { SectionRevisionRow, SectionRow } from "./sections";
 
@@ -242,11 +246,27 @@ export async function loadSectionUsageForStaff(
  *
  * Ordering: none — the map is random-access. The list view already sorts
  * sections by `updated_at DESC` via listSectionsForStaff.
+ *
+ * Cross-request caching (Phase 5 / M4 follow-up):
+ *   The map is wrapped in `unstable_cache` keyed by tenant id and tagged
+ *   with both `pages-all` AND `sections-all`. The compose pipeline in
+ *   `server/homepage.ts` (page section reorder, save, publish, rollback)
+ *   busts `pages-all` on every cms_page_sections mutation; section
+ *   create/update/publish/archive/delete in `server/sections.ts` busts
+ *   `sections-all`; page metadata save in `server/pages.ts` busts
+ *   `pages-all`. Together those cover every input the map depends on.
+ *
+ *   The inner read uses the service-role client because `unstable_cache`
+ *   callbacks can't read request cookies — auth is already enforced by
+ *   the caller (admin route guard); the cache barrier just avoids
+ *   re-running the join across requests within the same TTL.
  */
-export async function loadSectionUsageMapForStaff(
+const CACHED_USAGE_REVALIDATE_SECONDS = 300;
+
+async function fetchSectionUsageMap(
   supabase: SupabaseClient,
   tenantId: string,
-): Promise<ReadonlyMap<string, SectionUsage>> {
+): Promise<Map<string, SectionUsage>> {
   const { data, error } = await supabase
     .from("cms_page_sections")
     .select(
@@ -279,6 +299,64 @@ export async function loadSectionUsageMapForStaff(
       usedByHomepage: refs.some((r) => r.isHomepage),
       pageRefs: refs,
       totalReferences: refs.length,
+    });
+  }
+  return out;
+}
+
+/**
+ * Serialised payload for the cache layer. `unstable_cache` JSON-encodes
+ * its return value; Maps don't survive the round-trip, so we use a flat
+ * array on the wire and rebuild the Map after retrieval.
+ */
+type CachedUsageEntry = {
+  sectionId: string;
+  usedByHomepage: boolean;
+  pageRefs: SectionUsagePageRef[];
+  totalReferences: number;
+};
+
+async function loadCachedSectionUsageEntries(
+  tenantId: string,
+): Promise<CachedUsageEntry[]> {
+  return unstable_cache(
+    async (): Promise<CachedUsageEntry[]> => {
+      const supabase = createServiceRoleClient();
+      if (!supabase) return [];
+      const map = await fetchSectionUsageMap(supabase, tenantId);
+      return Array.from(map.values()).map((u) => ({
+        sectionId: u.sectionId,
+        usedByHomepage: u.usedByHomepage,
+        pageRefs: [...u.pageRefs],
+        totalReferences: u.totalReferences,
+      }));
+    },
+    ["site-admin:section-usage-map", tenantId],
+    {
+      tags: [tagFor(tenantId, "pages-all"), tagFor(tenantId, "sections-all")],
+      revalidate: CACHED_USAGE_REVALIDATE_SECONDS,
+    },
+  )();
+}
+
+export async function loadSectionUsageMapForStaff(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<ReadonlyMap<string, SectionUsage>> {
+  // `supabase` (the staff RLS client) is retained for API compatibility and
+  // for environments where the service-role key is missing — we fall back
+  // to the staff client uncached rather than returning an empty map.
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    return fetchSectionUsageMap(supabase, tenantId);
+  }
+  const entries = await loadCachedSectionUsageEntries(tenantId);
+  const out = new Map<string, SectionUsage>();
+  for (const e of entries) {
+    out.set(e.sectionId, {
+      sectionId: e.sectionId,
+      usedByHomepage: e.usedByHomepage,
+      pageRefs: e.pageRefs,
+      totalReferences: e.totalReferences,
     });
   }
   return out;

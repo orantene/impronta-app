@@ -40,35 +40,68 @@ export type HostContext =
 type CacheEntry = { value: HostContext; expiresAt: number };
 
 /**
- * Bounded LRU. The Map preserves insertion order, so the oldest entry is the
- * first iterator key. Each get on a still-valid entry refreshes recency by
- * delete+set. Bound prevents random-hostname scanners from pushing the cache
- * unbounded across an edge worker's lifetime.
+ * Bifurcated bounded LRU.
+ *
+ * Hosts that resolve to a real context (marketing/app/hub/agency) live in
+ * `hitCache`. Hosts that miss `agency_domains` ("not_found") live in
+ * `missCache`. Both Maps preserve insertion order, so the oldest entry is
+ * the first iterator key; each get on a still-valid entry refreshes
+ * recency by delete+set.
+ *
+ * Why bifurcate: a random-hostname scanner can drive thousands of unique
+ * `not_found` lookups in seconds. With one shared Map, those misses would
+ * evict legitimate hosts and force re-reads of the DB on every real
+ * request. The miss bucket caps at a small fraction of the hit bucket so
+ * scanners are absorbed without disturbing real traffic. The miss-cache
+ * still serves its purpose — it short-circuits repeat scanner hits within
+ * the 60s TTL.
  */
 const CACHE_TTL_MS = 60 * 1000;
-const CACHE_MAX_ENTRIES = 256;
-const cache = new Map<string, CacheEntry>();
+const HIT_CACHE_MAX_ENTRIES = 256;
+const MISS_CACHE_MAX_ENTRIES = 64;
+const hitCache = new Map<string, CacheEntry>();
+const missCache = new Map<string, CacheEntry>();
+
+function bucketFor(value: HostContext): Map<string, CacheEntry> {
+  return value.kind === "not_found" ? missCache : hitCache;
+}
 
 function cacheGet(host: string): HostContext | null {
-  const entry = cache.get(host);
-  if (!entry) return null;
+  // Look in both buckets — we don't know yet whether `host` is a hit or
+  // miss. The buckets are disjoint by hostname (a host moves from miss
+  // to hit on first successful resolve via cacheSet, which deletes from
+  // the wrong bucket before inserting).
+  let entry = hitCache.get(host);
+  let bucket: Map<string, CacheEntry> | null = entry ? hitCache : null;
+  if (!entry) {
+    entry = missCache.get(host);
+    bucket = entry ? missCache : null;
+  }
+  if (!entry || !bucket) return null;
   if (entry.expiresAt <= Date.now()) {
-    cache.delete(host);
+    bucket.delete(host);
     return null;
   }
   // refresh LRU recency
-  cache.delete(host);
-  cache.set(host, entry);
+  bucket.delete(host);
+  bucket.set(host, entry);
   return entry.value;
 }
 
 function cacheSet(host: string, value: HostContext): void {
-  if (cache.has(host)) cache.delete(host);
-  cache.set(host, { value, expiresAt: Date.now() + CACHE_TTL_MS });
-  while (cache.size > CACHE_MAX_ENTRIES) {
-    const oldestKey = cache.keys().next().value;
+  // Migrate across buckets if a previously-missing host now resolves
+  // (or vice versa).
+  hitCache.delete(host);
+  missCache.delete(host);
+
+  const bucket = bucketFor(value);
+  const cap =
+    bucket === hitCache ? HIT_CACHE_MAX_ENTRIES : MISS_CACHE_MAX_ENTRIES;
+  bucket.set(host, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+  while (bucket.size > cap) {
+    const oldestKey = bucket.keys().next().value;
     if (oldestKey === undefined) break;
-    cache.delete(oldestKey);
+    bucket.delete(oldestKey);
   }
 }
 

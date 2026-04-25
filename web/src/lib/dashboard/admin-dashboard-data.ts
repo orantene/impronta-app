@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadTranslationCenterBootstrap } from "@/lib/translation-center/bootstrap";
 import {
@@ -9,6 +10,7 @@ import { requireStaff } from "@/lib/server/action-guards";
 import { logServerError } from "@/lib/server/safe-error";
 import { getTenantScope } from "@/lib/saas/scope";
 import { listAdminRosterTalentIds } from "@/lib/saas/talent-roster";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 
 // Sentinel id used to force an `in("id", [...])` filter to match nothing when
 // the tenant has no rows on its roster / client list. Using an unguessable
@@ -247,13 +249,44 @@ export const loadAdminTier1AlertCount = cache(async (): Promise<number> => {
 
 export type { AdminTranslationHealth } from "@/lib/translation-center/admin-pulse";
 
+/**
+ * Cross-request cache for the translation-center bootstrap aggregate.
+ *
+ * Translation seed data (taxonomy + translations + language settings) is
+ * platform-global and shifts only when an admin manually edits translations
+ * — far less often than the admin home renders. We pay one DB roundtrip per
+ * 5 minute window per worker instead of one per page render.
+ *
+ * Service-role inside `unstable_cache` is the standard pattern (mirrors
+ * `loadPublicIdentity` / `loadPublicBranding` in site-admin/server/reads.ts).
+ * The bootstrap aggregate has no user-bound axis, so the cache is keyed only
+ * on a static segment.
+ *
+ * No tag — translation edits are rare and the 5-min revalidate is acceptable
+ * staleness for a header pulse chip. If translation tooling later wants
+ * read-your-own-writes, add a `tenant:{id}:translations` tag to the
+ * `cache-tags` surface and pass it here + bust on every translation save.
+ */
+const loadCachedTranslationBootstrap = unstable_cache(
+  async (): Promise<AdminTranslationHealth | null> => {
+    const supabase = createServiceRoleClient();
+    if (!supabase) return null;
+    try {
+      const bootstrap = await loadTranslationCenterBootstrap(supabase);
+      return mapBootstrapToAdminPulse(bootstrap);
+    } catch (err) {
+      logServerError("admin/loadCachedTranslationBootstrap", err);
+      return null;
+    }
+  },
+  ["admin:translation-health:v1"],
+  { revalidate: 300 },
+);
+
 export const loadAdminTranslationHealth = cache(async (): Promise<AdminTranslationHealth | null> => {
   const auth = await requireStaff();
   if (!auth.ok) return null;
-
-  const { supabase } = auth;
-  const bootstrap = await loadTranslationCenterBootstrap(supabase);
-  return mapBootstrapToAdminPulse(bootstrap);
+  return loadCachedTranslationBootstrap();
 });
 
 export type AdminClientListRow = {
