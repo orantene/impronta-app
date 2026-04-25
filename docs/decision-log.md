@@ -188,3 +188,48 @@ Append-only. Newest entries at the **top**.
 **Backward compatible:** Yes (additive migration; APIs unchanged for existing clients).
 
 **Migration:** `20260415103000_search_queries_ai_embeddings.sql`
+
+
+---
+
+## 2026-04-25 — D.A: admin shell aesthetic — kill gold/red-orange accents
+
+**What changed:** Neutralised the `--admin-gold-*` token family in light theme, replaced gold-tinted hover/border/halo treatments in `admin-top-bar.tsx`, `admin-page-header.tsx`, `site-card.tsx`, and the luxury button shadow. Tightened inquiries page spacing (`space-y-8` → `space-y-5`, `ADMIN_PAGE_STACK` import dropped). Added optional `description?` to `PrototypeNavItem` and rendered it as a tooltip subtitle for all 12 nav items so opaque labels (Inquiries, Bookings, etc.) get plain-English subtitles.
+
+**Why:** User feedback (`feedback_admin_aesthetics.md`) flagged three live admin-shell bugs — gold/rust accents, list dead space, opaque jargon labels. Storefront `--impronta-gold` is intentionally untouched; only the admin chrome was neutralised.
+
+**Paths:** `web/src/app/globals.css`, `web/src/components/admin/admin-top-bar.tsx`, `web/src/lib/dashboard-shell-classes.ts`, `web/src/components/admin/admin-page-header.tsx`, `web/src/components/admin/site-control-center/site-card.tsx`, `web/src/app/(dashboard)/admin/inquiries/page.tsx`, `web/src/lib/prototype/admin-prototype-nav.ts`, `web/src/components/prototype/admin-prototype-shell.tsx`.
+
+**Backward compatible:** Yes (visual-only; no DB or API changes).
+
+**Migration:** none
+
+---
+
+## 2026-04-25 — D.12: Phase 12 scheduled publish — schema + drawer (cron deferred)
+
+**What changed:** Added `cms_pages.scheduled_publish_at` + `scheduled_by` + `scheduled_revision_id` with a partial sweep index and a 60-second-skew trigger that rejects past fire times. Built the staff-side `ScheduleDrawer` using a native `<input type="datetime-local">` with `min={now+60s}`, server actions (`schedulePublishAction`, `cancelScheduledPublishAction`, `loadScheduledPublishAction`) all gated on `requireStaff` + `requireTenantScope`. Wired the topbar split-button "Schedule…" item, added a command-palette row, registered `schedule: 460` in `DRAWER_WIDTHS`, and extended the Escape priority chain.
+
+**Why:** Operators need to queue a homepage publish for a future date without staying online to hit the button. The schema + UX layer is the heavier lift; the cron sweep is intentionally split off (~30 lines plus a capability bridge so the service-role caller can satisfy `requirePhase5Capability`). Trigger + partial index already in place so the sweep handler ships clean.
+
+**Paths:** `supabase/migrations/20260701120000_cms_p12_m0_scheduled_publish.sql`, `web/src/lib/site-admin/edit-mode/schedule-actions.ts`, `web/src/components/edit-chrome/schedule-drawer.tsx`, `web/src/components/edit-chrome/edit-context.tsx`, `web/src/components/edit-chrome/edit-shell.tsx`, `web/src/components/edit-chrome/topbar.tsx`, `web/src/components/edit-chrome/command-palette.tsx`, `web/src/components/edit-chrome/kit/tokens.ts`.
+
+**Backward compatible:** Yes (additive columns + idempotent actions).
+
+**Migration:** `20260701120000_cms_p12_m0_scheduled_publish.sql`
+
+**Deferred follow-up:** `/api/cron/publish-scheduled` route — see `docs/qa/phase-12/README.md` § "Cron sweep — intentionally deferred" for the capability-bridge options.
+
+---
+
+## 2026-04-25 — D.11: Phase 11 Comments — charter only, deferred from autonomous run
+
+**What changed:** Wrote a charter at `docs/charters/phase-11-comments.md` describing the schema, RLS, server actions, UI, JWT extension, and acceptance criteria. No code or migration shipped this fire.
+
+**Why:** Phase 11 has three intertwined surfaces (schema/RLS for staff + share-link reviewer authors, Realtime channel, JWT `comment` claim) and deserves a focused session rather than a tail-end of a multi-path run. Freezing the design as a charter unblocks the next session to land it cleanly.
+
+**Paths:** `docs/charters/phase-11-comments.md`.
+
+**Backward compatible:** Yes (no code).
+
+**Migration:** none (deferred)

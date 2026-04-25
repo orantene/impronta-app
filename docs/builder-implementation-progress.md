@@ -13,9 +13,9 @@ items — the user has authorised end-to-end execution.
 ## Live state
 
 - **Active milestone:** D — "Velocity"
-- **Active phase:** Phase 9 fully closed (v1 + v2) and Phase 10 closed — preview pill, share popover, share rate-limit, and keyboard shortcuts overlay all shipped & smoked on prod. Visual screenshot pass still pending across phases 3-10.
-- **Last commit on phase-1 branch:** 6ba1171 — Phase 9 v2 + Phase 10 (preview pill, share popover, shortcut overlay). Promoted to prod via `dpl_GbNbgYjPrMZgYoNTcGds6Bkb2Rdw`; rate-limit smoke confirmed (70-burst → 59× 200 + 11× 429 — exactly the configured `60/min/IP` band).
-- **Next action:** Visual screenshot pass (requires staff-authenticated session) → Milestone E groundwork (Phase 11 — Comments + client review: `comments` schema, Realtime channel, comment-mode toggle reusing the Phase 9 share-link JWT path with a `commentMode=true` claim).
+- **Active phase:** Phase 12 schema + UX shipped — scheduled-publish drawer, server actions, migration, command-palette row, Escape chain. Cron sweep route deferred (capability bridge needed). Phase 11 (Comments) deferred to dedicated session — charter at `docs/charters/phase-11-comments.md`.
+- **Last commit on phase-1 branch:** eae3711 — `feat(edit-chrome): Phase 12 — scheduled publish (schema + drawer)`. Migration + drawer + actions + topbar wiring + palette row + Escape chain. Preceded by 67b0c2d (admin aesthetic Path A: gold accents neutralised, inquiries spacing tightened, nav sub-labels).
+- **Next action:** (1) Cron sweep route `/api/cron/publish-scheduled` with capability bridge — small follow-up, see `docs/qa/phase-12/README.md`. (2) Phase 11 Comments — see `docs/charters/phase-11-comments.md`. (3) Visual screenshot pass across phases 3-10 + 12 (requires staff-authenticated session).
 
 ---
 
@@ -336,10 +336,11 @@ items — the user has authorised end-to-end execution.
 
 ## Milestone F — Schedule (Phase 12)
 
-- [ ] Schema: `cms_pages.scheduled_publish_at`, `cms_pages.scheduled_by`, `cms_pages.scheduled_revision_id`
-- [ ] Edge function (Supabase) running pg_cron every minute, publishes due pages
-- [ ] Schedule drawer UI (calendar + time picker + timezone selector)
-- [ ] Cancel / reschedule actions
+- [x] Schema: `cms_pages.scheduled_publish_at`, `cms_pages.scheduled_by`, `cms_pages.scheduled_revision_id` — migration `20260701120000_cms_p12_m0_scheduled_publish.sql`; partial sweep index + 60s-skew trigger
+- [ ] Cron sweep route — **deferred** — needs a capability bridge so the service-role caller can satisfy `requirePhase5Capability` (see `docs/qa/phase-12/README.md` § "Cron sweep — intentionally deferred")
+- [x] Schedule drawer UI — `schedule-drawer.tsx` (native `datetime-local` picker, 1-min future floor, friendly Intl-formatted "currently scheduled" header)
+- [x] Cancel / reschedule actions — `schedule-actions.ts` (`schedulePublishAction`, `cancelScheduledPublishAction`, `loadScheduledPublishAction`)
+- [x] Topbar wiring + command-palette row + Escape priority chain
 
 ---
 
