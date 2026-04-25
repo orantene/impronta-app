@@ -114,7 +114,7 @@ export default async function SiteSetupHomepagePage() {
       <SetupSection label="Open in editor" helper="The in-place editor is one click away">
         <div className="grid gap-3">
           <Link
-            href="/?edit=1"
+            href="/admin/site-settings/structure"
             target="_blank"
             rel="noreferrer noopener"
             className="group flex items-start gap-4 rounded-[14px] border border-[rgba(20,20,24,0.10)] bg-white px-5 py-4 transition-colors hover:border-[rgba(20,20,24,0.30)] hover:bg-[rgba(255,255,255,0.96)]"

@@ -6,17 +6,28 @@
  * The breadcrumb + tier chip + locale + theme + Cmd+K previously lived here
  * (and on a SECOND row above the prototype shell's search bar). The audit
  * refactor consolidated all of that into the shell's single sticky header
- * (`admin-prototype-shell.tsx`). What remains is a contextual "Open editor"
- * pill that takes the operator to the in-place storefront editor (the
- * legacy /admin/site-settings/structure composer was retired) plus a
- * "Public site" link.
+ * (`admin-prototype-shell.tsx`).
+ *
+ * What remains is one contextual "Open editor" pill that takes the operator
+ * to the in-place storefront editor. The pill links to
+ * `/admin/site-settings/structure` — a tiny server route that resolves the
+ * tenant preview origin and bounces to `${origin}/?edit=1`. The storefront
+ * EditChrome reads `edit=1` and auto-engages edit mode, so it's one click
+ * from a settings sub-page into the live canvas on the correct host.
+ *
+ * The earlier version surfaced TWO pills here ("Open editor" and "Public
+ * site"). They pointed to the same href and confused operators about which
+ * one was the editing entry; the public-site link is now reached via the
+ * tenant domain chip on the admin home, leaving this bar with the single
+ * unambiguous editor handoff.
  *
  * Returns null on every other route so we don't add a second band of
  * chrome above page content.
  */
 
 import { usePathname } from "next/navigation";
-import { ExternalLink, Pencil } from "lucide-react";
+import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AdminTopBar() {
@@ -32,8 +43,8 @@ export function AdminTopBar() {
         "bg-background/80 px-4 py-1.5 backdrop-blur-sm sm:px-6 lg:px-8",
       )}
     >
-      <a
-        href="/"
+      <Link
+        href="/admin/site-settings/structure"
         target="_blank"
         rel="noreferrer noopener"
         className={cn(
@@ -45,21 +56,7 @@ export function AdminTopBar() {
       >
         <Pencil className="size-3" aria-hidden />
         Open editor
-      </a>
-      <a
-        href="/"
-        target="_blank"
-        rel="noreferrer noopener"
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border border-border/60",
-          "bg-background/70 px-3 py-1 text-[11px] font-medium text-muted-foreground",
-          "transition-colors hover:border-foreground/40 hover:text-foreground",
-        )}
-        title="Open the public site in a new tab"
-      >
-        <ExternalLink className="size-3" aria-hidden />
-        Public site
-      </a>
+      </Link>
     </div>
   );
 }

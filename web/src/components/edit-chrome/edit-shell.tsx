@@ -51,12 +51,26 @@ interface EditShellProps {
    *  to "en" when omitted; we forward the resolved value so non-default
    *  locale storefronts edit the correct homepage row. */
   locale?: string;
+  /** Tenant-published locales, threaded from EditChromeMount so the topbar
+   *  locale switcher is correct on first paint instead of waiting for the
+   *  composition load round-trip. EditProvider keeps a local state copy
+   *  that the composition response refreshes when it lands. */
+  availableLocales?: ReadonlyArray<string>;
   children?: React.ReactNode;
 }
 
-export function EditShell({ tenantId, locale, children }: EditShellProps) {
+export function EditShell({
+  tenantId,
+  locale,
+  availableLocales,
+  children,
+}: EditShellProps) {
   return (
-    <EditProvider tenantId={tenantId} locale={locale}>
+    <EditProvider
+      tenantId={tenantId}
+      locale={locale}
+      initialAvailableLocales={availableLocales}
+    >
       <EditShellInner>{children}</EditShellInner>
     </EditProvider>
   );

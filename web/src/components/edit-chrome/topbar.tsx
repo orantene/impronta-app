@@ -13,7 +13,7 @@
  * Visual language: 54px glass bar, warm-white tint, hairline border.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -50,6 +50,25 @@ function pathForLocale(
   const stripped = stripKnownLocalePrefix(pathname, knownLocales);
   if (newLocale === DEFAULT_LOCALE_FOR_PATH) return stripped;
   return stripped === "/" ? `/${newLocale}` : `/${newLocale}${stripped}`;
+}
+
+/**
+ * Build the destination URL for a locale switch. Preserves the active
+ * search string (e.g. `?edit=1`, share-link query, ad UTM) and hash so a
+ * mid-edit locale flip doesn't drop into the visitor view or lose scroll
+ * anchors. Only the pathname segment moves between locales.
+ */
+function urlForLocale(
+  pathname: string,
+  search: string,
+  hash: string,
+  newLocale: string,
+  knownLocales: ReadonlyArray<string>,
+): string {
+  const path = pathForLocale(pathname, newLocale, knownLocales);
+  const q = search ? (search.startsWith("?") ? search : `?${search}`) : "";
+  const h = hash ? (hash.startsWith("#") ? hash : `#${hash}`) : "";
+  return `${path}${q}${h}`;
 }
 
 const TOPBAR_H = 54;
@@ -363,6 +382,46 @@ function LocaleSwitcher({
     () => Array.from(new Set([...availableLocales, "en"])),
     [availableLocales],
   );
+  const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const navigateToLocale = useCallback(
+    (code: string) => {
+      if (code === activeLocale) return;
+      if (dirty) {
+        const ok = window.confirm(
+          "Switch locale with unsaved edits?\n\nYour current draft is auto-saved per locale on the server, so it won't be lost — when you come back it will still be here. The canvas will reload to show the draft for the other locale.",
+        );
+        if (!ok) return;
+      }
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      const hash = typeof window !== "undefined" ? window.location.hash : "";
+      router.push(urlForLocale(pathname, search, hash, code, knownLocales));
+    },
+    [activeLocale, dirty, knownLocales, pathname, router],
+  );
+
+  // Arrow-key navigation: ←/→ cycle through locales. Operators using a
+  // bilingual roster spend a lot of time here; one keystroke beats two
+  // mouse moves. Wraps at the ends. We avoid hijacking arrow keys when
+  // an inputtable element has focus (handled by the topbar-level keymap
+  // already) — the radio group's buttons are non-text targets, so this
+  // handler only fires when one of the chips owns focus.
+  const handleKey = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (availableLocales.length < 2) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault();
+      const idx = availableLocales.indexOf(activeLocale);
+      const dir = e.key === "ArrowLeft" ? -1 : 1;
+      const next =
+        availableLocales[
+          (idx + dir + availableLocales.length) % availableLocales.length
+        ];
+      if (next) navigateToLocale(next);
+    },
+    [activeLocale, availableLocales, navigateToLocale],
+  );
+
   if (availableLocales.length < 2) return null;
 
   return (
@@ -374,8 +433,9 @@ function LocaleSwitcher({
       }}
       role="radiogroup"
       aria-label="Editing locale"
+      onKeyDown={handleKey}
     >
-      {availableLocales.map((code) => {
+      {availableLocales.map((code, i) => {
         const meta = localeMetadata[code];
         const label = meta?.label ?? code.toUpperCase();
         const active = code === activeLocale;
@@ -385,17 +445,12 @@ function LocaleSwitcher({
             type="button"
             role="radio"
             aria-checked={active}
-            title={`Edit homepage in ${label}`}
-            onClick={() => {
-              if (active) return;
-              if (dirty) {
-                const ok = window.confirm(
-                  "You have unsaved edits on this locale. Switch anyway? Your draft for the current locale won't be lost — it stays as a draft on the server until you publish.",
-                );
-                if (!ok) return;
-              }
-              router.push(pathForLocale(pathname, code, knownLocales));
+            tabIndex={active ? 0 : -1}
+            ref={(el) => {
+              buttonsRef.current[i] = el;
             }}
+            title={`Edit homepage in ${label} (←/→ to cycle)`}
+            onClick={() => navigateToLocale(code)}
             className="inline-flex items-center gap-[5px] rounded-full border-none px-[11px] py-[5px] text-[12px] font-semibold uppercase tracking-[0.04em] transition-all"
             style={{
               background: active ? CHROME.surface : "transparent",

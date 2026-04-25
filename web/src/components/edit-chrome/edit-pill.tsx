@@ -13,52 +13,125 @@
  * Form-based invocation is deliberate: a <form action={serverAction}> submit
  * goes through the browser's native submit path, so it works even before
  * React hydration finishes. A plain onClick would silently fail during that
- * window. `useFormStatus` provides the pending UI state once hydration lands.
+ * window. `useFormStatus` provides the pending UI state once hydration lands;
+ * `useActionState` surfaces server-side failures (no scope, JWT mint error)
+ * inline so a click never silently no-ops.
+ *
+ * Auto-engage: when `autoEnter` is true the pill submits the form as soon as
+ * it hydrates. Used by deep links from the admin shell — `/?edit=1` lands on
+ * the storefront and immediately flips into edit mode without a second click.
  *
  * Visual intent: understated, premium, unambiguous affordance. Pencil icon +
  * label. One clear action: "Edit".
  */
 
+import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 
-import { enterEditModeAction } from "@/lib/site-admin/edit-mode/server";
+import {
+  enterEditModeAction,
+  type EnterEditModeResult,
+} from "@/lib/site-admin/edit-mode/server";
 
-export function EditPill() {
+interface EditPillProps {
+  /** When true, submit the form on first hydrate. Used by `/?edit=1`. */
+  autoEnter?: boolean;
+}
+
+const INITIAL_STATE: EnterEditModeResult = { ok: true };
+
+// Adapter: useActionState passes (prevState, formData) to the action; the
+// underlying server action is parameterless and returns the result envelope.
+async function enterAction(
+  _prev: EnterEditModeResult,
+  _formData: FormData,
+): Promise<EnterEditModeResult> {
+  return enterEditModeAction();
+}
+
+export function EditPill({ autoEnter = false }: EditPillProps) {
+  const [state, formAction] = useActionState(enterAction, INITIAL_STATE);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const autoFiredRef = useRef(false);
+
+  useEffect(() => {
+    if (!autoEnter || autoFiredRef.current) return;
+    if (!formRef.current) return;
+    autoFiredRef.current = true;
+    // requestSubmit goes through React's form-action path so the action
+    // result lands in `state` exactly like a manual click.
+    formRef.current.requestSubmit();
+  }, [autoEnter]);
+
   return (
     <form
-      action={enterEditModeAction}
+      ref={formRef}
+      action={formAction}
       className="pointer-events-none fixed inset-0 z-[80] flex items-end justify-end p-4 sm:p-6"
     >
-      <EditPillButton />
+      <div className="pointer-events-auto flex flex-col items-end gap-2">
+        {state && state.ok === false && state.error ? (
+          <div
+            role="alert"
+            className="max-w-[280px] rounded-lg border border-rose-300/60 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-900 shadow-md"
+          >
+            {state.error}
+          </div>
+        ) : null}
+        <EditPillButton autoEnter={autoEnter} />
+      </div>
     </form>
   );
 }
 
-function EditPillButton() {
+function EditPillButton({ autoEnter }: { autoEnter: boolean }) {
   const { pending } = useFormStatus();
+  // While auto-engaging, render the loading state immediately so the user
+  // sees "Loading editor…" the instant the page paints, not only after the
+  // action handler kicks the pending state on. The auto-fire effect runs
+  // post-mount so without this hint the button briefly says "Edit".
+  const showPending = pending || autoEnter;
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={showPending}
+      aria-busy={showPending}
       className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-black/10 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.45)] transition hover:bg-zinc-800 disabled:opacity-60 data-[pending=true]:opacity-60"
-      data-pending={pending}
-      aria-label={pending ? "Entering edit mode" : "Edit this page"}
+      data-pending={showPending}
+      aria-label={showPending ? "Entering edit mode" : "Edit this page"}
     >
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="M12 20h9" />
-        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-      </svg>
-      {pending ? "Loading editor…" : "Edit"}
+      {showPending ? (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="animate-spin"
+          aria-hidden
+        >
+          <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+        </svg>
+      ) : (
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+        </svg>
+      )}
+      {showPending ? "Loading editor…" : "Edit"}
     </button>
   );
 }

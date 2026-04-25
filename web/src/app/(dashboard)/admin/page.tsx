@@ -6,7 +6,6 @@ import {
   Images,
   Inbox,
   Languages,
-  LayoutDashboard,
   Plus,
   Sparkles,
   UserRound,
@@ -206,7 +205,13 @@ export default async function AdminHomePage() {
         <h2 id="actions-heading" className={ADMIN_TEXT_EYEBROW}>
           Quick actions
         </h2>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {/*
+         * 3-up Quick Actions. The "Edit site" CTA lived here historically
+         * but duplicated the Your-site card's primary "Open editor" button;
+         * we dropped it to keep the row honest. Edit-site discovery now
+         * flows through that contextual card just below.
+         */}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <Button asChild variant="outline" className="h-11 justify-between rounded-xl">
             <Link href="/admin/inquiries?new=1">
               <span className="flex items-center gap-2">
@@ -224,19 +229,6 @@ export default async function AdminHomePage() {
               </span>
               <ArrowRight className="size-4" aria-hidden />
             </Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11 justify-between rounded-xl">
-            <a
-              href={primaryDomain ? `https://${primaryDomain}` : "/"}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              <span className="flex items-center gap-2">
-                <LayoutDashboard className="size-4" aria-hidden />
-                Edit site
-              </span>
-              <ArrowRight className="size-4" aria-hidden />
-            </a>
           </Button>
           <Button asChild variant="outline" className="h-11 justify-between rounded-xl">
             <a
@@ -282,14 +274,21 @@ export default async function AdminHomePage() {
                 <Link href="/admin/site-settings/sections">Sections</Link>
               </Button>
               <Button asChild className="rounded-xl">
-                <a
-                  href={primaryDomain ? `https://${primaryDomain}` : "/"}
+                {/*
+                 * Routes through the legacy /admin/site-settings/structure
+                 * redirect, which resolves the tenant preview origin server-
+                 * side and bounces to ${origin}/?edit=1 — the storefront
+                 * EditChrome reads `edit=1` and auto-engages edit mode. One
+                 * click from admin home into a hot editor on the right host.
+                 */}
+                <Link
+                  href="/admin/site-settings/structure"
                   target="_blank"
                   rel="noreferrer noopener"
                 >
                   Open editor
                   <ArrowRight className="ml-1 size-4" aria-hidden />
-                </a>
+                </Link>
               </Button>
             </div>
           </AdminSurfaceCardBody>

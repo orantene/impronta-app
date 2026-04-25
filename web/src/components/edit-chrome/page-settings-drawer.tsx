@@ -64,6 +64,11 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
 
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
+// Shared limits between Basics and Social tabs. OG title/description follow
+// the same SEO-norm targets — shorter is fine, but the chip warns the
+// operator before they pass the truncation cliff in major share surfaces.
+const OG_TITLE_MAX = 60;
+const OG_DESC_MAX = 160;
 
 function CogIcon() {
   return (
@@ -220,6 +225,8 @@ export function PageSettingsDrawer() {
 
   const titleLen = (draft?.title ?? "").length;
   const descLen = (draft?.metaDescription ?? "").length;
+  const ogTitleLen = (draft?.ogTitle ?? "").length;
+  const ogDescLen = (draft?.ogDescription ?? "").length;
 
   function patch<K extends keyof PageMetadata>(key: K, value: PageMetadata[K]) {
     setDraft((prev) => {
@@ -420,6 +427,10 @@ export function PageSettingsDrawer() {
                     style={inputStyle()}
                     placeholder="Defaults to page title"
                   />
+                  <Helper>
+                    <span>Shown when this URL is shared on social.</span>
+                    <HelperCounter current={ogTitleLen} max={OG_TITLE_MAX} />
+                  </Helper>
                 </Field>
 
                 <Field>
@@ -438,6 +449,10 @@ export function PageSettingsDrawer() {
                     style={textareaStyle()}
                     placeholder="Defaults to meta description"
                   />
+                  <Helper>
+                    <span>Sub-line on the share card.</span>
+                    <HelperCounter current={ogDescLen} max={OG_DESC_MAX} />
+                  </Helper>
                 </Field>
 
                 <Field flush>
@@ -601,7 +616,7 @@ export function PageSettingsDrawer() {
       <DrawerFoot
         start={
           <span style={{ fontSize: 11, color: CHROME.muted }}>
-            Settings will be applied on next publish.
+            Settings save as a draft. Publish to push them live.
           </span>
         }
         end={

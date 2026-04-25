@@ -19,6 +19,12 @@
  *   - default      → EditShell: the full editor chrome (top bar,
  *                    inspector, navigator, drawers, palette overlays).
  *
+ * Deep-link engage: when the URL has `?edit=1` and edit mode isn't
+ * active yet, render EditPill in `autoEnter` mode so it submits the
+ * enter-edit-mode action immediately on hydrate. Used by admin shell
+ * "Open editor" CTAs that hand off across origins (admin host →
+ * storefront host) — the operator doesn't need a second click.
+ *
  * In shell mode an SSR-inlined `<style>` applies the body padding for
  * the top bar and the right-side inspector gutter — SSR so it applies
  * immediately without waiting for hydration. In preview mode the
@@ -46,15 +52,25 @@ interface EditChromeProps {
    *  EditShell → EditProvider so the editor loads the matching homepage row.
    *  Optional: the EditPill / PreviewPill branches don't need it. */
   locale?: string;
+  /** Locales the active tenant publishes. Threaded down so the topbar
+   *  locale switcher renders on first paint without waiting for the
+   *  composition load round-trip. Empty array → no switcher. */
+  availableLocales?: ReadonlyArray<string>;
 }
 
-export function EditChrome({ tenantId, editActive, locale }: EditChromeProps) {
+export function EditChrome({
+  tenantId,
+  editActive,
+  locale,
+  availableLocales,
+}: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
   const searchParams = useSearchParams();
   const previewMode = searchParams?.get("preview") === "1";
+  const editIntent = searchParams?.get("edit") === "1";
 
-  if (!editActive) return <EditPill />;
+  if (!editActive) return <EditPill autoEnter={editIntent} />;
 
   if (previewMode) return <PreviewPill />;
 
@@ -66,7 +82,11 @@ export function EditChrome({ tenantId, editActive, locale }: EditChromeProps) {
            in EditShell so it can animate in/out with the inspector dock. */
         header[data-public-header] { display: none !important; }
       `}</style>
-      <EditShell tenantId={tenantId} locale={locale} />
+      <EditShell
+        tenantId={tenantId}
+        locale={locale}
+        availableLocales={availableLocales}
+      />
     </>
   );
 }

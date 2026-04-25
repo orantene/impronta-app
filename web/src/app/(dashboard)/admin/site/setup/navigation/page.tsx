@@ -74,7 +74,7 @@ export default async function SiteSetupNavigationPage() {
         helper="Drag, drop, reorder — all directly on the live site"
       >
         <Link
-          href="/?edit=1"
+          href="/admin/site-settings/structure"
           target="_blank"
           rel="noreferrer noopener"
           className="group flex items-start justify-between gap-4 rounded-[14px] border border-[rgba(20,20,24,0.10)] bg-white px-5 py-4 transition-colors hover:border-[rgba(201,162,39,0.55)] hover:bg-[rgba(255,253,246,1)]"

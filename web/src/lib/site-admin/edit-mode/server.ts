@@ -38,21 +38,42 @@ import {
 } from "./cookie";
 
 /**
+ * Result envelope for `enterEditModeAction`.
+ *
+ * The action stays compatible with `<form action={fn}>` (the form path
+ * ignores the return value, so pre-hydration submits still flip edit mode
+ * via the native browser submit). Once hydrated, the EditPill uses
+ * `useActionState` to read this envelope and surface a non-silent failure
+ * — staff who lack a tenant scope, or whose preview JWT minting failed,
+ * see a real error chip instead of a no-op click.
+ */
+export interface EnterEditModeResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
  * Form-action compatible — signature matches `<form action={fn}>` so it runs
  * through native submit and works even before React hydration completes.
- * Errors are logged server-side; the chrome falls back to the idle state on
- * failure since the cookies were never written.
+ * Errors are logged server-side AND returned for clients that read the
+ * action result via `useActionState` (post-hydration error toasts).
  */
-export async function enterEditModeAction(): Promise<void> {
+export async function enterEditModeAction(): Promise<EnterEditModeResult> {
   const auth = await requireStaff();
   if (!auth.ok) {
     console.warn("[edit-mode] enter denied:", auth.error);
-    return;
+    return {
+      ok: false,
+      error: "You need to be signed in as staff to enter edit mode.",
+    };
   }
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
     console.warn("[edit-mode] enter: no tenant scope");
-    return;
+    return {
+      ok: false,
+      error: "Pick an agency workspace before opening the editor.",
+    };
   }
 
   try {
@@ -73,8 +94,16 @@ export async function enterEditModeAction(): Promise<void> {
       ...EDIT_COOKIE_OPTIONS,
     });
     revalidatePath("/", "layout");
+    return { ok: true };
   } catch (e) {
     console.warn("[edit-mode] enter failed:", e);
+    return {
+      ok: false,
+      error:
+        e instanceof Error
+          ? `Could not start editing: ${e.message}`
+          : "Could not start editing. Try again in a moment.",
+    };
   }
 }
 

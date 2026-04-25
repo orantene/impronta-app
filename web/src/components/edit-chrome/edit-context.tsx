@@ -419,12 +419,17 @@ interface EditProviderProps {
   tenantId: string;
   /** Falls back to `en` if omitted; edit chrome today operates on the platform default. */
   locale?: string;
+  /** Server-known tenant locales, threaded from EditChromeMount so the
+   *  topbar locale switcher renders on first paint. The composition load
+   *  refreshes this once it lands; this prop just primes it. */
+  initialAvailableLocales?: ReadonlyArray<string>;
   children: ReactNode;
 }
 
 export function EditProvider({
   tenantId,
   locale = "en",
+  initialAvailableLocales,
   children,
 }: EditProviderProps) {
   const router = useRouter();
@@ -467,7 +472,9 @@ export function EditProvider({
   );
   const [slotDefs, setSlotDefs] = useState<CompositionSlotDef[]>([]);
   const [library, setLibrary] = useState<CompositionLibraryEntry[]>([]);
-  const [availableLocales, setAvailableLocales] = useState<ReadonlyArray<string>>([]);
+  const [availableLocales, setAvailableLocales] = useState<ReadonlyArray<string>>(
+    initialAvailableLocales ?? [],
+  );
 
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
   // is Figma-ish and well past what any realistic undo chain needs for a
