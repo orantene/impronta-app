@@ -53,6 +53,7 @@ import {
   type Shortcut,
 } from "./kit";
 import { useEditContext, type EditDevice } from "./edit-context";
+import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
 // ── public surface ──────────────────────────────────────────────────────
 
@@ -335,6 +336,46 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         ["save", "snapshot", "checkpoint"],
         () => {
           void ctx.saveDraft();
+          onClose();
+        },
+      ),
+      actionRow(
+        "share-link",
+        "Share preview link",
+        ["share", "preview", "link", "url", "copy"],
+        () => {
+          // Fire-and-forget: close immediately, then resolve in the
+          // background. The topbar Share button shows the same
+          // confirmation chip path; from the palette we just route the
+          // URL to the clipboard and surface failures via the toast.
+          void (async () => {
+            try {
+              const res = await createShareLinkAction({});
+              if (!res.ok) {
+                ctx.reportMutationError(res.error);
+                return;
+              }
+              if (
+                typeof window === "undefined" ||
+                typeof navigator === "undefined" ||
+                !navigator.clipboard
+              ) {
+                return;
+              }
+              const url = `${window.location.origin}${res.path}`;
+              try {
+                await navigator.clipboard.writeText(url);
+              } catch {
+                window.prompt("Share link", url);
+              }
+            } catch (err) {
+              ctx.reportMutationError(
+                err instanceof Error
+                  ? err.message
+                  : "Failed to create share link.",
+              );
+            }
+          })();
           onClose();
         },
       ),

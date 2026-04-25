@@ -160,6 +160,15 @@ export const SHORTCUTS: ReadonlyArray<Shortcut> = [
     paletteAction: true,
   },
   {
+    id: "share-link",
+    label: "Share preview link",
+    description:
+      "Mint a signed URL that lets anyone view the current draft.",
+    keys: ["⌘", "⇧", "S"],
+    category: "editing",
+    paletteAction: true,
+  },
+  {
     id: "duplicate-section",
     label: "Duplicate selected section",
     keys: ["⌘", "D"],
