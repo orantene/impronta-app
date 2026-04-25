@@ -272,6 +272,45 @@ export function PageSettingsDrawer() {
     closePageSettings();
   }
 
+  /**
+   * Debounced autosave — match the inspector dock behaviour. Once the user
+   * stops typing for ~800ms, commit the current draft without closing the
+   * drawer. No-op while a save is already in flight or while any length
+   * field is over-limit (those would fail server validation anyway). The
+   * explicit Save & close button still works for users who'd rather hit
+   * commit and dismiss in one motion.
+   */
+  useEffect(() => {
+    if (!pageSettingsOpen) return;
+    if (!draft || !pageMetadata) return;
+    if (!dirty) return;
+    if (submitting || saving) return;
+    if (titleOver || descOver || ogTitleOver || ogDescOver) return;
+    const timer = window.setTimeout(() => {
+      setSubmitting(true);
+      setErrorMsg(null);
+      void savePageMetadata(draft).then((res) => {
+        setSubmitting(false);
+        if (!res.ok) {
+          setErrorMsg(res.error ?? "Could not save page settings.");
+        }
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [
+    pageSettingsOpen,
+    draft,
+    pageMetadata,
+    dirty,
+    submitting,
+    saving,
+    titleOver,
+    descOver,
+    ogTitleOver,
+    ogDescOver,
+    savePageMetadata,
+  ]);
+
   const chipStatus = submitting || saving ? "saving" : dirty ? "dirty" : "saved";
 
   return (
