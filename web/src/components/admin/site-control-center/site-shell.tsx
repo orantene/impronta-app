@@ -40,8 +40,6 @@ import {
   DirectoryDrawerBody,
   InquiriesDrawerBody,
   LockedDrawerBody,
-  PagesDrawerBody,
-  PostsDrawerBody,
   RosterDrawerBody,
   StubDrawerBody,
 } from "./site-drawer-content";
@@ -133,6 +131,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
     body: () => (
       <StubDrawerBody
         body="Open the live homepage in edit mode — composition, inline text, image replace, publish."
+        setupHref="/admin/site/setup/homepage"
         legacyHref="/admin/site-settings/structure"
       />
     ),
@@ -142,14 +141,26 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
     subtitle: "12 pages · 3 drafts",
     icon: FileText,
     wide: true,
-    body: () => <PagesDrawerBody />,
+    body: () => (
+      <StubDrawerBody
+        body="Marketing, legal, and editorial pages served at /p/…. Setup wraps the list in premium chrome with quick filters."
+        setupHref="/admin/site/setup/pages"
+        legacyHref="/admin/site-settings/content/pages"
+      />
+    ),
   },
   posts: {
     title: "Posts",
     subtitle: "5 posts · 1 draft",
     icon: Newspaper,
     wide: true,
-    body: () => <PostsDrawerBody />,
+    body: () => (
+      <StubDrawerBody
+        body="Editorial articles served at /posts/…. Setup walks through writing, scheduling, and publishing the first one."
+        setupHref="/admin/site/setup/posts"
+        legacyHref="/admin/site-settings/content/posts"
+      />
+    ),
   },
   navigation: {
     title: "Navigation & Footer",
@@ -158,6 +169,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
     body: () => (
       <StubDrawerBody
         body="Drag-and-drop directly on the live site. Edit nav, reorder, add custom links, build footer columns."
+        setupHref="/admin/site/setup/navigation"
         legacyHref="/admin/site-settings/content/navigation"
       />
     ),
@@ -168,7 +180,8 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
     icon: Palette,
     body: () => (
       <StubDrawerBody
-        body="Theme library gallery · preset tokens · layout variants · typography system."
+        body="Pick a designer kit — colors, typography, motion, density, layout — all in one click. Token-level overrides still possible."
+        setupHref="/admin/site/setup/theme"
         legacyHref="/admin/site-settings/design"
       />
     ),
@@ -180,6 +193,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
     body: () => (
       <StubDrawerBody
         body="Site-wide meta template · sitemap · robots · redirect rules · per-page overrides."
+        setupHref="/admin/site/setup/seo"
         legacyHref="/admin/site-settings/seo"
       />
     ),

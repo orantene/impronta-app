@@ -393,24 +393,45 @@ export function PostsDrawerBody() {
 export function StubDrawerBody({
   body,
   legacyHref,
+  setupHref,
 }: {
   body: React.ReactNode;
   legacyHref?: string;
+  /**
+   * When set, renders a prominent primary CTA pointing at the unified
+   * `/admin/site/setup/<id>` surface. The `legacyHref` link still appears
+   * as a secondary link beneath it.
+   */
+  setupHref?: string;
 }) {
   return (
     <div className="space-y-4">
       <DrawerCallout>{body}</DrawerCallout>
-      <p className="text-[12.5px] leading-relaxed text-muted-foreground">
-        This drawer uses the same primitive as Pages and Posts. Detailed
-        configuration lives in the dedicated editor — open it below.
-      </p>
+      {setupHref ? (
+        <a
+          href={setupHref}
+          className="group flex items-center justify-between gap-3 rounded-xl border border-[rgba(201,162,39,0.45)] bg-[linear-gradient(180deg,#fffdf6,#fbf6e6)] px-4 py-3 text-foreground transition-colors hover:border-[rgba(201,162,39,0.75)]"
+        >
+          <div className="min-w-0">
+            <p className="text-[13px] font-semibold">Open setup</p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              Premium walkthrough — configure this card with full chrome,
+              real status, and one-click apply.
+            </p>
+          </div>
+          <ArrowUpRight
+            className="size-4 shrink-0 text-foreground/70 transition-[transform,color] group-hover:translate-x-0.5 group-hover:text-foreground"
+            aria-hidden
+          />
+        </a>
+      ) : null}
       {legacyHref ? (
         <DrawerQActions>
           <a
             href={legacyHref}
-            className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-foreground underline-offset-2 hover:underline"
+            className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
           >
-            Open full editor
+            Open legacy editor
             <ArrowUpRight className="size-3.5" aria-hidden />
           </a>
         </DrawerQActions>
