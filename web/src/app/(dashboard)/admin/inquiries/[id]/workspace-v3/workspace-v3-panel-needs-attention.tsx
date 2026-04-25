@@ -33,18 +33,21 @@ export function WorkspaceV3PanelNeedsAttention({
 
 function AlertItem({ alert }: { alert: AlertRow }) {
   const warn = alert.severity === "warning";
+  // Phase 16 monochrome scrub: warnings used to be amber-on-amber. The new
+  // language is structural — warnings get a left border + heavier fill on
+  // the same foreground/muted token scale used by AdminSurfaceCard.
   return (
     <li
       className={cn(
         "flex items-start gap-1.5 rounded-md border px-2 py-1.5",
         warn
-          ? "border-amber-400/40 bg-amber-50/40 dark:border-amber-500/30 dark:bg-amber-500/5"
+          ? "border-foreground/35 border-l-[3px] border-l-foreground bg-foreground/[0.05]"
           : "border-border/40 bg-foreground/[0.02]",
       )}
     >
       {warn ? (
         <AlertTriangle
-          className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-400"
+          className="mt-0.5 size-3.5 shrink-0 text-foreground"
           aria-hidden
         />
       ) : (
@@ -54,7 +57,7 @@ function AlertItem({ alert }: { alert: AlertRow }) {
         <p
           className={cn(
             "font-medium",
-            warn ? "text-amber-800 dark:text-amber-300" : "text-foreground/90",
+            warn ? "text-foreground" : "text-foreground/90",
           )}
         >
           {alert.label}
@@ -63,9 +66,7 @@ function AlertItem({ alert }: { alert: AlertRow }) {
           <p
             className={cn(
               "mt-0.5 text-[11px] break-words",
-              warn
-                ? "text-amber-700/90 dark:text-amber-400/90"
-                : "text-muted-foreground/80",
+              warn ? "text-foreground/75" : "text-muted-foreground/80",
             )}
           >
             {alert.detail}

@@ -117,7 +117,10 @@ export function CmsEditorSeoModule({ ctx }: { ctx: InspectorContext }) {
       <p className="font-mono text-[11px] text-[var(--admin-nav-idle)]">{publicPath}</p>
       <ul className="space-y-1">
         {checks.map((c) => (
-          <li key={c.label} className={c.ok ? "text-emerald-600 dark:text-emerald-400" : "text-amber-700 dark:text-amber-500"}>
+          <li
+            key={c.label}
+            className={c.ok ? "text-foreground" : "text-muted-foreground"}
+          >
             {c.ok ? "✓" : "•"} {c.label}
           </li>
         ))}
@@ -152,7 +155,7 @@ export function CmsSlugRedirectModule({ ctx }: { ctx: InspectorContext }) {
   return (
     <div className="space-y-2 text-xs text-[var(--admin-nav-idle)]">
       <p>If you retire a public URL, add a redirect in Site → Content → Redirects so external links do not 404.</p>
-      <Button asChild size="sm" variant="outline" className="h-8 rounded-lg border-[var(--admin-gold-border)]/60 text-xs">
+      <Button asChild size="sm" variant="outline" className="h-8 rounded-lg border-border/60 text-xs">
         <Link href="/admin/site-settings/content/redirects" scroll={false}>
           Open redirects
         </Link>

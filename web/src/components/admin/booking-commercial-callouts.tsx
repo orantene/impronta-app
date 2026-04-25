@@ -108,9 +108,9 @@ export function BookingSnapshotDriftCallout({
   return (
     <div
       role="status"
-      className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-sm text-foreground"
+      className="rounded-lg border border-foreground/35 border-l-[3px] border-l-foreground bg-foreground/[0.05] px-3 py-2 text-sm text-foreground"
     >
-      <p className="font-medium text-amber-950 dark:text-amber-100">Snapshot mismatch</p>
+      <p className="font-medium text-foreground">Snapshot mismatch</p>
       <p className="mt-1 text-muted-foreground">
         Linked CRM records differ from text stored on this booking. Links are authoritative for IDs; snapshots are a
         point-in-time copy. Use refresh checkboxes on save to align, or leave as-is for audit.
@@ -161,9 +161,9 @@ export function InquirySnapshotDriftCallout({
   return (
     <div
       role="status"
-      className="rounded-lg border border-amber-500/35 bg-amber-500/10 px-3 py-2 text-sm text-foreground"
+      className="rounded-lg border border-foreground/35 border-l-[3px] border-l-foreground bg-foreground/[0.05] px-3 py-2 text-sm text-foreground"
     >
-      <p className="font-medium text-amber-950 dark:text-amber-100">Snapshot mismatch</p>
+      <p className="font-medium text-foreground">Snapshot mismatch</p>
       <p className="mt-1 text-muted-foreground">
         Linked account/contact do not match the inquiry’s stored company / contact name. Refresh snapshots on save if
         the CRM record is the source of truth.
@@ -205,7 +205,7 @@ export function InquiryConversionStatusPanel({
           <span
             className={
               hasBookings
-                ? "rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-900 dark:text-emerald-100"
+                ? "rounded-full border border-foreground/55 bg-foreground/[0.08] px-2.5 py-0.5 text-xs font-medium text-foreground"
                 : "rounded-full border border-border/50 bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
             }
           >
@@ -228,7 +228,7 @@ export function InquiryConversionStatusPanel({
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/40 bg-muted/15 px-3 py-2">
                 <Link
                   href={`/admin/bookings/${b.id}`}
-                  className="font-medium text-[var(--impronta-gold)] underline-offset-4 hover:underline"
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
                   scroll={false}
                 >
                   {b.title}

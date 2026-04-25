@@ -16,20 +16,16 @@ const chipBase =
   "inline-flex min-h-8 max-w-full shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-tight transition-[border-color,background-color,box-shadow,color] duration-200 sm:min-h-9 sm:px-3 sm:text-xs";
 
 const calm =
-  "border-border/50 bg-muted/20 text-muted-foreground hover:border-[var(--impronta-gold)]/30 hover:bg-muted/35 hover:text-foreground";
+  "border-border/50 bg-muted/20 text-muted-foreground hover:border-foreground/30 hover:bg-muted/35 hover:text-foreground";
 
-function urgentClasses(kind: "amber" | "sky" | "gold", active: boolean) {
+// Phase 16 monochrome scrub. The pulse strip used to colour-code chips by
+// "kind" (amber / sky / gold) — we kept the parameter so callers don't
+// thrash, but every active chip now uses the same foreground emphasis.
+// Urgency is conveyed by fill density + a leading dot on the consumer
+// side, not by hue.
+function urgentClasses(_kind: "amber" | "sky" | "gold", active: boolean) {
   if (!active) return calm;
-  switch (kind) {
-    case "amber":
-      return "border-amber-500/45 bg-amber-500/[0.12] text-amber-950 shadow-sm dark:border-amber-500/35 dark:bg-amber-500/15 dark:text-amber-50";
-    case "sky":
-      return "border-sky-500/45 bg-sky-500/[0.11] text-sky-950 shadow-sm dark:border-sky-500/35 dark:bg-sky-500/15 dark:text-sky-50";
-    case "gold":
-      return "border-[var(--impronta-gold-border)]/55 bg-[var(--impronta-gold)]/[0.12] text-foreground shadow-sm ring-1 ring-[var(--impronta-gold)]/10";
-    default:
-      return calm;
-  }
+  return "border-foreground/45 bg-foreground/[0.08] text-foreground shadow-sm ring-1 ring-foreground/10";
 }
 
 export function AdminPulseStrip({ counts }: { counts: AdminPulseCounts | null }) {

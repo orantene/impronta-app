@@ -1,18 +1,23 @@
 /**
- * Phase 15 / Admin shell v2 — unified status chip.
+ * Phase 16 / Admin shell v3 — unified status chip (monochrome scrub).
  *
  * One vocabulary for state across every admin surface (sections, pages,
- * talent, inquiries, Home attention strip, sidebar badges). Replaces the
- * near-duplicate `SectionStatusBadge` + `PageStatusBadge` helpers — both
- * of those now alias to this component so existing callers keep working
- * while the vocabulary expands.
+ * talent, inquiries, Home attention strip, sidebar badges).
  *
- * States
- *   draft       — amber  — unpublished work in progress
- *   live        — emerald — published, in production (alias: "published")
- *   attention   — rose   — needs operator action (overdue, failing, blocking)
- *   pending     — sky    — awaiting approval / external signal
- *   archived    — muted  — retired but not deleted
+ * Phase 16 removes the amber/emerald/rose/sky palette in favour of a
+ * monochrome system built on the foreground/muted tokens. State is now
+ * conveyed by **fill density** + a small leading dot, not by hue. This
+ * matches the rest of the admin shell (AdminSurfaceCard tones already use
+ * foreground-based borders) and reflects the operator-feedback that
+ * coloured accents were noisy and inconsistent across light/dark themes.
+ *
+ * States (all monochrome)
+ *   draft     — dashed outline, muted text       — unpublished WIP
+ *   live      — solid filled dot, bold text       — published
+ *   published — alias for "live"
+ *   attention — heaviest fill + ring              — operator action needed
+ *   pending   — dotted border                     — awaiting external signal
+ *   archived  — ghosted                           — retired
  *
  * Usage
  *   <AdminStatusChip state="draft" />
@@ -31,33 +36,45 @@ export type AdminStatusChipState =
   | "archived";
 
 interface Tone {
+  /** Container classes (border + bg + text). */
   classes: string;
+  /** Leading dot classes — null when no dot. */
+  dot: string | null;
   label: string;
 }
 
 const TONES: Record<AdminStatusChipState, Tone> = {
   draft: {
-    classes: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    classes:
+      "border-dashed border-foreground/30 bg-transparent text-muted-foreground",
+    dot: "bg-foreground/40",
     label: "Draft",
   },
   live: {
-    classes: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    classes: "border-foreground/70 bg-foreground/10 text-foreground",
+    dot: "bg-foreground",
     label: "Live",
   },
   published: {
-    classes: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    classes: "border-foreground/70 bg-foreground/10 text-foreground",
+    dot: "bg-foreground",
     label: "Published",
   },
   attention: {
-    classes: "bg-rose-500/15 text-rose-400 border-rose-500/35",
+    classes:
+      "border-foreground bg-foreground text-background ring-2 ring-foreground/15 ring-offset-1 ring-offset-background",
+    dot: null,
     label: "Needs attention",
   },
   pending: {
-    classes: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+    classes:
+      "border-dotted border-foreground/40 bg-transparent text-foreground/80",
+    dot: "bg-foreground/60",
     label: "Pending",
   },
   archived: {
-    classes: "bg-muted/40 text-muted-foreground border-border/60",
+    classes: "border-border/60 bg-muted/30 text-muted-foreground/80",
+    dot: null,
     label: "Archived",
   },
 };
@@ -80,12 +97,18 @@ export function AdminStatusChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
         tone.classes,
         className,
       )}
       title={title ?? `Status: ${display}`}
     >
+      {tone.dot ? (
+        <span
+          aria-hidden
+          className={cn("size-1.5 rounded-full", tone.dot)}
+        />
+      ) : null}
       {display}
     </span>
   );

@@ -1,39 +1,16 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BarChart3,
-  BookOpen,
-  Building2,
   CalendarCheck,
-  EyeOff,
-  FileText,
-  FolderKanban,
   HelpCircle,
-  Images,
   Inbox,
-  Languages,
   LayoutDashboard,
-  LayoutGrid,
-  ListFilter,
-  MapPinned,
-  Menu,
-  Newspaper,
-  Plug,
-  Rocket,
-  ScanSearch,
-  Search,
+  Settings,
   Shield,
-  SlidersHorizontal,
   Sparkles,
-  Star,
-  Tags,
-  Terminal,
-  Undo2,
+  UserCog,
   UserRound,
-  UserSearch,
   Users,
 } from "lucide-react";
-
-import { ADMIN_DOCS_NAV_LINKS } from "@/lib/admin-nav";
 
 /** Real admin IA — sidebar links under `/admin`. */
 export const ADMIN_PROTOTYPE_BASE = "/admin";
@@ -111,154 +88,64 @@ export function prototypeNavItemMap(nav: PrototypeNavGroup[]): Map<string, Proto
 }
 
 /**
- * Phase 15 / Admin shell v2 — IA promoted to operator-first order.
+ * Phase 16 — Admin sidebar consolidation.
  *
- * Primary groups (Home, Pipeline, Talent, Site, Clients) surface the
- * five jobs an agency admin does daily. Secondary groups (Media,
- * Directory, AI, Analytics, Docs, System) hold configuration and
- * diagnostic surfaces — still reachable, visually de-emphasised by
- * rendering order.
+ * The previous IA carried 11 groups with ~60 sidebar items, each pointing
+ * at one configuration surface. The Site control center (`/admin/site`)
+ * and Profile settings (`/admin/profile`) now act as **capability
+ * indexes** — every storefront/site config surface is reachable via tile
+ * cards from `/admin/site`, and every field/list surface from
+ * `/admin/profile`. The sidebar collapses to three groups that mirror the
+ * mockup mental model:
  *
- * The Site group leads with the Composer — the builder is no longer
- * buried under /site-settings. Reach from anywhere is ≤ 2 clicks
- * (sidebar group → Composer) or 1 keystroke (Cmd+K → "Open composer").
+ *   Workspace → Home, Inquiries, Bookings, Talents, Clients
+ *   Site & AI → Site, Profile settings, AI workspace
+ *   System    → Account, Settings, Admins
  *
- * Route hrefs are not yet renamed — that migration lives in a follow-up
- * stage. Labels and grouping are the product call; hrefs still resolve
- * under the existing `/admin/site-settings/*` tree.
+ * Removed-from-sidebar (still reachable via Site / Profile / Cmd+K):
+ *   Composer, Design, Sections, Pages, Posts, Navigation, SEO, Brand,
+ *   Redirects, Fields, Filters, Taxonomy, Locations, Media library,
+ *   Analytics (6 sub-routes), Translations, Docs (15 sub-routes),
+ *   AI sub-routes, Roster filter shortcuts (Applications/Featured/Hidden).
+ *
+ * Routes themselves are untouched — only the sidebar surface area is
+ * consolidated. Cmd+K palette can still jump anywhere.
  */
 export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
-  // ── Primary ───────────────────────────────────────────────────────
   {
-    id: "dashboard",
-    label: "Home",
-    items: [navItem("Overview", `${ADMIN_PROTOTYPE_BASE}`, LayoutDashboard)],
-  },
-  {
-    id: "operations",
-    label: "Pipeline",
+    id: "workspace",
+    label: "Workspace",
     items: [
+      navItem("Home", `${ADMIN_PROTOTYPE_BASE}`, LayoutDashboard),
       navItem("Inquiries", `${ADMIN_PROTOTYPE_BASE}/inquiries`, Inbox),
       navItem("Bookings", `${ADMIN_PROTOTYPE_BASE}/bookings`, CalendarCheck),
-      navItem("Work locations", `${ADMIN_PROTOTYPE_BASE}/accounts`, Building2),
+      navItem("Talents", `${ADMIN_PROTOTYPE_BASE}/talent`, Users),
+      navItem("Clients", `${ADMIN_PROTOTYPE_BASE}/clients`, UserRound),
     ],
   },
   {
-    id: "talent",
-    label: "Roster",
+    id: "site-and-ai",
+    label: "Site & AI",
     items: [
-      navItem("All talent", `${ADMIN_PROTOTYPE_BASE}/talent`, Users),
-      navItem("Applications", `${ADMIN_PROTOTYPE_BASE}/talent`, UserSearch, "talent-applications"),
-      navItem("Featured", `${ADMIN_PROTOTYPE_BASE}/talent`, Star, "talent-featured"),
-      navItem("Hidden", `${ADMIN_PROTOTYPE_BASE}/talent`, EyeOff, "talent-hidden"),
-    ],
-  },
-  {
-    id: "site",
-    label: "Site",
-    items: [
-      // Composer first — the builder is the headline of the Site area.
-      navItem("Composer", `${ADMIN_PROTOTYPE_BASE}/site-settings/structure`, LayoutDashboard, "site-composer"),
-      navItem("Design", `${ADMIN_PROTOTYPE_BASE}/site-settings/design`, Sparkles, "site-design"),
-      navItem("Sections", `${ADMIN_PROTOTYPE_BASE}/site-settings/sections`, LayoutGrid, "site-sections"),
-      navItem("Pages", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/pages`, FileText, "site-pages"),
-      navItem("Navigation", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/navigation`, Menu, "site-nav"),
-      navItem("Posts", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/posts`, Newspaper, "site-posts"),
-      navItem("SEO", `${ADMIN_PROTOTYPE_BASE}/site-settings/seo`, Search, "site-seo"),
-      navItem("Brand", `${ADMIN_PROTOTYPE_BASE}/site-settings/identity`, Building2, "site-brand"),
-      navItem("Redirects", `${ADMIN_PROTOTYPE_BASE}/site-settings/content/redirects`, Undo2, "site-redirects"),
-    ],
-  },
-  {
-    id: "clients",
-    label: "Clients",
-    items: [navItem("Clients", `${ADMIN_PROTOTYPE_BASE}/clients`, UserRound)],
-  },
-  // ── Secondary ─────────────────────────────────────────────────────
-  {
-    id: "media",
-    label: "Media",
-    items: [
-      navItem("Pending approvals", `${ADMIN_PROTOTYPE_BASE}/media`, Images),
-      navItem("Library", `${ADMIN_PROTOTYPE_BASE}/media?tab=library`, LayoutGrid),
-    ],
-  },
-  {
-    id: "directory",
-    label: "Directory",
-    items: [
-      navItem("Fields", `${ADMIN_PROTOTYPE_BASE}/fields`, FolderKanban),
-      navItem("Filters", `${ADMIN_PROTOTYPE_BASE}/directory/filters`, ListFilter),
-      navItem("Taxonomy", `${ADMIN_PROTOTYPE_BASE}/taxonomy`, Tags),
-      navItem("Locations", `${ADMIN_PROTOTYPE_BASE}/locations`, MapPinned),
-    ],
-  },
-  {
-    id: "analytics",
-    label: "Analytics",
-    items: [
-      navItem("Executive", `${ADMIN_PROTOTYPE_BASE}/analytics/overview`, BarChart3, "analytics-overview"),
-      navItem("Traffic", `${ADMIN_PROTOTYPE_BASE}/analytics/acquisition`, BarChart3, "analytics-traffic"),
-      navItem("Funnels", `${ADMIN_PROTOTYPE_BASE}/analytics/funnels`, BarChart3, "analytics-funnels"),
-      navItem("Marketplace", `${ADMIN_PROTOTYPE_BASE}/analytics/talent`, BarChart3, "analytics-marketplace"),
-      navItem("AI / Search", `${ADMIN_PROTOTYPE_BASE}/analytics/search`, BarChart3, "analytics-ai-search"),
-      navItem("SEO", `${ADMIN_PROTOTYPE_BASE}/analytics/seo`, BarChart3, "analytics-seo"),
-    ],
-  },
-  {
-    id: "ai",
-    label: "AI",
-    items: [
+      navItem("Site", `${ADMIN_PROTOTYPE_BASE}/site`, LayoutDashboard, "site-control-center"),
+      navItem("Profile settings", `${ADMIN_PROTOTYPE_BASE}/profile`, UserCog),
       navItem("AI workspace", `${ADMIN_PROTOTYPE_BASE}/ai-workspace`, Sparkles),
-      navItem("AI Settings", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/settings`, SlidersHorizontal),
-      navItem("Search logs", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/logs`, Search),
-      navItem("Match preview", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/match-preview`, ScanSearch),
-      navItem("Console", `${ADMIN_PROTOTYPE_BASE}/ai-workspace/console`, Terminal),
     ],
-  },
-  {
-    id: "docs",
-    label: "Docs",
-    items: ADMIN_DOCS_NAV_LINKS.map((link, index) => {
-      const icons: LucideIcon[] = [
-        BookOpen,
-        Sparkles,
-        Search,
-        Users,
-        Inbox,
-        ListFilter,
-        Tags,
-        Star,
-        BarChart3,
-        Languages,
-        Shield,
-        Plug,
-        SlidersHorizontal,
-        HelpCircle,
-        Rocket,
-      ];
-      const icon = icons[index] ?? FileText;
-      return navItem(link.label, link.href, icon);
-    }),
   },
   {
     id: "system",
     label: "System",
     items: [
-      navItem("Translations", `${ADMIN_PROTOTYPE_BASE}/translations`, Languages),
-      navItem("Feature flags", `${ADMIN_PROTOTYPE_BASE}/settings`, SlidersHorizontal, "system-feature-flags"),
-      navItem("Users — search", `${ADMIN_PROTOTYPE_BASE}/users/search`, UserSearch),
-      navItem("Users — admins", `${ADMIN_PROTOTYPE_BASE}/users/admins`, Shield),
-      navItem("Account", `${ADMIN_PROTOTYPE_BASE}/account`, UserRound),
+      navItem("Account & billing", `${ADMIN_PROTOTYPE_BASE}/account`, UserRound, "system-account"),
+      navItem("Settings", `${ADMIN_PROTOTYPE_BASE}/settings`, Settings, "system-settings"),
+      navItem("Admins", `${ADMIN_PROTOTYPE_BASE}/users/admins`, Shield),
+      navItem("Help", `${ADMIN_PROTOTYPE_BASE}/docs`, HelpCircle, "system-help"),
     ],
   },
 ];
 
 /** IDs of the primary (operator-daily) nav groups — used for sidebar visual priority. */
 export const ADMIN_PROTOTYPE_PRIMARY_GROUP_IDS = new Set([
-  "dashboard",
-  "operations",
-  "talent",
-  "site",
-  "clients",
+  "workspace",
+  "site-and-ai",
 ]);

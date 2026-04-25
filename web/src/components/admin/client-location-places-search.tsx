@@ -135,7 +135,7 @@ export function ClientLocationPlacesSearch({
     <div ref={wrapRef} className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor="client_location_places_search" className="inline-flex items-center gap-2">
-          <MapPin className="size-4 text-[var(--impronta-gold)]" aria-hidden />
+          <MapPin className="size-4 text-muted-foreground" aria-hidden />
           Search business or address
         </Label>
         {appliedPlaceId ? (
@@ -196,7 +196,7 @@ export function ClientLocationPlacesSearch({
         ) : null}
       </div>
       {!configured ? (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
+        <p className="text-xs text-foreground/80">
           Google Places is not configured (set <code className="rounded bg-muted px-1">GOOGLE_PLACES_API_KEY</code> on
           the server). You can still enter everything manually below.
         </p>

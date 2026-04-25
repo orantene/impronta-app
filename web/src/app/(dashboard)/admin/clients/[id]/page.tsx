@@ -53,21 +53,25 @@ function relativeTime(iso: string | null | undefined): string {
   return `${Math.floor(months / 12)}y ago`;
 }
 
+// Phase 16 monochrome scrub — replace the rainbow status dots with a
+// foreground-density scale. Active states get heavier fills; terminal /
+// archived states fade out. This stays legible in both light and dark
+// themes without needing per-status colour reasoning.
 const INQUIRY_STATUS_COLOR: Record<string, string> = {
-  new: "bg-blue-500",
-  reviewing: "bg-amber-500",
-  waiting_for_client: "bg-orange-400",
-  talent_suggested: "bg-purple-500",
-  in_progress: "bg-emerald-500",
-  closed: "bg-muted-foreground/50",
+  new: "bg-foreground",
+  reviewing: "bg-foreground/80",
+  waiting_for_client: "bg-foreground/55 ring-1 ring-foreground/40",
+  talent_suggested: "bg-foreground/80",
+  in_progress: "bg-foreground",
+  closed: "bg-muted-foreground/45",
   archived: "bg-muted-foreground/30",
 };
 
 const BOOKING_STATUS_COLOR: Record<string, string> = {
-  draft: "bg-muted-foreground/40",
-  confirmed: "bg-emerald-500",
-  in_progress: "bg-blue-500",
-  completed: "bg-emerald-700",
+  draft: "bg-foreground/40",
+  confirmed: "bg-foreground",
+  in_progress: "bg-foreground/80",
+  completed: "bg-foreground/65",
   cancelled: "bg-destructive/60",
 };
 
@@ -121,7 +125,7 @@ export default async function AdminClientDetailPage({
         <Link
           href="/admin/clients"
           scroll={false}
-          className="flex items-center gap-1 hover:text-[var(--impronta-gold)] hover:underline underline-offset-4"
+          className="flex items-center gap-1 hover:text-foreground hover:underline underline-offset-4"
         >
           <ArrowLeft className="size-3.5" aria-hidden />
           Clients
@@ -212,7 +216,7 @@ export default async function AdminClientDetailPage({
             <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
               Saved talent
             </span>
-            <span className="font-display text-2xl font-semibold tabular-nums text-[var(--impronta-gold)]">
+            <span className="font-display text-2xl font-semibold tabular-nums text-foreground">
               {detail.savedTalent.length}
             </span>
           </div>
