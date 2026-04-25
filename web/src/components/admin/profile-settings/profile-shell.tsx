@@ -4,10 +4,10 @@ import * as React from "react";
 import {
   ArrowUpRight,
   Hash,
+  LayoutGrid,
   LayoutList,
   ListOrdered,
   MoreHorizontal,
-  Tags,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -97,7 +97,7 @@ const SYNCED_KINDS = new Set(["location_country", "location_city"]);
 function taxonomyIcon(kind: string): LucideIcon {
   if (SYNCED_KINDS.has(kind)) return Hash;
   if (kind === "language") return ListOrdered;
-  return Tags;
+  return LayoutGrid;
 }
 
 type DrawerKind =
@@ -228,8 +228,15 @@ export function ProfileShell({
                   className="group relative block w-full rounded-2xl border border-border/60 bg-card/50 p-4 text-left shadow-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:-translate-y-px hover:border-foreground/40 hover:bg-muted/30 hover:shadow-[0_14px_36px_-24px_rgba(0,0,0,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   <div className="flex items-start gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--impronta-gold)]/30 bg-[var(--impronta-gold)]/[0.12] text-[var(--impronta-gold)] shadow-[inset_0_0_0_1px_rgba(201,162,39,0.25)]">
-                      <LayoutList className="size-[18px]" aria-hidden />
+                    <span
+                      className="flex size-9 shrink-0 items-center justify-center rounded-[9px]"
+                      style={{
+                        backgroundColor: "rgba(201, 162, 39, 0.12)",
+                        color: "#8b6d1f",
+                        boxShadow: "inset 0 0 0 1px rgba(201, 162, 39, 0.4)",
+                      }}
+                    >
+                      <LayoutList className="size-[15px]" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate font-display text-[15px] font-semibold tracking-tight text-foreground">
@@ -285,8 +292,14 @@ export function ProfileShell({
                 className="group relative block w-full rounded-2xl border border-border/60 bg-card/50 p-4 text-left shadow-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:-translate-y-px hover:border-foreground/40 hover:bg-muted/30 hover:shadow-[0_14px_36px_-24px_rgba(0,0,0,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <div className="flex items-start gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background text-foreground">
-                    <Icon className="size-[18px]" aria-hidden />
+                  <span
+                    className="flex size-9 shrink-0 items-center justify-center rounded-[9px] text-foreground"
+                    style={{
+                      backgroundColor: "#f5f4ef",
+                      boxShadow: "inset 0 0 0 1px rgba(24, 24, 27, 0.1)",
+                    }}
+                  >
+                    <Icon className="size-[15px]" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate font-display text-[15px] font-semibold tracking-tight text-foreground">

@@ -62,15 +62,29 @@ export function SiteCard({
       <div className="flex items-start gap-3">
         <span
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
-            locked
-              ? "border-border/50 bg-muted/40 text-muted-foreground"
-              : capability.iconAccent
-                ? "border-[var(--impronta-gold)]/30 bg-[var(--impronta-gold)]/12 text-[var(--impronta-gold)]"
-                : "border-border/60 bg-background text-foreground",
+            "flex size-9 shrink-0 items-center justify-center rounded-[9px]",
+            locked && "text-muted-foreground",
           )}
+          style={
+            locked
+              ? {
+                  backgroundColor: "#f5f4ef",
+                  boxShadow: "inset 0 0 0 1px rgba(24, 24, 27, 0.1)",
+                }
+              : capability.iconAccent
+                ? {
+                    backgroundColor: "rgba(201, 162, 39, 0.12)",
+                    color: "#8b6d1f",
+                    boxShadow: "inset 0 0 0 1px rgba(201, 162, 39, 0.4)",
+                  }
+                : {
+                    backgroundColor: "#f5f4ef",
+                    color: "#18181b",
+                    boxShadow: "inset 0 0 0 1px rgba(24, 24, 27, 0.1)",
+                  }
+          }
         >
-          <Icon className="size-[18px]" aria-hidden />
+          <Icon className="size-[15px]" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
