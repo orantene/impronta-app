@@ -337,3 +337,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 668629a | PublishDrawer retrofitted to Drawer primitive (kind=publish) — ResizableDrawer replaced, width cycles via DrawerHead expand |
 | 2026-04-24 (autonomous) | A.1 | c885dc1 | PublishDrawer + Drawer open prop — slide animation wired; publish uses kind=publish |
 | 2026-04-24 (autonomous) | A.1 | aa712c7 | CompositionLibrary → Drawer kind=picker right-rail; MediaPicker DrawerHead; TalentPicker data-edit-overlay |
+| 2026-04-24 (autonomous) | A.1 | 4bcfc1f | Hero inspector kit rewrite — Card/Field/Helper/MediaPickerButton/CtaDuoEditor; removes raw class constants |
