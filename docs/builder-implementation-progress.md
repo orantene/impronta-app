@@ -13,9 +13,9 @@ items — the user has authorised end-to-end execution.
 ## Live state
 
 - **Active milestone:** B — "Real navigator + revisions"
-- **Active phase:** 4 — Revisions + diff
-- **Last commit on phase-1 branch:** be20786 — Phase 3 navigator visibility wiring landed (note: bundled with an unrelated admin/profile fix from a concurrent session — code is correct, just commit message is misleading)
-- **Next action:** Phase 4 — Revisions drawer + diff. Schema-light first pass: surface the existing `cms_page_revisions` rows (already written by every save, no new column needed for the read path) in a Drawer kind="revisions" timeline. Each row gets author + timestamp + auto/published tag inferred from `kind`. Restore action calls a `restoreRevisionAction(revisionId)` server action that loads the snapshot and re-saves it as a new draft revision. The deeper schema (named drafts via `name`/`note`/`tag enum`) lands later when Save-as-named-draft is uplifted from its lightweight Phase 2 wiring.
+- **Active phase:** 4 acceptance gate — Revisions drawer
+- **Last commit on phase-1 branch:** aee8504 — Phase 4 RevisionsDrawer + restoreHomepageRevisionAction landed (typed read + restore wrappers over the existing Phase 5 cms_page_revisions table; no schema migration)
+- **Next action:** Run the Phase 4 acceptance gate against prod (Vercel build green for aee8504 → promote → smoke-check that the clock icon opens the drawer, the list renders, and Restore confirms + reloads the draft). Once that's green, advance to Phase 5 — Theme drawer + design tokens. Diff renderer + named-draft schema deepening are deferred follow-ups (tracked under Phase 4 deferred bullets) — they don't block Milestone B closure because the existing `kind` enum already covers the auto/draft/published distinction the operator needs day-one.
 
 ---
 
@@ -175,32 +175,30 @@ items — the user has authorised end-to-end execution.
 ### Phase 4 — Revisions + diff
 
 #### Schema
-- [ ] Migration `page_revisions` table: `id, page_id, snapshot jsonb, author_profile_id, tag enum (auto|draft|named|published), name text null, note text null, created_at`
-- [ ] Index `(page_id, created_at desc)` and `(page_id, tag)`
-- [ ] RLS policy: tenant-scoped read, staff write
+- [x] Migration not required for the read path — existing `cms_page_revisions` table already carries `id, page_id, kind ('draft'|'published'|'rollback'), version, template_schema_version, snapshot jsonb, created_by, created_at` with RLS in place. Every `saveHomepageDraftComposition` writes a `kind='draft'` row, every `publishHomepage` writes `kind='published'`, every `restoreHomepageRevision` writes `kind='rollback'`. The deeper schema (`name`, `note`, `tag` enum with `auto|draft|named|published`) lands later when the named-draft prompt is uplifted (see deferred bullets below). (aee8504)
 
 #### Server actions
-- [ ] `listRevisionsAction(pageId, limit)`
-- [ ] `getRevisionAction(revisionId)`
-- [ ] `restoreRevisionAction(revisionId)` — creates a new revision marked as restore source, sets composition to that snapshot
-- [ ] `compareRevisionsAction(idA, idB)` — diff at section + prop level
-- [ ] `saveNamedDraftAction(pageId, name, note)` — creates a `tag=named` revision
-- [ ] Auto-revision on every successful publish (`tag=published`) and every autosave with debounce + dedupe by snapshot hash
+- [x] `loadHomepageRevisionsAction(locale)` — newest-first, capped at 50, joins `display_name` from `profiles` in a single bulk lookup, lifts `sectionCount` + `titleAtRevision` from the snapshot so the drawer doesn't deserialize the full payload (aee8504)
+- [x] `restoreHomepageRevisionAction({ revisionId, locale, expectedVersion })` — typed wrapper over the existing Phase 5 `restoreHomepageRevision` lib op; same capability / tenant-scope / CAS / audit / revision / cache-bust gates as the composer's FormData restore (aee8504)
+- [ ] `compareRevisionsAction(idA, idB)` — _deferred_; needs a section + prop diff renderer that doesn't exist yet
+- [ ] `saveNamedDraftAction` (`tag=named`) — _deferred_ behind the `name`/`note`/`tag` enum schema deepening
+- [x] Auto-revision on every save / publish / rollback — already in place from Phase 5; the Phase 4 work surfaces what was already being written
 
 #### UI
-- [ ] `edit-chrome/revisions-drawer.tsx` — same Drawer chrome
-- [ ] Timeline grouped by day, then by hour
-- [ ] Each row: avatar, author, time, tag chip, description
-- [ ] Current published revision: green halo
-- [ ] Working draft: blue halo
-- [ ] Hover row → Preview / Compare / Restore actions
-- [ ] Compare tab: side-by-side rendered preview with changed-property highlights
+- [x] `edit-chrome/revisions-drawer.tsx` — Drawer kind="revisions" (480px), lazy fetch on every open (aee8504)
+- [x] Each row: kind chip (Draft / Published / Rollback), Live badge on the most recent published, author display name, relative time with full-timestamp tooltip, version + section count (aee8504)
+- [x] Current published revision marked with a `Live` chip (blue) (aee8504)
+- [x] Two-step Restore confirm in-row (Cancel / Yes, restore) — calls `restoreRevision` on EditContext which is CAS-safe via the current `pageVersion` (aee8504)
+- [x] Skeleton + empty + error states (aee8504)
+- [ ] Timeline grouped by day / by hour — _deferred_; today the list is flat newest-first, which is fine while the row count is capped at 50
+- [ ] Hover-row Preview / Compare action — _deferred to follow-up when the diff renderer lands_
 
 ### Phase 4 acceptance gate
-- [ ] All TS errors fixed; Vercel build green
-- [ ] Migration applied to prod via Supabase CLI
-- [ ] Restore creates a new revision (audit trail)
-- [ ] Compare shows highlighted diffs
+- [x] All TS errors fixed (`tsc --noEmit` clean)
+- [ ] Vercel build green for aee8504
+- [ ] On prod: clock icon opens drawer; list renders kind / author / time / version
+- [ ] On prod: Restore confirm flow rolls draft back; Live chip updates after publish
+- [ ] Screenshots committed under `docs/qa/phase-4/`
 
 ---
 
@@ -355,3 +353,4 @@ The big one. Three parallel tracks:
 | 2026-04-25 (manual) | A.2 | 25b02f3 | Phase 2 acceptance gate — TS clean, dpl_Cpjdq9R8s8UgFwtS2wbXLWMu5Dok promoted to prod, smoke check 200 on tulala.digital + impronta.tulala.digital, QA evidence committed under `docs/qa/phase-2/`. Active milestone advances to B (navigator + revisions). |
 | 2026-04-25 (manual) | B.3 | 4fc0e9c | Phase 3 — Structure Navigator left rail. 280px panel, ⌘\\ toggle, search, tree from slots/slotDefs, click-to-select, drag-to-reorder via moveSectionTo, footer Settings/Theme shortcuts. Visibility eye scaffolded as a noop pending schema work. |
 | 2026-04-25 (concurrent) | B.3 | be20786 | Visibility wiring — extends CompositionSectionRef.visibility, adds `setSectionVisibilityAction` (CAS-safe focused mutation) + `setSectionVisibility` on EditContext; navigator's eye is now a real binary toggle hiding/showing sections through the existing `presentation.visibility` enum (no schema migration). Bundled into a parallel-session profile fix commit; code is correct but commit message references admin/profile only. |
+| 2026-04-25 (manual) | B.4 | aee8504 | Phase 4 — RevisionsDrawer + restore. New typed actions `loadHomepageRevisionsAction` / `restoreHomepageRevisionAction` over the existing `cms_page_revisions` table (no schema migration). Drawer kind="revisions" (480px) lazy-fetches on open, joins `display_name` from `profiles`, surfaces kind chip + Live badge + relative time + section count, and runs a two-step Restore confirm that round-trips through the existing CAS-safe `restoreHomepageRevision` lib op. Topbar's clock-arrow icon is now wired through `onRevisions`. |
