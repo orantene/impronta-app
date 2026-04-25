@@ -33,28 +33,30 @@ export default async function AdminSiteControlCenterPage({
   const activePlan = parsePlan(params.plan);
 
   return (
-    <div className={ADMIN_PAGE_STACK}>
-      <div className="space-y-6">
-        <AdminPageHeader
-          icon={LayoutDashboard}
-          title="Site"
-          description="Your roster, site, and embeds — in one place."
-          right={
-            <a
-              href="/"
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-[12.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/[0.06]"
-            >
-              Open subdomain
-              <ArrowUpRight className="size-3" aria-hidden />
-            </a>
-          }
-        />
+    <div className="-mx-4 min-h-screen bg-[#f2efe6] px-4 pb-8 pt-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className={ADMIN_PAGE_STACK}>
+        <div className="space-y-6">
+          <AdminPageHeader
+            icon={LayoutDashboard}
+            title="Site"
+            description="Your roster, site, and embeds — in one place."
+            right={
+              <a
+                href="/"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[rgba(24,24,27,0.18)] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-[rgba(201,162,39,0.4)] hover:bg-[rgba(201,162,39,0.06)]"
+              >
+                Open subdomain
+                <ArrowUpRight className="size-3" aria-hidden />
+              </a>
+            }
+          />
 
-        <PlanTierToggle activePlan={activePlan} />
+          <PlanTierToggle activePlan={activePlan} />
 
-        <SiteShell activePlan={activePlan} />
+          <SiteShell activePlan={activePlan} />
+        </div>
       </div>
     </div>
   );

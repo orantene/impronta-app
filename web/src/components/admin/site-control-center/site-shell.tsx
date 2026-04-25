@@ -234,27 +234,29 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
 
   return (
     <>
-      <div className="space-y-8">
+      <div className="space-y-6">
         {TIER_BANDS.map((band) => {
           const bandLocked = isLocked(band.tier, activePlan);
           const accent = PLAN_BADGE_COLOR[band.tier];
           return (
-            <section key={band.tier} className="space-y-4">
-              <div className="flex flex-wrap items-end gap-3">
+            <section key={band.tier} className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <span
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.18em] before:size-1.5 before:rounded-full before:bg-current before:content-['']"
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.18em] before:size-1.5 before:rounded-full before:bg-current before:content-['']"
                   style={{ backgroundColor: accent.bg, color: accent.fg }}
                 >
                   {band.badgeLabel}
                 </span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="font-display text-[17px] font-semibold tracking-tight text-foreground sm:text-lg">
-                    {band.headline}
-                  </h2>
-                  <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                    {band.helper}
-                  </p>
-                </div>
+                <h2 className="text-[15px] font-semibold tracking-[-0.005em] text-foreground">
+                  {band.headline}
+                </h2>
+                <span className="text-[12px] text-muted-foreground">
+                  {band.helper}
+                </span>
+                <div
+                  aria-hidden
+                  className="hidden h-px min-w-[40px] flex-1 bg-border/50 sm:block"
+                />
                 {bandLocked && band.ctaLabel ? (
                   <Link
                     href={
@@ -262,18 +264,14 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                         ? "mailto:hello@impronta.group"
                         : `?plan=${band.tier}`
                     }
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
+                    className="inline-flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
                     style={{ color: accent.fg }}
                   >
                     {band.ctaLabel} →
                   </Link>
                 ) : null}
-                <div
-                  aria-hidden
-                  className="hidden h-px flex-1 bg-border/50 sm:block"
-                />
               </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
                 {band.cards.map((card) => (
                   <SiteCard
                     key={card.id}

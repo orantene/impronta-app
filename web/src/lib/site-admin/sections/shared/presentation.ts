@@ -1,7 +1,7 @@
 /**
  * M8 — SectionPresentation: shared sub-schema inherited by every section.
  *
- * One extension point, 8 per-section controls:
+ * Base controls (Phase 1, all per-section):
  *   - background       neutral-to-espresso palette toggle
  *   - paddingTop       section vertical rhythm (top)
  *   - paddingBottom    section vertical rhythm (bottom)
@@ -10,6 +10,19 @@
  *   - dividerTop       none / thin-line / gradient-fade / decorative
  *   - mobileStack      default / single-column / horizontal-scroll
  *   - visibility       always / desktop-only / mobile-only / hidden
+ *
+ * Phase 6 extensions:
+ *   - breakpoints      per-viewport overrides (tablet + mobile) over the
+ *                      same 8-field shape. Desktop is the inherited base.
+ *                      Override inheritance: an unset tablet/mobile field
+ *                      falls through to the desktop value. Pure CSS cascade
+ *                      via `data-section-tablet-*` / `data-section-mobile-*`
+ *                      attrs + scoped @media rules in token-presets.css —
+ *                      no JS at render time.
+ *   - animation        entry / scroll / hover micro-interactions plus a
+ *                      reducedMotion knob. CSS-driven keyframes; the
+ *                      "respect" mode (default) is gated behind
+ *                      `@media (prefers-reduced-motion: no-preference)`.
  *
  * Every field is optional so legacy section instances continue to parse.
  * The component reads the presentation object and sets data attributes;
@@ -24,44 +37,126 @@
 
 import { z } from "zod";
 
-export const sectionPresentationSchema = z
+const backgroundEnum = z.enum([
+  "canvas",       // follows the tenant's background.mode (default)
+  "ivory",
+  "champagne",
+  "espresso",
+  "blush",
+  "sage",
+  "muted-surface",
+]);
+
+const paddingEnum = z.enum(["none", "tight", "standard", "airy", "editorial"]);
+
+const containerEnum = z.enum([
+  "narrow",
+  "standard",
+  "wide",
+  "editorial",
+  "full-bleed",
+]);
+
+const alignEnum = z.enum(["left", "center", "right"]);
+
+const dividerEnum = z.enum(["none", "thin-line", "gradient-fade", "decorative"]);
+
+const mobileStackEnum = z.enum([
+  "default",
+  "single-column",
+  "horizontal-scroll",
+]);
+
+const visibilityEnum = z.enum([
+  "always",
+  "desktop-only",
+  "mobile-only",
+  "hidden",
+]);
+
+/**
+ * One breakpoint's worth of overrides. Same shape as the base presentation
+ * fields, all optional — an unset field inherits from the desktop base.
+ *
+ * `mobileStack` and `visibility` aren't repeated here: the base already
+ * carries device-aware semantics, and re-overriding them per-breakpoint
+ * would create surprising cascades.
+ */
+export const breakpointOverrideSchema = z
   .object({
-    background: z
+    background: backgroundEnum.optional(),
+    paddingTop: paddingEnum.optional(),
+    paddingBottom: paddingEnum.optional(),
+    containerWidth: containerEnum.optional(),
+    align: alignEnum.optional(),
+    dividerTop: dividerEnum.optional(),
+  })
+  .optional();
+
+export type BreakpointOverride = z.infer<typeof breakpointOverrideSchema>;
+
+/**
+ * Section-level animation controls.
+ *
+ *   - entry        runs once when the section enters the viewport
+ *   - scroll       continuous behavior bound to scroll position
+ *   - hover        applied when the operator points at the section card
+ *   - reducedMotion 'respect' (default) gates all animation behind
+ *                  `prefers-reduced-motion: no-preference`. 'always'
+ *                  forces animation regardless — the operator opts in
+ *                  with full awareness of the accessibility tradeoff.
+ */
+export const sectionAnimationSchema = z
+  .object({
+    entry: z
       .enum([
-        "canvas",       // follows the tenant's background.mode (default)
-        "ivory",
-        "champagne",
-        "espresso",
-        "blush",
-        "sage",
-        "muted-surface",
+        "none",
+        "fade",
+        "fade-up",
+        "fade-down",
+        "slide-left",
+        "slide-right",
+        "scale-in",
       ])
       .optional(),
+    scroll: z.enum(["none", "parallax-soft", "reveal-stagger"]).optional(),
+    hover: z.enum(["none", "lift", "glow", "tilt"]).optional(),
+    reducedMotion: z.enum(["respect", "always"]).optional(),
+  })
+  .optional();
 
-    paddingTop: z
-      .enum(["none", "tight", "standard", "airy", "editorial"])
-      .optional(),
-    paddingBottom: z
-      .enum(["none", "tight", "standard", "airy", "editorial"])
+export type SectionAnimation = z.infer<typeof sectionAnimationSchema>;
+
+export const sectionPresentationSchema = z
+  .object({
+    background: backgroundEnum.optional(),
+
+    paddingTop: paddingEnum.optional(),
+    paddingBottom: paddingEnum.optional(),
+
+    containerWidth: containerEnum.optional(),
+
+    align: alignEnum.optional(),
+
+    dividerTop: dividerEnum.optional(),
+
+    mobileStack: mobileStackEnum.optional(),
+
+    visibility: visibilityEnum.optional(),
+
+    /**
+     * Per-viewport overrides. Desktop is the inherited base; tablet
+     * overrides take effect at ≤ 1023px, mobile at ≤ 640px. CSS cascade
+     * naturally handles the inheritance — unset fields fall through.
+     */
+    breakpoints: z
+      .object({
+        tablet: breakpointOverrideSchema,
+        mobile: breakpointOverrideSchema,
+      })
       .optional(),
 
-    containerWidth: z
-      .enum(["narrow", "standard", "wide", "editorial", "full-bleed"])
-      .optional(),
-
-    align: z.enum(["left", "center", "right"]).optional(),
-
-    dividerTop: z
-      .enum(["none", "thin-line", "gradient-fade", "decorative"])
-      .optional(),
-
-    mobileStack: z
-      .enum(["default", "single-column", "horizontal-scroll"])
-      .optional(),
-
-    visibility: z
-      .enum(["always", "desktop-only", "mobile-only", "hidden"])
-      .optional(),
+    animation: sectionAnimationSchema,
   })
   .optional();
 
@@ -74,6 +169,10 @@ export type SectionPresentation = z.infer<typeof sectionPresentationSchema>;
  * Resulting attrs are consumed by `token-presets.css`:
  *   [data-section-background="champagne"] → champagne gradient
  *   [data-section-padding-top="editorial"] → clamp section_y
+ *   [data-section-tablet-padding-top="tight"] → tablet override
+ *   [data-section-mobile-container="narrow"] → mobile override
+ *   [data-section-anim-entry="fade-up"] → fade-up entry animation
+ *   [data-section-anim-reduced-motion="always"] → ignore prefers-reduced-motion
  *   ...etc.
  */
 export function presentationDataAttrs(
@@ -81,6 +180,8 @@ export function presentationDataAttrs(
 ): Record<string, string> {
   if (!p) return {};
   const out: Record<string, string> = {};
+
+  // Base (desktop) presentation.
   if (p.background) out["data-section-background"] = p.background;
   if (p.paddingTop) out["data-section-padding-top"] = p.paddingTop;
   if (p.paddingBottom) out["data-section-padding-bottom"] = p.paddingBottom;
@@ -89,6 +190,41 @@ export function presentationDataAttrs(
   if (p.dividerTop) out["data-section-divider-top"] = p.dividerTop;
   if (p.mobileStack) out["data-section-mobile-stack"] = p.mobileStack;
   if (p.visibility) out["data-section-visibility"] = p.visibility;
+
+  // Per-breakpoint overrides. CSS @media rules pick these up; missing
+  // attrs simply fall through to the base via natural cascade.
+  const tablet = p.breakpoints?.tablet;
+  if (tablet) {
+    if (tablet.background) out["data-section-tablet-background"] = tablet.background;
+    if (tablet.paddingTop) out["data-section-tablet-padding-top"] = tablet.paddingTop;
+    if (tablet.paddingBottom) out["data-section-tablet-padding-bottom"] = tablet.paddingBottom;
+    if (tablet.containerWidth) out["data-section-tablet-container"] = tablet.containerWidth;
+    if (tablet.align) out["data-section-tablet-align"] = tablet.align;
+    if (tablet.dividerTop) out["data-section-tablet-divider-top"] = tablet.dividerTop;
+  }
+  const mobile = p.breakpoints?.mobile;
+  if (mobile) {
+    if (mobile.background) out["data-section-mobile-background"] = mobile.background;
+    if (mobile.paddingTop) out["data-section-mobile-padding-top"] = mobile.paddingTop;
+    if (mobile.paddingBottom) out["data-section-mobile-padding-bottom"] = mobile.paddingBottom;
+    if (mobile.containerWidth) out["data-section-mobile-container"] = mobile.containerWidth;
+    if (mobile.align) out["data-section-mobile-align"] = mobile.align;
+    if (mobile.dividerTop) out["data-section-mobile-divider-top"] = mobile.dividerTop;
+  }
+
+  // Animation. Reduced-motion mode defaults to "respect" — runtime CSS
+  // gates behind `@media (prefers-reduced-motion: no-preference)` unless
+  // the operator opted into "always".
+  const a = p.animation;
+  if (a) {
+    if (a.entry && a.entry !== "none") out["data-section-anim-entry"] = a.entry;
+    if (a.scroll && a.scroll !== "none") out["data-section-anim-scroll"] = a.scroll;
+    if (a.hover && a.hover !== "none") out["data-section-anim-hover"] = a.hover;
+    if (a.reducedMotion === "always") {
+      out["data-section-anim-reduced-motion"] = "always";
+    }
+  }
+
   return out;
 }
 
@@ -161,3 +297,60 @@ export const PRESENTATION_OPTIONS = {
     { value: "hidden", label: "Hidden" },
   ],
 } as const;
+
+/**
+ * Animation options shared with the Motion inspector panel.
+ *
+ * Entry animations run once when the section first scrolls into view
+ * (CSS @starting-style / IntersectionObserver-driven class flip — see
+ * token-presets.css). Scroll behaviors are continuous. Hover applies on
+ * cursor-over the section.
+ */
+export const ANIMATION_OPTIONS = {
+  entry: [
+    { value: "none", label: "None" },
+    { value: "fade", label: "Fade in" },
+    { value: "fade-up", label: "Fade up" },
+    { value: "fade-down", label: "Fade down" },
+    { value: "slide-left", label: "Slide from right" },
+    { value: "slide-right", label: "Slide from left" },
+    { value: "scale-in", label: "Scale in" },
+  ],
+  scroll: [
+    { value: "none", label: "None" },
+    { value: "parallax-soft", label: "Soft parallax" },
+    { value: "reveal-stagger", label: "Stagger reveal" },
+  ],
+  hover: [
+    { value: "none", label: "None" },
+    { value: "lift", label: "Lift" },
+    { value: "glow", label: "Glow" },
+    { value: "tilt", label: "Tilt" },
+  ],
+  reducedMotion: [
+    {
+      value: "respect",
+      label: "Respect prefers-reduced-motion (recommended)",
+    },
+    { value: "always", label: "Always animate" },
+  ],
+} as const;
+
+export const ANIMATION_FIELD_LABELS = {
+  entry: "Entry animation",
+  scroll: "Scroll behavior",
+  hover: "Hover effect",
+  reducedMotion: "Reduced motion",
+} as const;
+
+/**
+ * Per-breakpoint label set, shared by the Responsive inspector. Keeps
+ * the panel copy in lockstep with the topbar's device switcher.
+ */
+export const BREAKPOINT_LABELS = {
+  desktop: "Desktop",
+  tablet: "Tablet",
+  mobile: "Mobile",
+} as const;
+
+export type BreakpointKey = keyof typeof BREAKPOINT_LABELS;

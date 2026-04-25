@@ -1,0 +1,2435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rostra — unified mockup (plans + cards + account)</title>
+<style>
+  :root {
+    --gold: #c9a227;
+    --gold-soft: rgba(201, 162, 39, 0.12);
+    --gold-border: rgba(201, 162, 39, 0.4);
+    --ink: #0b0b0d;
+    --ink-2: #18181b;
+    --ink-3: #27272a;
+    --paper: #f9f7f1;
+    --paper-2: #f2efe6;
+    --line: rgba(24, 24, 27, 0.1);
+    --line-strong: rgba(24, 24, 27, 0.18);
+    --text: #18181b;
+    --muted: #60606a;
+    --muted-2: #8b8b95;
+    --draft: #a86f00;
+    --draft-bg: rgba(168, 111, 0, 0.08);
+    --success: #146b3a;
+    --danger: #a1302d;
+    --info: #3a7bff;
+    --shell-bg: #0d0d10;
+    --shell-fg: #f2f2f2;
+    --shell-muted: rgba(242, 242, 242, 0.62);
+    --shell-line: rgba(255, 255, 255, 0.08);
+    --lock: #6b6b75;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--paper-2);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .serif { font-family: "SF Pro Display", "Playfair Display", "Cormorant Garamond", "Georgia", serif; font-feature-settings: "ss01"; }
+  .eyebrow {
+    font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+    font-weight: 600; color: var(--muted-2);
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: 0; background: transparent; color: inherit; }
+  input, select, textarea { font-family: inherit; }
+
+  /* ─── Viewbar ───────────────────────────────────────────────────── */
+  .viewbar {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; gap: 6px; align-items: center;
+    padding: 10px 14px;
+    background: var(--ink);
+    color: #f2f2f2;
+    border-bottom: 1px solid var(--shell-line);
+  }
+  .viewbar .label {
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--shell-muted); margin-right: 8px;
+  }
+  .viewbar button {
+    padding: 6px 12px;
+    font-size: 12px; font-weight: 600;
+    border: 1px solid var(--shell-line);
+    border-radius: 999px;
+    color: var(--shell-muted);
+    background: transparent;
+  }
+  .viewbar button.active { color: var(--ink); background: var(--gold); border-color: var(--gold); }
+  /* Plan buttons take the tier colour when active so the mental model is
+     reinforced every time you switch plans. */
+  .viewbar .plan-btn[data-plan="free"].active    { background: #eae7db; color: var(--ink); border-color: #eae7db; }
+  .viewbar .plan-btn[data-plan="studio"].active  { background: #2a5fd1; color: white;      border-color: #2a5fd1; }
+  .viewbar .plan-btn[data-plan="agency"].active  { background: #8b6d1f; color: white;      border-color: #8b6d1f; }
+  .viewbar .plan-btn[data-plan="network"].active { background: #146b3a; color: white;      border-color: #146b3a; }
+  .viewbar .spacer { flex: 1; }
+  .viewbar select {
+    padding: 6px 10px;
+    font-size: 12px; font-weight: 600;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--shell-line);
+    border-radius: 999px;
+    color: #f2f2f2;
+    cursor: pointer;
+  }
+  .viewbar select option { color: var(--ink); }
+
+  /* Conversion hero banner — shown above the grid when a next tier exists */
+  .convert-hero {
+    position: relative;
+    margin: 18px 0 22px;
+    padding: 20px 22px;
+    border-radius: 16px;
+    color: white;
+    display: flex; gap: 18px; align-items: center; justify-content: space-between;
+    overflow: hidden;
+    box-shadow: 0 14px 40px -20px rgba(0,0,0,0.35);
+  }
+  .convert-hero::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,0.12), transparent 45%);
+    pointer-events: none;
+  }
+  .convert-hero.to-studio  { background: linear-gradient(135deg, #1c3a8a 0%, #3a7bff 100%); }
+  .convert-hero.to-agency  { background: linear-gradient(135deg, #3a2c08 0%, #9e7d1b 55%, var(--gold) 100%); color: var(--ink); }
+  .convert-hero.to-network { background: linear-gradient(135deg, #0e3d23 0%, #146b3a 100%); }
+  .convert-hero .body { min-width: 0; position: relative; }
+  .convert-hero .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.75; margin-bottom: 6px; display: block; }
+  .convert-hero h2 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; }
+  .convert-hero p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; max-width: 560px; opacity: 0.9; }
+  .convert-hero .to-agency { }
+  .convert-hero.to-agency .eyebrow { opacity: 0.6; }
+  .convert-hero.to-agency p { opacity: 0.85; }
+  .convert-hero .actions { display: flex; gap: 8px; flex-shrink: 0; position: relative; }
+  .convert-hero .primary-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    background: white; color: var(--ink);
+    border: 0; border-radius: 999px;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer;
+    transition: transform 120ms ease, box-shadow 120ms ease;
+    white-space: nowrap;
+  }
+  .convert-hero .primary-cta:hover { transform: translateY(-1px); box-shadow: 0 12px 28px -8px rgba(0,0,0,0.35); }
+  .convert-hero .secondary-cta {
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.12);
+    color: currentColor;
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: 999px;
+    font-size: 12.5px; font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .convert-hero.to-agency .secondary-cta { background: rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.12); }
+  .convert-hero .stats { display: flex; gap: 18px; margin-top: 12px; font-size: 11.5px; letter-spacing: 0.02em; opacity: 0.85; position: relative; }
+  .convert-hero .stats strong { font-weight: 700; letter-spacing: -0.01em; font-size: 13px; }
+
+  /* Conversion hook line injected on locked cards */
+  .lock-value {
+    margin: 2px 0 0;
+    font-size: 11.5px;
+    font-style: italic;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .card.locked[data-tier="studio"]  .lock-value { color: #1c3a8a; }
+  .card.locked[data-tier="agency"]  .lock-value { color: #6e5614; }
+  .card.locked[data-tier="network"] .lock-value { color: #0e4a26; }
+  .card.locked.feature .lock-value { color: rgba(255,255,255,0.85); }
+
+  /* ─── Shell ─────────────────────────────────────────────────────── */
+  .shell {
+    display: grid; grid-template-columns: 252px 1fr;
+    min-height: calc(100vh - 48px);
+  }
+  .sidebar {
+    background: var(--shell-bg);
+    color: var(--shell-fg);
+    padding: 16px 12px;
+    display: flex; flex-direction: column;
+    gap: 14px;
+    border-right: 1px solid var(--shell-line);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 8px;
+  }
+  .brand .logo {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: var(--gold); color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+  }
+  .brand .name { font-weight: 600; letter-spacing: 0.02em; }
+  .nav-group { display: flex; flex-direction: column; gap: 2px; }
+  .nav-label {
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--shell-muted);
+    padding: 10px 10px 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    color: var(--shell-muted);
+    font-size: 13px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--shell-fg); cursor: pointer; }
+  .nav-item.active {
+    background: var(--gold-soft); color: var(--gold);
+    box-shadow: inset 0 0 0 1px var(--gold-border);
+  }
+  .nav-item svg { width: 15px; height: 15px; opacity: 0.9; }
+
+  /* ─── Main ──────────────────────────────────────────────────────── */
+  .main { min-width: 0; background: var(--paper-2); }
+  .topbar {
+    position: sticky; top: 48px; z-index: 40;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 12px 28px;
+    background: rgba(249, 247, 241, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar .crumbs { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .tier-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 12px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .tier-chip:hover { border-color: var(--gold-border); box-shadow: 0 4px 12px -6px rgba(0,0,0,0.2); }
+  .tier-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+  .tier-chip.free .dot   { background: var(--muted-2); }
+  .tier-chip.studio .dot { background: var(--info); }
+  .tier-chip.agency .dot { background: var(--gold); }
+  .tier-chip.network .dot { background: var(--success); }
+
+  .page { max-width: 1180px; margin: 0 auto; padding: 28px; }
+
+  /* ─── Page header ───────────────────────────────────────────────── */
+  .page-head { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+  .page-head .title-row { display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
+  .page-head .page-icon {
+    width: 44px; height: 44px; border-radius: 14px;
+    background: var(--gold-soft); color: var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 1px var(--gold-border);
+    flex-shrink: 0;
+  }
+  .page-head .page-icon svg { width: 20px; height: 20px; }
+  .page-head h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; margin: 0; line-height: 1.2; }
+  .page-head .lede { color: var(--muted); margin: 6px 0 0; max-width: 560px; font-size: 13.5px; line-height: 1.55; }
+  .page-head .status-line { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .page-head .status-line .warn { color: var(--draft); font-weight: 600; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 12.5px; font-weight: 600;
+    border: 1px solid var(--line-strong);
+    background: white; color: var(--text);
+    transition: all 140ms ease;
+    text-decoration: none;
+  }
+  .btn:hover { border-color: var(--gold-border); background: var(--gold-soft); }
+  .btn.primary { background: var(--ink); color: white; border-color: var(--ink); }
+  .btn.primary:hover { background: var(--ink-2); border-color: var(--ink-2); }
+  .btn.gold { background: var(--gold); color: var(--ink); border-color: var(--gold); }
+  .btn.gold:hover { background: #b8941e; border-color: #b8941e; }
+  .btn.ghost { border-color: transparent; background: transparent; }
+  .btn.ghost:hover { background: rgba(0,0,0,0.04); }
+  .btn.block { width: 100%; justify-content: center; }
+  .btn svg { width: 12px; height: 12px; }
+
+  /* ─── Card grid (minified tiles) ────────────────────────────────── */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 980px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 680px) { .grid { grid-template-columns: 1fr; } }
+
+  /* Cards are tiles now: icon + title + one short stat + arrow.
+     Single click opens the right-side drawer. All editing, actions,
+     and details live in the drawer — the grid is scannable, not busy. */
+  .card {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    cursor: pointer;
+    min-height: 66px;
+    position: relative;
+    transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease, background 140ms ease;
+  }
+  .card:hover {
+    border-color: var(--gold-border);
+    box-shadow: 0 10px 28px -18px rgba(0,0,0,0.28);
+    transform: translateY(-1px);
+  }
+  .card:active { transform: translateY(0); }
+
+  .card-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: #f5f4ef; color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 1px var(--line);
+    flex-shrink: 0;
+  }
+  .card-icon.gold { background: var(--gold-soft); color: #8b6d1f; box-shadow: inset 0 0 0 1px var(--gold-border); }
+  .card-icon svg { width: 15px; height: 15px; }
+
+  .card-body { flex: 1; min-width: 0; }
+  .card-body h3 { font-size: 13.5px; font-weight: 600; margin: 0; letter-spacing: -0.005em; line-height: 1.2; }
+  .card-stat { font-size: 11.5px; color: var(--muted); margin: 2px 0 0; line-height: 1.3; }
+  .card-stat .sep { opacity: 0.4; margin: 0 4px; }
+  .card-stat .dot-mark { width: 5px; height: 5px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 4px; }
+  .card-stat .dot-mark.draft { background: var(--draft); }
+  .card-stat .dot-mark.live  { background: var(--success); }
+
+  .card-arrow {
+    color: var(--muted-2); flex-shrink: 0; opacity: 0;
+    transition: opacity 140ms ease, transform 140ms ease;
+  }
+  .card:hover .card-arrow { opacity: 1; transform: translateX(2px); }
+  .card-arrow svg { width: 14px; height: 14px; }
+
+  /* Locked card — subtle tint + lock chip. No big upgrade button on the tile;
+     click opens the upgrade modal instead. */
+  .card.locked { cursor: pointer; }
+  .card.locked[data-tier="studio"] {
+    background: linear-gradient(180deg, rgba(58,123,255,0.06), white 70%);
+    border-color: rgba(58,123,255,0.25);
+  }
+  .card.locked[data-tier="agency"] {
+    background: linear-gradient(180deg, rgba(139,109,31,0.08), white 70%);
+    border-color: rgba(139,109,31,0.28);
+  }
+  .card.locked[data-tier="network"] {
+    background: linear-gradient(180deg, rgba(20,107,58,0.06), white 70%);
+    border-color: rgba(20,107,58,0.25);
+  }
+  .lock-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    background: white;
+    box-shadow: inset 0 0 0 1px currentColor;
+    flex-shrink: 0;
+  }
+  .lock-chip svg { width: 8px; height: 8px; }
+  .card.locked[data-tier="studio"]  .lock-chip { color: #2a5fd1; }
+  .card.locked[data-tier="agency"]  .lock-chip { color: #6b5215; }
+  .card.locked[data-tier="network"] .lock-chip { color: #0e4a26; }
+
+  /* Draft / needs-attention dot on the card icon (small indicator) */
+  .card-draft-mark {
+    position: absolute; top: 8px; right: 8px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--draft); box-shadow: 0 0 0 2px white;
+  }
+
+  /* ─── Drawer (right-side resizable popover) ─────────────────────── */
+  .drawer-backdrop {
+    position: fixed; inset: 0; z-index: 140;
+    background: rgba(11, 11, 13, 0.32);
+    backdrop-filter: blur(2px);
+    display: none;
+    animation: fadeIn 180ms ease;
+  }
+  .drawer-backdrop.on { display: block; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 380px;
+    max-width: 100vw;
+    background: white;
+    box-shadow: -18px 0 60px -18px rgba(0,0,0,0.28);
+    z-index: 150;
+    display: flex; flex-direction: column;
+    transform: translateX(105%);
+    transition: transform 260ms cubic-bezier(0.22, 0.9, 0.35, 1);
+  }
+  .drawer.on { transform: translateX(0); }
+  .drawer-resize {
+    position: absolute; left: -5px; top: 0; bottom: 0; width: 10px;
+    cursor: ew-resize;
+    z-index: 2;
+    touch-action: none;
+  }
+  .drawer-resize::before {
+    content: ""; position: absolute;
+    left: 4px; top: 50%; transform: translateY(-50%);
+    width: 2px; height: 36px; border-radius: 2px;
+    background: var(--line-strong);
+    opacity: 0; transition: opacity 140ms ease, background 140ms ease;
+  }
+  .drawer-resize:hover::before { opacity: 1; background: var(--gold); }
+  .drawer.resizing { transition: none; user-select: none; }
+  .drawer.resizing .drawer-resize::before { opacity: 1; background: var(--gold); }
+
+  .drawer-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .drawer-title-group { min-width: 0; flex: 1; display: flex; align-items: center; gap: 10px; }
+  .drawer-title-icon {
+    width: 32px; height: 32px; border-radius: 9px;
+    background: var(--gold-soft); color: #8b6d1f;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 1px var(--gold-border);
+    flex-shrink: 0;
+  }
+  .drawer-title-icon svg { width: 15px; height: 15px; }
+  .drawer-title { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.005em; line-height: 1.2; }
+  .drawer-subtitle { font-size: 11.5px; color: var(--muted); margin: 1px 0 0; }
+  .drawer-close {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    transition: background 120ms ease;
+    flex-shrink: 0;
+  }
+  .drawer-close:hover { background: #f2efe6; color: var(--text); }
+  .drawer-close svg { width: 15px; height: 15px; }
+
+  .drawer-body {
+    flex: 1; overflow-y: auto;
+    padding: 14px 16px 32px;
+  }
+
+  /* Two-column layout when drawer is widened */
+  .drawer.wide .drawer-body {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    padding: 0;
+    gap: 0;
+  }
+  .drawer.wide .drawer-list-col  { padding: 14px 14px 32px; border-right: 1px solid var(--line); overflow-y: auto; }
+  .drawer.wide .drawer-detail-col { padding: 18px 22px 32px; overflow-y: auto; background: #fbfaf5; }
+  .drawer:not(.wide) .drawer-detail-col { display: none; }
+  .drawer:not(.wide) .drawer-list-col { display: contents; }
+
+  /* Callout at top of drawer list */
+  .drawer-callout {
+    display: flex; gap: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--gold-soft);
+    border: 1px solid var(--gold-border);
+    font-size: 12px; color: #6b5215;
+    margin-bottom: 12px;
+    line-height: 1.45;
+  }
+  .drawer-callout svg { flex-shrink: 0; width: 14px; height: 14px; margin-top: 1px; color: #8b6d1f; }
+  .drawer-callout strong { color: #4a3a0e; }
+
+  /* Action bar (add new + search) */
+  .drawer-action-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .drawer-action-bar .btn.primary { padding: 8px 14px; }
+  .drawer-search {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    font-size: 12.5px;
+    background: white;
+    outline: none;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .drawer-search:focus { border-color: var(--gold-border); box-shadow: 0 0 0 3px rgba(201,162,39,0.12); }
+
+  /* List items inside drawer */
+  .item-row {
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+    cursor: pointer;
+  }
+  .item-row:hover { border-color: var(--gold-border); }
+  .item-row.open { border-color: var(--gold-border); box-shadow: 0 6px 18px -12px rgba(0,0,0,0.15); }
+  .item-head { display: flex; align-items: center; gap: 10px; }
+  .item-title {
+    flex: 1; min-width: 0;
+    font-size: 13px; font-weight: 600; letter-spacing: -0.005em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .item-url {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px; color: var(--muted);
+    padding: 1px 6px; border-radius: 4px;
+    background: #f5f4ef;
+    flex-shrink: 0;
+    max-width: 140px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .item-status {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 999px;
+    flex-shrink: 0;
+  }
+  .item-status.live   { background: rgba(20,107,58,0.1); color: var(--success); }
+  .item-status.draft  { background: var(--draft-bg); color: var(--draft); }
+  .item-status.hidden { background: #eeece4; color: var(--muted); }
+
+  .icon-btn {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); background: transparent; border: 0;
+    transition: background 120ms ease, color 120ms ease;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .icon-btn:hover { background: #f2efe6; color: var(--text); }
+  .icon-btn svg { width: 14px; height: 14px; }
+
+  /* Quick-edit drawer (inline on row expand) */
+  .item-quick {
+    display: none;
+    border-top: 1px dashed var(--line);
+    margin-top: 10px;
+    padding-top: 10px;
+    flex-direction: column; gap: 9px;
+  }
+  .item-row.open .item-quick { display: flex; }
+  .q-field { display: grid; grid-template-columns: 74px 1fr; gap: 10px; align-items: center; }
+  .q-field label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .q-input, .q-select {
+    padding: 6px 9px; font-size: 12.5px; font-family: inherit;
+    border: 1px solid var(--line-strong); border-radius: 7px;
+    background: white; color: var(--text);
+    outline: none;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .q-input:focus, .q-select:focus { border-color: var(--gold-border); box-shadow: 0 0 0 3px rgba(201,162,39,0.12); }
+  .q-toggle-row { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
+  .q-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text);
+    cursor: pointer;
+  }
+  .q-toggle input { width: 30px; height: 17px; appearance: none; background: #d8d5ca; border-radius: 999px; position: relative; transition: background 140ms ease; cursor: pointer; }
+  .q-toggle input::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 13px; height: 13px; border-radius: 50%; background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: transform 140ms ease;
+  }
+  .q-toggle input:checked { background: #8b6d1f; }
+  .q-toggle input:checked::after { transform: translateX(13px); }
+  .q-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 2px; }
+  .q-actions .btn { padding: 6px 12px; font-size: 11.5px; }
+
+  /* Mobile: drawer becomes a bottom sheet */
+  @media (max-width: 640px) {
+    .drawer {
+      top: auto; left: 0; right: 0; bottom: 0;
+      width: 100% !important;
+      max-height: 88vh;
+      border-radius: 18px 18px 0 0;
+      transform: translateY(100%);
+    }
+    .drawer.on { transform: translateY(0); }
+    .drawer-resize { display: none; }
+    .drawer::before {
+      content: ""; position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+      width: 40px; height: 4px; border-radius: 2px; background: var(--line-strong);
+    }
+    .drawer-header { padding-top: 22px; }
+    .drawer.wide .drawer-body { grid-template-columns: 1fr; }
+    .drawer.wide .drawer-list-col { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em;
+  }
+  .badge.draft { background: var(--draft-bg); color: var(--draft); }
+  .badge.live { background: rgba(20, 107, 58, 0.08); color: var(--success); }
+  .badge.tier-chip-inline {
+    background: rgba(0,0,0,0.05); color: var(--muted);
+    border: 1px solid var(--line);
+  }
+  .badge.dot { padding-left: 4px; }
+  .badge .dotmark { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Section dividers — tier-coded so it's obvious which cards belong to
+     which plan without having to read each card's pill. */
+  .section-divider { display: flex; align-items: center; gap: 12px; margin: 26px 0 12px; flex-wrap: wrap; }
+  .section-divider h2 {
+    margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.005em;
+    color: var(--text);
+  }
+  .section-divider .line { flex: 1; height: 1px; min-width: 40px; background: var(--line); }
+  .section-divider .helper { font-size: 12px; color: var(--muted); }
+  .section-divider .tier-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px 3px 8px;
+    border-radius: 999px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .section-divider .tier-badge::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  }
+  .section-divider .tier-badge.every   { background: #eae7db; color: #5b5b63; }
+  .section-divider .tier-badge.studio  { background: rgba(58,123,255,0.12); color: #2a5fd1; }
+  .section-divider .tier-badge.agency  { background: rgba(139,109,31,0.14); color: #6b5215; }
+  .section-divider .tier-badge.network { background: rgba(20,107,58,0.12); color: #0e4a26; }
+  .section-divider.tier-studio .line  { background: linear-gradient(to right, rgba(58,123,255,0.35), transparent 80%); }
+  .section-divider.tier-agency .line  { background: linear-gradient(to right, rgba(139,109,31,0.45), transparent 80%); }
+  .section-divider.tier-network .line { background: linear-gradient(to right, rgba(20,107,58,0.4),  transparent 80%); }
+
+  /* Inline tier CTA — replaces the loud hero banner. Small, restrained,
+     only shown when the tier is locked (toggled by JS on plan switch).
+     Network shows "Contact" instead of "Upgrade" to match enterprise
+     sales motion. */
+  .section-divider .tier-cta {
+    display: none; /* JS reveals only on locked tiers */
+    align-items: center; gap: 3px;
+    padding: 2px 4px;
+    border: 0;
+    background: transparent;
+    font-size: 11.5px; font-weight: 600; letter-spacing: 0;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 140ms ease, transform 120ms ease;
+  }
+  .section-divider .tier-cta.on { display: inline-flex; }
+  .section-divider .tier-cta::after { content: "→"; font-weight: 600; margin-left: 2px; }
+  .section-divider.tier-studio  .tier-cta { color: #2a5fd1; }
+  .section-divider.tier-agency  .tier-cta { color: #6b5215; }
+  .section-divider.tier-network .tier-cta { color: #0e4a26; }
+  .section-divider.tier-studio  .tier-cta:hover { background: rgba(58,123,255,0.08); }
+  .section-divider.tier-agency  .tier-cta:hover { background: rgba(139,109,31,0.1); }
+  .section-divider.tier-network .tier-cta:hover { background: rgba(20,107,58,0.08); }
+
+  /* Locked-add primitive — used for "+ New group / + New kind / + Add
+     field / + Add term" when the current plan can't add schema. */
+  .btn.locked-add {
+    background: rgba(139,109,31,0.08);
+    color: #6b5215;
+    border: 1px dashed rgba(139,109,31,0.4);
+    font-weight: 600;
+  }
+  .btn.locked-add:hover { background: rgba(139,109,31,0.14); border-color: rgba(139,109,31,0.55); }
+  .btn.locked-add svg { width: 11px; height: 11px; }
+
+  /* Ghost tile — shown at the end of fieldsGrid / vocabGrid when adding
+     new structure is tier-gated. Same shape as a card, dashed border +
+     bronze tint, click opens the upgrade modal. */
+  .tile-ghost {
+    border-style: dashed;
+    background: linear-gradient(180deg, rgba(139,109,31,0.06), white 80%);
+    border-color: rgba(139,109,31,0.35);
+  }
+  .tile-ghost .card-icon {
+    background: rgba(139,109,31,0.12);
+    color: #6b5215;
+    box-shadow: inset 0 0 0 1px rgba(139,109,31,0.3);
+  }
+  .tile-ghost h3 { color: #6b5215; }
+  .tile-ghost .card-stat { color: #8b6d1f; }
+  .tile-ghost .lock-chip {
+    color: #6b5215;
+    border: 1px solid currentColor;
+    box-shadow: none;
+  }
+
+  /* Inline list preview — expands under the Vocabulary row inside a
+     field's quick-edit. Lets operators see terms without leaving the
+     field context, plus a jump-to-full-list button. */
+  .vocab-inline {
+    margin-top: 4px;
+    border-top: 1px dashed var(--line);
+    padding-top: 10px;
+  }
+  .vocab-inline-toggle {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 0;
+    background: transparent; border: 0; cursor: pointer;
+    color: var(--muted);
+    font-family: inherit;
+  }
+  .vocab-inline-toggle span {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .vocab-inline-toggle svg {
+    width: 12px; height: 12px; transition: transform 160ms ease;
+  }
+  .vocab-inline.open .vocab-inline-toggle svg { transform: rotate(90deg); }
+  .vocab-inline-body {
+    display: none;
+    padding: 8px 0 4px;
+  }
+  .vocab-inline.open .vocab-inline-body { display: block; }
+  .vocab-inline-list {
+    list-style: none; padding: 0; margin: 0 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fbfaf5;
+    overflow: hidden;
+  }
+  .vocab-inline-list li {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .vocab-inline-list li:last-child { border-bottom: 0; }
+  .vocab-inline-list li .name { flex: 1; font-weight: 500; }
+  .vocab-inline-list li .slug {
+    font-family: ui-monospace, Menlo, monospace; font-size: 10.5px;
+    background: white; padding: 1px 6px; border-radius: 4px;
+    color: var(--muted);
+  }
+  .vocab-inline-list li .count {
+    font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .vocab-inline-actions { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+
+  /* Subtle lock note at the top of a drawer that gates adding */
+  .drawer-lock-note {
+    margin: 0 0 12px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: rgba(139,109,31,0.07);
+    border: 1px dashed rgba(139,109,31,0.35);
+    font-size: 11.5px; color: #6b5215;
+    display: flex; align-items: center; gap: 8px;
+    line-height: 1.4;
+  }
+  .drawer-lock-note svg { width: 13px; height: 13px; flex-shrink: 0; }
+  .drawer-lock-note button {
+    background: transparent; border: 0; padding: 0; margin-left: 4px;
+    color: #6b5215; font-weight: 700; text-decoration: underline; cursor: pointer;
+    font-size: 11.5px; font-family: inherit;
+  }
+  .drawer-lock-note button:hover { color: #4d3b0f; }
+
+  /* ─── Upsell row under grid ─────────────────────────────────────── */
+  .upsell-row {
+    margin-top: 22px;
+    padding: 14px 18px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 12px;
+    background: #fbfaf5;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+  .upsell-row strong { color: var(--text); font-weight: 600; }
+
+  /* ─── Setup view ────────────────────────────────────────────────── */
+  .setup-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 980px) { .setup-gallery { grid-template-columns: repeat(2, 1fr); } }
+  .theme-card { background: white; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; transition: all 180ms ease; }
+  .theme-card:hover { border-color: var(--gold-border); box-shadow: 0 14px 40px -28px rgba(0,0,0,0.55); transform: translateY(-1px); }
+  .theme-card.active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-border); }
+  .theme-cover {
+    aspect-ratio: 16 / 10;
+    display: flex; align-items: flex-end; justify-content: flex-start;
+    padding: 14px;
+    color: white;
+  }
+  .cover-editorial { background: linear-gradient(135deg, #2b1f14 0%, #704a29 60%, #c3a574 100%); }
+  .cover-minimal { background: linear-gradient(135deg, #f5f4ef 0%, #d8d4c4 100%); color: var(--ink); }
+  .cover-classic { background: linear-gradient(135deg, #0b0b0d 0%, #2b2b30 100%); }
+  .cover-noir { background: linear-gradient(135deg, #18181b 0%, #3a3a40 50%, #c9a227 110%); }
+  .cover-bridal { background: linear-gradient(135deg, #f7eaea 0%, #e5c4c4 55%, #a36e6e 110%); color: var(--ink); }
+  .cover-studio { background: linear-gradient(135deg, #2a3b4c 0%, #4d6a82 60%, #a7bfd1 100%); }
+  .theme-cover .kit-label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.75; }
+  .theme-cover .kit-name { font-size: 17px; font-weight: 600; letter-spacing: -0.005em; margin-top: 4px; }
+  .theme-body { padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .theme-body .tags { font-size: 11px; color: var(--muted); }
+  .theme-body .cta { font-size: 11.5px; font-weight: 600; color: var(--text); }
+  .theme-card.active .theme-body .cta { color: var(--gold); }
+
+  /* ─── Edit mode preview ─────────────────────────────────────────── */
+  .edit-frame { background: white; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; position: relative; }
+  .edit-top {
+    background: white; border-bottom: 1px solid var(--line);
+    padding: 10px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    font-size: 12.5px;
+  }
+  .edit-top .group { display: flex; gap: 10px; align-items: center; }
+  .save-pill { padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: rgba(20, 107, 58, 0.1); color: var(--success); }
+  .save-pill.dirty { background: rgba(168, 111, 0, 0.12); color: var(--draft); }
+  .edit-device { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px; font-size: 11px; }
+  .edit-device span { padding: 4px 12px; border-radius: 999px; color: var(--muted); }
+  .edit-device span.on { background: var(--ink); color: white; }
+  .edit-stage { display: grid; grid-template-columns: 1fr 300px; min-height: 420px; }
+  .edit-canvas { padding: 22px 28px 36px; background: linear-gradient(180deg, #fbfaf5 0%, white 70%); position: relative; }
+  .edit-canvas .section { border: 1px dashed transparent; border-radius: 10px; padding: 16px; margin-bottom: 10px; position: relative; transition: border-color 140ms ease; }
+  .edit-canvas .section:hover { border-color: var(--line-strong); }
+  .edit-canvas .section.selected { border-color: var(--gold); border-style: solid; background: rgba(201, 162, 39, 0.03); }
+  .edit-canvas .section-label { position: absolute; top: -9px; left: 12px; background: var(--gold); color: var(--ink); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: none; }
+  .edit-canvas .section.selected .section-label { display: inline-block; }
+  .hero-copy h2 { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .hero-copy p { margin: 0; color: var(--muted); font-size: 13px; }
+  .hero-img { margin-top: 12px; height: 140px; border-radius: 10px; background: linear-gradient(135deg, #c9a227 0%, #5b4316 100%); }
+  .trust-row { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+  .trust-row .chip { padding: 4px 10px; border-radius: 999px; background: #f5f4ef; font-size: 11px; color: var(--muted); }
+  .inserter { position: relative; height: 2px; background: transparent; margin: 2px 0; transition: background 140ms ease; }
+  .inserter:hover { background: var(--gold); }
+  .inserter .plus { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: var(--ink); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; opacity: 0; transition: opacity 140ms ease; }
+  .inserter:hover .plus { opacity: 1; }
+  .inspector { border-left: 1px solid var(--line); background: white; padding: 18px; }
+  .inspector .tabs { display: flex; gap: 14px; border-bottom: 1px solid var(--line); margin-bottom: 14px; padding-bottom: 8px; }
+  .inspector .tabs span { font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .inspector .tabs span.on { color: var(--text); border-bottom: 2px solid var(--gold); padding-bottom: 6px; margin-bottom: -9px; }
+  .inspector label { display: block; font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; margin: 14px 0 4px; }
+  .inspector input, .inspector textarea, .form-input, .form-select {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line-strong);
+    border-radius: 8px; font-size: 12.5px; font-family: inherit; background: white; color: var(--text);
+    outline: none;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .inspector input:focus, .inspector textarea:focus, .form-input:focus, .form-select:focus {
+    border-color: var(--gold-border);
+    box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
+  }
+  .inspector textarea, .form-textarea { resize: vertical; min-height: 64px; }
+
+  /* ─── Account view ──────────────────────────────────────────────── */
+  .account-panel { background: white; border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  .account-panel + .account-panel { margin-top: 14px; }
+  .account-panel h2 { font-size: 14px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+  .account-panel h2 + p { margin: 0 0 16px; color: var(--muted); font-size: 12.5px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px; }
+  .form-row.full { grid-template-columns: 1fr; }
+  @media (max-width: 680px) { .form-row { grid-template-columns: 1fr; } }
+  .form-label { display: block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+
+  .plan-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 980px) { .plan-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 540px) { .plan-grid { grid-template-columns: 1fr; } }
+  .plan-card {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px;
+    background: white;
+    display: flex; flex-direction: column; gap: 10px;
+    position: relative;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .plan-card:hover { border-color: var(--gold-border); box-shadow: 0 14px 40px -28px rgba(0,0,0,0.55); }
+  .plan-card.current { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-border); background: linear-gradient(180deg, rgba(201, 162, 39, 0.04), white 30%); }
+  .plan-card.current::after { content: "Current"; position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); background: var(--gold-soft); padding: 2px 8px; border-radius: 999px; }
+  .plan-card h3 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.005em; }
+  .plan-card .price { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+  .plan-card .price small { font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: 0; margin-left: 4px; }
+  .plan-card .tagline { font-size: 12px; color: var(--muted); line-height: 1.4; margin: 0; }
+  .plan-card ul { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--text); }
+  .plan-card ul li { display: flex; align-items: flex-start; gap: 6px; line-height: 1.4; }
+  .plan-card ul li svg { flex-shrink: 0; margin-top: 3px; color: var(--success); width: 12px; height: 12px; }
+  .plan-card ul li.dim { color: var(--muted-2); }
+  .plan-card ul li.dim svg { color: var(--muted-2); }
+  .plan-card .switch-btn { margin-top: auto; padding-top: 6px; }
+
+  /* Invoice list */
+  .invoice-list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .invoice-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 16px; align-items: center; padding: 12px 16px; font-size: 12.5px; border-bottom: 1px solid var(--line); }
+  .invoice-row:last-child { border-bottom: 0; }
+  .invoice-row .desc { color: var(--text); }
+  .invoice-row .date { color: var(--muted); }
+  .invoice-row .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  /* Card: payment method display */
+  .pm-display { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fbfaf5; }
+  .pm-display .pm-logo { width: 34px; height: 22px; border-radius: 4px; background: linear-gradient(135deg, #1a1f3d, #0a2b5e); color: white; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; }
+  .pm-display .pm-num { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; color: var(--text); }
+
+  /* ─── Modal ─────────────────────────────────────────────────────── */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(11, 11, 13, 0.55);
+    backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    padding: 28px;
+    animation: fadeIn 160ms ease-out;
+  }
+  .modal-backdrop.on { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 18px;
+    max-width: 980px;
+    width: 100%;
+    max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: 0 40px 100px -30px rgba(0,0,0,0.5);
+    animation: slideUp 180ms ease-out;
+  }
+  .modal header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 24px 24px 10px; border-bottom: 1px solid var(--line); }
+  .modal header h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .modal header p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+  .modal .close { background: transparent; border: 1px solid transparent; padding: 6px; border-radius: 8px; color: var(--muted); }
+  .modal .close:hover { background: #f2efe6; color: var(--text); }
+  .modal .close svg { width: 16px; height: 16px; }
+  .modal .body { padding: 20px 24px 24px; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Hidden/shown via JS */
+  .view { display: none; }
+  .view.on { display: block; }
+
+  /* Helper text with icon */
+  .hint { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .hint svg { width: 12px; height: 12px; }
+</style>
+</head>
+<body>
+
+<div class="viewbar">
+  <span class="label">Plan</span>
+  <button data-plan="free" class="plan-btn active">Free</button>
+  <button data-plan="studio" class="plan-btn">Studio</button>
+  <button data-plan="agency" class="plan-btn">Agency</button>
+  <button data-plan="network" class="plan-btn">Network</button>
+  <span class="spacer"></span>
+  <span class="label">View</span>
+  <select id="viewSelect">
+    <option value="site" selected>Site</option>
+    <option value="profile">Profile settings</option>
+    <option value="account">Account</option>
+    <option value="setup">Setup</option>
+    <option value="edit">Edit mode</option>
+  </select>
+</div>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">R</div>
+      <div class="name">Rostra</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Workspace</div>
+      <div class="nav-item" data-nav="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h12"/></svg>Home</div>
+      <div class="nav-item" data-nav="talents"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/></svg>Talents</div>
+      <div class="nav-item" data-nav="inquiries"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inquiries</div>
+      <div class="nav-item" data-nav="clients"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10l-9-7-9 7v11h18z"/></svg>Clients</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Site &amp; AI</div>
+      <div class="nav-item active" data-view-link="site"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18"/></svg>Site</div>
+      <div class="nav-item" data-view-link="profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Profile settings</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>AI Workspace</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">System</div>
+      <div class="nav-item" data-view-link="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Account &amp; billing</div>
+      <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9h0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="crumbs">
+        <span>Admin</span>
+        <span>›</span>
+        <span id="crumb">Site</span>
+      </div>
+      <div class="tier-chip" id="tierChip" title="Click to view plans">
+        <span class="dot"></span>
+        <span><strong id="tierName">Nova Roster</strong> · <span id="tierLabel">Free</span> · <span id="tierUsage">8 / 10 talents</span></span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <!-- ═════════════ SITE — UNIFIED CARD GRID ═════════════ -->
+    <section class="view on" data-view="site">
+      <div class="page">
+        <div class="page-head">
+          <div class="title-row">
+            <div class="page-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18M8 4v14M16 4v14"/></svg>
+            </div>
+            <div>
+              <h1 class="serif">Site</h1>
+              <p class="lede">Your roster, site, and embeds — in one place.</p>
+            </div>
+          </div>
+          <a class="btn" href="#" id="openSiteBtn">
+            <span id="openSiteLabel">Open subdomain</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+          </a>
+        </div>
+
+        <!-- ─── Every plan — minified tiles ─── -->
+        <div class="section-divider tier-every">
+          <span class="tier-badge every">Every plan</span>
+          <h2>Your core workspace</h2>
+          <span class="helper">Free, Studio, Agency, Network — all plans share this.</span>
+          <div class="line"></div>
+        </div>
+        <div class="grid">
+          <div class="card" data-tier="free" data-card="roster">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/></svg></span>
+            <div class="card-body"><h3>Roster</h3><p class="card-stat" data-stat="roster">8 talents · 2 drafts</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="free" data-card="directory">
+            <span class="card-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></span>
+            <div class="card-body"><h3>Directory Settings</h3><p class="card-stat">Grid · Dedicated pages · 34 fields</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="free" data-card="inquiries">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+            <div class="card-body"><h3>Inquiries</h3><p class="card-stat">1 open · 3 in progress</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="free" data-card="branding">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20"/></svg></span>
+            <div class="card-body"><h3>Branding</h3><p class="card-stat">Logo · Cormorant / Inter · #B8860B</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="free" data-card="activity">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h6l2-9 4 18 2-9h4"/></svg></span>
+            <div class="card-body"><h3>Activity</h3><p class="card-stat">Maria added Sofia M · 1h ago</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+
+        <!-- ─── Studio — Embed anywhere ─── -->
+        <div class="section-divider tier-studio" data-tier="studio">
+          <span class="tier-badge studio">Studio</span>
+          <h2>Embed anywhere</h2>
+          <span class="helper">Drop your roster into WordPress, Webflow, Shopify, or your custom site.</span>
+          <div class="line"></div>
+          <button class="tier-cta" data-open-upgrade>Upgrade</button>
+        </div>
+        <div class="grid">
+          <div class="card" data-tier="studio" data-card="widgets">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg></span>
+            <div class="card-body"><h3>Widgets</h3><p class="card-stat" data-stat-locked="Embed your roster anywhere">2 active · 4 embeds</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="studio" data-card="api">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.85 12.15 7.5-7.5M18 5l3 3M15 8l3 3"/></svg></span>
+            <div class="card-body"><h3>API keys</h3><p class="card-stat" data-stat-locked="Read-only JSON for partners">1 key · last used 3h ago</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="studio" data-card="domain">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></span>
+            <div class="card-body"><h3>Domain &amp; Home</h3><p class="card-stat" data-stat-locked="Your subdomain for deep links">nova.rostra.app</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+
+        <!-- ─── Agency — Full branded site ─── -->
+        <div class="section-divider tier-agency" data-tier="agency">
+          <span class="tier-badge agency">Agency</span>
+          <h2>Full branded site</h2>
+          <span class="helper">Your site, your domain, your brand. Pages, posts, nav, theme, SEO.</span>
+          <div class="line"></div>
+          <button class="tier-cta" data-open-upgrade>Upgrade</button>
+        </div>
+        <div class="grid">
+          <div class="card" data-tier="agency" data-card="homepage">
+            <span class="card-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg></span>
+            <div class="card-body"><h3>Homepage</h3><p class="card-stat" data-stat-locked="Your branded homepage"><span class="dot-mark draft"></span>Draft pending</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="agency" data-card="pages">
+            <span class="card-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h4"/></svg></span>
+            <div class="card-body"><h3>Pages</h3><p class="card-stat" data-stat-locked="Any page, any layout">12 pages · 3 drafts</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="agency" data-card="posts">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>
+            <div class="card-body"><h3>Posts</h3><p class="card-stat" data-stat-locked="Your editorial voice">4 published · 1 draft</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="agency" data-card="nav">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg></span>
+            <div class="card-body"><h3>Navigation &amp; Footer</h3><p class="card-stat" data-stat-locked="Drag-and-drop in canvas">Header 5 · Footer 3 cols</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="agency" data-card="theme">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20c2 0 3-1 3-3 0-2-2-2-2-4s2-2 4-2 3-1 3-3a10 10 0 0 0-8-8z"/></svg></span>
+            <div class="card-body"><h3>Theme &amp; foundations</h3><p class="card-stat" data-stat-locked="A library of designer kits">Editorial Noir</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="agency" data-card="seo">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></span>
+            <div class="card-body"><h3>SEO &amp; defaults</h3><p class="card-stat" data-stat-locked="Full SEO stack on your domain">Meta · Sitemap · 2 redirects</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+
+        <!-- ─── Network — Multi-agency + hub ─── -->
+        <div class="section-divider tier-network" data-tier="network">
+          <span class="tier-badge network">Network</span>
+          <h2>Multi-agency + hub</h2>
+          <span class="helper">Operate multiple agencies and push talent to cross-agency discovery.</span>
+          <div class="line"></div>
+          <button class="tier-cta" data-open-upgrade>Contact</button>
+        </div>
+        <div class="grid">
+          <div class="card" data-tier="network" data-card="hub">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></span>
+            <div class="card-body"><h3>Hub publishing</h3><p class="card-stat" data-stat-locked="Cross-agency discovery">0 talents promoted</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+
+          <div class="card" data-tier="network" data-card="multiagency">
+            <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+            <div class="card-body"><h3>Multi-agency manager</h3><p class="card-stat" data-stat-locked="Operate multiple brands">1 agency · 3 managers</p></div>
+            <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════ PROFILE SETTINGS ═════════════ -->
+    <section class="view" data-view="profile">
+      <div class="page">
+        <div class="page-head">
+          <div class="title-row">
+            <div class="page-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M19 6h2M20 5v2"/></svg>
+            </div>
+            <div>
+              <h1 class="serif">Profile settings</h1>
+              <p class="lede">What each profile holds, and the pick-lists it uses.</p>
+            </div>
+          </div>
+          <a class="btn" href="#">Preview registration form
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+          </a>
+        </div>
+
+        <!-- Fields section — each group is a tile -->
+        <div class="section-divider tier-every">
+          <span class="tier-badge every">Fields</span>
+          <h2>Profile structure</h2>
+          <span class="helper">8 groups · 47 fields · 12 required</span>
+          <div class="line"></div>
+          <button class="btn ghost" id="btnNewGroup" style="padding:4px 10px; font-size:11.5px;">+ New group</button>
+        </div>
+        <div class="grid" id="fieldsGrid"></div>
+
+        <!-- Lists section — each list is a tile -->
+        <div class="section-divider tier-every" style="margin-top: 28px;">
+          <span class="tier-badge every">Lists</span>
+          <h2>Tags, skills, industries — what fields choose from</h2>
+          <span class="helper">7 lists · 124 terms (plus 2 synced from Locations)</span>
+          <div class="line"></div>
+          <button class="btn ghost" id="btnNewKind" style="padding:4px 10px; font-size:11.5px;">+ New list</button>
+        </div>
+        <div class="grid" id="vocabGrid"></div>
+      </div>
+    </section>
+
+    <!-- ═════════════ ACCOUNT ═════════════ -->
+    <section class="view" data-view="account">
+      <div class="page">
+        <div class="page-head">
+          <div class="title-row">
+            <div class="page-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+            </div>
+            <div>
+              <span class="eyebrow">System</span>
+              <h1 class="serif" style="margin-top:4px">Account &amp; billing</h1>
+              <p class="lede">Your organization, billing details, plan, and invoice history. Changes here apply across every surface of your workspace.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Current plan panel -->
+        <div class="account-panel">
+          <h2>Current plan</h2>
+          <p>The plan powering this workspace. All tiers share the same product — higher tiers unlock more cards and capabilities.</p>
+          <div style="display:flex; align-items:center; justify-content:space-between; gap: 16px; flex-wrap: wrap;">
+            <div style="display:flex; align-items:center; gap: 12px;">
+              <span class="tier-chip" style="cursor:default;">
+                <span class="dot" id="acctPlanDot"></span>
+                <strong id="acctPlanLabel">Free</strong>
+              </span>
+              <div>
+                <div id="acctPlanUsage" style="font-size:13px;">8 / 10 talents used.</div>
+                <div class="hint" id="acctPlanRenew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>No renewal — Free plan.</div>
+              </div>
+            </div>
+            <div style="display:flex; gap: 8px;">
+              <button class="btn" data-open-upgrade>Compare plans</button>
+              <button class="btn primary" data-open-upgrade>Change plan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Organization form -->
+        <div class="account-panel">
+          <h2>Organization</h2>
+          <p>How we invoice you and how your brand appears on receipts.</p>
+          <div class="form-row">
+            <div>
+              <label class="form-label">Organization name</label>
+              <input class="form-input" type="text" value="Nova Roster" />
+            </div>
+            <div>
+              <label class="form-label">Legal entity</label>
+              <input class="form-input" type="text" value="Nova Talent Management LLC" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label class="form-label">VAT / Tax ID</label>
+              <input class="form-input" type="text" placeholder="Optional — for EU / LatAm" />
+            </div>
+            <div>
+              <label class="form-label">Billing email</label>
+              <input class="form-input" type="email" value="billing@nova-roster.com" />
+            </div>
+          </div>
+          <div class="form-row full">
+            <div>
+              <label class="form-label">Address line 1</label>
+              <input class="form-input" type="text" value="Av. Tulum 405" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label class="form-label">City</label>
+              <input class="form-input" type="text" value="Tulum" />
+            </div>
+            <div>
+              <label class="form-label">Region / State</label>
+              <input class="form-input" type="text" value="Quintana Roo" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label class="form-label">Postal code</label>
+              <input class="form-input" type="text" value="77780" />
+            </div>
+            <div>
+              <label class="form-label">Country</label>
+              <select class="form-select">
+                <option>Mexico</option>
+                <option>United States</option>
+                <option>Spain</option>
+                <option>Italy</option>
+                <option>United Kingdom</option>
+                <option>Other</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top: 10px; display:flex; justify-content: flex-end;">
+            <button class="btn primary">Save organization</button>
+          </div>
+        </div>
+
+        <!-- Payment method -->
+        <div class="account-panel">
+          <h2>Payment method</h2>
+          <p>On Free, no payment is needed. Adding a card unlocks one-click upgrades.</p>
+          <div class="pm-display" id="paymentDisplay">
+            <div class="pm-logo" style="background:#f2efe6; color: var(--muted); border: 1px dashed var(--line-strong);">+</div>
+            <div style="flex:1;">
+              <div style="font-weight: 600; font-size: 13px;">No payment method on file</div>
+              <div class="hint">Add one when you're ready to upgrade — we'll walk you through it.</div>
+            </div>
+            <button class="btn">Add card</button>
+          </div>
+        </div>
+
+        <!-- Invoice history -->
+        <div class="account-panel">
+          <h2>Invoices</h2>
+          <p>PDF receipts for every billing cycle.</p>
+          <div class="invoice-list" id="invoiceList">
+            <div class="invoice-row" style="justify-content: center; color: var(--muted); grid-template-columns: 1fr;">
+              No invoices yet — you're on the Free plan.
+            </div>
+          </div>
+        </div>
+
+        <!-- Plan comparison -->
+        <div class="account-panel">
+          <h2>Choose your plan</h2>
+          <p>Switch at any time. Changes take effect on the next billing cycle; Free is available forever.</p>
+          <div class="plan-grid" id="planGrid"></div>
+        </div>
+
+        <!-- Danger zone -->
+        <div class="account-panel">
+          <h2>Danger zone</h2>
+          <p>Pause or close your workspace. We keep your data on file for 30 days after closure.</p>
+          <div style="display:flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn">Pause workspace</button>
+            <button class="btn" style="color: var(--danger); border-color: rgba(161,48,45,0.35);">Close workspace</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════ SETUP ═════════════ -->
+    <section class="view" data-view="setup">
+      <div class="page">
+        <div class="page-head">
+          <div class="title-row">
+            <div class="page-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/></svg>
+            </div>
+            <div>
+              <span class="eyebrow">Setup</span>
+              <h1 class="serif" style="margin-top:4px">Theme &amp; foundations</h1>
+              <p class="lede">Pick a theme family, set layout variants, and define the typography system your site rests on. Rare-use surface — most day-to-day happens in the live canvas.</p>
+            </div>
+          </div>
+          <button class="btn ghost" onclick="switchView('site')">← Back to Site</button>
+        </div>
+
+        <div class="section-divider">
+          <h2>Theme library</h2>
+          <span class="helper">6 kits available · platform-authored</span>
+          <div class="line"></div>
+        </div>
+
+        <div class="setup-gallery">
+          <div class="theme-card active">
+            <div class="theme-cover cover-noir"><div><div class="kit-label">Editorial · Current</div><div class="kit-name">Editorial Noir</div></div></div>
+            <div class="theme-body"><span class="tags">Warm · Luxury · Sticky header</span><span class="cta">In use</span></div>
+          </div>
+          <div class="theme-card">
+            <div class="theme-cover cover-editorial"><div><div class="kit-label">Editorial</div><div class="kit-name">Editorial Bridal</div></div></div>
+            <div class="theme-body"><span class="tags">Warm · Wedding · 9 starter pages</span><span class="cta">View demo →</span></div>
+          </div>
+          <div class="theme-card">
+            <div class="theme-cover cover-minimal"><div><div class="kit-label">Minimal</div><div class="kit-name">Studio Minimal</div></div></div>
+            <div class="theme-body"><span class="tags">Mono · Photography · 4 sections</span><span class="cta">View demo →</span></div>
+          </div>
+          <div class="theme-card">
+            <div class="theme-cover cover-classic"><div><div class="kit-label">Classic</div><div class="kit-name">Classic Agency</div></div></div>
+            <div class="theme-body"><span class="tags">Dark · General · 4 sections</span><span class="cta">View demo →</span></div>
+          </div>
+          <div class="theme-card">
+            <div class="theme-cover cover-bridal"><div><div class="kit-label">Editorial</div><div class="kit-name">Atelier Soft</div></div></div>
+            <div class="theme-body"><span class="tags">Warm · Fashion · 6 pages</span><span class="cta">View demo →</span></div>
+          </div>
+          <div class="theme-card">
+            <div class="theme-cover cover-studio"><div><div class="kit-label">Modern</div><div class="kit-name">Crew Operators</div></div></div>
+            <div class="theme-body"><span class="tags">Cool · Film / Production · 5 pages</span><span class="cta">View demo →</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════ EDIT MODE ═════════════ -->
+    <section class="view" data-view="edit">
+      <div class="page">
+        <div class="edit-frame">
+          <div class="edit-top">
+            <div class="group">
+              <strong style="font-size:13px;">Editing</strong>
+              <span class="save-pill dirty">● Unsaved</span>
+              <span style="font-size:11px; color:var(--muted);">Homepage · draft</span>
+            </div>
+            <div class="edit-device">
+              <span class="on">Desktop</span>
+              <span>Tablet</span>
+              <span>Mobile</span>
+            </div>
+            <div class="group">
+              <button class="btn ghost" title="Undo">↶</button>
+              <button class="btn ghost" title="Redo">↷</button>
+              <button class="btn primary">Publish</button>
+              <button class="btn ghost">Exit</button>
+            </div>
+          </div>
+          <div class="edit-stage">
+            <div class="edit-canvas">
+              <div class="section selected">
+                <span class="section-label">Hero</span>
+                <div class="hero-copy">
+                  <h2 class="serif" contenteditable>We represent the quiet, cinematic talent behind Tulum's best stories.</h2>
+                  <p contenteditable>Editorial, bridal, film, and brand — one curated roster.</p>
+                </div>
+                <div class="hero-img"></div>
+              </div>
+              <div class="inserter"><span class="plus">+</span></div>
+              <div class="section">
+                <span class="section-label">Trust</span>
+                <p style="font-size:12px; color:var(--muted); margin:0 0 4px;">As featured in</p>
+                <div class="trust-row">
+                  <span class="chip">Vogue LatAm</span>
+                  <span class="chip">Kinfolk</span>
+                  <span class="chip">Nowness</span>
+                  <span class="chip">Architectural Digest</span>
+                </div>
+              </div>
+              <div class="inserter"><span class="plus">+</span></div>
+              <div class="section">
+                <span class="section-label">Directory</span>
+                <h3 class="serif" style="font-size:18px; margin:0;">Featured talent</h3>
+                <p style="margin:4px 0 0; font-size:12px; color:var(--muted);">Six cards rendered from your roster, honoring directory layout family.</p>
+              </div>
+              <div class="inserter"><span class="plus">+</span></div>
+            </div>
+            <aside class="inspector">
+              <div class="tabs">
+                <span class="on">Content</span>
+                <span>Layout</span>
+                <span>Style</span>
+              </div>
+              <label>Heading</label>
+              <textarea>We represent the quiet, cinematic talent behind Tulum's best stories.</textarea>
+              <label>Subhead</label>
+              <textarea>Editorial, bridal, film, and brand — one curated roster.</textarea>
+              <label>Hero image</label>
+              <div style="display:flex; align-items:center; gap:10px; border: 1px solid var(--line-strong); border-radius:8px; padding:8px;">
+                <div style="width:40px; height:40px; border-radius:6px; background: linear-gradient(135deg, #c9a227 0%, #5b4316 100%);"></div>
+                <div style="flex:1; font-size:12px; color:var(--muted);">hero-tulum-sunset.jpg</div>
+                <button class="btn ghost" style="padding:4px 8px; font-size:11px;">Replace</button>
+              </div>
+              <label>Primary CTA label</label>
+              <input type="text" value="Explore the roster" />
+              <label>CTA link</label>
+              <input type="text" value="/directory" />
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═════════════ RIGHT DRAWER ═════════════ -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-resize" id="drawerResize" title="Drag to resize"></div>
+  <header class="drawer-header">
+    <div class="drawer-title-group">
+      <div class="drawer-title-icon" id="drawerIcon"></div>
+      <div style="min-width:0;">
+        <h2 class="drawer-title" id="drawerTitle">Pages</h2>
+        <p class="drawer-subtitle" id="drawerSubtitle">12 pages · 3 drafts</p>
+      </div>
+    </div>
+    <button class="drawer-close" id="drawerClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 6-12 12M6 6l12 12"/></svg>
+    </button>
+  </header>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<!-- ═════════════ UPGRADE MODAL ═════════════ -->
+<div class="modal-backdrop" id="upgradeModal">
+  <div class="modal">
+    <header>
+      <div>
+        <h2>Choose your plan</h2>
+        <p>Every plan runs on the same product — higher tiers unlock more cards. Cancel or downgrade anytime.</p>
+      </div>
+      <button class="close" onclick="closeUpgrade()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 6-12 12M6 6l12 12"/></svg></button>
+    </header>
+    <div class="body">
+      <div class="plan-grid" id="modalPlanGrid"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ─── Plan data ─────────────────────────────────────────────────── */
+  const RANK = { free: 0, studio: 1, agency: 2, network: 3 };
+  const PLANS = [
+    {
+      key: 'free',
+      name: 'Free',
+      price: '$0',
+      period: 'forever',
+      tagline: 'Start your roster, manage inquiries, run on a subdomain.',
+      features: [
+        { text: 'Up to 10 talents' },
+        { text: 'Roster, directory, inquiries' },
+        { text: 'Branding & identity' },
+        { text: 'rostra.app subdomain only' },
+        { text: 'No widgets / API', dim: true },
+        { text: 'No custom branded site', dim: true },
+      ],
+      usage: '8 / 10 talents',
+    },
+    {
+      key: 'studio',
+      name: 'Studio',
+      price: '$49',
+      period: 'per month',
+      tagline: 'Your data layer. Embed your roster into your existing site.',
+      features: [
+        { text: 'Up to 50 talents' },
+        { text: 'Widgets (grid, shelf, inquiry form)' },
+        { text: 'Read-only public API' },
+        { text: 'Rostra subdomain for deep links' },
+        { text: 'Everything in Free' },
+        { text: 'No custom branded site', dim: true },
+      ],
+      usage: '34 / 50 talents',
+    },
+    {
+      key: 'agency',
+      name: 'Agency',
+      price: '$149',
+      period: 'per month',
+      tagline: 'Full branded site on your own domain. The complete product.',
+      features: [
+        { text: 'Up to 200 talents' },
+        { text: 'Custom domain + branded site' },
+        { text: 'Pages, posts, nav, footer' },
+        { text: 'Theme library + selective import' },
+        { text: 'Widgets + API' },
+        { text: 'SEO tooling + redirects' },
+      ],
+      usage: '87 / 200 talents',
+    },
+    {
+      key: 'network',
+      name: 'Network',
+      price: '$499',
+      period: 'per month',
+      tagline: 'Multi-agency operator with hub publishing and federation.',
+      features: [
+        { text: 'Unlimited talents' },
+        { text: 'Hub publishing to cross-agency discovery' },
+        { text: 'Multi-agency manager' },
+        { text: 'Priority support' },
+        { text: 'Everything in Agency' },
+        { text: 'Custom contract available' },
+      ],
+      usage: 'unlimited',
+    },
+  ];
+
+  /* ─── State + DOM refs ──────────────────────────────────────────── */
+  let currentPlan = 'free';
+  const planButtons = document.querySelectorAll('.viewbar button[data-plan]');
+  const viewSelect = document.getElementById('viewSelect');
+  const views = document.querySelectorAll('.view[data-view]');
+  const crumb = document.getElementById('crumb');
+  const tierChip = document.getElementById('tierChip');
+  const tierName = document.getElementById('tierName');
+  const tierLabel = document.getElementById('tierLabel');
+  const tierUsage = document.getElementById('tierUsage');
+  const openSiteBtn = document.getElementById('openSiteBtn');
+  const openSiteLabel = document.getElementById('openSiteLabel');
+  const modalBackdrop = document.getElementById('upgradeModal');
+  const modalPlanGrid = document.getElementById('modalPlanGrid');
+  const accountPlanGrid = document.getElementById('planGrid');
+  const acctPlanLabel = document.getElementById('acctPlanLabel');
+  const acctPlanDot = document.getElementById('acctPlanDot');
+  const acctPlanUsage = document.getElementById('acctPlanUsage');
+
+  /* ─── Card lock rendering ───────────────────────────────────────── */
+  // Locked cards stay as tiles. We just swap the right-side arrow for a
+  // small tier lock-chip. Click on a locked card opens the upgrade modal;
+  // click on an unlocked card opens the right drawer for that card.
+  function applyLocks() {
+    const cards = document.querySelectorAll('.card[data-tier]');
+    cards.forEach(card => {
+      const need = card.dataset.tier;
+      const locked = RANK[need] > RANK[currentPlan];
+      card.classList.toggle('locked', locked);
+
+      // Stat swap: locked cards show a short teaser from data-stat-locked
+      const stat = card.querySelector('.card-stat');
+      if (stat) {
+        if (locked && stat.dataset.statLocked) {
+          if (!stat.dataset.statLive) stat.dataset.statLive = stat.innerHTML;
+          stat.textContent = stat.dataset.statLocked;
+        } else if (!locked && stat.dataset.statLive) {
+          stat.innerHTML = stat.dataset.statLive;
+        }
+      }
+
+      // Right-side indicator: arrow (unlocked) or lock chip (locked)
+      card.querySelectorAll('.card-arrow, .lock-chip').forEach(el => el.remove());
+      const indicator = document.createElement('span');
+      if (locked) {
+        indicator.className = 'lock-chip';
+        indicator.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          ${capitalize(need)}
+        `;
+      } else {
+        indicator.className = 'card-arrow';
+        indicator.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>`;
+      }
+      card.appendChild(indicator);
+    });
+  }
+
+  /* ─── Section-level CTA visibility ──────────────────────────────
+     Each locked tier section shows a single restrained pill on the
+     right of its divider. No more hero banner. No black-on-yellow. */
+  function updateSectionCtas() {
+    document.querySelectorAll('.section-divider[data-tier]').forEach(div => {
+      const tier = div.dataset.tier;
+      const locked = RANK[tier] > RANK[currentPlan];
+      const cta = div.querySelector('.tier-cta');
+      if (cta) cta.classList.toggle('on', locked);
+    });
+  }
+
+  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  /* ─── Chrome update (sidebar, tier chip, status, upsell) ───────── */
+  const PLAN_CHROME = {
+    free:    { label: 'Free',    usage: '8 / 10 talents',   status: 'Free plan · some cards need an upgrade to unlock.', open: 'Open subdomain', href: 'https://nova.rostra.app' },
+    studio:  { label: 'Studio',  usage: '34 / 50 talents',  status: 'Studio · your roster + widgets + API. Homepage stays on subdomain.', open: 'Open subdomain', href: 'https://nova.rostra.app' },
+    agency:  { label: 'Agency',  usage: '87 / 200 talents', status: 'Agency · full branded site. Homepage draft pending, 3 page drafts, last publish 2h ago.', open: 'Open site', href: 'https://nova.com' },
+    network: { label: 'Network', usage: 'Unlimited talents', status: 'Network · full product + hub publishing + multi-agency.', open: 'Open site', href: 'https://nova.com' },
+  };
+
+  const UPSELL = {
+    free:    { title: 'Upgrade to unlock more of your workspace.', body: ' Studio adds widgets + API for embedding your roster. Agency unlocks a full branded site.' },
+    studio:  { title: 'Want a full branded site?', body: ' Agency unlocks pages, posts, navigation, custom domain, theme library, and SEO tooling.' },
+    agency:  { title: 'Running more than one agency?', body: ' Network adds hub publishing and multi-agency management.' },
+    network: null,
+  };
+
+  function updateChrome() {
+    const chrome = PLAN_CHROME[currentPlan];
+    tierLabel.textContent = chrome.label;
+    tierUsage.textContent = chrome.usage;
+    tierChip.className = 'tier-chip ' + currentPlan;
+    openSiteLabel.textContent = chrome.open;
+    openSiteBtn.href = chrome.href;
+
+    acctPlanLabel.textContent = chrome.label;
+    acctPlanDot.style.background = getPlanColor(currentPlan);
+    acctPlanUsage.textContent = chrome.usage + ' used.';
+
+    planButtons.forEach(b => b.classList.toggle('active', b.dataset.plan === currentPlan));
+  }
+
+  function getPlanColor(key) {
+    return { free: '#8b8b95', studio: '#3a7bff', agency: '#c9a227', network: '#146b3a' }[key] || '#c9a227';
+  }
+
+  /* ─── Plan pickers (modal + account page) ──────────────────────── */
+  function renderPlanGrid(host) {
+    host.innerHTML = '';
+    PLANS.forEach(plan => {
+      const card = document.createElement('div');
+      card.className = 'plan-card' + (plan.key === currentPlan ? ' current' : '');
+      card.innerHTML = `
+        <h3>${plan.name}</h3>
+        <div class="price">${plan.price}<small>${plan.period}</small></div>
+        <p class="tagline">${plan.tagline}</p>
+        <ul>
+          ${plan.features.map(f => `
+            <li class="${f.dim ? 'dim' : ''}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                ${f.dim
+                  ? '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>'
+                  : '<path d="M20 6 9 17l-5-5"/>'}
+              </svg>
+              <span>${f.text}</span>
+            </li>
+          `).join('')}
+        </ul>
+        <div class="switch-btn">
+          ${plan.key === currentPlan
+            ? '<button class="btn block" disabled>Current plan</button>'
+            : `<button class="btn block ${RANK[plan.key] > RANK[currentPlan] ? 'gold' : ''}" data-switch="${plan.key}">${RANK[plan.key] > RANK[currentPlan] ? 'Upgrade to ' + plan.name : 'Switch to ' + plan.name}</button>`}
+        </div>
+      `;
+      host.appendChild(card);
+    });
+    host.querySelectorAll('[data-switch]').forEach(b => b.addEventListener('click', () => {
+      switchPlan(b.dataset.switch);
+      closeUpgrade();
+    }));
+  }
+
+  /* ─── Plan switching ───────────────────────────────────────────── */
+  function switchPlan(key) {
+    currentPlan = key;
+    applyLocks();
+    updateChrome();
+    updateSectionCtas();
+    renderProfileSettingsTiles();
+    renderPlanGrid(modalPlanGrid);
+    renderPlanGrid(accountPlanGrid);
+  }
+
+  /* ─── Modal open/close ─────────────────────────────────────────── */
+  function openUpgrade() { modalBackdrop.classList.add('on'); }
+  function closeUpgrade() { modalBackdrop.classList.remove('on'); }
+  window.closeUpgrade = closeUpgrade;
+  modalBackdrop.addEventListener('click', e => { if (e.target === modalBackdrop) closeUpgrade(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeUpgrade(); });
+  document.addEventListener('click', e => {
+    const trigger = e.target.closest('[data-open-upgrade]');
+    if (trigger) { e.preventDefault(); openUpgrade(); }
+  });
+
+  // Tier chip click → open upgrade modal
+  tierChip.addEventListener('click', openUpgrade);
+
+  /* ─── View switcher (dropdown in viewbar + sidebar deep links) ─── */
+  const CRUMB = { site: 'Site', account: 'Site / Account & billing', setup: 'Site / Setup', edit: 'Site / Edit homepage' };
+  function switchView(name) {
+    viewSelect.value = name;
+    views.forEach(v => v.classList.toggle('on', v.dataset.view === name));
+    crumb.textContent = CRUMB[name];
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const sideNav = document.querySelector(`[data-view-link="${name}"]`);
+    if (sideNav) sideNav.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+  window.switchView = switchView;
+  viewSelect.addEventListener('change', e => switchView(e.target.value));
+  document.querySelectorAll('[data-view-link]').forEach(n => n.addEventListener('click', () => {
+    switchView(n.dataset.viewLink);
+    const focus = n.dataset.focus;
+    if (focus) setTimeout(() => openDrawer(focus), 40);
+  }));
+
+  /* ─── Plan simulator (primary viewbar) ──────────────────────────── */
+  planButtons.forEach(b => b.addEventListener('click', () => switchPlan(b.dataset.plan)));
+
+  /* ─── Drawer (reusable right-side / bottom-sheet popover) ────────
+     Pattern name: "Drawer". Opened from any card. Meant to be reused
+     across the whole dashboard (talent row → talent drawer, inquiry
+     row → inquiry drawer, settings row → settings drawer, etc.)     */
+  const drawer = document.getElementById('drawer');
+  const drawerBackdrop = document.getElementById('drawerBackdrop');
+  const drawerClose = document.getElementById('drawerClose');
+  const drawerResize = document.getElementById('drawerResize');
+  const drawerTitleEl = document.getElementById('drawerTitle');
+  const drawerSubtitleEl = document.getElementById('drawerSubtitle');
+  const drawerIconEl = document.getElementById('drawerIcon');
+  const drawerBodyEl = document.getElementById('drawerBody');
+
+  // Icon SVGs reused in drawer header
+  const ICONS = {
+    pages:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h4"/></svg>',
+    posts:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+    roster:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/></svg>',
+    directory:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+    inquiries:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    branding:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M2 12h20"/></svg>',
+    activity:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h6l2-9 4 18 2-9h4"/></svg>',
+    homepage:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg>',
+    nav:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg>',
+    theme:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 0 0 20c2 0 3-1 3-3 0-2-2-2-2-4s2-2 4-2 3-1 3-3a10 10 0 0 0-8-8z"/></svg>',
+    seo:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+    widgets:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 21V9"/></svg>',
+    api:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.85 12.15 7.5-7.5M18 5l3 3M15 8l3 3"/></svg>',
+    domain:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>',
+    hub:        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+    multiagency:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  };
+
+  /* Mock data for Pages and Posts (the two exemplar drawers) */
+  const PAGES_DATA = [
+    { id: 'home', title: 'Home',     slug: '/',          status: 'live',  visibility: 'public', seo: 'Nova Roster — Cinematic talent for Tulum\'s best stories' },
+    { id: 'about', title: 'About',    slug: '/about',     status: 'live',  visibility: 'public', seo: 'About Nova Roster' },
+    { id: 'services', title: 'Services', slug: '/services', status: 'draft', visibility: 'public', seo: '' },
+    { id: 'team', title: 'Team',     slug: '/team',      status: 'live',  visibility: 'public', seo: 'Our team' },
+    { id: 'contact', title: 'Contact',  slug: '/contact',   status: 'live',  visibility: 'public', seo: 'Get in touch' },
+    { id: 'press', title: 'Press kit',slug: '/press',     status: 'draft', visibility: 'hidden', seo: '' },
+  ];
+  const POSTS_DATA = [
+    { id: 'soho', title: 'Sofia M walks SoHo show', slug: '/posts/sofia-m-soho', status: 'live',  visibility: 'public', seo: 'Sofia M · runway report' },
+    { id: 'fall', title: 'Fall editorial — preview', slug: '/posts/fall-preview', status: 'draft', visibility: 'public', seo: '' },
+    { id: 'launch', title: 'Why we joined Rostra',    slug: '/posts/joining-rostra', status: 'live',  visibility: 'public', seo: 'Joining Rostra' },
+    { id: 'dire', title: 'Director call sheet tips', slug: '/posts/director-tips', status: 'live',  visibility: 'public', seo: 'Director tips' },
+    { id: 'cast', title: 'Casting season recap',     slug: '/posts/casting-recap', status: 'live',  visibility: 'public', seo: 'Casting recap' },
+  ];
+
+  /* Tpl helpers */
+  const LOCK = (svg) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg>`;
+  const ICON_BTN = (label, svg) => `<button class="icon-btn" title="${label}" aria-label="${label}">${LOCK(svg)}</button>`;
+
+  function renderItemRow(kind, item) {
+    return `
+      <div class="item-row" data-id="${item.id}">
+        <div class="item-head">
+          <span class="item-title">${item.title}</span>
+          <span class="item-url">${item.slug}</span>
+          <span class="item-status ${item.status}">${item.status}</span>
+          <button class="icon-btn" data-action="toggle" title="Quick edit" aria-label="Quick edit">
+            ${LOCK('<path d="M6 9l6 6 6-6"/>')}
+          </button>
+          <button class="icon-btn" data-action="canvas" title="Edit in canvas">
+            ${LOCK('<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>')}
+          </button>
+          <button class="icon-btn" data-action="more" title="More">
+            ${LOCK('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>')}
+          </button>
+        </div>
+        <div class="item-quick">
+          <div class="q-field">
+            <label>Title</label>
+            <input class="q-input" value="${item.title}" />
+          </div>
+          <div class="q-field">
+            <label>URL</label>
+            <input class="q-input" value="${item.slug}" />
+          </div>
+          <div class="q-field">
+            <label>Status</label>
+            <select class="q-select">
+              <option ${item.status === 'draft'   ? 'selected' : ''}>Draft</option>
+              <option ${item.status === 'live'    ? 'selected' : ''}>Live</option>
+              <option ${item.status === 'hidden'  ? 'selected' : ''}>Hidden</option>
+            </select>
+          </div>
+          <div class="q-field">
+            <label>SEO meta</label>
+            <input class="q-input" placeholder="Title for search engines" value="${item.seo}" />
+          </div>
+          <div class="q-toggle-row">
+            <label class="q-toggle"><input type="checkbox" ${item.visibility === 'public' ? 'checked' : ''}/> Public</label>
+            <label class="q-toggle"><input type="checkbox" /> Include in sitemap</label>
+            <label class="q-toggle"><input type="checkbox" /> In main nav</label>
+          </div>
+          <div class="q-actions">
+            <button class="btn ghost" data-action="canvas">Open in canvas →</button>
+            <div style="display:flex; gap:6px;">
+              <button class="btn" data-action="toggle">Cancel</button>
+              <button class="btn primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function pagesDrawerHTML() {
+    return `
+      <div class="drawer-list-col">
+        <div class="drawer-action-bar">
+          <button class="btn primary">+ New page</button>
+          <input class="drawer-search" placeholder="Search pages…" />
+        </div>
+        <div class="drawer-callout">
+          ${LOCK('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>')}
+          <div><strong>Tip.</strong> New pages default to Draft. Publish with one click from the row — they go live on your domain instantly.</div>
+        </div>
+        ${PAGES_DATA.map(p => renderItemRow('page', p)).join('')}
+      </div>
+      <div class="drawer-detail-col">
+        <p class="eyebrow" style="letter-spacing:0.2em; text-transform:uppercase; font-size:10px; color:var(--muted-2); font-weight:700;">Detail</p>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.005em; margin:6px 0 18px;">Click a row to open full detail here.</h3>
+        <p style="font-size:12.5px; color:var(--muted);">Widen the drawer (drag the left edge) to get this two-column layout. On mobile, the drawer becomes a bottom sheet — same content, same quick-edit, same canvas link.</p>
+      </div>
+    `;
+  }
+  function postsDrawerHTML() {
+    return `
+      <div class="drawer-list-col">
+        <div class="drawer-action-bar">
+          <button class="btn primary">+ Write post</button>
+          <input class="drawer-search" placeholder="Search posts…" />
+        </div>
+        <div class="drawer-callout">
+          ${LOCK('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>')}
+          <div><strong>SEO boost.</strong> Posts with a filled-in meta line rank ~3× higher. Takes 20 seconds per post to add.</div>
+        </div>
+        ${POSTS_DATA.map(p => renderItemRow('post', p)).join('')}
+      </div>
+      <div class="drawer-detail-col">
+        <p class="eyebrow" style="letter-spacing:0.2em; text-transform:uppercase; font-size:10px; color:var(--muted-2); font-weight:700;">Detail</p>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.005em; margin:6px 0 18px;">Click a row to open full detail here.</h3>
+        <p style="font-size:12.5px; color:var(--muted);">Same pattern as Pages — identical drawer, identical quick-edit. The idea: one consistent primitive, used anywhere the dashboard needs a detail / edit surface.</p>
+      </div>
+    `;
+  }
+
+  /* ─── Tier gate: custom schema (add fields / lists) requires Agency+ */
+  function canAddSchema() { return RANK[currentPlan] >= RANK['agency']; }
+
+  const LOCK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+
+  /* ─── Fields mock data + Drawer ────────────────────────────────── */
+  const FIELDS_GROUPS = [
+    { key: 'basic', name: 'Basic info', fields: [
+      { key: 'display_name',  label: 'Display name',  type: 'text',   required: 'required',    vis: 'public' },
+      { key: 'legal_name',    label: 'Legal name',    type: 'text',   required: 'required',    vis: 'internal' },
+      { key: 'pronouns',      label: 'Pronouns',      type: 'text',   required: 'optional',    vis: 'public' },
+      { key: 'email',         label: 'Email',         type: 'email',  required: 'required',    vis: 'internal' },
+      { key: 'phone',         label: 'Phone',         type: 'phone',  required: 'recommended', vis: 'internal' },
+    ]},
+    { key: 'class', name: 'Classification', fields: [
+      { key: 'talent_type',   label: 'Profile type',       type: 'taxonomy', required: 'required',    vis: 'public', vocab: 'talent_type' },
+      { key: 'industry',      label: 'Primary industry',   type: 'taxonomy', required: 'recommended', vis: 'public', vocab: 'industry' },
+      { key: 'experience',    label: 'Experience level',   type: 'select',   required: 'optional',    vis: 'public' },
+    ]},
+    { key: 'traits', name: 'Traits', fields: [
+      { key: 'height_cm',     label: 'Height (cm)',   type: 'number', required: 'optional', vis: 'public' },
+      { key: 'weight_kg',     label: 'Weight (kg)',   type: 'number', required: 'optional', vis: 'internal' },
+      { key: 'eye_color',     label: 'Eye color',     type: 'taxonomy', required: 'optional', vis: 'public' },
+      { key: 'hair_color',    label: 'Hair color',    type: 'taxonomy', required: 'optional', vis: 'public' },
+    ]},
+    { key: 'abilities', name: 'Abilities', fields: [
+      { key: 'skills',        label: 'Skills',         type: 'taxonomy_multi', required: 'recommended', vis: 'public', vocab: 'skill' },
+      { key: 'languages',     label: 'Languages',      type: 'taxonomy_multi', required: 'optional', vis: 'public', vocab: 'language' },
+      { key: 'special',       label: 'Special abilities', type: 'text_multi', required: 'optional', vis: 'public' },
+    ]},
+    { key: 'experience', name: 'Experience', fields: [
+      { key: 'years_active',  label: 'Years active',   type: 'number', required: 'optional', vis: 'public' },
+      { key: 'credits',       label: 'Notable credits', type: 'text_multi', required: 'optional', vis: 'public' },
+    ]},
+    { key: 'suitability', name: 'Suitability', fields: [
+      { key: 'fit_labels',    label: 'Fit labels',     type: 'taxonomy_multi', required: 'optional', vis: 'public', vocab: 'fit_label' },
+      { key: 'event_types',   label: 'Event types',    type: 'taxonomy_multi', required: 'optional', vis: 'public', vocab: 'event_type' },
+    ]},
+    { key: 'location', name: 'Location', fields: [
+      { key: 'country',       label: 'Country',        type: 'taxonomy', required: 'recommended', vis: 'public', vocab: 'location_country' },
+      { key: 'city',          label: 'City',           type: 'taxonomy', required: 'recommended', vis: 'public', vocab: 'location_city' },
+      { key: 'travel_radius', label: 'Travel radius',  type: 'select', required: 'optional', vis: 'internal' },
+    ]},
+  ];
+
+  function fieldRow(f, groupKey) {
+    const reqColor = f.required === 'required' ? '#9c3a3a' : f.required === 'recommended' ? '#6b5215' : 'var(--muted)';
+
+    // Inline list preview when the field points to a list/vocabulary
+    let listBlock = '';
+    if (f.vocab) {
+      const kind = VOCAB_KINDS.find(k => k.key === f.vocab);
+      if (kind) {
+        const locked = !canAddSchema();
+        const addBtn = kind.system
+          ? `<span style="font-size:10.5px; color:var(--muted-2); font-weight:600;">Synced · read-only</span>`
+          : locked
+            ? `<button class="btn locked-add" data-open-upgrade style="padding:4px 10px;font-size:11px;">${LOCK('<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>')} + Add term · Agency</button>`
+            : `<button class="btn ghost" style="padding:4px 10px;font-size:11px;">+ Add term</button>`;
+
+        listBlock = `
+          <div class="vocab-inline">
+            <button class="vocab-inline-toggle" data-action="vocab-toggle" type="button">
+              <span>Terms in ${kind.name} · ${kind.terms.length}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+            </button>
+            <div class="vocab-inline-body">
+              <ul class="vocab-inline-list">
+                ${kind.terms.map(t => `
+                  <li>
+                    <span class="name">${t.name}</span>
+                    <span class="slug">${t.slug}</span>
+                    <span class="count">${t.count} use${t.count === 1 ? '' : 's'}</span>
+                  </li>
+                `).join('')}
+              </ul>
+              <div class="vocab-inline-actions">
+                ${addBtn}
+                <button class="btn ghost" data-action="goto-vocab" data-vocab-key="${kind.key}" style="padding:4px 10px;font-size:11px;">Manage list →</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    return `
+      <div class="item-row" data-id="${groupKey}-${f.key}">
+        <div class="item-head">
+          <span class="item-title">${f.label}</span>
+          <span class="item-url">${f.key}</span>
+          <span class="item-status" style="background: rgba(0,0,0,0.05); color: ${reqColor};">${f.required}</span>
+          <button class="icon-btn" data-action="toggle" title="Quick edit">
+            ${LOCK('<path d="M6 9l6 6 6-6"/>')}
+          </button>
+          <button class="icon-btn" data-action="more" title="More">
+            ${LOCK('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>')}
+          </button>
+        </div>
+        <div class="item-quick">
+          <div class="q-field"><label>Label</label><input class="q-input" value="${f.label}" /></div>
+          <div class="q-field"><label>Key</label><input class="q-input" value="${f.key}" style="font-family:ui-monospace,Menlo,monospace;" /></div>
+          <div class="q-field"><label>Type</label>
+            <select class="q-select">
+              <option ${f.type === 'text' ? 'selected' : ''}>text</option>
+              <option ${f.type === 'email' ? 'selected' : ''}>email</option>
+              <option ${f.type === 'phone' ? 'selected' : ''}>phone</option>
+              <option ${f.type === 'number' ? 'selected' : ''}>number</option>
+              <option ${f.type === 'select' ? 'selected' : ''}>select</option>
+              <option ${f.type === 'taxonomy' ? 'selected' : ''}>list (single)</option>
+              <option ${f.type === 'taxonomy_multi' ? 'selected' : ''}>list (multi)</option>
+              <option ${f.type === 'text_multi' ? 'selected' : ''}>text (multi)</option>
+            </select>
+          </div>
+          ${f.vocab ? `<div class="q-field"><label>List</label><select class="q-select"><option>${f.vocab}</option></select></div>` : ''}
+          <div class="q-field"><label>Required</label>
+            <select class="q-select">
+              <option ${f.required === 'optional' ? 'selected' : ''}>Optional</option>
+              <option ${f.required === 'recommended' ? 'selected' : ''}>Recommended</option>
+              <option ${f.required === 'required' ? 'selected' : ''}>Required</option>
+            </select>
+          </div>
+          <div class="q-toggle-row">
+            <label class="q-toggle"><input type="checkbox" ${f.vis === 'public' ? 'checked' : ''}/> Public on profile</label>
+            <label class="q-toggle"><input type="checkbox" ${f.vis === 'public' ? 'checked' : ''}/> Show on card</label>
+            <label class="q-toggle"><input type="checkbox" checked/> Filterable</label>
+            <label class="q-toggle"><input type="checkbox" checked/> Searchable</label>
+            <label class="q-toggle"><input type="checkbox" checked/> AI visible</label>
+          </div>
+          ${listBlock}
+          <div class="q-actions">
+            <button class="btn ghost">Archive field</button>
+            <div style="display:flex; gap:6px;">
+              <button class="btn" data-action="toggle">Cancel</button>
+              <button class="btn primary">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function fieldGroupDrawerHTML(group) {
+    const locked = !canAddSchema();
+    const addBtn = locked
+      ? `<button class="btn locked-add" data-open-upgrade>${LOCK('<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>')} + Add field · Agency</button>`
+      : `<button class="btn primary">+ Add field</button>`;
+    return `
+      <div class="drawer-list-col">
+        ${locked ? `
+          <div class="drawer-lock-note">
+            ${LOCK('<rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>')}
+            <div>Adding new fields unlocks on <strong>Agency</strong>. You can still rename, reorder, and change visibility on any plan. <button data-open-upgrade>Upgrade →</button></div>
+          </div>
+        ` : ''}
+        <div class="drawer-action-bar">
+          ${addBtn}
+          <input class="drawer-search" placeholder="Search ${group.name.toLowerCase()}…" />
+        </div>
+        <div class="drawer-callout">
+          ${LOCK('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>')}
+          <div><strong>${group.name}</strong> — fields here render together as one section on the profile and registration form. Reorder within the drawer.</div>
+        </div>
+        ${group.fields.map(f => fieldRow(f, group.key)).join('')}
+      </div>
+      <div class="drawer-detail-col">
+        <p class="eyebrow" style="letter-spacing:0.2em; text-transform:uppercase; font-size:10px; color:var(--muted-2); font-weight:700;">Field detail</p>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.005em; margin:6px 0 18px;">Click a field to edit it here.</h3>
+        <p style="font-size:12.5px; color:var(--muted);">Widen the drawer to see this two-column layout.</p>
+      </div>
+    `;
+  }
+
+  /* ─── Vocabularies mock data + Drawer ──────────────────────────── */
+  const VOCAB_KINDS = [
+    { key: 'talent_type', name: 'Profile types', system: false, terms: [
+      { slug: 'model',    name: 'Model',    count: 4 },
+      { slug: 'dancer',   name: 'Dancer',   count: 2 },
+      { slug: 'actor',    name: 'Actor',    count: 1 },
+      { slug: 'musician', name: 'Musician', count: 1 },
+      { slug: 'voice',    name: 'Voice-over', count: 0 },
+    ]},
+    { key: 'tag', name: 'Tags', system: false, terms: [
+      { slug: 'editorial',    name: 'Editorial',    count: 12 },
+      { slug: 'commercial',   name: 'Commercial',   count: 8 },
+      { slug: 'runway',       name: 'Runway',       count: 5 },
+      { slug: 'influencer',   name: 'Influencer',   count: 3 },
+    ]},
+    { key: 'skill', name: 'Skills', system: false, terms: [
+      { slug: 'yoga',           name: 'Yoga',              count: 3 },
+      { slug: 'salsa',          name: 'Salsa',             count: 2 },
+      { slug: 'horseback',      name: 'Horseback riding',  count: 1 },
+      { slug: 'surf',           name: 'Surfing',           count: 4 },
+      { slug: 'bilingual-es',   name: 'Bilingual Spanish', count: 6 },
+    ]},
+    { key: 'industry', name: 'Industries', system: false, terms: [
+      { slug: 'fashion',       name: 'Fashion',      count: 22 },
+      { slug: 'film',          name: 'Film',         count: 5 },
+      { slug: 'advertising',   name: 'Advertising',  count: 14 },
+      { slug: 'music',         name: 'Music',        count: 3 },
+    ]},
+    { key: 'event_type', name: 'Event types', system: false, terms: [
+      { slug: 'photo_shoot',  name: 'Photo shoot', count: 18 },
+      { slug: 'runway',       name: 'Runway',       count: 6 },
+      { slug: 'commercial',   name: 'Commercial',   count: 9 },
+      { slug: 'music_video',  name: 'Music video',  count: 2 },
+    ]},
+    { key: 'fit_label', name: 'Fit labels', system: false, terms: [
+      { slug: 'editorial',      name: 'Editorial',       count: 10 },
+      { slug: 'commercial',     name: 'Commercial-ready', count: 7 },
+      { slug: 'luxury',         name: 'Luxury',          count: 4 },
+      { slug: 'lifestyle',      name: 'Lifestyle',       count: 12 },
+    ]},
+    { key: 'language', name: 'Languages', system: false, terms: [
+      { slug: 'en', name: 'English',    count: 8 },
+      { slug: 'es', name: 'Spanish',    count: 6 },
+      { slug: 'pt', name: 'Portuguese', count: 2 },
+      { slug: 'fr', name: 'French',     count: 1 },
+    ]},
+    { key: 'location_country', name: 'Countries (synced)', system: true, terms: [
+      { slug: 'mx', name: 'Mexico',          count: 6 },
+      { slug: 'us', name: 'United States',   count: 2 },
+    ]},
+  ];
+
+  function termRow(t, kindKey, system) {
+    return `
+      <div class="item-row" data-id="${kindKey}-${t.slug}">
+        <div class="item-head">
+          <span class="item-title">${t.name}</span>
+          <span class="item-url">${t.slug}</span>
+          <span class="item-status" style="background: rgba(0,0,0,0.05); color: var(--muted);">${t.count} uses</span>
+          ${system ? '' : `<button class="icon-btn" data-action="toggle" title="Quick edit">${LOCK('<path d="M6 9l6 6 6-6"/>')}</button>`}
+          <button class="icon-btn" data-action="more" title="More">${LOCK('<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>')}</button>
+        </div>
+        ${system ? '' : `
+        <div class="item-quick">
+          <div class="q-field"><label>Name</label><input class="q-input" value="${t.name}" /></div>
+          <div class="q-field"><label>Slug</label><input class="q-input" value="${t.slug}" style="font-family:ui-monospace,Menlo,monospace;" /></div>
+          <div class="q-toggle-row">
+            <label class="q-toggle"><input type="checkbox" /> Show on home (browse by)</label>
+            <label class="q-toggle"><input type="checkbox" checked/> Show in directory filters</label>
+          </div>
+          <div class="q-field"><label>Promo image</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="width:32px; height:32px; border-radius:6px; background:#f5f4ef; border:1px dashed var(--line-strong); display:flex;align-items:center;justify-content:center; font-size:10px; color:var(--muted);">—</div>
+              <button class="btn ghost" style="padding:4px 10px; font-size:11px;">Upload</button>
+              <button class="btn ghost" style="padding:4px 10px; font-size:11px;">AI-generate</button>
+            </div>
+          </div>
+          <div class="q-actions">
+            <button class="btn ghost" style="color:var(--danger);">Archive term</button>
+            <div style="display:flex; gap:6px;">
+              <button class="btn" data-action="toggle">Cancel</button>
+              <button class="btn primary">Save</button>
+            </div>
+          </div>
+        </div>`}
+      </div>
+    `;
+  }
+
+  function vocabKindDrawerHTML(kind) {
+    const isSystem = !!kind.system;
+    const locked = !canAddSchema();
+    const addBtn = locked
+      ? `<button class="btn locked-add" data-open-upgrade>${LOCK_ICON} + Add term · Agency</button>`
+      : `<button class="btn primary">+ Add term</button>`;
+    return `
+      <div class="drawer-list-col">
+        ${!isSystem && locked ? `
+          <div class="drawer-lock-note">
+            ${LOCK_ICON}
+            <div>Adding new terms to <strong>${kind.name}</strong> unlocks on <strong>Agency</strong>. You can still rename, reorder, or archive existing terms. <button data-open-upgrade>Upgrade →</button></div>
+          </div>
+        ` : ''}
+        ${isSystem ? '' : `
+        <div class="drawer-action-bar">
+          ${addBtn}
+          <input class="drawer-search" placeholder="Search ${kind.name.toLowerCase()}…" />
+        </div>`}
+        <div class="drawer-callout">
+          ${LOCK('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>')}
+          <div>${isSystem
+            ? `<strong>${kind.name}</strong> is <strong>synced from Locations</strong> — read only here. Add countries/cities in <em>Directory → Locations</em>.`
+            : `<strong>${kind.name}</strong> is used by fields in your profile schema. Renaming or archiving a term propagates to every profile using it.`
+          }</div>
+        </div>
+        ${kind.terms.map(t => termRow(t, kind.key, isSystem)).join('')}
+      </div>
+      <div class="drawer-detail-col">
+        <p class="eyebrow" style="letter-spacing:0.2em; text-transform:uppercase; font-size:10px; color:var(--muted-2); font-weight:700;">Term detail</p>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.005em; margin:6px 0 18px;">Click a term to edit it here.</h3>
+        <p style="font-size:12.5px; color:var(--muted);">${isSystem
+          ? 'Synced terms can\'t be edited directly — they come from the Locations source.'
+          : 'Promo image, ordering, and \u201cShow on home (browse by)\u201d live in the quick-edit.'
+        }</p>
+      </div>
+    `;
+  }
+
+  function stubDrawerHTML(title, body) {
+    return `
+      <div class="drawer-list-col">
+        <div class="drawer-callout">
+          ${LOCK('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>')}
+          <div>${body}</div>
+        </div>
+        <p style="font-size:12.5px; color:var(--muted); margin:14px 0 8px;">This drawer uses the same primitive as Pages and Posts. In the final product, ${title.toLowerCase()} will live here with its own list, quick-edit, and canvas deep-link.</p>
+      </div>
+      <div class="drawer-detail-col"></div>
+    `;
+  }
+
+  const DRAWER_CONTENT = {
+    pages:       { title: 'Pages',              sub: '12 pages · 3 drafts', icon: ICONS.pages,      render: pagesDrawerHTML },
+    posts:       { title: 'Posts',              sub: '5 posts · 1 draft',   icon: ICONS.posts,      render: postsDrawerHTML },
+    roster:      { title: 'Roster',             sub: '8 talents · 2 drafts',icon: ICONS.roster,     render: () => stubDrawerHTML('Roster', 'Add talent · quick-edit profiles · approve submitted drafts · reorder on directory.') },
+    directory:   { title: 'Directory Settings', sub: 'Render · templates · fields', icon: ICONS.directory, render: () => stubDrawerHTML('Directory Settings', 'Three tabs: <strong>Rendering</strong> (page vs modal), <strong>Templates</strong> (layout families), <strong>Fields</strong> (governance).') },
+    inquiries:   { title: 'Inquiries',          sub: '1 open · 3 in progress', icon: ICONS.inquiries, render: () => stubDrawerHTML('Inquiries', 'Pipeline at a glance · respond · assign · convert to booking.') },
+    branding:    { title: 'Branding',           sub: 'Logo · fonts · colors', icon: ICONS.branding, render: () => stubDrawerHTML('Branding', 'Logo upload · favicon · core palette · typography. Your identity — survives theme changes by default.') },
+    activity:    { title: 'Activity',           sub: 'Recent workspace events', icon: ICONS.activity, render: () => stubDrawerHTML('Activity', 'Publishes, edits, approvals — chronological feed with filters by surface.') },
+    homepage:    { title: 'Homepage',           sub: 'Draft pending · 2h ago', icon: ICONS.homepage, render: () => stubDrawerHTML('Homepage', 'Opens the live site in edit mode — composition, inline text, image replace, publish.') },
+    nav:         { title: 'Navigation & Footer', sub: 'Header 5 · Footer 3 cols', icon: ICONS.nav, render: () => stubDrawerHTML('Navigation &amp; Footer', 'Drag-and-drop directly on the live site. Edit nav, reorder, add custom links, build footer columns.') },
+    theme:       { title: 'Theme & foundations', sub: 'Editorial Noir',       icon: ICONS.theme,    render: () => stubDrawerHTML('Theme &amp; foundations', 'Theme library gallery · preset tokens · layout variants · typography system. Deep reconfig.') },
+    seo:         { title: 'SEO & defaults',     sub: 'Meta · sitemap · redirects', icon: ICONS.seo, render: () => stubDrawerHTML('SEO &amp; defaults', 'Site-wide meta template · sitemap · robots · redirect rules · per-page overrides.') },
+    widgets:     { title: 'Widgets',            sub: '2 active · 4 embeds',   icon: ICONS.widgets,   render: () => stubDrawerHTML('Widgets', 'Create roster grid / featured shelf / inquiry form · configure filters · copy embed snippet.') },
+    api:         { title: 'API keys',           sub: '1 key · live',          icon: ICONS.api,       render: () => stubDrawerHTML('API keys', 'Create key · scope · domain allow-list · rotate · view usage / rate limits.') },
+    domain:      { title: 'Domain & Home',      sub: 'nova.rostra.app',       icon: ICONS.domain,    render: () => stubDrawerHTML('Domain &amp; Home', 'Subdomain config · custom domain (Agency) · homepage assignment · blog index assignment.') },
+    hub:         { title: 'Hub publishing',     sub: 'Network only',          icon: ICONS.hub,       render: () => stubDrawerHTML('Hub publishing', 'Promote approved talent · cross-agency discovery · hub inquiry routing.') },
+    multiagency: { title: 'Multi-agency manager', sub: 'Network only',        icon: ICONS.multiagency, render: () => stubDrawerHTML('Multi-agency manager', 'Switch agencies · invite managers · scope roles · consolidated billing.') },
+  };
+
+  // Register one drawer per field group + one per vocab kind.
+  const FIELD_GROUP_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16v4H4z"/><path d="M4 14h16v4H4z"/></svg>';
+  const VOCAB_KIND_ICON  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>';
+
+  FIELDS_GROUPS.forEach(g => {
+    const reqCount = g.fields.filter(f => f.required === 'required').length;
+    DRAWER_CONTENT['fg-' + g.key] = {
+      title: g.name,
+      sub: `${g.fields.length} fields${reqCount > 0 ? ` · ${reqCount} required` : ''}`,
+      icon: FIELD_GROUP_ICON,
+      render: () => fieldGroupDrawerHTML(g),
+    };
+  });
+
+  VOCAB_KINDS.forEach(k => {
+    DRAWER_CONTENT['vk-' + k.key] = {
+      title: k.name,
+      sub: `${k.terms.length} term${k.terms.length === 1 ? '' : 's'}${k.system ? ' · synced' : ''}`,
+      icon: VOCAB_KIND_ICON,
+      render: () => vocabKindDrawerHTML(k),
+    };
+  });
+
+  /* ─── Render Profile Settings tiles (field groups + lists) ──────── */
+  function renderProfileSettingsTiles() {
+    const fieldsGrid = document.getElementById('fieldsGrid');
+    const vocabGrid  = document.getElementById('vocabGrid');
+    if (!fieldsGrid || !vocabGrid) return;
+    const locked = !canAddSchema();
+
+    const ghostFields = locked ? `
+      <div class="card tile-ghost" data-open-upgrade>
+        <span class="card-icon">${LOCK_ICON}</span>
+        <div class="card-body">
+          <h3>Add custom fields</h3>
+          <p class="card-stat">Your own groups and fields on Agency.</p>
+        </div>
+        <span class="lock-chip">${LOCK_ICON}AGENCY</span>
+      </div>
+    ` : '';
+
+    const ghostLists = locked ? `
+      <div class="card tile-ghost" data-open-upgrade>
+        <span class="card-icon">${LOCK_ICON}</span>
+        <div class="card-body">
+          <h3>Add custom lists</h3>
+          <p class="card-stat">Create your own pick-lists on Agency.</p>
+        </div>
+        <span class="lock-chip">${LOCK_ICON}AGENCY</span>
+      </div>
+    ` : '';
+
+    fieldsGrid.innerHTML = FIELDS_GROUPS.map(g => {
+      const reqCount = g.fields.filter(f => f.required === 'required').length;
+      const reqText = reqCount > 0 ? ` · ${reqCount} required` : '';
+      return `
+        <div class="card" data-tier="free" data-card="fg-${g.key}">
+          <span class="card-icon gold">${FIELD_GROUP_ICON}</span>
+          <div class="card-body">
+            <h3>${g.name}</h3>
+            <p class="card-stat">${g.fields.length} field${g.fields.length === 1 ? '' : 's'}${reqText}</p>
+          </div>
+          <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+        </div>
+      `;
+    }).join('') + ghostFields;
+
+    vocabGrid.innerHTML = VOCAB_KINDS.map(k => {
+      const totalUses = k.terms.reduce((sum, t) => sum + (t.count || 0), 0);
+      const meta = k.system
+        ? 'Synced from Locations'
+        : `${k.terms.length} term${k.terms.length === 1 ? '' : 's'} · ${totalUses} use${totalUses === 1 ? '' : 's'}`;
+      return `
+        <div class="card" data-tier="free" data-card="vk-${k.key}">
+          <span class="card-icon">${VOCAB_KIND_ICON}</span>
+          <div class="card-body">
+            <h3>${k.name}</h3>
+            <p class="card-stat">${meta}</p>
+          </div>
+          <span class="card-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></span>
+        </div>
+      `;
+    }).join('') + ghostLists;
+
+    // Update the section-header add buttons
+    const newGroupBtn = document.getElementById('btnNewGroup');
+    const newKindBtn  = document.getElementById('btnNewKind');
+    [
+      [newGroupBtn, '+ New group'],
+      [newKindBtn,  '+ New list'],
+    ].forEach(([btn, unlockedLabel]) => {
+      if (!btn) return;
+      if (locked) {
+        btn.className = 'btn locked-add';
+        btn.innerHTML = LOCK_ICON + unlockedLabel + ' · Agency';
+        btn.style.padding = '4px 10px';
+        btn.style.fontSize = '11.5px';
+      } else {
+        btn.className = 'btn ghost';
+        btn.innerHTML = unlockedLabel;
+        btn.style.padding = '4px 10px';
+        btn.style.fontSize = '11.5px';
+      }
+    });
+  }
+  renderProfileSettingsTiles();
+
+  function openDrawer(cardKey) {
+    const def = DRAWER_CONTENT[cardKey];
+    if (!def) return;
+    drawerIconEl.innerHTML = def.icon;
+    drawerTitleEl.textContent = def.title;
+    drawerSubtitleEl.textContent = def.sub;
+    drawerBodyEl.innerHTML = def.render();
+    updateDrawerWideClass();
+    drawer.classList.add('on');
+    drawerBackdrop.classList.add('on');
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer() {
+    drawer.classList.remove('on');
+    drawerBackdrop.classList.remove('on');
+    drawer.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  function updateDrawerWideClass() {
+    const w = drawer.offsetWidth;
+    drawer.classList.toggle('wide', w >= 620);
+  }
+  drawerClose.addEventListener('click', closeDrawer);
+  drawerBackdrop.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && drawer.classList.contains('on')) closeDrawer(); });
+
+  // Drawer resize — drag left edge
+  (() => {
+    let startX = 0, startWidth = 0, active = false;
+    drawerResize.addEventListener('pointerdown', e => {
+      active = true;
+      startX = e.clientX;
+      startWidth = drawer.offsetWidth;
+      drawer.classList.add('resizing');
+      drawerResize.setPointerCapture(e.pointerId);
+    });
+    drawerResize.addEventListener('pointermove', e => {
+      if (!active) return;
+      const delta = startX - e.clientX;
+      const w = Math.max(320, Math.min(window.innerWidth - 200, startWidth + delta));
+      drawer.style.width = w + 'px';
+      updateDrawerWideClass();
+    });
+    drawerResize.addEventListener('pointerup', e => {
+      active = false;
+      drawer.classList.remove('resizing');
+      drawerResize.releasePointerCapture(e.pointerId);
+    });
+  })();
+
+  // Card click routing
+  document.addEventListener('click', e => {
+    const card = e.target.closest('.card[data-card]');
+    if (!card) return;
+    // Ignore clicks on internal action elements (rows handle their own clicks)
+    if (e.target.closest('.card-arrow, .lock-chip')) { /* fall through */ }
+    if (card.classList.contains('locked')) {
+      openUpgrade();
+    } else {
+      openDrawer(card.dataset.card);
+    }
+  });
+
+  // Item row interactions (inside drawer)
+  drawerBodyEl.addEventListener('click', e => {
+    const toggle = e.target.closest('[data-action="toggle"]');
+    if (toggle) {
+      e.preventDefault();
+      const row = toggle.closest('.item-row');
+      row.classList.toggle('open');
+      return;
+    }
+    const canvas = e.target.closest('[data-action="canvas"]');
+    if (canvas) {
+      e.preventDefault();
+      alert('Would open edit mode on the live site for this item (Phase 3 work).');
+      return;
+    }
+    // Inline list expand/collapse inside a field's quick-edit
+    const vocabToggle = e.target.closest('[data-action="vocab-toggle"]');
+    if (vocabToggle) {
+      e.preventDefault();
+      vocabToggle.closest('.vocab-inline').classList.toggle('open');
+      return;
+    }
+    // "Manage list →" — jumps from the field drawer straight into the
+    // matching list drawer. Close current, wait for anim, open next.
+    const gotoVocab = e.target.closest('[data-action="goto-vocab"]');
+    if (gotoVocab) {
+      e.preventDefault();
+      const vocabKey = gotoVocab.dataset.vocabKey;
+      closeDrawer();
+      setTimeout(() => openDrawer('vk-' + vocabKey), 280);
+      return;
+    }
+  });
+
+  /* ─── Init ─────────────────────────────────────────────────────── */
+  applyLocks();
+  updateChrome();
+  updateSectionCtas();
+  renderPlanGrid(modalPlanGrid);
+  renderPlanGrid(accountPlanGrid);
+</script>
+
+</body>
+</html>

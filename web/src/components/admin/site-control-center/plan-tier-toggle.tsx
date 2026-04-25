@@ -30,7 +30,7 @@ export function PlanTierToggle({ activePlan }: { activePlan: Plan }) {
     <div
       role="tablist"
       aria-label="View plan"
-      className="sticky top-0 z-30 -mx-4 flex flex-wrap items-center gap-2 border-b border-border/50 bg-background/85 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6"
+      className="flex flex-wrap items-center gap-1.5"
     >
       <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         View plan
@@ -47,10 +47,10 @@ export function PlanTierToggle({ activePlan }: { activePlan: Plan }) {
             replace
             scroll={false}
             className={cn(
-              "rounded-full border px-3 py-1 text-[11.5px] font-semibold tracking-tight transition-[background-color,border-color,color] duration-150",
+              "rounded-full border px-2.5 py-[3px] text-[11px] font-semibold tracking-tight transition-[background-color,border-color,color] duration-150",
               isActive
                 ? "border-transparent shadow-sm"
-                : "border-border/60 text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                : "border-[rgba(24,24,27,0.18)] bg-white text-muted-foreground hover:border-foreground/40 hover:text-foreground",
             )}
             style={
               isActive

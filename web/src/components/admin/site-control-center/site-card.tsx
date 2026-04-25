@@ -46,12 +46,12 @@ export function SiteCard({
       onClick={onClick}
       aria-haspopup="dialog"
       className={cn(
-        "group relative block w-full rounded-2xl border p-4 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-200",
+        "group relative block min-h-[66px] w-full rounded-xl border px-3.5 py-3 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-150",
         "hover:-translate-y-px hover:shadow-[0_10px_28px_-18px_rgba(0,0,0,0.28)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         locked
           ? "hover:border-foreground/30"
-          : "border-border/60 bg-card/50 hover:border-[var(--impronta-gold)]/40 hover:bg-muted/30",
+          : "border-[rgba(24,24,27,0.1)] bg-white hover:border-[rgba(201,162,39,0.4)]",
       )}
       style={
         tint
@@ -59,10 +59,10 @@ export function SiteCard({
           : undefined
       }
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <span
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-[9px]",
+            "flex size-[34px] shrink-0 items-center justify-center rounded-[9px]",
             locked && "text-muted-foreground",
           )}
           style={
@@ -90,7 +90,7 @@ export function SiteCard({
           <div className="flex items-center gap-2">
             <h3
               className={cn(
-                "truncate font-display text-[15px] font-semibold tracking-tight",
+                "truncate text-[13.5px] font-semibold tracking-[-0.005em]",
                 locked ? "text-foreground/80" : "text-foreground",
               )}
             >
@@ -108,7 +108,7 @@ export function SiteCard({
           </div>
           <p
             className={cn(
-              "mt-0.5 truncate text-[12.5px]",
+              "mt-0.5 truncate text-[11.5px] leading-[1.3]",
               locked ? "italic text-muted-foreground" : "text-muted-foreground",
             )}
           >
@@ -117,7 +117,7 @@ export function SiteCard({
         </div>
         {!locked ? (
           <ChevronRight
-            className="size-4 shrink-0 self-center text-muted-foreground/70 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+            className="size-3.5 shrink-0 self-center text-muted-foreground/70 opacity-0 transition-[opacity,transform] group-hover:translate-x-0.5 group-hover:text-foreground group-hover:opacity-100"
             aria-hidden
           />
         ) : null}

@@ -187,33 +187,31 @@ export function ProfileShell({
   return (
     <>
       {/* Profile structure — one tile per field group */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eae7db] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#5b5b63] before:size-1.5 before:rounded-full before:bg-current before:content-['']">
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eae7db] px-2.5 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#5b5b63] before:size-1.5 before:rounded-full before:bg-current before:content-['']">
             Fields
           </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-display text-[17px] font-semibold tracking-tight text-foreground sm:text-lg">
-              Profile structure
-            </h2>
-            <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-              {groups.length} groups · {totalFields} fields · {totalRequired} required
-            </p>
-          </div>
+          <h2 className="text-[15px] font-semibold tracking-[-0.005em] text-foreground">
+            Profile structure
+          </h2>
+          <span className="text-[12px] text-muted-foreground">
+            {groups.length} groups · {totalFields} fields · {totalRequired} required
+          </span>
+          <div aria-hidden className="hidden h-px min-w-[40px] flex-1 bg-border/50 sm:block" />
           <a
             href="/admin/fields#add-group"
-            className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-foreground/40"
+            className="rounded-full border border-[rgba(24,24,27,0.18)] bg-white px-3 py-1 text-[11.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-foreground/40"
           >
             + New group
           </a>
-          <div aria-hidden className="hidden h-px flex-1 bg-border/50 sm:block" />
         </div>
         {groups.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border/60 bg-muted/[0.18] p-6 text-center text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border/60 bg-muted/[0.18] p-6 text-center text-sm text-muted-foreground">
             No field groups yet. Create one in Fields.
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
             {groups.map((g) => {
               const counts = fieldsByGroup.get(g.id) ?? [];
               const reqCount = counts.filter(
@@ -225,11 +223,11 @@ export function ProfileShell({
                   type="button"
                   onClick={() => setOpen({ kind: "field-group", group: g })}
                   aria-haspopup="dialog"
-                  className="group relative block w-full rounded-2xl border border-border/60 bg-card/50 p-4 text-left shadow-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:-translate-y-px hover:border-foreground/40 hover:bg-muted/30 hover:shadow-[0_14px_36px_-24px_rgba(0,0,0,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  className="group relative block min-h-[66px] w-full rounded-xl border border-[rgba(24,24,27,0.1)] bg-white px-3.5 py-3 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-[rgba(201,162,39,0.4)] hover:shadow-[0_10px_28px_-18px_rgba(0,0,0,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-center gap-3">
                     <span
-                      className="flex size-9 shrink-0 items-center justify-center rounded-[9px]"
+                      className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px]"
                       style={{
                         backgroundColor: "rgba(201, 162, 39, 0.12)",
                         color: "#8b6d1f",
@@ -239,10 +237,10 @@ export function ProfileShell({
                       <LayoutList className="size-[15px]" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate font-display text-[15px] font-semibold tracking-tight text-foreground">
+                      <h3 className="truncate text-[13.5px] font-semibold tracking-[-0.005em] text-foreground">
                         {g.name_en}
                       </h3>
-                      <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                      <p className="mt-0.5 text-[11.5px] leading-[1.3] text-muted-foreground">
                         {counts.length} field{counts.length === 1 ? "" : "s"}
                         {reqCount > 0 ? ` · ${reqCount} required` : ""}
                       </p>
@@ -256,29 +254,27 @@ export function ProfileShell({
       </section>
 
       {/* Lists — one tile per taxonomy kind */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eae7db] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#5b5b63] before:size-1.5 before:rounded-full before:bg-current before:content-['']">
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eae7db] px-2.5 py-[3px] text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#5b5b63] before:size-1.5 before:rounded-full before:bg-current before:content-['']">
             Lists
           </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-display text-[17px] font-semibold tracking-tight text-foreground sm:text-lg">
-              Tags, skills, industries — what fields choose from
-            </h2>
-            <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-              {userKinds.length} lists · {userKindTerms.length} terms (plus{" "}
-              {syncedKindCount} synced from Locations)
-            </p>
-          </div>
+          <h2 className="text-[15px] font-semibold tracking-[-0.005em] text-foreground">
+            Tags, skills, industries — what fields choose from
+          </h2>
+          <span className="text-[12px] text-muted-foreground">
+            {userKinds.length} lists · {userKindTerms.length} terms (plus{" "}
+            {syncedKindCount} synced from Locations)
+          </span>
+          <div aria-hidden className="hidden h-px min-w-[40px] flex-1 bg-border/50 sm:block" />
           <a
             href="/admin/taxonomy"
-            className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-foreground/40"
+            className="rounded-full border border-[rgba(24,24,27,0.18)] bg-white px-3 py-1 text-[11.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-foreground/40"
           >
             + New list
           </a>
-          <div aria-hidden className="hidden h-px flex-1 bg-border/50 sm:block" />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
           {TAXONOMY_ORDER.map((kind) => {
             const kindTerms = termsByKind.get(kind) ?? [];
             const synced = SYNCED_KINDS.has(kind);
@@ -289,11 +285,11 @@ export function ProfileShell({
                 type="button"
                 onClick={() => setOpen({ kind: "vocab", vocabKind: kind })}
                 aria-haspopup="dialog"
-                className="group relative block w-full rounded-2xl border border-border/60 bg-card/50 p-4 text-left shadow-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:-translate-y-px hover:border-foreground/40 hover:bg-muted/30 hover:shadow-[0_14px_36px_-24px_rgba(0,0,0,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="group relative block min-h-[66px] w-full rounded-xl border border-[rgba(24,24,27,0.1)] bg-white px-3.5 py-3 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-px hover:border-[rgba(201,162,39,0.4)] hover:shadow-[0_10px_28px_-18px_rgba(0,0,0,0.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-center gap-3">
                   <span
-                    className="flex size-9 shrink-0 items-center justify-center rounded-[9px] text-foreground"
+                    className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-foreground"
                     style={{
                       backgroundColor: "#f5f4ef",
                       boxShadow: "inset 0 0 0 1px rgba(24, 24, 27, 0.1)",
@@ -302,10 +298,10 @@ export function ProfileShell({
                     <Icon className="size-[15px]" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-display text-[15px] font-semibold tracking-tight text-foreground">
+                    <h3 className="truncate text-[13.5px] font-semibold tracking-[-0.005em] text-foreground">
                       {TAXONOMY_LABEL[kind] ?? kind}
                     </h3>
-                    <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                    <p className="mt-0.5 text-[11.5px] leading-[1.3] text-muted-foreground">
                       {kindTerms.length} term{kindTerms.length === 1 ? "" : "s"}
                       {synced ? " · synced" : ""}
                     </p>
