@@ -293,6 +293,13 @@ export interface EditContextValue {
   /** Most recent mutation error that's still on screen; null when clear. */
   mutationError: string | null;
   clearMutationError: () => void;
+  /**
+   * Surface a one-off mutation error to the toast. Used by chrome
+   * surfaces that perform their own server actions (Phase 9 share-link
+   * generation, future scheduled-publish, etc.) — they reuse the same
+   * presentation surface internal mutations use.
+   */
+  reportMutationError: (message: string) => void;
 }
 
 const EditContext = createContext<EditContextValue | null>(null);
@@ -1198,6 +1205,7 @@ export function EditProvider({
 
       mutationError,
       clearMutationError,
+      reportMutationError: setMutationError,
     }),
     [
       tenantId,
@@ -1262,6 +1270,7 @@ export function EditProvider({
       clearDraftSavedToast,
       mutationError,
       clearMutationError,
+      setMutationError,
     ],
   );
 

@@ -84,6 +84,11 @@ const AGENCY_STOREFRONT_PREFIXES = [
   "/posts",
   "/models",
   "/contact",
+  // Phase 9 — operator-issued share links. Token-gated viewer that
+  // renders a frozen homepage revision snapshot to an unauthenticated
+  // visitor. Tenant scope is enforced inside the route handler via the
+  // signed `tid` claim cross-checked against the resolved host.
+  "/share",
 ] as const;
 
 const AGENCY_API_PREFIXES = [

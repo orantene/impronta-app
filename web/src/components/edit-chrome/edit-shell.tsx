@@ -34,6 +34,7 @@ import { AssetsDrawer } from "./assets-drawer";
 import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
 import { TopBar } from "./topbar";
+import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
   desktop: null,
@@ -52,6 +53,28 @@ export function EditShell({ tenantId, children }: EditShellProps) {
       <EditShellInner>{children}</EditShellInner>
     </EditProvider>
   );
+}
+
+async function handleShareClick(
+  setMutationError: (msg: string) => void,
+): Promise<string | null> {
+  // Phase 9 — mint a share JWT bound to the most recent revision and
+  // return a fully qualified URL. Errors surface through the existing
+  // mutation-error toast so the operator sees a coherent failure state.
+  try {
+    const result = await createShareLinkAction({});
+    if (!result.ok) {
+      setMutationError(result.error);
+      return null;
+    }
+    if (typeof window === "undefined") return result.path;
+    return `${window.location.origin}${result.path}`;
+  } catch (error) {
+    setMutationError(
+      error instanceof Error ? error.message : "Failed to create share link.",
+    );
+    return null;
+  }
 }
 
 function EditShellInner({ children }: { children?: React.ReactNode }) {
@@ -91,6 +114,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     removeSection,
     navigatorOpen,
     toggleNavigator,
+    reportMutationError,
   } = useEditContext();
 
   useEffect(() => {
@@ -241,6 +265,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onTheme={openTheme}
         onAssets={openAssets}
         onSaveDraft={() => void saveDraft()}
+        onShare={() => handleShareClick(reportMutationError)}
         pageTitle={pageMetadata?.title ?? undefined}
       />
       <div

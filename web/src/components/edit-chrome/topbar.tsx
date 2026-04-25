@@ -629,6 +629,12 @@ export interface TopBarProps {
    * The button is disabled while a save is in flight.
    */
   onSaveDraft?: () => void | Promise<unknown>;
+  /**
+   * Mint a share link. Returns the full URL to copy. The topbar surfaces
+   * a transient confirmation when the promise resolves; failures fall
+   * through to the surrounding mutation-error toast.
+   */
+  onShare?: () => Promise<string | null>;
   pageTitle?: string;
 }
 
@@ -647,8 +653,32 @@ export function TopBar({
   onTheme,
   onAssets,
   onSaveDraft,
+  onShare,
   pageTitle,
 }: TopBarProps) {
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+
+  async function handleShare() {
+    if (!onShare || shareBusy) return;
+    setShareBusy(true);
+    try {
+      const url = await onShare();
+      if (url && typeof navigator !== "undefined" && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(url);
+          setShareCopied(true);
+          window.setTimeout(() => setShareCopied(false), 2200);
+        } catch {
+          // Clipboard write blocked (focus / permissions): show the URL
+          // in a prompt as a fallback so the operator can copy it manually.
+          window.prompt("Share link", url);
+        }
+      }
+    } finally {
+      setShareBusy(false);
+    }
+  }
   function handleMenuSelect(opt: PublishMenuOption) {
     if (opt === "schedule") {
       // Phase 12 — placeholder
@@ -756,14 +786,34 @@ export function TopBar({
           <circle cx="12" cy="12" r="3" />
         </svg>
       </TbIconBtn>
-      <TbIconBtn title="Share preview link">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <circle cx="18" cy="5" r="3" />
-          <circle cx="6" cy="12" r="3" />
-          <circle cx="18" cy="19" r="3" />
-          <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
-          <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
-        </svg>
+      <TbIconBtn
+        title={shareCopied ? "Link copied" : "Share preview link"}
+        onClick={onShare ? () => void handleShare() : undefined}
+        disabled={!onShare || shareBusy}
+      >
+        {shareCopied ? (
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={CHROME.green}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
+            <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+          </svg>
+        )}
       </TbIconBtn>
 
       <TbDivider />
