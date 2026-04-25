@@ -85,7 +85,7 @@ export default async function AdminClientsPage({
   return (
     <div className={ADMIN_PAGE_STACK}>
       <AdminPageHeader
-        icon={UserRound}
+        eyebrow="Portal users"
         title="Clients"
         description="Portal login users — not the billing entity. For villas, brands, and who you invoice, use Accounts."
         right={

@@ -1,4 +1,3 @@
-import { Users } from "lucide-react";
 import {
   ADMIN_FORM_CONTROL,
   ADMIN_PAGE_STACK,
@@ -353,7 +352,7 @@ export default async function AdminTalentListPage({
   return (
     <div className={ADMIN_PAGE_STACK}>
       <AdminPageHeader
-        icon={Users}
+        eyebrow="Roster"
         title="Talent"
         description="Triage → open a hub → review workflow, then profile, then media. Pending uploads also appear on the global Media page."
         right={

@@ -649,7 +649,7 @@ export function AdminDashboardShell({
               />
             </div>
           ) : null}
-          <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3">
+          <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2">
             <PrototypeNavSections
               collapsed={collapsed}
               pinnedIds={pinnedIds}
@@ -659,7 +659,12 @@ export function AdminDashboardShell({
               navBadges={navBadges}
             />
           </nav>
-          <div className="shrink-0 space-y-2 border-t border-[var(--admin-gold-border)] p-3">
+          <div
+            className={cn(
+              "shrink-0 border-t border-[var(--admin-gold-border)]",
+              collapsed ? "space-y-1.5 p-2" : "flex items-center gap-1.5 p-2",
+            )}
+          >
             {collapsed ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -678,12 +683,12 @@ export function AdminDashboardShell({
                 <TooltipContent side="right">Sign out</TooltipContent>
               </Tooltip>
             ) : (
-              <form action={signOut}>
+              <form action={signOut} className="flex-1">
                 <Button
                   type="submit"
                   variant="outline"
                   size="sm"
-                  className="w-full gap-2 rounded-xl border-[var(--admin-gold-border)] bg-transparent text-[var(--admin-gold-bright)] hover:bg-[var(--admin-sidebar-hover)]"
+                  className="w-full gap-2 rounded-lg border-[var(--admin-gold-border)] bg-transparent text-[var(--admin-gold-bright)] hover:bg-[var(--admin-sidebar-hover)]"
                 >
                   <LogOut className="size-4 shrink-0" aria-hidden />
                   Sign out
@@ -704,17 +709,18 @@ export function AdminDashboardShell({
                 <TooltipContent side="right">Exit to site</TooltipContent>
               </Tooltip>
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full gap-2 rounded-xl text-[var(--admin-nav-idle)] hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-nav-hover-fg)]"
-                asChild
-              >
-                <Link href="/">
-                  <Home className="size-4 shrink-0" aria-hidden />
-                  Exit to site
-                </Link>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/"
+                    aria-label="Exit to site"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg text-[var(--admin-nav-idle)] transition-colors hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-nav-hover-fg)]"
+                  >
+                    <Home className="size-4" aria-hidden />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="top">Exit to site</TooltipContent>
+              </Tooltip>
             )}
           </div>
         </aside>
@@ -769,6 +775,7 @@ export function AdminDashboardShell({
               setTheme(chromeTheme === "dark" ? "light" : "dark")
             }
             userEmail={userEmail}
+            unreadAlerts={navBadges?.inquiries ?? 0}
           />
 
           <PrototypeTopShortcutsBar shortcutIds={shortcutIds} />

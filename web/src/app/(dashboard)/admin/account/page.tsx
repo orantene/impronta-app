@@ -1,10 +1,9 @@
 import { StaffAccountPasswordForm } from "@/app/(dashboard)/admin/account/staff-account-password-form";
 import { signOut } from "@/app/auth/actions";
-import { AccountBillingPanels } from "@/components/admin/account/account-billing-panels";
+import { AccountShell } from "@/components/admin/account/account-shell";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { Button } from "@/components/ui/button";
-import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
+import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
 import {
   isStaffRole,
   resolveAuthenticatedDestination,
@@ -12,7 +11,6 @@ import {
 import { userHasEmailPasswordIdentity } from "@/lib/auth-identities";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import Link from "next/link";
-import { UserRound } from "lucide-react";
 import { redirect } from "next/navigation";
 
 export default async function AdminAccountPage() {
@@ -30,43 +28,62 @@ export default async function AdminAccountPage() {
   }
 
   const hasEmailPassword = userHasEmailPasswordIdentity(user);
+  const userEmail = user.email ?? user.id;
 
-  return (
-    <div className={ADMIN_PAGE_STACK}>
-      <AdminPageHeader
-        icon={UserRound}
-        title="Account"
-        description="Workspace billing, organization details, and your staff sign-in."
-      />
-
-      <AccountBillingPanels />
-
-      <DashboardSectionCard
-        title="Your session"
-        description="Signed in as staff. Sign out on shared devices."
-        titleClassName={ADMIN_SECTION_TITLE_CLASS}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">{user.email ?? user.id}</p>
+  const securitySlot = (
+    <div className="space-y-6">
+      <section className="space-y-2">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          Your session
+        </h3>
+        <p className="text-[12.5px] text-muted-foreground">
+          Signed in as staff. Sign out on shared devices.
+        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[rgba(24,24,27,0.1)] bg-white px-3.5 py-3">
+          <p className="truncate text-[13px] text-foreground">{userEmail}</p>
           <form action={signOut}>
-            <Button type="submit" variant="outline">
+            <Button type="submit" variant="outline" size="sm">
               Sign out
             </Button>
           </form>
         </div>
-      </DashboardSectionCard>
+      </section>
 
-      <DashboardSectionCard
-        title="Password"
-        description={
-          hasEmailPassword
-            ? <>Change the password you use with your email on the log-in screen. Forgot your password? Use <Link href="/forgot-password" className="text-primary underline-offset-4 hover:underline">Forgot password</Link> while signed out.</>
-            : "Optional: add a password to sign in with email as well as Google."
-        }
-        titleClassName={ADMIN_SECTION_TITLE_CLASS}
-      >
+      <section className="space-y-2">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          Password
+        </h3>
+        <p className="text-[12.5px] text-muted-foreground">
+          {hasEmailPassword ? (
+            <>
+              Change the password you use with your email on the log-in screen.
+              Forgot your password? Use{" "}
+              <Link
+                href="/forgot-password"
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                Forgot password
+              </Link>{" "}
+              while signed out.
+            </>
+          ) : (
+            "Optional: add a password to sign in with email as well as Google."
+          )}
+        </p>
         <StaffAccountPasswordForm hasEmailPassword={hasEmailPassword} />
-      </DashboardSectionCard>
+      </section>
+    </div>
+  );
+
+  return (
+    <div className={ADMIN_PAGE_STACK}>
+      <AdminPageHeader
+        eyebrow="Account"
+        title="Account & billing"
+        description="Plan, organization, payment, invoices, and your staff sign-in — open any tile to edit."
+      />
+
+      <AccountShell userEmail={userEmail} securitySlot={securitySlot} />
     </div>
   );
 }

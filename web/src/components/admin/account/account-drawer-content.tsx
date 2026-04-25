@@ -275,6 +275,48 @@ export function PaymentDrawerBody({ hasPaidInvoices }: { hasPaidInvoices: boolea
   );
 }
 
+export function DangerZoneDrawerBody() {
+  return (
+    <div className="space-y-4">
+      <p className="text-[12.5px] text-muted-foreground">
+        Pause or close your workspace. We keep your data on file for 30 days
+        after closure — after that it&rsquo;s purged from our systems.
+      </p>
+      <div className="space-y-2.5 rounded-[10px] border border-[rgba(24,24,27,0.1)] bg-white p-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-foreground">Pause workspace</div>
+            <div className="text-[11.5px] text-muted-foreground">
+              Hide your public site and freeze billing. Reversible.
+            </div>
+          </div>
+          <BtnSecondary>Pause</BtnSecondary>
+        </div>
+        <div className="border-t border-[rgba(24,24,27,0.08)] pt-2.5" />
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-foreground">Close workspace</div>
+            <div className="text-[11.5px] text-muted-foreground">
+              Permanent after 30 days. Cancels billing immediately.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-[12.5px] font-semibold transition-colors"
+            style={{ color: "#a1302d", borderColor: "rgba(161,48,45,0.35)" }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+      <p className="text-[11.5px] text-muted-foreground">
+        Closing emails the workspace owner a confirmation link — nothing happens
+        without that confirmation.
+      </p>
+    </div>
+  );
+}
+
 export function InvoicesDrawerBody({ hasPaidInvoices, planKey, planLabel }: {
   hasPaidInvoices: boolean;
   planKey: string;

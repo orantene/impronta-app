@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { CalendarRange, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import { AdminBookingQueue } from "@/app/(dashboard)/admin/bookings/admin-booking-queue";
 import type { BookingQueueRow } from "@/app/(dashboard)/admin/bookings/admin-booking-queue";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
@@ -327,7 +327,7 @@ export default async function AdminBookingsPage({
   return (
     <div className={ADMIN_PAGE_STACK}>
       <AdminPageHeader
-        icon={CalendarRange}
+        eyebrow="Confirmed jobs"
         title="Bookings"
         description={
           queueRows.length > 0

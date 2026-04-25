@@ -136,7 +136,7 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
         "Daily overview \u2014 alerts, queue, recent activity",
       ),
       navItem(
-        "Inquiries",
+        "Requests",
         `${ADMIN_PROTOTYPE_BASE}/inquiries`,
         Inbox,
         undefined,
@@ -170,14 +170,14 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
     label: "Site & AI",
     items: [
       navItem(
-        "Site",
+        "Public site",
         `${ADMIN_PROTOTYPE_BASE}/site`,
         LayoutDashboard,
         "site-control-center",
         "Public storefront \u2014 pages, design, navigation, SEO",
       ),
       navItem(
-        "Profile settings",
+        "Talent profiles",
         `${ADMIN_PROTOTYPE_BASE}/profile`,
         UserCog,
         undefined,
@@ -211,7 +211,7 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
         "Tenant configuration, locale, integrations",
       ),
       navItem(
-        "Users",
+        "Team",
         `${ADMIN_PROTOTYPE_BASE}/users`,
         Users,
         undefined,

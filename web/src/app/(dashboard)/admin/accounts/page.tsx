@@ -1,4 +1,3 @@
-import { MapPinned } from "lucide-react";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminAccountQueue } from "@/app/(dashboard)/admin/accounts/admin-account-queue";
@@ -184,7 +183,7 @@ export default async function AdminClientAccountsPage() {
   return (
     <div className={ADMIN_PAGE_STACK}>
       <AdminPageHeader
-        icon={MapPinned}
+        eyebrow="Where you work"
         title="Work Locations"
         description={
           queueRows.length > 0

@@ -81,6 +81,15 @@ export const ADMIN_POPOVER_CONTENT_CLASS = "w-[360px] rounded-2xl border-border/
 export const ADMIN_SECTION_TITLE_CLASS = "font-display text-base font-medium tracking-wide";
 
 /**
+ * Sub-section eyebrow inside cards/drawers (audit 2 #8). Use this for the
+ * tiny uppercase label that introduces a group of fields or rows — far
+ * lighter than ADMIN_SECTION_TITLE_CLASS so the page heading retains
+ * primacy.
+ */
+export const ADMIN_SUBSECTION_LABEL_CLASS =
+  "text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground";
+
+/**
  * Unified admin page tab bar — flush with content, single bottom border.
  *
  * Previous version wrapped tabs in a rounded-top card with its own background

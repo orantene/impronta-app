@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Info, MessageSquareText } from "lucide-react";
+import { Info } from "lucide-react";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
@@ -527,7 +527,7 @@ export default async function AdminInquiriesPage({
   return (
     <div className={cn("mx-auto max-w-6xl space-y-5 pb-8")}>
       <AdminPageHeader
-        icon={MessageSquareText}
+        eyebrow="Pipeline"
         title="Requests"
         description={
           queueRows.length > 0

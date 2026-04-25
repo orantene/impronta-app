@@ -143,27 +143,31 @@ function buildCrumbs(pathname: string): Crumb[] {
 const QUICK_CREATE = [
   {
     href: "/admin/inquiries",
-    label: "New inquiry",
+    label: "New request",
     hint: "Capture a lead",
     Icon: Plus,
-  },
-  {
-    href: "/admin/talent/new",
-    label: "Add talent",
-    hint: "Create a roster profile",
-    Icon: UserPlus,
-  },
-  {
-    href: "/admin/clients",
-    label: "Add client",
-    hint: "Open client list",
-    Icon: Users,
+    keys: ["G", "R"],
   },
   {
     href: "/admin/bookings/new",
     label: "New booking",
     hint: "Confirmed job",
     Icon: CalendarPlus,
+    keys: ["G", "B"],
+  },
+  {
+    href: "/admin/talent/new",
+    label: "Add talent",
+    hint: "Create a roster profile",
+    Icon: UserPlus,
+    keys: ["G", "T"],
+  },
+  {
+    href: "/admin/clients",
+    label: "Add client",
+    hint: "Open client list",
+    Icon: Users,
+    keys: ["G", "C"],
   },
 ] as const;
 
@@ -172,11 +176,18 @@ export function AdminShellTopBar({
   chromeTheme,
   onToggleTheme,
   userEmail,
+  unreadAlerts = 0,
 }: {
   onOpenMobileMenu: () => void;
   chromeTheme: "dark" | "light";
   onToggleTheme: () => void;
   userEmail: string | null;
+  /**
+   * Tier-1 alert count (unread messages + actionable + ready-to-convert)
+   * for the active tenant. Computed server-side in
+   * {@link loadAdminTier1AlertCount} and threaded through the layout.
+   */
+  unreadAlerts?: number;
 }) {
   const pathname = usePathname() ?? "/admin";
   const crumbs = React.useMemo(() => buildCrumbs(pathname), [pathname]);
@@ -197,10 +208,6 @@ export function AdminShellTopBar({
       : 0;
   const seatsTight = usageRatio >= 0.9;
 
-  // Placeholder for unread alerts. The events table feeds this in a follow-up
-  // (see audit Finding #4). Keep the affordance so visual layout is final.
-  const unreadAlerts: number = 0;
-
   return (
     <header
       className={cn(
@@ -220,7 +227,18 @@ export function AdminShellTopBar({
         <Menu className="size-4" />
       </Button>
 
-      {/* Breadcrumb */}
+      {/* Mobile: just the current page label so the user always knows where
+          they are. Tappable back-to-Admin home. */}
+      <Link
+        href="/admin"
+        className="flex min-w-0 flex-1 items-center gap-1 truncate text-[13px] font-semibold text-foreground sm:hidden"
+      >
+        {crumbs.length > 0
+          ? (crumbs[crumbs.length - 1]?.label ?? "Admin")
+          : "Admin"}
+      </Link>
+
+      {/* Breadcrumb (desktop) */}
       <nav
         aria-label="Breadcrumb"
         className="hidden min-w-0 flex-1 items-center gap-1 overflow-hidden text-[12.5px] text-muted-foreground sm:flex"
@@ -256,9 +274,6 @@ export function AdminShellTopBar({
         )}
       </nav>
 
-      {/* Take remaining space on mobile so right cluster pins to right */}
-      <div className="flex-1 sm:hidden" />
-
       {/* Right cluster */}
       <div className="flex shrink-0 items-center gap-1.5">
         {/* Compact ⌘K search */}
@@ -291,7 +306,7 @@ export function AdminShellTopBar({
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-start gap-2.5 rounded-md px-2 py-2 transition-colors hover:bg-muted/60"
+                className="flex items-center gap-2.5 rounded-md px-2 py-2 transition-colors hover:bg-muted/60"
               >
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-foreground/[0.06] text-foreground">
                   <item.Icon className="size-3.5" aria-hidden />
@@ -304,35 +319,48 @@ export function AdminShellTopBar({
                     {item.hint}
                   </span>
                 </span>
+                <span
+                  className="ml-2 hidden shrink-0 items-center gap-0.5 sm:flex"
+                  aria-hidden
+                >
+                  {item.keys.map((k) => (
+                    <kbd
+                      key={k}
+                      className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-foreground/15 bg-foreground/[0.04] px-1 font-mono text-[10px] font-semibold text-muted-foreground"
+                    >
+                      {k}
+                    </kbd>
+                  ))}
+                </span>
               </Link>
             ))}
           </PopoverContent>
         </Popover>
 
-        {/* Notifications */}
+        {/* Notifications — clicking jumps to the Tier-1 alert view */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
-              type="button"
+            <Link
+              href="/admin/inquiries?tier1_only=1"
               className="relative inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-foreground/70 transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
               aria-label={
                 unreadAlerts > 0
-                  ? `${unreadAlerts} unread alert${unreadAlerts === 1 ? "" : "s"}`
-                  : "No new alerts"
+                  ? `${unreadAlerts} request${unreadAlerts === 1 ? "" : "s"} need attention`
+                  : "Inbox is clear"
               }
             >
               <Bell className="size-4" aria-hidden />
               {unreadAlerts > 0 ? (
-                <span className="absolute right-1.5 top-1.5 inline-flex min-w-[14px] items-center justify-center rounded-full bg-[#a1302d] px-1 text-[9px] font-bold leading-[14px] text-white">
+                <span className="absolute right-1.5 top-1.5 inline-flex min-w-[14px] items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold leading-[14px] text-background">
                   {unreadAlerts > 9 ? "9+" : unreadAlerts}
                 </span>
               ) : null}
-            </button>
+            </Link>
           </TooltipTrigger>
           <TooltipContent side="bottom">
             {unreadAlerts > 0
-              ? `${unreadAlerts} unread alert${unreadAlerts === 1 ? "" : "s"}`
-              : "No new alerts"}
+              ? `${unreadAlerts} need${unreadAlerts === 1 ? "s" : ""} attention`
+              : "Inbox is clear"}
           </TooltipContent>
         </Tooltip>
 
@@ -344,7 +372,7 @@ export function AdminShellTopBar({
             "ml-0.5 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[12px] text-foreground/80",
             "border transition-[border-color,box-shadow] duration-150",
             seatsTight
-              ? "border-[rgba(161,48,45,0.45)] hover:border-[rgba(161,48,45,0.7)]"
+              ? "border-foreground bg-foreground text-background hover:bg-foreground/90"
               : "border-[rgba(24,24,27,0.18)] hover:border-[rgba(24,24,27,0.4)]",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(24,24,27,0.45)]",
           )}
@@ -356,22 +384,39 @@ export function AdminShellTopBar({
         >
           <span
             className="size-2 shrink-0 rounded-full"
-            style={{ backgroundColor: planDot }}
+            style={{ backgroundColor: seatsTight ? "#fff" : planDot }}
             aria-hidden
           />
           <span className="truncate">
-            <strong className="font-semibold text-foreground">{planLabel}</strong>
-            <span className="mx-1 text-muted-foreground/70">·</span>
+            <strong
+              className={cn(
+                "font-semibold",
+                seatsTight ? "text-background" : "text-foreground",
+              )}
+            >
+              {planLabel}
+            </strong>
             <span
               className={cn(
-                seatsTight ? "text-[#a1302d]" : "text-muted-foreground",
+                "mx-1",
+                seatsTight ? "text-background/60" : "text-muted-foreground/70",
+              )}
+            >
+              ·
+            </span>
+            <span
+              className={cn(
+                seatsTight ? "text-background/90" : "text-muted-foreground",
               )}
             >
               {planUsage}
             </span>
           </span>
           <ChevronDown
-            className="size-3 shrink-0 text-muted-foreground/70"
+            className={cn(
+              "size-3 shrink-0",
+              seatsTight ? "text-background/70" : "text-muted-foreground/70",
+            )}
             aria-hidden
           />
         </button>
