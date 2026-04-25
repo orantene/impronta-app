@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
-- **Last commit on phase-1 branch:** 342a55b — strip debug labels (inspector + publish + library)
-- **Next action:** Inspector auto-hide — when `selectedSectionId === null`, slide dock out (`translateX(100%)` 200ms easing); canvas reclaims full width; click section → dock slides in.
+- **Last commit on phase-1 branch:** 8faccf1 — inspector auto-hide (slide out + BodyPaddingController)
+- **Next action:** Retrofit existing drawers — InspectorDock uses `<Drawer kind="dock">`, PublishDrawer uses `<Drawer kind="publish">`, etc.
 
 ---
 
@@ -74,9 +74,9 @@ items — the user has authorised end-to-end execution.
 - [x] CompositionLibrary tile descriptions — keep operator copy only
 
 #### Inspector auto-hide
-- [ ] When `selectedSectionId === null`, slide the dock out (`translateX(100%)` with 200ms easing) instead of rendering "No selection" empty state
-- [ ] Canvas reclaims full width
-- [ ] Click any section → dock slides in
+- [x] When `selectedSectionId === null`, slide the dock out (`translateX(100%)` with 200ms easing) instead of rendering "No selection" empty state
+- [x] Canvas reclaims full width
+- [x] Click any section → dock slides in
 
 #### Retrofit existing drawers to the new `Drawer` primitive
 - [ ] InspectorDock uses `<Drawer>` with `kind="dock"`
@@ -330,4 +330,6 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 557380d | autonomous shipped SectionTypeIcon — 12 SVG glyphs |
 | 2026-04-24 (manual) | A.1 | 3941772 | manual SectionTypeIcon merge / tracker advance |
 | 2026-04-24 (autonomous) | A.1 | 1eb8679 | Selection layer premium upgrade — dual-tone ring, chip, drop indicator, ghost |
+| 2026-04-24 (autonomous) | A.1 | 342a55b | Strip debug labels — InspectorDock header/footer, PublishDrawer slots/rows, Library |
+| 2026-04-24 (autonomous) | A.1 | 8faccf1 | Inspector auto-hide — translateX slide + BodyPaddingController canvas reclaim |
 | 2026-04-24 (autonomous) | A.1 | 342a55b | Strip debug labels: inspector SectionTypeIcon + name cleaner + footer removed + publish drawer (legacy) + library TypeKey |
