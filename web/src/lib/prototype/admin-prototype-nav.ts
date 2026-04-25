@@ -5,7 +5,6 @@ import {
   Inbox,
   LayoutDashboard,
   Settings,
-  Shield,
   Sparkles,
   UserCog,
   UserRound,
@@ -138,7 +137,7 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
     items: [
       navItem("Account & billing", `${ADMIN_PROTOTYPE_BASE}/account`, UserRound, "system-account"),
       navItem("Settings", `${ADMIN_PROTOTYPE_BASE}/settings`, Settings, "system-settings"),
-      navItem("Admins", `${ADMIN_PROTOTYPE_BASE}/users/admins`, Shield),
+      navItem("Users", `${ADMIN_PROTOTYPE_BASE}/users`, Users),
       navItem("Help", `${ADMIN_PROTOTYPE_BASE}/docs`, HelpCircle, "system-help"),
     ],
   },

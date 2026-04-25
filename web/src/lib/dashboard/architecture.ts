@@ -220,21 +220,14 @@ export const ADMIN_DASHBOARD_GROUPS: DashboardNavGroup[] = [
     collapsible: true,
     items: [
       {
-        id: "admin-user-search",
-        href: "/admin/users/search",
-        label: "Search",
+        id: "admin-users",
+        href: "/admin/users",
+        label: "Users",
         match: "prefix",
         icon: "search",
       },
       { href: "/admin/talent", label: "Talents", match: "prefix", icon: "talent" },
       { href: "/admin/clients", label: "Clients", match: "prefix", icon: "clients" },
-      {
-        id: "admin-staff",
-        href: "/admin/users/admins",
-        label: "Admins",
-        match: "prefix",
-        icon: "admins",
-      },
     ],
   },
   {

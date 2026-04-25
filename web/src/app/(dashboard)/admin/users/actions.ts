@@ -309,9 +309,8 @@ export async function adminUpdateUser(
 
   revalidatePath("/admin/talent");
   if (talentProfileId) revalidatePath(`/admin/talent/${talentProfileId}`);
-  revalidatePath("/admin/users/search");
+  revalidatePath("/admin/users");
   revalidatePath("/admin/clients");
-  revalidatePath("/admin/users/admins");
   return { success: true };
 }
 
@@ -339,9 +338,8 @@ export async function adminQuickSetAccountStatus(
     return { error: CLIENT_ERROR.update };
   }
 
-  revalidatePath("/admin/users/search");
+  revalidatePath("/admin/users");
   revalidatePath("/admin/clients");
-  revalidatePath("/admin/users/admins");
   revalidatePath(`/admin/clients/${uid}`);
   return { success: true };
 }

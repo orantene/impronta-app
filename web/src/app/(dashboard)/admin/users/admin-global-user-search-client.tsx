@@ -374,7 +374,7 @@ export function AdminGlobalUserSearchClient({
                         </Button>
                       ) : (
                         <Button size="sm" variant="outline" className={cn("h-8 rounded-lg px-2.5 text-xs", ADMIN_OUTLINE_CONTROL_CLASS)} asChild>
-                          <Link href="/admin/users/admins" scroll={false}>
+                          <Link href="/admin/users" scroll={false}>
                             Staff list
                           </Link>
                         </Button>
@@ -399,7 +399,7 @@ export function AdminGlobalUserSearchClient({
                                 }
                               : undefined
                           }
-                          urlSync={{ pathname: "/admin/users/search" }}
+                          urlSync={{ pathname: "/admin/users" }}
                         />
                       ) : null}
                       {r.kind === "talent" && r.userId ? (

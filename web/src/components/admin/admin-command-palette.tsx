@@ -52,12 +52,12 @@ const NAV_LINKS: NavLink[] = [
     icon: <LayoutDashboard className="size-4" />,
   },
   {
-    href: "/admin/users/search",
-    label: "Search",
+    href: "/admin/users",
+    label: "Users",
     category: "People",
-    hint: "Global search — talent, clients, staff, email, phone, id",
+    hint: "Staff up top + global search — talent, clients, admins, email, phone, id",
     keywords:
-      "user users people account accounts global directory lookup email phone role staff admin super agency talent client uuid login identity",
+      "user users people account accounts global directory lookup email phone role staff admin super agency talent client uuid login identity search",
     icon: <Search className="size-4" />,
   },
   {
@@ -85,10 +85,10 @@ const NAV_LINKS: NavLink[] = [
     icon: <MapPin className="size-4" />,
   },
   {
-    href: "/admin/users/admins",
-    label: "Admins",
+    href: "/admin/users",
+    label: "Admins & staff",
     category: "People",
-    hint: "Agency staff and super admins",
+    hint: "Agency staff and super admins (top of the Users page)",
     keywords: "admin staff super agency permissions user",
     icon: <Shield className="size-4" />,
   },
@@ -238,7 +238,7 @@ function formatAppRole(role: string): string {
 
 function accountHref(a: AdminSearchResponse["accounts"][number]): string {
   if (a.talent_profile_id) return `/admin/talent/${a.talent_profile_id}`;
-  return `/admin/users/search?q=${encodeURIComponent(a.id)}`;
+  return `/admin/users?q=${encodeURIComponent(a.id)}`;
 }
 
 function AccountSearchIcon({ appRole }: { appRole: string }) {
