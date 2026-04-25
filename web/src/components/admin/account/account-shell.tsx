@@ -15,6 +15,7 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
+import { TIER_LABEL } from "@/lib/admin/plan-tiers";
 
 import {
   DangerZoneDrawerBody,
@@ -37,13 +38,6 @@ import {
  *   - Security & session  → securitySlot (rendered by parent server page so
  *                          we keep the existing form components)
  */
-
-const TIER_LABEL: Record<string, string> = {
-  free: "Free",
-  studio: "Studio",
-  agency: "Agency",
-  network: "Network",
-};
 
 type DrawerId =
   | "plan"

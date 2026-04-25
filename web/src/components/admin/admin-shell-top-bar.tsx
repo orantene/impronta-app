@@ -35,6 +35,7 @@ import {
   formatTalentUsage,
   useAdminWorkspace,
 } from "@/components/admin/workspace-context";
+import { TIER_DOT, TIER_LABEL } from "@/lib/admin/plan-tiers";
 import { cn } from "@/lib/utils";
 
 /**
@@ -56,19 +57,6 @@ import { cn } from "@/lib/utils";
  * box, with a hairline divider — content starts ~110px below the top of the
  * viewport instead of the previous ~190px.
  */
-
-const TIER_DOT: Record<string, string> = {
-  free: "#a1a1aa",
-  studio: "#3a7bff",
-  agency: "#c9a227",
-  network: "#146b3a",
-};
-const TIER_LABEL: Record<string, string> = {
-  free: "Free",
-  studio: "Studio",
-  agency: "Agency",
-  network: "Network",
-};
 
 const LABELS: Record<string, string> = {
   admin: "Admin",
@@ -412,13 +400,20 @@ export function AdminShellTopBar({
               {planUsage}
             </span>
           </span>
-          <ChevronDown
-            className={cn(
-              "size-3 shrink-0",
-              seatsTight ? "text-background/70" : "text-muted-foreground/70",
-            )}
-            aria-hidden
-          />
+          {seatsTight ? (
+            <span
+              className={cn(
+                "ml-0.5 hidden rounded-full bg-background/15 px-1.5 py-px text-[10px] font-bold uppercase tracking-[0.08em] text-background sm:inline",
+              )}
+            >
+              Upgrade
+            </span>
+          ) : (
+            <ChevronDown
+              className="size-3 shrink-0 text-muted-foreground/70"
+              aria-hidden
+            />
+          )}
         </button>
 
         {/* Locale */}

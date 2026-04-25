@@ -5,7 +5,7 @@ import { AdminClientQueue } from "@/app/(dashboard)/admin/clients/admin-client-q
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminListPage } from "@/components/admin/admin-list-page";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,7 +14,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   ADMIN_HELP_TRIGGER_BUTTON,
   ADMIN_FORM_CONTROL,
-  ADMIN_PAGE_STACK,
   ADMIN_POPOVER_CONTENT_CLASS,
   ADMIN_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-shell-classes";
@@ -83,116 +82,113 @@ export default async function AdminClientsPage({
     (q.trim() ? 1 : 0) + (status !== "all" ? 1 : 0) + (sort !== "latest_activity" ? 1 : 0);
 
   return (
-    <div className={ADMIN_PAGE_STACK}>
-      <AdminPageHeader
-        eyebrow="Portal users"
-        title="Clients"
-        description="Portal login users — not the billing entity. For villas, brands, and who you invoice, use Accounts."
-        right={
-          <div className="flex flex-wrap items-center gap-2">
-            <AdminNewClientSheet />
-            <Popover>
-              <PopoverTrigger
-                type="button"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" }),
-                  ADMIN_HELP_TRIGGER_BUTTON,
-                )}
-              >
-                <Info className="size-4 text-[var(--impronta-gold)]" aria-hidden />
-                How it works
-              </PopoverTrigger>
-              <PopoverContent align="end" className={ADMIN_POPOVER_CONTENT_CLASS}>
-                <div className="space-y-2">
-                  <p className="font-display text-sm font-medium text-foreground">
-                    Clients vs Accounts
-                  </p>
-                  <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                    <li>
-                      <span className="font-medium text-foreground">Clients</span> (this page)
-                      are platform login users — people with a client portal account.
-                    </li>
-                    <li>
-                      <span className="font-medium text-foreground">Accounts</span> under Admin
-                      → Accounts are commercial / billing entities (villa, venue, brand). Link
-                      those on inquiries and bookings.
-                    </li>
-                  </ul>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        }
-      />
-
-      <AdminPageTabs
-        ariaLabel="Client status"
-        items={statuses.map((s) => {
-          const sp = new URLSearchParams();
-          if (s !== "all") sp.set("status", s);
-          if (q) sp.set("q", q);
-          if (sort !== "latest_activity") sp.set("sort", sort);
-          const qs = sp.toString();
-          return {
-            href: qs ? `/admin/clients?${qs}` : "/admin/clients",
-            label:
-              s === "all"
-                ? `All (${rows.length})`
-                : `${s[0]!.toUpperCase()}${s.slice(1)} (${statusCounts[s] ?? 0})`,
-            active: status === s || (!status && s === "all"),
-          };
-        })}
-      />
-
-      <AdminFilterBar
-        title="Search & sort"
-        activeCount={filterActiveCount}
-      >
-        <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px_auto] sm:items-end">
-          <div className="space-y-1.5">
-            <label htmlFor="q" className="text-sm font-medium text-foreground">
-              Search
-            </label>
-            <Input
-              id="q"
-              name="q"
-              defaultValue={q}
-              placeholder="Name, company, phone, notes…"
-              className={ADMIN_FORM_CONTROL}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="sort" className="text-sm font-medium text-foreground">
-              Sort by
-            </label>
-            <select
-              id="sort"
-              name="sort"
-              defaultValue={sort}
-              className={ADMIN_FORM_CONTROL}
+    <AdminListPage
+      eyebrow="Portal users"
+      title="Clients"
+      description="Portal login users — not the billing entity. For villas, brands, and who you invoice, use Accounts."
+      right={
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminNewClientSheet />
+          <Popover>
+            <PopoverTrigger
+              type="button"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                ADMIN_HELP_TRIGGER_BUTTON,
+              )}
             >
-              <option value="latest_activity">Latest activity</option>
-              <option value="requests">Most requests</option>
-              <option value="saved">Most saved talent</option>
-              <option value="name">Name A–Z</option>
-              <option value="created_newest">Newest signups</option>
-              <option value="created_oldest">Oldest signups</option>
-            </select>
-          </div>
-          <input type="hidden" name="status" value={status} />
-          <div className="flex gap-2">
-            <Button type="submit">Apply</Button>
-            {hasActiveFilters ? (
-              <Button type="button" variant="outline" asChild>
-                <Link href="/admin/clients" scroll={false}>
-                  Clear
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        </form>
-      </AdminFilterBar>
-
+              <Info className="size-4 text-[var(--impronta-gold)]" aria-hidden />
+              How it works
+            </PopoverTrigger>
+            <PopoverContent align="end" className={ADMIN_POPOVER_CONTENT_CLASS}>
+              <div className="space-y-2">
+                <p className="font-display text-sm font-medium text-foreground">
+                  Clients vs Accounts
+                </p>
+                <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
+                  <li>
+                    <span className="font-medium text-foreground">Clients</span> (this page)
+                    are platform login users — people with a client portal account.
+                  </li>
+                  <li>
+                    <span className="font-medium text-foreground">Accounts</span> under Admin
+                    → Accounts are commercial / billing entities (villa, venue, brand). Link
+                    those on inquiries and bookings.
+                  </li>
+                </ul>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      }
+      tabs={
+        <AdminPageTabs
+          ariaLabel="Client status"
+          items={statuses.map((s) => {
+            const sp = new URLSearchParams();
+            if (s !== "all") sp.set("status", s);
+            if (q) sp.set("q", q);
+            if (sort !== "latest_activity") sp.set("sort", sort);
+            const qs = sp.toString();
+            return {
+              href: qs ? `/admin/clients?${qs}` : "/admin/clients",
+              label:
+                s === "all"
+                  ? `All (${rows.length})`
+                  : `${s[0]!.toUpperCase()}${s.slice(1)} (${statusCounts[s] ?? 0})`,
+              active: status === s || (!status && s === "all"),
+            };
+          })}
+        />
+      }
+      filters={
+        <AdminFilterBar title="Search & sort" activeCount={filterActiveCount}>
+          <form className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px_auto] sm:items-end">
+            <div className="space-y-1.5">
+              <label htmlFor="q" className="text-sm font-medium text-foreground">
+                Search
+              </label>
+              <Input
+                id="q"
+                name="q"
+                defaultValue={q}
+                placeholder="Name, company, phone, notes…"
+                className={ADMIN_FORM_CONTROL}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="sort" className="text-sm font-medium text-foreground">
+                Sort by
+              </label>
+              <select
+                id="sort"
+                name="sort"
+                defaultValue={sort}
+                className={ADMIN_FORM_CONTROL}
+              >
+                <option value="latest_activity">Latest activity</option>
+                <option value="requests">Most requests</option>
+                <option value="saved">Most saved talent</option>
+                <option value="name">Name A–Z</option>
+                <option value="created_newest">Newest signups</option>
+                <option value="created_oldest">Oldest signups</option>
+              </select>
+            </div>
+            <input type="hidden" name="status" value={status} />
+            <div className="flex gap-2">
+              <Button type="submit">Apply</Button>
+              {hasActiveFilters ? (
+                <Button type="button" variant="outline" asChild>
+                  <Link href="/admin/clients" scroll={false}>
+                    Clear
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+          </form>
+        </AdminFilterBar>
+      }
+    >
       <DashboardSectionCard
         title={
           sortedRows.length === rows.length
@@ -219,6 +215,6 @@ export default async function AdminClientsPage({
           <AdminClientQueue rows={sortedRows} />
         )}
       </DashboardSectionCard>
-    </div>
+    </AdminListPage>
   );
 }

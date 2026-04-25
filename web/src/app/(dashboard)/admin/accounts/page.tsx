@@ -1,11 +1,11 @@
+import { MapPinned } from "lucide-react";
+
+import { AdminEmptyState } from "@/components/admin/admin-empty-state";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminListPage } from "@/components/admin/admin-list-page";
 import { AdminAccountQueue } from "@/app/(dashboard)/admin/accounts/admin-account-queue";
 import type { AccountQueueRow } from "@/app/(dashboard)/admin/accounts/admin-account-queue";
 import { AdminAccountsToolbar } from "@/components/admin/create-client-account-sheet";
-import {
-  ADMIN_PAGE_STACK,
-} from "@/lib/dashboard-shell-classes";
 import { formatClientLocationAccountType } from "@/lib/admin/validation";
 import { CLIENT_ERROR, isPostgrestMissingColumnError, logServerError } from "@/lib/server/safe-error";
 import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
@@ -181,26 +181,33 @@ export default async function AdminClientAccountsPage() {
   }));
 
   return (
-    <div className={ADMIN_PAGE_STACK}>
-      <AdminPageHeader
-        eyebrow="Where you work"
-        title="Work Locations"
-        description={
-          queueRows.length > 0
-            ? `${queueRows.length} location${queueRows.length === 1 ? "" : "s"} · villas, venues, hotels linked to jobs`
-            : "No locations yet · villas, venues, hotels linked to jobs"
-        }
-      />
-
-      <AdminFilterBar
-        title="Quick actions"
-        description="Create a billing entity or open the full form for more fields."
-        activeCount={0}
-      >
-        <AdminAccountsToolbar />
-      </AdminFilterBar>
-
-      <AdminAccountQueue rows={queueRows} />
-    </div>
+    <AdminListPage
+      eyebrow="Where you work"
+      title="Work Locations"
+      description={
+        queueRows.length > 0
+          ? `${queueRows.length} location${queueRows.length === 1 ? "" : "s"} · villas, venues, hotels linked to jobs`
+          : "No locations yet · villas, venues, hotels linked to jobs"
+      }
+      filters={
+        <AdminFilterBar
+          title="Quick actions"
+          description="Create a billing entity or open the full form for more fields."
+          activeCount={0}
+        >
+          <AdminAccountsToolbar />
+        </AdminFilterBar>
+      }
+    >
+      {queueRows.length > 0 ? (
+        <AdminAccountQueue rows={queueRows} />
+      ) : (
+        <AdminEmptyState
+          icon={MapPinned}
+          title="No work locations yet"
+          description="Add the villas, venues, and hotels you regularly run jobs at. Then link them from any inquiry or booking."
+        />
+      )}
+    </AdminListPage>
   );
 }

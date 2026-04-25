@@ -9,6 +9,7 @@ import {
   formatTalentUsage,
   useAdminWorkspace,
 } from "@/components/admin/workspace-context";
+import { TIER_DOT, TIER_LABEL, TIER_RENEW } from "@/lib/admin/plan-tiers";
 
 /**
  * Drawer bodies for the Account control center (audit Finding #5).
@@ -21,25 +22,6 @@ import {
  * Forms are still presentational — a follow-up phase wires Save organization
  * and Add card to real server actions. Plan changes are already wired.
  */
-
-const TIER_DOT: Record<string, string> = {
-  free: "#a1a1aa",
-  studio: "#3a7bff",
-  agency: "#c9a227",
-  network: "#146b3a",
-};
-const TIER_LABEL: Record<string, string> = {
-  free: "Free",
-  studio: "Studio",
-  agency: "Agency",
-  network: "Network",
-};
-const TIER_RENEW: Record<string, string> = {
-  free: "No renewal — Free plan.",
-  studio: "$49 / month.",
-  agency: "$149 / month.",
-  network: "Custom contract · contact billing.",
-};
 
 const FORM_INPUT_CLASS = cn(
   "w-full rounded-lg border border-[rgba(24,24,27,0.18)] bg-white px-2.5 py-2 text-[12.5px]",
