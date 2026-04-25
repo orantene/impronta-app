@@ -14,7 +14,7 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 2 — Top bar mission control + Page Settings drawer
-- **Last commit on phase-1 branch:** _pending_ — Page Settings drawer + premium TopBar actually wired (orphaned local TopBar deleted)
+- **Last commit on phase-1 branch:** 7152114 — Page Settings drawer + premium TopBar actually wired (orphaned local TopBar deleted)
 - **Next action:** Phase 2 — Rebuild Publish drawer. Replace inventory-list body with preview thumbnail + page-settings-mini + search-preview + diff list + collapsed-empty list; "Last published" meta in header; Save draft + Cancel + Publish now footer.
 
 ---
@@ -340,4 +340,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 4bcfc1f | Hero inspector kit rewrite — Card/Field/Helper/MediaPickerButton/CtaDuoEditor; removes raw class constants |
 | 2026-04-24 (autonomous) | A.1 | 50d49d4 | Phase 1 acceptance gate complete — Vercel READY + code QA + prod promote + qa README |
 | 2026-04-24 (autonomous) | A.2 | 1f7e33c | TopBar wired — replace inline 52px shell TopBar with premium 54px import; QA evidence committed |
-| 2026-04-24 (autonomous) | A.2 | _pending_ | PageSettingsDrawer (kind=pageSettings) + actually wire TopBar import (orphaned local helpers deleted, ~430 lines) + EditContext gains pageSettingsOpen/savePageMetadata |
+| 2026-04-24 (autonomous) | A.2 | 7152114 | PageSettingsDrawer (kind=pageSettings) + actually wire TopBar import (orphaned local helpers deleted, ~430 lines) + EditContext gains pageSettingsOpen/savePageMetadata |
