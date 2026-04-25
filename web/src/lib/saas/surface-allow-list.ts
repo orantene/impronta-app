@@ -10,7 +10,7 @@
  *
  *   surface    | root | static | shared api   | auth | storefront | workspaces | storefront api | app api | mkt pages | /t (canonical)
  *   -----------|------|--------|--------------|------|------------|------------|----------------|---------|-----------|---------------
- *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |            |       ✓        |    ✓*   |           |       ✓
+ *   agency     |  ✓   |   ✓    |      ✓       |  ✓   |     ✓      |     ✓      |       ✓        |    ✓    |           |       ✓
  *   app        |  ✓   |   ✓    |      ✓       |  ✓   |            |     ✓      |                |    ✓    |           |       ✓
  *   hub        |  ✓   |   ✓    |      ✓       |      |            |            |                |         |           |
  *   marketing  |  ✓   |   ✓    |      ✓       |      |            |            |                |         |    ✓      |
@@ -178,9 +178,19 @@ export function isPathAllowedForHostKind(
   if (anyPrefix(pathname, SHARED_API_PREFIXES)) return true;
 
   if (kind === "agency") {
+    // Agency owners/staff (and clients/talent of this tenant) can use the
+    // workspace from their own subdomain — `impronta.tulala.digital/admin`
+    // is equivalent to `app.tulala.digital/admin` for that tenant. The
+    // middleware sets TENANT_HEADER to this host's tenant_id, so downstream
+    // RLS + auth-flow scope the workspace to this tenant only. A logged-in
+    // user who is NOT a member of this tenant gets redirected by the
+    // dashboard layout to their canonical workspace on app.tulala.digital.
     return (
       anyPrefix(pathname, AGENCY_STOREFRONT_PREFIXES) ||
       anyPrefix(pathname, AGENCY_API_PREFIXES) ||
+      anyPrefix(pathname, APP_WORKSPACE_PREFIXES) ||
+      anyPrefix(pathname, APP_API_PREFIXES) ||
+      anyExact(pathname, APP_API_EXACT_PATHS) ||
       anyPrefix(pathname, AUTH_PREFIXES)
     );
   }
