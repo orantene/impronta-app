@@ -3,14 +3,16 @@
 import { usePathname } from "next/navigation";
 import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 
-const TABS = [
-  { href: "/admin/analytics/overview", label: "Executive" },
+type AnalyticsTab = { href: string; label: string; exact?: boolean };
+
+const TABS: readonly AnalyticsTab[] = [
+  { href: "/admin/analytics", label: "Executive", exact: true },
   { href: "/admin/analytics/acquisition", label: "Traffic" },
   { href: "/admin/analytics/funnels", label: "Funnels" },
   { href: "/admin/analytics/talent", label: "Marketplace" },
   { href: "/admin/analytics/search", label: "AI / Search" },
   { href: "/admin/analytics/seo", label: "SEO" },
-] as const;
+];
 
 export function AdminAnalyticsSubnav() {
   const pathname = usePathname();
@@ -20,7 +22,9 @@ export function AdminAnalyticsSubnav() {
       items={TABS.map((tab) => ({
         href: tab.href,
         label: tab.label,
-        active: pathname === tab.href || pathname.startsWith(`${tab.href}/`),
+        active: tab.exact
+          ? pathname === tab.href
+          : pathname === tab.href || pathname.startsWith(`${tab.href}/`),
       }))}
     />
   );
