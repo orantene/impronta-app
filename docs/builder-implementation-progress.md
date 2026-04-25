@@ -14,7 +14,7 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 2 — Top bar mission control + Page Settings drawer
-- **Last commit on phase-1 branch:** [pending publish-drawer rebuild]
+- **Last commit on phase-1 branch:** 09eb019 — PublishDrawer rebuilt per surface 7 (preview + page-settings mini + search preview + going-live list with legacy disclosure; Save draft placeholder)
 - **Next action:** Phase 2 — Wire Save draft button to a `saveNamedDraftAction` (Phase 4 implements; for now the Publish drawer's Save draft is a disabled placeholder, the topbar's is a no-op handler). Once Save draft lands, run the Phase 2 acceptance gate.
 
 ---
@@ -341,4 +341,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 50d49d4 | Phase 1 acceptance gate complete — Vercel READY + code QA + prod promote + qa README |
 | 2026-04-24 (autonomous) | A.2 | 1f7e33c | TopBar wired — replace inline 52px shell TopBar with premium 54px import; QA evidence committed |
 | 2026-04-24 (autonomous) | A.2 | 7152114 | PageSettingsDrawer (kind=pageSettings) + actually wire TopBar import (orphaned local helpers deleted, ~430 lines) + EditContext gains pageSettingsOpen/savePageMetadata |
-| 2026-04-24 (autonomous) | A.2 | [pending] | PublishDrawer rebuilt per surface 7 — preview thumbnail card + page-settings mini (Open full → openPageSettings) + search preview + going-live list with legacy disclosure; footer adds Save draft (placeholder) alongside Cancel + Publish now |
+| 2026-04-24 (autonomous) | A.2 | 09eb019 | PublishDrawer rebuilt per surface 7 — preview thumbnail card + page-settings mini (Open full → openPageSettings) + search preview + going-live list with legacy disclosure; footer adds Save draft (placeholder) alongside Cancel + Publish now |
