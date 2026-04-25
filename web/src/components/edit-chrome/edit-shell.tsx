@@ -31,6 +31,7 @@ import { PageSettingsDrawer } from "./page-settings-drawer";
 import { RevisionsDrawer } from "./revisions-drawer";
 import { ThemeDrawer } from "./theme-drawer";
 import { AssetsDrawer } from "./assets-drawer";
+import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
 import { TopBar } from "./topbar";
 
@@ -78,6 +79,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     revisionsOpen,
     themeOpen,
     assetsOpen,
+    paletteOpen,
+    togglePalette,
+    closePalette,
     saveDraft,
     pageMetadata,
     selectedSectionId,
@@ -102,9 +106,27 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
 
-      // Escape dismisses whichever right-side drawer is up. The drawers
-      // mutex each other on open, so at most one is open at a time —
-      // close-all is a safe no-op when nothing's up.
+      // ⌘K (or Ctrl+K) toggles the command palette. Lives above all the
+      // drawer dismiss logic so an operator can summon the palette
+      // without losing the drawer they're currently inspecting — the
+      // palette is a modal, not a drawer, and doesn't mutex with them.
+      if (mod && key === "k") {
+        e.preventDefault();
+        togglePalette();
+        return;
+      }
+
+      // Escape dismisses the palette first (when it's up) and otherwise
+      // whichever right-side drawer is up. The drawers mutex each other
+      // on open, so at most one is open at a time — close-all is a safe
+      // no-op when nothing's up. Palette mounts its own Escape handler
+      // when open, but we keep this branch as a safety net for clicks
+      // that took focus out of the input.
+      if (e.key === "Escape" && paletteOpen) {
+        e.preventDefault();
+        closePalette();
+        return;
+      }
       if (
         e.key === "Escape" &&
         (publishOpen || pageSettingsOpen || revisionsOpen || themeOpen || assetsOpen)
@@ -193,6 +215,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     closeTheme,
     openAssets,
     closeAssets,
+    paletteOpen,
+    togglePalette,
+    closePalette,
   ]);
 
   return (
@@ -234,6 +259,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <RevisionsDrawer />
       <ThemeDrawer />
       <AssetsDrawer />
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
       <MutationErrorToast />
       <DraftSavedToast />
       {children}

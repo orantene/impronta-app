@@ -36,3 +36,12 @@ export { Swatch, ColorRow } from "./swatch";
 export { SaveChip, type SaveChipStatus } from "./savechip";
 export { Kbd, KbdSequence } from "./kbd";
 export { SectionTypeIcon } from "./section-type-icon";
+
+export {
+  SHORTCUTS,
+  SHORTCUT_CATEGORY_LABELS,
+  getShortcut,
+  shortcutsByCategory,
+  type Shortcut,
+  type ShortcutCategory,
+} from "./shortcuts";

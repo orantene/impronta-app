@@ -219,6 +219,20 @@ export interface EditContextValue {
   assetsOpen: boolean;
   openAssets: () => void;
   closeAssets: () => void;
+
+  // ── command palette (Phase 8) ──
+  /**
+   * Visibility flag for the centred ⌘K command palette. Unlike the
+   * right-side drawers, the palette is a modal — it doesn't mutex with
+   * the drawers (an operator can have Theme open behind a palette
+   * search). Lazy-mounted: we render `null` while closed so the
+   * palette's internal effects (focus, keyboard listeners) only
+   * subscribe when actually visible.
+   */
+  paletteOpen: boolean;
+  openPalette: () => void;
+  closePalette: () => void;
+  togglePalette: () => void;
   /**
    * Roll the draft back to the chosen revision. Wraps
    * `restoreHomepageRevisionAction` in the same CAS-safe rhythm as
@@ -422,6 +436,15 @@ export function EditProvider({
 
   // assets drawer state (Phase 7)
   const [assetsOpen, setAssetsOpen] = useState(false);
+
+  // command palette state (Phase 8) — modal, not mutexed with drawers
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const openPalette = useCallback(() => setPaletteOpen(true), []);
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const togglePalette = useCallback(
+    () => setPaletteOpen((prev) => !prev),
+    [],
+  );
 
   // structure navigator (left rail) — open by default; ⌘\ toggles
   const [navigatorOpen, setNavigatorOpen] = useState(true);
@@ -1159,6 +1182,11 @@ export function EditProvider({
       openAssets,
       closeAssets,
 
+      paletteOpen,
+      openPalette,
+      closePalette,
+      togglePalette,
+
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
@@ -1221,6 +1249,10 @@ export function EditProvider({
       assetsOpen,
       openAssets,
       closeAssets,
+      paletteOpen,
+      openPalette,
+      closePalette,
+      togglePalette,
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
