@@ -26,3 +26,5 @@ export {
   DrawerBody,
   DrawerFoot,
 } from "./drawer";
+
+export { Card, CardHead, CardBody, CardAction } from "./card";
