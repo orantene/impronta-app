@@ -276,10 +276,15 @@ export function InspectorDock() {
     ? (SECTION_EDITOR_REGISTRY[loadedSection.sectionTypeKey] ?? null)
     : null;
 
+  const dockOpen = !!selectedSectionId;
+
   return (
     <aside
       data-edit-inspector
-      className="fixed right-0 top-[52px] z-[85] hidden h-[calc(100vh-52px)] w-[340px] flex-col border-l border-black/10 bg-white text-sm text-zinc-900 lg:flex"
+      data-open={dockOpen}
+      className={`fixed right-0 top-[52px] z-[85] flex h-[calc(100vh-52px)] w-[340px] flex-col border-l border-black/10 bg-white text-sm text-zinc-900 transition-transform duration-200 ease-out max-lg:hidden ${
+        dockOpen ? "translate-x-0" : "translate-x-full"
+      }`}
     >
       <header className="flex items-start justify-between gap-2 border-b border-zinc-100 px-4 py-3">
         <div className="min-w-0 flex-1">

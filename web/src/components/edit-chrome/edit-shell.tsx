@@ -146,6 +146,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
 
   return (
     <>
+      <BodyPaddingController selectedSectionId={selectedSectionId} />
       <TopBar
         device={device}
         setDevice={setDevice}
@@ -172,6 +173,24 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       {children}
       <DeviceFrameStyle device={device} />
     </>
+  );
+}
+
+/**
+ * Syncs body padding-right with the inspector dock open state so the canvas
+ * reclaims the 340px gutter when no section is selected (dock slides out).
+ * Rendered client-side so it reacts to context without SSR mismatch.
+ */
+function BodyPaddingController({
+  selectedSectionId,
+}: {
+  selectedSectionId: string | null;
+}) {
+  const open = !!selectedSectionId;
+  return (
+    <style>{`@media (min-width: 1024px) { body { padding-right: ${
+      open ? "340px" : "0"
+    } !important; transition: padding-right 200ms ease; } }`}</style>
   );
 }
 
