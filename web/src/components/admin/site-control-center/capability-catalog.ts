@@ -178,7 +178,7 @@ const AGENCY_CARDS: Capability[] = [
     label: "Homepage",
     stat: "Draft pending",
     lockedCopy: "Your branded homepage",
-    href: "/admin/site-settings/structure",
+    href: "/",
     icon: Star,
     iconAccent: true,
   },

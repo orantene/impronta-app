@@ -6,20 +6,17 @@ import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 /**
  * Phase 15 / Admin shell v2 — Site area in-page nav.
  *
- * Composer leads. Identity + Branding merge visually into a single "Brand"
- * tab (Brand surfaces both under /identity and /branding; entry point is
- * /identity). System and Audit are demoted to the end.
+ * Identity + Branding merge visually into a single "Brand" tab (Brand
+ * surfaces both under /identity and /branding; entry point is /identity).
+ * System and Audit are demoted to the end. The legacy "Composer" tab was
+ * removed when the in-place storefront editor took over homepage authoring;
+ * the operator engages it from the Site Overview's "Edit homepage" CTA.
  */
 const SECTIONS: {
   href: string;
   label: string;
   match: (pathname: string) => boolean;
 }[] = [
-  {
-    href: "/admin/site-settings/structure",
-    label: "Composer",
-    match: (p) => p.startsWith("/admin/site-settings/structure"),
-  },
   {
     href: "/admin/site-settings/design",
     label: "Design",

@@ -158,11 +158,11 @@ const NAV_LINKS: NavLink[] = [
     icon: <MapPin className="size-4" />,
   },
   {
-    href: "/admin/site-settings/structure",
-    label: "Open composer",
+    href: "/",
+    label: "Open editor",
     category: "Site",
-    hint: "Homepage structure — drag, drop, draft, publish",
-    keywords: "composer builder structure homepage compose sections hero layout page draft publish",
+    hint: "In-place storefront editor — engage and edit any section live",
+    keywords: "editor edit composer builder structure homepage compose sections hero layout page draft publish in-place",
     icon: <LayoutDashboard className="size-4" />,
   },
   {

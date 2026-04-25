@@ -44,6 +44,7 @@ import { sectionUpsertSchema } from "@/lib/site-admin/forms/sections";
 import { upsertSection } from "@/lib/site-admin/server/sections";
 import { homepageTemplate } from "@/lib/site-admin";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
+import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
@@ -85,10 +86,18 @@ export interface CompositionData {
     title: string;
     metaDescription: string | null;
     introTagline: string | null;
+    ogTitle: string | null;
+    ogDescription: string | null;
+    ogImageUrl: string | null;
+    canonicalUrl: string | null;
+    noindex: boolean;
   };
   slots: Record<string, CompositionSectionRef[]>;
   slotDefs: CompositionSlotDef[];
   library: CompositionLibraryEntry[];
+  /** Locales available for the active tenant (read-only here — used for the
+   *  Topbar locale switcher and the clone-from-locale command). */
+  availableLocales: ReadonlyArray<Locale>;
 }
 
 export type CompositionLoadResult =
@@ -216,6 +225,12 @@ export async function loadHomepageCompositionAction(input: {
     }),
   );
 
+  // Tenant's configured supported locales — used to render the locale
+  // switcher in the topbar and the clone-from-locale command. Cached read
+  // (60s TTL); the identity save invalidates this when an agency edits the
+  // list, so the switcher reflects the active config without a hard reload.
+  const localeSettings = await loadTenantLocaleSettings(scope.tenantId);
+
   return {
     ok: true,
     data: {
@@ -225,10 +240,16 @@ export async function loadHomepageCompositionAction(input: {
         title: page.title,
         metaDescription: page.metaDescription,
         introTagline: comp?.fields.introTagline ?? null,
+        ogTitle: page.ogTitle,
+        ogDescription: page.ogDescription,
+        ogImageUrl: page.ogImageUrl,
+        canonicalUrl: page.canonicalUrl,
+        noindex: page.noindex,
       },
       slots,
       slotDefs,
       library,
+      availableLocales: localeSettings.supportedLocales,
     },
   };
 }
@@ -242,6 +263,11 @@ export interface CompositionSaveInput {
     title: string;
     metaDescription?: string | null;
     introTagline?: string | null;
+    ogTitle?: string | null;
+    ogDescription?: string | null;
+    ogImageUrl?: string | null;
+    canonicalUrl?: string | null;
+    noindex?: boolean;
   };
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
 }
@@ -268,9 +294,28 @@ export async function saveHomepageCompositionAction(
     return { ok: false, error: `Unsupported locale "${input.locale}".` };
   }
 
-  const metadataParsed = homepageMetadataSchema.safeParse(input.metadata);
+  // Schema treats absent fields as "leave unset" (writes NULL). The typed
+  // envelope from edit-chrome carries `null` for cleared fields; the schema
+  // expects `undefined`. Coerce here so a freshly-cleared OG/canonical field
+  // round-trips correctly.
+  const metadataInput = {
+    title: input.metadata.title,
+    metaDescription: input.metadata.metaDescription ?? undefined,
+    introTagline: input.metadata.introTagline ?? undefined,
+    ogTitle: input.metadata.ogTitle ?? undefined,
+    ogDescription: input.metadata.ogDescription ?? undefined,
+    ogImageUrl: input.metadata.ogImageUrl ?? undefined,
+    canonicalUrl: input.metadata.canonicalUrl ?? undefined,
+    noindex: input.metadata.noindex,
+  };
+  const metadataParsed = homepageMetadataSchema.safeParse(metadataInput);
   if (!metadataParsed.success) {
-    return { ok: false, error: "Page metadata is missing or invalid." };
+    return {
+      ok: false,
+      error:
+        metadataParsed.error.issues[0]?.message ??
+        "Page metadata is missing or invalid.",
+    };
   }
   const slotsParsed = homepageSlotsSchema.safeParse(input.slots);
   if (!slotsParsed.success) {
@@ -343,11 +388,7 @@ function isUniqueNameViolation(code?: string, message?: string): boolean {
 export async function createAndInsertSectionAction(input: {
   locale: string;
   expectedVersion: number;
-  metadata: {
-    title: string;
-    metaDescription?: string | null;
-    introTagline?: string | null;
-  };
+  metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
   targetSlotKey: string;
   insertAfterSortOrder: number | null; // null → prepend (sort 0)
@@ -529,11 +570,7 @@ export async function createAndInsertSectionAction(input: {
 export async function duplicateSectionAction(input: {
   locale: string;
   expectedVersion: number;
-  metadata: {
-    title: string;
-    metaDescription?: string | null;
-    introTagline?: string | null;
-  };
+  metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
   sourceSectionId: string;
 }): Promise<CreateAndInsertResult> {
@@ -723,11 +760,7 @@ export type SaveDraftResult =
 export async function saveDraftHomepageAction(input: {
   locale: string;
   expectedVersion: number;
-  metadata: {
-    title: string;
-    metaDescription?: string | null;
-    introTagline?: string | null;
-  };
+  metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
 }): Promise<SaveDraftResult> {
   const save = await saveHomepageCompositionAction({

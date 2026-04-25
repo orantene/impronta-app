@@ -139,7 +139,12 @@ function metadataEqual(a: PageMetadata, b: PageMetadata): boolean {
   return (
     a.title === b.title &&
     (a.metaDescription ?? "") === (b.metaDescription ?? "") &&
-    (a.introTagline ?? "") === (b.introTagline ?? "")
+    (a.introTagline ?? "") === (b.introTagline ?? "") &&
+    (a.ogTitle ?? "") === (b.ogTitle ?? "") &&
+    (a.ogDescription ?? "") === (b.ogDescription ?? "") &&
+    (a.ogImageUrl ?? "") === (b.ogImageUrl ?? "") &&
+    (a.canonicalUrl ?? "") === (b.canonicalUrl ?? "") &&
+    a.noindex === b.noindex
   );
 }
 
@@ -368,38 +373,100 @@ export function PageSettingsDrawer() {
         ) : null}
 
         {tab === "social" ? (
-          <Card>
-            <CardHead
-              icon={<ShareIcon />}
-              title="Social card preview"
-              sub="OpenGraph + Twitter"
-            />
-            <CardBody>
-              <SocialPreview
-                host={host}
-                title={draft?.title ?? "Untitled page"}
+          <>
+            <Card>
+              <CardHead
+                icon={<ShareIcon />}
+                title="Social card preview"
+                sub="OpenGraph + Twitter"
               />
-              <button
-                type="button"
-                disabled
-                title="Coming soon — social image upload"
-                style={{
-                  marginTop: 10,
-                  height: 28,
-                  padding: "0 10px",
-                  fontSize: 11,
-                  fontWeight: 500,
-                  color: CHROME.muted2,
-                  background: CHROME.paper2,
-                  border: `1px dashed ${CHROME.lineMid}`,
-                  borderRadius: 7,
-                  cursor: "not-allowed",
-                }}
-              >
-                Replace social image · coming soon
-              </button>
-            </CardBody>
-          </Card>
+              <CardBody>
+                <SocialPreview
+                  host={host}
+                  title={
+                    draft?.ogTitle ??
+                    draft?.title ??
+                    "Untitled page"
+                  }
+                  imageUrl={draft?.ogImageUrl ?? null}
+                  description={
+                    draft?.ogDescription ?? draft?.metaDescription ?? null
+                  }
+                />
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHead
+                icon={<ShareIcon />}
+                title="OpenGraph overrides"
+                sub="Falls back to title / description when blank"
+              />
+              <CardBody>
+                <Field>
+                  <FieldLabel htmlFor="ps-og-title" meta="Optional">
+                    OG title
+                  </FieldLabel>
+                  <input
+                    id="ps-og-title"
+                    type="text"
+                    value={draft?.ogTitle ?? ""}
+                    onChange={(e) =>
+                      patch(
+                        "ogTitle",
+                        e.target.value === "" ? null : e.target.value,
+                      )
+                    }
+                    style={inputStyle()}
+                    placeholder="Defaults to page title"
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="ps-og-desc" meta="Optional">
+                    OG description
+                  </FieldLabel>
+                  <textarea
+                    id="ps-og-desc"
+                    value={draft?.ogDescription ?? ""}
+                    onChange={(e) =>
+                      patch(
+                        "ogDescription",
+                        e.target.value === "" ? null : e.target.value,
+                      )
+                    }
+                    style={textareaStyle()}
+                    placeholder="Defaults to meta description"
+                  />
+                </Field>
+
+                <Field flush>
+                  <FieldLabel htmlFor="ps-og-image" meta="1200×630 recommended">
+                    OG image URL
+                  </FieldLabel>
+                  <input
+                    id="ps-og-image"
+                    type="url"
+                    value={draft?.ogImageUrl ?? ""}
+                    onChange={(e) =>
+                      patch(
+                        "ogImageUrl",
+                        e.target.value === "" ? null : e.target.value,
+                      )
+                    }
+                    style={inputStyle()}
+                    placeholder="https://… or /path/to/image.jpg"
+                  />
+                  <Helper>
+                    <span>
+                      Paste a fully qualified URL or a /path; image must be
+                      reachable to render in shares.
+                    </span>
+                  </Helper>
+                </Field>
+              </CardBody>
+            </Card>
+          </>
         ) : null}
 
         {tab === "url" ? (
@@ -450,17 +517,45 @@ export function PageSettingsDrawer() {
             </Card>
 
             <Card>
+              <CardHead icon={<LinkIcon />} title="Canonical URL" />
+              <CardBody>
+                <Field flush>
+                  <FieldLabel htmlFor="ps-canonical" meta="Optional override">
+                    Canonical link
+                  </FieldLabel>
+                  <input
+                    id="ps-canonical"
+                    type="url"
+                    value={draft?.canonicalUrl ?? ""}
+                    onChange={(e) =>
+                      patch(
+                        "canonicalUrl",
+                        e.target.value === "" ? null : e.target.value,
+                      )
+                    }
+                    style={inputStyle()}
+                    placeholder="Leave blank to use the page's own URL"
+                  />
+                  <Helper>
+                    <span>
+                      Use only when consolidating duplicate URLs to a single
+                      destination. Must be absolute (https://…) or root-relative
+                      (/path).
+                    </span>
+                  </Helper>
+                </Field>
+              </CardBody>
+            </Card>
+
+            <Card>
               <CardHead icon={<GlobeIcon />} title="Search engines" />
               <CardBody padding="tight">
                 <div style={{ padding: "8px 4px" }}>
                   <Toggle
-                    on
-                    onChange={() => {
-                      /* Phase 8 — wire to robots.indexable */
-                    }}
+                    on={!(draft?.noindex ?? false)}
+                    onChange={(next) => patch("noindex", !next)}
                     label="Allow search engines to index this page"
-                    helper="Disabled = robots noindex."
-                    disabled
+                    helper="Disabled emits robots noindex; the page is hidden from Google."
                   />
                 </div>
                 <div style={{ padding: "8px 4px" }}>
@@ -620,7 +715,17 @@ function SearchPreview({
 
 // ── SocialPreview (OG card placeholder) ──────────────────────────────────────
 
-function SocialPreview({ host, title }: { host: string; title: string }) {
+function SocialPreview({
+  host,
+  title,
+  imageUrl,
+  description,
+}: {
+  host: string;
+  title: string;
+  imageUrl?: string | null;
+  description?: string | null;
+}) {
   return (
     <div
       style={{
@@ -633,7 +738,9 @@ function SocialPreview({ host, title }: { host: string; title: string }) {
       <div
         style={{
           aspectRatio: "1.91 / 1",
-          background: "linear-gradient(135deg, #2a2a2a, #0a0a0a)",
+          background: imageUrl
+            ? `url(${JSON.stringify(imageUrl)}) center/cover no-repeat`
+            : "linear-gradient(135deg, #2a2a2a, #0a0a0a)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -647,7 +754,7 @@ function SocialPreview({ host, title }: { host: string; title: string }) {
           fontStyle: "italic",
         }}
       >
-        {title || "Untitled page"}
+        {imageUrl ? null : title || "Untitled page"}
       </div>
       <div
         style={{
@@ -676,6 +783,22 @@ function SocialPreview({ host, title }: { host: string; title: string }) {
         >
           {title || "Untitled page"}
         </div>
+        {description ? (
+          <div
+            style={{
+              fontSize: 12,
+              color: CHROME.muted,
+              marginTop: 4,
+              lineHeight: 1.4,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {description}
+          </div>
+        ) : null}
       </div>
     </div>
   );

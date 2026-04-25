@@ -226,13 +226,17 @@ export default async function AdminHomePage() {
             </Link>
           </Button>
           <Button asChild variant="outline" className="h-11 justify-between rounded-xl">
-            <Link href="/admin/site-settings/structure">
+            <a
+              href={primaryDomain ? `https://${primaryDomain}` : "/"}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
               <span className="flex items-center gap-2">
                 <LayoutDashboard className="size-4" aria-hidden />
                 Edit site
               </span>
               <ArrowRight className="size-4" aria-hidden />
-            </Link>
+            </a>
           </Button>
           <Button asChild variant="outline" className="h-11 justify-between rounded-xl">
             <a
@@ -278,10 +282,14 @@ export default async function AdminHomePage() {
                 <Link href="/admin/site-settings/sections">Sections</Link>
               </Button>
               <Button asChild className="rounded-xl">
-                <Link href="/admin/site-settings/structure">
-                  Open composer
+                <a
+                  href={primaryDomain ? `https://${primaryDomain}` : "/"}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  Open editor
                   <ArrowRight className="ml-1 size-4" aria-hidden />
-                </Link>
+                </a>
               </Button>
             </div>
           </AdminSurfaceCardBody>

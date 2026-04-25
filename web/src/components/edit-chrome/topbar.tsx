@@ -13,13 +13,44 @@
  * Visual language: 54px glass bar, warm-white tint, hairline border.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
+import { localeMetadata } from "@/i18n/config";
 import type { EditDevice } from "./edit-context";
 import { CHROME } from "./kit";
+
+// Platform default locale — when the URL has no locale prefix the storefront
+// resolves this. Must match the static fallback in `@/i18n/config`. Dynamic
+// per-tenant defaults aren't surfaced into the editor today; the cost of
+// mis-routing during a dirty draft (briefly land on a sibling locale) is
+// strictly milder than threading `getLanguageSettings()` into a client tree.
+const DEFAULT_LOCALE_FOR_PATH = "en";
+
+function stripKnownLocalePrefix(
+  pathname: string,
+  knownLocales: ReadonlyArray<string>,
+): string {
+  const p = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const seg = p.split("/")[1] ?? "";
+  if (knownLocales.includes(seg)) {
+    const rest = p.slice(`/${seg}`.length);
+    return rest === "" ? "/" : rest;
+  }
+  return p;
+}
+
+function pathForLocale(
+  pathname: string,
+  newLocale: string,
+  knownLocales: ReadonlyArray<string>,
+): string {
+  const stripped = stripKnownLocalePrefix(pathname, knownLocales);
+  if (newLocale === DEFAULT_LOCALE_FOR_PATH) return stripped;
+  return stripped === "/" ? `/${newLocale}` : `/${newLocale}${stripped}`;
+}
 
 const TOPBAR_H = 54;
 
@@ -308,6 +339,80 @@ const VIEWPORT_OPTS: ReadonlyArray<{
     ),
   },
 ];
+
+/**
+ * Locale switcher pill — visible only when the active tenant publishes more
+ * than one locale. Clicking a non-active code navigates to the equivalent
+ * URL on that locale; the storefront re-renders, EditChromeMount re-resolves
+ * the locale, and EditProvider remounts with the new value (so the homepage
+ * row for that locale loads). When the operator has unsaved edits we warn
+ * before navigating so a hot draft on the previous locale isn't dropped.
+ */
+function LocaleSwitcher({
+  activeLocale,
+  availableLocales,
+  dirty,
+}: {
+  activeLocale: string;
+  availableLocales: ReadonlyArray<string>;
+  dirty: boolean;
+}) {
+  const router = useRouter();
+  const pathname = usePathname() ?? "/";
+  const knownLocales = useMemo(
+    () => Array.from(new Set([...availableLocales, "en"])),
+    [availableLocales],
+  );
+  if (availableLocales.length < 2) return null;
+
+  return (
+    <div
+      className="inline-flex shrink-0 items-center rounded-full p-[3px]"
+      style={{
+        background: "rgba(0,0,0,0.05)",
+        boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.04)",
+      }}
+      role="radiogroup"
+      aria-label="Editing locale"
+    >
+      {availableLocales.map((code) => {
+        const meta = localeMetadata[code];
+        const label = meta?.label ?? code.toUpperCase();
+        const active = code === activeLocale;
+        return (
+          <button
+            key={code}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            title={`Edit homepage in ${label}`}
+            onClick={() => {
+              if (active) return;
+              if (dirty) {
+                const ok = window.confirm(
+                  "You have unsaved edits on this locale. Switch anyway? Your draft for the current locale won't be lost — it stays as a draft on the server until you publish.",
+                );
+                if (!ok) return;
+              }
+              router.push(pathForLocale(pathname, code, knownLocales));
+            }}
+            className="inline-flex items-center gap-[5px] rounded-full border-none px-[11px] py-[5px] text-[12px] font-semibold uppercase tracking-[0.04em] transition-all"
+            style={{
+              background: active ? CHROME.surface : "transparent",
+              color: active ? CHROME.ink : CHROME.muted,
+              boxShadow: active
+                ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
+                : "none",
+              cursor: active ? "default" : "pointer",
+            }}
+          >
+            {code}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function ViewportSwitcher({
   device,
@@ -945,6 +1050,11 @@ export interface TopBarProps {
     ttlSeconds?: number;
   }) => Promise<string | null>;
   pageTitle?: string;
+  /** The locale the editor is currently bound to. Drives the locale-switcher
+   *  pill's active state. Optional — single-locale tenants render no pill. */
+  activeLocale?: string;
+  /** Locales the active tenant publishes. Empty/single-entry → no switcher. */
+  availableLocales?: ReadonlyArray<string>;
 }
 
 /**
@@ -980,6 +1090,8 @@ export function TopBar({
   onSaveDraft,
   onShare,
   pageTitle,
+  activeLocale,
+  availableLocales = [],
 }: TopBarProps) {
   const router = useRouter();
 
@@ -1027,6 +1139,13 @@ export function TopBar({
       <BrandMark />
       <TbDivider />
       <PagePicker title={pageTitle ?? "Homepage"} />
+      {activeLocale && availableLocales.length > 1 ? (
+        <LocaleSwitcher
+          activeLocale={activeLocale}
+          availableLocales={availableLocales}
+          dirty={dirty}
+        />
+      ) : null}
       <SaveStatus dirty={dirty} saving={saving} />
       <TbDivider />
 

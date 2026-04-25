@@ -132,7 +132,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
       <StubDrawerBody
         body="Open the live homepage in edit mode — composition, inline text, image replace, publish."
         setupHref="/admin/site/setup/homepage"
-        legacyHref="/admin/site-settings/structure"
+        legacyHref="/"
       />
     ),
   },

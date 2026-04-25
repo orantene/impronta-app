@@ -178,7 +178,6 @@ test("no admin action uses bare requireStaff + tenant-scoped table write", () =>
         "src/app/(dashboard)/admin/site-settings/sections/page.tsx",
         "src/app/(dashboard)/admin/site-settings/sections/new/page.tsx",
         "src/app/(dashboard)/admin/site-settings/sections/[id]/page.tsx",
-        "src/app/(dashboard)/admin/site-settings/structure/actions.ts",
         "src/app/(dashboard)/admin/analytics/talent/page.tsx",
         "src/app/(dashboard)/admin/analytics/seo/page.tsx",
         "src/app/(dashboard)/admin/analytics/search/page.tsx",

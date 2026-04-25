@@ -40,9 +40,19 @@ test.describe("smoke: login → builder → publish → share", () => {
     await page.getByRole("button", { name: /sign in|log in/i }).click();
     await page.waitForURL(/\/admin/);
 
-    // Step 2 — open the builder
+    // Step 2 — open the in-place editor on the storefront. The legacy
+    // /admin/site-settings/structure route now redirects to the tenant
+    // storefront, where EditPill / EditShell hosts the same authoring flow.
     await page.goto("/admin/site-settings/structure");
-    await expect(page.getByRole("heading", { name: /homepage|structure/i })).toBeVisible();
+    // Engage edit mode if we land on the idle pill; once engaged the topbar
+    // surfaces the share + save-draft affordances exercised below.
+    const enterEdit = page.getByRole("button", { name: /^edit$/i });
+    if (await enterEdit.isVisible().catch(() => false)) {
+      await enterEdit.click();
+    }
+    await expect(page.locator("[data-edit-topbar]")).toBeVisible({
+      timeout: 10_000,
+    });
 
     // Step 3 — save draft (no edits required for smoke; just exercise the action)
     const saveDraft = page.getByRole("button", { name: /save draft/i });

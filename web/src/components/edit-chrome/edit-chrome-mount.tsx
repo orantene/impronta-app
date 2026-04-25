@@ -16,6 +16,7 @@
 import { requireStaff } from "@/lib/server/action-guards";
 import { getPublicHostContext } from "@/lib/saas/scope";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
+import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-locale";
 import { EditChrome } from "./edit-chrome";
 
 export async function EditChromeMount() {
@@ -26,5 +27,15 @@ export async function EditChromeMount() {
   if (!staff.ok) return null;
 
   const editActive = await isEditModeActiveForTenant(ctx.tenantId);
-  return <EditChrome tenantId={ctx.tenantId} editActive={editActive} />;
+  // Resolve the request's effective locale so the editor loads the matching
+  // homepage row (composer used to expose this via the ?locale= query; the
+  // in-place editor inherits the storefront's locale resolution instead).
+  const localeContext = await resolveStorefrontLocale();
+  return (
+    <EditChrome
+      tenantId={ctx.tenantId}
+      editActive={editActive}
+      locale={localeContext.locale}
+    />
+  );
 }

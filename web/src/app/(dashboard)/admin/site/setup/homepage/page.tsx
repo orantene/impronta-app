@@ -111,36 +111,8 @@ export default async function SiteSetupHomepagePage() {
         </div>
       </SetupSection>
 
-      <SetupSection label="Open in editor" helper="The composer is one click away">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Link
-            href="/admin/site-settings/structure"
-            className="group flex items-start gap-4 rounded-[14px] border border-[rgba(20,20,24,0.10)] bg-white px-5 py-4 transition-colors hover:border-[rgba(201,162,39,0.55)] hover:bg-[rgba(255,253,246,1)]"
-          >
-            <span
-              className="flex size-10 shrink-0 items-center justify-center rounded-[10px]"
-              style={{
-                background: "linear-gradient(180deg, #fffdf6, #f0ecdf)",
-                color: "#0b0b0d",
-                boxShadow: "inset 0 0 0 1px rgba(20,20,24,0.08)",
-              }}
-              aria-hidden
-            >
-              <Star className="size-[16px]" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-semibold text-foreground">
-                Composer
-              </p>
-              <p className="mt-1 text-[12.5px] leading-[1.45] text-muted-foreground">
-                Section-by-section editor with publish + revision history.
-              </p>
-            </div>
-            <ArrowUpRight
-              className="mt-1 size-4 shrink-0 text-muted-foreground/70 transition-[transform,color] group-hover:translate-x-0.5 group-hover:text-foreground"
-              aria-hidden
-            />
-          </Link>
+      <SetupSection label="Open in editor" helper="The in-place editor is one click away">
+        <div className="grid gap-3">
           <Link
             href="/?edit=1"
             target="_blank"

@@ -47,12 +47,16 @@ const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
 
 interface EditShellProps {
   tenantId: string;
+  /** Storefront-resolved locale for this request. EditProvider falls back
+   *  to "en" when omitted; we forward the resolved value so non-default
+   *  locale storefronts edit the correct homepage row. */
+  locale?: string;
   children?: React.ReactNode;
 }
 
-export function EditShell({ tenantId, children }: EditShellProps) {
+export function EditShell({ tenantId, locale, children }: EditShellProps) {
   return (
-    <EditProvider tenantId={tenantId}>
+    <EditProvider tenantId={tenantId} locale={locale}>
       <EditShellInner>{children}</EditShellInner>
     </EditProvider>
   );
@@ -143,6 +147,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     navigatorOpen,
     toggleNavigator,
     reportMutationError,
+    locale,
+    availableLocales,
   } = useEditContext();
 
   useEffect(() => {
@@ -330,6 +336,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onSaveDraft={() => void saveDraft()}
         onShare={(opts) => handleShareClick(opts, reportMutationError)}
         pageTitle={pageMetadata?.title ?? undefined}
+        activeLocale={locale}
+        availableLocales={availableLocales}
       />
       <div
         id="edit-overlay-portal"

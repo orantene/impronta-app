@@ -68,6 +68,16 @@ export interface PageMetadata {
   title: string;
   metaDescription: string | null;
   introTagline: string | null;
+  /** SEO/OG knobs surfaced in the Page settings drawer's Social and URL tabs.
+   *  Stored on cms_pages and applied to <head> by the storefront layout.
+   *  All optional — the renderer falls back to title/metaDescription when an
+   *  og field is absent. */
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImageUrl: string | null;
+  canonicalUrl: string | null;
+  /** When true, the page emits `<meta name="robots" content="noindex">`. */
+  noindex: boolean;
 }
 
 export interface CompositionSnapshot {
@@ -124,6 +134,9 @@ export interface EditContextValue {
   slots: Record<string, CompositionSectionRef[]>;
   slotDefs: CompositionSlotDef[];
   library: CompositionLibraryEntry[];
+  /** Locales the active tenant has enabled — drives the topbar locale
+   *  switcher. Empty until the first composition load resolves. */
+  availableLocales: ReadonlyArray<string>;
 
   refreshComposition: () => Promise<void>;
   insertSection: (
@@ -352,6 +365,11 @@ const DEFAULT_METADATA: PageMetadata = {
   title: "Homepage",
   metaDescription: null,
   introTagline: null,
+  ogTitle: null,
+  ogDescription: null,
+  ogImageUrl: null,
+  canonicalUrl: null,
+  noindex: false,
 };
 
 /**
@@ -449,6 +467,7 @@ export function EditProvider({
   );
   const [slotDefs, setSlotDefs] = useState<CompositionSlotDef[]>([]);
   const [library, setLibrary] = useState<CompositionLibraryEntry[]>([]);
+  const [availableLocales, setAvailableLocales] = useState<ReadonlyArray<string>>([]);
 
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
   // is Figma-ish and well past what any realistic undo chain needs for a
@@ -552,6 +571,7 @@ export function EditProvider({
     setSlots(data.slots);
     setSlotDefs(data.slotDefs);
     setLibrary(data.library);
+    setAvailableLocales(data.availableLocales);
     setCompositionLoaded(true);
     setCompositionError(null);
   }, []);
@@ -1265,6 +1285,7 @@ export function EditProvider({
       slots,
       slotDefs,
       library,
+      availableLocales,
 
       refreshComposition,
       insertSection,
@@ -1357,6 +1378,7 @@ export function EditProvider({
       slots,
       slotDefs,
       library,
+      availableLocales,
       refreshComposition,
       insertSection,
       removeSection,

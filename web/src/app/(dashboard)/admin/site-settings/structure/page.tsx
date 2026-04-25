@@ -1,258 +1,35 @@
 import { redirect } from "next/navigation";
 
-import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
-import {
-  DEFAULT_PLATFORM_LOCALE,
-  hasPhase5Capability,
-  homepageTemplate,
-  PLATFORM_LOCALES,
-  isLocale,
-  type Locale,
-} from "@/lib/site-admin";
-import { ensureHomepageRow, loadHomepageForStaff } from "@/lib/site-admin/server/homepage";
-import { loadHomepageRevisionsForStaff } from "@/lib/site-admin/server/homepage-reads";
-import {
-  listSectionsForStaff,
-  loadSectionUsageMapForStaff,
-} from "@/lib/site-admin/server/sections-reads";
-import { SECTION_REGISTRY } from "@/lib/site-admin/sections/registry";
-import { getTenantPreviewOrigin } from "@/lib/site-admin/server/tenant-hosts";
 import { requireStaff } from "@/lib/server/action-guards";
+import { getTenantPreviewOrigin } from "@/lib/site-admin/server/tenant-hosts";
 import { requireTenantScope } from "@/lib/saas";
-
-import { HomepageComposer } from "./homepage-composer";
-import { LivePreviewPanel } from "./live-preview-panel";
-import { StarterTiles } from "./starter-tiles";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Phase 5 / M5 — homepage composer route.
+ * Legacy `/admin/site-settings/structure` route — superseded by the in-place
+ * editor on the storefront. The route now redirects so deep links from old
+ * docs / nav surfaces land in the right place. Operators are routed to the
+ * tenant storefront root, where the EditPill / EditShell handles the same
+ * authoring flow without round-tripping through a separate composer page.
  *
- * Flow:
- *   1. Guard staff + tenant scope.
- *   2. If the operator has `homepage.compose`, call `ensureHomepageRow` so
- *      the cms_pages row exists (idempotent seed-on-first-visit).
- *   3. Load: homepage page + draft/live slot rows, published sections list,
- *      revision history.
- *   4. Hand everything to a client composer component.
- *
- * Locale handling for M5: the composer operates on the default platform
- * locale (`en`). A locale switcher lands in a follow-up — the row model is
- * already per-locale via the `cms_pages_system_lookup_idx` partial unique.
+ * If we cannot resolve a preview origin (admin not scoped to a tenant, or
+ * the tenant lacks a public host), we fall back to `/` on the current host —
+ * the storefront chrome will surface a "select a workspace" message.
  */
-export default async function SiteSettingsStructurePage(props: {
-  searchParams?: Promise<{ locale?: string }>;
-}) {
+export default async function SiteSettingsStructureRedirect() {
   const auth = await requireStaff();
   if (!auth.ok) redirect("/login");
 
-  const sp = (await props.searchParams) ?? {};
-  const requestedLocale =
-    sp.locale && isLocale(sp.locale) ? (sp.locale as Locale) : null;
-
   const scope = await requireTenantScope().catch(() => null);
-  if (!scope) {
-    return (
-      <div className="space-y-4">
-        <DashboardSectionCard
-          title="Homepage"
-          description="Select an agency workspace to edit the homepage."
-          titleClassName={ADMIN_SECTION_TITLE_CLASS}
-        >
-          <p className="text-sm text-muted-foreground">
-            Use the workspace switcher in the admin header to pick a tenant.
-          </p>
-        </DashboardSectionCard>
-      </div>
-    );
+  if (!scope) redirect("/admin");
+
+  const previewOrigin = await getTenantPreviewOrigin(
+    auth.supabase,
+    scope.tenantId,
+  ).catch(() => null);
+  if (previewOrigin) {
+    redirect(`${previewOrigin.replace(/\/$/, "")}/?edit=1`);
   }
-
-  const [canCompose, canPublish] = await Promise.all([
-    hasPhase5Capability("agency.site_admin.homepage.compose", scope.tenantId),
-    hasPhase5Capability("agency.site_admin.homepage.publish", scope.tenantId),
-  ]);
-
-  if (!canCompose && !canPublish) {
-    return (
-      <div className="space-y-4">
-        <DashboardSectionCard
-          title="Homepage"
-          description="You don't have permission to compose or publish the homepage on this workspace. Ask an admin for the editor or coordinator role."
-          titleClassName={ADMIN_SECTION_TITLE_CLASS}
-        >
-          <p className="text-sm text-muted-foreground">
-            Homepage edits require the editor role or higher.
-          </p>
-        </DashboardSectionCard>
-      </div>
-    );
-  }
-
-  const locale: Locale = requestedLocale ?? DEFAULT_PLATFORM_LOCALE;
-
-  // Seed the homepage row on first visit. If the caller can compose, the
-  // ensureHomepageRow op itself gates on the same capability; otherwise we
-  // fall back to a plain load and render a read-only view.
-  if (canCompose) {
-    const ensure = await ensureHomepageRow(auth.supabase, {
-      tenantId: scope.tenantId,
-      locale,
-      actorProfileId: auth.user.id,
-    });
-    if (!ensure.ok) {
-      return (
-        <div className="space-y-4">
-          <DashboardSectionCard
-            title="Homepage"
-            description="We hit an error seeding the homepage row. Try again; if this persists, contact support."
-            titleClassName={ADMIN_SECTION_TITLE_CLASS}
-          >
-            <p className="rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {ensure.message ?? ensure.code}
-            </p>
-          </DashboardSectionCard>
-        </div>
-      );
-    }
-  }
-
-  const state = await loadHomepageForStaff(auth.supabase, scope.tenantId, locale);
-  if (!state) {
-    return (
-      <div className="space-y-4">
-        <DashboardSectionCard
-          title="Homepage"
-          description="Setting up your homepage — reload in a moment if this screen doesn't refresh automatically."
-          titleClassName={ADMIN_SECTION_TITLE_CLASS}
-        >
-          <p className="text-sm text-muted-foreground">
-            Your homepage is being prepared. Refresh this page to start
-            composing.
-          </p>
-        </DashboardSectionCard>
-      </div>
-    );
-  }
-
-  const [sections, revisions, previewOrigin, usageMap, otherLocaleStates] =
-    await Promise.all([
-      listSectionsForStaff(auth.supabase, scope.tenantId),
-      loadHomepageRevisionsForStaff(auth.supabase, scope.tenantId, state.page.id),
-      getTenantPreviewOrigin(auth.supabase, scope.tenantId),
-      loadSectionUsageMapForStaff(auth.supabase, scope.tenantId),
-      // Probe sibling locales so the composer can show "Clone from <es>" only
-      // when there's actually content to copy. One read per locale is fine —
-      // PLATFORM_LOCALES is small (en/es today) and queries are partial-index
-      // covered.
-      Promise.all(
-        PLATFORM_LOCALES.filter((l) => l !== locale).map(async (l) => {
-          const s = await loadHomepageForStaff(auth.supabase, scope.tenantId, l);
-          return {
-            locale: l,
-            hasContent:
-              !!s &&
-              (s.draftSlots.length > 0 || s.liveSlots.length > 0),
-          };
-        }),
-      ),
-    ]);
-
-  const otherLocalesWithContent = otherLocaleStates
-    .filter((entry) => entry.hasContent)
-    .map((entry) => entry.locale);
-
-  // Project the usage map down to the small shape the composer needs
-  // (one chip per slot entry). We count DISTINCT pages — `totalReferences`
-  // counts draft+live composition rows separately, so a section sitting on
-  // one published page would otherwise read as "2 references". The chip is
-  // meant to flag sections shared across pages, not the draft/live pair.
-  // Plain JSON so it serialises cleanly across the server→client boundary.
-  const sectionUsageCounts: Record<string, number> = {};
-  for (const [sectionId, usage] of usageMap.entries()) {
-    const distinctPages = new Set(usage.pageRefs.map((r) => r.pageId));
-    sectionUsageCounts[sectionId] = distinctPages.size;
-  }
-
-  const isEmptyTenant =
-    state.draftSlots.length === 0 &&
-    state.liveSlots.length === 0 &&
-    sections.length === 0;
-
-  return (
-    <div className="space-y-4">
-      {isEmptyTenant && canCompose && (
-        <DashboardSectionCard
-          title="Welcome — let's set up your homepage"
-          description="Pick a starter to go from empty to a fully-composed draft in one click. Every starter applies a theme preset + seeds sections with real-looking defaults so you edit from something good, not from emptiness."
-          titleClassName={ADMIN_SECTION_TITLE_CLASS}
-        >
-          <StarterTiles />
-        </DashboardSectionCard>
-      )}
-
-      {previewOrigin && (
-        <DashboardSectionCard
-          title="Live preview"
-          description="Inline view of your published storefront. Reload after you publish to see changes."
-          titleClassName={ADMIN_SECTION_TITLE_CLASS}
-        >
-          <LivePreviewPanel
-            origin={previewOrigin}
-            path="/"
-            lastPublishedAt={state.page.published_at ?? null}
-          />
-        </DashboardSectionCard>
-      )}
-
-      <DashboardSectionCard
-        title="Homepage"
-        description="Compose the storefront homepage from published reusable sections. Draft saves don't affect the live site; publishing promotes the draft composition and freezes section content into the published snapshot."
-        titleClassName={ADMIN_SECTION_TITLE_CLASS}
-      >
-        <HomepageComposer
-          locale={locale}
-          tenantId={scope.tenantId}
-          availableLocales={[...PLATFORM_LOCALES]}
-          otherLocalesWithContent={otherLocalesWithContent}
-          sectionUsageCounts={sectionUsageCounts}
-          page={state.page}
-          draftSlots={state.draftSlots}
-          liveSlots={state.liveSlots}
-          availableSections={sections.map((s) => ({
-            id: s.id,
-            name: s.name,
-            sectionTypeKey: s.section_type_key,
-            status: s.status,
-            updatedAt: s.updated_at,
-          }))}
-          template={{
-            currentVersion: homepageTemplate.currentVersion,
-            slots: homepageTemplate.meta.slots.map((slot) => ({
-              key: slot.key,
-              label: slot.label,
-              required: slot.required,
-              allowedSectionTypes: slot.allowedSectionTypes ?? null,
-            })),
-          }}
-          revisions={revisions.map((r) => ({
-            id: r.id,
-            kind: r.kind,
-            version: r.version,
-            createdAt: r.created_at,
-          }))}
-          sectionRegistry={Object.values(SECTION_REGISTRY).map((entry) => ({
-            key: entry.meta.key,
-            label: entry.meta.label,
-            description: entry.meta.description,
-            businessPurpose: entry.meta.businessPurpose,
-            visibleToAgency: entry.meta.visibleToAgency,
-          }))}
-          canCompose={canCompose}
-          canPublish={canPublish}
-        />
-      </DashboardSectionCard>
-    </div>
-  );
+  redirect("/?edit=1");
 }

@@ -42,9 +42,13 @@ import { PreviewPill } from "./preview-pill";
 interface EditChromeProps {
   tenantId: string;
   editActive: boolean;
+  /** Effective storefront locale for the current request. Threaded into
+   *  EditShell → EditProvider so the editor loads the matching homepage row.
+   *  Optional: the EditPill / PreviewPill branches don't need it. */
+  locale?: string;
 }
 
-export function EditChrome({ tenantId, editActive }: EditChromeProps) {
+export function EditChrome({ tenantId, editActive, locale }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
   const searchParams = useSearchParams();
@@ -62,7 +66,7 @@ export function EditChrome({ tenantId, editActive }: EditChromeProps) {
            in EditShell so it can animate in/out with the inspector dock. */
         header[data-public-header] { display: none !important; }
       `}</style>
-      <EditShell tenantId={tenantId} />
+      <EditShell tenantId={tenantId} locale={locale} />
     </>
   );
 }

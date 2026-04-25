@@ -157,12 +157,14 @@ export default async function SiteSettingsSectionsIndexPage() {
                 >
                   Create first section
                 </Link>
-                <Link
-                  href="/admin/site-settings/structure"
+                <a
+                  href="/?edit=1"
+                  target="_blank"
+                  rel="noreferrer noopener"
                   className="inline-flex items-center rounded-xl border border-border/60 bg-background/70 px-4 py-2 text-sm text-muted-foreground transition hover:border-[var(--impronta-gold)]/40 hover:text-foreground"
                 >
-                  Or start from a starter recipe →
-                </Link>
+                  Or build from the live canvas →
+                </a>
               </div>
             )}
           </div>

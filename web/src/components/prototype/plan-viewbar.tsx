@@ -41,8 +41,8 @@ const VIEWS: ReadonlyArray<{ value: string; label: string; href: string }> = [
   { value: "site", label: "Site", href: "/admin/site" },
   { value: "profile", label: "Profile settings", href: "/admin/profile" },
   { value: "account", label: "Account", href: "/admin/account" },
-  { value: "setup", label: "Setup", href: "/admin/site-settings/structure" },
-  { value: "edit", label: "Edit mode", href: "/admin/site-settings/structure" },
+  { value: "setup", label: "Setup", href: "/admin/site-settings" },
+  { value: "edit", label: "Edit mode", href: "/" },
 ];
 
 function detectActiveView(pathname: string): string {
