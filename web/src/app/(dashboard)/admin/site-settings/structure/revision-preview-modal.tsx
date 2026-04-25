@@ -30,6 +30,7 @@ interface RevisionSummary {
   slots: Array<{
     slotKey: string;
     items: Array<{
+      sectionId: string | null;
       name: string;
       sectionTypeKey: string;
       sortOrder: number;
@@ -41,6 +42,8 @@ interface RevisionSummary {
   introTagline: string | null;
 }
 
+type DiffStatus = "added" | "kept" | "moved" | "removed";
+
 interface Props {
   open: RevisionOpenDescriptor | null;
   onCancel: () => void;
@@ -48,6 +51,14 @@ interface Props {
   restorePending: boolean;
   /** Human-label lookup for section type keys. Passed from composer. */
   labelForType: (key: string) => string;
+  /** Current composer composition — {slotKey: Set<sectionId>}. Drives the
+   *  diff view: each preview section is annotated added / kept / moved
+   *  against this set. Section names are resolved via getSectionName so
+   *  removed sections (gone from the registry) still render as a chip. */
+  currentSlotsBySection?: ReadonlyMap<string, ReadonlySet<string>>;
+  /** Resolves a section id to its display name; falls back to a short id
+   *  when the section is missing from the live availableSections list. */
+  getSectionName?: (sectionId: string) => string;
 }
 
 function formatWhen(iso: string): string {
@@ -64,6 +75,8 @@ export function RevisionPreviewModal({
   onRestore,
   restorePending,
   labelForType,
+  currentSlotsBySection,
+  getSectionName,
 }: Props) {
   const [summary, setSummary] = useState<RevisionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -200,7 +213,7 @@ export function RevisionPreviewModal({
                 </section>
               )}
 
-              {/* Composition */}
+              {/* Composition + diff against current draft */}
               <section>
                 <div className="flex items-center justify-between">
                   <h3 className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -211,6 +224,16 @@ export function RevisionPreviewModal({
                     {summary.totalSections} sections
                   </span>
                 </div>
+                {currentSlotsBySection ? (
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Diff vs. your current draft:{" "}
+                    <span className="text-emerald-600 dark:text-emerald-400">+ added</span>{" "}
+                    ·{" "}
+                    <span className="text-amber-600 dark:text-amber-400">~ moved</span>{" "}
+                    · kept ·{" "}
+                    <span className="text-rose-600 dark:text-rose-400">– removed</span>
+                  </p>
+                ) : null}
                 {summary.slots.length === 0 ? (
                   <p className="mt-2 rounded-md border border-dashed border-border/60 bg-muted/10 px-3 py-4 text-center text-sm text-muted-foreground">
                     No sections in this revision — restoring would leave the
@@ -218,29 +241,103 @@ export function RevisionPreviewModal({
                   </p>
                 ) : (
                   <ul className="mt-2 space-y-2">
-                    {summary.slots.map((slot) => (
-                      <li
-                        key={slot.slotKey}
-                        className="rounded-md border border-border/50 bg-muted/10 p-3"
-                      >
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          {slot.slotKey}
-                        </div>
-                        <ul className="mt-1.5 space-y-1">
-                          {slot.items.map((item, i) => (
-                            <li
-                              key={`${slot.slotKey}-${i}`}
-                              className="flex items-center justify-between gap-3 text-sm"
-                            >
-                              <span className="font-medium">{item.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {labelForType(item.sectionTypeKey)}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    ))}
+                    {summary.slots.map((slot) => {
+                      const currentInSlot =
+                        currentSlotsBySection?.get(slot.slotKey);
+                      // Sections currently in this slot but missing from the
+                      // revision → render as "removed" rows so the operator
+                      // sees what restoring would drop.
+                      const revisionIds = new Set(
+                        slot.items
+                          .map((it) => it.sectionId)
+                          .filter((x): x is string => !!x),
+                      );
+                      const removedIds: string[] = [];
+                      if (currentInSlot) {
+                        for (const id of currentInSlot) {
+                          if (!revisionIds.has(id)) removedIds.push(id);
+                        }
+                      }
+                      return (
+                        <li
+                          key={slot.slotKey}
+                          className="rounded-md border border-border/50 bg-muted/10 p-3"
+                        >
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            {slot.slotKey}
+                          </div>
+                          <ul className="mt-1.5 space-y-1">
+                            {slot.items.map((item, i) => {
+                              // Diff against current draft. We only surface
+                              // "added" vs (implicit) "kept" today — "moved"
+                              // would need sortOrder parity with the current
+                              // entries list and isn't worth the extra prop
+                              // plumbing yet. The legend keeps "moved" so it
+                              // can light up later without copy churn.
+                              const status: DiffStatus =
+                                currentSlotsBySection &&
+                                item.sectionId &&
+                                !currentInSlot?.has(item.sectionId)
+                                  ? "added"
+                                  : "kept";
+                              const badge: { label: string; cls: string } | null =
+                                status === "added"
+                                  ? {
+                                      label: "+",
+                                      cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+                                    }
+                                  : null;
+                              return (
+                                <li
+                                  key={`${slot.slotKey}-${i}`}
+                                  className="flex items-center justify-between gap-3 text-sm"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    {badge ? (
+                                      <span
+                                        className={`inline-flex h-4 w-4 items-center justify-center rounded text-[10px] font-bold ${badge.cls}`}
+                                        aria-label={status}
+                                      >
+                                        {badge.label}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-block w-4" aria-hidden />
+                                    )}
+                                    <span className="font-medium">
+                                      {item.name}
+                                    </span>
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {labelForType(item.sectionTypeKey)}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                            {removedIds.map((id) => (
+                              <li
+                                key={`${slot.slotKey}-removed-${id}`}
+                                className="flex items-center justify-between gap-3 text-sm opacity-70"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className="inline-flex h-4 w-4 items-center justify-center rounded bg-rose-500/15 text-[10px] font-bold text-rose-700 dark:text-rose-300"
+                                    aria-label="removed"
+                                  >
+                                    –
+                                  </span>
+                                  <span className="font-medium line-through">
+                                    {getSectionName?.(id) ?? `Section ${id.slice(0, 6)}`}
+                                  </span>
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  removed
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </section>

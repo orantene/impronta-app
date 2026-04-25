@@ -6,11 +6,16 @@ import {
   DEFAULT_PLATFORM_LOCALE,
   hasPhase5Capability,
   homepageTemplate,
+  PLATFORM_LOCALES,
+  isLocale,
   type Locale,
 } from "@/lib/site-admin";
 import { ensureHomepageRow, loadHomepageForStaff } from "@/lib/site-admin/server/homepage";
 import { loadHomepageRevisionsForStaff } from "@/lib/site-admin/server/homepage-reads";
-import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
+import {
+  listSectionsForStaff,
+  loadSectionUsageMapForStaff,
+} from "@/lib/site-admin/server/sections-reads";
 import { SECTION_REGISTRY } from "@/lib/site-admin/sections/registry";
 import { getTenantPreviewOrigin } from "@/lib/site-admin/server/tenant-hosts";
 import { requireStaff } from "@/lib/server/action-guards";
@@ -37,9 +42,15 @@ export const dynamic = "force-dynamic";
  * locale (`en`). A locale switcher lands in a follow-up — the row model is
  * already per-locale via the `cms_pages_system_lookup_idx` partial unique.
  */
-export default async function SiteSettingsStructurePage() {
+export default async function SiteSettingsStructurePage(props: {
+  searchParams?: Promise<{ locale?: string }>;
+}) {
   const auth = await requireStaff();
   if (!auth.ok) redirect("/login");
+
+  const sp = (await props.searchParams) ?? {};
+  const requestedLocale =
+    sp.locale && isLocale(sp.locale) ? (sp.locale as Locale) : null;
 
   const scope = await requireTenantScope().catch(() => null);
   if (!scope) {
@@ -79,7 +90,7 @@ export default async function SiteSettingsStructurePage() {
     );
   }
 
-  const locale: Locale = DEFAULT_PLATFORM_LOCALE;
+  const locale: Locale = requestedLocale ?? DEFAULT_PLATFORM_LOCALE;
 
   // Seed the homepage row on first visit. If the caller can compose, the
   // ensureHomepageRow op itself gates on the same capability; otherwise we
@@ -125,11 +136,40 @@ export default async function SiteSettingsStructurePage() {
     );
   }
 
-  const [sections, revisions, previewOrigin] = await Promise.all([
-    listSectionsForStaff(auth.supabase, scope.tenantId),
-    loadHomepageRevisionsForStaff(auth.supabase, scope.tenantId, state.page.id),
-    getTenantPreviewOrigin(auth.supabase, scope.tenantId),
-  ]);
+  const [sections, revisions, previewOrigin, usageMap, otherLocaleStates] =
+    await Promise.all([
+      listSectionsForStaff(auth.supabase, scope.tenantId),
+      loadHomepageRevisionsForStaff(auth.supabase, scope.tenantId, state.page.id),
+      getTenantPreviewOrigin(auth.supabase, scope.tenantId),
+      loadSectionUsageMapForStaff(auth.supabase, scope.tenantId),
+      // Probe sibling locales so the composer can show "Clone from <es>" only
+      // when there's actually content to copy. One read per locale is fine —
+      // PLATFORM_LOCALES is small (en/es today) and queries are partial-index
+      // covered.
+      Promise.all(
+        PLATFORM_LOCALES.filter((l) => l !== locale).map(async (l) => {
+          const s = await loadHomepageForStaff(auth.supabase, scope.tenantId, l);
+          return {
+            locale: l,
+            hasContent:
+              !!s &&
+              (s.draftSlots.length > 0 || s.liveSlots.length > 0),
+          };
+        }),
+      ),
+    ]);
+
+  const otherLocalesWithContent = otherLocaleStates
+    .filter((entry) => entry.hasContent)
+    .map((entry) => entry.locale);
+
+  // Project the usage map down to the small shape the composer needs
+  // (one chip per slot entry). Plain JSON so it serialises cleanly across
+  // the server→client boundary.
+  const sectionUsageCounts: Record<string, number> = {};
+  for (const [sectionId, usage] of usageMap.entries()) {
+    sectionUsageCounts[sectionId] = usage.totalReferences;
+  }
 
   const isEmptyTenant =
     state.draftSlots.length === 0 &&
@@ -169,6 +209,10 @@ export default async function SiteSettingsStructurePage() {
       >
         <HomepageComposer
           locale={locale}
+          tenantId={scope.tenantId}
+          availableLocales={[...PLATFORM_LOCALES]}
+          otherLocalesWithContent={otherLocalesWithContent}
+          sectionUsageCounts={sectionUsageCounts}
           page={state.page}
           draftSlots={state.draftSlots}
           liveSlots={state.liveSlots}

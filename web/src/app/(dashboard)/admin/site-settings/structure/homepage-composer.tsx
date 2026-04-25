@@ -28,8 +28,16 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Undo2, Redo2 } from "lucide-react";
+import {
+  Undo2,
+  Redo2,
+  Sparkles,
+  Copy as CopyIcon,
+  Image as ImageIcon,
+  RefreshCw,
+} from "lucide-react";
 import { useActionState } from "react";
+import { toast } from "sonner";
 import {
   DndContext,
   type DragEndEvent,
@@ -73,6 +81,8 @@ import {
   loadScheduledPublishAction,
   schedulePublishAction,
 } from "@/lib/site-admin/edit-mode/schedule-actions";
+import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
+import { loadLocaleHomepageForCloneAction } from "./clone-locale-action";
 import { SectionLibraryOverlay } from "./section-library-overlay";
 import {
   PublishPreflightModal,
@@ -116,6 +126,18 @@ interface RevisionLite {
 
 interface Props {
   locale: Locale;
+  /** Active tenant id — needed by MediaPicker and any client-side reads. */
+  tenantId: string;
+  /** Every platform locale the operator can switch to. */
+  availableLocales: readonly Locale[];
+  /** Sibling locales with at least one slot row (draft or live). Drives
+   *  the "Clone from …" button visibility — empty array means no peer
+   *  has content to copy. */
+  otherLocalesWithContent: readonly Locale[];
+  /** sectionId → totalReferences across draft+live compositions. Used to
+   *  paint a chip on slot entries reused on other pages so the operator
+   *  knows edits to the source section affect more than this homepage. */
+  sectionUsageCounts: Record<string, number>;
   page: PageRow;
   draftSlots: readonly HomepagePageSectionRow[];
   liveSlots: readonly HomepagePageSectionRow[];
@@ -200,6 +222,10 @@ function SortableSlotItem({
   sectionId,
   section,
   sectionTypeLabel,
+  /** Total references across the tenant (homepage live + draft + other
+   *  pages). 0/undefined → no chip. ≥2 → "Reused N×" so the operator
+   *  knows edits to this section affect more than this homepage. */
+  reuseCount,
   idx,
   isLast,
   canCompose,
@@ -217,6 +243,7 @@ function SortableSlotItem({
   };
   /** Human label for the section's type (looked up in the registry). */
   sectionTypeLabel: string;
+  reuseCount?: number;
   idx: number;
   isLast: boolean;
   canCompose: boolean;
@@ -286,6 +313,14 @@ function SortableSlotItem({
           Needs publishing
         </span>
       )}
+      {typeof reuseCount === "number" && reuseCount >= 2 && (
+        <span
+          className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-300"
+          title={`Used in ${reuseCount} compositions across the workspace. Editing this section changes every page that references it.`}
+        >
+          Reused {reuseCount}×
+        </span>
+      )}
 
       <Button
         type="button"
@@ -327,6 +362,10 @@ function SortableSlotItem({
 
 export function HomepageComposer({
   locale,
+  tenantId,
+  availableLocales,
+  otherLocalesWithContent,
+  sectionUsageCounts,
   page,
   draftSlots,
   liveSlots,
@@ -533,6 +572,214 @@ export function HomepageComposer({
     }
   }
 
+  // ── Autosave to localStorage ──────────────────────────────────────────────
+  // Belt-and-braces draft persistence so a tab close / hard refresh doesn't
+  // lose in-flight composition. Server-side draft saves are still the
+  // authoritative path; this is a fallback the operator can opt out of via
+  // the "Discard local backup" button. Key is per (tenant, page, locale)
+  // so different surfaces don't collide.
+  const localKey = `homepage-composer:${page.id}:${locale}`;
+  const restoredFromLocalRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (restoredFromLocalRef.current) return;
+    try {
+      const raw = window.localStorage.getItem(localKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        savedAt: string;
+        version: number;
+        entries?: Record<string, SlotEntry[]>;
+        title?: string;
+        metaDescription?: string;
+        introTagline?: string;
+        ogTitle?: string;
+        ogDescription?: string;
+        ogImageUrl?: string;
+        canonicalUrl?: string;
+        noindex?: boolean;
+      };
+      // Don't auto-apply if the server is ahead of the local backup —
+      // the operator opened a fresher state since the snapshot was made.
+      if (parsed.version >= page.version) {
+        restoredFromLocalRef.current = true;
+        toast.message(
+          "Restored unsaved local backup",
+          {
+            description:
+              "We recovered changes from your last visit. Save or discard below.",
+          },
+        );
+        if (parsed.entries) setEntries(parsed.entries);
+        if (typeof parsed.title === "string") setTitle(parsed.title);
+        if (typeof parsed.metaDescription === "string")
+          setMetaDescription(parsed.metaDescription);
+        if (typeof parsed.introTagline === "string")
+          setIntroTagline(parsed.introTagline);
+        if (typeof parsed.ogTitle === "string") setOgTitle(parsed.ogTitle);
+        if (typeof parsed.ogDescription === "string")
+          setOgDescription(parsed.ogDescription);
+        if (typeof parsed.ogImageUrl === "string")
+          setOgImageUrl(parsed.ogImageUrl);
+        if (typeof parsed.canonicalUrl === "string")
+          setCanonicalUrl(parsed.canonicalUrl);
+        if (typeof parsed.noindex === "boolean") setNoindex(parsed.noindex);
+      }
+    } catch {
+      // Corrupted JSON — drop and move on.
+      window.localStorage.removeItem(localKey);
+    }
+  }, [localKey, page.version]);
+
+  // ── Dirty tracking + beforeunload guard ───────────────────────────────────
+  // Compare the "applied to server" baseline against current state and warn
+  // if the operator tries to navigate away mid-edit. We also use the dirty
+  // flag to gate autosave so we don't churn localStorage every keystroke.
+  const baselineRef = useRef({
+    entries: initialEntries,
+    title: page.title ?? "Homepage",
+    metaDescription: page.meta_description ?? "",
+    introTagline:
+      typeof (page.hero as { introTagline?: unknown } | null)?.introTagline ===
+      "string"
+        ? ((page.hero as { introTagline: string }).introTagline)
+        : "",
+    ogTitle: page.og_title ?? "",
+    ogDescription: page.og_description ?? "",
+    ogImageUrl: page.og_image_url ?? "",
+    canonicalUrl: page.canonical_url ?? "",
+    noindex: page.noindex ?? false,
+  });
+  const isDirty = useMemo(() => {
+    const b = baselineRef.current;
+    if (b.title !== title) return true;
+    if (b.metaDescription !== metaDescription) return true;
+    if (b.introTagline !== introTagline) return true;
+    if (b.ogTitle !== ogTitle) return true;
+    if (b.ogDescription !== ogDescription) return true;
+    if (b.ogImageUrl !== ogImageUrl) return true;
+    if (b.canonicalUrl !== canonicalUrl) return true;
+    if (b.noindex !== noindex) return true;
+    if (JSON.stringify(b.entries) !== JSON.stringify(entries)) return true;
+    return false;
+  }, [
+    entries,
+    title,
+    metaDescription,
+    introTagline,
+    ogTitle,
+    ogDescription,
+    ogImageUrl,
+    canonicalUrl,
+    noindex,
+  ]);
+
+  useEffect(() => {
+    function handler(e: BeforeUnloadEvent) {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  // Persist current dirty state to localStorage with a short debounce so
+  // we batch typing into one write per keystroke storm.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isDirty) {
+      window.localStorage.removeItem(localKey);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(
+          localKey,
+          JSON.stringify({
+            savedAt: new Date().toISOString(),
+            version: page.version,
+            entries,
+            title,
+            metaDescription,
+            introTagline,
+            ogTitle,
+            ogDescription,
+            ogImageUrl,
+            canonicalUrl,
+            noindex,
+          }),
+        );
+      } catch {
+        // Quota exceeded — silently drop; main save path still works.
+      }
+    }, 800);
+    return () => window.clearTimeout(handle);
+  }, [
+    isDirty,
+    localKey,
+    page.version,
+    entries,
+    title,
+    metaDescription,
+    introTagline,
+    ogTitle,
+    ogDescription,
+    ogImageUrl,
+    canonicalUrl,
+    noindex,
+  ]);
+
+  function discardLocalBackup() {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(localKey);
+    setEntries(baselineRef.current.entries);
+    setTitle(baselineRef.current.title);
+    setMetaDescription(baselineRef.current.metaDescription);
+    setIntroTagline(baselineRef.current.introTagline);
+    setOgTitle(baselineRef.current.ogTitle);
+    setOgDescription(baselineRef.current.ogDescription);
+    setOgImageUrl(baselineRef.current.ogImageUrl);
+    setCanonicalUrl(baselineRef.current.canonicalUrl);
+    setNoindex(baselineRef.current.noindex);
+    toast.success("Local backup discarded");
+  }
+
+  // ── Clone-from-other-locale ──────────────────────────────────────────────
+  const [clonePending, setClonePending] = useState(false);
+  async function handleCloneFromLocale(source: Locale) {
+    setClonePending(true);
+    const res = await loadLocaleHomepageForCloneAction(source);
+    setClonePending(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    const { metadata, slots, sourcedFromDraft } = res.data;
+    // Rebuild the entries map with template slot keys preserved (so empty
+    // slots stay rendered) while applying the source composition where
+    // present.
+    const next: Record<string, SlotEntry[]> = {};
+    for (const slot of template.slots) {
+      next[slot.key] = (slots[slot.key] ?? []).map((entry, idx) => ({
+        sectionId: entry.sectionId,
+        sortOrder: idx,
+      }));
+    }
+    setEntries(next);
+    setTitle(metadata.title || baselineRef.current.title);
+    setMetaDescription(metadata.metaDescription);
+    setIntroTagline(metadata.introTagline);
+    setOgTitle(metadata.ogTitle);
+    setOgDescription(metadata.ogDescription);
+    setOgImageUrl(metadata.ogImageUrl);
+    setCanonicalUrl(metadata.canonicalUrl);
+    setNoindex(metadata.noindex);
+    toast.success(
+      `Loaded ${source.toUpperCase()} ${sourcedFromDraft ? "draft" : "live"} composition. Review and Save to apply.`,
+    );
+  }
+
   async function handleCancelSchedule() {
     setSchedulePending(true);
     setScheduleNotice(null);
@@ -561,6 +808,32 @@ export function HomepageComposer({
     HomepageActionState,
     FormData
   >(restoreHomepageRevisionAction, undefined);
+
+  // On successful save / publish / restore, the current state IS the new
+  // baseline — drop the localStorage backup and reset isDirty to false so
+  // the beforeunload guard releases.
+  useEffect(() => {
+    if (saveState?.ok || publishState?.ok || restoreState?.ok) {
+      baselineRef.current = {
+        entries,
+        title,
+        metaDescription,
+        introTagline,
+        ogTitle,
+        ogDescription,
+        ogImageUrl,
+        canonicalUrl,
+        noindex,
+      };
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(localKey);
+      }
+    }
+    // We deliberately do NOT depend on the field state here — only on
+    // the action results. The fields are read at the moment of success
+    // to capture the just-saved values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveState, publishState, restoreState]);
 
   // Effective version: after a successful save the action returns a fresh
   // version we should use for the next CAS. Mirrors the sections editor.
@@ -773,6 +1046,30 @@ export function HomepageComposer({
     (s) => s.required && (entries[s.key]?.length ?? 0) === 0,
   );
 
+  /**
+   * slotKey → Set<sectionId> for the current draft composition. Passed to
+   * RevisionPreviewModal so the diff view can mark each preview row as
+   * added / kept / removed against what's already in the composer.
+   */
+  const currentSlotsBySection = useMemo(() => {
+    const out = new Map<string, Set<string>>();
+    for (const [slotKey, list] of Object.entries(entries)) {
+      out.set(slotKey, new Set(list.map((e) => e.sectionId)));
+    }
+    return out;
+  }, [entries]);
+
+  /**
+   * Total slot entries across all template slots — used for the in-composer
+   * empty-state nudge: when the operator has cleared the composition (or
+   * never added anything) we show a one-line CTA to open the library on the
+   * first slot, instead of a wall of "Empty slot" fieldsets.
+   */
+  const totalEntries = useMemo(
+    () => Object.values(entries).reduce((sum, list) => sum + list.length, 0),
+    [entries],
+  );
+
   // Orphans: slot entries whose section row is missing from the available list
   // (deleted, archived behind our back, or out-of-tenant). The composer used
   // to render these as inline "Unknown section (xxxx…)" — a banner up top
@@ -795,6 +1092,47 @@ export function HomepageComposer({
       {/* ---- status pill + meta + undo/redo ---- */}
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <PageStatusBadge status={page.status} />
+        {/* Locale switcher — full reload via plain anchor so the server
+            re-runs loadHomepageForStaff for the new locale. Disabled when
+            dirty so the operator doesn't lose unsaved work mid-switch. */}
+        {availableLocales.length > 1 && (
+          <span className="inline-flex items-center gap-1">
+            <span className="opacity-70">Locale:</span>
+            {availableLocales.map((l) => {
+              const active = l === locale;
+              if (active) {
+                return (
+                  <span
+                    key={l}
+                    className="rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] uppercase text-primary"
+                  >
+                    {l}
+                  </span>
+                );
+              }
+              return (
+                <a
+                  key={l}
+                  href={`?locale=${l}`}
+                  onClick={(e) => {
+                    if (
+                      isDirty &&
+                      !window.confirm(
+                        "You have unsaved changes. Switch locale and discard them?",
+                      )
+                    ) {
+                      e.preventDefault();
+                    }
+                  }}
+                  className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] uppercase hover:bg-muted/40"
+                  title={`Switch to ${l.toUpperCase()} composer`}
+                >
+                  {l}
+                </a>
+              );
+            })}
+          </span>
+        )}
         <span>
           Last edited {formatWhen(page.updated_at)}
         </span>
@@ -802,6 +1140,54 @@ export function HomepageComposer({
           <span>Last published {formatWhen(page.published_at)}</span>
         ) : (
           <span>Not yet published</span>
+        )}
+        {isDirty && (
+          <span
+            className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] uppercase text-amber-300"
+            title="You have changes that haven't been saved yet."
+          >
+            Unsaved
+          </span>
+        )}
+        {/* Clone-from-other-locale — only shown when a sibling locale has
+            content; one button per peer locale to keep semantics obvious. */}
+        {canCompose &&
+          otherLocalesWithContent.map((src) => (
+            <Button
+              key={`clone-${src}`}
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (
+                  isDirty &&
+                  !window.confirm(
+                    "Cloning will overwrite your current draft. Continue?",
+                  )
+                ) {
+                  return;
+                }
+                void handleCloneFromLocale(src);
+              }}
+              disabled={clonePending || !canCompose}
+              title={`Replace this draft with the ${src.toUpperCase()} composition (review before saving)`}
+            >
+              <CopyIcon className="mr-1 size-3.5" />
+              {clonePending
+                ? "Loading…"
+                : `Clone from ${src.toUpperCase()}`}
+            </Button>
+          ))}
+        {isDirty && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={discardLocalBackup}
+            title="Revert all unsaved field + slot changes back to the last server state."
+          >
+            Discard changes
+          </Button>
         )}
         <details className="group/meta">
           <summary className="cursor-pointer select-none text-[10px] uppercase tracking-wide text-muted-foreground/60 hover:text-muted-foreground">
@@ -938,16 +1324,51 @@ export function HomepageComposer({
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="ogImageUrl">OG image URL</Label>
-              <Input
-                id="ogImageUrl"
-                name="ogImageUrl"
-                type="url"
-                maxLength={2048}
-                value={ogImageUrl}
-                onChange={(e) => setOgImageUrl(e.target.value)}
-                disabled={!canCompose}
-                placeholder="https://… or /uploads/…"
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  id="ogImageUrl"
+                  name="ogImageUrl"
+                  type="url"
+                  maxLength={2048}
+                  value={ogImageUrl}
+                  onChange={(e) => setOgImageUrl(e.target.value)}
+                  disabled={!canCompose || savePending}
+                  placeholder="https://… or /uploads/…"
+                  className="flex-1 min-w-[260px]"
+                />
+                <MediaPicker
+                  tenantId={tenantId}
+                  onPick={(url) => setOgImageUrl(url)}
+                  label="Pick from library"
+                  disabled={!canCompose || savePending}
+                />
+                {ogImageUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOgImageUrl("")}
+                    disabled={!canCompose || savePending}
+                    title="Clear OG image"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              {ogImageUrl && (
+                <div className="rounded-md border border-border/40 bg-muted/20 p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={ogImageUrl}
+                    alt="OG preview"
+                    className="max-h-32 rounded border border-border/30 object-contain"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display =
+                        "none";
+                    }}
+                  />
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 Absolute URL or path starting with <code>/</code>. 1200×630 PNG
                 or JPG works best for Open Graph cards.
@@ -1010,6 +1431,88 @@ export function HomepageComposer({
           </div>
         )}
 
+        {/* ---- in-composer empty-state nudge ----
+            Sits between the SEO panel and the slot list. Only renders when the
+            tenant has sections available but every slot is empty — in that
+            case the wall-of-empty-fieldsets is more discouraging than helpful.
+            Distinct from the page-level <StarterTiles /> which only renders
+            when both slots AND the section library are empty. */}
+        {canCompose && totalEntries === 0 && mergedSections.length > 0 && (
+          <div className="rounded-md border border-dashed border-border/60 bg-muted/10 px-4 py-4">
+            <p className="text-sm font-medium">
+              No sections in any slot yet.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Add a section from your library to start composing — a hero
+              works as a strong first slot, then layer trust + features
+              underneath.
+            </p>
+            {template.slots.length > 0 ? (
+              <Button
+                type="button"
+                size="sm"
+                className="mt-3"
+                onClick={() =>
+                  setLibraryOpen({
+                    slotKey: template.slots[0]!.key,
+                    slotLabel: template.slots[0]!.label,
+                  })
+                }
+              >
+                + Add to {template.slots[0]!.label}
+              </Button>
+            ) : null}
+          </div>
+        )}
+
+        {/* ---- AI assist (stubbed) ----
+            Slot for future composer assistance — generate hero copy from
+            tenant brand notes, suggest a section order based on goals, etc.
+            Buttons are disabled with a "Coming soon" hint so the surface
+            communicates intent without writing a half-baked feature. The
+            hooks live here so the visual real-estate is reserved; the
+            backend lands in a later phase. */}
+        {canCompose && (
+          <div className="rounded-md border border-border/40 bg-muted/5 px-4 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="flex items-center gap-1.5 text-sm font-medium">
+                  <Sparkles className="size-3.5 text-muted-foreground" />
+                  AI assist
+                  <span className="rounded-full border border-border/60 bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Coming soon
+                  </span>
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Suggest a slot order, generate hero copy from brand notes,
+                  or rewrite a section in another tone. Not wired yet —
+                  scaffold reserved.
+                </p>
+              </div>
+              <div className="flex flex-shrink-0 flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled
+                  title="AI suggestions ship in a later phase"
+                >
+                  Suggest order
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled
+                  title="AI suggestions ship in a later phase"
+                >
+                  Draft hero copy
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ---- slot editors ---- */}
         <div className="space-y-4">
           {template.slots.map((slot) => {
@@ -1060,6 +1563,9 @@ export function HomepageComposer({
                                 section
                                   ? labelForType(section.sectionTypeKey)
                                   : ""
+                              }
+                              reuseCount={
+                                sectionUsageCounts[entry.sectionId]
                               }
                               idx={idx}
                               isLast={idx === items.length - 1}
@@ -1259,6 +1765,42 @@ export function HomepageComposer({
               )}
             </p>
           )}
+
+          {/* ---- refresh published snapshot ----
+              The published_homepage_snapshot freezes section props at
+              publish time. If a section is later edited via the section
+              editor, the live storefront keeps showing the frozen copy
+              until the homepage is re-published. This nudge surfaces that
+              behaviour and gives a one-click "re-publish to refresh" path
+              that re-uses the current draft composition. CAS uses the
+              same effectiveVersion as a regular publish, so racing
+              edits are caught the same way. */}
+          {page.published_at && (
+            <div className="flex flex-wrap items-center gap-3 border-t border-border/40 pt-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (publishPending) return;
+                  publishFormRef.current?.requestSubmit();
+                }}
+                disabled={
+                  publishPending ||
+                  draftRefs.length > 0 ||
+                  missingRequired.length > 0
+                }
+                title="Re-publish to re-bake section content into the live snapshot"
+              >
+                <RefreshCw className="mr-1.5 size-3.5" />
+                Refresh published snapshot
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Edited a section after publishing? The live storefront serves
+                content frozen at the last publish — re-publish to refresh.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1336,6 +1878,8 @@ export function HomepageComposer({
         }}
         restorePending={restorePending}
         labelForType={labelForType}
+        currentSlotsBySection={currentSlotsBySection}
+        getSectionName={(id) => sectionsById.get(id)?.name ?? `Section ${id.slice(0, 6)}`}
       />
 
       <PublishPreflightModal

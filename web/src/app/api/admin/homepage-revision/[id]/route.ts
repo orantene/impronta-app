@@ -21,6 +21,7 @@ export const dynamic = "force-dynamic";
 
 interface SnapshotSection {
   slotKey?: string;
+  sectionId?: string;
   sectionTypeKey?: string;
   name?: string;
   sortOrder?: number;
@@ -102,12 +103,18 @@ export async function GET(
 
   const slotSummary = new Map<
     string,
-    Array<{ name: string; sectionTypeKey: string; sortOrder: number }>
+    Array<{
+      sectionId: string | null;
+      name: string;
+      sectionTypeKey: string;
+      sortOrder: number;
+    }>
   >();
   for (const s of composition) {
     const slotKey = typeof s.slotKey === "string" ? s.slotKey : "(unknown)";
     const arr = slotSummary.get(slotKey) ?? [];
     arr.push({
+      sectionId: typeof s.sectionId === "string" ? s.sectionId : null,
       name: typeof s.name === "string" ? s.name : "(unnamed section)",
       sectionTypeKey:
         typeof s.sectionTypeKey === "string" ? s.sectionTypeKey : "unknown",
