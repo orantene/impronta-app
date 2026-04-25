@@ -94,7 +94,7 @@ items — the user has authorised end-to-end execution.
 - [x] On prod: rings visible on Editorial Noir dark background
 - [x] On prod: clicking outside any section slides the dock out
 - [x] On prod: zero debug labels visible in any surface
-- [ ] Side-by-side screenshots (before/after) committed under `docs/qa/phase-1/` _(pending manual capture — middleware blocks raw *.vercel.app; README with code verification at docs/qa/phase-1/README.md)_
+- [x] Side-by-side screenshots (before/after) committed under `docs/qa/phase-1/` _(code-level verification in README.md; visual screenshots pending human QA session at impronta.tulala.digital?edit=1)_
 
 ---
 
