@@ -2,7 +2,7 @@
 
 import { ChevronRight, Lock } from "lucide-react";
 
-import { PLAN_COLOR, type Capability } from "./capability-catalog";
+import { PLAN_BADGE_COLOR, type Capability } from "./capability-catalog";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,7 +21,24 @@ export function SiteCard({
   onClick: () => void;
 }) {
   const Icon = capability.icon;
-  const accent = PLAN_COLOR[capability.tier];
+  const accent = PLAN_BADGE_COLOR[capability.tier];
+
+  const lockedTint: Record<string, { bg: string; border: string }> = {
+    studio: {
+      bg: "linear-gradient(180deg, rgba(58,123,255,0.06), white 70%)",
+      border: "rgba(58,123,255,0.25)",
+    },
+    agency: {
+      bg: "linear-gradient(180deg, rgba(139,109,31,0.08), white 70%)",
+      border: "rgba(139,109,31,0.28)",
+    },
+    network: {
+      bg: "linear-gradient(180deg, rgba(20,107,58,0.06), white 70%)",
+      border: "rgba(20,107,58,0.25)",
+    },
+    free: { bg: "white", border: "rgba(24,24,27,0.1)" },
+  };
+  const tint = locked ? lockedTint[capability.tier] : undefined;
 
   return (
     <button
@@ -29,11 +46,18 @@ export function SiteCard({
       onClick={onClick}
       aria-haspopup="dialog"
       className={cn(
-        "group relative block w-full rounded-2xl border bg-card/50 p-4 text-left shadow-sm transition-[border-color,box-shadow,background-color,transform] duration-200",
-        "hover:-translate-y-px hover:border-foreground/40 hover:bg-muted/30 hover:shadow-[0_14px_36px_-24px_rgba(0,0,0,0.6)]",
+        "group relative block w-full rounded-2xl border p-4 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-200",
+        "hover:-translate-y-px hover:shadow-[0_10px_28px_-18px_rgba(0,0,0,0.28)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        locked ? "border-border/40 bg-muted/[0.18]" : "border-border/60",
+        locked
+          ? "hover:border-foreground/30"
+          : "border-border/60 bg-card/50 hover:border-[var(--impronta-gold)]/40 hover:bg-muted/30",
       )}
+      style={
+        tint
+          ? { background: tint.bg, borderColor: tint.border }
+          : undefined
+      }
     >
       <div className="flex items-start gap-3">
         <span
@@ -60,8 +84,8 @@ export function SiteCard({
             </h3>
             {locked ? (
               <span
-                className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em]"
-                style={{ backgroundColor: accent.bg, color: accent.fg }}
+                className="inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em] shadow-[inset_0_0_0_1px_currentColor]"
+                style={{ color: accent.fg }}
               >
                 <Lock className="size-2.5" aria-hidden />
                 {capability.tier}

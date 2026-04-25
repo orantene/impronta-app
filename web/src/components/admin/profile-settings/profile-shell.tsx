@@ -140,8 +140,11 @@ export function ProfileShell({
   const totalRequired = fields.filter(
     (f) => f.required_level && f.required_level !== "none",
   ).length;
-  const totalTerms = terms.length;
   const userKinds = TAXONOMY_ORDER.filter((k) => !SYNCED_KINDS.has(k));
+  const userKindTerms = terms.filter((t) => !SYNCED_KINDS.has(t.kind));
+  const syncedKindCount = TAXONOMY_ORDER.filter((k) =>
+    SYNCED_KINDS.has(k),
+  ).length;
 
   // Drawer chrome
   const drawerProps = (() => {
@@ -186,7 +189,7 @@ export function ProfileShell({
       {/* Profile structure — one tile per field group */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
-          <span className="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-background">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eae7db] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#5b5b63] before:size-1.5 before:rounded-full before:bg-current before:content-['']">
             Fields
           </span>
           <div className="min-w-0 flex-1">
@@ -225,7 +228,7 @@ export function ProfileShell({
                   className="group relative block w-full rounded-2xl border border-border/60 bg-card/50 p-4 text-left shadow-sm transition-[border-color,box-shadow,background-color,transform] duration-200 hover:-translate-y-px hover:border-foreground/40 hover:bg-muted/30 hover:shadow-[0_14px_36px_-24px_rgba(0,0,0,0.6)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   <div className="flex items-start gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-background text-foreground">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-[var(--impronta-gold)]/30 bg-[var(--impronta-gold)]/[0.12] text-[var(--impronta-gold)] shadow-[inset_0_0_0_1px_rgba(201,162,39,0.25)]">
                       <LayoutList className="size-[18px]" aria-hidden />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -248,7 +251,7 @@ export function ProfileShell({
       {/* Lists — one tile per taxonomy kind */}
       <section className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
-          <span className="inline-flex items-center rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-background">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eae7db] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#5b5b63] before:size-1.5 before:rounded-full before:bg-current before:content-['']">
             Lists
           </span>
           <div className="min-w-0 flex-1">
@@ -256,8 +259,8 @@ export function ProfileShell({
               Tags, skills, industries — what fields choose from
             </h2>
             <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-              {userKinds.length} lists · {totalTerms} terms (plus countries +
-              cities synced from Locations)
+              {userKinds.length} lists · {userKindTerms.length} terms (plus{" "}
+              {syncedKindCount} synced from Locations)
             </p>
           </div>
           <a

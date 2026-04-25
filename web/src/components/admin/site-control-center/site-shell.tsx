@@ -26,7 +26,7 @@ import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
 
 import { SiteCard } from "./site-card";
 import {
-  PLAN_COLOR,
+  PLAN_BADGE_COLOR,
   TIER_BANDS,
   isLocked,
   type Capability,
@@ -69,14 +69,14 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
     body: () => <RosterDrawerBody />,
   },
   directory: {
-    title: "Directory settings",
+    title: "Directory Settings",
     subtitle: "Render · templates · fields",
     icon: LayoutGrid,
     body: () => <DirectoryDrawerBody />,
   },
   inquiries: {
     title: "Inquiries",
-    subtitle: "Open · in progress · won",
+    subtitle: "1 open · 3 in progress",
     icon: Inbox,
     body: () => <InquiriesDrawerBody />,
   },
@@ -94,7 +94,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   widgets: {
     title: "Widgets",
-    subtitle: "Embeds for any external site",
+    subtitle: "2 active · 4 embeds",
     icon: LayoutDashboard,
     body: () => (
       <StubDrawerBody
@@ -105,7 +105,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   api: {
     title: "API keys",
-    subtitle: "Read-only JSON for partners",
+    subtitle: "1 key · last used 3h ago",
     icon: Key,
     body: () => (
       <StubDrawerBody
@@ -115,8 +115,8 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
     ),
   },
   domain: {
-    title: "Domain & home",
-    subtitle: "Subdomain · custom domain",
+    title: "Domain & Home",
+    subtitle: "nova.rostra.app",
     icon: Globe2,
     body: () => (
       <StubDrawerBody
@@ -127,7 +127,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   homepage: {
     title: "Homepage",
-    subtitle: "Your branded landing page",
+    subtitle: "Draft pending · 2h ago",
     icon: Star,
     body: () => (
       <StubDrawerBody
@@ -145,14 +145,14 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   posts: {
     title: "Posts",
-    subtitle: "Editorial articles · drafts",
+    subtitle: "5 posts · 1 draft",
     icon: Newspaper,
     wide: true,
     body: () => <PostsDrawerBody />,
   },
   navigation: {
-    title: "Navigation & footer",
-    subtitle: "Header · footer columns",
+    title: "Navigation & Footer",
+    subtitle: "Header 5 · Footer 3 cols",
     icon: Menu,
     body: () => (
       <StubDrawerBody
@@ -163,7 +163,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   theme: {
     title: "Theme & foundations",
-    subtitle: "Active preset · token overrides",
+    subtitle: "Editorial Noir",
     icon: Palette,
     body: () => (
       <StubDrawerBody
@@ -185,7 +185,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   hub: {
     title: "Hub publishing",
-    subtitle: "Cross-agency discovery",
+    subtitle: "Network only",
     icon: Network,
     body: () => (
       <StubDrawerBody
@@ -196,7 +196,7 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
   },
   multiagency: {
     title: "Multi-agency manager",
-    subtitle: "Multiple brands, one workspace",
+    subtitle: "Network only",
     icon: Code2,
     body: () => (
       <StubDrawerBody
@@ -237,12 +237,12 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
       <div className="space-y-8">
         {TIER_BANDS.map((band) => {
           const bandLocked = isLocked(band.tier, activePlan);
-          const accent = PLAN_COLOR[band.tier];
+          const accent = PLAN_BADGE_COLOR[band.tier];
           return (
             <section key={band.tier} className="space-y-4">
               <div className="flex flex-wrap items-end gap-3">
                 <span
-                  className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em]"
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.18em] before:size-1.5 before:rounded-full before:bg-current before:content-['']"
                   style={{ backgroundColor: accent.bg, color: accent.fg }}
                 >
                   {band.badgeLabel}
@@ -262,10 +262,10 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                         ? "mailto:hello@impronta.group"
                         : `?plan=${band.tier}`
                     }
-                    className="rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition-transform hover:-translate-y-px"
-                    style={{ backgroundColor: accent.bg, color: accent.fg }}
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11.5px] font-semibold transition-colors hover:bg-foreground/[0.04]"
+                    style={{ color: accent.fg }}
                   >
-                    {band.ctaLabel}
+                    {band.ctaLabel} →
                   </Link>
                 ) : null}
                 <div

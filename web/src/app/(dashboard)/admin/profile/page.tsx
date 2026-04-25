@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ArrowUpRight, UserCog } from "lucide-react";
+import { ArrowUpRight, UserCircle } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { ProfileShell } from "@/components/admin/profile-settings/profile-shell";
@@ -30,8 +30,7 @@ export default async function AdminProfileSettingsPage() {
     return (
       <div className={ADMIN_PAGE_STACK}>
         <AdminPageHeader
-          icon={UserCog}
-          eyebrow="Site & AI"
+          icon={UserCircle}
           title="Profile settings"
           description="Supabase not configured."
         />
@@ -65,8 +64,7 @@ export default async function AdminProfileSettingsPage() {
     return (
       <div className={ADMIN_PAGE_STACK}>
         <AdminPageHeader
-          icon={UserCog}
-          eyebrow="Site & AI"
+          icon={UserCircle}
           title="Profile settings"
         />
         <p className="text-sm text-destructive">{CLIENT_ERROR.loadPage}</p>
@@ -103,19 +101,18 @@ export default async function AdminProfileSettingsPage() {
   return (
     <div className={ADMIN_PAGE_STACK}>
       <AdminPageHeader
-        icon={UserCog}
-        eyebrow="Site & AI"
+        icon={UserCircle}
         title="Profile settings"
-        description="What each talent profile holds, and the pick-lists those fields choose from. Open a tile to edit fields or terms inside it."
+        description="What each profile holds, and the pick-lists it uses."
         right={
           <a
             href="/register/talent"
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3.5 py-1.5 text-[12px] font-semibold text-foreground shadow-sm transition-colors hover:border-foreground/40 hover:bg-muted/30"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-[12.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/[0.06]"
           >
             Preview registration form
-            <ArrowUpRight className="size-3.5" aria-hidden />
+            <ArrowUpRight className="size-3" aria-hidden />
           </a>
         }
       />

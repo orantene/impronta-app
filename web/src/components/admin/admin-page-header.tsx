@@ -32,23 +32,23 @@ export function AdminPageHeader({
         className,
       )}
     >
-      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:gap-3 lg:gap-4">
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:gap-3.5">
         {Icon ? (
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-muted/30 text-foreground lg:h-14 lg:w-14 lg:rounded-3xl">
-            <Icon className="size-5 lg:size-6" aria-hidden />
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-[14px] border border-[var(--impronta-gold)]/40 bg-[var(--impronta-gold)]/[0.12] text-[var(--impronta-gold)] shadow-[inset_0_0_0_1px_rgba(201,162,39,0.25)]">
+            <Icon className="size-5" aria-hidden />
           </span>
         ) : null}
-        <div className="min-w-0 space-y-2">
+        <div className="min-w-0 space-y-1.5">
           {eyebrow ? (
             <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
               {eyebrow}
             </div>
           ) : null}
-          <h1 className="font-display text-base font-semibold tracking-tight text-foreground lg:text-xl">
+          <h1 className="font-display text-[22px] font-semibold leading-[1.2] tracking-[-0.01em] text-foreground">
             {title}
           </h1>
           {description ? (
-            <div className="max-w-2xl text-sm leading-relaxed text-muted-foreground lg:text-base lg:leading-relaxed">
+            <div className="max-w-[560px] text-[13.5px] leading-[1.55] text-muted-foreground">
               {description}
             </div>
           ) : null}

@@ -1,14 +1,10 @@
 import { redirect } from "next/navigation";
-import { ExternalLink, LayoutDashboard } from "lucide-react";
+import { ArrowUpRight, LayoutDashboard } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { ConvertHeroBanner } from "@/components/admin/site-control-center/convert-hero-banner";
 import { PlanTierToggle } from "@/components/admin/site-control-center/plan-tier-toggle";
 import { SiteShell } from "@/components/admin/site-control-center/site-shell";
-import {
-  nextHero,
-  parsePlan,
-} from "@/components/admin/site-control-center/capability-catalog";
+import { parsePlan } from "@/components/admin/site-control-center/capability-catalog";
 import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
 import { requireStaff } from "@/lib/server/action-guards";
 
@@ -35,32 +31,28 @@ export default async function AdminSiteControlCenterPage({
 
   const params = await searchParams;
   const activePlan = parsePlan(params.plan);
-  const hero = nextHero(activePlan);
 
   return (
     <div className={ADMIN_PAGE_STACK}>
-      <PlanTierToggle activePlan={activePlan} />
-
       <div className="space-y-6">
         <AdminPageHeader
           icon={LayoutDashboard}
-          eyebrow="Site & AI"
           title="Site"
-          description="Your roster, site, and embeds — everything that shapes the public face of your agency. Open a tile to configure it."
+          description="Your roster, site, and embeds — in one place."
           right={
             <a
               href="/"
               target="_blank"
               rel="noreferrer noopener"
-              className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3.5 py-1.5 text-[12px] font-semibold text-foreground shadow-sm transition-colors hover:border-foreground/40 hover:bg-muted/30"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-[12.5px] font-semibold text-foreground shadow-sm transition-colors hover:border-[var(--impronta-gold)]/40 hover:bg-[var(--impronta-gold)]/[0.06]"
             >
-              Open public site
-              <ExternalLink className="size-3.5" aria-hidden />
+              Open subdomain
+              <ArrowUpRight className="size-3" aria-hidden />
             </a>
           }
         />
 
-        {hero ? <ConvertHeroBanner hero={hero} /> : null}
+        <PlanTierToggle activePlan={activePlan} />
 
         <SiteShell activePlan={activePlan} />
       </div>
