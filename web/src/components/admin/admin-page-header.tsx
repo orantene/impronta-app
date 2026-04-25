@@ -34,7 +34,7 @@ export function AdminPageHeader({
     >
       <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:gap-3 lg:gap-4">
         {Icon ? (
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--impronta-gold)]/15 text-[var(--impronta-gold)] ring-1 ring-[var(--impronta-gold)]/20 lg:h-14 lg:w-14 lg:rounded-3xl">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-muted/30 text-foreground lg:h-14 lg:w-14 lg:rounded-3xl">
             <Icon className="size-5 lg:size-6" aria-hidden />
           </span>
         ) : null}

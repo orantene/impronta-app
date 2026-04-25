@@ -1,268 +1,274 @@
-import type { ReactNode } from "react";
-import Link from "next/link";
-import { ExternalLink, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
-import { ADMIN_PAGE_STACK, ADMIN_SECTION_TITLE_CLASS } from "@/lib/dashboard-shell-classes";
+import {
+  ADMIN_PAGE_STACK,
+  ADMIN_SECTION_TITLE_CLASS,
+} from "@/lib/dashboard-shell-classes";
 import { readAiTuningEnvSnapshot } from "@/lib/ai/ai-console-metrics";
+import { isCredentialEncryptionConfigured } from "@/lib/ai/credential-vault";
 import { OPENAI_EMBEDDING_MODEL_ID } from "@/lib/ai/openai-embeddings";
 import { resolveAnthropicApiKey, resolveOpenAiApiKey } from "@/lib/ai/resolve-api-keys";
 import {
   getEnvAiProviderOverride,
   getResolvedAiChatKind,
-  getResolvedAiProviderId,
-  isResolvedAiChatConfigured,
 } from "@/lib/ai/resolve-provider";
 import { getAiFeatureFlags } from "@/lib/settings/ai-feature-flags";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import { cn } from "@/lib/utils";
 
-import { AiWorkspaceQuickEnableButton } from "./ai-workspace-quick-enable";
 import { AiMasterModeForm } from "./ai-master-mode-form";
+import { AiWorkspaceQuickEnableButton } from "./ai-workspace-quick-enable";
+import { AiWorkspaceShell } from "./ai-workspace-shell";
 
 export const dynamic = "force-dynamic";
 
-const SETTINGS = "/admin/ai-workspace/settings";
+/* ────────────────────────────────────────────────────────────────────
+ * Phase 17 — AI workspace consolidation.
+ *
+ * Single page replaces /admin/ai-workspace + /admin/ai-workspace/settings.
+ * Master toggle + quick-enable stay inline at the top (high-frequency,
+ * one-click actions). Everything else lives in cards that open drawers
+ * via DashboardEditPanel — feature switches, quality refinements,
+ * provider configuration, usage controls, audit log, diagnostics. The
+ * three rich diagnostic surfaces (Console, Logs, Match preview) stay as
+ * deep-link cards because they're full-screen pages.
+ * ──────────────────────────────────────────────────────────────────── */
 
-function OnOff({ on }: { on: boolean }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-        on ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground",
-      )}
-    >
-      {on ? "On" : "Off"}
-    </span>
-  );
-}
+const AVAILABILITY_TOGGLES = [
+  {
+    key: "ai_search_enabled",
+    label: "AI search (guest experience)",
+    description:
+      "When on, search may use AI-assisted interpretation and ranking. Directory still works without a provider.",
+  },
+  {
+    key: "ai_rerank_enabled",
+    label: "AI re-rank",
+    description:
+      "Re-rank eligible result sets with ranking signals when a provider is available.",
+  },
+  {
+    key: "ai_explanations_enabled",
+    label: "AI match explanations",
+    description:
+      "Structured “why this match” on cards when a provider is available.",
+  },
+  {
+    key: "ai_refine_enabled",
+    label: "AI refine suggestions",
+    description:
+      "Post-search taxonomy chip suggestions when a provider is available.",
+  },
+  {
+    key: "ai_draft_enabled",
+    label: "Inquiry drafting",
+    description:
+      "LLM-assisted inquiry drafts on the public inquiry form when a provider is available.",
+  },
+  {
+    key: "ai_translations_enabled",
+    label: "AI translations (admin)",
+    description:
+      "AI-assisted translation workflows in the dashboard when a provider is available.",
+  },
+  {
+    key: "ai_embeddings_semantic_enabled",
+    label: "Semantic / vector features",
+    description:
+      "Use embeddings for hybrid semantic retrieval. Requires an OpenAI key path (platform or agency).",
+  },
+];
 
-function StatusCard({
-  title,
-  href,
-  children,
-  /** Set false when children include links (invalid nested anchors). Title row still links to `href`. */
-  cardAsLink = true,
-}: {
-  title: string;
-  href: string;
-  children: ReactNode;
-  cardAsLink?: boolean;
-}) {
-  const shell =
-    "group flex flex-col rounded-2xl border border-border/60 bg-card/40 shadow-sm transition-colors hover:border-primary/35 hover:bg-muted/10";
-  const titleRow = (
-    <div className="mb-2 flex items-center justify-between gap-2">
-      <h3 className="text-sm font-medium text-foreground">{title}</h3>
-      <ExternalLink className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-    </div>
-  );
+const QUALITY_TOGGLES = [
+  {
+    key: "ai_search_quality_v2",
+    label: "AI search quality v2",
+    description: "RRF hybrid merge + classic continuation cursor when hybrid first page.",
+  },
+  {
+    key: "ai_refine_v2",
+    label: "AI refine v2",
+    description: "Richer refine chip ranking.",
+  },
+  {
+    key: "ai_explanations_v2",
+    label: "AI explanations v2",
+    description: "Richer explanation rules + public confidence line on cards.",
+  },
+];
 
-  if (cardAsLink) {
-    return (
-      <Link href={href} className={cn(shell, "p-4")}>
-        {titleRow}
-        <div className="space-y-1 text-xs text-muted-foreground">{children}</div>
-      </Link>
-    );
-  }
+type Setting = { key: string; value: unknown };
 
-  return (
-    <div className={cn(shell, "overflow-hidden")}>
-      <Link href={href} className="block p-4 pb-2 no-underline hover:bg-muted/5">
-        {titleRow}
-      </Link>
-      <div className="space-y-1 px-4 pb-4 text-xs text-muted-foreground">{children}</div>
-    </div>
-  );
+function settingToString(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (value == null) return "";
+  return JSON.stringify(value);
 }
 
 export default async function AiWorkspacePage() {
-  const flags = await getAiFeatureFlags();
-  const providerId = await getResolvedAiProviderId();
-  const chatKind = await getResolvedAiChatKind();
-  const chatConfigured = await isResolvedAiChatConfigured();
-  const envOverride = getEnvAiProviderOverride();
-  const tuning = readAiTuningEnvSnapshot();
+  const [
+    flags,
+    chatKind,
+    envOverride,
+    tuning,
+    openaiKeyResolved,
+    anthropicKeyResolved,
+    supabase,
+  ] = await Promise.all([
+    getAiFeatureFlags(),
+    getResolvedAiChatKind(),
+    Promise.resolve(getEnvAiProviderOverride()),
+    Promise.resolve(readAiTuningEnvSnapshot()),
+    resolveOpenAiApiKey(),
+    resolveAnthropicApiKey(),
+    getCachedServerSupabase(),
+  ]);
+  const openaiPath = Boolean(openaiKeyResolved?.trim());
+  const anthropicPath = Boolean(anthropicKeyResolved?.trim());
+  const encryptionReady = isCredentialEncryptionConfigured();
 
-  const openaiKey = Boolean((await resolveOpenAiApiKey())?.trim());
-  const anthropicKey = Boolean((await resolveAnthropicApiKey())?.trim());
-
-  const supabase = await getCachedServerSupabase();
+  let settingsMap: Record<string, string> = {};
+  let registryRows: Parameters<typeof AiWorkspaceShell>[0]["registryRows"] = [];
+  let auditRows: Parameters<typeof AiWorkspaceShell>[0]["auditRows"] = [];
+  let tenantControls: Parameters<typeof AiWorkspaceShell>[0]["tenantControls"] = {
+    credential_mode: "inherit",
+    monthly_spend_cap_cents: null,
+    warn_threshold_percent: null,
+    hard_stop_on_cap: true,
+    max_requests_per_minute: null,
+    max_requests_per_month: null,
+    provider_unavailable_behavior: "graceful",
+  };
   let embedCount: number | null = null;
+
   if (supabase) {
-    const { count, error } = await supabase
-      .from("talent_embeddings")
-      .select("talent_profile_id", { count: "exact", head: true });
-    if (!error) embedCount = count ?? 0;
+    const [
+      { data: settingsRows },
+      { data: instRows },
+      { data: ctrl },
+      { data: auditData },
+      { count: embedCountVal },
+    ] = await Promise.all([
+      supabase.from("settings").select("key, value"),
+      supabase
+        .from("ai_provider_instances")
+        .select(
+          "id, kind, label, is_default, disabled, sort_order, credential_source, credential_ui_state, credential_masked_hint",
+        )
+        .order("sort_order", { ascending: true }),
+      supabase.from("ai_tenant_controls").select("*").maybeSingle(),
+      supabase
+        .from("ai_provider_audit")
+        .select("id, action, entity_type, entity_id, metadata, created_at")
+        .order("created_at", { ascending: false })
+        .limit(25),
+      supabase
+        .from("talent_embeddings")
+        .select("talent_profile_id", { count: "exact", head: true }),
+    ]);
+
+    if (settingsRows) {
+      settingsMap = Object.fromEntries(
+        (settingsRows as Setting[]).map((s) => [s.key, settingToString(s.value)]),
+      );
+    }
+    if (instRows?.length) {
+      registryRows = instRows as typeof registryRows;
+    }
+    if (ctrl) {
+      const c = ctrl as Record<string, unknown>;
+      tenantControls = {
+        credential_mode:
+          (c.credential_mode as "platform" | "agency" | "inherit") ?? "inherit",
+        monthly_spend_cap_cents:
+          typeof c.monthly_spend_cap_cents === "number"
+            ? c.monthly_spend_cap_cents
+            : null,
+        warn_threshold_percent:
+          typeof c.warn_threshold_percent === "number"
+            ? c.warn_threshold_percent
+            : null,
+        hard_stop_on_cap: c.hard_stop_on_cap !== false,
+        max_requests_per_minute:
+          typeof c.max_requests_per_minute === "number"
+            ? c.max_requests_per_minute
+            : null,
+        max_requests_per_month:
+          typeof c.max_requests_per_month === "number"
+            ? c.max_requests_per_month
+            : null,
+        provider_unavailable_behavior:
+          c.provider_unavailable_behavior === "strict" ? "strict" : "graceful",
+      };
+    }
+    if (auditData?.length) {
+      auditRows = auditData as typeof auditRows;
+    }
+    embedCount = embedCountVal ?? 0;
   }
 
-  const searchModeLabel = flags.ai_search_quality_v2
-    ? "Quality v2 (RRF + hybrid cursor)"
-    : "Baseline hybrid merge";
-  const activeChatModel =
-    providerId === "anthropic" ? tuning.anthropicChatModel : tuning.openaiChatModel;
-  const masterEnabled = flags.ai_master_enabled;
+  const availabilityOnCount = AVAILABILITY_TOGGLES.reduce(
+    (n, s) => (settingsMap[s.key] === "true" ? n + 1 : n),
+    0,
+  );
 
   return (
     <div className={ADMIN_PAGE_STACK}>
       <AdminPageHeader
         icon={Sparkles}
         title="AI workspace"
-        description="Live flags and environment status. Configure toggles and provider in AI Settings."
+        description="One surface for AI configuration. Master toggle below; everything else opens in a drawer."
       />
 
+      {!supabase ? (
+        <p className="text-sm text-muted-foreground">
+          Supabase not configured — AI settings cannot be loaded or saved.
+        </p>
+      ) : null}
+
       <DashboardSectionCard
-        title="Quick actions"
-        description="Quickly flip AI mode for the whole site, or enable the saved guest-facing AI features at once."
+        title="Master AI"
+        description="Global on/off for this agency. Cards below are gated by this switch."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
         <AiMasterModeForm
-          enabled={masterEnabled}
-          className="mb-4"
-          description="Use this as your master AI on/off switch. When off, the site falls back to classic behavior even if the feature toggles stay saved as on."
+          enabled={flags.ai_master_enabled}
+          className="mb-3"
+          description="When off, every provider-backed feature stays off even if individual switches are on."
         />
         <AiWorkspaceQuickEnableButton />
-        <p className="mt-3 text-xs text-muted-foreground">
-          Prefer granular control?{" "}
-          <Link href={`${SETTINGS}#ai-settings-feature-toggles`} className="text-primary hover:underline">
-            Feature switches
-          </Link>
-        </p>
       </DashboardSectionCard>
 
-      <DashboardSectionCard
-        title="Status"
-        description="Each card links to the matching section in AI Settings."
-        titleClassName={ADMIN_SECTION_TITLE_CLASS}
-      >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <StatusCard title="Search" href={`${SETTINGS}#ai-settings-feature-toggles`}>
-            <p className="flex flex-wrap items-center gap-2">
-              <OnOff on={masterEnabled && flags.ai_search_enabled} />
-              <span>{searchModeLabel}</span>
-            </p>
-            {!masterEnabled ? <p>Master AI mode is off.</p> : null}
-            <p>
-              OpenAI (embeddings):{" "}
-              <span className={openaiKey ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
-                {openaiKey ? "OpenAI key path OK" : "no OpenAI key path"}
-              </span>
-            </p>
-            <p>
-              Indexed profiles:{" "}
-              <span className="font-mono text-foreground">
-                {embedCount === null ? "—" : embedCount}
-              </span>
-            </p>
-          </StatusCard>
-
-          <StatusCard title="Rerank" href={`${SETTINGS}#ai-settings-feature-toggles`}>
-            <p className="flex items-center gap-2">
-              <OnOff on={masterEnabled && flags.ai_rerank_enabled} />
-              <span>Signal-based re-ordering after retrieval</span>
-            </p>
-          </StatusCard>
-
-          <StatusCard title="Explanations" href={`${SETTINGS}#ai-settings-v2-toggles`}>
-            <p className="flex flex-wrap items-center gap-2">
-              <OnOff on={masterEnabled && flags.ai_explanations_enabled} />
-              <span>v2 rules</span>
-              <OnOff on={masterEnabled && flags.ai_explanations_v2} />
-            </p>
-          </StatusCard>
-
-          <StatusCard title="Refine" href={`${SETTINGS}#ai-settings-v2-toggles`}>
-            <p className="flex flex-wrap items-center gap-2">
-              <OnOff on={masterEnabled && flags.ai_refine_enabled} />
-              <span>v2 chips</span>
-              <OnOff on={masterEnabled && flags.ai_refine_v2} />
-            </p>
-          </StatusCard>
-
-          <StatusCard title="Inquiry draft" href={`${SETTINGS}#ai-settings-feature-toggles`}>
-            <p className="flex items-center gap-2">
-              <OnOff on={masterEnabled && flags.ai_draft_enabled} />
-              <span>Public inquiry assistant</span>
-            </p>
-          </StatusCard>
-
-          <StatusCard title="Provider" href={`${SETTINGS}#ai-settings-provider`}>
-            <p>
-              Default:{" "}
-              <span className="font-medium text-foreground">
-                {chatKind === "anthropic"
-                  ? "Anthropic (Claude)"
-                  : chatKind === "openai"
-                    ? "OpenAI"
-                    : chatKind === "custom"
-                      ? "Custom (coming soon)"
-                      : "None"}
-              </span>
-            </p>
-            {envOverride ? (
-              <p className="text-amber-700 dark:text-amber-300">
-                Env override: <code className="font-mono">{envOverride}</code>
-              </p>
-            ) : (
-              <p>
-                Registry resolves to <code className="font-mono">{flags.ai_provider}</code> for chat
-                adapters.
-              </p>
-            )}
-            <p>
-              Chat key:{" "}
-              <span className={chatConfigured ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}>
-                {chatConfigured ? "available" : "not available for default provider"}
-              </span>
-            </p>
-            <p>
-              Resolved key paths: OpenAI {openaiKey ? "✓" : "—"}, Anthropic {anthropicKey ? "✓" : "—"}
-            </p>
-            <p className="font-mono text-[10px] text-foreground/80">Model: {activeChatModel}</p>
-          </StatusCard>
-
-          <StatusCard title="Embeddings" href={`${SETTINGS}#ai-settings-embeddings`}>
-            <p>
-              Model: <code className="font-mono text-foreground">{OPENAI_EMBEDDING_MODEL_ID}</code>
-            </p>
-            <p>In-memory cache: 12 min TTL, max 400 entries.</p>
-          </StatusCard>
-
-          <StatusCard
-            title="Runtime tuning"
-            href={`${SETTINGS}#ai-settings-runtime-tuning`}
-            cardAsLink={false}
-          >
-            <p>
-              RRF classic / vector:{" "}
-              <span className="font-mono text-[10px] text-foreground">
-                {tuning.improntaRrfClassicWeight} / {tuning.improntaRrfVectorWeight}
-              </span>
-            </p>
-            <p className="pt-1">
-              <Link href="/admin/ai-workspace/console" className="text-primary hover:underline">
-                AI Console (metrics)
-              </Link>
-              {" · "}
-              <Link href="/admin/ai-workspace/logs" className="text-primary hover:underline">
-                Search logs
-              </Link>
-            </p>
-          </StatusCard>
-        </div>
-      </DashboardSectionCard>
-
-      <p className="text-sm text-muted-foreground">
-        <Link href="/admin/ai-workspace/match-preview" className="text-primary hover:underline">
-          Talent match preview
-        </Link>
-        {" · "}
-        <Link href="/admin/ai-workspace/console" className="text-primary hover:underline">
-          AI Console
-        </Link>
-      </p>
+      <AiWorkspaceShell
+        flags={flags}
+        availabilityToggles={AVAILABILITY_TOGGLES}
+        qualityToggles={QUALITY_TOGGLES}
+        settingsMap={settingsMap}
+        registryRows={registryRows}
+        tenantControls={tenantControls}
+        auditRows={auditRows}
+        encryptionReady={encryptionReady}
+        envOverride={envOverride}
+        chatKind={chatKind}
+        openaiPath={openaiPath}
+        anthropicPath={anthropicPath}
+        embedCount={embedCount}
+        openaiChatModel={tuning.openaiChatModel}
+        anthropicChatModel={tuning.anthropicChatModel}
+        embedModelId={OPENAI_EMBEDDING_MODEL_ID}
+        tuning={{
+          aiProviderEnvOverride: tuning.aiProviderEnvOverride,
+          improntaRrfClassicWeight: tuning.improntaRrfClassicWeight,
+          improntaRrfVectorWeight: tuning.improntaRrfVectorWeight,
+          improntaEmbedCacheGen: tuning.improntaEmbedCacheGen,
+          improntaVectorNeighborCacheTtlMs: tuning.improntaVectorNeighborCacheTtlMs,
+          improntaVectorNeighborCacheMax: tuning.improntaVectorNeighborCacheMax,
+          improntaRefineCacheTtlMs: tuning.improntaRefineCacheTtlMs,
+        }}
+        availabilityOnCount={availabilityOnCount}
+      />
     </div>
   );
 }
