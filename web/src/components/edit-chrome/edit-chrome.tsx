@@ -26,7 +26,7 @@ export function EditChrome({ tenantId, editActive }: EditChromeProps) {
   return (
     <>
       <style>{`
-        body { padding-top: 52px !important; }
+        body { padding-top: 54px !important; }
         /* padding-right on lg is managed client-side by BodyPaddingController
            in EditShell so it can animate in/out with the inspector dock. */
         header[data-public-header] { display: none !important; }
