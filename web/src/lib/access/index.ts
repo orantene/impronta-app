@@ -66,13 +66,16 @@ export type { StatusKey, StatusBehavior } from "./status-rules";
 
 export {
   PLAN_KEYS,
+  PLAN_AUDIENCES,
   PLAN_CATALOG,
   isKnownPlan,
   getPlan,
   getVisiblePlans,
+  getVisibleWorkspacePlans,
+  getVisibleTalentPlans,
   getUpgradePathFromPlan,
 } from "./plan-catalog";
-export type { PlanKey, PlanDef } from "./plan-catalog";
+export type { PlanKey, PlanDef, PlanAudience } from "./plan-catalog";
 
 export {
   LIMIT_KEYS,

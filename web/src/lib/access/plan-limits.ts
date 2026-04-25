@@ -98,6 +98,30 @@ export const PLAN_LIMITS: Record<PlanKey, Record<LimitKey, number | null>> = {
     max_locales: null,
     max_custom_fields: null,
   },
+  // Talent-audience plans — solo workspaces (single-member, single-talent).
+  // max_team_seats=1 by definition; max_active_talent=1 (themselves).
+  // max_custom_domains gates the Portfolio tier.
+  talent_basic: {
+    max_team_seats: 1,
+    max_active_talent: 1,
+    max_custom_domains: 0,
+    max_locales: 1,
+    max_custom_fields: 0,
+  },
+  talent_pro: {
+    max_team_seats: 1,
+    max_active_talent: 1,
+    max_custom_domains: 0,
+    max_locales: 1,
+    max_custom_fields: 0,
+  },
+  talent_portfolio: {
+    max_team_seats: 1,
+    max_active_talent: 1,
+    max_custom_domains: 1,
+    max_locales: 2,
+    max_custom_fields: 0,
+  },
 };
 
 export function isKnownLimit(key: string): key is LimitKey {

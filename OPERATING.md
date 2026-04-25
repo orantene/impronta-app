@@ -203,7 +203,18 @@ These documents are binding product logic. Code, schema, or copy that conflicts 
   - 10 capability keys reserved in `lib/access/capabilities.ts`.
   - Reserved tables (deferred migrations): `booking_transactions`, `payout_accounts`. Reserved column on future `plans` table: `platform_fee_basis_points`.
 
-When working on the dashboard restructure (Track B.5), the talent surface (`/talent/*`), or any inquiry / roster / visibility / payment surface — read these docs first.
+- [`docs/talent-monetization.md`](docs/talent-monetization.md) — Tulala's third commercial lane. Establishes:
+  - **Three commercial lanes:** workspace subscriptions, transaction fees, talent subscriptions.
+  - **Talent product ladder:** Basic (default, free) / Pro / Portfolio. Names TBD; plan keys locked.
+  - **Architectural direction: solo-workspace approach.** A talent's premium page is hosted on a `kind='talent_solo'` workspace they own. Reuses every existing piece of multi-tenant infrastructure (domains, RLS, plans, payouts). No new tables required.
+  - Plan catalog gains `audience` field: `'workspace' | 'talent'`. UIs filter by audience.
+  - Custom-domain support reuses `agency_domains` (Portfolio tier only).
+  - Source-ownership rules extend unchanged: talent-page inquiries belong to the talent's solo workspace.
+  - Coexistence with agency/hub representation: same talent, multiple workspaces, independent inquiry sources.
+  - 8 capability keys reserved in `lib/access/capabilities.ts`.
+  - **Open questions for explicit founder ratification** (§14): does exclusivity extend to personal page? final pricing? auto-provisioning timing? — flagged before any UI implies a position.
+
+When working on the dashboard restructure (Track B.5), the talent surface (`/talent/*`), or any inquiry / roster / visibility / payment / pricing surface — read these docs first.
 
 ## 13. Where to find more
 

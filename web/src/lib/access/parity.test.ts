@@ -76,7 +76,8 @@ test("registry contains all expected capability sets", () => {
   // Legacy: 29 keys. Phase 5: 14 keys.
   // Talent-relationship model (docs/talent-relationship-model.md): 14 keys.
   // Transaction architecture (docs/transaction-architecture.md): 10 keys.
-  // Total: 67.
+  // Talent monetization (docs/talent-monetization.md): 8 keys.
+  // Total: 75.
   const TALENT_RELATIONSHIP_KEYS: readonly CapabilityKey[] = [
     "agency.settings.edit_join_mode",
     "agency.talent.create",
@@ -105,15 +106,48 @@ test("registry contains all expected capability sets", () => {
     "platform.payments.view_all",
     "platform.fee.configure",
   ];
-  for (const key of [...TALENT_RELATIONSHIP_KEYS, ...TRANSACTION_KEYS]) {
+  const TALENT_MONETIZATION_KEYS: readonly CapabilityKey[] = [
+    "talent.subscription.upgrade",
+    "talent.subscription.downgrade",
+    "talent.page.edit",
+    "talent.page.publish",
+    "talent.page.set_template",
+    "talent.page.enable_module",
+    "talent.page.connect_custom_domain",
+    "platform.talent_plans.configure",
+  ];
+  for (const key of [
+    ...TALENT_RELATIONSHIP_KEYS,
+    ...TRANSACTION_KEYS,
+    ...TALENT_MONETIZATION_KEYS,
+  ]) {
     assert.ok(isKnownCapability(key), `capability "${key}" missing`);
   }
   const expected =
     LEGACY_CAPABILITIES.length +
     PHASE_5_CAPABILITIES.length +
     TALENT_RELATIONSHIP_KEYS.length +
-    TRANSACTION_KEYS.length;
+    TRANSACTION_KEYS.length +
+    TALENT_MONETIZATION_KEYS.length;
   assert.equal(CAPABILITY_KEYS.length, expected, `expected ${expected} capability keys`);
+});
+
+test("plans split correctly by audience", () => {
+  const workspacePlans = Object.values(PLAN_CATALOG).filter((p) => p.audience === "workspace");
+  const talentPlans = Object.values(PLAN_CATALOG).filter((p) => p.audience === "talent");
+  assert.equal(workspacePlans.length, 5, "expected 5 workspace plans");
+  assert.equal(talentPlans.length, 3, "expected 3 talent plans (Basic, Pro, Portfolio)");
+
+  // Talent_basic is the baseline — free, hidden from pricing page.
+  const basic = PLAN_CATALOG.talent_basic;
+  assert.equal(basic.audience, "talent");
+  assert.equal(basic.monthlyPriceCents, 0);
+  assert.equal(basic.isVisible, false, "talent_basic must be hidden (it's the default)");
+  assert.equal(basic.isSelfServe, true);
+
+  // Portfolio is the only talent tier with a custom-domain limit.
+  const portfolio = PLAN_CATALOG.talent_portfolio;
+  assert.equal(portfolio.audience, "talent");
 });
 
 test("every CapabilityDef has a non-empty displayName and description", () => {
@@ -171,10 +205,20 @@ test("plan catalog has all 4 standard plans plus legacy", () => {
   }
 });
 
-test("plan ranks are unique and ordered", () => {
-  const ranks = PLAN_KEYS.map((k) => PLAN_CATALOG[k].rank);
-  const uniqueRanks = new Set(ranks);
-  assert.equal(uniqueRanks.size, ranks.length, "duplicate plan rank");
+test("plan ranks are unique within each audience", () => {
+  // Workspace and talent audiences have independent rank spaces. A plan's
+  // rank is only compared to plans of the same audience.
+  for (const audience of ["workspace", "talent"] as const) {
+    const ranks = Object.values(PLAN_CATALOG)
+      .filter((p) => p.audience === audience)
+      .map((p) => p.rank);
+    const uniqueRanks = new Set(ranks);
+    assert.equal(
+      uniqueRanks.size,
+      ranks.length,
+      `duplicate plan rank within audience "${audience}"`,
+    );
+  }
 });
 
 test("special plans (legacy) are not visible and not self-serve", () => {

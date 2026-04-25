@@ -20,6 +20,9 @@ export const PLAN_CAPABILITIES: Record<PlanKey, ReadonlySet<CapabilityKey>> = {
   agency: ALL_CAPS,
   network: ALL_CAPS,
   legacy: ALL_CAPS,
+  talent_basic: ALL_CAPS,
+  talent_pro: ALL_CAPS,
+  talent_portfolio: ALL_CAPS,
 };
 
 export function planGrantsCapability(

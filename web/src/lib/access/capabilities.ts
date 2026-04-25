@@ -664,6 +664,85 @@ export const CAPABILITIES = {
     gating: "platform_role",
     deprecated: false,
   }),
+
+  // ─── Talent subscriptions / premium-page features ────────────────────
+  // See docs/talent-monetization.md for architectural direction.
+  // Capability names locked; most have no callers in v1 — Track B.5
+  // wires them when premium-page surfaces are built on the talent's
+  // solo workspace.
+
+  "talent.subscription.upgrade": define({
+    key: "talent.subscription.upgrade",
+    displayName: "Upgrade talent subscription",
+    description: "Move your talent solo workspace to a higher tier (Pro, Portfolio).",
+    category: "billing",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.subscription.downgrade": define({
+    key: "talent.subscription.downgrade",
+    displayName: "Downgrade talent subscription",
+    description: "Move your talent solo workspace to a lower tier.",
+    category: "billing",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.page.edit": define({
+    key: "talent.page.edit",
+    displayName: "Edit personal page",
+    description: "Edit the content of your premium personal page.",
+    category: "site",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.page.publish": define({
+    key: "talent.page.publish",
+    displayName: "Publish personal page",
+    description: "Take changes to your premium personal page live.",
+    category: "site",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.page.set_template": define({
+    key: "talent.page.set_template",
+    displayName: "Choose page template",
+    description: "Pick from premium page templates (Portfolio tier).",
+    category: "site",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.page.enable_module": define({
+    key: "talent.page.enable_module",
+    displayName: "Enable premium modules",
+    description: "Turn on video embeds, audio embeds, social surfacing, schedule, and other premium-page modules.",
+    category: "site",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.page.connect_custom_domain": define({
+    key: "talent.page.connect_custom_domain",
+    displayName: "Connect custom domain to personal page",
+    description: "Attach your own domain to your premium personal page (Portfolio tier).",
+    category: "site",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "platform.talent_plans.configure": define({
+    key: "platform.talent_plans.configure",
+    displayName: "Configure talent plans",
+    description: "Manage the talent-audience plan catalog (Basic / Pro / Portfolio definitions, pricing, capabilities).",
+    category: "platform",
+    scope: "platform",
+    gating: "platform_role",
+    deprecated: false,
+  }),
 } as const;
 
 export type CapabilityKey = keyof typeof CAPABILITIES;
