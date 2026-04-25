@@ -104,10 +104,40 @@ function optionalTrimmedString(max: number) {
     .optional();
 }
 
+/**
+ * SEO knobs the operator sets in the composer's "Search & social" panel.
+ * All optional — the renderer falls back to title/metaDescription when an
+ * og field is absent. Mirrors the cms_pages columns one-to-one (og_title,
+ * og_description, og_image_url, canonical_url, noindex) so the save op is
+ * a direct projection.
+ */
+function optionalUrlString() {
+  return z
+    .string()
+    .trim()
+    .max(2048)
+    .transform((value) => (value.length === 0 ? undefined : value))
+    .optional()
+    .refine(
+      (v) =>
+        v === undefined ||
+        /^https?:\/\//i.test(v) ||
+        v.startsWith("/"),
+      { message: "Must be an absolute URL or a path starting with /" },
+    );
+}
+
 export const homepageMetadataSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(140),
   metaDescription: optionalTrimmedString(280),
   introTagline: optionalTrimmedString(140),
+  // SEO/OG knobs — all optional. Empty strings normalise to `undefined` so
+  // the server op writes NULL into the corresponding cms_pages column.
+  ogTitle: optionalTrimmedString(140),
+  ogDescription: optionalTrimmedString(280),
+  ogImageUrl: optionalUrlString(),
+  canonicalUrl: optionalUrlString(),
+  noindex: z.boolean().optional(),
 });
 
 export type HomepageMetadataInput = z.input<typeof homepageMetadataSchema>;

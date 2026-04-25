@@ -68,6 +68,11 @@ import {
   restoreHomepageRevisionAction,
   saveHomepageDraftAction,
 } from "./actions";
+import {
+  cancelScheduledPublishAction,
+  loadScheduledPublishAction,
+  schedulePublishAction,
+} from "@/lib/site-admin/edit-mode/schedule-actions";
 import { SectionLibraryOverlay } from "./section-library-overlay";
 import {
   PublishPreflightModal,
@@ -456,6 +461,91 @@ export function HomepageComposer({
       ? ((page.hero as { introTagline: string }).introTagline)
       : "",
   );
+  // Search & social — mirror cms_pages columns one-to-one. Empty strings
+  // normalise to NULL via the optionalUrlString / optionalTrimmedString
+  // schemas, so the operator can clear an OG override by deleting the text.
+  const [ogTitle, setOgTitle] = useState<string>(page.og_title ?? "");
+  const [ogDescription, setOgDescription] = useState<string>(
+    page.og_description ?? "",
+  );
+  const [ogImageUrl, setOgImageUrl] = useState<string>(page.og_image_url ?? "");
+  const [canonicalUrl, setCanonicalUrl] = useState<string>(
+    page.canonical_url ?? "",
+  );
+  const [noindex, setNoindex] = useState<boolean>(page.noindex ?? false);
+
+  // Scheduled publish — datetime-local in operator's timezone, sent to the
+  // server as an ISO UTC string. Loaded on mount from cms_pages so a previous
+  // schedule round-trips even if the operator navigates away mid-session.
+  const [scheduledAt, setScheduledAt] = useState<string>("");
+  const [scheduledByName, setScheduledByName] = useState<string | null>(null);
+  const [scheduleNotice, setScheduleNotice] = useState<
+    | { kind: "ok"; message: string }
+    | { kind: "error"; message: string }
+    | null
+  >(null);
+  const [schedulePending, setSchedulePending] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void loadScheduledPublishAction({ locale }).then((res) => {
+      if (cancelled) return;
+      if (res.ok) {
+        if (res.scheduledPublishAt) {
+          // Convert UTC ISO → local datetime-local input value (YYYY-MM-DDTHH:mm).
+          const d = new Date(res.scheduledPublishAt);
+          const pad = (n: number) => String(n).padStart(2, "0");
+          const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+            d.getDate(),
+          )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          setScheduledAt(local);
+          setScheduledByName(res.scheduledByName);
+        } else {
+          setScheduledAt("");
+          setScheduledByName(null);
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
+
+  async function handleSchedule() {
+    if (!scheduledAt) {
+      setScheduleNotice({
+        kind: "error",
+        message: "Pick a date and time first.",
+      });
+      return;
+    }
+    const iso = new Date(scheduledAt).toISOString();
+    setSchedulePending(true);
+    setScheduleNotice(null);
+    const res = await schedulePublishAction({ locale, publishAt: iso });
+    setSchedulePending(false);
+    if (res.ok) {
+      setScheduleNotice({
+        kind: "ok",
+        message: `Scheduled to publish at ${new Date(res.publishAt).toLocaleString()}.`,
+      });
+    } else {
+      setScheduleNotice({ kind: "error", message: res.error });
+    }
+  }
+
+  async function handleCancelSchedule() {
+    setSchedulePending(true);
+    setScheduleNotice(null);
+    const res = await cancelScheduledPublishAction({ locale });
+    setSchedulePending(false);
+    if (res.ok) {
+      setScheduledAt("");
+      setScheduledByName(null);
+      setScheduleNotice({ kind: "ok", message: "Schedule cleared." });
+    } else {
+      setScheduleNotice({ kind: "error", message: res.error });
+    }
+  }
 
   const [saveState, saveAction, savePending] = useActionState<
     HomepageActionState,
@@ -683,6 +773,23 @@ export function HomepageComposer({
     (s) => s.required && (entries[s.key]?.length ?? 0) === 0,
   );
 
+  // Orphans: slot entries whose section row is missing from the available list
+  // (deleted, archived behind our back, or out-of-tenant). The composer used
+  // to render these as inline "Unknown section (xxxx…)" — a banner up top
+  // makes them obvious at a glance and guides the operator to remove them
+  // before the next save / publish.
+  const orphanRefs = useMemo(() => {
+    const out: Array<{ slotKey: string; sectionId: string }> = [];
+    for (const [slotKey, list] of Object.entries(entries)) {
+      for (const entry of list) {
+        if (!sectionsById.has(entry.sectionId)) {
+          out.push({ slotKey, sectionId: entry.sectionId });
+        }
+      }
+    }
+    return out;
+  }, [entries, sectionsById]);
+
   return (
     <div className="space-y-8">
       {/* ---- status pill + meta + undo/redo ---- */}
@@ -790,6 +897,118 @@ export function HomepageComposer({
             />
           </div>
         </div>
+
+        {/* ---- Search & social ---------------------------------------------
+            Optional SEO/OG knobs. Empty fields normalise to NULL on save so
+            the renderer falls back to title/metaDescription. The noindex
+            checkbox also gates inclusion in /sitemap.xml — see web/src/app
+            /sitemap.ts which reads cms_pages.noindex for is_system_owned
+            homepages and skips the canonical "/" entry when set. */}
+        <details className="rounded-md border border-border/60">
+          <summary className="cursor-pointer select-none px-4 py-2 text-sm font-medium hover:bg-muted/30">
+            Search &amp; social
+            <span className="ml-2 text-xs text-muted-foreground">
+              SEO title, OpenGraph card, canonical URL, hide from search
+            </span>
+          </summary>
+          <div className="grid gap-4 border-t border-border/60 p-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="ogTitle">OG title (social card)</Label>
+              <Input
+                id="ogTitle"
+                name="ogTitle"
+                maxLength={140}
+                value={ogTitle}
+                onChange={(e) => setOgTitle(e.target.value)}
+                disabled={!canCompose}
+                placeholder="Falls back to homepage title"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ogDescription">OG description</Label>
+              <Input
+                id="ogDescription"
+                name="ogDescription"
+                maxLength={280}
+                value={ogDescription}
+                onChange={(e) => setOgDescription(e.target.value)}
+                disabled={!canCompose}
+                placeholder="Falls back to meta description"
+              />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="ogImageUrl">OG image URL</Label>
+              <Input
+                id="ogImageUrl"
+                name="ogImageUrl"
+                type="url"
+                maxLength={2048}
+                value={ogImageUrl}
+                onChange={(e) => setOgImageUrl(e.target.value)}
+                disabled={!canCompose}
+                placeholder="https://… or /uploads/…"
+              />
+              <p className="text-xs text-muted-foreground">
+                Absolute URL or path starting with <code>/</code>. 1200×630 PNG
+                or JPG works best for Open Graph cards.
+              </p>
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="canonicalUrl">Canonical URL</Label>
+              <Input
+                id="canonicalUrl"
+                name="canonicalUrl"
+                type="url"
+                maxLength={2048}
+                value={canonicalUrl}
+                onChange={(e) => setCanonicalUrl(e.target.value)}
+                disabled={!canCompose}
+                placeholder="https://yourdomain.com/"
+              />
+              <p className="text-xs text-muted-foreground">
+                Override only if this homepage is republished from another
+                domain. Leave blank to use the storefront origin.
+              </p>
+            </div>
+            <div className="md:col-span-2">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="noindex"
+                  checked={noindex}
+                  onChange={(e) => setNoindex(e.target.checked)}
+                  disabled={!canCompose}
+                  className="mt-0.5"
+                />
+                <span>
+                  <strong>Hide from search engines</strong>
+                  <span className="block text-xs text-muted-foreground">
+                    Adds <code>noindex</code> meta + drops the homepage from
+                    the sitemap. Use during pre-launch or while migrating.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </details>
+
+        {/* ---- orphan banner ----
+            A slot entry whose section can't be resolved from the merged
+            registry (deleted/archived/out-of-tenant). Save will reject these
+            with VALIDATION_FAILED, so we surface them up-front instead of
+            failing on submit. */}
+        {orphanRefs.length > 0 && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <strong>
+              {orphanRefs.length} orphan section reference
+              {orphanRefs.length === 1 ? "" : "s"}
+            </strong>{" "}
+            in slot{orphanRefs.length === 1 ? "" : "s"}{" "}
+            {Array.from(new Set(orphanRefs.map((r) => r.slotKey))).join(", ")}.
+            Remove or replace before saving — save and publish will reject
+            unknown section ids.
+          </div>
+        )}
 
         {/* ---- slot editors ---- */}
         <div className="space-y-4">
@@ -931,6 +1150,67 @@ export function HomepageComposer({
           </p>
         </div>
       </form>
+
+      {/* ---- scheduled publish ----
+          Operator picks a future fire time (datetime-local) and the
+          server-side cron sweep at /api/cron/publish-scheduled promotes
+          draft → live at that time. UI floors at +1 minute to mirror the
+          DB trigger's skew window. Cancel clears `scheduled_publish_at`
+          on the cms_pages row. */}
+      {canPublish && (
+        <div className="space-y-2 rounded-md border border-border/60 p-4">
+          <h3 className="text-sm font-semibold">Schedule publish</h3>
+          <p className="text-xs text-muted-foreground">
+            Promote the current draft automatically at a chosen time. The
+            cron sweeps every minute and applies the same publish gates as
+            the manual button below.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              disabled={!canCompose || schedulePending}
+              className="rounded border border-border/60 bg-background px-2 py-1 text-sm"
+              aria-label="Scheduled publish time"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSchedule}
+              disabled={!canCompose || schedulePending || !scheduledAt}
+            >
+              {schedulePending ? "Saving…" : "Schedule"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleCancelSchedule}
+              disabled={!canCompose || schedulePending}
+              title="Clear any existing schedule"
+            >
+              Clear
+            </Button>
+            {scheduledByName && (
+              <span className="text-xs text-muted-foreground">
+                Last set by {scheduledByName}
+              </span>
+            )}
+          </div>
+          {scheduleNotice && (
+            <p
+              className={
+                scheduleNotice.kind === "ok"
+                  ? "text-xs text-emerald-300"
+                  : "text-xs text-destructive"
+              }
+            >
+              {scheduleNotice.message}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ---- publish ---- */}
       {canPublish && (

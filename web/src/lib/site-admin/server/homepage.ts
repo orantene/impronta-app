@@ -657,6 +657,14 @@ export async function saveHomepageDraftComposition(
         ...(beforeRow.hero ?? {}),
         introTagline: values.metadata.introTagline ?? null,
       },
+      // SEO/OG projection from values.metadata. Mirrors the cms_pages columns
+      // one-to-one; empty strings have already been normalised to undefined
+      // by the form schema, which we coerce to NULL here.
+      og_title: values.metadata.ogTitle ?? null,
+      og_description: values.metadata.ogDescription ?? null,
+      og_image_url: values.metadata.ogImageUrl ?? null,
+      canonical_url: values.metadata.canonicalUrl ?? null,
+      noindex: values.metadata.noindex ?? false,
       version: nextVersion,
       updated_by: actorProfileId,
     })

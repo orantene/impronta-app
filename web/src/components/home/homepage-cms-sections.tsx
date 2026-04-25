@@ -70,6 +70,24 @@ export async function HomepageCmsSections({
               { slotKey: entry.slotKey, type: entry.sectionTypeKey },
             );
           }
+          // In edit-mode we render a visible placeholder so the operator
+          // notices an orphaned section reference (e.g. a section type
+          // that was retired after publish). View mode renders nothing
+          // to avoid leaking debug chrome to public visitors.
+          if (editMode) {
+            return (
+              <div
+                key={`orphan:${entry.slotKey}:${entry.sectionId}:${entry.sortOrder}`}
+                data-cms-section-orphan=""
+                className="mx-4 my-3 rounded-md border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm text-amber-300"
+              >
+                <strong>Section unavailable:</strong> the type{" "}
+                <code>{entry.sectionTypeKey}</code> is no longer registered.
+                Remove this slot entry from the homepage composer or restore
+                the section type in code.
+              </div>
+            );
+          }
           return null;
         }
         let migrated: { version: number; payload: unknown };
@@ -90,6 +108,21 @@ export async function HomepageCmsSections({
                 to: registryEntry.currentVersion,
                 error: (error as Error).message,
               },
+            );
+          }
+          if (editMode) {
+            return (
+              <div
+                key={`migfail:${entry.slotKey}:${entry.sectionId}:${entry.sortOrder}`}
+                data-cms-section-orphan=""
+                className="mx-4 my-3 rounded-md border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm text-amber-300"
+              >
+                <strong>Section payload out of date:</strong> snapshot v
+                {entry.schemaVersion} could not migrate to v
+                {registryEntry.currentVersion} for{" "}
+                <code>{entry.sectionTypeKey}</code>. Re-publish the homepage
+                to refresh the snapshot.
+              </div>
             );
           }
           return null;

@@ -36,23 +36,84 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [];
   }
 
-  const staticPaths = ["/", "/contact", "/directory", "/models"];
+  // Static pages always present on agency storefronts. The homepage ("/")
+  // is conditional — included only when the operator has not flagged the
+  // homepage row noindex=true. The other paths are framework-owned and
+  // always indexable.
+  const fixedStaticPaths = ["/contact", "/directory", "/models"];
 
-  const staticEntries: MetadataRoute.Sitemap = staticPaths.flatMap((path) => [
-    { url: new URL(path, base).toString(), lastModified: new Date() },
-    { url: new URL(withLocalePath(path, "es"), base).toString(), lastModified: new Date() },
-  ]);
+  const fixedStaticEntries: MetadataRoute.Sitemap = fixedStaticPaths.flatMap(
+    (path) => [
+      { url: new URL(path, base).toString(), lastModified: new Date() },
+      {
+        url: new URL(withLocalePath(path, "es"), base).toString(),
+        lastModified: new Date(),
+      },
+    ],
+  );
 
   if (!supabase) {
-    return staticEntries;
+    return [
+      { url: new URL("/", base).toString(), lastModified: new Date() },
+      ...fixedStaticEntries,
+    ];
   }
 
   // Non-agency contexts (hub/marketing/app) have no tenant-specific CMS.
   // Only agency storefronts expose cms_pages / cms_posts in their sitemap.
   const publicScope = await getPublicTenantScope();
   if (!publicScope) {
-    return staticEntries;
+    return [
+      { url: new URL("/", base).toString(), lastModified: new Date() },
+      ...fixedStaticEntries,
+    ];
   }
+
+  // Read the homepage row's noindex flag so the sitemap honours an admin
+  // who flipped "hide from search engines" in the homepage SEO panel.
+  // Default behaviour (row missing or query failure): include "/" — losing
+  // the homepage from the sitemap is worse than over-including it.
+  type HomepageSeoRow = {
+    noindex: boolean | null;
+    updated_at: string | null;
+  };
+  const { data: homepageRows } = await supabase
+    .from("cms_pages")
+    .select("noindex,updated_at")
+    .eq("tenant_id", publicScope.tenantId)
+    .eq("is_system_owned", true)
+    .eq("system_template_key", "homepage");
+  const homepageByLocale = new Map<string, HomepageSeoRow>();
+  // Per-locale homepage rows; each entry's noindex governs that locale's "/".
+  // We don't have locale on this read because the storefront sitemap conflates
+  // all locales — use the most-recently-updated row as the conservative gate
+  // (any locale being noindex hides the canonical "/").
+  if (Array.isArray(homepageRows)) {
+    for (const row of homepageRows) {
+      homepageByLocale.set(
+        row.updated_at ?? String(homepageByLocale.size),
+        row as HomepageSeoRow,
+      );
+    }
+  }
+  const anyHomepageNoindex = [...homepageByLocale.values()].some(
+    (row) => row.noindex === true,
+  );
+
+  const homepageEntries: MetadataRoute.Sitemap = anyHomepageNoindex
+    ? []
+    : [
+        { url: new URL("/", base).toString(), lastModified: new Date() },
+        {
+          url: new URL(withLocalePath("/", "es"), base).toString(),
+          lastModified: new Date(),
+        },
+      ];
+
+  const staticEntries: MetadataRoute.Sitemap = [
+    ...homepageEntries,
+    ...fixedStaticEntries,
+  ];
 
   type CmsSitemapRow = { slug: string; locale: string; updated_at: string | null };
 

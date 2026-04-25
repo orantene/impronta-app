@@ -150,6 +150,18 @@ export function CmsPageForm({ initial, revisions }: Props) {
     <div className="space-y-6">
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
+      {/* Phase 5+ stub — non-homepage CMS pages still use the legacy single-
+          template form. The homepage composer (slot-based block library) is
+          the model we'll unify pages on next; mention it here so operators
+          aren't surprised when the experience diverges between routes. */}
+      <div className="rounded-md border border-border/60 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+        Heads-up: this page uses the single-template editor. The block
+        composer used on the homepage will roll out to standard pages in a
+        following phase — your content here will migrate forward, no
+        re-authoring required.
+      </div>
+
+
       {restoreUrlMismatchHint ? (
         <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-4 text-sm">
           <p className="font-medium text-foreground">Restored revision uses a different public URL</p>

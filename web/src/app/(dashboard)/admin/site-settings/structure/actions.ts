@@ -153,6 +153,11 @@ export async function saveHomepageDraftAction(
       title: single(formData, "title"),
       metaDescription: single(formData, "metaDescription") || undefined,
       introTagline: single(formData, "introTagline") || undefined,
+      ogTitle: single(formData, "ogTitle") || undefined,
+      ogDescription: single(formData, "ogDescription") || undefined,
+      ogImageUrl: single(formData, "ogImageUrl") || undefined,
+      canonicalUrl: single(formData, "canonicalUrl") || undefined,
+      noindex: single(formData, "noindex") === "on",
     },
     slots,
   });
