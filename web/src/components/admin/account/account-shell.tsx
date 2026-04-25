@@ -14,6 +14,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { DrawerShell } from "@/components/admin/drawer/drawer-shell";
+import { useUrlDrawer } from "@/components/admin/drawer/use-url-drawer";
 import { useAdminWorkspace } from "@/components/admin/workspace-context";
 import { TIER_LABEL } from "@/lib/admin/plan-tiers";
 
@@ -121,7 +122,9 @@ export function AccountShell({
   const planLabel = TIER_LABEL[planKey] ?? "Free";
   const hasPaidInvoices = planKey !== "free";
 
-  const [openId, setOpenId] = React.useState<DrawerId | null>(null);
+  // URL-persisted drawer state — `/admin/account?d=plan` deep-links the plan
+  // drawer; back/forward/refresh restore it; share-links are stable.
+  const [openId, setOpenId] = useUrlDrawer<DrawerId>();
 
   const drawers: Record<DrawerId, DrawerEntry> = {
     plan: {

@@ -23,6 +23,7 @@ export function AdminListPage({
   tabs,
   filters,
   children,
+  drawerSlot,
   className,
   maxWidthClassName = "mx-auto max-w-6xl",
 }: {
@@ -37,22 +38,31 @@ export function AdminListPage({
   /** AdminFilterBar or filter form. */
   filters?: ReactNode;
   children: ReactNode;
+  /**
+   * Page-level drawer mounts (DrawerShell instances). Rendered outside the
+   * centered content wrapper so portal/overlay positioning isn't constrained
+   * by the max-width container.
+   */
+  drawerSlot?: ReactNode;
   className?: string;
   /** Override the centered max-width wrapper. Pass empty string to disable. */
   maxWidthClassName?: string;
 }) {
   return (
-    <div className={cn(maxWidthClassName, ADMIN_PAGE_STACK, className)}>
-      <AdminPageHeader
-        eyebrow={eyebrow}
-        title={title}
-        description={description}
-        right={right}
-      />
-      {banners}
-      {tabs}
-      {filters}
-      {children}
-    </div>
+    <>
+      <div className={cn(maxWidthClassName, ADMIN_PAGE_STACK, className)}>
+        <AdminPageHeader
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+          right={right}
+        />
+        {banners}
+        {tabs}
+        {filters}
+        {children}
+      </div>
+      {drawerSlot}
+    </>
   );
 }

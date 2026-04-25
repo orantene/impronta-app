@@ -39,14 +39,40 @@ function useDashboardPortalThemeClass(open: boolean) {
   return themeClass;
 }
 
+/**
+ * Width tokens for the drawer. Tokens replace the legacy `wide` boolean;
+ * `wide` is still accepted for back-compat and maps to "lg".
+ *
+ *   sm  → max-w-md   (default — single-form panel)
+ *   md  → max-w-xl   (form + supporting list, denser)
+ *   lg  → max-w-3xl  (two-column list/detail mode — formerly `wide`)
+ *   xl  → max-w-5xl  (table-grade content; rare)
+ */
+export type DrawerSize = "sm" | "md" | "lg" | "xl";
+
+const DRAWER_SIZE_CLASS: Record<DrawerSize, string> = {
+  sm: "lg:w-full lg:max-w-md",
+  md: "lg:w-full lg:max-w-xl",
+  lg: "lg:w-full lg:max-w-3xl",
+  xl: "lg:w-full lg:max-w-5xl",
+};
+
 export type DrawerShellProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   subtitle?: string;
   icon: LucideIcon;
-  /** Set true to widen the drawer for two-column list/detail mode. */
+  /** Width token (sm/md/lg/xl). Defaults to "sm". */
+  size?: DrawerSize;
+  /** @deprecated Use `size="lg"`. Kept for back-compat. */
   wide?: boolean;
+  /** Optional sticky header right-side actions (e.g. status badge). */
+  headerRight?: React.ReactNode;
+  /** Optional sticky footer (cancel/save bar). Rendered outside the scroll area. */
+  footer?: React.ReactNode;
+  /** Polite live-region message announced to screen readers on change. */
+  announce?: string;
   children: React.ReactNode;
   className?: string;
 };
@@ -57,11 +83,16 @@ export function DrawerShell({
   title,
   subtitle,
   icon: Icon,
+  size,
   wide = false,
+  headerRight,
+  footer,
+  announce,
   children,
   className,
 }: DrawerShellProps) {
   const portalThemeClass = useDashboardPortalThemeClass(open);
+  const resolvedSize: DrawerSize = size ?? (wide ? "lg" : "sm");
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -81,7 +112,7 @@ export function DrawerShell({
             "border-border/60 bg-popover text-popover-foreground",
             "inset-x-0 bottom-0 rounded-t-2xl border-x border-t",
             "lg:inset-y-0 lg:right-0 lg:left-auto lg:rounded-none lg:border-y-0 lg:border-r-0 lg:border-l",
-            wide ? "lg:w-full lg:max-w-3xl" : "lg:w-full lg:max-w-md",
+            DRAWER_SIZE_CLASS[resolvedSize],
             "data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=open]:duration-300",
             "data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-200",
             "lg:data-[state=open]:slide-in-from-right lg:data-[state=open]:slide-in-from-bottom-0",
@@ -112,17 +143,38 @@ export function DrawerShell({
                 )}
               </div>
             </div>
-            <DialogPrimitive.Close
-              aria-label="Close"
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:border-border/60 hover:bg-muted/40 hover:text-foreground"
-            >
-              <X className="size-4" />
-            </DialogPrimitive.Close>
+            <div className="flex shrink-0 items-center gap-1">
+              {headerRight}
+              <DialogPrimitive.Close
+                aria-label="Close"
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-muted-foreground transition-colors hover:border-border/60 hover:bg-muted/40 hover:text-foreground"
+              >
+                <X className="size-4" />
+              </DialogPrimitive.Close>
+            </div>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] pt-4 lg:px-6 lg:pb-6">
+          <div
+            className={cn(
+              "min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4 lg:px-6",
+              footer
+                ? "pb-4 lg:pb-4"
+                : "pb-[max(1.5rem,env(safe-area-inset-bottom,0px))] lg:pb-6",
+            )}
+          >
             {children}
+            {announce ? (
+              <span role="status" aria-live="polite" className="sr-only">
+                {announce}
+              </span>
+            ) : null}
           </div>
+
+          {footer ? (
+            <div className="shrink-0 border-t border-border/40 bg-background/95 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm lg:px-6">
+              {footer}
+            </div>
+          ) : null}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

@@ -8,6 +8,7 @@ import {
   CalendarPlus,
   ChevronDown,
   ChevronRight,
+  Keyboard,
   LogOut,
   Menu,
   Moon,
@@ -22,6 +23,11 @@ import {
 
 import { signOut } from "@/app/auth/actions";
 import { AdminCommandPalette } from "@/components/admin/admin-command-palette";
+import {
+  AdminShortcutsDrawer,
+  useShortcutsDrawerHotkey,
+} from "@/components/admin/admin-shortcuts-drawer";
+import { AdminWorkspaceSummaryDrawer } from "@/components/admin/admin-workspace-summary-drawer";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -181,6 +187,10 @@ export function AdminShellTopBar({
   const crumbs = React.useMemo(() => buildCrumbs(pathname), [pathname]);
   const upgradeModal = useUpgradeModal();
   const workspace = useAdminWorkspace();
+
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
+  const [summaryOpen, setSummaryOpen] = React.useState(false);
+  useShortcutsDrawerHotkey(setShortcutsOpen);
 
   const planKey = workspace?.plan ?? "free";
   const planLabel = TIER_LABEL[planKey] ?? "Free";
@@ -365,7 +375,7 @@ export function AdminShellTopBar({
         ) : (
         <button
           type="button"
-          onClick={() => upgradeModal.setOpen(true)}
+          onClick={() => setSummaryOpen(true)}
           className={cn(
             "ml-0.5 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[12px] text-foreground/80",
             "border transition-[border-color,box-shadow] duration-150",
@@ -376,9 +386,10 @@ export function AdminShellTopBar({
           )}
           title={
             seatsTight
-              ? `Roster is ${Math.round(usageRatio * 100)}% full — consider upgrading`
-              : "Click to view plans"
+              ? `Roster is ${Math.round(usageRatio * 100)}% full — open workspace summary`
+              : "Open workspace summary"
           }
+          aria-haspopup="dialog"
         >
           <span
             className="size-2 shrink-0 rounded-full"
@@ -505,6 +516,17 @@ export function AdminShellTopBar({
               <UserRound className="size-3.5 text-muted-foreground" aria-hidden />
               Team &amp; permissions
             </Link>
+            <button
+              type="button"
+              onClick={() => setShortcutsOpen(true)}
+              className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-[12.5px] text-foreground transition-colors hover:bg-muted/60"
+            >
+              <Keyboard className="size-3.5 text-muted-foreground" aria-hidden />
+              Keyboard shortcuts
+              <span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-foreground/15 bg-foreground/[0.04] px-1 font-mono text-[10px] font-semibold text-muted-foreground">
+                ?
+              </span>
+            </button>
             <form action={signOut} className="border-t border-border/60 pt-1">
               <button
                 type="submit"
@@ -517,6 +539,19 @@ export function AdminShellTopBar({
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Globally-mounted drawers — `?` opens the cheatsheet, plan-chip opens
+          the workspace summary. Both portal out so they overlay the entire
+          shell, not just this top bar. */}
+      <AdminShortcutsDrawer
+        open={shortcutsOpen}
+        onOpenChange={setShortcutsOpen}
+      />
+      <AdminWorkspaceSummaryDrawer
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
+        onOpenUpgrade={() => upgradeModal.setOpen(true)}
+      />
     </header>
   );
 }
