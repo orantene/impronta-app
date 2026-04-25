@@ -196,14 +196,25 @@ export function InspectorDock() {
         return;
       }
       if (result.code === "VERSION_CONFLICT") {
-        // Refetch authoritative row, discard tail.
-        setSaveError("Section changed elsewhere — reloading.");
+        // Refetch authoritative row, discard tail. Leave the notice up
+        // for ~3.5s after the refresh lands so the operator sees what
+        // happened — silently overwriting their working copy is the
+        // single biggest "did the editor eat my work?" trust break.
+        setSaveError("Section was edited elsewhere — your view has been refreshed with the latest version.");
         const fresh = await loadSectionForEditAction(loaded.id);
         if (fresh.ok) {
           setLoadedSection(fresh.section);
           setDraftProps({ ...fresh.section.props });
           setDirty(false);
-          setSaveError(null);
+          window.setTimeout(() => {
+            // Only clear if no new error has arrived in the meantime.
+            setSaveError((cur) =>
+              cur ===
+              "Section was edited elsewhere — your view has been refreshed with the latest version."
+                ? null
+                : cur,
+            );
+          }, 3500);
         }
         return;
       }
