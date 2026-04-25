@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
-- **Last commit on phase-1 branch:** _to be filled by the first fire_
-- **Next action:** Start Phase 1 — build `Drawer` primitive in `web/src/components/edit-chrome/kit/drawer.tsx`
+- **Last commit on phase-1 branch:** _pending_
+- **Next action:** Build `card.tsx` primitive (Card, CardHead, CardBody, CardAction)
 
 ---
 
@@ -44,7 +44,7 @@ items — the user has authorised end-to-end execution.
 **Goal:** every drawer uses one chrome, every input has a premium treatment, no debug labels visible. Matches mockup surfaces 1–10.
 
 #### Kit primitives — `web/src/components/edit-chrome/kit/`
-- [ ] `drawer.tsx` — `Drawer`, `DrawerHead`, `DrawerBody`, `DrawerFoot`, `DrawerTabs`, `DrawerTools` (the three-button expand/fullscreen/close cluster)
+- [x] `drawer.tsx` — `Drawer`, `DrawerHead`, `DrawerBody`, `DrawerFoot`, `DrawerTabs`, `DrawerTools` (the three-button expand/fullscreen/close cluster)
 - [ ] `card.tsx` — `Card`, `CardHead`, `CardBody`, `CardAction`
 - [ ] `field.tsx` — `Field`, `FieldLabel`, `Helper`, `HelperCounter`
 - [ ] `stepper.tsx` — numeric stepper with unit
@@ -320,4 +320,5 @@ The big one. Three parallel tracks:
 
 | Fire timestamp | Phase | Commit hash | Description |
 |---|---|---|---|
-| _initial_ | A.1 | (this commit) | Tracker created, Phase 1 staged |
+| _initial_ | A.1 | b5fa5b8 | Tracker created, Phase 1 staged |
+| 2026-04-24 (manual) | A.1 | _pending_ | Chrome kit foundation + Drawer primitive |
