@@ -14,6 +14,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { CHROME, CHROME_SHADOWS, CHROME_RADII, DrawerHead } from "./kit";
+
 interface MediaItem {
   id: string;
   publicUrl: string;
@@ -112,27 +114,29 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex h-[80vh] w-[min(100%,960px)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between gap-4 border-b border-zinc-100 px-5 py-3">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              Replace image
-            </div>
-            <h2 className="text-base font-semibold tracking-tight text-zinc-900">
-              Media library
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleFileChosen(file);
-              }}
-            />
+      <div
+        className="flex h-[80vh] w-[min(100%,960px)] flex-col overflow-hidden"
+        style={{
+          background: CHROME.paper2,
+          border: `1px solid ${CHROME.lineMid}`,
+          borderRadius: CHROME_RADII.lg,
+          boxShadow: CHROME_SHADOWS.popover,
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handleFileChosen(file);
+          }}
+        />
+        <DrawerHead
+          eyebrow="Replace image"
+          title="Media library"
+          saveChip={
             <button
               type="button"
               disabled={uploading}
@@ -141,15 +145,9 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
             >
               {uploading ? "Uploading…" : "Upload"}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+          }
+          onClose={onClose}
+        />
 
         {uploadError ? (
           <p className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-700">

@@ -30,6 +30,7 @@ import {
 } from "@/lib/site-admin/edit-mode/talent-search";
 import { DraggableList } from "./draggable-list";
 import { InspectorItemRow, InspectorRowDelete } from "./inspector-item-row";
+import { CHROME, CHROME_SHADOWS, CHROME_RADII } from "../../kit";
 
 interface TalentPickerProps {
   open: boolean;
@@ -150,20 +151,41 @@ export function TalentPicker({
 
   return (
     <div
+      data-edit-overlay="talent-picker"
       className="fixed inset-0 z-[130] flex items-start justify-center bg-black/40 p-4 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
     >
       <div
-        className="mt-[80px] flex h-[calc(100vh-140px)] w-full max-w-[920px] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl"
+        className="mt-[80px] flex h-[calc(100vh-140px)] w-full max-w-[920px] flex-col overflow-hidden"
+        style={{
+          background: CHROME.paper2,
+          border: `1px solid ${CHROME.lineMid}`,
+          borderRadius: CHROME_RADII.lg,
+          boxShadow: CHROME_SHADOWS.popover,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-center justify-between gap-3 border-b border-zinc-100 px-5 py-3.5">
+        <header
+          className="flex items-center justify-between gap-3 px-5 py-3.5"
+          style={{
+            background: CHROME.surface,
+            borderBottom: `1px solid ${CHROME.line}`,
+          }}
+        >
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+            <span
+              className="inline-flex shrink-0 items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em]"
+              style={{ color: CHROME.muted2 }}
+            >
+              <span
+                aria-hidden
+                className="inline-block size-1.5 rounded-full"
+                style={{ background: CHROME.ink }}
+              />
               Pick talent
-            </div>
+            </span>
             <div className="relative min-w-0 flex-1 max-w-[440px]">
               <SearchIcon />
               <input
@@ -205,7 +227,10 @@ export function TalentPicker({
 
         <div className="grid min-h-0 flex-1 grid-cols-[1fr_320px]">
           {/* Search results pane */}
-          <div className="overflow-y-auto border-r border-zinc-100 p-4">
+          <div
+            className="overflow-y-auto p-4"
+            style={{ borderRight: `1px solid ${CHROME.line}` }}
+          >
             {!bootstrapped || loading ? (
               <SearchSkeleton />
             ) : hits.length === 0 ? (
@@ -231,7 +256,10 @@ export function TalentPicker({
 
           {/* Selected pane */}
           <div className="flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-2">
+            <div
+              className="flex items-center justify-between px-4 py-2"
+              style={{ borderBottom: `1px solid ${CHROME.line}` }}
+            >
               <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
                 Selected order
               </span>

@@ -21,6 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditContext } from "./edit-context";
 import { InfoTip } from "@/components/ui/info-tip";
 import { SectionWire } from "./starter-wireframes";
+import { CHROME, Drawer, DrawerHead, DrawerBody } from "./kit";
 
 const PURPOSE_ORDER = [
   "hero",
@@ -100,8 +101,6 @@ export function CompositionLibraryOverlay() {
     return by;
   }, [filtered]);
 
-  if (!libraryTarget) return null;
-
   async function handlePick(typeKey: string) {
     if (!libraryTarget) return;
     setBusyTypeKey(typeKey);
@@ -115,139 +114,123 @@ export function CompositionLibraryOverlay() {
     closeLibrary();
   }
 
+  const drawerOpen = !!libraryTarget;
+
   return (
-    <div
-      data-edit-overlay="library"
-      className="fixed inset-0 z-[110] flex items-start justify-center bg-black/40 p-6 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) closeLibrary();
-      }}
-    >
-      <div className="relative mt-[56px] flex max-h-[calc(100vh-80px)] w-full max-w-[880px] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl">
-        <header className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
-          <div>
-            <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">
-              Add section
-            </div>
-            <h2 className="text-base font-semibold tracking-tight text-zinc-900">
-              {slotDef ? `Into ${slotDef.label}` : "Pick a section"}
-            </h2>
-            {slotDef?.allowedSectionTypes ? (
-              <p className="mt-0.5 text-xs text-zinc-500">
-                This slot only accepts {slotDef.allowedSectionTypes.join(", ")}.
-              </p>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={closeLibrary}
-            className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+    <Drawer kind="picker" open={drawerOpen} zIndex={110}>
+      <DrawerHead
+        eyebrow="Add section"
+        title={slotDef ? `Into ${slotDef.label}` : "Pick a section"}
+        meta={
+          slotDef?.allowedSectionTypes
+            ? `Accepts: ${slotDef.allowedSectionTypes.join(", ")}`
+            : undefined
+        }
+        onClose={closeLibrary}
+      />
+
+      {/* Search bar: stable above the scrollable grid */}
+      <div
+        className="px-[18px] py-3"
+        style={{ borderBottom: `1px solid ${CHROME.line}` }}
+      >
+        <div className="relative">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
           >
-            Cancel
-          </button>
-        </header>
-        {/* Search filter sits between the header and the grid so the grid
-            scrolls under a stable filter input. Operators can narrow long
-            libraries with "gallery", "cta", etc. without scrolling. */}
-        <div className="border-b border-zinc-100 px-5 py-3">
-          <div className="relative">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
-            >
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <input
-              ref={queryInputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={
-                slotFiltered.length === 0
-                  ? "No sections available"
-                  : `Filter ${slotFiltered.length} section type${slotFiltered.length === 1 ? "" : "s"}…`
-              }
-              className="w-full rounded-md border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-            />
-          </div>
-        </div>
-        {error ? (
-          <div className="border-b border-red-100 bg-red-50 px-5 py-2 text-xs text-red-700">
-            {error}
-          </div>
-        ) : null}
-        <div className="flex-1 overflow-y-auto p-5">
-          {filtered.length === 0 ? (
-            <p className="py-12 text-center text-sm text-zinc-500">
-              {query.trim()
-                ? `No section types match "${query.trim()}".`
-                : "No section types available for this slot."}
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {PURPOSE_ORDER.map((purpose) => {
-                const entries = grouped[purpose];
-                if (!entries || entries.length === 0) return null;
-                return (
-                  <section key={purpose}>
-                    <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                      {PURPOSE_LABEL[purpose] ?? purpose}
-                    </h3>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-                      {entries.map((entry) => {
-                        const busy = busyTypeKey === entry.typeKey;
-                        return (
-                          <button
-                            key={entry.typeKey}
-                            type="button"
-                            disabled={busyTypeKey !== null}
-                            onClick={() => void handlePick(entry.typeKey)}
-                            className="group flex flex-col items-stretch gap-2 rounded-lg border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 hover:shadow-md disabled:opacity-50 disabled:hover:border-zinc-200 disabled:hover:shadow-none"
-                          >
-                            <div className="overflow-hidden rounded-md bg-zinc-50 p-2">
-                              <SectionWire
-                                typeKey={entry.typeKey}
-                                className="h-20 w-full text-zinc-400"
-                              />
-                            </div>
-                            <div className="flex w-full items-center justify-between gap-2 px-0.5">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-sm font-semibold text-zinc-900">
-                                  {entry.label}
-                                </span>
-                                <InfoTip
-                                  label={entry.description}
-                                />
-                              </div>
-                              {busy ? (
-                                <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                                  Adding…
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="line-clamp-2 px-0.5 text-xs leading-relaxed text-zinc-500">
-                              {entry.description}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
-          )}
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            ref={queryInputRef}
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={
+              slotFiltered.length === 0
+                ? "No sections available"
+                : `Filter ${slotFiltered.length} section type${slotFiltered.length === 1 ? "" : "s"}…`
+            }
+            className="w-full rounded-md border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+          />
         </div>
       </div>
-    </div>
+
+      {error ? (
+        <div className="border-b border-red-100 bg-red-50 px-[18px] py-2 text-xs text-red-700">
+          {error}
+        </div>
+      ) : null}
+
+      <DrawerBody>
+        {filtered.length === 0 ? (
+          <p className="py-12 text-center text-sm text-zinc-500">
+            {query.trim()
+              ? `No section types match "${query.trim()}".`
+              : "No section types available for this slot."}
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {PURPOSE_ORDER.map((purpose) => {
+              const entries = grouped[purpose];
+              if (!entries || entries.length === 0) return null;
+              return (
+                <section key={purpose}>
+                  <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                    {PURPOSE_LABEL[purpose] ?? purpose}
+                  </h3>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {entries.map((entry) => {
+                      const busy = busyTypeKey === entry.typeKey;
+                      return (
+                        <button
+                          key={entry.typeKey}
+                          type="button"
+                          disabled={busyTypeKey !== null}
+                          onClick={() => void handlePick(entry.typeKey)}
+                          className="group flex flex-col items-stretch gap-2 rounded-lg border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 hover:shadow-md disabled:opacity-50 disabled:hover:border-zinc-200 disabled:hover:shadow-none"
+                        >
+                          <div className="overflow-hidden rounded-md bg-zinc-50 p-2">
+                            <SectionWire
+                              typeKey={entry.typeKey}
+                              className="h-20 w-full text-zinc-400"
+                            />
+                          </div>
+                          <div className="flex w-full items-center justify-between gap-2 px-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-semibold text-zinc-900">
+                                {entry.label}
+                              </span>
+                              <InfoTip label={entry.description} />
+                            </div>
+                            {busy ? (
+                              <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                                Adding…
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="line-clamp-2 px-0.5 text-xs leading-relaxed text-zinc-500">
+                            {entry.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        )}
+      </DrawerBody>
+    </Drawer>
   );
 }
