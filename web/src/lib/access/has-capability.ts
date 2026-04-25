@@ -14,15 +14,10 @@
  *   4. Platform role bypass (super_admin)
  *   5. Active membership
  *   6. Role grants capability
- *   7. Plan grants capability  ← Phase 1: skipped (see plan-capabilities.ts)
- *   8. Limit headroom          ← caller invokes assertWithinLimit separately
- *   9. Status-degraded behavior ← Phase 1: skipped (only Phase 1 statuses enforced)
+ *   7. Plan grants capability   (permissive Phase 1; Track C tightens)
+ *   8. Limit headroom           (caller invokes assertWithinLimit separately)
+ *   9. Status-degraded behavior (Phase 1: enforced for onboarding/active/suspended)
  *  10. Allow
- *
- * Phase 1 enforcement: steps 1, 3, 4, 5, 6 are live. Steps 2 and 9 fire only
- * for the three reachable statuses (onboarding/active/suspended). Step 7
- * is gated on `ENFORCE_PLAN_CAPABILITIES` (currently false) so behavior is
- * identical to the legacy `requireCapability`.
  */
 
 import { findTenantMembership } from "@/lib/saas/tenant";
@@ -41,10 +36,7 @@ import {
   isServableStatus,
   STATUS_RULES,
 } from "./status-rules";
-import {
-  ENFORCE_PLAN_CAPABILITIES,
-  planGrantsCapability,
-} from "./plan-capabilities";
+import { planGrantsCapability } from "./plan-capabilities";
 import { isKnownPlan, type PlanKey } from "./plan-catalog";
 
 export type AuthorizeResult =
@@ -151,17 +143,18 @@ export async function authorize(
     return { ok: false, reason: "role_lacks_capability" };
   }
 
-  // ── Step 7: plan grants capability (Phase 1: feature-flagged off) ──
-  if (ENFORCE_PLAN_CAPABILITIES) {
-    const plan = (membership as { agency_plan_tier?: unknown }).agency_plan_tier;
-    if (typeof plan === "string" && isKnownPlan(plan)) {
-      if (!planGrantsCapability(plan as PlanKey, capability)) {
-        return { ok: false, reason: "plan_lacks_capability" };
-      }
+  // ── Step 7: plan grants capability ─────────────────────────────────
+  // Phase 1 PLAN_CAPABILITIES is permissive (every plan grants every cap);
+  // this branch is a no-op until Track C tightens the per-plan subsets.
+  // Once tightened, denials surface here automatically.
+  const plan = (membership as { agency_plan_tier?: unknown }).agency_plan_tier;
+  if (typeof plan === "string" && isKnownPlan(plan)) {
+    if (!planGrantsCapability(plan as PlanKey, capability)) {
+      return { ok: false, reason: "plan_lacks_capability" };
     }
-    // Unknown plan keys fail open in Phase 1 (the resolver doesn't have a
-    // hard policy yet). Track C tightens this.
   }
+  // Unknown plan keys fail open — fixed when Track B.4 wires the resolver
+  // through `agencies.plan_tier` properly.
 
   return { ok: true };
 }

@@ -84,7 +84,6 @@ export type { LimitKey, LimitDef } from "./plan-limits";
 export {
   PLAN_CAPABILITIES,
   planGrantsCapability,
-  ENFORCE_PLAN_CAPABILITIES,
 } from "./plan-capabilities";
 
 export {

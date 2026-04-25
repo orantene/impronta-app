@@ -83,7 +83,34 @@ local → push to phase-1 → Vercel builds preview → (optional) alias to stag
 
 The Decision Log at [`docs/decision-log.md`](docs/decision-log.md) is binding. L1–L40 are locked. To change a Locked decision: write the rationale in the log first, get approval, then change code. Never silently deviate.
 
-## 9. Plan and access-model governance
+## 9. Pre-launch removal policy
+
+We are pre-launch. No real users, no real traffic. **Default cleanup stance: delete on replacement.** No 7-day soak windows, no 30-day verification periods, no dual-read transitions for cosmetic concerns.
+
+The only sequencing rule: **don't remove a thing until its replacement is wired to all its callers.** Once the new code path is live and the legacy callers have migrated, the legacy code is deleted in the same PR (or the immediate follow-up). No "we'll clean it up later." No archive folders. No `*-legacy.ts` shims with TODOs.
+
+This rule continues until the user explicitly says "we are live" (per `feedback_pre_launch_shipping.md`). At that point: standard pre-deprecation windows, dual-read for live data, redirect periods for moved URLs.
+
+Sequenced removals (working features in tenant #1 still need to function):
+
+| Removal | Sequenced after |
+|---|---|
+| Legacy `lib/saas/capabilities.ts` role-cap map | Track B.4 (callers migrated) |
+| Legacy `lib/site-admin/capabilities.ts` Phase-5 map | Track B.4 |
+| `lib/admin/plan-tiers.ts` (TIER_LABEL/DOT/RENEW) | Track C (UI reads `getPlanView`) |
+| `components/admin/site-control-center/capability-catalog.ts` (TIER_BANDS) | Track B.5 (new shell renders plans differently) |
+| `components/admin/global-upgrade-modal.tsx` PLANS+RANK | Track C |
+| `(marketing)/pricing/page.tsx` TIERS array | Track C |
+| `dashboardPathForRole`, `isStaffRole` from `lib/auth-flow.ts` | Track B.4 |
+| `app_role = 'super_admin'` reads → `platform_role` | Track B.2 lands the column; Track B.4 migrates callers; same PR drops the fallback |
+| `app_role = 'agency_staff'` enum value | Track B.4 final commit |
+| `agency_entitlements` columns | Track C migration (same migration as `plan_capabilities` insert) |
+| `agencies.talent_seat_limit` column | Track C migration |
+| `(dashboard)/admin/*` legacy shell | Track B.5 (new shell at `(workspace)/[tenantSlug]/admin/*`) |
+
+No dual-read window. No staging-only deletions. The migration's last step is the deletion.
+
+## 10. Plan and access-model governance
 
 The access model — capabilities, roles, plans, limits, status, overrides — has its own ownership rules. See [`web/src/lib/access/`](web/src/lib/access/) for the canonical module and [`docs/special-plans.md`](docs/special-plans.md) for the special-plans register.
 
@@ -121,6 +148,7 @@ Special plans = `is_visible=false OR is_self_serve=false`. Used today for grandf
 - **Required fields:** `is_visible=false`, `is_self_serve=false`, full `display_name` including the customer/contract, full `description` explaining who/why/what differs/when retire.
 - **Required register:** every special plan adds a row to [`docs/special-plans.md`](docs/special-plans.md) in the same PR. CI script `check:special-plans-doc` (post Track C) asserts every special plan in the DB has a doc row.
 - **Anti-mess thresholds:** when active special plans ≥ 5, near-duplicate pairs ≥ 3, OR tenants on special plans ≥ 10, the override-tables build is triggered. New special-plan PRs blocked past those thresholds until either (a) an existing special plan is retired or (b) override-tables work is scheduled.
+- **Quarterly review** is post-launch. Pre-launch (one engineer, one tenant), the threshold trigger is sufficient — no scheduled reviews.
 
 ### Access resolution contract
 
@@ -142,14 +170,13 @@ super_admin bypass policy:
 - **Writes** outside an active support-mode session → pre-Track-A: warned + audited at `severity='warn'` with `support_mode='emergency_override'`. Post-Track-A: denied (writes go via dedicated `/admin/tenants/<id>/...` routes only).
 - Cross-tenant writes never happen on `/{slug}/admin` URLs once Track A lands.
 
-## 10. Open questions parked here (resolve with the user before changing)
+## 11. Open questions parked here (resolve with the user before changing)
 
-- **Prototype tenants** at `web/src/app/prototypes/creator-circuit/` and `prototypes/muse-bridal/`. Either migrate to real `agency_domains` rows + `cms_pages` content, or delete. Currently a third route paradigm.
-- **`x-impronta-*` internal headers** (17 usages: `lib/saas/scope.ts`, `lib/auth-routing.ts`, `lib/saas/host-context.ts`, `lib/supabase/middleware.ts`, etc.). These are internal contracts not user-visible; renaming is a 20-file refactor with no functional gain. Leave until there's a reason.
+- **`x-impronta-*` internal headers** (17 usages: `lib/saas/scope.ts`, `lib/auth-routing.ts`, `lib/saas/host-context.ts`, `lib/supabase/middleware.ts`, etc.). Internal contracts, not user-visible; renaming is a 20-file refactor with no functional gain. Leave until there's a reason.
 - **Vercel production branch** stuck on `main`. Fix only by upgrading to Pro and editing `link.productionBranch`. Do at launch.
-- **`draft` status** — keep, merge into `onboarding`, or drop. Recommend merging during Phase 2 status work.
+- **`draft` workspace status** — keep, merge into `onboarding`, or drop. Recommend merging during Phase 2 status work.
 
-## 11. Where to find more
+## 12. Where to find more
 
 - [`AGENTS.md`](AGENTS.md) — agent operating contract (read on every change)
 - [`README.md`](README.md) — install / dev / test / deploy
