@@ -326,4 +326,6 @@ The big one. Three parallel tracks:
 | 2026-04-24 (manual) | A.1 | 7bb1b60 | Field primitives (Field / Label / Helper / Counter) |
 | 2026-04-24 (manual) | A.1 | fe974a3 | Stepper + Segmented + Toggle + Swatch + ColorRow |
 | 2026-04-24 (manual) | A.1 | 61e88b2 | SaveChip + Kbd primitives — kit complete (10/10) |
-| 2026-04-24 (manual) | A.1 | _pending_ | SectionTypeIcon — 12 SVG glyphs |
+| 2026-04-24 (autonomous) | A.1 | d21bcf6 | autonomous re-shipped SaveChip+Kbd (no-op merge, fire was 1 cycle behind) |
+| 2026-04-24 (autonomous) | A.1 | 557380d | autonomous shipped SectionTypeIcon — 12 SVG glyphs |
+| 2026-04-24 (manual) | A.1 | 3941772 | manual SectionTypeIcon merge / tracker advance |
