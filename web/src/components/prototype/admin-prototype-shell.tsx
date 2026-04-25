@@ -37,6 +37,7 @@ import {
   toggleTopShortcutId,
 } from "@/lib/prototype/admin-prototype-prefs";
 import { AdminContextualInspector } from "@/components/admin/inspector/admin-contextual-inspector";
+import { PlanViewbar } from "@/components/prototype/plan-viewbar";
 import { AgencySwitcher } from "@/components/admin/agency-switcher";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import type { TenantMembership } from "@/lib/saas";
@@ -564,15 +565,19 @@ export function AdminDashboardShell({
         data-dashboard-theme={dashboardTheme}
         className={cn(
           `dashboard-theme-${dashboardTheme}`,
-          "flex min-h-[100dvh] bg-[var(--admin-workspace-bg)] text-[var(--admin-workspace-fg)]",
+          "flex min-h-[100dvh] flex-col bg-[var(--admin-workspace-bg)] text-[var(--admin-workspace-fg)]",
         )}
         data-admin-prototype="1"
         data-admin-prototype-theme={chromeTheme}
       >
+        {/* Plan + view simulator (mockup viewbar) — black sticky strip */}
+        <PlanViewbar />
+
+        <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar */}
         <aside
           className={cn(
-            "sticky top-0 z-30 hidden h-[100dvh] shrink-0 flex-col border-r border-[var(--admin-gold-border)] bg-[var(--admin-sidebar-bg)] backdrop-blur-sm lg:flex",
+            "sticky top-[44px] z-30 hidden h-[calc(100dvh-44px)] shrink-0 flex-col border-r border-[var(--admin-gold-border)] bg-[var(--admin-sidebar-bg)] backdrop-blur-sm lg:flex",
             collapsed ? "w-[4.5rem]" : "w-60",
           )}
         >
@@ -714,7 +719,7 @@ export function AdminDashboardShell({
           {/* Top bar — slim mockup-style strip: mobile menu, theme toggle,
               and sign out. The contextual breadcrumb + tier-chip live in
               AdminTopBar below this header. */}
-          <header className="sticky top-0 z-40 flex h-11 items-center gap-2 border-b border-[rgba(24,24,27,0.08)] bg-[var(--admin-workspace-bg)]/92 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--admin-workspace-bg)]/85 sm:px-4 lg:px-6">
+          <header className="sticky top-[44px] z-40 flex h-11 items-center gap-2 border-b border-[rgba(24,24,27,0.08)] bg-[var(--admin-workspace-bg)]/92 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--admin-workspace-bg)]/85 sm:px-4 lg:px-6">
             <Button
               type="button"
               variant="ghost"
@@ -763,6 +768,7 @@ export function AdminDashboardShell({
               </aside>
             ) : null}
           </div>
+        </div>
         </div>
 
         {/* Mobile bottom nav — same gold active treatment */}

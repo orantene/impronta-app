@@ -424,10 +424,12 @@ export function LockedDrawerBody({
   tier,
   copy,
   activePlan,
+  onUpgrade,
 }: {
   tier: Plan;
   copy: string;
   activePlan: Plan;
+  onUpgrade?: () => void;
 }) {
   const tierLabel =
     tier === "studio" ? "Studio" : tier === "agency" ? "Agency" : "Network";
@@ -439,13 +441,14 @@ export function LockedDrawerBody({
         You're on <strong>{activePlan === "free" ? "Free" : activePlan === "studio" ? "Studio" : activePlan === "agency" ? "Agency" : "Network"}</strong>.
       </DrawerCallout>
       <DrawerQActions>
-        <a
-          href={tier === "network" ? "mailto:hello@impronta.group" : `?plan=${tier}`}
+        <button
+          type="button"
+          onClick={onUpgrade}
           className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-foreground underline-offset-2 hover:underline"
         >
-          {tier === "network" ? "Contact us" : `Compare ${tierLabel} →`}
-        </a>
-        <DrawerPrimaryButton>
+          {tier === "network" ? "Contact us" : `Compare plans →`}
+        </button>
+        <DrawerPrimaryButton onClick={onUpgrade}>
           {tier === "network" ? "Talk to sales" : `Upgrade to ${tierLabel}`}
         </DrawerPrimaryButton>
       </DrawerQActions>

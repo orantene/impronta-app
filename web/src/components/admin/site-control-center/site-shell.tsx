@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Activity,
   Code2,
@@ -43,6 +44,7 @@ import {
   RosterDrawerBody,
   StubDrawerBody,
 } from "./site-drawer-content";
+import { UpgradeModal } from "./upgrade-modal";
 
 /**
  * SiteShell — client component that owns drawer state for the Site control
@@ -208,15 +210,32 @@ const DRAWER_REGISTRY: Record<string, DrawerEntry> = {
 };
 
 export function SiteShell({ activePlan }: { activePlan: Plan }) {
+  const router = useRouter();
+  const pathname = usePathname() ?? "/admin/site";
+  const searchParams = useSearchParams();
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [openCapability, setOpenCapability] =
     React.useState<Capability | null>(null);
   const [openLocked, setOpenLocked] = React.useState(false);
+  const [upgradeOpen, setUpgradeOpen] = React.useState(false);
 
   function handleOpen(cap: Capability, locked: boolean) {
     setOpenId(cap.id);
     setOpenCapability(cap);
     setOpenLocked(locked);
+  }
+
+  function handleUpgradeSelect(plan: Plan) {
+    const params = new URLSearchParams(
+      searchParams ? Array.from(searchParams.entries()) : [],
+    );
+    if (plan === "free") {
+      params.delete("plan");
+    } else {
+      params.set("plan", plan);
+    }
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
   const entry = openId ? DRAWER_REGISTRY[openId] : null;
@@ -316,12 +335,20 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
               tier={openCapability.tier}
               copy={openCapability.lockedCopy}
               activePlan={activePlan}
+              onUpgrade={() => setUpgradeOpen(true)}
             />
           ) : (
             drawer.body({ activePlan, capability: openCapability })
           )
         ) : null}
       </DrawerShell>
+
+      <UpgradeModal
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        activePlan={activePlan}
+        onSelect={handleUpgradeSelect}
+      />
     </>
   );
 }
