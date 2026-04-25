@@ -13,7 +13,7 @@
  * Visual language: 54px glass bar, warm-white tint, hairline border.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -383,6 +383,12 @@ function LocaleSwitcher({
     [availableLocales],
   );
   const buttonsRef = useRef<Array<HTMLButtonElement | null>>([]);
+  // `isPending` reflects React 19 transition state — true from the moment
+  // we kick the navigation off until the new route's RSC payload is in.
+  // We surface it as a subtle pulse on the active pill so the operator
+  // gets immediate feedback that their click registered, even on a slow
+  // tenant where the homepage row takes a beat to load.
+  const [isPending, startTransition] = useTransition();
 
   const navigateToLocale = useCallback(
     (code: string) => {
@@ -395,7 +401,31 @@ function LocaleSwitcher({
       }
       const search = typeof window !== "undefined" ? window.location.search : "";
       const hash = typeof window !== "undefined" ? window.location.hash : "";
-      router.push(urlForLocale(pathname, search, hash, code, knownLocales));
+      const target = urlForLocale(pathname, search, hash, code, knownLocales);
+      const doNavigate = () =>
+        startTransition(() => {
+          router.push(target);
+        });
+      // Browser-native View Transitions: when supported, the swap from
+      // the old composition to the new locale's composition crossfades
+      // instead of flashing. Falls back to a hard swap on Safari < 18,
+      // older Firefox, etc. Wrapping `startTransition` inside the view-
+      // transition callback keeps both the pending state AND the visual
+      // animation tied to the same navigation.
+      if (
+        typeof document !== "undefined" &&
+        typeof (document as Document & {
+          startViewTransition?: (cb: () => void) => unknown;
+        }).startViewTransition === "function"
+      ) {
+        (
+          document as Document & {
+            startViewTransition: (cb: () => void) => unknown;
+          }
+        ).startViewTransition(doNavigate);
+      } else {
+        doNavigate();
+      }
     },
     [activeLocale, dirty, knownLocales, pathname, router],
   );
@@ -439,13 +469,16 @@ function LocaleSwitcher({
         const meta = localeMetadata[code];
         const label = meta?.label ?? code.toUpperCase();
         const active = code === activeLocale;
+        const showPending = active && isPending;
         return (
           <button
             key={code}
             type="button"
             role="radio"
             aria-checked={active}
+            aria-busy={showPending || undefined}
             tabIndex={active ? 0 : -1}
+            disabled={isPending && !active}
             ref={(el) => {
               buttonsRef.current[i] = el;
             }}
@@ -458,7 +491,14 @@ function LocaleSwitcher({
               boxShadow: active
                 ? "0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)"
                 : "none",
-              cursor: active ? "default" : "pointer",
+              cursor: active
+                ? "default"
+                : isPending
+                  ? "wait"
+                  : "pointer",
+              opacity: isPending && !active ? 0.5 : showPending ? 0.7 : 1,
+              transition:
+                "opacity 200ms ease, background 200ms ease, color 200ms ease",
             }}
           >
             {code}

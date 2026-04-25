@@ -122,6 +122,18 @@ if (isProd) {
 }
 
 const nextConfig: NextConfig = {
+  /**
+   * Opt into Next.js' integration with React's `<ViewTransition>` component
+   * (https://react.dev/reference/react/ViewTransition). Enabling this is
+   * harmless on its own — it only takes effect where content is wrapped
+   * with `<ViewTransition>`. The editor's locale switcher already animates
+   * via the browser-native `document.startViewTransition` API; this flag
+   * prepares the codebase to opt admin/storefront routes into declarative
+   * React-managed transitions without another config flip.
+   */
+  experimental: {
+    viewTransition: true,
+  },
   images: {
     remotePatterns,
   },

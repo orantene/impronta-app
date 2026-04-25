@@ -428,12 +428,7 @@ export function InspectorDock() {
           {loadError}
         </div>
       ) : !loadedSection || !registryEntry ? (
-        <div
-          className="flex-1 overflow-y-auto px-4 py-6 text-xs"
-          style={{ color: CHROME.muted }}
-        >
-          Loading…
-        </div>
+        <InspectorSkeleton />
       ) : (
         <>
           <div
@@ -535,6 +530,91 @@ function EmptyState() {
         Click any section on the page to edit its content, layout, and styling
         here.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Loading state shown between selecting a section and the field draft
+ * arriving from the server. Mirrors the real inspector layout (tab strip
+ * + 4 form rows + a button) so the dock doesn't visibly jump on hand-off.
+ * The shimmer is a single CSS-only `@keyframes` block scoped to the
+ * skeleton so it doesn't leak.
+ */
+function InspectorSkeleton() {
+  return (
+    <div
+      className="flex-1 overflow-hidden"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading section editor"
+    >
+      <style>{`
+        @keyframes inspector-skel-shimmer {
+          0%   { opacity: 0.55; }
+          50%  { opacity: 0.85; }
+          100% { opacity: 0.55; }
+        }
+        .inspector-skel-bar {
+          background: ${CHROME.line};
+          border-radius: 6px;
+          animation: inspector-skel-shimmer 1.4s ease-in-out infinite;
+        }
+      `}</style>
+      <div
+        style={{
+          borderBottom: `1px solid ${CHROME.line}`,
+          padding: "10px 14px",
+          display: "flex",
+          gap: 12,
+        }}
+      >
+        <div className="inspector-skel-bar" style={{ width: 56, height: 14 }} />
+        <div className="inspector-skel-bar" style={{ width: 52, height: 14 }} />
+        <div className="inspector-skel-bar" style={{ width: 48, height: 14 }} />
+      </div>
+      <div style={{ padding: "16px 14px", display: "grid", gap: 14 }}>
+        <div style={{ display: "grid", gap: 6 }}>
+          <div
+            className="inspector-skel-bar"
+            style={{ width: 92, height: 10 }}
+          />
+          <div
+            className="inspector-skel-bar"
+            style={{ width: "100%", height: 32 }}
+          />
+        </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <div
+            className="inspector-skel-bar"
+            style={{ width: 70, height: 10 }}
+          />
+          <div
+            className="inspector-skel-bar"
+            style={{ width: "100%", height: 64 }}
+          />
+        </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <div
+            className="inspector-skel-bar"
+            style={{ width: 60, height: 10 }}
+          />
+          <div
+            className="inspector-skel-bar"
+            style={{ width: "100%", height: 32 }}
+          />
+        </div>
+        <div style={{ display: "grid", gap: 6 }}>
+          <div
+            className="inspector-skel-bar"
+            style={{ width: 80, height: 10 }}
+          />
+          <div
+            className="inspector-skel-bar"
+            style={{ width: "60%", height: 32 }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
