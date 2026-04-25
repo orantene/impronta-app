@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 2 — Top bar mission control + Page Settings drawer
-- **Last commit on phase-1 branch:** 1f7e33c — TopBar wired into edit-shell (premium 54px bar live)
-- **Next action:** Phase 2 — Page Settings drawer. Create `edit-chrome/page-settings-drawer.tsx` triggered by the cog icon; tabs Basics / SEO / Social / URL & robots / Code; reads pageMetadata from EditContext.
+- **Last commit on phase-1 branch:** _pending_ — Page Settings drawer + premium TopBar actually wired (orphaned local TopBar deleted)
+- **Next action:** Phase 2 — Rebuild Publish drawer. Replace inventory-list body with preview thumbnail + page-settings-mini + search-preview + diff list + collapsed-empty list; "Last published" meta in header; Save draft + Cancel + Publish now footer.
 
 ---
 
@@ -116,15 +116,15 @@ items — the user has authorised end-to-end execution.
 - [x] Publish split-button (main + chevron arrow opens menu with Schedule / Save as draft / Discard)
 
 #### Extract Page Settings drawer
-- [ ] Create `edit-chrome/page-settings-drawer.tsx`
-- [ ] Reads `pageMetadata` from EditContext (already there)
-- [ ] Tabs: Basics / SEO / Social / URL & robots / Code
-- [ ] Basics: title, meta description, intro tagline (with character counters)
-- [ ] SEO: search preview card (live)
-- [ ] Social: OG card preview placeholder
-- [ ] URL & robots: indexability toggle, sitemap toggle (toggle not yet wired — schema work in later phase)
+- [x] Create `edit-chrome/page-settings-drawer.tsx`
+- [x] Reads `pageMetadata` from EditContext (already there)
+- [x] Tabs: Basics / SEO / Social / URL & robots / Code
+- [x] Basics: title, meta description, intro tagline (with character counters)
+- [x] SEO: search preview card (live)
+- [x] Social: OG card preview placeholder
+- [x] URL & robots: indexability toggle, sitemap toggle (toggle not yet wired — schema work in later phase)
 - [ ] Code: textarea for `<head>` injection (schema field to add)
-- [ ] Save action: writes via existing `saveHomepageCompositionAction`
+- [x] Save action: writes via existing `saveHomepageCompositionAction`
 
 #### Rebuild Publish drawer
 - [ ] Replace inventory-list body with: preview thumbnail card + page-settings-mini card + search-preview card + diff list card + collapsed-empty section list
@@ -340,3 +340,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 4bcfc1f | Hero inspector kit rewrite — Card/Field/Helper/MediaPickerButton/CtaDuoEditor; removes raw class constants |
 | 2026-04-24 (autonomous) | A.1 | 50d49d4 | Phase 1 acceptance gate complete — Vercel READY + code QA + prod promote + qa README |
 | 2026-04-24 (autonomous) | A.2 | 1f7e33c | TopBar wired — replace inline 52px shell TopBar with premium 54px import; QA evidence committed |
+| 2026-04-24 (autonomous) | A.2 | _pending_ | PageSettingsDrawer (kind=pageSettings) + actually wire TopBar import (orphaned local helpers deleted, ~430 lines) + EditContext gains pageSettingsOpen/savePageMetadata |

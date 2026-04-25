@@ -176,6 +176,20 @@ export interface EditContextValue {
   openPublish: () => void;
   closePublish: () => void;
 
+  // ── page settings drawer ──
+  pageSettingsOpen: boolean;
+  openPageSettings: () => void;
+  closePageSettings: () => void;
+  /**
+   * Save just the page metadata (title / meta description / tagline).
+   * Wraps `dispatchMutation` so the change goes through the same optimistic
+   * apply + CAS save + rollback path as structural mutations, and so undo
+   * captures it.
+   */
+  savePageMetadata: (
+    metadata: PageMetadata,
+  ) => Promise<{ ok: boolean; error?: string }>;
+
   // ── transient toast for mutation errors ──
   /** Most recent mutation error that's still on screen; null when clear. */
   mutationError: string | null;
@@ -311,6 +325,9 @@ export function EditProvider({
 
   // publish drawer state
   const [publishOpen, setPublishOpen] = useState(false);
+
+  // page settings drawer state
+  const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
 
   // Most recent mutation error. Auto-clears after 5s — the operator
   // probably already undid or retried, and we'd rather err toward quiet
@@ -818,6 +835,16 @@ export function EditProvider({
   const openPublish = useCallback(() => setPublishOpen(true), []);
   const closePublish = useCallback(() => setPublishOpen(false), []);
 
+  const openPageSettings = useCallback(() => setPageSettingsOpen(true), []);
+  const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
+
+  const savePageMetadata = useCallback<EditContextValue["savePageMetadata"]>(
+    async (metadata) => {
+      return dispatchMutation((prev) => ({ ...prev, metadata }));
+    },
+    [dispatchMutation],
+  );
+
   const value = useMemo<EditContextValue>(
     () => ({
       tenantId,
@@ -867,6 +894,11 @@ export function EditProvider({
       openPublish,
       closePublish,
 
+      pageSettingsOpen,
+      openPageSettings,
+      closePageSettings,
+      savePageMetadata,
+
       mutationError,
       clearMutationError,
     }),
@@ -906,6 +938,10 @@ export function EditProvider({
       publishOpen,
       openPublish,
       closePublish,
+      pageSettingsOpen,
+      openPageSettings,
+      closePageSettings,
+      savePageMetadata,
       mutationError,
       clearMutationError,
     ],
