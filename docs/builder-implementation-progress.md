@@ -15,7 +15,7 @@ items — the user has authorised end-to-end execution.
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
 - **Last commit on phase-1 branch:** _pending_
-- **Next action:** Build `stepper.tsx` primitive (numeric stepper with unit suffix)
+- **Next action:** Build remaining kit primitives (`pill-tabs`, `savechip`, `kbd`) then move to `section-type-icon.tsx` and selection-layer upgrade.
 
 ---
 
@@ -47,10 +47,10 @@ items — the user has authorised end-to-end execution.
 - [x] `drawer.tsx` — `Drawer`, `DrawerHead`, `DrawerBody`, `DrawerFoot`, `DrawerTabs`, `DrawerTools` (the three-button expand/fullscreen/close cluster)
 - [x] `card.tsx` — `Card`, `CardHead`, `CardBody`, `CardAction`
 - [x] `field.tsx` — `Field`, `FieldLabel`, `Helper`, `HelperCounter`
-- [ ] `stepper.tsx` — numeric stepper with unit
-- [ ] `segmented.tsx` — segmented control (used everywhere)
-- [ ] `toggle.tsx` — iOS-style switch
-- [ ] `swatch.tsx` — color swatch + hex input row
+- [x] `stepper.tsx` — numeric stepper with unit
+- [x] `segmented.tsx` — segmented control (used everywhere)
+- [x] `toggle.tsx` — iOS-style switch
+- [x] `swatch.tsx` — color swatch + hex input row
 - [ ] `pill-tabs.tsx` — pill-style tab bar (already partially exists, formalise)
 - [ ] `savechip.tsx` — savechip with state variants (Saved / Saving / Unsaved / counts)
 - [ ] `kbd.tsx` — keyboard key styling
@@ -323,4 +323,5 @@ The big one. Three parallel tracks:
 | _initial_ | A.1 | b5fa5b8 | Tracker created, Phase 1 staged |
 | 2026-04-24 (manual) | A.1 | 02a9a8b | Chrome kit foundation + Drawer primitive |
 | 2026-04-24 (manual) | A.1 | 631ed0e | Card primitive (Card / Head / Body / Action) |
-| 2026-04-24 (manual) | A.1 | _pending_ | Field primitives (Field / Label / Helper / Counter) |
+| 2026-04-24 (manual) | A.1 | 7bb1b60 | Field primitives (Field / Label / Helper / Counter) |
+| 2026-04-24 (manual) | A.1 | _pending_ | Stepper + Segmented + Toggle + Swatch + ColorRow |
