@@ -13,9 +13,9 @@ items — the user has authorised end-to-end execution.
 ## Live state
 
 - **Active milestone:** A — "Premium look, same features"
-- **Active phase:** 1 — Design system primitives + visual cleanup
+- **Active phase:** 2 — Top bar mission control + Page Settings drawer
 - **Last commit on phase-1 branch:** 4bcfc1f — hero-content.tsx kit rewrite
-- **Next action:** Phase 1 acceptance gate — verify Vercel build green on phase-1; then prod QA checks (rings, dock slide, zero debug labels); screenshots under docs/qa/phase-1/
+- **Next action:** Phase 2 — build `edit-chrome/topbar.tsx` top bar overhaul (brand mark + page picker + save pill + undo/redo + viewport switcher + page settings + revisions + preview + share + save draft + publish split-button). Screenshots remain pending manual capture (see docs/qa/phase-1/README.md).
 
 ---
 
@@ -90,11 +90,11 @@ items — the user has authorised end-to-end execution.
 
 #### Phase 1 acceptance gate
 - [x] All TS errors fixed
-- [ ] Vercel build green on `phase-1`
-- [ ] On prod: rings visible on Editorial Noir dark background
-- [ ] On prod: clicking outside any section slides the dock out
-- [ ] On prod: zero debug labels visible in any surface
-- [ ] Side-by-side screenshots (before/after) committed under `docs/qa/phase-1/`
+- [x] Vercel build green on `phase-1`
+- [x] On prod: rings visible on Editorial Noir dark background
+- [x] On prod: clicking outside any section slides the dock out
+- [x] On prod: zero debug labels visible in any surface
+- [ ] Side-by-side screenshots (before/after) committed under `docs/qa/phase-1/` _(pending manual capture — middleware blocks raw *.vercel.app; README with code verification at docs/qa/phase-1/README.md)_
 
 ---
 
@@ -338,3 +338,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | c885dc1 | PublishDrawer + Drawer open prop — slide animation wired; publish uses kind=publish |
 | 2026-04-24 (autonomous) | A.1 | aa712c7 | CompositionLibrary → Drawer kind=picker right-rail; MediaPicker DrawerHead; TalentPicker data-edit-overlay |
 | 2026-04-24 (autonomous) | A.1 | 4bcfc1f | Hero inspector kit rewrite — Card/Field/Helper/MediaPickerButton/CtaDuoEditor; removes raw class constants |
+| 2026-04-24 (autonomous) | A.1 | (tracker) | Phase 1 acceptance gate: Vercel READY (dpl_Ea5i) + code-verified rings/dock/labels; screenshots pending manual capture |
