@@ -619,6 +619,8 @@ export interface TopBarProps {
   onPageSettings?: () => void;
   /** Open the Revisions drawer (clock-arrow icon in the right cluster). */
   onRevisions?: () => void;
+  /** Open the Theme drawer (palette icon in the right cluster). */
+  onTheme?: () => void;
   /**
    * Save an explicit draft checkpoint. Resolves with the server timestamp
    * the surrounding chrome surfaces in its transient confirmation toast.
@@ -640,6 +642,7 @@ export function TopBar({
   onPublish,
   onPageSettings,
   onRevisions,
+  onTheme,
   onSaveDraft,
   pageTitle,
 }: TopBarProps) {
@@ -728,6 +731,15 @@ export function TopBar({
           <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
           <path d="M3 3v5h5" />
           <path d="M12 7v5l3 2" />
+        </svg>
+      </TbIconBtn>
+      <TbIconBtn title="Theme" onClick={onTheme}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 22a10 10 0 1 1 10-10c0 2.5-2 4-4 4h-2a2 2 0 0 0-2 2 2 2 0 0 1-2 2z" />
+          <circle cx="6.5" cy="12.5" r="1" fill="currentColor" />
+          <circle cx="9.5" cy="7.5" r="1" fill="currentColor" />
+          <circle cx="14.5" cy="7.5" r="1" fill="currentColor" />
+          <circle cx="17.5" cy="12.5" r="1" fill="currentColor" />
         </svg>
       </TbIconBtn>
       <TbIconBtn title="Preview as visitor (⌘P)" onClick={handlePreview}>

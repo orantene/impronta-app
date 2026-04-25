@@ -195,6 +195,21 @@ export interface EditContextValue {
   revisionsOpen: boolean;
   openRevisions: () => void;
   closeRevisions: () => void;
+
+  // ── theme drawer (Phase 5) ──
+  /**
+   * Visibility flag for the ThemeDrawer. Lights up on the topbar Theme
+   * button + the navigator footer Theme shortcut. The drawer itself owns
+   * the loaded design snapshot (via `loadDesignAction`) and the working
+   * copy of theme tokens; EditContext only owns "is the drawer up" so
+   * keybinds, tabs, and the right-side drawer mutex can route through
+   * one toggle. Lazy-fetches design state on open so a publish from the
+   * /admin/site-settings/design page shows up next time the operator
+   * opens the drawer without a full refresh.
+   */
+  themeOpen: boolean;
+  openTheme: () => void;
+  closeTheme: () => void;
   /**
    * Roll the draft back to the chosen revision. Wraps
    * `restoreHomepageRevisionAction` in the same CAS-safe rhythm as
@@ -392,6 +407,9 @@ export function EditProvider({
 
   // revisions drawer state (Phase 4)
   const [revisionsOpen, setRevisionsOpen] = useState(false);
+
+  // theme drawer state (Phase 5)
+  const [themeOpen, setThemeOpen] = useState(false);
 
   // structure navigator (left rail) — open by default; ⌘\ toggles
   const [navigatorOpen, setNavigatorOpen] = useState(true);
@@ -923,6 +941,7 @@ export function EditProvider({
   const openPublish = useCallback(() => {
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
+    setThemeOpen(false);
     setPublishOpen(true);
   }, []);
   const closePublish = useCallback(() => setPublishOpen(false), []);
@@ -930,6 +949,7 @@ export function EditProvider({
   const openPageSettings = useCallback(() => {
     setPublishOpen(false);
     setRevisionsOpen(false);
+    setThemeOpen(false);
     setPageSettingsOpen(true);
   }, []);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
@@ -937,9 +957,18 @@ export function EditProvider({
   const openRevisions = useCallback(() => {
     setPublishOpen(false);
     setPageSettingsOpen(false);
+    setThemeOpen(false);
     setRevisionsOpen(true);
   }, []);
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
+
+  const openTheme = useCallback(() => {
+    setPublishOpen(false);
+    setPageSettingsOpen(false);
+    setRevisionsOpen(false);
+    setThemeOpen(true);
+  }, []);
+  const closeTheme = useCallback(() => setThemeOpen(false), []);
 
   /**
    * Roll the draft back to the chosen revision. Reads `pageVersion` from
@@ -1097,6 +1126,10 @@ export function EditProvider({
       closeRevisions,
       restoreRevision,
 
+      themeOpen,
+      openTheme,
+      closeTheme,
+
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
@@ -1153,6 +1186,9 @@ export function EditProvider({
       openRevisions,
       closeRevisions,
       restoreRevision,
+      themeOpen,
+      openTheme,
+      closeTheme,
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,

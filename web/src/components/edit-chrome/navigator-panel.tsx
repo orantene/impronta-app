@@ -16,8 +16,7 @@
  *   - Selecting a row → `setSelectedSectionId` (matches canvas selection).
  *   - Drag-reorder → `moveSectionTo` (existing CAS-safe action).
  *   - Footer Settings button → `openPageSettings`.
- *   - Footer Theme button → noop placeholder until Phase 5 ships the
- *     Theme drawer; renders disabled.
+ *   - Footer Theme button → `openTheme` (Phase 5 ThemeDrawer).
  *
  * Visibility toggle:
  *   Wires through `setSectionVisibility(sectionId, "hidden" | "always")`
@@ -70,6 +69,7 @@ export function NavigatorPanel() {
     pageMetadata,
     moveSectionTo,
     openPageSettings,
+    openTheme,
     navigatorOpen,
     toggleNavigator,
     setSectionVisibility,
@@ -570,10 +570,7 @@ export function NavigatorPanel() {
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <FooterShortcut onClick={openPageSettings}>Settings</FooterShortcut>
-          <FooterShortcut
-            disabled
-            title="Theme drawer arrives in Phase 5"
-          >
+          <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
             Theme
           </FooterShortcut>
         </div>

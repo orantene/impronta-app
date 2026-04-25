@@ -29,6 +29,7 @@ import { InlineEditor } from "./inline-editor";
 import { PublishDrawer } from "./publish-drawer";
 import { PageSettingsDrawer } from "./page-settings-drawer";
 import { RevisionsDrawer } from "./revisions-drawer";
+import { ThemeDrawer } from "./theme-drawer";
 import { NavigatorPanel } from "./navigator-panel";
 import { TopBar } from "./topbar";
 
@@ -64,12 +65,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openPublish,
     openPageSettings,
     openRevisions,
+    openTheme,
     closePublish,
     closePageSettings,
     closeRevisions,
+    closeTheme,
     publishOpen,
     pageSettingsOpen,
     revisionsOpen,
+    themeOpen,
     saveDraft,
     pageMetadata,
     selectedSectionId,
@@ -97,11 +101,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       // Escape dismisses whichever right-side drawer is up. The drawers
       // mutex each other on open, so at most one is open at a time —
       // close-all is a safe no-op when nothing's up.
-      if (e.key === "Escape" && (publishOpen || pageSettingsOpen || revisionsOpen)) {
+      if (
+        e.key === "Escape" &&
+        (publishOpen || pageSettingsOpen || revisionsOpen || themeOpen)
+      ) {
         e.preventDefault();
         if (publishOpen) closePublish();
         if (pageSettingsOpen) closePageSettings();
         if (revisionsOpen) closeRevisions();
+        if (themeOpen) closeTheme();
         return;
       }
 
@@ -164,9 +172,11 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     publishOpen,
     pageSettingsOpen,
     revisionsOpen,
+    themeOpen,
     closePublish,
     closePageSettings,
     closeRevisions,
+    closeTheme,
   ]);
 
   return (
@@ -187,6 +197,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onPublish={openPublish}
         onPageSettings={openPageSettings}
         onRevisions={openRevisions}
+        onTheme={openTheme}
         onSaveDraft={() => void saveDraft()}
         pageTitle={pageMetadata?.title ?? undefined}
       />
@@ -204,6 +215,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <PublishDrawer />
       <PageSettingsDrawer />
       <RevisionsDrawer />
+      <ThemeDrawer />
       <MutationErrorToast />
       <DraftSavedToast />
       {children}

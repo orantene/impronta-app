@@ -124,6 +124,8 @@ export const DRAWER_WIDTHS = {
   publishExpanded: 760,
   pageSettings: 520,
   revisions: 480,
+  theme: 540,
+  themeExpanded: 760,
   picker: 720,
 } as const;
 
