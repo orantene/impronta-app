@@ -255,7 +255,17 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                 </span>
                 <div
                   aria-hidden
-                  className="hidden h-px min-w-[40px] flex-1 bg-border/50 sm:block"
+                  className="hidden h-px min-w-[40px] flex-1 sm:block"
+                  style={{
+                    background:
+                      band.tier === "studio"
+                        ? "linear-gradient(to right, rgba(58,123,255,0.35), transparent 80%)"
+                        : band.tier === "agency"
+                          ? "linear-gradient(to right, rgba(139,109,31,0.45), transparent 80%)"
+                          : band.tier === "network"
+                            ? "linear-gradient(to right, rgba(20,107,58,0.4), transparent 80%)"
+                            : "rgba(24, 24, 27, 0.1)",
+                  }}
                 />
                 {bandLocked && band.ctaLabel ? (
                   <Link
@@ -271,7 +281,7 @@ export function SiteShell({ activePlan }: { activePlan: Plan }) {
                   </Link>
                 ) : null}
               </div>
-              <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {band.cards.map((card) => (
                   <SiteCard
                     key={card.id}

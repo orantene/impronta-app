@@ -46,7 +46,7 @@ export function SiteCard({
       onClick={onClick}
       aria-haspopup="dialog"
       className={cn(
-        "group relative block min-h-[66px] w-full rounded-xl border px-3.5 py-3 text-left shadow-sm transition-[border-color,box-shadow,transform] duration-150",
+        "group relative block min-h-[66px] w-full rounded-xl border px-3.5 py-3 text-left transition-[border-color,box-shadow,transform,background-color] duration-150",
         "hover:-translate-y-px hover:shadow-[0_10px_28px_-18px_rgba(0,0,0,0.28)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         locked
@@ -61,27 +61,19 @@ export function SiteCard({
     >
       <div className="flex items-center gap-3">
         <span
-          className={cn(
-            "flex size-[34px] shrink-0 items-center justify-center rounded-[9px]",
-            locked && "text-muted-foreground",
-          )}
+          className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px]"
           style={
-            locked
+            capability.iconAccent
               ? {
+                  backgroundColor: "rgba(201, 162, 39, 0.12)",
+                  color: "#8b6d1f",
+                  boxShadow: "inset 0 0 0 1px rgba(201, 162, 39, 0.4)",
+                }
+              : {
                   backgroundColor: "#f5f4ef",
+                  color: "#18181b",
                   boxShadow: "inset 0 0 0 1px rgba(24, 24, 27, 0.1)",
                 }
-              : capability.iconAccent
-                ? {
-                    backgroundColor: "rgba(201, 162, 39, 0.12)",
-                    color: "#8b6d1f",
-                    boxShadow: "inset 0 0 0 1px rgba(201, 162, 39, 0.4)",
-                  }
-                : {
-                    backgroundColor: "#f5f4ef",
-                    color: "#18181b",
-                    boxShadow: "inset 0 0 0 1px rgba(24, 24, 27, 0.1)",
-                  }
           }
         >
           <Icon className="size-[15px]" aria-hidden />
@@ -98,10 +90,10 @@ export function SiteCard({
             </h3>
             {locked ? (
               <span
-                className="inline-flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em] shadow-[inset_0_0_0_1px_currentColor]"
+                className="inline-flex items-center gap-1 rounded-full bg-white px-[7px] py-0.5 text-[9.5px] font-bold uppercase tracking-[0.14em] shadow-[inset_0_0_0_1px_currentColor]"
                 style={{ color: accent.fg }}
               >
-                <Lock className="size-2.5" aria-hidden />
+                <Lock className="size-2" aria-hidden />
                 {capability.tier}
               </span>
             ) : null}
