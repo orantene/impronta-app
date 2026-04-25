@@ -178,6 +178,7 @@ export function PublishDrawer() {
     locale,
     refreshComposition,
     savePageMetadata,
+    saveDraft,
   } = useEditContext();
 
   const [state, setState] = useState<PublishState>({ kind: "idle" });
@@ -741,21 +742,29 @@ export function PublishDrawer() {
           start={
             <button
               type="button"
-              title="Save a named draft checkpoint (coming in Phase 4)"
-              disabled
+              title="Save a draft checkpoint without publishing"
+              onClick={() => void saveDraft()}
+              disabled={saving || state.kind === "publishing"}
               style={{
                 height: 30,
                 padding: "0 12px",
                 fontSize: 12,
                 fontWeight: 500,
-                color: CHROME.muted2,
-                background: "transparent",
-                border: `1px dashed ${CHROME.lineMid}`,
+                color:
+                  saving || state.kind === "publishing"
+                    ? CHROME.muted2
+                    : CHROME.text2,
+                background: CHROME.surface,
+                border: `1px solid ${CHROME.lineMid}`,
                 borderRadius: 7,
-                cursor: "not-allowed",
+                cursor:
+                  saving || state.kind === "publishing"
+                    ? "not-allowed"
+                    : "pointer",
+                opacity: saving || state.kind === "publishing" ? 0.6 : 1,
               }}
             >
-              Save draft
+              {saving ? "Saving…" : "Save draft"}
             </button>
           }
           end={

@@ -38,6 +38,7 @@ import {
   createAndInsertSectionAction,
   duplicateSectionAction,
   loadHomepageCompositionAction,
+  saveDraftHomepageAction,
   saveHomepageCompositionAction,
   type CompositionData,
   type CompositionLibraryEntry,
@@ -190,6 +191,20 @@ export interface EditContextValue {
     metadata: PageMetadata,
   ) => Promise<{ ok: boolean; error?: string }>;
 
+  // ── save draft checkpoint ──
+  /**
+   * Trigger an explicit "Save draft" round-trip. Writes a fresh
+   * `cms_page_revisions` row of `kind='draft'` (via the existing autosave
+   * path) so the operator has a recoverable checkpoint without going live.
+   * Resolves with `{ ok: true, savedAt }` on success — `savedAt` is the
+   * server-issued ISO timestamp the UI surfaces in the transient
+   * confirmation chip.
+   */
+  saveDraft: () => Promise<{ ok: boolean; error?: string; savedAt?: string }>;
+  /** ISO timestamp of the most recent successful Save draft press; null when clear. */
+  lastDraftSavedAt: string | null;
+  clearDraftSavedToast: () => void;
+
   // ── transient toast for mutation errors ──
   /** Most recent mutation error that's still on screen; null when clear. */
   mutationError: string | null;
@@ -339,6 +354,16 @@ export function EditProvider({
     const t = setTimeout(() => setMutationError(null), 5000);
     return () => clearTimeout(t);
   }, [mutationError]);
+
+  // Most recent successful Save draft press. Auto-clears after 4s so the
+  // chip doesn't squat the layout — the operator has already moved on.
+  const [lastDraftSavedAt, setLastDraftSavedAt] = useState<string | null>(null);
+  const clearDraftSavedToast = useCallback(() => setLastDraftSavedAt(null), []);
+  useEffect(() => {
+    if (!lastDraftSavedAt) return;
+    const t = setTimeout(() => setLastDraftSavedAt(null), 4000);
+    return () => clearTimeout(t);
+  }, [lastDraftSavedAt]);
 
   const applyComposition = useCallback((data: CompositionData) => {
     setPageVersion(data.pageVersion);
@@ -845,6 +870,36 @@ export function EditProvider({
     [dispatchMutation],
   );
 
+  /**
+   * Explicit "Save draft" press. Sends the current snapshot through
+   * `saveDraftHomepageAction`, which writes a fresh `cms_page_revisions`
+   * row of `kind='draft'` and returns the server timestamp. On version
+   * conflict we reload authoritative state so the operator can re-press.
+   */
+  const saveDraft = useCallback<EditContextValue["saveDraft"]>(async () => {
+    if (pageVersion === null) {
+      return { ok: false, error: "Composition not loaded yet." };
+    }
+    const snap = currentSnapshot();
+    setSaving(true);
+    const res = await saveDraftHomepageAction({
+      locale,
+      expectedVersion: pageVersion,
+      ...stripSnapshotForSave(snap),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      if (res.code === "VERSION_CONFLICT") {
+        await refreshComposition();
+      }
+      setMutationError(res.error);
+      return { ok: false, error: res.error };
+    }
+    setPageVersion(res.pageVersion);
+    setLastDraftSavedAt(res.savedAt);
+    return { ok: true, savedAt: res.savedAt };
+  }, [pageVersion, currentSnapshot, locale, refreshComposition]);
+
   const value = useMemo<EditContextValue>(
     () => ({
       tenantId,
@@ -899,6 +954,10 @@ export function EditProvider({
       closePageSettings,
       savePageMetadata,
 
+      saveDraft,
+      lastDraftSavedAt,
+      clearDraftSavedToast,
+
       mutationError,
       clearMutationError,
     }),
@@ -942,6 +1001,9 @@ export function EditProvider({
       openPageSettings,
       closePageSettings,
       savePageMetadata,
+      saveDraft,
+      lastDraftSavedAt,
+      clearDraftSavedToast,
       mutationError,
       clearMutationError,
     ],

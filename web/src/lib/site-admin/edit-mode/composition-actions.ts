@@ -679,6 +679,59 @@ export async function duplicateSectionAction(input: {
   };
 }
 
+// ── save draft (named checkpoint) ─────────────────────────────────────────
+
+export type SaveDraftResult =
+  | { ok: true; pageVersion: number; savedAt: string }
+  | { ok: false; error: string; code?: string; currentVersion?: number };
+
+/**
+ * Save the current draft composition as an explicit "Save draft" checkpoint.
+ *
+ * Phase 2 lightweight implementation: this is functionally a forced save
+ * round-trip through the standard `saveHomepageDraftComposition` op — which
+ * already inserts a `cms_page_revisions` row with `kind='draft'` on every
+ * write. So pressing Save draft writes a fresh revision row + bumps the
+ * page version + returns the server timestamp the UI uses for its
+ * "Draft saved 12:34" confirmation chip.
+ *
+ * The deeper variant (named drafts with `name`/`note` columns and a
+ * `tag enum (auto|draft|named|published)` discriminator) lands in Phase 4
+ * alongside the full Revisions drawer. Until then, every press of Save
+ * draft creates a `kind='draft'` row that the future named-draft UI can
+ * filter / promote.
+ */
+export async function saveDraftHomepageAction(input: {
+  locale: string;
+  expectedVersion: number;
+  metadata: {
+    title: string;
+    metaDescription?: string | null;
+    introTagline?: string | null;
+  };
+  slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
+}): Promise<SaveDraftResult> {
+  const save = await saveHomepageCompositionAction({
+    locale: input.locale,
+    expectedVersion: input.expectedVersion,
+    metadata: input.metadata,
+    slots: input.slots,
+  });
+  if (!save.ok) {
+    return {
+      ok: false,
+      error: save.error,
+      code: save.code,
+      currentVersion: save.currentVersion,
+    };
+  }
+  return {
+    ok: true,
+    pageVersion: save.pageVersion,
+    savedAt: new Date().toISOString(),
+  };
+}
+
 // ── publish ───────────────────────────────────────────────────────────────
 
 export type PublishResult =

@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 2 — Top bar mission control + Page Settings drawer
-- **Last commit on phase-1 branch:** 09eb019 — PublishDrawer rebuilt per surface 7 (preview + page-settings mini + search preview + going-live list with legacy disclosure; Save draft placeholder)
-- **Next action:** Phase 2 — Wire Save draft button to a `saveNamedDraftAction` (Phase 4 implements; for now the Publish drawer's Save draft is a disabled placeholder, the topbar's is a no-op handler). Once Save draft lands, run the Phase 2 acceptance gate.
+- **Last commit on phase-1 branch:** [pending Save draft mechanism]
+- **Next action:** Phase 2 acceptance gate — run TS check on full source tree, push to phase-1 (auto-deploys preview), promote to prod with `vercel promote`, smoke-check on `tulala.digital` (top bar 10 controls, Page Settings drawer opens, Publish drawer is the rebuilt design, Save draft writes a `cms_page_revisions` row), commit a screenshot.
 
 ---
 
@@ -134,9 +134,9 @@ items — the user has authorised end-to-end execution.
 - [x] Hide all `(legacy)` slots behind "Show all 6 sections" disclosure
 
 #### Save draft mechanism (lightweight)
-- [ ] Add `saveNamedDraftAction(name, note?)` server action — creates a tagged composition snapshot row in a `page_revisions` table (schema migration)
-- [ ] Wire Save draft button to this action
-- [ ] Show a toast/savechip confirming the named draft
+- [x] Add `saveDraftHomepageAction` server action — wraps the existing autosave path (which already inserts `cms_page_revisions` rows of `kind='draft'` on every write); the deeper `name`/`note` columns + `tag enum (auto|draft|named|published)` land in Phase 4 alongside the Revisions drawer
+- [x] Wire Save draft button to this action — both the topbar's text button and the Publish drawer's footer button call `saveDraft()` from EditContext; the topbar's `Save as named draft…` menu item routes through the same callback
+- [x] Show a toast/savechip confirming the named draft — `DraftSavedToast` floats below the topbar, auto-clears after 4s, surfaces the server-issued ISO timestamp formatted as local time
 
 #### Phase 2 acceptance gate
 - [ ] All TS errors fixed
@@ -342,3 +342,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.2 | 1f7e33c | TopBar wired — replace inline 52px shell TopBar with premium 54px import; QA evidence committed |
 | 2026-04-24 (autonomous) | A.2 | 7152114 | PageSettingsDrawer (kind=pageSettings) + actually wire TopBar import (orphaned local helpers deleted, ~430 lines) + EditContext gains pageSettingsOpen/savePageMetadata |
 | 2026-04-24 (autonomous) | A.2 | 09eb019 | PublishDrawer rebuilt per surface 7 — preview thumbnail card + page-settings mini (Open full → openPageSettings) + search preview + going-live list with legacy disclosure; footer adds Save draft (placeholder) alongside Cancel + Publish now |
+| 2026-04-24 (autonomous) | A.2 | [pending] | Save draft mechanism wired — `saveDraftHomepageAction` server action + EditContext.saveDraft + lastDraftSavedAt; topbar text button + split-menu item + PublishDrawer footer button all call into it; DraftSavedToast surfaces the server timestamp |

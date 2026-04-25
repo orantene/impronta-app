@@ -61,6 +61,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     redo,
     openPublish,
     openPageSettings,
+    saveDraft,
     pageMetadata,
     selectedSectionId,
     setSelectedSectionId,
@@ -146,6 +147,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onRedo={() => void redo()}
         onPublish={openPublish}
         onPageSettings={openPageSettings}
+        onSaveDraft={() => void saveDraft()}
         pageTitle={pageMetadata?.title ?? undefined}
       />
       <div
@@ -161,6 +163,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <PublishDrawer />
       <PageSettingsDrawer />
       <MutationErrorToast />
+      <DraftSavedToast />
       {children}
       <DeviceFrameStyle device={device} />
     </>
@@ -177,6 +180,49 @@ function BodyPaddingController({
     <style>{`@media (min-width: 1024px) { body { padding-right: ${
       open ? "380px" : "0"
     } !important; transition: padding-right 200ms ease; } }`}</style>
+  );
+}
+
+function DraftSavedToast() {
+  const { lastDraftSavedAt, clearDraftSavedToast } = useEditContext();
+  if (!lastDraftSavedAt) return null;
+  const t = new Date(lastDraftSavedAt);
+  const stamp = t.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return (
+    <div
+      data-edit-overlay="draft-saved-toast"
+      className="pointer-events-auto fixed left-1/2 top-[66px] z-[120] flex -translate-x-1/2 items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-900 shadow-lg"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+      <span>Draft saved · {stamp}</span>
+      <button
+        type="button"
+        onClick={clearDraftSavedToast}
+        className="rounded-sm px-1 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-900"
+        aria-label="Dismiss"
+        title="Dismiss"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
   );
 }
 

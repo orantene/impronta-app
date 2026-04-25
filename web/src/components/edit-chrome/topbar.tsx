@@ -617,6 +617,12 @@ export interface TopBarProps {
   onPublish: () => void;
   /** Open the Page Settings drawer (cog icon in the right cluster). */
   onPageSettings?: () => void;
+  /**
+   * Save an explicit draft checkpoint. Resolves with the server timestamp
+   * the surrounding chrome surfaces in its transient confirmation toast.
+   * The button is disabled while a save is in flight.
+   */
+  onSaveDraft?: () => void | Promise<unknown>;
   pageTitle?: string;
 }
 
@@ -631,6 +637,7 @@ export function TopBar({
   onRedo,
   onPublish,
   onPageSettings,
+  onSaveDraft,
   pageTitle,
 }: TopBarProps) {
   function handleMenuSelect(opt: PublishMenuOption) {
@@ -638,8 +645,10 @@ export function TopBar({
       // Phase 12 — placeholder
       console.info("[topbar] schedule publish: not yet implemented");
     } else if (opt === "save-draft") {
-      // Phase 4 — for now trigger the autosave indirectly (it already runs)
-      console.info("[topbar] save named draft: not yet implemented");
+      // Same affordance as the Save draft text button — write a draft
+      // revision row through the existing autosave path. Phase 4 layers
+      // the named-draft prompt on top of this.
+      if (onSaveDraft) void onSaveDraft();
     } else if (opt === "discard") {
       // Phase 4 — discard draft (revert to live snapshot)
       console.info("[topbar] discard draft: not yet implemented");
@@ -737,7 +746,11 @@ export function TopBar({
       <TbDivider />
 
       {/* ── Save draft · Publish split ── */}
-      <TbTextBtn title="Save a named draft checkpoint" disabled={saving}>
+      <TbTextBtn
+        title="Save a draft checkpoint"
+        disabled={saving || !onSaveDraft}
+        onClick={onSaveDraft ? () => void onSaveDraft() : undefined}
+      >
         Save draft
       </TbTextBtn>
       <PublishSplitButton
