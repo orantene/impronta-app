@@ -220,7 +220,7 @@ export function SelectionLayer() {
       if (e.target instanceof Element) {
         if (
           e.target.closest("[data-edit-topbar]") ||
-          e.target.closest("[data-edit-inspector]") ||
+          e.target.closest("[data-edit-drawer]") ||
           e.target.closest("[data-edit-overlay]")
         ) {
           return;

@@ -189,7 +189,7 @@ function BodyPaddingController({
   const open = !!selectedSectionId;
   return (
     <style>{`@media (min-width: 1024px) { body { padding-right: ${
-      open ? "340px" : "0"
+      open ? "380px" : "0"
     } !important; transition: padding-right 200ms ease; } }`}</style>
   );
 }

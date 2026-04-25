@@ -32,7 +32,14 @@ import { ContentTab } from "./inspectors/content-dispatch";
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
 import { PanelSaveChip } from "./inspectors/kit";
-import { SectionTypeIcon } from "./kit";
+import {
+  Drawer,
+  DrawerHead,
+  DrawerTabs,
+  DrawerTab,
+  DrawerBody,
+  SectionTypeIcon,
+} from "./kit";
 
 type TabKey = "content" | "layout" | "style";
 
@@ -278,151 +285,108 @@ export function InspectorDock() {
 
   const dockOpen = !!selectedSectionId;
 
+  const dockTitle = loadedSection
+    ? (cleanSectionName(loadedSection.name) ||
+        humanizeTypeKey(loadedSection.sectionTypeKey))
+    : selectedSectionId && loadingId
+      ? "Loading…"
+      : "Inspector";
+
   return (
-    <aside
-      data-edit-inspector
-      data-open={dockOpen}
-      className={`fixed right-0 top-[52px] z-[85] flex h-[calc(100vh-52px)] w-[340px] flex-col border-l border-black/10 bg-white text-sm text-zinc-900 transition-transform duration-200 ease-out max-lg:hidden ${
+    <Drawer
+      kind="dock"
+      zIndex={85}
+      className={`max-lg:hidden transition-transform duration-200 ease-out ${
         dockOpen ? "translate-x-0" : "translate-x-full"
       }`}
     >
-      <header className="flex items-start justify-between gap-2 border-b border-zinc-100 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
-            Inspector
-          </div>
-          {loadedSection ? (
-            <>
-              {/* Operator's section name leads — it's the label they chose
-                  ("Muse — hero"), which reads better than the platform type
-                  key. Fall back to the humanized type key only if the row
-                  somehow has no name. Type key is always visible below as
-                  a small uppercase caption, so the section's kind is still
-                  discoverable. */}
-              <div className="mt-1 flex items-center gap-2">
-                <SectionTypeIcon
-                  typeKey={loadedSection.sectionTypeKey}
-                  size={15}
-                  className="shrink-0 text-zinc-500"
-                />
-                <div className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight text-zinc-900">
-                  {cleanSectionName(loadedSection.name) ||
-                    humanizeTypeKey(loadedSection.sectionTypeKey)}
-                </div>
-                <PanelSaveChip
-                  dirty={dirty}
-                  saving={saving}
-                  error={saveError}
-                />
-              </div>
-              <div className="mt-0.5 truncate text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-400">
-                {humanizeTypeKey(loadedSection.sectionTypeKey)}
-              </div>
-            </>
-          ) : (
-            <div className="mt-1 text-sm font-semibold text-zinc-400">
-              {selectedSectionId && loadingId
-                ? "Loading section…"
-                : "No selection"}
-            </div>
-          )}
-        </div>
-        {selectedSectionId ? (
-          <button
-            type="button"
-            onClick={() => setSelectedSectionId(null)}
-            className="shrink-0 rounded-md border border-transparent p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-            aria-label="Close inspector"
-            title="Close"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        ) : null}
-      </header>
+      <DrawerHead
+        eyebrow="Inspector"
+        title={dockTitle}
+        icon={
+          loadedSection ? (
+            <SectionTypeIcon
+              typeKey={loadedSection.sectionTypeKey}
+              size={15}
+            />
+          ) : undefined
+        }
+        saveChip={
+          loadedSection ? (
+            <PanelSaveChip dirty={dirty} saving={saving} error={saveError} />
+          ) : undefined
+        }
+        meta={
+          loadedSection
+            ? humanizeTypeKey(loadedSection.sectionTypeKey)
+            : undefined
+        }
+        onClose={() => setSelectedSectionId(null)}
+      />
 
       {!selectedSectionId ? (
-        <EmptyState />
+        <DrawerBody>
+          <EmptyState />
+        </DrawerBody>
       ) : loadError ? (
-        <div className="flex-1 overflow-y-auto px-4 py-6 text-xs text-amber-700">
-          {loadError}
-        </div>
+        <DrawerBody>
+          <div className="text-xs text-amber-700">{loadError}</div>
+        </DrawerBody>
       ) : !loadedSection || !registryEntry ? (
-        <div className="flex-1 overflow-y-auto px-4 py-6 text-xs text-zinc-400">
-          Loading…
-        </div>
+        <DrawerBody>
+          <div className="text-xs text-zinc-400">Loading…</div>
+        </DrawerBody>
       ) : (
         <>
-          <nav className="flex items-center gap-1 border-b border-zinc-100 px-2">
+          <DrawerTabs>
             {TABS.map((t) => (
-              <button
+              <DrawerTab
                 key={t.key}
-                type="button"
+                active={tab === t.key}
                 onClick={() => setTab(t.key)}
-                className={`relative px-3 py-2.5 text-xs font-medium transition ${
-                  tab === t.key
-                    ? "text-zinc-900"
-                    : "text-zinc-500 hover:text-zinc-800"
-                }`}
               >
                 {t.label}
-                {tab === t.key ? (
-                  <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-zinc-900" />
-                ) : null}
-              </button>
+              </DrawerTab>
             ))}
-          </nav>
+          </DrawerTabs>
 
-          <div className="flex-1 overflow-y-auto">
+          <DrawerBody>
             {saveError ? (
-              <div className="border-b border-amber-200/60 bg-amber-50 px-4 py-2 text-[11px] text-amber-700">
+              <div className="mb-3 rounded-md border border-amber-200/60 bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
                 {saveError}
               </div>
             ) : null}
-            <div className="px-4 py-4">
-              {tab === "content" ? (
-                <ContentTab
-                  sectionTypeKey={loadedSection.sectionTypeKey}
-                  schemaVersion={loadedSection.schemaVersion}
-                  tenantId={tenantId}
-                  draftProps={draftProps ?? {}}
-                  onChange={handleContentChange}
-                />
-              ) : null}
-              {tab === "layout" ? (
-                <LayoutPanel
-                  presentation={
-                    (draftProps?.presentation as
-                      | Record<string, unknown>
-                      | undefined) ?? {}
-                  }
-                  onPatch={handlePresentationPatch}
-                />
-              ) : null}
-              {tab === "style" ? (
-                <StylePanel
-                  sectionTypeKey={loadedSection.sectionTypeKey}
-                  draftProps={draftProps ?? {}}
-                  onPatch={handleStylePatch}
-                />
-              ) : null}
-            </div>
-          </div>
 
+            {tab === "content" ? (
+              <ContentTab
+                sectionTypeKey={loadedSection.sectionTypeKey}
+                schemaVersion={loadedSection.schemaVersion}
+                tenantId={tenantId}
+                draftProps={draftProps ?? {}}
+                onChange={handleContentChange}
+              />
+            ) : null}
+            {tab === "layout" ? (
+              <LayoutPanel
+                presentation={
+                  (draftProps?.presentation as
+                    | Record<string, unknown>
+                    | undefined) ?? {}
+                }
+                onPatch={handlePresentationPatch}
+              />
+            ) : null}
+            {tab === "style" ? (
+              <StylePanel
+                sectionTypeKey={loadedSection.sectionTypeKey}
+                draftProps={draftProps ?? {}}
+                onPatch={handleStylePatch}
+              />
+            ) : null}
+          </DrawerBody>
         </>
       )}
-    </aside>
+    </Drawer>
   );
 }
 
