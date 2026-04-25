@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 2 — Top bar mission control + Page Settings drawer
-- **Last commit on phase-1 branch:** 4bcfc1f — hero-content.tsx kit rewrite
-- **Next action:** Phase 2 — build `edit-chrome/topbar.tsx` top bar overhaul (brand mark + page picker + save pill + undo/redo + viewport switcher + page settings + revisions + preview + share + save draft + publish split-button). Screenshots remain pending manual capture (see docs/qa/phase-1/README.md).
+- **Last commit on phase-1 branch:** 50d49d4 — Phase 1 acceptance gate complete
+- **Next action:** Phase 2 — build `edit-chrome/topbar.tsx` top bar overhaul: brand mark + name pill + page picker + save status pill + undo/redo + viewport switcher + page settings cog + revisions clock + preview eye + share + save draft + publish split-button. Read mockup surface 1 (#s1) first.
 
 ---
 
@@ -338,4 +338,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | c885dc1 | PublishDrawer + Drawer open prop — slide animation wired; publish uses kind=publish |
 | 2026-04-24 (autonomous) | A.1 | aa712c7 | CompositionLibrary → Drawer kind=picker right-rail; MediaPicker DrawerHead; TalentPicker data-edit-overlay |
 | 2026-04-24 (autonomous) | A.1 | 4bcfc1f | Hero inspector kit rewrite — Card/Field/Helper/MediaPickerButton/CtaDuoEditor; removes raw class constants |
-| 2026-04-24 (autonomous) | A.1 | (tracker) | Phase 1 acceptance gate: Vercel READY (dpl_Ea5i) + code-verified rings/dock/labels; screenshots pending manual capture |
+| 2026-04-24 (autonomous) | A.1 | 50d49d4 | Phase 1 acceptance gate complete — Vercel READY + code QA + prod promote + qa README |
