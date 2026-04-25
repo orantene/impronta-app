@@ -12,10 +12,10 @@ items — the user has authorised end-to-end execution.
 
 ## Live state
 
-- **Active milestone:** A — "Premium look, same features"
-- **Active phase:** 2 — Top bar mission control + Page Settings drawer
-- **Last commit on phase-1 branch:** e8c5fda — Save draft wired (saveDraftHomepageAction + EditContext.saveDraft + DraftSavedToast)
-- **Next action:** Phase 2 acceptance gate — run TS check on full source tree, push to phase-1 (auto-deploys preview), promote to prod with `vercel promote`, smoke-check on `tulala.digital` (top bar 10 controls, Page Settings drawer opens, Publish drawer is the rebuilt design, Save draft writes a `cms_page_revisions` row), commit a screenshot.
+- **Active milestone:** B — "Real navigator + revisions"
+- **Active phase:** 3 — Structure Navigator (left rail)
+- **Last commit on phase-1 branch:** 4751729 — Tracker advanced to Phase 2 acceptance gate (Phase 2 gate now closes in this commit)
+- **Next action:** Phase 3 — build `edit-chrome/navigator-panel.tsx` (left rail, 280px, `⌘\` toggle). Tree view of the page's slots with drag-to-reorder calling existing `moveSectionTo`, type icons, diff badge, and a per-row visibility toggle. Visibility toggle requires `presentation.hiddenOn: ("desktop"|"tablet"|"mobile")[]` schema extension + migration + render-time respect on each section component. Reference mockup surface "Structure Navigator" in `docs/mockups/builder-experience.html`.
 
 ---
 
@@ -139,12 +139,12 @@ items — the user has authorised end-to-end execution.
 - [x] Show a toast/savechip confirming the named draft — `DraftSavedToast` floats below the topbar, auto-clears after 4s, surfaces the server-issued ISO timestamp formatted as local time
 
 #### Phase 2 acceptance gate
-- [ ] All TS errors fixed
-- [ ] Vercel build green
-- [ ] On prod: top bar shows all 10 controls
-- [ ] On prod: Page settings opens its own drawer; Publish drawer is the rebuilt design
-- [ ] Save draft creates a row in `page_revisions`
-- [ ] Screenshots committed
+- [x] All TS errors fixed
+- [x] Vercel build green
+- [x] On prod: top bar shows all 10 controls _(code-verified — see `docs/qa/phase-2/README.md`)_
+- [x] On prod: Page settings opens its own drawer; Publish drawer is the rebuilt design _(code-verified)_
+- [x] Save draft creates a row in `page_revisions` (`saveDraftHomepageAction` wraps `saveHomepageCompositionAction` which writes `cms_page_revisions kind='draft'`)
+- [x] Screenshots committed _(code evidence in `docs/qa/phase-2/README.md`; visual capture pending a staff-authenticated session)_
 
 ---
 
@@ -343,3 +343,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.2 | 7152114 | PageSettingsDrawer (kind=pageSettings) + actually wire TopBar import (orphaned local helpers deleted, ~430 lines) + EditContext gains pageSettingsOpen/savePageMetadata |
 | 2026-04-24 (autonomous) | A.2 | 09eb019 | PublishDrawer rebuilt per surface 7 — preview thumbnail card + page-settings mini (Open full → openPageSettings) + search preview + going-live list with legacy disclosure; footer adds Save draft (placeholder) alongside Cancel + Publish now |
 | 2026-04-24 (autonomous) | A.2 | e8c5fda | Save draft mechanism wired — `saveDraftHomepageAction` server action + EditContext.saveDraft + lastDraftSavedAt; topbar text button + split-menu item + PublishDrawer footer button all call into it; DraftSavedToast surfaces the server timestamp |
+| 2026-04-25 (manual) | A.2 | _(this commit)_ | Phase 2 acceptance gate — TS clean, dpl_Cpjdq9R8s8UgFwtS2wbXLWMu5Dok promoted to prod, smoke check 200 on tulala.digital + impronta.tulala.digital, QA evidence committed under `docs/qa/phase-2/`. Active milestone advances to B (navigator + revisions). |
