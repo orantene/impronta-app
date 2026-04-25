@@ -331,6 +331,15 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     }
     rows.push(
       actionRow(
+        "shortcut-overlay",
+        "Show keyboard shortcuts",
+        ["help", "keys", "reference", "cheatsheet"],
+        () => {
+          ctx.openShortcutOverlay();
+          onClose();
+        },
+      ),
+      actionRow(
         "save-draft",
         "Save draft checkpoint",
         ["save", "snapshot", "checkpoint"],

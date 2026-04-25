@@ -234,6 +234,18 @@ export interface EditContextValue {
   closePalette: () => void;
   togglePalette: () => void;
   /**
+   * Visibility flag for the keyboard-shortcuts reference overlay
+   * (Phase 10). The `?` global keybind toggles it; the overlay reads
+   * from the centralised `SHORTCUTS` registry so chips never drift
+   * between the palette and the reference. Like the palette it's a
+   * modal, not mutexed with the right-side drawers — an operator can
+   * peek at "what was the keybind for X" mid-drawer.
+   */
+  shortcutOverlayOpen: boolean;
+  openShortcutOverlay: () => void;
+  closeShortcutOverlay: () => void;
+  toggleShortcutOverlay: () => void;
+  /**
    * Roll the draft back to the chosen revision. Wraps
    * `restoreHomepageRevisionAction` in the same CAS-safe rhythm as
    * `dispatchMutation` so the drawer doesn't have to thread pageVersion
@@ -450,6 +462,21 @@ export function EditProvider({
   const closePalette = useCallback(() => setPaletteOpen(false), []);
   const togglePalette = useCallback(
     () => setPaletteOpen((prev) => !prev),
+    [],
+  );
+
+  // keyboard-shortcuts overlay state (Phase 10)
+  const [shortcutOverlayOpen, setShortcutOverlayOpen] = useState(false);
+  const openShortcutOverlay = useCallback(
+    () => setShortcutOverlayOpen(true),
+    [],
+  );
+  const closeShortcutOverlay = useCallback(
+    () => setShortcutOverlayOpen(false),
+    [],
+  );
+  const toggleShortcutOverlay = useCallback(
+    () => setShortcutOverlayOpen((prev) => !prev),
     [],
   );
 
@@ -1194,6 +1221,11 @@ export function EditProvider({
       closePalette,
       togglePalette,
 
+      shortcutOverlayOpen,
+      openShortcutOverlay,
+      closeShortcutOverlay,
+      toggleShortcutOverlay,
+
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
@@ -1261,6 +1293,10 @@ export function EditProvider({
       openPalette,
       closePalette,
       togglePalette,
+      shortcutOverlayOpen,
+      openShortcutOverlay,
+      closeShortcutOverlay,
+      toggleShortcutOverlay,
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,

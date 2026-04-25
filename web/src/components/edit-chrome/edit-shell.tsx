@@ -33,6 +33,7 @@ import { ThemeDrawer } from "./theme-drawer";
 import { AssetsDrawer } from "./assets-drawer";
 import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
+import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
@@ -56,13 +57,29 @@ export function EditShell({ tenantId, children }: EditShellProps) {
 }
 
 async function handleShareClick(
+  opts: { label?: string; ttlSeconds?: number },
   setMutationError: (msg: string) => void,
 ): Promise<string | null> {
   // Phase 9 — mint a share JWT bound to the most recent revision and
-  // return a fully qualified URL. Errors surface through the existing
-  // mutation-error toast so the operator sees a coherent failure state.
+  // return a fully qualified URL. Forwards optional `label` + `ttlSeconds`
+  // from the topbar popover; the server action (and the underlying JWT
+  // module) clamp `ttlSeconds` into the [1h, 30d] band so any client-side
+  // tampering is normalized before signing. Errors surface through the
+  // existing mutation-error toast so the operator sees a coherent failure
+  // state.
   try {
-    const result = await createShareLinkAction({});
+    // The server action accepts `ttlHours` (so log-readers see human
+    // numbers); the popover hands us `ttlSeconds` (so the JWT's clamp
+    // band can be expressed in one unit). Convert here, falling back to
+    // the action's default when the popover didn't pass a choice.
+    const ttlHours =
+      typeof opts.ttlSeconds === "number"
+        ? opts.ttlSeconds / 3600
+        : undefined;
+    const result = await createShareLinkAction({
+      label: opts.label,
+      ttlHours,
+    });
     if (!result.ok) {
       setMutationError(result.error);
       return null;
@@ -105,6 +122,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     paletteOpen,
     togglePalette,
     closePalette,
+    shortcutOverlayOpen,
+    openShortcutOverlay,
+    closeShortcutOverlay,
     saveDraft,
     pageMetadata,
     selectedSectionId,
@@ -140,12 +160,30 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         return;
       }
 
-      // Escape dismisses the palette first (when it's up) and otherwise
-      // whichever right-side drawer is up. The drawers mutex each other
-      // on open, so at most one is open at a time — close-all is a safe
-      // no-op when nothing's up. Palette mounts its own Escape handler
-      // when open, but we keep this branch as a safety net for clicks
-      // that took focus out of the input.
+      // `?` toggles the keyboard-shortcuts reference overlay (Phase 10).
+      // On US keyboards `?` is Shift+/, so match `e.key === "?"` rather
+      // than the code so non-US layouts that produce `?` differently
+      // also work. Skip when a mod key is held — ⌘? / Ctrl? are reserved
+      // for browser-native help in some surfaces, and we never want to
+      // shadow that.
+      if (e.key === "?" && !mod && !e.altKey) {
+        e.preventDefault();
+        if (shortcutOverlayOpen) closeShortcutOverlay();
+        else openShortcutOverlay();
+        return;
+      }
+
+      // Escape dismisses (in priority order) the shortcut overlay, then
+      // the palette, then whichever right-side drawer is up. The drawers
+      // mutex each other on open, so at most one is open at a time —
+      // close-all is a safe no-op when nothing's up. The overlay and the
+      // palette both mount their own Escape handlers when open; we keep
+      // this branch as a safety net for clicks that took focus elsewhere.
+      if (e.key === "Escape" && shortcutOverlayOpen) {
+        e.preventDefault();
+        closeShortcutOverlay();
+        return;
+      }
       if (e.key === "Escape" && paletteOpen) {
         e.preventDefault();
         closePalette();
@@ -242,6 +280,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     paletteOpen,
     togglePalette,
     closePalette,
+    shortcutOverlayOpen,
+    openShortcutOverlay,
+    closeShortcutOverlay,
   ]);
 
   return (
@@ -265,7 +306,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onTheme={openTheme}
         onAssets={openAssets}
         onSaveDraft={() => void saveDraft()}
-        onShare={() => handleShareClick(reportMutationError)}
+        onShare={(opts) => handleShareClick(opts, reportMutationError)}
         pageTitle={pageMetadata?.title ?? undefined}
       />
       <div
@@ -285,6 +326,10 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <ThemeDrawer />
       <AssetsDrawer />
       <CommandPalette open={paletteOpen} onClose={closePalette} />
+      <ShortcutOverlay
+        open={shortcutOverlayOpen}
+        onClose={closeShortcutOverlay}
+      />
       <MutationErrorToast />
       <DraftSavedToast />
       {children}

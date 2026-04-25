@@ -14,7 +14,11 @@ import {
 } from "@/i18n/request-locale";
 import { getLanguageSettingsForMiddleware } from "@/lib/language-settings/middleware-locale-cache";
 import { tryCmsRedirectResponse } from "@/lib/cms/middleware-redirect";
-import { rateLimitJsonResponse, tryConsumeRateLimit } from "@/lib/rate-limit";
+import {
+  rateLimitHtmlResponse,
+  rateLimitJsonResponse,
+  tryConsumeRateLimit,
+} from "@/lib/rate-limit";
 import { updateSession } from "@/lib/supabase/middleware";
 import {
   resolveTenantContext,
@@ -172,6 +176,21 @@ export async function middleware(request: NextRequest) {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
+  }
+
+  // Phase 9 v2 — share-link viewer rate limit. Token verification is
+  // cheap (HMAC + a single supabase read), but a fuzzer hammering
+  // `/share/<random>` 100×/sec would still consume edge cycles + DB
+  // round-trips against a guaranteed-invalid token. 60 requests / minute
+  // / IP is comfortably above any realistic visitor pattern (a real
+  // recipient opens the link once, maybe refreshes a few times) and
+  // catches drive-by scanning. Per-page asset reads load through the
+  // CMS section dispatcher with their own caching so they don't re-hit
+  // this gate.
+  if (pathname.startsWith("/share/") && request.method === "GET") {
+    if (!tryConsumeRateLimit(`share:${ip}`, 60, 60_000)) {
+      return rateLimitHtmlResponse();
+    }
   }
 
   if (pathname.startsWith("/api/directory") && request.method === "GET") {

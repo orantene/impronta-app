@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
 import type { EditDevice } from "./edit-context";
@@ -594,6 +595,304 @@ function MenuItem({
   );
 }
 
+/**
+ * Share icon button + popover. Single self-contained surface that the
+ * topbar drops into the right-icon cluster: clicking the icon toggles a
+ * popover with an optional label input + a TTL choice (1h / 24h / 7d /
+ * 30d) and a primary "Generate link" CTA. Submission calls the parent's
+ * `onShare(opts)` (returns the absolute URL or null) and on success
+ * writes to the clipboard, surfaces an inline "Link copied" success
+ * state, and auto-closes after a short delay. Failure paths fall through
+ * to the parent's mutation-error toast — the popover does NOT render its
+ * own error UI. When `onShare` is undefined the icon is rendered
+ * disabled (read-only chrome surface, e.g. unauthenticated preview).
+ */
+function ShareIconWithPopover({
+  onShare,
+}: {
+  onShare?: (opts: {
+    label?: string;
+    ttlSeconds?: number;
+  }) => Promise<string | null>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState("");
+  const [ttlChoice, setTtlChoice] =
+    useState<(typeof SHARE_TTL_CHOICES)[number]["id"]>(SHARE_TTL_DEFAULT);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Outside-click close, mirrors PublishSplitButton's pattern.
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-share-popover]")) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  // Reset the form fields whenever the popover closes so the next open
+  // starts clean. Preserve `copied=true` for the auto-close grace window
+  // so the icon flashes the green check after the popover hides.
+  useEffect(() => {
+    if (open) {
+      setLabel("");
+      setTtlChoice(SHARE_TTL_DEFAULT);
+    }
+  }, [open]);
+
+  async function handleGenerate() {
+    if (!onShare || busy) return;
+    setBusy(true);
+    try {
+      const ttlSeconds = SHARE_TTL_CHOICES.find((c) => c.id === ttlChoice)
+        ?.seconds;
+      const url = await onShare({
+        label: label.trim() || undefined,
+        ttlSeconds,
+      });
+      if (!url) return;
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(url);
+          setCopied(true);
+          setOpen(false);
+          window.setTimeout(() => setCopied(false), 2200);
+        } catch {
+          window.prompt("Share link", url);
+        }
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative shrink-0" data-share-popover>
+      <TbIconBtn
+        title={copied ? "Link copied" : "Share preview link"}
+        onClick={onShare ? () => setOpen((o) => !o) : undefined}
+        disabled={!onShare}
+      >
+        {copied ? (
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={CHROME.green}
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : (
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
+            <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+          </svg>
+        )}
+      </TbIconBtn>
+
+      {open ? (
+        <div
+          className="absolute right-0 top-[42px] z-[120] w-[300px] rounded-[10px] p-[14px]"
+          style={{
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
+            boxShadow:
+              "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 12.5,
+              fontWeight: 600,
+              color: CHROME.ink,
+              letterSpacing: "-0.005em",
+            }}
+          >
+            Share a preview link
+          </div>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: CHROME.muted,
+              marginTop: 2,
+              lineHeight: 1.45,
+            }}
+          >
+            Anyone with the link can view this draft until it expires.
+          </div>
+
+          <label
+            style={{
+              display: "block",
+              marginTop: 12,
+              fontSize: 11,
+              fontWeight: 600,
+              color: CHROME.text,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+            }}
+          >
+            Label{" "}
+            <span
+              style={{
+                fontWeight: 500,
+                color: CHROME.muted,
+                textTransform: "none",
+                letterSpacing: 0,
+              }}
+            >
+              (optional)
+            </span>
+          </label>
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Q3 review draft"
+            maxLength={80}
+            spellCheck={false}
+            style={{
+              width: "100%",
+              marginTop: 4,
+              padding: "7px 9px",
+              fontSize: 12.5,
+              color: CHROME.ink,
+              background: CHROME.paper,
+              border: `1px solid ${CHROME.line}`,
+              borderRadius: 6,
+              outline: 0,
+              boxSizing: "border-box",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleGenerate();
+              }
+            }}
+          />
+
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: 11,
+              fontWeight: 600,
+              color: CHROME.text,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+            }}
+          >
+            Expires in
+          </div>
+          <div
+            role="radiogroup"
+            aria-label="Link expiration"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr 1fr",
+              gap: 4,
+              marginTop: 4,
+            }}
+          >
+            {SHARE_TTL_CHOICES.map((c) => {
+              const active = c.id === ttlChoice;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setTtlChoice(c.id)}
+                  className="cursor-pointer transition"
+                  style={{
+                    padding: "6px 0",
+                    fontSize: 11.5,
+                    fontWeight: 500,
+                    background: active ? CHROME.ink : CHROME.paper,
+                    color: active ? "#fff" : CHROME.text,
+                    border: `1px solid ${active ? CHROME.ink : CHROME.line}`,
+                    borderRadius: 6,
+                    letterSpacing: "-0.005em",
+                  }}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            style={{
+              marginTop: 14,
+              display: "flex",
+              gap: 6,
+              justifyContent: "flex-end",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              disabled={busy}
+              className="cursor-pointer transition disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                padding: "7px 12px",
+                fontSize: 12,
+                fontWeight: 500,
+                color: CHROME.text,
+                background: "transparent",
+                border: `1px solid ${CHROME.line}`,
+                borderRadius: 6,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleGenerate()}
+              disabled={busy}
+              className="cursor-pointer transition disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                padding: "7px 14px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#fff",
+                background: CHROME.ink,
+                border: `1px solid ${CHROME.ink}`,
+                borderRadius: 6,
+                letterSpacing: "-0.005em",
+              }}
+            >
+              {busy ? "Generating…" : "Generate link"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ExitButton() {
   const { pending } = useFormStatus();
   return (
@@ -630,13 +929,30 @@ export interface TopBarProps {
    */
   onSaveDraft?: () => void | Promise<unknown>;
   /**
-   * Mint a share link. Returns the full URL to copy. The topbar surfaces
-   * a transient confirmation when the promise resolves; failures fall
-   * through to the surrounding mutation-error toast.
+   * Mint a share link. Receives the operator-supplied label + TTL choice
+   * from the popover form and returns the full URL to copy. The topbar
+   * surfaces a transient confirmation when the promise resolves; failures
+   * fall through to the surrounding mutation-error toast.
    */
-  onShare?: () => Promise<string | null>;
+  onShare?: (opts: {
+    label?: string;
+    ttlSeconds?: number;
+  }) => Promise<string | null>;
   pageTitle?: string;
 }
+
+/**
+ * TTL choices the popover surfaces. Values match the JWT module's
+ * clamped range (`SHARE_JWT_MIN_TTL_SECONDS` 1h → `SHARE_JWT_MAX_TTL_SECONDS` 30d).
+ * Default highlights 7d which is also the server-action default.
+ */
+const SHARE_TTL_CHOICES = [
+  { id: "1h", label: "1 hour", seconds: 60 * 60 },
+  { id: "24h", label: "24 hours", seconds: 24 * 60 * 60 },
+  { id: "7d", label: "7 days", seconds: 7 * 24 * 60 * 60 },
+  { id: "30d", label: "30 days", seconds: 30 * 24 * 60 * 60 },
+] as const;
+const SHARE_TTL_DEFAULT = "7d" as const;
 
 export function TopBar({
   device,
@@ -656,29 +972,8 @@ export function TopBar({
   onShare,
   pageTitle,
 }: TopBarProps) {
-  const [shareCopied, setShareCopied] = useState(false);
-  const [shareBusy, setShareBusy] = useState(false);
+  const router = useRouter();
 
-  async function handleShare() {
-    if (!onShare || shareBusy) return;
-    setShareBusy(true);
-    try {
-      const url = await onShare();
-      if (url && typeof navigator !== "undefined" && navigator.clipboard) {
-        try {
-          await navigator.clipboard.writeText(url);
-          setShareCopied(true);
-          window.setTimeout(() => setShareCopied(false), 2200);
-        } catch {
-          // Clipboard write blocked (focus / permissions): show the URL
-          // in a prompt as a fallback so the operator can copy it manually.
-          window.prompt("Share link", url);
-        }
-      }
-    } finally {
-      setShareBusy(false);
-    }
-  }
   function handleMenuSelect(opt: PublishMenuOption) {
     if (opt === "schedule") {
       // Phase 12 — placeholder
@@ -695,11 +990,16 @@ export function TopBar({
   }
 
   function handlePreview() {
-    // Open current page without ?edit=1 in a new tab so the operator sees
-    // the visitor experience. Phase 9 replaces this with a full preview mode.
+    // Phase 9 v2 — flip `?preview=1` ON in the same tab. EditChrome's
+    // `useSearchParams` subscription picks the change up and swaps from
+    // EditShell to PreviewPill without unmounting the storefront DOM,
+    // so scroll position + any in-flight section reads stay intact. The
+    // edit cookie is unaffected — the operator goes back to the shell
+    // by clicking "Back to edit" inside the pill.
+    if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    url.searchParams.delete("edit");
-    window.open(url.toString(), "_blank", "noopener,noreferrer");
+    url.searchParams.set("preview", "1");
+    router.replace(`${url.pathname}${url.search}${url.hash}`);
   }
 
   return (
@@ -786,35 +1086,7 @@ export function TopBar({
           <circle cx="12" cy="12" r="3" />
         </svg>
       </TbIconBtn>
-      <TbIconBtn
-        title={shareCopied ? "Link copied" : "Share preview link"}
-        onClick={onShare ? () => void handleShare() : undefined}
-        disabled={!onShare || shareBusy}
-      >
-        {shareCopied ? (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={CHROME.green}
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
-            <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
-          </svg>
-        )}
-      </TbIconBtn>
+      <ShareIconWithPopover onShare={onShare} />
 
       <TbDivider />
 
