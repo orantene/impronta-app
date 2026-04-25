@@ -1,10 +1,21 @@
 "use client";
 
+/**
+ * PublishDrawer — right-side drawer for promoting the live canvas draft.
+ *
+ * Uses the shared Drawer chrome (DrawerHead / DrawerBody / DrawerFoot) so it
+ * wears the same visual language as the InspectorDock and all future drawers.
+ */
+
 import { useEffect, useMemo, useState } from "react";
 
 import { publishHomepageFromEditModeAction } from "@/lib/site-admin/edit-mode/composition-actions";
-import { Drawer, DrawerBody, DrawerFoot, DrawerHead } from "./kit/drawer";
-import { DRAWER_WIDTHS } from "./kit/tokens";
+import {
+  Drawer,
+  DrawerHead,
+  DrawerBody,
+  DrawerFoot,
+} from "./kit";
 import { useEditContext } from "./edit-context";
 
 /** Strip seeder debug suffixes like "(Classic starter) d7b14f" from stored names. */
@@ -24,16 +35,22 @@ type PublishState =
   | { kind: "error"; message: string; code?: string }
   | { kind: "success"; publishedAt: string };
 
-type WidthMode = "normal" | "expanded" | "fullscreen";
-
-const WIDTH: Record<WidthMode, number | "fullscreen"> = {
-  normal: DRAWER_WIDTHS.publish,
-  expanded: DRAWER_WIDTHS.publishExpanded,
-  fullscreen: "fullscreen",
-};
-
-function cycleWidth(w: WidthMode): WidthMode {
-  return w === "normal" ? "expanded" : w === "expanded" ? "fullscreen" : "normal";
+function PublishIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M5 12l5 5L20 7" />
+    </svg>
+  );
 }
 
 export function PublishDrawer() {
@@ -51,7 +68,6 @@ export function PublishDrawer() {
   } = useEditContext();
 
   const [state, setState] = useState<PublishState>({ kind: "idle" });
-  const [widthMode, setWidthMode] = useState<WidthMode>("normal");
 
   useEffect(() => {
     if (publishOpen) setState({ kind: "idle" });
@@ -96,33 +112,31 @@ export function PublishDrawer() {
     summary.missing.length > 0 ||
     pageVersion === null;
 
+  const isSuccess = state.kind === "success";
+
   return (
-    <Drawer
-      kind="publish"
-      open={publishOpen}
-      width={WIDTH[widthMode]}
-      zIndex={90}
-    >
+    <Drawer kind="publish" open={publishOpen} zIndex={88}>
       <DrawerHead
         eyebrow="Publish"
-        title={state.kind === "success" ? "Live" : "Ready to publish?"}
+        title={isSuccess ? "Live" : "Push homepage live"}
         titleStyle="display"
-        meta={
-          state.kind !== "success"
-            ? "This will replace the live homepage with your draft."
-            : "Your changes are now live for visitors."
-        }
-        onExpand={() => setWidthMode((w) => cycleWidth(w))}
+        icon={<PublishIcon />}
+        meta={isSuccess ? "Your changes are now live." : undefined}
         onClose={state.kind === "publishing" ? undefined : closePublish}
       />
 
       <DrawerBody>
-        {state.kind === "success" ? (
-          <SuccessBody publishedAt={state.publishedAt} onClose={closePublish} />
+        {isSuccess ? (
+          <SuccessBody
+            publishedAt={
+              (state as Extract<PublishState, { kind: "success" }>).publishedAt
+            }
+            onClose={closePublish}
+          />
         ) : (
           <>
             {pageMetadata?.title ? (
-              <div className="mb-4 rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2">
+              <div className="mb-3 rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2.5">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                   Page title
                 </div>
@@ -139,6 +153,7 @@ export function PublishDrawer() {
                 {summary.totalSections === 1 ? "" : "s"}
               </span>
             </div>
+
             <ul className="space-y-1.5">
               {summary.byDef.map((s) => (
                 <li
@@ -151,9 +166,11 @@ export function PublishDrawer() {
                     </div>
                     <div className="shrink-0 text-[10px] uppercase tracking-wider text-zinc-400 tabular-nums">
                       {s.missingRequired ? (
-                        <span className="font-medium text-amber-600">Required</span>
+                        <span className="font-medium text-amber-600">
+                          Required
+                        </span>
                       ) : s.count === 0 ? (
-                        "Empty"
+                        <span className="text-zinc-300">No section yet</span>
                       ) : (
                         `${s.count}`
                       )}
@@ -210,35 +227,34 @@ export function PublishDrawer() {
         )}
       </DrawerBody>
 
-      {state.kind !== "success" ? (
+      {!isSuccess ? (
         <DrawerFoot
-          start={null}
+          start={
+            <button
+              type="button"
+              onClick={closePublish}
+              disabled={state.kind === "publishing"}
+              className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          }
           end={
-            <>
-              <button
-                type="button"
-                onClick={closePublish}
-                disabled={state.kind === "publishing"}
-                className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handlePublish()}
-                disabled={publishDisabled}
-                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {state.kind === "publishing" ? (
-                  <>
-                    <span className="size-1.5 animate-pulse rounded-full bg-white" />
-                    Publishing…
-                  </>
-                ) : (
-                  "Publish now"
-                )}
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => void handlePublish()}
+              disabled={publishDisabled}
+              className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {state.kind === "publishing" ? (
+                <>
+                  <span className="size-1.5 animate-pulse rounded-full bg-white" />
+                  Publishing…
+                </>
+              ) : (
+                "Publish now"
+              )}
+            </button>
           }
         />
       ) : null}
@@ -256,7 +272,7 @@ function SuccessBody({
   const when = new Date(publishedAt);
   const relative = formatRelative(when);
   return (
-    <div className="flex flex-col gap-4">
+    <div className="py-2 text-sm text-zinc-700">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
           <svg
@@ -278,12 +294,12 @@ function SuccessBody({
             Published {relative}
           </p>
           <p className="mt-1 text-xs text-zinc-500">
-            Visitors see the new homepage now. Keep editing — your next
-            publish only replaces the live page when you click Publish again.
+            Visitors see the new homepage now. Keep editing — your next publish
+            only replaces the live page when you click Publish again.
           </p>
         </div>
       </div>
-      <div className="flex justify-end">
+      <div className="mt-5 flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={onClose}

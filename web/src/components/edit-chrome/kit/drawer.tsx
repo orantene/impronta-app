@@ -52,6 +52,11 @@ interface DrawerProps {
   kind: DrawerKind;
   /** Override the width. Used by the expand/fullscreen cycle. */
   width?: number | "fullscreen";
+  /**
+   * When false, translates the drawer off-screen to the right.
+   * Defaults to true (visible). Slide animation is 200ms ease-out.
+   */
+  open?: boolean;
   /** Optional data attribute for QA / e2e tests. */
   testId?: string;
   /** Z-index. Defaults to 80 (above selection layer, below modals). */
@@ -68,6 +73,7 @@ interface DrawerProps {
 export function Drawer({
   kind,
   width,
+  open = true,
   testId,
   zIndex = 80,
   topPx = 52,
@@ -94,8 +100,9 @@ export function Drawer({
         borderLeft: `1px solid ${CHROME.line}`,
         boxShadow: CHROME_SHADOWS.drawer,
         zIndex,
-        // Smooth width transition during the expand cycle.
-        transition: "width 220ms cubic-bezier(0.32, 0.72, 0, 1)",
+        transform: open ? "translateX(0)" : "translateX(100%)",
+        transition:
+          "width 220ms cubic-bezier(0.32, 0.72, 0, 1), transform 200ms ease-out",
       }}
     >
       {children}
