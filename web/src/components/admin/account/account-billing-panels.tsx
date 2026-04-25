@@ -288,8 +288,8 @@ export function AccountBillingPanels() {
                   No payment method on file
                 </div>
                 <div className="text-[12px] text-muted-foreground">
-                  Add one when you're ready to upgrade — we'll walk you through
-                  it.
+                  Add one when you&rsquo;re ready to upgrade — we&rsquo;ll walk
+                  you through it.
                 </div>
               </>
             )}
@@ -347,7 +347,7 @@ export function AccountBillingPanels() {
             </>
           ) : (
             <div className="flex justify-center px-4 py-3 text-center text-[12.5px] text-muted-foreground">
-              No invoices yet — you're on the Free plan.
+              No invoices yet — you&rsquo;re on the Free plan.
             </div>
           )}
         </div>

@@ -167,13 +167,18 @@ function PrototypeNavSections({
     return new Set([active ?? "dashboard"]);
   });
 
+  // Hydrate the expanded set from localStorage exactly once on mount.
+  // Re-running this whenever `useAccordion` flips (mobile sheet open/close,
+  // collapse toggle) was stomping the user's just-clicked state, making
+  // groups appear to "not open" on click. The active-group effect below
+  // still re-opens whichever group matches the current pathname.
   useEffect(() => {
-    if (!useAccordion) return;
     const stored = loadStoredExpandedGroupIds();
     if (stored && stored.size > 0) {
       setExpandedGroupIds(stored);
     }
-  }, [useAccordion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!useAccordion) return;
