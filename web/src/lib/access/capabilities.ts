@@ -34,6 +34,24 @@ export type CapabilityCategory = (typeof CAPABILITY_CATEGORIES)[number];
 
 export type CapabilityScope = "tenant" | "platform";
 
+/**
+ * How a capability is granted. The resolver inspects this to decide which
+ * gate evaluates the capability.
+ *
+ *   - "role"          — standard tenant-membership role grant. Default.
+ *   - "platform_role" — granted via `profiles.platform_role` (super_admin).
+ *   - "relationship"  — context-sensitive: requires a talent / agency /
+ *                       hub relationship-state evaluator beyond role + plan.
+ *                       See docs/talent-relationship-model.md §10.
+ *   - "always"        — always granted (e.g. `talent.agency.exit`, the
+ *                       escape valve from exclusive relationships).
+ */
+export type CapabilityGating =
+  | "role"
+  | "platform_role"
+  | "relationship"
+  | "always";
+
 export type CapabilityDef = {
   /** Stable key used in code, RLS, plan_capabilities, and audit logs. */
   key: string;
@@ -43,9 +61,20 @@ export type CapabilityDef = {
   description: string;
   category: CapabilityCategory;
   scope: CapabilityScope;
+  /**
+   * How this capability is granted. Defaults to "role" when omitted (the
+   * common case) so the legacy 43 capabilities don't need explicit values.
+   * Capabilities with non-default gating MUST set this explicitly.
+   */
+  gating?: CapabilityGating;
   /** True once a capability is being phased out. The resolver logs a warning when checked. */
   deprecated: boolean;
 };
+
+/** Resolves the gating for a capability, defaulting to "role" when unset. */
+export function capabilityGating(def: CapabilityDef): CapabilityGating {
+  return def.gating ?? "role";
+}
 
 const define = (def: CapabilityDef): CapabilityDef => def;
 
@@ -409,6 +438,140 @@ export const CAPABILITIES = {
     description: "Temporarily take this workspace offline.",
     category: "billing",
     scope: "tenant",
+    deprecated: false,
+  }),
+
+  // ─── Talent relationship model — locked product logic ────────────────
+  // See docs/talent-relationship-model.md for the binding rules.
+  // Capabilities below are added to the registry NOW so that names are
+  // locked. Most have no callers in Phase 1; Track B.5 wires them when
+  // the dashboard surfaces are built.
+
+  // ── Agency-side roster + settings (role-granted) ─────────────────────
+  "agency.settings.edit_join_mode": define({
+    key: "agency.settings.edit_join_mode",
+    displayName: "Set roster join mode",
+    description: "Choose how new talent join: open, by approval, or exclusive.",
+    category: "team",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.talent.create": define({
+    key: "agency.talent.create",
+    displayName: "Add talent to roster",
+    description: "Create a new talent profile in this workspace's roster.",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.talent.invite_to_claim": define({
+    key: "agency.talent.invite_to_claim",
+    displayName: "Invite talent to claim profile",
+    description: "Send an invite link so a talent can claim a profile created on their behalf.",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.roster.set_exclusive": define({
+    key: "agency.roster.set_exclusive",
+    displayName: "Set exclusive representation",
+    description: "Mark a talent's relationship with this agency as exclusive.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "agency.roster.set_hub_visibility": define({
+    key: "agency.roster.set_hub_visibility",
+    displayName: "Set talent hub visibility",
+    description: "Control which hubs a talent appears in. Available on exclusive relationships only.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "agency.roster.view_external_relationships": define({
+    key: "agency.roster.view_external_relationships",
+    displayName: "See where talent is represented elsewhere",
+    description: "View other workspaces where a non-exclusive talent is rostered.",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
+
+  // ── Talent-self capabilities (relationship-gated) ────────────────────
+  "talent.visibility.manage_self": define({
+    key: "talent.visibility.manage_self",
+    displayName: "Manage own visibility",
+    description: "Toggle your own active/inactive visibility. Disabled while in an exclusive agency.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.hub.apply": define({
+    key: "talent.hub.apply",
+    displayName: "Apply to a hub",
+    description: "Apply for inclusion in a hub matching your category. Disabled while exclusive.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.hub.leave": define({
+    key: "talent.hub.leave",
+    displayName: "Leave a hub",
+    description: "Remove yourself from a hub. Disabled while exclusive.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.agency.apply": define({
+    key: "talent.agency.apply",
+    displayName: "Apply to an agency",
+    description: "Apply to join an open agency. Disabled while in an exclusive relationship.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.agency.exit": define({
+    key: "talent.agency.exit",
+    displayName: "Exit an agency",
+    description: "Leave an agency relationship. The escape valve — always available.",
+    category: "talent",
+    scope: "tenant",
+    gating: "always",
+    deprecated: false,
+  }),
+  "talent.profile.claim": define({
+    key: "talent.profile.claim",
+    displayName: "Claim your profile",
+    description: "Take ownership of a talent profile created on your behalf.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+
+  // ── Platform / hub administration ────────────────────────────────────
+  "platform.hub.create": define({
+    key: "platform.hub.create",
+    displayName: "Create hub",
+    description: "Create a new criteria-based hub on the platform.",
+    category: "platform",
+    scope: "platform",
+    gating: "platform_role",
+    deprecated: false,
+  }),
+  "platform.hub.set_criteria": define({
+    key: "platform.hub.set_criteria",
+    displayName: "Edit hub criteria",
+    description: "Define the criteria that determine which talent qualify for a hub.",
+    category: "platform",
+    scope: "platform",
+    gating: "platform_role",
     deprecated: false,
   }),
 } as const;

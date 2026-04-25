@@ -20,12 +20,14 @@ export {
   CAPABILITY_CATEGORIES,
   isKnownCapability,
   getCapability,
+  capabilityGating,
 } from "./capabilities";
 export type {
   CapabilityKey,
   CapabilityDef,
   CapabilityCategory,
   CapabilityScope,
+  CapabilityGating,
 } from "./capabilities";
 
 export {

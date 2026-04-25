@@ -27,6 +27,8 @@ import {
   CAPABILITIES,
   CAPABILITY_KEYS,
   isKnownCapability,
+  capabilityGating,
+  type CapabilityKey,
 } from "@/lib/access/capabilities";
 import {
   PLAN_KEYS,
@@ -65,13 +67,37 @@ const LEGACY_CAPABILITIES: readonly LegacyCapability[] = [
   "suspend_tenant",
 ];
 
-test("registry has no duplicates and matches legacy + phase-5 union", () => {
+test("registry has no duplicates", () => {
   const keys = new Set(CAPABILITY_KEYS);
   assert.equal(keys.size, CAPABILITY_KEYS.length, "duplicate capability key in registry");
-  // Expected size: 29 legacy + 14 phase-5 = 43.
-  // (Audit memo said "42", off by one — there are 29 legacy capabilities,
-  // not 28: dashboard/talent/client/inquiry/site/team/billing.)
-  const expected = LEGACY_CAPABILITIES.length + PHASE_5_CAPABILITIES.length;
+});
+
+test("registry contains all legacy + phase-5 + talent-relationship capabilities", () => {
+  // Legacy: 29 keys. Phase 5: 14 keys. Talent-relationship model
+  // (docs/talent-relationship-model.md): 14 keys. Total: 57.
+  const TALENT_RELATIONSHIP_KEYS: readonly CapabilityKey[] = [
+    "agency.settings.edit_join_mode",
+    "agency.talent.create",
+    "agency.talent.invite_to_claim",
+    "agency.roster.set_exclusive",
+    "agency.roster.set_hub_visibility",
+    "agency.roster.view_external_relationships",
+    "talent.visibility.manage_self",
+    "talent.hub.apply",
+    "talent.hub.leave",
+    "talent.agency.apply",
+    "talent.agency.exit",
+    "talent.profile.claim",
+    "platform.hub.create",
+    "platform.hub.set_criteria",
+  ];
+  for (const key of TALENT_RELATIONSHIP_KEYS) {
+    assert.ok(isKnownCapability(key), `talent-relationship capability "${key}" missing`);
+  }
+  const expected =
+    LEGACY_CAPABILITIES.length +
+    PHASE_5_CAPABILITIES.length +
+    TALENT_RELATIONSHIP_KEYS.length;
   assert.equal(CAPABILITY_KEYS.length, expected, `expected ${expected} capability keys`);
 });
 
@@ -140,4 +166,37 @@ test("special plans (legacy) are not visible and not self-serve", () => {
   const legacyPlan = PLAN_CATALOG.legacy;
   assert.equal(legacyPlan.isVisible, false, "legacy plan must not be visible");
   assert.equal(legacyPlan.isSelfServe, false, "legacy plan must not be self-serve");
+});
+
+test("relationship-gated capabilities are NOT in any role's role-capability set", () => {
+  // talent-self and exclusivity-conditional capabilities are gated by
+  // relationship state, not by tenant-membership role. They must not be
+  // role-granted; the resolver wires the relationship-state check
+  // separately. See docs/talent-relationship-model.md §10.
+  for (const key of CAPABILITY_KEYS) {
+    const def = CAPABILITIES[key];
+    const gating = capabilityGating(def);
+    if (gating === "relationship" || gating === "always") {
+      for (const role of TENANT_ROLE_KEYS) {
+        assert.ok(
+          !ROLE_CAPABILITIES[role].has(key),
+          `${role} must not have role-grant for relationship-gated capability "${key}"`,
+        );
+      }
+    }
+  }
+});
+
+test("platform_role-gated capabilities are NOT in any tenant role's set", () => {
+  for (const key of CAPABILITY_KEYS) {
+    const def = CAPABILITIES[key];
+    if (capabilityGating(def) === "platform_role") {
+      for (const role of TENANT_ROLE_KEYS) {
+        assert.ok(
+          !ROLE_CAPABILITIES[role].has(key),
+          `${role} must not have role-grant for platform-only capability "${key}"`,
+        );
+      }
+    }
+  }
 });

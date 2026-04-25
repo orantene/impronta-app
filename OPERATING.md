@@ -176,7 +176,25 @@ super_admin bypass policy:
 - **Vercel production branch** stuck on `main`. Fix only by upgrading to Pro and editing `link.productionBranch`. Do at launch.
 - **`draft` workspace status** — keep, merge into `onboarding`, or drop. Recommend merging during Phase 2 status work.
 
-## 12. Where to find more
+## 12. Locked product logic
+
+These documents are binding product logic. Code, schema, or copy that conflicts must be raised as a Decision-Log amendment before being changed — not silently re-interpreted.
+
+- [`docs/talent-relationship-model.md`](docs/talent-relationship-model.md) — Talent / agency / hub / visibility / inquiry-ownership rules. Establishes:
+  - Hubs ≠ agencies (criteria-based vs configurable join modes)
+  - Agency join modes: `open` / `open_by_approval` / `exclusive`
+  - Exclusivity rules and the talent's right to exit
+  - User-talent dual identity ("AlsoTalent" relationship)
+  - **Inquiry ownership = source URL** (most important rule)
+  - Multi-source inquiry flow
+  - Profile lifecycle states (Draft / Invited / Awaiting approval / Published / Claimed / Verified / Inactive / Removed)
+  - Plan-ladder distribution rules (Free auto-assigned; Studio+ manual; Agency exclusive; Network hub-level)
+  - Relationship-gated capabilities (the "explain why" UI rule)
+  - 14 capability keys reserved in `lib/access/capabilities.ts`
+
+When working on the dashboard restructure (Track B.5), the talent surface (`/talent/*`), or any inquiry / roster / visibility surface — read this doc first.
+
+## 13. Where to find more
 
 - [`AGENTS.md`](AGENTS.md) — agent operating contract (read on every change)
 - [`README.md`](README.md) — install / dev / test / deploy
