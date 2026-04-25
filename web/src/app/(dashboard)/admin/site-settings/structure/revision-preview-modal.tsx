@@ -228,13 +228,11 @@ export function RevisionPreviewModal({
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     Diff vs. your current draft:{" "}
                     <span className="text-emerald-600 dark:text-emerald-400">+ added</span>{" "}
-                    ·{" "}
-                    <span className="text-amber-600 dark:text-amber-400">~ moved</span>{" "}
                     · kept ·{" "}
                     <span className="text-rose-600 dark:text-rose-400">– removed</span>
                   </p>
                 ) : null}
-                {summary.slots.length === 0 ? (
+                {summary.slots.length === 0 && !currentSlotsBySection ? (
                   <p className="mt-2 rounded-md border border-dashed border-border/60 bg-muted/10 px-3 py-4 text-center text-sm text-muted-foreground">
                     No sections in this revision — restoring would leave the
                     composer empty.
@@ -338,6 +336,62 @@ export function RevisionPreviewModal({
                         </li>
                       );
                     })}
+
+                    {/* Slots present in the current draft but absent from
+                        this revision — every section in them would be
+                        dropped on restore. Render as removed-only blocks
+                        so the operator sees what would disappear. */}
+                    {currentSlotsBySection
+                      ? (() => {
+                          const revisionSlotKeys = new Set(
+                            summary.slots.map((s) => s.slotKey),
+                          );
+                          const currentOnly: Array<{
+                            slotKey: string;
+                            ids: string[];
+                          }> = [];
+                          for (const [slotKey, ids] of currentSlotsBySection) {
+                            if (revisionSlotKeys.has(slotKey)) continue;
+                            const list = Array.from(ids);
+                            if (list.length === 0) continue;
+                            currentOnly.push({ slotKey, ids: list });
+                          }
+                          return currentOnly.map(({ slotKey, ids }) => (
+                            <li
+                              key={`current-only-${slotKey}`}
+                              className="rounded-md border border-rose-500/30 bg-rose-500/5 p-3"
+                            >
+                              <div className="text-[11px] font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">
+                                {slotKey} · slot empty in revision
+                              </div>
+                              <ul className="mt-1.5 space-y-1">
+                                {ids.map((id) => (
+                                  <li
+                                    key={`current-only-${slotKey}-${id}`}
+                                    className="flex items-center justify-between gap-3 text-sm opacity-70"
+                                  >
+                                    <span className="flex items-center gap-2">
+                                      <span
+                                        className="inline-flex h-4 w-4 items-center justify-center rounded bg-rose-500/15 text-[10px] font-bold text-rose-700 dark:text-rose-300"
+                                        aria-label="removed"
+                                      >
+                                        –
+                                      </span>
+                                      <span className="font-medium line-through">
+                                        {getSectionName?.(id) ??
+                                          `Section ${id.slice(0, 6)}`}
+                                      </span>
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      removed
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </li>
+                          ));
+                        })()
+                      : null}
                   </ul>
                 )}
               </section>

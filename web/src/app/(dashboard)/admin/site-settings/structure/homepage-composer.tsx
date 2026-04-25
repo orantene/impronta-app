@@ -210,6 +210,37 @@ function formatWhen(iso: string | null | undefined): string {
   }
 }
 
+/**
+ * Preview tile for the OG image URL field. Shows the image when it loads,
+ * a "couldn't load" placeholder otherwise so the operator sees feedback
+ * for typos or 404s instead of a silently-vanishing tile. Resets on URL
+ * change so the loading state retries against each new value.
+ */
+function OgImagePreview({ url }: { url: string }) {
+  const [errored, setErrored] = useState(false);
+  useEffect(() => {
+    setErrored(false);
+  }, [url]);
+  return (
+    <div className="rounded-md border border-border/40 bg-muted/20 p-2">
+      {errored ? (
+        <p className="text-xs text-amber-300">
+          Couldn&apos;t load preview from this URL. Check the path or paste a
+          fresh asset URL.
+        </p>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url}
+          alt="OG preview"
+          className="max-h-32 rounded border border-border/30 object-contain"
+          onError={() => setErrored(true)}
+        />
+      )}
+    </div>
+  );
+}
+
 // ---- sortable row ---------------------------------------------------------
 
 /**
@@ -316,9 +347,9 @@ function SortableSlotItem({
       {typeof reuseCount === "number" && reuseCount >= 2 && (
         <span
           className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-300"
-          title={`Used in ${reuseCount} compositions across the workspace. Editing this section changes every page that references it.`}
+          title={`Referenced by ${reuseCount} pages in this workspace. Editing this section changes every page that uses it.`}
         >
-          Reused {reuseCount}×
+          On {reuseCount} pages
         </span>
       )}
 
@@ -599,8 +630,12 @@ export function HomepageComposer({
         canonicalUrl?: string;
         noindex?: boolean;
       };
-      // Don't auto-apply if the server is ahead of the local backup —
-      // the operator opened a fresher state since the snapshot was made.
+      // Restore when the backup was captured at-or-after the server's
+      // current version. The save-success path always clears
+      // localStorage, so a same-version backup means an interrupted
+      // in-flight edit (legit recovery target). Reject if the server is
+      // ahead (parsed.version < page.version) — that means another tab
+      // / actor saved newer state and our backup is stale.
       if (parsed.version >= page.version) {
         restoredFromLocalRef.current = true;
         toast.message(
@@ -650,6 +685,40 @@ export function HomepageComposer({
     canonicalUrl: page.canonical_url ?? "",
     noindex: page.noindex ?? false,
   });
+  // Keep baselineRef in sync when the parent re-renders with a fresh
+  // `page` (e.g. after a server-driven revalidation). Otherwise isDirty
+  // would compare against stale mount-time values and the "Unsaved" badge
+  // would stick on indefinitely. Keyed on page.version so we only resync
+  // on real updates, not noisy reference equality changes.
+  useEffect(() => {
+    const heroIntro =
+      typeof (page.hero as { introTagline?: unknown } | null)?.introTagline ===
+      "string"
+        ? ((page.hero as { introTagline: string }).introTagline)
+        : "";
+    baselineRef.current = {
+      entries: initialEntries,
+      title: page.title ?? "Homepage",
+      metaDescription: page.meta_description ?? "",
+      introTagline: heroIntro,
+      ogTitle: page.og_title ?? "",
+      ogDescription: page.og_description ?? "",
+      ogImageUrl: page.og_image_url ?? "",
+      canonicalUrl: page.canonical_url ?? "",
+      noindex: page.noindex ?? false,
+    };
+  }, [
+    page.version,
+    page.title,
+    page.meta_description,
+    page.og_title,
+    page.og_description,
+    page.og_image_url,
+    page.canonical_url,
+    page.noindex,
+    page.hero,
+    initialEntries,
+  ]);
   const isDirty = useMemo(() => {
     const b = baselineRef.current;
     if (b.title !== title) return true;
@@ -684,6 +753,13 @@ export function HomepageComposer({
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
+  // Track the latest server-acknowledged version. After a save/publish/
+  // restore the page-prop `page.version` stays at the load-time value
+  // (it's a server-component prop, not refetched), so writing
+  // `version: page.version` into localStorage would stamp stale data.
+  // We update this ref in the save-success effect below.
+  const latestVersionRef = useRef(page.version);
+
   // Persist current dirty state to localStorage with a short debounce so
   // we batch typing into one write per keystroke storm.
   useEffect(() => {
@@ -698,7 +774,7 @@ export function HomepageComposer({
           localKey,
           JSON.stringify({
             savedAt: new Date().toISOString(),
-            version: page.version,
+            version: latestVersionRef.current,
             entries,
             title,
             metaDescription,
@@ -718,7 +794,6 @@ export function HomepageComposer({
   }, [
     isDirty,
     localKey,
-    page.version,
     entries,
     title,
     metaDescription,
@@ -767,13 +842,17 @@ export function HomepageComposer({
       }));
     }
     setEntries(next);
-    setTitle(metadata.title || baselineRef.current.title);
-    setMetaDescription(metadata.metaDescription);
-    setIntroTagline(metadata.introTagline);
-    setOgTitle(metadata.ogTitle);
-    setOgDescription(metadata.ogDescription);
-    setOgImageUrl(metadata.ogImageUrl);
-    setCanonicalUrl(metadata.canonicalUrl);
+    // Only clone source metadata fields that are actually populated. Empty
+    // strings on the source mean "no override" — copying them onto the
+    // target would silently wipe legitimate target values. Boolean flags
+    // (noindex) are always copied since false IS a meaningful state.
+    if (metadata.title) setTitle(metadata.title);
+    if (metadata.metaDescription) setMetaDescription(metadata.metaDescription);
+    if (metadata.introTagline) setIntroTagline(metadata.introTagline);
+    if (metadata.ogTitle) setOgTitle(metadata.ogTitle);
+    if (metadata.ogDescription) setOgDescription(metadata.ogDescription);
+    if (metadata.ogImageUrl) setOgImageUrl(metadata.ogImageUrl);
+    if (metadata.canonicalUrl) setCanonicalUrl(metadata.canonicalUrl);
     setNoindex(metadata.noindex);
     toast.success(
       `Loaded ${source.toUpperCase()} ${sourcedFromDraft ? "draft" : "live"} composition. Review and Save to apply.`,
@@ -811,7 +890,9 @@ export function HomepageComposer({
 
   // On successful save / publish / restore, the current state IS the new
   // baseline — drop the localStorage backup and reset isDirty to false so
-  // the beforeunload guard releases.
+  // the beforeunload guard releases. We also stamp the new version into
+  // latestVersionRef so any subsequent autosave write is keyed to the
+  // server's actual version (not the stale mount-time page.version).
   useEffect(() => {
     if (saveState?.ok || publishState?.ok || restoreState?.ok) {
       baselineRef.current = {
@@ -825,6 +906,19 @@ export function HomepageComposer({
         canonicalUrl,
         noindex,
       };
+      const nextVersion =
+        (saveState?.ok && typeof saveState.version === "number"
+          ? saveState.version
+          : null) ??
+        (publishState?.ok && typeof publishState.version === "number"
+          ? publishState.version
+          : null) ??
+        (restoreState?.ok && typeof restoreState.version === "number"
+          ? restoreState.version
+          : null);
+      if (typeof nextVersion === "number") {
+        latestVersionRef.current = nextVersion;
+      }
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(localKey);
       }
@@ -1069,6 +1163,54 @@ export function HomepageComposer({
     () => Object.values(entries).reduce((sum, list) => sum + list.length, 0),
     [entries],
   );
+
+  /**
+   * Does the current draft composition match what's live? Used to gate the
+   * "Refresh published snapshot" button: when draft === live, the button
+   * is a true no-op-ish refresh (re-bake section props into the snapshot
+   * without changing composition). When they diverge, "refresh" would
+   * actually publish the draft — misleading, so we hide the button in that
+   * case and the operator goes through Review + publish.
+   *
+   * Compares the (slotKey → ordered sectionId list) projection because
+   * sortOrder values may differ in absolute terms but the ordering is what
+   * matters.
+   */
+  const draftMatchesLive = useMemo(() => {
+    const liveBySlot: Record<string, string[]> = {};
+    for (const row of liveSlots) {
+      const list = liveBySlot[row.slot_key] ?? [];
+      list.push(row.section_id);
+      liveBySlot[row.slot_key] = list;
+    }
+    // liveSlots may not be pre-sorted by sort_order; normalise.
+    for (const key of Object.keys(liveBySlot)) {
+      const sorted = liveSlots
+        .filter((r) => r.slot_key === key)
+        .slice()
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((r) => r.section_id);
+      liveBySlot[key] = sorted;
+    }
+    const draftBySlot: Record<string, string[]> = {};
+    for (const [slotKey, list] of Object.entries(entries)) {
+      draftBySlot[slotKey] = list
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((e) => e.sectionId);
+    }
+    const allSlotKeys = new Set([
+      ...Object.keys(liveBySlot),
+      ...Object.keys(draftBySlot),
+    ]);
+    for (const key of allSlotKeys) {
+      const a = liveBySlot[key] ?? [];
+      const b = draftBySlot[key] ?? [];
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }, [entries, liveSlots]);
 
   // Orphans: slot entries whose section row is missing from the available list
   // (deleted, archived behind our back, or out-of-tenant). The composer used
@@ -1356,18 +1498,7 @@ export function HomepageComposer({
                 )}
               </div>
               {ogImageUrl && (
-                <div className="rounded-md border border-border/40 bg-muted/20 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={ogImageUrl}
-                    alt="OG preview"
-                    className="max-h-32 rounded border border-border/30 object-contain"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display =
-                        "none";
-                    }}
-                  />
-                </div>
+                <OgImagePreview url={ogImageUrl} />
               )}
               <p className="text-xs text-muted-foreground">
                 Absolute URL or path starting with <code>/</code>. 1200×630 PNG
@@ -1538,8 +1669,16 @@ export function HomepageComposer({
                 <p className="text-xs text-muted-foreground">{allowedCopy}</p>
 
                 {items.length === 0 ? (
+                  // When the whole composer is empty (totalEntries === 0)
+                  // the in-composer banner above already drives the
+                  // "publish is blocked" CTA — shrink this per-slot line
+                  // to avoid stacking two copies of the same message.
                   <p className="text-sm italic text-muted-foreground">
-                    Empty — {slot.required ? "publish is blocked until you add a section." : "optional slot."}
+                    {totalEntries === 0
+                      ? slot.required
+                        ? "Empty (required)"
+                        : "Empty (optional)"
+                      : `Empty — ${slot.required ? "publish is blocked until you add a section." : "optional slot."}`}
                   </p>
                 ) : (
                   <DndContext
@@ -1770,12 +1909,15 @@ export function HomepageComposer({
               The published_homepage_snapshot freezes section props at
               publish time. If a section is later edited via the section
               editor, the live storefront keeps showing the frozen copy
-              until the homepage is re-published. This nudge surfaces that
-              behaviour and gives a one-click "re-publish to refresh" path
-              that re-uses the current draft composition. CAS uses the
-              same effectiveVersion as a regular publish, so racing
-              edits are caught the same way. */}
-          {page.published_at && (
+              until the homepage is re-published. This nudge surfaces
+              that behaviour with a one-click re-publish.
+              IMPORTANT: we only show this button when the draft
+              composition equals the live composition. Otherwise
+              clicking "refresh" would silently ship draft changes — the
+              label and behaviour would be at war. When draft ≠ live, the
+              operator's path is "Review + publish" with the preflight
+              modal, which is already prominent above. */}
+          {page.published_at && draftMatchesLive && (
             <div className="flex flex-wrap items-center gap-3 border-t border-border/40 pt-2">
               <Button
                 type="button"
@@ -1790,7 +1932,7 @@ export function HomepageComposer({
                   draftRefs.length > 0 ||
                   missingRequired.length > 0
                 }
-                title="Re-publish to re-bake section content into the live snapshot"
+                title="Re-publish to re-bake section content into the live snapshot. Composition unchanged."
               >
                 <RefreshCw className="mr-1.5 size-3.5" />
                 Refresh published snapshot
@@ -1798,8 +1940,18 @@ export function HomepageComposer({
               <p className="text-xs text-muted-foreground">
                 Edited a section after publishing? The live storefront serves
                 content frozen at the last publish — re-publish to refresh.
+                Composition unchanged.
               </p>
             </div>
+          )}
+          {page.published_at && !draftMatchesLive && (
+            <p className="border-t border-border/40 pt-2 text-xs text-muted-foreground">
+              <RefreshCw className="mr-1 inline size-3" />
+              Your draft has composition changes vs. live — use Review +
+              publish above to ship them. (The standalone &ldquo;refresh
+              snapshot&rdquo; shortcut only appears when draft equals
+              live.)
+            </p>
           )}
         </div>
       )}

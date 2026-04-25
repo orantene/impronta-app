@@ -164,11 +164,15 @@ export default async function SiteSettingsStructurePage(props: {
     .map((entry) => entry.locale);
 
   // Project the usage map down to the small shape the composer needs
-  // (one chip per slot entry). Plain JSON so it serialises cleanly across
-  // the server→client boundary.
+  // (one chip per slot entry). We count DISTINCT pages — `totalReferences`
+  // counts draft+live composition rows separately, so a section sitting on
+  // one published page would otherwise read as "2 references". The chip is
+  // meant to flag sections shared across pages, not the draft/live pair.
+  // Plain JSON so it serialises cleanly across the server→client boundary.
   const sectionUsageCounts: Record<string, number> = {};
   for (const [sectionId, usage] of usageMap.entries()) {
-    sectionUsageCounts[sectionId] = usage.totalReferences;
+    const distinctPages = new Set(usage.pageRefs.map((r) => r.pageId));
+    sectionUsageCounts[sectionId] = distinctPages.size;
   }
 
   const isEmptyTenant =
