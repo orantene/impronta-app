@@ -1062,6 +1062,29 @@ function ExitButton() {
   );
 }
 
+/**
+ * Wraps the exit-edit form so we can intercept submit and confirm with
+ * the operator when there are un-persisted inspector edits or a save
+ * is mid-flight. `preventDefault` short-circuits the React 19 server-
+ * action pipeline the same way it cancels native submits.
+ */
+function ExitForm({ dirty, saving }: { dirty: boolean; saving: boolean }) {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (!dirty && !saving) return;
+    const ok = window.confirm(
+      "Exit edit mode with unsaved changes?\n\n" +
+        "Your inspector field edits aren't saved yet — exiting now will discard them. " +
+        "Composition moves are already auto-saved as a draft.",
+    );
+    if (!ok) e.preventDefault();
+  };
+  return (
+    <form action={exitEditModeAction} onSubmit={handleSubmit}>
+      <ExitButton />
+    </form>
+  );
+}
+
 // ── Main TopBar ───────────────────────────────────────────────────────────────
 
 export interface TopBarProps {
@@ -1299,9 +1322,7 @@ export function TopBar({
       <TbDivider />
 
       {/* ── Exit ── */}
-      <form action={exitEditModeAction}>
-        <ExitButton />
-      </form>
+      <ExitForm dirty={dirty} saving={saving} />
     </div>
   );
 }

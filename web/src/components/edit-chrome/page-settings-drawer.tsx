@@ -185,6 +185,20 @@ function textareaStyle(): React.CSSProperties {
   };
 }
 
+/**
+ * Visual override applied to inputs whose char count is over the
+ * documented max. Pairs with `aria-invalid` so SRs flag the field.
+ * The HelperCounter already turns amber at the same threshold; this
+ * is the second signal so the field itself reads as "needs attention".
+ */
+function overLimitStyle(active: boolean): React.CSSProperties | undefined {
+  if (!active) return undefined;
+  return {
+    borderColor: CHROME.rose,
+    boxShadow: `inset 0 1px 0 rgba(255,255,255,0.5), 0 0 0 1px ${CHROME.roseLine}`,
+  };
+}
+
 // ── PageSettingsDrawer ───────────────────────────────────────────────────────
 
 export function PageSettingsDrawer() {
@@ -227,6 +241,10 @@ export function PageSettingsDrawer() {
   const descLen = (draft?.metaDescription ?? "").length;
   const ogTitleLen = (draft?.ogTitle ?? "").length;
   const ogDescLen = (draft?.ogDescription ?? "").length;
+  const titleOver = titleLen > TITLE_MAX;
+  const descOver = descLen > DESC_MAX;
+  const ogTitleOver = ogTitleLen > OG_TITLE_MAX;
+  const ogDescOver = ogDescLen > OG_DESC_MAX;
 
   function patch<K extends keyof PageMetadata>(key: K, value: PageMetadata[K]) {
     setDraft((prev) => {
@@ -311,7 +329,8 @@ export function PageSettingsDrawer() {
                   type="text"
                   value={draft?.title ?? ""}
                   onChange={(e) => patch("title", e.target.value)}
-                  style={inputLgStyle()}
+                  aria-invalid={titleOver || undefined}
+                  style={{ ...inputLgStyle(), ...overLimitStyle(titleOver) }}
                   placeholder="Impronta · A house of curated talent"
                 />
                 <Helper>
@@ -335,7 +354,8 @@ export function PageSettingsDrawer() {
                       e.target.value === "" ? null : e.target.value,
                     )
                   }
-                  style={textareaStyle()}
+                  aria-invalid={descOver || undefined}
+                  style={{ ...textareaStyle(), ...overLimitStyle(descOver) }}
                   placeholder="A boutique agency curating bilingual talent for events, brand campaigns, and editorial work."
                 />
                 <Helper>
@@ -424,7 +444,8 @@ export function PageSettingsDrawer() {
                         e.target.value === "" ? null : e.target.value,
                       )
                     }
-                    style={inputStyle()}
+                    aria-invalid={ogTitleOver || undefined}
+                    style={{ ...inputStyle(), ...overLimitStyle(ogTitleOver) }}
                     placeholder="Defaults to page title"
                   />
                   <Helper>
@@ -446,7 +467,8 @@ export function PageSettingsDrawer() {
                         e.target.value === "" ? null : e.target.value,
                       )
                     }
-                    style={textareaStyle()}
+                    aria-invalid={ogDescOver || undefined}
+                    style={{ ...textareaStyle(), ...overLimitStyle(ogDescOver) }}
                     placeholder="Defaults to meta description"
                   />
                   <Helper>

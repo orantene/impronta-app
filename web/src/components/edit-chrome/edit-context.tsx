@@ -572,6 +572,23 @@ export function EditProvider({
     return () => clearTimeout(t);
   }, [lastDraftSavedAt]);
 
+  // beforeunload guard. When the inspector has un-persisted section edits
+  // (`dirty`) or a save is in flight (`saving`), nudge the operator with
+  // the browser's "Leave site?" dialog before the tab/window is closed.
+  // Composition mutations save-as-draft immediately via CAS so they're not
+  // at risk; only the inspector field draft can be lost. Modern browsers
+  // ignore the custom string, but `preventDefault` + `returnValue = ""`
+  // is the canonical incantation that triggers the native prompt.
+  useEffect(() => {
+    if (!dirty && !saving) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty, saving]);
+
   const applyComposition = useCallback((data: CompositionData) => {
     setPageVersion(data.pageVersion);
     setPageMetadata(data.metadata);
