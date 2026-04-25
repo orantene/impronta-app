@@ -233,3 +233,27 @@ export const ADMIN_PROTOTYPE_PRIMARY_GROUP_IDS = new Set([
   "workspace",
   "site-and-ai",
 ]);
+
+/**
+ * Map of URL leaf segment → the nav label for that destination. Used by the
+ * top-bar breadcrumb so the on-screen label matches the sidebar entry. Built
+ * from {@link ADMIN_PROTOTYPE_NAV} so renaming a sidebar item updates the
+ * breadcrumb in lockstep — no parallel constants to drift.
+ *
+ * Caveat: the breadcrumb walks ALL path segments (e.g. `/admin/site/pages`),
+ * but only top-level destinations live in the sidebar. Sub-routes fall back
+ * to the prettify() heuristic in the top-bar itself.
+ */
+export const ADMIN_NAV_LABEL_BY_SEGMENT: Record<string, string> = (() => {
+  const out: Record<string, string> = { admin: "Admin" };
+  for (const group of ADMIN_PROTOTYPE_NAV) {
+    for (const item of group.items) {
+      const segments = item.href.split("/").filter(Boolean);
+      const leaf = segments[segments.length - 1];
+      if (leaf && leaf !== "admin" && !out[leaf]) {
+        out[leaf] = item.label;
+      }
+    }
+  }
+  return out;
+})();

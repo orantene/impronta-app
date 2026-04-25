@@ -36,6 +36,7 @@ import {
   useAdminWorkspace,
 } from "@/components/admin/workspace-context";
 import { TIER_DOT, TIER_LABEL } from "@/lib/admin/plan-tiers";
+import { ADMIN_NAV_LABEL_BY_SEGMENT } from "@/lib/prototype/admin-prototype-nav";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,8 +59,10 @@ import { cn } from "@/lib/utils";
  * viewport instead of the previous ~190px.
  */
 
-const LABELS: Record<string, string> = {
-  admin: "Admin",
+// Sub-route labels for paths that don't have a sidebar entry (composer panels,
+// taxonomy children, analytics tabs). Top-level destinations come from
+// ADMIN_NAV_LABEL_BY_SEGMENT so a sidebar rename auto-updates the breadcrumb.
+const SUBROUTE_LABELS: Record<string, string> = {
   "site-settings": "Site",
   structure: "Composer",
   design: "Design",
@@ -72,24 +75,21 @@ const LABELS: Record<string, string> = {
   branding: "Brand",
   system: "System",
   audit: "Audit",
-  inquiries: "Inquiries",
-  bookings: "Bookings",
   accounts: "Work locations",
-  talent: "Roster",
-  clients: "Clients",
   media: "Media",
   translations: "Translations",
-  settings: "Settings",
-  account: "Account",
-  "ai-workspace": "AI",
   analytics: "Analytics",
   fields: "Fields",
   directory: "Directory",
   taxonomy: "Taxonomy",
   locations: "Locations",
-  users: "Users",
   search: "Search",
   admins: "Admins",
+};
+
+const LABELS: Record<string, string> = {
+  ...SUBROUTE_LABELS,
+  ...ADMIN_NAV_LABEL_BY_SEGMENT,
 };
 
 function prettify(segment: string): string {
@@ -352,7 +352,17 @@ export function AdminShellTopBar({
           </TooltipContent>
         </Tooltip>
 
-        {/* Plan + usage chip */}
+        {/* Plan + usage chip — render a skeleton stand-in while the workspace
+            summary hasn't hydrated yet (the brief flash of "—" is jarring). */}
+        {!workspace ? (
+          <span
+            className="ml-0.5 inline-flex h-[26px] w-[124px] items-center gap-1.5 rounded-full border border-[rgba(24,24,27,0.12)] bg-foreground/[0.04] px-2.5 animate-pulse"
+            aria-hidden
+          >
+            <span className="size-2 rounded-full bg-foreground/15" />
+            <span className="h-2 flex-1 rounded-full bg-foreground/10" />
+          </span>
+        ) : (
         <button
           type="button"
           onClick={() => upgradeModal.setOpen(true)}
@@ -415,6 +425,7 @@ export function AdminShellTopBar({
             />
           )}
         </button>
+        )}
 
         {/* Locale */}
         <DashboardLocaleToggle

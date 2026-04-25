@@ -1,23 +1,18 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Info } from "lucide-react";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminHelpPopover } from "@/components/admin/admin-help-popover";
+import { AdminListPage } from "@/components/admin/admin-list-page";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { AdminCommercialListIntake } from "@/components/admin/admin-commercial-list-intake";
 import { AdminInquiryQueue } from "@/app/(dashboard)/admin/inquiries/admin-inquiry-queue";
 import type { InquiryQueueRow } from "@/app/(dashboard)/admin/inquiries/admin-inquiry-queue";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
-import {
-  ADMIN_FORM_CONTROL,
-  ADMIN_HELP_TRIGGER_BUTTON,
-  ADMIN_POPOVER_CONTENT_CLASS,
-} from "@/lib/dashboard-shell-classes";
+import { ADMIN_FORM_CONTROL } from "@/lib/dashboard-shell-classes";
 import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
 import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { loadInquiryRosterPeekMany } from "@/lib/inquiry/inquiry-workspace-data";
 import { requireAdminTenantGuard } from "@/lib/saas/admin-scope";
 
@@ -525,16 +520,15 @@ export default async function AdminInquiriesPage({
     (coordinatorFilter ? 1 : 0);
 
   return (
-    <div className={cn("mx-auto max-w-6xl space-y-5 pb-8")}>
-      <AdminPageHeader
-        eyebrow="Pipeline"
-        title="Requests"
-        description={
-          queueRows.length > 0
-            ? `${queueRows.length} request${queueRows.length === 1 ? "" : "s"} in this view`
-            : "No requests in this view"
-        }
-        right={
+    <AdminListPage
+      eyebrow="Pipeline"
+      title="Requests"
+      description={
+        queueRows.length > 0
+          ? `${queueRows.length} request${queueRows.length === 1 ? "" : "s"} in this view`
+          : "No requests in this view"
+      }
+      right={
         <div className="flex flex-wrap items-center gap-2">
           <AdminCommercialListIntake
             variant="inquiries"
@@ -542,65 +536,54 @@ export default async function AdminInquiriesPage({
             contacts={intakeContacts}
             talents={(intakeTalentsRes.data ?? []) as { id: string; profile_code: string; display_name: string | null }[]}
           />
-          <Popover>
-            <PopoverTrigger
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), ADMIN_HELP_TRIGGER_BUTTON)}
-            >
-              <Info className="size-4 text-[var(--impronta-gold)]" aria-hidden />
-              How it works
-            </PopoverTrigger>
-            <PopoverContent align="end" className={ADMIN_POPOVER_CONTENT_CLASS}>
-              <div className="space-y-2">
-                <p className="font-display text-sm font-medium text-foreground">Intake pipeline</p>
-                <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                  <li>Each row is a lead — not confirmed work yet. Use &ldquo;New request&rdquo; for phone intake.</li>
-                  <li>Preview without leaving the list, or open the full page to convert to a booking.</li>
-                  <li>Confirmed jobs live under Bookings once you convert.</li>
-                </ul>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <AdminHelpPopover title="Intake pipeline">
+            <li>Each row is a lead — not confirmed work yet. Use &ldquo;New request&rdquo; for phone intake.</li>
+            <li>Preview without leaving the list, or open the full page to convert to a booking.</li>
+            <li>Confirmed jobs live under Bookings once you convert.</li>
+          </AdminHelpPopover>
         </div>
-        }
-      />
-
-      <AdminStatusTabs
-        ariaLabel="Request status"
-        items={STATUS_TABS.map((tab) => ({
-          href: buildAdminInquiriesHref({
-            ...inquiryNavBase,
-            status: tab.key === "all" ? undefined : tab.key,
-          }),
-          label: tab.label,
-          active: tab.key === "all" ? !statusFilter : statusFilter === tab.key,
-        }))}
-      />
-
-      {/* Scope banners */}
-      {clientUserId && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-muted/20 px-4 py-3 text-sm">
-          <p className="text-muted-foreground">
-            Scoped to client:{" "}
-            <span className="font-medium text-foreground">{scopedClientName?.trim() || clientUserId}</span>
-          </p>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/admin/inquiries" scroll={false}>Clear scope</Link>
-          </Button>
-        </div>
-      )}
-      {clientAccountId && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-muted/20 px-4 py-3 text-sm">
-          <p className="text-muted-foreground">
-            Scoped to location:{" "}
-            <span className="font-medium text-foreground">{scopedAccountName?.trim() || clientAccountId}</span>
-          </p>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/admin/inquiries" scroll={false}>Clear scope</Link>
-          </Button>
-        </div>
-      )}
-
-      <AdminFilterBar title="Search & filters" activeCount={filterActiveCount}>
+      }
+      tabs={
+        <AdminStatusTabs
+          ariaLabel="Request status"
+          items={STATUS_TABS.map((tab) => ({
+            href: buildAdminInquiriesHref({
+              ...inquiryNavBase,
+              status: tab.key === "all" ? undefined : tab.key,
+            }),
+            label: tab.label,
+            active: tab.key === "all" ? !statusFilter : statusFilter === tab.key,
+          }))}
+        />
+      }
+      banners={
+        <>
+          {clientUserId && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-muted/20 px-4 py-3 text-sm">
+              <p className="text-muted-foreground">
+                Scoped to client:{" "}
+                <span className="font-medium text-foreground">{scopedClientName?.trim() || clientUserId}</span>
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/inquiries" scroll={false}>Clear scope</Link>
+              </Button>
+            </div>
+          )}
+          {clientAccountId && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-muted/20 px-4 py-3 text-sm">
+              <p className="text-muted-foreground">
+                Scoped to location:{" "}
+                <span className="font-medium text-foreground">{scopedAccountName?.trim() || clientAccountId}</span>
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/inquiries" scroll={false}>Clear scope</Link>
+              </Button>
+            </div>
+          )}
+        </>
+      }
+      filters={
+        <AdminFilterBar title="Search & filters" activeCount={filterActiveCount}>
       <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_160px_160px_140px_140px_auto] md:items-end">
         <div className="space-y-1.5">
           <label htmlFor="q" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -776,8 +759,9 @@ export default async function AdminInquiriesPage({
           );
         })}
       </div>
-      </AdminFilterBar>
-
+        </AdminFilterBar>
+      }
+    >
       {/* Queue table — Suspense: peek triggers use `useSearchParams` */}
       <Suspense
         fallback={
@@ -786,6 +770,6 @@ export default async function AdminInquiriesPage({
       >
         <AdminInquiryQueue rows={queueRows} currentUserId={currentUserId} />
       </Suspense>
-    </div>
+    </AdminListPage>
   );
 }

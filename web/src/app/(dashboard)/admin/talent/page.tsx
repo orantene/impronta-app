@@ -1,12 +1,11 @@
 import {
   ADMIN_FORM_CONTROL,
-  ADMIN_PAGE_STACK,
   ADMIN_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminListPage } from "@/components/admin/admin-list-page";
 import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { DashboardSegmentedNav } from "@/components/dashboard/dashboard-segmented-nav";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
@@ -350,38 +349,38 @@ export default async function AdminTalentListPage({
     (q.trim() ? 1 : 0) + (activeSort !== "newest" ? 1 : 0);
 
   return (
-    <div className={ADMIN_PAGE_STACK}>
-      <AdminPageHeader
-        eyebrow="Roster"
-        title="Talent"
-        description="Triage → open a hub → review workflow, then profile, then media. Pending uploads also appear on the global Media page."
-        right={
-          <div className="flex items-center gap-2">
-            <AdminNewTalentLink />
-            <AdminTalentHelpPopover />
-          </div>
-        }
-      />
-
-      <AdminPageTabs
-        ariaLabel="Talent status"
-        items={TABS.map((tab) => ({
-          href: talentListHref(tab.key, activeMediaTab, { q, sort: activeSort }),
-          label: `${tab.label} (${tabCounts[tab.key]})`,
-          active: activeTab === tab.key,
-        }))}
-      />
-
-      <DashboardSegmentedNav
-        ariaLabel="Talent media filter"
-        items={MEDIA_TABS.map((tab) => ({
-          href: talentListHref(activeTab, tab.key, { q, sort: activeSort }),
-          label: tab.label,
-          active: activeMediaTab === tab.key,
-        }))}
-      />
-
-      <AdminFilterBar
+    <AdminListPage
+      eyebrow="Roster"
+      title="Talent"
+      description="Triage → open a hub → review workflow, then profile, then media. Pending uploads also appear on the global Media page."
+      right={
+        <div className="flex items-center gap-2">
+          <AdminNewTalentLink />
+          <AdminTalentHelpPopover />
+        </div>
+      }
+      tabs={
+        <>
+          <AdminPageTabs
+            ariaLabel="Talent status"
+            items={TABS.map((tab) => ({
+              href: talentListHref(tab.key, activeMediaTab, { q, sort: activeSort }),
+              label: `${tab.label} (${tabCounts[tab.key]})`,
+              active: activeTab === tab.key,
+            }))}
+          />
+          <DashboardSegmentedNav
+            ariaLabel="Talent media filter"
+            items={MEDIA_TABS.map((tab) => ({
+              href: talentListHref(activeTab, tab.key, { q, sort: activeSort }),
+              label: tab.label,
+              active: activeMediaTab === tab.key,
+            }))}
+          />
+        </>
+      }
+      filters={
+        <AdminFilterBar
         title="Queue controls"
         description="Search, sort, and paginate from the URL so this roster stays shareable and scalable."
         activeCount={filterActiveCount}
@@ -422,8 +421,9 @@ export default async function AdminTalentListPage({
             ) : null}
           </div>
         </form>
-      </AdminFilterBar>
-
+        </AdminFilterBar>
+      }
+    >
       <DashboardSectionCard
         title="Talent queue"
         description={`Page ${currentPage} of ${totalPages} · ${totalCount} total result${totalCount === 1 ? "" : "s"} · Sorted by ${currentSortLabel}.`}
@@ -464,6 +464,6 @@ export default async function AdminTalentListPage({
           }
         />
       </DashboardSectionCard>
-    </div>
+    </AdminListPage>
   );
 }

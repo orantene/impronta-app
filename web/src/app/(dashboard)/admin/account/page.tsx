@@ -1,8 +1,6 @@
 import { StaffAccountPasswordForm } from "@/app/(dashboard)/admin/account/staff-account-password-form";
-import { signOut } from "@/app/auth/actions";
 import { AccountShell } from "@/components/admin/account/account-shell";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { Button } from "@/components/ui/button";
 import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
 import {
   isStaffRole,
@@ -37,16 +35,9 @@ export default async function AdminAccountPage() {
           Your session
         </h3>
         <p className="text-[12.5px] text-muted-foreground">
-          Signed in as staff. Sign out on shared devices.
+          Signed in as <span className="font-medium text-foreground">{userEmail}</span>.
+          Sign out from the avatar menu (top-right) or sidebar.
         </p>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[10px] border border-[rgba(24,24,27,0.1)] bg-white px-3.5 py-3">
-          <p className="truncate text-[13px] text-foreground">{userEmail}</p>
-          <form action={signOut}>
-            <Button type="submit" variant="outline" size="sm">
-              Sign out
-            </Button>
-          </form>
-        </div>
       </section>
 
       <section className="space-y-2">

@@ -1,20 +1,17 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Info } from "lucide-react";
 import { AdminBookingQueue } from "@/app/(dashboard)/admin/bookings/admin-booking-queue";
 import type { BookingQueueRow } from "@/app/(dashboard)/admin/bookings/admin-booking-queue";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
-import { AdminPageHeader } from "@/components/admin/admin-page-header";
+import { AdminHelpPopover } from "@/components/admin/admin-help-popover";
+import { AdminListPage } from "@/components/admin/admin-list-page";
 import { AdminStatusTabs } from "@/components/admin/admin-status-tabs";
 import { AdminCommercialListIntake } from "@/components/admin/admin-commercial-list-intake";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
 import {
   ADMIN_FORM_CONTROL,
   ADMIN_HELP_TRIGGER_BUTTON,
-  ADMIN_PAGE_STACK,
-  ADMIN_POPOVER_CONTENT_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { BOOKING_STATUS_VALUES } from "@/lib/admin/validation";
 import { cn } from "@/lib/utils";
@@ -325,16 +322,15 @@ export default async function AdminBookingsPage({
     : null;
 
   return (
-    <div className={ADMIN_PAGE_STACK}>
-      <AdminPageHeader
-        eyebrow="Confirmed jobs"
-        title="Bookings"
-        description={
-          queueRows.length > 0
-            ? `${queueRows.length} booking${queueRows.length === 1 ? "" : "s"} in this view`
-            : "No bookings in this view"
-        }
-        right={
+    <AdminListPage
+      eyebrow="Confirmed jobs"
+      title="Bookings"
+      description={
+        queueRows.length > 0
+          ? `${queueRows.length} booking${queueRows.length === 1 ? "" : "s"} in this view`
+          : "No bookings in this view"
+      }
+      right={
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" className={ADMIN_HELP_TRIGGER_BUTTON} asChild>
             <Link href="/admin/bookings/new" scroll={false}>
@@ -351,88 +347,76 @@ export default async function AdminBookingsPage({
             platformClients={(intakePlatformRes.data ?? []) as { id: string; display_name: string | null }[]}
             formKey={manualFormKey}
           />
-          <Popover>
-            <PopoverTrigger
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), ADMIN_HELP_TRIGGER_BUTTON)}
-            >
-              <Info className="size-4 text-[var(--impronta-gold)]" aria-hidden />
-              How it works
-            </PopoverTrigger>
-            <PopoverContent align="end" className={ADMIN_POPOVER_CONTENT_CLASS}>
-              <div className="space-y-2">
-                <p className="font-display text-sm font-medium text-foreground">Execution pipeline</p>
-                <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                  <li>Each row is confirmed commercial work — draft through completed or archived.</li>
-                  <li>Preview a row to adjust status or manager without opening the full page.</li>
-                  <li>New leads and phone intake belong under Requests; confirmed jobs live here.</li>
-                </ul>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <AdminHelpPopover title="Execution pipeline">
+            <li>Each row is confirmed commercial work — draft through completed or archived.</li>
+            <li>Preview a row to adjust status or manager without opening the full page.</li>
+            <li>New leads and phone intake belong under Requests; confirmed jobs live here.</li>
+          </AdminHelpPopover>
         </div>
-        }
-      />
-
-      {decodedErr && (
-        <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
-          {decodedErr}
-        </p>
-      )}
-
-      <AdminStatusTabs
-        ariaLabel="Booking status"
-        items={STATUS_TABS.map((tab) => ({
-          href: buildAdminBookingsHref({
-            ...bookingNavBase,
-            status: tab.key === "all" ? undefined : tab.key,
-          }),
-          label: tab.label,
-          active:
-            tab.key === "all"
-              ? !statusFilter || statusFilter === "all"
-              : statusFilter === tab.key,
-        }))}
-      />
-
-      {/* Scope banners */}
-      {clientAccountIdFilter && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-muted/20 px-4 py-3 text-sm">
-          <p className="text-muted-foreground">
-            Location:{" "}
-            <span className="font-medium text-foreground">
-              {scopedAccountRes.data?.name?.trim() || clientAccountIdFilter}
-            </span>
-          </p>
-          <Button variant="outline" size="sm" asChild>
-            <Link
-              href={buildAdminBookingsHref({ ...bookingNavBase, client_account_id: undefined, status: statusFilter && statusFilter !== "all" ? statusFilter : undefined })}
-              scroll={false}
-            >
-              Clear
-            </Link>
-          </Button>
-        </div>
-      )}
-      {clientUserIdFilter && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-muted/20 px-4 py-3 text-sm">
-          <p className="text-muted-foreground">
-            Client:{" "}
-            <span className="font-medium text-foreground">
-              {scopedClientRes.data?.display_name?.trim() || clientUserIdFilter}
-            </span>
-          </p>
-          <Button variant="outline" size="sm" asChild>
-            <Link
-              href={buildAdminBookingsHref({ ...bookingNavBase, client_user_id: undefined, status: statusFilter && statusFilter !== "all" ? statusFilter : undefined })}
-              scroll={false}
-            >
-              Clear
-            </Link>
-          </Button>
-        </div>
-      )}
-
-      <AdminFilterBar title="Search & filters" activeCount={filterActiveCount}>
+      }
+      tabs={
+        <AdminStatusTabs
+          ariaLabel="Booking status"
+          items={STATUS_TABS.map((tab) => ({
+            href: buildAdminBookingsHref({
+              ...bookingNavBase,
+              status: tab.key === "all" ? undefined : tab.key,
+            }),
+            label: tab.label,
+            active:
+              tab.key === "all"
+                ? !statusFilter || statusFilter === "all"
+                : statusFilter === tab.key,
+          }))}
+        />
+      }
+      banners={
+        <>
+          {decodedErr && (
+            <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
+              {decodedErr}
+            </p>
+          )}
+          {clientAccountIdFilter && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-muted/20 px-4 py-3 text-sm">
+              <p className="text-muted-foreground">
+                Location:{" "}
+                <span className="font-medium text-foreground">
+                  {scopedAccountRes.data?.name?.trim() || clientAccountIdFilter}
+                </span>
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  href={buildAdminBookingsHref({ ...bookingNavBase, client_account_id: undefined, status: statusFilter && statusFilter !== "all" ? statusFilter : undefined })}
+                  scroll={false}
+                >
+                  Clear
+                </Link>
+              </Button>
+            </div>
+          )}
+          {clientUserIdFilter && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/45 bg-muted/20 px-4 py-3 text-sm">
+              <p className="text-muted-foreground">
+                Client:{" "}
+                <span className="font-medium text-foreground">
+                  {scopedClientRes.data?.display_name?.trim() || clientUserIdFilter}
+                </span>
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  href={buildAdminBookingsHref({ ...bookingNavBase, client_user_id: undefined, status: statusFilter && statusFilter !== "all" ? statusFilter : undefined })}
+                  scroll={false}
+                >
+                  Clear
+                </Link>
+              </Button>
+            </div>
+          )}
+        </>
+      }
+      filters={
+        <AdminFilterBar title="Search & filters" activeCount={filterActiveCount}>
       <form
         className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px_150px_150px_auto] md:items-end"
         method="get"
@@ -537,8 +521,9 @@ export default async function AdminBookingsPage({
           ) : null}
         </div>
       </form>
-      </AdminFilterBar>
-
+        </AdminFilterBar>
+      }
+    >
       {/* Queue table — Suspense: peek triggers use `useSearchParams` */}
       <Suspense
         fallback={
@@ -547,6 +532,6 @@ export default async function AdminBookingsPage({
       >
         <AdminBookingQueue rows={queueRows} currentUserId={currentUserId} staffOptions={staffOptions} />
       </Suspense>
-    </div>
+    </AdminListPage>
   );
 }

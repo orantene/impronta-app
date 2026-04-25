@@ -1,23 +1,20 @@
 import Link from "next/link";
-import { Info, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { AdminNewClientSheet } from "@/app/(dashboard)/admin/clients/admin-new-client-sheet";
 import { AdminClientQueue } from "@/app/(dashboard)/admin/clients/admin-client-queue";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminFilterBar } from "@/components/admin/admin-filter-bar";
+import { AdminHelpPopover } from "@/components/admin/admin-help-popover";
 import { AdminListPage } from "@/components/admin/admin-list-page";
 import { DashboardSectionCard } from "@/components/dashboard/dashboard-section-card";
 import { AdminPageTabs } from "@/components/admin/admin-page-tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { loadAdminClientsData } from "@/lib/dashboard/admin-dashboard-data";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  ADMIN_HELP_TRIGGER_BUTTON,
   ADMIN_FORM_CONTROL,
-  ADMIN_POPOVER_CONTENT_CLASS,
   ADMIN_SECTION_TITLE_CLASS,
 } from "@/lib/dashboard-shell-classes";
-import { cn } from "@/lib/utils";
 
 export default async function AdminClientsPage({
   searchParams,
@@ -89,36 +86,14 @@ export default async function AdminClientsPage({
       right={
         <div className="flex flex-wrap items-center gap-2">
           <AdminNewClientSheet />
-          <Popover>
-            <PopoverTrigger
-              type="button"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "sm" }),
-                ADMIN_HELP_TRIGGER_BUTTON,
-              )}
-            >
-              <Info className="size-4 text-[var(--impronta-gold)]" aria-hidden />
-              How it works
-            </PopoverTrigger>
-            <PopoverContent align="end" className={ADMIN_POPOVER_CONTENT_CLASS}>
-              <div className="space-y-2">
-                <p className="font-display text-sm font-medium text-foreground">
-                  Clients vs Accounts
-                </p>
-                <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
-                  <li>
-                    <span className="font-medium text-foreground">Clients</span> (this page)
-                    are platform login users — people with a client portal account.
-                  </li>
-                  <li>
-                    <span className="font-medium text-foreground">Accounts</span> under Admin
-                    → Accounts are commercial / billing entities (villa, venue, brand). Link
-                    those on inquiries and bookings.
-                  </li>
-                </ul>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <AdminHelpPopover title="Clients vs Accounts">
+            <li>
+              <span className="font-medium text-foreground">Clients</span> (this page) are platform login users — people with a client portal account.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Accounts</span> under Admin → Accounts are commercial / billing entities (villa, venue, brand). Link those on inquiries and bookings.
+            </li>
+          </AdminHelpPopover>
         </div>
       }
       tabs={
