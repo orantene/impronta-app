@@ -48,7 +48,7 @@ export default async function AdminProfileSettingsPage() {
     supabase
       .from("field_definitions")
       .select(
-        "id, field_group_id, key, label_en, required_level, field_type, visibility, archived_at",
+        "id, field_group_id, key, label_en, required_level, value_type, public_visible, profile_visible, card_visible, filterable, searchable, ai_visible, archived_at",
       )
       .is("archived_at", null),
     supabase
@@ -85,8 +85,13 @@ export default async function AdminProfileSettingsPage() {
     key: (f.key as string) ?? "",
     label_en: (f.label_en as string) ?? "",
     required_level: (f.required_level as string | null) ?? null,
-    field_type: (f.field_type as string | null) ?? null,
-    visibility: (f.visibility as string | null) ?? null,
+    value_type: (f.value_type as string | null) ?? null,
+    public_visible: Boolean(f.public_visible ?? true),
+    profile_visible: Boolean(f.profile_visible ?? true),
+    card_visible: Boolean(f.card_visible ?? false),
+    filterable: Boolean(f.filterable ?? false),
+    searchable: Boolean(f.searchable ?? false),
+    ai_visible: Boolean(f.ai_visible ?? true),
   }));
   const terms = (termsRes.data ?? []).map((t) => ({
     id: t.id as string,

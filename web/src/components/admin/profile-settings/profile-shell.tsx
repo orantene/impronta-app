@@ -52,8 +52,13 @@ export type ProfileFieldDef = {
   key: string;
   label_en: string;
   required_level: string | null;
-  field_type: string | null;
-  visibility: string | null;
+  value_type: string | null;
+  public_visible: boolean;
+  profile_visible: boolean;
+  card_visible: boolean;
+  filterable: boolean;
+  searchable: boolean;
+  ai_visible: boolean;
 };
 
 export type ProfileTaxonomyTerm = {
@@ -411,14 +416,14 @@ function FieldQuickEdit({ field }: { field: ProfileFieldDef }) {
         <DrawerQField label="Type">
           <select
             className={DRAWER_INPUT_CLASS}
-            defaultValue={field.field_type ?? "text"}
+            defaultValue={field.value_type ?? "text"}
           >
             <option value="text">Text</option>
             <option value="email">Email</option>
             <option value="phone">Phone</option>
             <option value="number">Number</option>
             <option value="select">Select</option>
-            <option value="taxonomy">List (single)</option>
+            <option value="taxonomy_single">List (single)</option>
             <option value="taxonomy_multi">List (multi)</option>
             <option value="text_multi">Text (multi)</option>
           </select>
@@ -437,12 +442,24 @@ function FieldQuickEdit({ field }: { field: ProfileFieldDef }) {
       <div className="flex flex-wrap gap-3 pt-1">
         <DrawerQToggle
           label="Public on profile"
-          defaultChecked={field.visibility === "public"}
+          defaultChecked={field.public_visible && field.profile_visible}
         />
-        <DrawerQToggle label="Show on card" />
-        <DrawerQToggle label="Filterable" defaultChecked />
-        <DrawerQToggle label="Searchable" defaultChecked />
-        <DrawerQToggle label="AI visible" defaultChecked />
+        <DrawerQToggle
+          label="Show on card"
+          defaultChecked={field.card_visible}
+        />
+        <DrawerQToggle
+          label="Filterable"
+          defaultChecked={field.filterable}
+        />
+        <DrawerQToggle
+          label="Searchable"
+          defaultChecked={field.searchable}
+        />
+        <DrawerQToggle
+          label="AI visible"
+          defaultChecked={field.ai_visible}
+        />
       </div>
       <DrawerQActions destructive={<DrawerGhostButton>Archive</DrawerGhostButton>}>
         <DrawerGhostButton>Cancel</DrawerGhostButton>

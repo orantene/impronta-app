@@ -48,6 +48,8 @@ import {
 import {
   loadSectionForEditAction,
   saveSectionDraftAction,
+  setSectionVisibilityAction,
+  type SectionVisibility,
 } from "@/lib/site-admin/edit-mode/section-actions";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
@@ -192,6 +194,18 @@ export interface EditContextValue {
   navigatorOpen: boolean;
   setNavigatorOpen: (open: boolean) => void;
   toggleNavigator: () => void;
+
+  /**
+   * Set a section's `presentation.visibility`. Used by the Navigator
+   * panel's eye toggle. Resolves with `{ ok }` so the caller can render
+   * an inline error toast on failure. On success the composition is
+   * refreshed automatically so the navigator and canvas reflect the
+   * new state without a manual refresh.
+   */
+  setSectionVisibility: (
+    sectionId: string,
+    visibility: SectionVisibility,
+  ) => Promise<{ ok: boolean; error?: string }>;
   /**
    * Save just the page metadata (title / meta description / tagline).
    * Wraps `dispatchMutation` so the change goes through the same optimistic
@@ -881,6 +895,29 @@ export function EditProvider({
   const openPageSettings = useCallback(() => setPageSettingsOpen(true), []);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
 
+  const setSectionVisibility = useCallback<
+    EditContextValue["setSectionVisibility"]
+  >(
+    async (sectionId, visibility) => {
+      const result = await setSectionVisibilityAction({
+        sectionId,
+        visibility,
+      });
+      if (!result.ok) {
+        setMutationError(result.error);
+        return { ok: false, error: result.error };
+      }
+      // Refresh composition so the navigator + canvas observe the new
+      // presentation.visibility on the next render. router.refresh() also
+      // triggers downstream cache busts so the storefront DOM reflects
+      // visibility:hidden mid-session.
+      await refreshComposition();
+      router.refresh();
+      return { ok: true };
+    },
+    [refreshComposition, router],
+  );
+
   const savePageMetadata = useCallback<EditContextValue["savePageMetadata"]>(
     async (metadata) => {
       return dispatchMutation((prev) => ({ ...prev, metadata }));
@@ -975,6 +1012,7 @@ export function EditProvider({
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
+      setSectionVisibility,
 
       saveDraft,
       lastDraftSavedAt,
@@ -1026,6 +1064,7 @@ export function EditProvider({
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
+      setSectionVisibility,
       saveDraft,
       lastDraftSavedAt,
       clearDraftSavedToast,

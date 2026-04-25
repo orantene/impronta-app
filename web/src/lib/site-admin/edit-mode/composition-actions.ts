@@ -55,6 +55,13 @@ export interface CompositionSectionRef {
   sortOrder: number;
   sectionTypeKey: string;
   name: string;
+  /**
+   * Per-section visibility lifted from `props.presentation.visibility` so
+   * the navigator panel can render the eye state without round-tripping
+   * each section. Optional — pre-existing rows that never set
+   * presentation.visibility serialise as `undefined` (treated as "always").
+   */
+  visibility?: "always" | "desktop-only" | "mobile-only" | "hidden";
 }
 
 export interface CompositionSlotDef {
@@ -169,11 +176,23 @@ export async function loadHomepageCompositionAction(input: {
   if (comp) {
     for (const row of comp.slots) {
       const bucket = (slots[row.slotKey] ??= []);
+      const presentation = (row.props as Record<string, unknown>)?.presentation as
+        | { visibility?: string }
+        | undefined;
+      const rawVisibility = presentation?.visibility;
+      const visibility =
+        rawVisibility === "always" ||
+        rawVisibility === "desktop-only" ||
+        rawVisibility === "mobile-only" ||
+        rawVisibility === "hidden"
+          ? rawVisibility
+          : undefined;
       bucket.push({
         sectionId: row.sectionId,
         sortOrder: row.sortOrder,
         sectionTypeKey: row.sectionTypeKey,
         name: row.name,
+        visibility,
       });
     }
     for (const k of Object.keys(slots)) {

@@ -19,14 +19,18 @@
  *   - Footer Theme button → noop placeholder until Phase 5 ships the
  *     Theme drawer; renders disabled.
  *
- * Visibility toggle (Phase 3 partial):
- *   The eye icon is rendered and hover-states work, but the click is a
- *   noop with a visible tooltip explaining why. Persisting hidden state
- *   needs a `presentation.hiddenOn: ("desktop"|"tablet"|"mobile")[]`
- *   schema extension, a backfill migration, and render-time respect on
- *   each section component — that's the next sub-phase. We render the
- *   control now so the IA / shortcut affordances are correct from the
- *   start; clicking it just shows a "schema work pending" tooltip.
+ * Visibility toggle:
+ *   Wires through `setSectionVisibility(sectionId, "hidden" | "always")`
+ *   which round-trips `presentation.visibility` on the section's props
+ *   via `setSectionVisibilityAction` (CAS-safe, audited, cache-busts the
+ *   storefront). `presentation.visibility` already maps to
+ *   `data-section-visibility` via `presentationDataAttrs` and the
+ *   storefront's `token-presets.css`, so a click here propagates to the
+ *   live preview without any per-section render changes.
+ *
+ *   The schema's `desktop-only`/`mobile-only` granularity is not yet
+ *   exposed in the navigator (the eye is a binary toggle); a follow-up
+ *   right-click menu will surface the full enum.
  */
 
 import { useCallback, useMemo, useRef, useState, type DragEvent } from "react";
@@ -38,7 +42,11 @@ import {
   SectionTypeIcon,
 } from "./kit";
 
-import type { CompositionSectionRef, CompositionSlotDef } from "@/lib/site-admin/edit-mode/composition-actions";
+import type {
+  CompositionSectionRef,
+  CompositionSlotDef,
+} from "@/lib/site-admin/edit-mode/composition-actions";
+import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
 
@@ -64,6 +72,7 @@ export function NavigatorPanel() {
     openPageSettings,
     navigatorOpen,
     toggleNavigator,
+    setSectionVisibility,
   } = useEditContext();
 
   const [search, setSearch] = useState("");
@@ -450,6 +459,8 @@ export function NavigatorPanel() {
               dropAt === row.flatIndex + 1 &&
               !isDragging &&
               row.flatIndex === visible[visible.length - 1]?.flatIndex;
+            const visibility = row.ref.visibility ?? "always";
+            const hidden = visibility === "hidden";
 
             return (
               <div key={row.ref.sectionId} style={{ position: "relative" }}>
@@ -476,11 +487,11 @@ export function NavigatorPanel() {
                     padding: "6px 8px",
                     borderRadius: CHROME_RADII.sm,
                     background: selected ? CHROME.ink : "transparent",
-                    color: selected ? "#ffffff" : CHROME.text,
+                    color: selected ? "#ffffff" : hidden ? CHROME.muted2 : CHROME.text,
                     fontSize: 12,
                     fontWeight: selected ? 600 : 500,
                     cursor: "pointer",
-                    opacity: isDragging ? 0.4 : 1,
+                    opacity: isDragging ? 0.4 : hidden && !selected ? 0.6 : 1,
                     transition:
                       "background 80ms ease, color 80ms ease, opacity 120ms ease",
                   }}
@@ -514,11 +525,21 @@ export function NavigatorPanel() {
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      textDecoration: hidden ? "line-through" : "none",
+                      textDecorationColor: CHROME.muted2,
                     }}
                   >
                     {row.ref.name}
                   </span>
-                  <VisibilityEye selected={selected} />
+                  <VisibilityEye
+                    selected={selected}
+                    visibility={visibility}
+                    onToggle={() => {
+                      const next: SectionVisibilityT =
+                        visibility === "hidden" ? "always" : "hidden";
+                      void setSectionVisibility(row.ref.sectionId, next);
+                    }}
+                  />
                 </div>
                 {showDropLineBelow && <DropLine />}
               </div>
@@ -602,43 +623,81 @@ function GripDots({ color }: { color: string }) {
   );
 }
 
-function VisibilityEye({ selected }: { selected: boolean }) {
+function VisibilityEye({
+  selected,
+  visibility,
+  onToggle,
+}: {
+  selected: boolean;
+  visibility: SectionVisibilityT;
+  onToggle: () => void;
+}) {
+  const hidden = visibility === "hidden";
+  const partial =
+    visibility === "desktop-only" || visibility === "mobile-only";
+  const titleText = hidden
+    ? "Hidden on every breakpoint — click to show"
+    : partial
+      ? `Visible on ${visibility === "desktop-only" ? "desktop" : "mobile"} only`
+      : "Visible everywhere — click to hide";
   return (
     <button
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        // Persisting hidden state needs presentation.hiddenOn schema work
-        // (next sub-phase). The row still wires the affordance so muscle
-        // memory carries over once the schema lands.
+        onToggle();
       }}
-      title="Per-section visibility lands with the hiddenOn schema (Phase 3 sub-task)"
-      aria-label="Toggle section visibility — coming with hiddenOn schema"
+      title={titleText}
+      aria-label={titleText}
+      aria-pressed={hidden}
       style={{
         width: 18,
         height: 18,
         padding: 0,
         border: "none",
         background: "transparent",
-        color: selected ? "rgba(255,255,255,0.65)" : CHROME.muted2,
-        cursor: "not-allowed",
-        opacity: 0.7,
+        color: selected
+          ? hidden
+            ? "rgba(255,255,255,0.85)"
+            : "rgba(255,255,255,0.65)"
+          : hidden
+            ? CHROME.amber
+            : CHROME.muted2,
+        cursor: "pointer",
+        opacity: hidden ? 1 : 0.7,
       }}
     >
-      <svg
-        width="11"
-        height="11"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
+      {hidden ? (
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+          <line x1="1" y1="1" x2="23" y2="23" />
+        </svg>
+      ) : (
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
     </button>
   );
 }
