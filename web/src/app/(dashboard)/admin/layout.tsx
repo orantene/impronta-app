@@ -65,6 +65,7 @@ export default async function AdminLayout({
           tenants={tenants}
           activeTenantId={tenantScope?.tenantId ?? null}
           workspace={workspaceSummary}
+          userEmail={session.user?.email ?? null}
         >
           <AdminWorkspaceShell pulseCounts={pulseCounts}>{children}</AdminWorkspaceShell>
         </AdminDashboardShell>

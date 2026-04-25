@@ -15,11 +15,9 @@ import {
   Inbox,
   LogOut,
   Menu,
-  Moon,
   PanelLeftClose,
   PanelLeft,
   Pin,
-  Sun,
   Users,
 } from "lucide-react";
 import {
@@ -36,8 +34,8 @@ import {
   togglePinnedId,
   toggleTopShortcutId,
 } from "@/lib/prototype/admin-prototype-prefs";
-import { AdminCommandPalette } from "@/components/admin/admin-command-palette";
 import { AdminContextualInspector } from "@/components/admin/inspector/admin-contextual-inspector";
+import { AdminShellTopBar } from "@/components/admin/admin-shell-top-bar";
 import { UpgradeModalProvider } from "@/components/admin/site-control-center/upgrade-context";
 import { GlobalUpgradeModal } from "@/components/admin/site-control-center/global-upgrade-modal";
 import { AgencySwitcher } from "@/components/admin/agency-switcher";
@@ -510,6 +508,11 @@ export type AdminDashboardShellProps = {
    * so the top-bar tier-chip + AccountBillingPanels read live data.
    */
   workspace?: AdminWorkspaceSummary | null;
+  /**
+   * Email of the currently signed-in staff user — rendered in the avatar
+   * dropdown on the top bar. Optional; falls back to "Unknown".
+   */
+  userEmail?: string | null;
 };
 
 export function AdminDashboardShell({
@@ -519,6 +522,7 @@ export function AdminDashboardShell({
   tenants = [],
   activeTenantId = null,
   workspace = null,
+  userEmail = null,
 }: AdminDashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -754,35 +758,18 @@ export function AdminDashboardShell({
         </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col bg-[var(--admin-workspace-bg)] text-[var(--admin-workspace-fg)]">
-          {/* Top bar — search palette + locale + theme toggle. Mobile menu
-              trigger lives here too. Breadcrumb + tier-chip stack below in
-              AdminTopBar. */}
-          <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-[var(--admin-gold-border)]/60 bg-[var(--admin-workspace-bg)]/92 px-3 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--admin-workspace-bg)]/85 sm:px-4 lg:px-6">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-9 shrink-0 rounded-lg text-foreground/70 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground lg:hidden"
-              aria-label="Open menu"
-              onClick={() => setMobileOpen(true)}
-            >
-              <Menu className="size-4" />
-            </Button>
-            <div className="min-w-0 flex-1 max-w-2xl">
-              <AdminCommandPalette variant="header" />
-            </div>
-            <DashboardLocaleToggle variant="prototype" className="hidden shrink-0 sm:flex" />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-9 shrink-0 rounded-lg text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground"
-              aria-label={chromeTheme === "dark" ? "Use light workspace" : "Use dark workspace"}
-              onClick={() => setTheme(chromeTheme === "dark" ? "light" : "dark")}
-            >
-              {chromeTheme === "dark" ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
-            </Button>
-          </header>
+          {/* Single dense top bar — breadcrumb, ⌘K, +New, alerts, plan chip,
+              locale, theme, avatar. Replaces the previous three-row stack
+              (giant search row + breadcrumb row + page-header card). See
+              admin-shell-top-bar.tsx. */}
+          <AdminShellTopBar
+            onOpenMobileMenu={() => setMobileOpen(true)}
+            chromeTheme={chromeTheme}
+            onToggleTheme={() =>
+              setTheme(chromeTheme === "dark" ? "light" : "dark")
+            }
+            userEmail={userEmail}
+          />
 
           <PrototypeTopShortcutsBar shortcutIds={shortcutIds} />
 

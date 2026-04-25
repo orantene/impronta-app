@@ -54,7 +54,21 @@ export const ADMIN_OUTLINE_CONTROL_CLASS =
 export const ADMIN_PAGE_WIDTH = "mx-auto max-w-6xl";
 
 /** Max width + rhythm for admin inner pages (matches talent/media polish). */
-export const ADMIN_PAGE_STACK = `${ADMIN_PAGE_WIDTH} space-y-8 pb-8`;
+export const ADMIN_PAGE_STACK = `${ADMIN_PAGE_WIDTH} space-y-6 pb-10`;
+
+/**
+ * Two-token spacing system for the admin shell, established in the audit
+ * refactor (Finding #9). Use everywhere new card-based pages are built so
+ * the visual rhythm stops drifting between surfaces.
+ *
+ *   ADMIN_SECTION_STACK  → 24px gap between sections (cards, panels)
+ *   ADMIN_CARD_STACK     → 12px gap inside a card / panel
+ *
+ * Pages that already use ad-hoc `space-y-3.5` / `gap-4` should migrate
+ * gradually. Don't bulk-replace — every screen needs a pass.
+ */
+export const ADMIN_SECTION_STACK = "space-y-6";
+export const ADMIN_CARD_STACK = "space-y-3";
 
 /** “How it works” / help triggers on list pages (44px min tap target on mobile). */
 export const ADMIN_HELP_TRIGGER_BUTTON =

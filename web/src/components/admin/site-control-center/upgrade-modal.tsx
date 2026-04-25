@@ -161,10 +161,16 @@ export function UpgradeModal({
               <span className="text-[10.5px] font-bold uppercase tracking-[0.22em] text-[#c9a227]">
                 Plans & billing
               </span>
-              <Dialog.Title className="mt-1.5 font-display text-[24px] font-semibold tracking-[-0.015em] text-foreground sm:text-[26px]">
+              <Dialog.Title
+                className="mt-1.5 font-display text-[24px] font-semibold tracking-[-0.015em] sm:text-[26px]"
+                style={{ color: "#0b0b0d" }}
+              >
                 Choose your plan
               </Dialog.Title>
-              <Dialog.Description className="mt-1 text-[13px] leading-[1.5] text-muted-foreground">
+              <Dialog.Description
+                className="mt-1 text-[13px] leading-[1.5]"
+                style={{ color: "#5b5b62" }}
+              >
                 Every plan runs on the same product — higher tiers unlock more
                 cards. Switch or cancel anytime.
               </Dialog.Description>
@@ -300,18 +306,30 @@ export function UpgradeModal({
 
                     <div className="flex flex-1 flex-col gap-4 p-5">
                       <div>
-                        <h3 className="font-display text-[17px] font-semibold tracking-[-0.005em] text-foreground">
+                        <h3
+                          className="font-display text-[17px] font-semibold tracking-[-0.005em]"
+                          style={{ color: "#0b0b0d" }}
+                        >
                           {plan.name}
                         </h3>
                         <div className="mt-2 flex items-baseline gap-1">
-                          <span className="font-display text-[28px] font-semibold tracking-[-0.02em] text-foreground">
+                          <span
+                            className="font-display text-[28px] font-semibold tracking-[-0.02em]"
+                            style={{ color: "#0b0b0d" }}
+                          >
                             {price}
                           </span>
-                          <span className="text-[11.5px] font-medium text-muted-foreground">
+                          <span
+                            className="text-[11.5px] font-medium"
+                            style={{ color: "#6b6b72" }}
+                          >
                             {period}
                           </span>
                         </div>
-                        <p className="mt-2 text-[12.5px] leading-[1.45] text-muted-foreground">
+                        <p
+                          className="mt-2 text-[12.5px] leading-[1.45]"
+                          style={{ color: "#5b5b62" }}
+                        >
                           {plan.tagline}
                         </p>
                       </div>
@@ -322,12 +340,8 @@ export function UpgradeModal({
                         {plan.features.map((f) => (
                           <li
                             key={f.text}
-                            className={cn(
-                              "flex items-start gap-2 leading-[1.45]",
-                              f.dim
-                                ? "text-muted-foreground/65"
-                                : "text-foreground",
-                            )}
+                            className="flex items-start gap-2 leading-[1.45]"
+                            style={{ color: f.dim ? "#9b9ba0" : "#1f1f24" }}
                           >
                             {f.dim ? (
                               <Minus
