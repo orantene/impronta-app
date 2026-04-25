@@ -13,9 +13,9 @@ items — the user has authorised end-to-end execution.
 ## Live state
 
 - **Active milestone:** D — "Velocity"
-- **Active phase:** Phase 7 closed (pending visual screenshot capture); next Phase 8 — Command palette ⌘K
-- **Last commit on phase-1 branch:** f319d25 — Phase 7 Assets drawer. Combined with the parallel-session admin tweak `c46f1fe`, promoted to prod via `dpl_6arFrVkW3t8aEYa4Qn5wgU21RVFj`; all three prod aliases return 200.
-- **Next action:** Phase 8 — Command palette. Build `edit-chrome/command-palette.tsx` with global ⌘K keybind (Cmd on macOS, Ctrl elsewhere), fuzzy search over pages / sections / inspector actions / drawers / settings, grouped results with keyboard navigation, inline keybind chips, and a centralised shortcut registry that Phase 10's keyboard-overlay reads from. Phase 8 is schema-zero — pure editor-chrome surface keyed off existing EditContext callbacks (open*Drawer, setSelectedSectionId, undo/redo, saveDraft, publish). Skip-when-editable focus guard mirrors the existing ⌘L / ⌘\\ / ⌘Z handlers in `edit-shell.tsx`. Milestone D continues with Phase 9 (Preview mode + share link) → Phase 10 (Keyboard shortcuts overlay).
+- **Active phase:** Phase 8 closed (pending visual screenshot capture); next Phase 9 — Preview mode + share link
+- **Last commit on phase-1 branch:** 55f4284 — Phase 8 Command palette ⌘K. Promoted to prod via `dpl_DoYLBoSoGYtUNtB3sWccwDYDFh3X`; all three prod aliases return 200.
+- **Next action:** Phase 9 — Preview mode + share link. New `?preview=1` query collapses the editor chrome (top bar / drawers / inspector / navigator / overlays) into a floating pill at the bottom-right (device switcher + share + back-to-edit). Share link generator: signed JWT with expiration, page + revision binding, viewable without staff auth at the signed URL. Today's `cms_page_revisions` already carries the snapshot the share link points at — Phase 9 only needs the JWT signing route + a public render path that resolves the revision snapshot back to a composed homepage. Forward-compatible with Phase 11 (client comments) — the share-link path is the same auth gate the comment-mode toggle layers on top of. Milestone D continues with Phase 10 (Keyboard shortcuts overlay) which reads from the centralised `SHORTCUTS` registry Phase 8 just shipped.
 
 ---
 
@@ -254,11 +254,18 @@ items — the user has authorised end-to-end execution.
 - [ ] Visual screenshots committed under `docs/qa/phase-7/` — pending manual capture against `impronta.tulala.digital?edit=1`
 
 ### Phase 8 — Command palette
-- [ ] `edit-chrome/command-palette.tsx`
-- [ ] `⌘K` global keybind (CMD on macOS, Ctrl elsewhere)
-- [ ] Fuzzy search over: pages, sections, actions, drawers, settings
-- [ ] Grouped results, keyboard nav, inline keybinds
-- [ ] Shortcut registry to centralise
+- [x] `edit-chrome/command-palette.tsx` — centred modal at zIndex 150, 640px wide, paper-tinted card, ink-overlay backdrop, auto-focus search on open, lazy-mounted while closed (55f4284)
+- [x] `⌘K` global keybind (CMD on macOS, Ctrl elsewhere) — top-of-handler branch in `edit-shell.tsx` shares the editable focus guard with ⌘L / ⌘\\ / ⌘Z (55f4284)
+- [x] Fuzzy search over: pages, sections, actions, drawers, settings — `fuzzyScore` + `scoreRow` rank labels above keyword/meta hits, cap each group at 12, and reset selection on every keystroke (55f4284)
+- [x] Grouped results, keyboard nav, inline keybinds — fixed render order Sections → Drawers → Actions → Navigation → Pages, ↓/↑ wrap with modulo, Enter commits, Esc closes, every row carries a `<KbdSequence>` chip pulled from the registry (55f4284)
+- [x] Shortcut registry to centralise — `kit/shortcuts.ts` exports `SHORTCUTS` (18 entries), `SHORTCUT_CATEGORY_LABELS`, `getShortcut`, `shortcutsByCategory`. Phase 10's keyboard-overlay reads from the same source, so chips can never drift (55f4284)
+
+#### Phase 8 acceptance gate
+- [x] All TS errors fixed (`tsc --noEmit` clean)
+- [x] Vercel build green for 55f4284 — `dpl_DoYLBoSoGYtUNtB3sWccwDYDFh3X` `state=READY`, target `production`
+- [x] Smoke check 200 on `tulala.digital` + `impronta.tulala.digital` + `app.tulala.digital` after promote
+- [x] QA evidence committed under `docs/qa/phase-8/README.md`
+- [ ] Visual screenshots committed under `docs/qa/phase-8/` — pending manual capture against `impronta.tulala.digital?edit=1`
 
 ### Phase 9 — Preview mode + share link
 - [ ] `?preview=1` query collapses editor chrome
@@ -383,4 +390,6 @@ The big one. Three parallel tracks:
 | 2026-04-25 (autonomous) | C.6 acceptance | 9a2a63d | Phase 6 acceptance gate — TS clean, `dpl_F1YNLRV9Pu9UKuJpyF4237RGm22J` promoted to prod, smoke check 200 on all three aliases, QA evidence committed under `docs/qa/phase-6/README.md`. Milestone C closed; advances to Milestone D (Velocity) with Phase 7 next. |
 | 2026-04-25 (autonomous) | D.7 | f319d25 | Phase 7 — Assets drawer. New typed actions `loadAssetsLibraryAction` + `scanAssetUsageAction` over the existing `media_assets` table (no migration). Drawer kind="assets" (720 / 960 expanded) mounts in EditShell, opens via TopBar folder icon or `⌘L`, dismisses via Escape. Five tabs (All / Images / Videos / Documents / Brand) with Videos + Documents calm "coming soon" placeholders until their upload routes ship. Lazy parallel fetch on every open (`Promise.all([loadAssetsLibrary, scanAssetUsage])`), in-memory search across filename / storagePath / sourceHint / variantKind, multi-select with Copy URLs batch action, per-tile `Used · N` / `Unused` chip from the usage scanner (single Supabase RTT, bounded O(60×500), sub-100ms), upload reuses `/api/admin/media/upload` with optimistic prepend. Drawer mutex extended to 5-way (Publish / PageSettings / Revisions / Theme / Assets). |
 | 2026-04-25 (parallel) | D.7 sidecar | c46f1fe | Parallel-session admin tweak that auto-rolled into the Phase 7 production deployment — `admin: bone bg, serif h1, drop on-page plan toggle`. Code unrelated to Phase 7 but bundled into `dpl_6arFrVkW3t8aEYa4Qn5wgU21RVFj` because both pushes hit `phase-1` before the build kicked off. Logged for traceability. |
-| 2026-04-25 (autonomous) | D.7 acceptance | _this commit_ | Phase 7 acceptance gate — TS clean, `dpl_6arFrVkW3t8aEYa4Qn5wgU21RVFj` `state=READY` `target=production`, smoke check 200 on `tulala.digital` + `impronta.tulala.digital` + `app.tulala.digital`, QA evidence committed under `docs/qa/phase-7/README.md`. Active phase advances to D.8 (Command palette ⌘K). |
+| 2026-04-25 (autonomous) | D.7 acceptance | 6b74efb | Phase 7 acceptance gate — TS clean, `dpl_6arFrVkW3t8aEYa4Qn5wgU21RVFj` `state=READY` `target=production`, smoke check 200 on `tulala.digital` + `impronta.tulala.digital` + `app.tulala.digital`, QA evidence committed under `docs/qa/phase-7/README.md`. Active phase advances to D.8 (Command palette ⌘K). |
+| 2026-04-25 (autonomous) | D.8 | 55f4284 | Phase 8 — Command palette ⌘K. New centralised SHORTCUTS registry (`kit/shortcuts.ts`, 18 entries across 6 categories) read by both the palette and Phase 10's keyboard-overlay-to-be. New `command-palette.tsx` (~580 lines) — centred modal at zIndex 150, fuzzy search across label/meta/keywords with shorter-target + earlier-position + contiguous-run scoring, grouped results (Sections / Drawers / Actions / Navigation / Pages-when-multi-page-lands), keyboard nav (↑↓/↵/Esc), inline `<KbdSequence>` chip per row pulled from the registry. EditContext gains `paletteOpen` + `openPalette` / `closePalette` / `togglePalette`; the palette is a modal, NOT mutexed with the right-side drawers — operator can search while a drawer's open. EditShell mounts `<CommandPalette />` and wires the new ⌘K (mod+K) global keybind ahead of the drawer-Escape branch; Escape now dismisses the palette as a safety net for clicks outside the input. Schema-zero phase — pure editor-chrome surface dispatching through existing EditContext callbacks. |
+| 2026-04-25 (autonomous) | D.8 acceptance | _this commit_ | Phase 8 acceptance gate — TS clean, `dpl_DoYLBoSoGYtUNtB3sWccwDYDFh3X` `state=READY` `target=production`, smoke check 200 on all three aliases, QA evidence committed under `docs/qa/phase-8/README.md`. Active phase advances to D.9 (Preview mode + share link). |
