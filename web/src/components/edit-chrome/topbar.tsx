@@ -621,6 +621,8 @@ export interface TopBarProps {
   onRevisions?: () => void;
   /** Open the Theme drawer (palette icon in the right cluster). */
   onTheme?: () => void;
+  /** Open the Assets drawer (folder icon in the right cluster). */
+  onAssets?: () => void;
   /**
    * Save an explicit draft checkpoint. Resolves with the server timestamp
    * the surrounding chrome surfaces in its transient confirmation toast.
@@ -643,6 +645,7 @@ export function TopBar({
   onPageSettings,
   onRevisions,
   onTheme,
+  onAssets,
   onSaveDraft,
   pageTitle,
 }: TopBarProps) {
@@ -740,6 +743,11 @@ export function TopBar({
           <circle cx="9.5" cy="7.5" r="1" fill="currentColor" />
           <circle cx="14.5" cy="7.5" r="1" fill="currentColor" />
           <circle cx="17.5" cy="12.5" r="1" fill="currentColor" />
+        </svg>
+      </TbIconBtn>
+      <TbIconBtn title="Assets library (⌘L)" onClick={onAssets}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
         </svg>
       </TbIconBtn>
       <TbIconBtn title="Preview as visitor (⌘P)" onClick={handlePreview}>

@@ -211,6 +211,15 @@ export interface EditContextValue {
   openTheme: () => void;
   closeTheme: () => void;
   /**
+   * Visibility flag for the AssetsDrawer (Phase 7). The drawer owns its
+   * own data fetch (via `loadAssetsLibraryAction` + `scanAssetUsageAction`);
+   * EditContext only owns the open/close mutex so the topbar's library
+   * icon, the navigator footer, and ⌘L can all route through one toggle.
+   */
+  assetsOpen: boolean;
+  openAssets: () => void;
+  closeAssets: () => void;
+  /**
    * Roll the draft back to the chosen revision. Wraps
    * `restoreHomepageRevisionAction` in the same CAS-safe rhythm as
    * `dispatchMutation` so the drawer doesn't have to thread pageVersion
@@ -410,6 +419,9 @@ export function EditProvider({
 
   // theme drawer state (Phase 5)
   const [themeOpen, setThemeOpen] = useState(false);
+
+  // assets drawer state (Phase 7)
+  const [assetsOpen, setAssetsOpen] = useState(false);
 
   // structure navigator (left rail) — open by default; ⌘\ toggles
   const [navigatorOpen, setNavigatorOpen] = useState(true);
@@ -942,6 +954,7 @@ export function EditProvider({
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
     setThemeOpen(false);
+    setAssetsOpen(false);
     setPublishOpen(true);
   }, []);
   const closePublish = useCallback(() => setPublishOpen(false), []);
@@ -950,6 +963,7 @@ export function EditProvider({
     setPublishOpen(false);
     setRevisionsOpen(false);
     setThemeOpen(false);
+    setAssetsOpen(false);
     setPageSettingsOpen(true);
   }, []);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
@@ -958,6 +972,7 @@ export function EditProvider({
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setThemeOpen(false);
+    setAssetsOpen(false);
     setRevisionsOpen(true);
   }, []);
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
@@ -966,9 +981,19 @@ export function EditProvider({
     setPublishOpen(false);
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
+    setAssetsOpen(false);
     setThemeOpen(true);
   }, []);
   const closeTheme = useCallback(() => setThemeOpen(false), []);
+
+  const openAssets = useCallback(() => {
+    setPublishOpen(false);
+    setPageSettingsOpen(false);
+    setRevisionsOpen(false);
+    setThemeOpen(false);
+    setAssetsOpen(true);
+  }, []);
+  const closeAssets = useCallback(() => setAssetsOpen(false), []);
 
   /**
    * Roll the draft back to the chosen revision. Reads `pageVersion` from
@@ -1130,6 +1155,10 @@ export function EditProvider({
       openTheme,
       closeTheme,
 
+      assetsOpen,
+      openAssets,
+      closeAssets,
+
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
@@ -1189,6 +1218,9 @@ export function EditProvider({
       themeOpen,
       openTheme,
       closeTheme,
+      assetsOpen,
+      openAssets,
+      closeAssets,
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,

@@ -30,6 +30,7 @@ import { PublishDrawer } from "./publish-drawer";
 import { PageSettingsDrawer } from "./page-settings-drawer";
 import { RevisionsDrawer } from "./revisions-drawer";
 import { ThemeDrawer } from "./theme-drawer";
+import { AssetsDrawer } from "./assets-drawer";
 import { NavigatorPanel } from "./navigator-panel";
 import { TopBar } from "./topbar";
 
@@ -66,14 +67,17 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openPageSettings,
     openRevisions,
     openTheme,
+    openAssets,
     closePublish,
     closePageSettings,
     closeRevisions,
     closeTheme,
+    closeAssets,
     publishOpen,
     pageSettingsOpen,
     revisionsOpen,
     themeOpen,
+    assetsOpen,
     saveDraft,
     pageMetadata,
     selectedSectionId,
@@ -103,13 +107,22 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       // close-all is a safe no-op when nothing's up.
       if (
         e.key === "Escape" &&
-        (publishOpen || pageSettingsOpen || revisionsOpen || themeOpen)
+        (publishOpen || pageSettingsOpen || revisionsOpen || themeOpen || assetsOpen)
       ) {
         e.preventDefault();
         if (publishOpen) closePublish();
         if (pageSettingsOpen) closePageSettings();
         if (revisionsOpen) closeRevisions();
         if (themeOpen) closeTheme();
+        if (assetsOpen) closeAssets();
+        return;
+      }
+
+      // ⌘L (or Ctrl+L) opens the Assets library drawer.
+      if (mod && key === "l") {
+        e.preventDefault();
+        if (assetsOpen) closeAssets();
+        else openAssets();
         return;
       }
 
@@ -173,10 +186,13 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     pageSettingsOpen,
     revisionsOpen,
     themeOpen,
+    assetsOpen,
     closePublish,
     closePageSettings,
     closeRevisions,
     closeTheme,
+    openAssets,
+    closeAssets,
   ]);
 
   return (
@@ -198,6 +214,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onPageSettings={openPageSettings}
         onRevisions={openRevisions}
         onTheme={openTheme}
+        onAssets={openAssets}
         onSaveDraft={() => void saveDraft()}
         pageTitle={pageMetadata?.title ?? undefined}
       />
@@ -216,6 +233,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <PageSettingsDrawer />
       <RevisionsDrawer />
       <ThemeDrawer />
+      <AssetsDrawer />
       <MutationErrorToast />
       <DraftSavedToast />
       {children}
