@@ -21,6 +21,7 @@ import { requireTenantScope } from "@/lib/saas";
 import { logServerError } from "@/lib/server/safe-error";
 import { isLocale, type Locale } from "@/lib/site-admin/locales";
 import { loadHomepageForStaff } from "@/lib/site-admin/server/homepage";
+import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 
 export interface CloneLocalePayload {
   metadata: {
@@ -33,10 +34,18 @@ export interface CloneLocalePayload {
     canonicalUrl: string;
     noindex: boolean;
   };
-  /** Slot composition — slot key → ordered list of section ids. */
+  /** Slot composition — slot key → ordered list of section ids.
+   *  Pre-filtered server-side: archived/draft sections are stripped out
+   *  so the target locale can publish immediately if everything else is
+   *  in order. */
   slots: Record<string, ReadonlyArray<{ sectionId: string; sortOrder: number }>>;
   /** TRUE if the source had any draft rows; FALSE means we sourced from live. */
   sourcedFromDraft: boolean;
+  /** Count of source slot entries dropped because the referenced section
+   *  was archived (publish-blocking) or no longer exists. The composer
+   *  surfaces this in the success toast so operators know the clone
+   *  isn't 1:1. */
+  skippedNonPublishedCount: number;
 }
 
 export type LoadLocaleHomepageResult =
@@ -82,11 +91,29 @@ export async function loadLocaleHomepageForCloneAction(
       state.draftSlots.length > 0 ? state.draftSlots : state.liveSlots;
     const sourcedFromDraft = state.draftSlots.length > 0;
 
+    // Pull the tenant's section catalogue so we can drop entries whose
+    // referenced section is archived or missing. Archived sections won't
+    // pass the publish gate on the target locale; cloning them through
+    // would leave the target draft in an unsavable state with no clear
+    // cause. Draft sections we KEEP — they're a valid mid-edit state and
+    // the composer already shows a "Needs publishing" chip for them.
+    const sections = await listSectionsForStaff(auth.supabase, scope.tenantId);
+    const eligibleSectionIds = new Set(
+      sections
+        .filter((s) => s.status === "draft" || s.status === "published")
+        .map((s) => s.id),
+    );
+
     const slots: Record<
       string,
       Array<{ sectionId: string; sortOrder: number }>
     > = {};
+    let skippedNonPublishedCount = 0;
     for (const row of sourceRows) {
+      if (!eligibleSectionIds.has(row.section_id)) {
+        skippedNonPublishedCount += 1;
+        continue;
+      }
       const list = slots[row.slot_key] ?? [];
       list.push({ sectionId: row.section_id, sortOrder: row.sort_order });
       slots[row.slot_key] = list;
@@ -123,6 +150,7 @@ export async function loadLocaleHomepageForCloneAction(
         },
         slots,
         sourcedFromDraft,
+        skippedNonPublishedCount,
       },
     };
   } catch (error) {

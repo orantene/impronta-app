@@ -37,6 +37,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useActionState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -235,9 +236,104 @@ function OgImagePreview({ url }: { url: string }) {
           alt="OG preview"
           className="max-h-32 rounded border border-border/30 object-contain"
           onError={() => setErrored(true)}
+          // Don't leak the admin URL/tenant context to whatever third-party
+          // CDN hosts the OG image. The preview is a one-way fetch — no
+          // server-side analytics on the recipient need referer attribution.
+          referrerPolicy="no-referrer"
+          loading="lazy"
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Revision history list with "Show all / Show recent" toggle. Defaults to
+ * the most recent 10 entries because the typical recovery use-case is "the
+ * publish I did yesterday was wrong". Older entries stay reachable in-line
+ * so you don't need DB access to roll back further.
+ */
+function RevisionList({
+  revisions,
+  canCompose,
+  onPreview,
+}: {
+  revisions: ReadonlyArray<RevisionLite>;
+  canCompose: boolean;
+  onPreview: (rev: RevisionLite) => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL_VISIBLE = 10;
+  const visible = showAll ? revisions : revisions.slice(0, INITIAL_VISIBLE);
+  const hasMore = revisions.length > INITIAL_VISIBLE;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-sm font-semibold">Revision history</h3>
+        {revisions.length > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {showAll || !hasMore
+              ? `${revisions.length} total`
+              : `Showing ${INITIAL_VISIBLE} of ${revisions.length}`}
+          </span>
+        )}
+      </div>
+      {revisions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No revisions yet. They appear after your first save.
+        </p>
+      ) : (
+        <>
+          <ul className="divide-y divide-border/40 rounded-md border border-border/60">
+            {visible.map((rev) => (
+              <li
+                key={rev.id}
+                className="flex items-center justify-between gap-3 px-3 py-2 text-xs"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 uppercase">
+                    {rev.kind}
+                  </span>
+                  <span>v{rev.version}</span>
+                  <span className="text-muted-foreground">
+                    {formatWhen(rev.createdAt)}
+                  </span>
+                </span>
+                {canCompose && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPreview(rev)}
+                    title="Preview this revision's contents before restoring"
+                  >
+                    Preview
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {hasMore && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAll((v) => !v)}
+              title={
+                showAll
+                  ? "Collapse to the most recent 10"
+                  : `Reveal ${revisions.length - INITIAL_VISIBLE} older revision${revisions.length - INITIAL_VISIBLE === 1 ? "" : "s"}`
+              }
+            >
+              {showAll
+                ? "Show recent only"
+                : `Show all ${revisions.length} revisions`}
+            </Button>
+          )}
+        </>
+      )}
+    </section>
   );
 }
 
@@ -337,12 +433,27 @@ function SortableSlotItem({
         </span>
       )}
       {section?.status === "draft" && (
-        <span
-          className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300"
-          title="This section is a draft. Publish it before publishing the homepage."
-        >
-          Needs publishing
-        </span>
+        <>
+          <span
+            className="rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-300"
+            title="This section is a draft. Publish it before publishing the homepage."
+          >
+            Needs publishing
+          </span>
+          {/* Deep-link into the section editor so the operator can publish
+              the offender without scrolling a long error message and
+              hunting through the Sections tab. Opens in a new tab so
+              composer state isn't lost. */}
+          <a
+            href={`/admin/site-settings/sections/${section.id}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="rounded border border-amber-500/30 bg-amber-500/5 px-1.5 py-0.5 text-[10px] text-amber-300 hover:bg-amber-500/15"
+            title="Open this section to publish it (opens in a new tab — your composer state is preserved)"
+          >
+            Publish section →
+          </a>
+        </>
       )}
       {typeof reuseCount === "number" && reuseCount >= 2 && (
         <span
@@ -407,6 +518,8 @@ export function HomepageComposer({
   canCompose,
   canPublish,
 }: Props) {
+  const router = useRouter();
+
   // If there are no draft rows yet, start the composer from the live rows
   // so the operator is editing "from where we are" rather than a blank slate.
   const initialEntries = useMemo(() => {
@@ -685,22 +798,29 @@ export function HomepageComposer({
     canonicalUrl: page.canonical_url ?? "",
     noindex: page.noindex ?? false,
   });
+  // Hero is a JSONB blob whose object reference changes on every server
+  // revalidation even when contents are identical. We narrow it to the
+  // single string we actually consume (introTagline) and use THAT string
+  // — not the blob reference — as the resync trigger, so the effect only
+  // fires when the value the operator sees has actually changed.
+  const heroIntroFromProps =
+    typeof (page.hero as { introTagline?: unknown } | null)?.introTagline ===
+    "string"
+      ? ((page.hero as { introTagline: string }).introTagline)
+      : "";
+
   // Keep baselineRef in sync when the parent re-renders with a fresh
   // `page` (e.g. after a server-driven revalidation). Otherwise isDirty
   // would compare against stale mount-time values and the "Unsaved" badge
-  // would stick on indefinitely. Keyed on page.version so we only resync
-  // on real updates, not noisy reference equality changes.
+  // would stick on indefinitely. Keyed on page.version + scalarised page
+  // fields so the effect doesn't fire on noisy reference-equality churn
+  // (esp. page.hero, which is a JSONB blob with a fresh ref each load).
   useEffect(() => {
-    const heroIntro =
-      typeof (page.hero as { introTagline?: unknown } | null)?.introTagline ===
-      "string"
-        ? ((page.hero as { introTagline: string }).introTagline)
-        : "";
     baselineRef.current = {
       entries: initialEntries,
       title: page.title ?? "Homepage",
       metaDescription: page.meta_description ?? "",
-      introTagline: heroIntro,
+      introTagline: heroIntroFromProps,
       ogTitle: page.og_title ?? "",
       ogDescription: page.og_description ?? "",
       ogImageUrl: page.og_image_url ?? "",
@@ -716,7 +836,7 @@ export function HomepageComposer({
     page.og_image_url,
     page.canonical_url,
     page.noindex,
-    page.hero,
+    heroIntroFromProps,
     initialEntries,
   ]);
   const isDirty = useMemo(() => {
@@ -830,10 +950,12 @@ export function HomepageComposer({
       toast.error(res.error);
       return;
     }
-    const { metadata, slots, sourcedFromDraft } = res.data;
+    const { metadata, slots, sourcedFromDraft, skippedNonPublishedCount } =
+      res.data;
     // Rebuild the entries map with template slot keys preserved (so empty
     // slots stay rendered) while applying the source composition where
-    // present.
+    // present. Server-side filter strips archived/draft sections out of
+    // `slots`, so we don't need to re-check status here.
     const next: Record<string, SlotEntry[]> = {};
     for (const slot of template.slots) {
       next[slot.key] = (slots[slot.key] ?? []).map((entry, idx) => ({
@@ -854,8 +976,12 @@ export function HomepageComposer({
     if (metadata.ogImageUrl) setOgImageUrl(metadata.ogImageUrl);
     if (metadata.canonicalUrl) setCanonicalUrl(metadata.canonicalUrl);
     setNoindex(metadata.noindex);
+    const skippedNote =
+      skippedNonPublishedCount > 0
+        ? ` ${skippedNonPublishedCount} archived/draft section${skippedNonPublishedCount === 1 ? " was" : "s were"} skipped.`
+        : "";
     toast.success(
-      `Loaded ${source.toUpperCase()} ${sourcedFromDraft ? "draft" : "live"} composition. Review and Save to apply.`,
+      `Loaded ${source.toUpperCase()} ${sourcedFromDraft ? "draft" : "live"} composition. Review and Save to apply.${skippedNote}`,
     );
   }
 
@@ -893,6 +1019,9 @@ export function HomepageComposer({
   // the beforeunload guard releases. We also stamp the new version into
   // latestVersionRef so any subsequent autosave write is keyed to the
   // server's actual version (not the stale mount-time page.version).
+  // Finally we router.refresh() so the parent server component re-runs
+  // loadHomepageForStaff — keeping `page.updated_at`, `page.published_at`,
+  // `liveSlots`, and the revisions panel in sync without a hard reload.
   useEffect(() => {
     if (saveState?.ok || publishState?.ok || restoreState?.ok) {
       baselineRef.current = {
@@ -922,11 +1051,29 @@ export function HomepageComposer({
       if (typeof window !== "undefined") {
         window.localStorage.removeItem(localKey);
       }
+      // Pull fresh server state — page.updated_at / published_at /
+      // liveSlots / revisions all become stale otherwise. Without this,
+      // `draftMatchesLive` post-publish reads against yesterday's
+      // liveSlots and the "Refresh snapshot" button hides incorrectly
+      // until a hard reload.
+      router.refresh();
     }
     // We deliberately do NOT depend on the field state here — only on
     // the action results. The fields are read at the moment of success
     // to capture the just-saved values.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveState, publishState, restoreState]);
+
+  // CAS conflict: another tab / actor saved a newer version while we were
+  // mid-edit. The server returns code:'VERSION_CONFLICT' + currentVersion;
+  // we surface a non-destructive prompt (don't auto-clobber the operator's
+  // unsaved work — let them decide). Reload pulls the new server state.
+  const conflictState = useMemo(() => {
+    const candidates = [saveState, publishState, restoreState];
+    for (const s of candidates) {
+      if (s && !s.ok && s.code === "VERSION_CONFLICT") return s;
+    }
+    return null;
   }, [saveState, publishState, restoreState]);
 
   // Effective version: after a successful save the action returns a fresh
@@ -1257,17 +1404,22 @@ export function HomepageComposer({
                   key={l}
                   href={`?locale=${l}`}
                   onClick={(e) => {
+                    // Local backup is keyed per (page, locale), so switching
+                    // does NOT discard — coming back here will restore the
+                    // unsaved draft from localStorage. Make that obvious in
+                    // the prompt so operators don't avoid switching out of
+                    // (incorrect) loss-aversion.
                     if (
                       isDirty &&
                       !window.confirm(
-                        "You have unsaved changes. Switch locale and discard them?",
+                        `Switch to ${l.toUpperCase()}? Your unsaved changes here will be kept and restored when you come back.`,
                       )
                     ) {
                       e.preventDefault();
                     }
                   }}
                   className="rounded border border-border/60 px-1.5 py-0.5 text-[10px] uppercase hover:bg-muted/40"
-                  title={`Switch to ${l.toUpperCase()} composer`}
+                  title={`Switch to ${l.toUpperCase()} composer (local backup is preserved per locale)`}
                 >
                   {l}
                 </a>
@@ -1373,6 +1525,53 @@ export function HomepageComposer({
       <Banner state={saveState} />
       <Banner state={publishState} />
       <Banner state={restoreState} />
+
+      {/* ---- CAS conflict prompt ----
+          Surfaces when a save / publish / restore returned VERSION_CONFLICT.
+          We DON'T auto-clobber the operator's unsaved work — they decide
+          whether to discard it and pull fresh state, or copy their edits
+          out before reloading. The "Reload" button calls router.refresh()
+          which reruns the parent server component (loadHomepageForStaff)
+          and feeds new `page.version` / liveSlots / revisions through the
+          composer's resync effect. */}
+      {conflictState && (
+        <div className="space-y-2 rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          <p className="font-medium">
+            Someone else updated this homepage while you were editing.
+          </p>
+          <p className="text-xs text-amber-200/80">
+            Saving now would conflict with their changes. Reload to pull the
+            latest version — your unsaved local backup will be restored on
+            top so you can re-apply your edits.
+            {typeof conflictState.currentVersion === "number" && (
+              <>
+                {" "}
+                (Their version: v{conflictState.currentVersion}; yours: v
+                {effectiveVersion}.)
+              </>
+            )}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.refresh()}
+              title="Pull the latest server state (your unsaved local edits survive in localStorage)"
+            >
+              Reload latest
+            </Button>
+            <a
+              href="https://docs.tulala.digital/concurrent-editing"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-xs underline opacity-70 hover:opacity-100"
+            >
+              What does this mean?
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ---- save draft form ---- */}
       <form action={saveAction} className="space-y-6">
@@ -1956,52 +2155,24 @@ export function HomepageComposer({
         </div>
       )}
 
-      {/* ---- revisions ---- */}
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold">Revision history</h3>
-        {revisions.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No revisions yet. They appear after your first save.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border/40 rounded-md border border-border/60">
-            {revisions.slice(0, 10).map((rev) => (
-              <li
-                key={rev.id}
-                className="flex items-center justify-between gap-3 px-3 py-2 text-xs"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="rounded border border-border/60 bg-muted/40 px-1.5 py-0.5 uppercase">
-                    {rev.kind}
-                  </span>
-                  <span>v{rev.version}</span>
-                  <span className="text-muted-foreground">
-                    {formatWhen(rev.createdAt)}
-                  </span>
-                </span>
-                {canCompose && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setRevisionPreview({
-                        id: rev.id,
-                        kind: rev.kind,
-                        version: rev.version,
-                        createdAt: rev.createdAt,
-                      })
-                    }
-                    title="Preview this revision's contents before restoring"
-                  >
-                    Preview
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* ---- revisions ----
+          Default to the most recent 10 entries; "Show all" reveals the rest
+          in-place. The server load is already capped at 50 (see
+          loadHomepageRevisionsForStaff), so this isn't unbounded — but it
+          DOES let operators recover from "we published a bad thing two
+          weeks ago" without DB access. */}
+      <RevisionList
+        revisions={revisions}
+        canCompose={canCompose}
+        onPreview={(rev) =>
+          setRevisionPreview({
+            id: rev.id,
+            kind: rev.kind,
+            version: rev.version,
+            createdAt: rev.createdAt,
+          })
+        }
+      />
 
       {/* Hidden restore form — submitted by the revision preview modal. */}
       <form action={restoreAction} ref={restoreFormRef} className="sr-only">
