@@ -36,8 +36,8 @@ import {
   togglePinnedId,
   toggleTopShortcutId,
 } from "@/lib/prototype/admin-prototype-prefs";
+import { AdminCommandPalette } from "@/components/admin/admin-command-palette";
 import { AdminContextualInspector } from "@/components/admin/inspector/admin-contextual-inspector";
-import { PlanViewbar } from "@/components/prototype/plan-viewbar";
 import { UpgradeModalProvider } from "@/components/admin/site-control-center/upgrade-context";
 import { GlobalUpgradeModal } from "@/components/admin/site-control-center/global-upgrade-modal";
 import { AgencySwitcher } from "@/components/admin/agency-switcher";
@@ -225,19 +225,13 @@ function PrototypeNavSections({
         aria-current={active ? "page" : undefined}
         aria-label={badgeCount > 0 ? `${item.label} — ${badgeCount} needs attention` : undefined}
         className={cn(
-          "group/nav relative flex min-w-0 items-center gap-3 py-2.5 text-sm transition-[background-color,color,box-shadow] duration-150 ease-out",
-          compact || collapsed ? "justify-center rounded-xl px-2" : "flex-1 overflow-hidden rounded-full pl-4 pr-2",
+          "group/nav relative flex min-w-0 items-center gap-2.5 py-2 text-[13px] transition-[background-color,color,box-shadow] duration-150 ease-out",
+          compact || collapsed ? "justify-center rounded-lg px-2" : "flex-1 overflow-hidden rounded-lg px-2.5",
           active
-            ? "bg-[var(--admin-gold-soft)] text-[var(--admin-nav-active-label)] shadow-[inset_0_0_0_1px_var(--admin-gold-border)]"
+            ? "bg-[var(--admin-gold-soft)] text-[var(--admin-gold)] shadow-[inset_0_0_0_1px_var(--admin-gold-border)]"
             : "text-[var(--admin-nav-idle)] hover:bg-[var(--admin-sidebar-hover)] hover:text-[var(--admin-nav-hover-fg)]",
         )}
       >
-        {!collapsed && !compact && active ? (
-          <span
-            className="pointer-events-none absolute left-2 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-[var(--admin-gold)] shadow-[0_0_12px_color-mix(in_oklab,var(--admin-gold)_40%,transparent)]"
-            aria-hidden
-          />
-        ) : null}
         <span className="relative shrink-0">
           <Icon
             className={cn(
@@ -573,14 +567,11 @@ export function AdminDashboardShell({
         data-admin-prototype="1"
         data-admin-prototype-theme={chromeTheme}
       >
-        {/* Plan + view simulator (mockup viewbar) — black sticky strip */}
-        <PlanViewbar />
-
         <div className="flex min-h-0 flex-1">
         {/* Desktop sidebar */}
         <aside
           className={cn(
-            "sticky top-[44px] z-30 hidden h-[calc(100dvh-44px)] shrink-0 flex-col border-r border-[var(--admin-gold-border)] bg-[var(--admin-sidebar-bg)] backdrop-blur-sm lg:flex",
+            "sticky top-0 z-30 hidden h-screen shrink-0 flex-col border-r border-[var(--admin-gold-border)] bg-[var(--admin-sidebar-bg)] backdrop-blur-sm lg:flex",
             collapsed ? "w-[4.5rem]" : "w-60",
           )}
         >
@@ -730,42 +721,34 @@ export function AdminDashboardShell({
         </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col bg-[var(--admin-workspace-bg)] text-[var(--admin-workspace-fg)]">
-          {/* Top bar — slim mockup-style strip: mobile menu, theme toggle,
-              and sign out. The contextual breadcrumb + tier-chip live in
-              AdminTopBar below this header. */}
-          <header className="sticky top-[44px] z-40 flex h-11 items-center gap-2 border-b border-[rgba(24,24,27,0.08)] bg-[var(--admin-workspace-bg)]/92 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--admin-workspace-bg)]/85 sm:px-4 lg:px-6">
+          {/* Top bar — search palette + locale + theme toggle. Mobile menu
+              trigger lives here too. Breadcrumb + tier-chip stack below in
+              AdminTopBar. */}
+          <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-[var(--admin-gold-border)]/60 bg-[var(--admin-workspace-bg)]/92 px-3 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-[var(--admin-workspace-bg)]/85 sm:px-4 lg:px-6">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="size-8 shrink-0 rounded-lg text-foreground/70 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground lg:hidden"
+              className="size-9 shrink-0 rounded-lg text-foreground/70 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground lg:hidden"
               aria-label="Open menu"
               onClick={() => setMobileOpen(true)}
             >
               <Menu className="size-4" />
             </Button>
-            <div className="flex-1" />
+            <div className="min-w-0 flex-1 max-w-2xl">
+              <AdminCommandPalette variant="header" />
+            </div>
+            <DashboardLocaleToggle variant="prototype" className="hidden shrink-0 sm:flex" />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              className="size-8 shrink-0 rounded-lg text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground"
+              className="size-9 shrink-0 rounded-lg text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground"
               aria-label={chromeTheme === "dark" ? "Use light workspace" : "Use dark workspace"}
               onClick={() => setTheme(chromeTheme === "dark" ? "light" : "dark")}
             >
               {chromeTheme === "dark" ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
             </Button>
-            <form action={signOut}>
-              <Button
-                type="submit"
-                variant="ghost"
-                size="icon"
-                className="size-8 shrink-0 rounded-lg text-foreground/60 transition-colors duration-150 hover:bg-foreground/[0.05] hover:text-foreground"
-                aria-label="Sign out"
-              >
-                <LogOut className="size-4" aria-hidden />
-              </Button>
-            </form>
           </header>
 
           <PrototypeTopShortcutsBar shortcutIds={shortcutIds} />

@@ -200,9 +200,7 @@ export function AdminTopBar() {
             aria-hidden
           />
           <span className="truncate">
-            <strong className="font-semibold text-foreground">Nova Roster</strong>
-            <span className="mx-1 text-muted-foreground/70">·</span>
-            <span>{planLabel}</span>
+            <strong className="font-semibold text-foreground">{planLabel}</strong>
             <span className="mx-1 text-muted-foreground/70">·</span>
             <span className="text-muted-foreground">{planUsage}</span>
           </span>

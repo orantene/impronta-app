@@ -43,7 +43,7 @@ export function AgencySwitcher({
     }
     return (
       <div
-        className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--admin-gold-border)]/50 bg-[var(--admin-sidebar-hover)]/30 px-2 py-1.5 text-xs text-[var(--admin-workspace-fg)]"
+        className="flex min-w-0 items-center gap-2 rounded-lg border border-[var(--admin-gold-border)]/50 bg-[var(--admin-sidebar-hover)]/40 px-2 py-1.5 text-xs text-white/85"
         aria-label={`Workspace: ${label}`}
       >
         <Building2 className="size-3.5 shrink-0 text-[var(--admin-gold)]" aria-hidden />
@@ -63,7 +63,7 @@ export function AgencySwitcher({
           size="sm"
           aria-label={`Switch workspace (current: ${triggerLabel})`}
           className={cn(
-            "h-9 rounded-lg border border-[var(--admin-gold-border)]/60 bg-[var(--admin-sidebar-hover)]/30 text-xs font-medium text-[var(--admin-workspace-fg)] hover:bg-[var(--admin-sidebar-hover)]",
+            "h-9 rounded-lg border border-[var(--admin-gold-border)]/60 bg-[var(--admin-sidebar-hover)]/40 text-xs font-medium text-white/85 hover:bg-[var(--admin-sidebar-hover)] hover:text-white",
             collapsed ? "mx-auto size-9 justify-center px-0" : "w-full justify-between gap-2 px-2",
           )}
         >
