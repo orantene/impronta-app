@@ -51,6 +51,7 @@ import {
   setSectionVisibilityAction,
   type SectionVisibility,
 } from "@/lib/site-admin/edit-mode/section-actions";
+import { restoreHomepageRevisionAction } from "@/lib/site-admin/edit-mode/revisions-actions";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
 
@@ -183,6 +184,26 @@ export interface EditContextValue {
   pageSettingsOpen: boolean;
   openPageSettings: () => void;
   closePageSettings: () => void;
+
+  // ── revisions drawer (Phase 4) ──
+  /**
+   * Visibility flag for the RevisionsDrawer. The topbar's revisions icon
+   * toggles it; the drawer itself owns its own list-fetch state and re-
+   * fetches on every open so a freshly-saved draft revision shows up
+   * without a hard refresh.
+   */
+  revisionsOpen: boolean;
+  openRevisions: () => void;
+  closeRevisions: () => void;
+  /**
+   * Roll the draft back to the chosen revision. Wraps
+   * `restoreHomepageRevisionAction` in the same CAS-safe rhythm as
+   * `dispatchMutation` so the drawer doesn't have to thread pageVersion
+   * itself; on success we refresh the composition + the storefront.
+   */
+  restoreRevision: (
+    revisionId: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
 
   // ── structure navigator (left rail) ──
   /**
@@ -368,6 +389,9 @@ export function EditProvider({
 
   // page settings drawer state
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
+
+  // revisions drawer state (Phase 4)
+  const [revisionsOpen, setRevisionsOpen] = useState(false);
 
   // structure navigator (left rail) — open by default; ⌘\ toggles
   const [navigatorOpen, setNavigatorOpen] = useState(true);
@@ -895,6 +919,46 @@ export function EditProvider({
   const openPageSettings = useCallback(() => setPageSettingsOpen(true), []);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
 
+  const openRevisions = useCallback(() => setRevisionsOpen(true), []);
+  const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
+
+  /**
+   * Roll the draft back to the chosen revision. Reads `pageVersion` from
+   * provider state for CAS — every successful mutation already ratchets
+   * that, so the drawer can fire restore without an extra reload first.
+   * On VERSION_CONFLICT we refresh authoritative state + surface the
+   * error toast so the operator can re-pick.
+   */
+  const restoreRevision = useCallback<EditContextValue["restoreRevision"]>(
+    async (revisionId) => {
+      if (pageVersion === null) {
+        return { ok: false, error: "Composition not loaded yet." };
+      }
+      setSaving(true);
+      const res = await restoreHomepageRevisionAction({
+        revisionId,
+        locale,
+        expectedVersion: pageVersion,
+      });
+      setSaving(false);
+      if (!res.ok) {
+        if (res.code === "VERSION_CONFLICT") {
+          await refreshComposition();
+        }
+        setMutationError(res.error);
+        return { ok: false, error: res.error };
+      }
+      // Restored composition lands as is_draft=TRUE — pull the
+      // authoritative state so slots, metadata, and pageVersion all
+      // reflect what the operator just rolled back to. router.refresh()
+      // re-renders the storefront so the canvas reflects the change too.
+      await refreshComposition();
+      router.refresh();
+      return { ok: true };
+    },
+    [pageVersion, locale, refreshComposition, router],
+  );
+
   const setSectionVisibility = useCallback<
     EditContextValue["setSectionVisibility"]
   >(
@@ -1009,6 +1073,11 @@ export function EditProvider({
       closePageSettings,
       savePageMetadata,
 
+      revisionsOpen,
+      openRevisions,
+      closeRevisions,
+      restoreRevision,
+
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,
@@ -1061,6 +1130,10 @@ export function EditProvider({
       openPageSettings,
       closePageSettings,
       savePageMetadata,
+      revisionsOpen,
+      openRevisions,
+      closeRevisions,
+      restoreRevision,
       navigatorOpen,
       setNavigatorOpen,
       toggleNavigator,

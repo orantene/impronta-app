@@ -28,6 +28,7 @@ import { CompositionLibraryOverlay } from "./composition-library";
 import { InlineEditor } from "./inline-editor";
 import { PublishDrawer } from "./publish-drawer";
 import { PageSettingsDrawer } from "./page-settings-drawer";
+import { RevisionsDrawer } from "./revisions-drawer";
 import { NavigatorPanel } from "./navigator-panel";
 import { TopBar } from "./topbar";
 
@@ -62,6 +63,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     redo,
     openPublish,
     openPageSettings,
+    openRevisions,
     saveDraft,
     pageMetadata,
     selectedSectionId,
@@ -161,6 +163,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onRedo={() => void redo()}
         onPublish={openPublish}
         onPageSettings={openPageSettings}
+        onRevisions={openRevisions}
         onSaveDraft={() => void saveDraft()}
         pageTitle={pageMetadata?.title ?? undefined}
       />
@@ -177,6 +180,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <CompositionLibraryOverlay />
       <PublishDrawer />
       <PageSettingsDrawer />
+      <RevisionsDrawer />
       <MutationErrorToast />
       <DraftSavedToast />
       {children}
