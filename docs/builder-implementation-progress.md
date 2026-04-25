@@ -15,7 +15,7 @@ items — the user has authorised end-to-end execution.
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
 - **Last commit on phase-1 branch:** _pending_
-- **Next action:** Restore `section-type-icon.tsx` from stash (with `JSX.Element → ReactElement` fix), then begin selection-layer upgrade.
+- **Next action:** Begin selection-layer upgrade — dual-tone ring + premium chip with section-type icon (mockup surface 2).
 
 ---
 
@@ -57,7 +57,7 @@ items — the user has authorised end-to-end execution.
 - [x] `index.ts` — barrel export
 
 #### Section-type icons
-- [ ] `section-type-icon.tsx` — re-create from the wave-3 stash with `JSX.Element → ReactElement` fix; wire all 12 type keys
+- [x] `section-type-icon.tsx` — re-create from the wave-3 stash with `JSX.Element → ReactElement` fix; wire all 12 type keys
 
 #### Selection layer upgrade
 - [ ] Dual-tone ring (white inset 1px + ink outset 2px + halo 6px) — works on dark and light backgrounds
@@ -326,3 +326,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (manual) | A.1 | 7bb1b60 | Field primitives (Field / Label / Helper / Counter) |
 | 2026-04-24 (manual) | A.1 | fe974a3 | Stepper + Segmented + Toggle + Swatch + ColorRow |
 | 2026-04-24 (manual) | A.1 | 61e88b2 | SaveChip + Kbd primitives — kit complete (10/10) |
+| 2026-04-24 (manual) | A.1 | _pending_ | SectionTypeIcon — 12 SVG glyphs |
