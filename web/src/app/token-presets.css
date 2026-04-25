@@ -481,6 +481,199 @@ html[data-token-typography-scale-preset="editorial"] {
 @media (min-width: 769px) { [data-section-visibility="mobile-only"]  { display: none !important; } }
 
 /* ---------------------------------------------------------------------------
+ * Phase 6 — per-breakpoint presentation overrides.
+ *
+ * Tablet: ≤ 1023px (matches Tailwind's `lg` boundary; the editor's tablet
+ *         preview is 834px wide and falls inside this range).
+ * Mobile: ≤ 640px (matches Tailwind's `sm` boundary; the editor's mobile
+ *         preview is 390px wide and falls inside this range).
+ *
+ * Cascade: tablet rules sit before mobile so a narrower viewport's mobile
+ * override naturally wins. Unset attrs fall through to the desktop base —
+ * no JavaScript involved at render time.
+ * ------------------------------------------------------------------------- */
+
+@media (max-width: 1023px) {
+  /* Tablet backgrounds. */
+  [data-section-tablet-background="ivory"]     { background: #f6f1ea; }
+  [data-section-tablet-background="champagne"] { background: linear-gradient(180deg, #f1e5d1 0%, #efe7db 100%); }
+  [data-section-tablet-background="espresso"]  { background: #2d2623; color: #f6f1ea; }
+  [data-section-tablet-background="blush"]     { background: #ead3ce; }
+  [data-section-tablet-background="sage"]      { background: #c7cdc0; }
+  [data-section-tablet-background="muted-surface"] { background: var(--token-color-surface-raised, #ffffff); }
+
+  /* Tablet padding. */
+  [data-section-tablet-padding-top="none"]      { padding-top: 0 !important; }
+  [data-section-tablet-padding-top="tight"]     { padding-top: 32px !important; }
+  [data-section-tablet-padding-top="standard"]  { padding-top: 64px !important; }
+  [data-section-tablet-padding-top="airy"]      { padding-top: 112px !important; }
+  [data-section-tablet-padding-top="editorial"] { padding-top: clamp(56px, 8vw, 112px) !important; }
+  [data-section-tablet-padding-bottom="none"]      { padding-bottom: 0 !important; }
+  [data-section-tablet-padding-bottom="tight"]     { padding-bottom: 32px !important; }
+  [data-section-tablet-padding-bottom="standard"]  { padding-bottom: 64px !important; }
+  [data-section-tablet-padding-bottom="airy"]      { padding-bottom: 112px !important; }
+  [data-section-tablet-padding-bottom="editorial"] { padding-bottom: clamp(56px, 8vw, 112px) !important; }
+
+  /* Tablet container width. */
+  [data-section-tablet-container="narrow"]     > * > *[class*="__inner"],
+  [data-section-tablet-container="narrow"]     > *[class*="__inner"] { width: 720px !important; max-width: calc(100% - 32px); }
+  [data-section-tablet-container="standard"]   > * > *[class*="__inner"],
+  [data-section-tablet-container="standard"]   > *[class*="__inner"] { width: 880px !important; max-width: calc(100% - 32px); }
+  [data-section-tablet-container="wide"]       > * > *[class*="__inner"],
+  [data-section-tablet-container="wide"]       > *[class*="__inner"] { width: 960px !important; max-width: calc(100% - 32px); }
+  [data-section-tablet-container="editorial"]  > * > *[class*="__inner"],
+  [data-section-tablet-container="editorial"]  > *[class*="__inner"] { width: min(960px, 100% - 32px) !important; }
+  [data-section-tablet-container="full-bleed"] > * > *[class*="__inner"],
+  [data-section-tablet-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+
+  /* Tablet alignment. */
+  [data-section-tablet-align="left"]   { text-align: left; }
+  [data-section-tablet-align="center"] { text-align: center; }
+  [data-section-tablet-align="right"]  { text-align: right; }
+
+  /* Tablet divider. */
+  [data-section-tablet-divider-top="none"] { border-top: 0; background-image: none; }
+  [data-section-tablet-divider-top="thin-line"]     { border-top: 1px solid var(--token-color-line, #e5dcce); }
+  [data-section-tablet-divider-top="gradient-fade"] { border-top: 1px solid transparent; background-image: linear-gradient(90deg, transparent, var(--token-color-line, #e5dcce), transparent); background-repeat: no-repeat; background-size: 60% 1px; background-position: top center; }
+}
+
+@media (max-width: 640px) {
+  /* Mobile backgrounds. */
+  [data-section-mobile-background="ivory"]     { background: #f6f1ea; }
+  [data-section-mobile-background="champagne"] { background: linear-gradient(180deg, #f1e5d1 0%, #efe7db 100%); }
+  [data-section-mobile-background="espresso"]  { background: #2d2623; color: #f6f1ea; }
+  [data-section-mobile-background="blush"]     { background: #ead3ce; }
+  [data-section-mobile-background="sage"]      { background: #c7cdc0; }
+  [data-section-mobile-background="muted-surface"] { background: var(--token-color-surface-raised, #ffffff); }
+
+  /* Mobile padding. */
+  [data-section-mobile-padding-top="none"]      { padding-top: 0 !important; }
+  [data-section-mobile-padding-top="tight"]     { padding-top: 24px !important; }
+  [data-section-mobile-padding-top="standard"]  { padding-top: 48px !important; }
+  [data-section-mobile-padding-top="airy"]      { padding-top: 80px !important; }
+  [data-section-mobile-padding-top="editorial"] { padding-top: clamp(48px, 12vw, 96px) !important; }
+  [data-section-mobile-padding-bottom="none"]      { padding-bottom: 0 !important; }
+  [data-section-mobile-padding-bottom="tight"]     { padding-bottom: 24px !important; }
+  [data-section-mobile-padding-bottom="standard"]  { padding-bottom: 48px !important; }
+  [data-section-mobile-padding-bottom="airy"]      { padding-bottom: 80px !important; }
+  [data-section-mobile-padding-bottom="editorial"] { padding-bottom: clamp(48px, 12vw, 96px) !important; }
+
+  /* Mobile container width. */
+  [data-section-mobile-container="narrow"]     > * > *[class*="__inner"],
+  [data-section-mobile-container="narrow"]     > *[class*="__inner"] { width: 100% !important; max-width: calc(100% - 24px); }
+  [data-section-mobile-container="standard"]   > * > *[class*="__inner"],
+  [data-section-mobile-container="standard"]   > *[class*="__inner"] { width: 100% !important; max-width: calc(100% - 16px); }
+  [data-section-mobile-container="wide"]       > * > *[class*="__inner"],
+  [data-section-mobile-container="wide"]       > *[class*="__inner"] { width: 100% !important; max-width: calc(100% - 16px); }
+  [data-section-mobile-container="editorial"]  > * > *[class*="__inner"],
+  [data-section-mobile-container="editorial"]  > *[class*="__inner"] { width: 100% !important; max-width: calc(100% - 16px); }
+  [data-section-mobile-container="full-bleed"] > * > *[class*="__inner"],
+  [data-section-mobile-container="full-bleed"] > *[class*="__inner"] { width: 100% !important; max-width: 100% !important; padding-inline: 0 !important; }
+
+  /* Mobile alignment. */
+  [data-section-mobile-align="left"]   { text-align: left; }
+  [data-section-mobile-align="center"] { text-align: center; }
+  [data-section-mobile-align="right"]  { text-align: right; }
+
+  /* Mobile divider. */
+  [data-section-mobile-divider-top="none"] { border-top: 0; background-image: none; }
+  [data-section-mobile-divider-top="thin-line"]     { border-top: 1px solid var(--token-color-line, #e5dcce); }
+  [data-section-mobile-divider-top="gradient-fade"] { border-top: 1px solid transparent; background-image: linear-gradient(90deg, transparent, var(--token-color-line, #e5dcce), transparent); background-repeat: no-repeat; background-size: 60% 1px; background-position: top center; }
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase 6 — section-level animation.
+ *
+ * Entry animations run on initial layout via the `@starting-style` rule,
+ * a relatively new spec which falls back gracefully on browsers that
+ * haven't shipped it (the section just appears in its final state).
+ * Hover/scroll behaviors are pure CSS.
+ *
+ * `prefers-reduced-motion: reduce` neutralizes everything by default.
+ * Sections opted into `data-section-anim-reduced-motion="always"` keep
+ * animating regardless — operator's call.
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Entry animations. */
+  [data-section-anim-entry] {
+    transition:
+      opacity 600ms var(--site-motion-ease, cubic-bezier(0.2, 0.65, 0.4, 1)),
+      transform 600ms var(--site-motion-ease, cubic-bezier(0.2, 0.65, 0.4, 1));
+  }
+  @starting-style {
+    [data-section-anim-entry="fade"]        { opacity: 0; }
+    [data-section-anim-entry="fade-up"]     { opacity: 0; transform: translateY(16px); }
+    [data-section-anim-entry="fade-down"]   { opacity: 0; transform: translateY(-16px); }
+    [data-section-anim-entry="slide-left"]  { opacity: 0; transform: translateX(24px); }
+    [data-section-anim-entry="slide-right"] { opacity: 0; transform: translateX(-24px); }
+    [data-section-anim-entry="scale-in"]    { opacity: 0; transform: scale(0.96); }
+  }
+
+  /* Scroll behaviors. */
+  [data-section-anim-scroll="parallax-soft"] {
+    will-change: transform;
+    background-attachment: fixed;
+  }
+  [data-section-anim-scroll="reveal-stagger"] [class*="__grid"] > *,
+  [data-section-anim-scroll="reveal-stagger"] [class*="__items"] > * {
+    transition: opacity 500ms var(--site-motion-ease, ease), transform 500ms var(--site-motion-ease, ease);
+  }
+  @starting-style {
+    [data-section-anim-scroll="reveal-stagger"] [class*="__grid"] > *,
+    [data-section-anim-scroll="reveal-stagger"] [class*="__items"] > * {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+
+  /* Hover effects. */
+  [data-section-anim-hover="lift"] {
+    transition:
+      transform 300ms var(--site-motion-ease, ease),
+      box-shadow 300ms var(--site-motion-ease, ease);
+  }
+  [data-section-anim-hover="lift"]:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--site-shadow-ambient, 0 20px 42px -24px rgba(17, 17, 17, 0.18));
+  }
+  [data-section-anim-hover="glow"] {
+    transition: box-shadow 320ms var(--site-motion-ease, ease);
+  }
+  [data-section-anim-hover="glow"]:hover {
+    box-shadow: 0 0 0 1px var(--token-color-accent, #0ea5e9), 0 18px 42px -22px color-mix(in srgb, var(--token-color-accent, #0ea5e9) 40%, transparent);
+  }
+  [data-section-anim-hover="tilt"] {
+    transition: transform 360ms var(--site-motion-ease, ease);
+    transform-style: preserve-3d;
+  }
+  [data-section-anim-hover="tilt"]:hover {
+    transform: perspective(1200px) rotateX(0.6deg) rotateY(-0.6deg) translateY(-2px);
+  }
+}
+
+/* Operator opted into "always" animate — re-applies the same rules
+ * inside a wider scope so prefers-reduced-motion users still see motion
+ * when the operator explicitly asked for it. Use sparingly. */
+[data-section-anim-reduced-motion="always"][data-section-anim-entry] {
+  transition:
+    opacity 600ms var(--site-motion-ease, cubic-bezier(0.2, 0.65, 0.4, 1)),
+    transform 600ms var(--site-motion-ease, cubic-bezier(0.2, 0.65, 0.4, 1));
+}
+@starting-style {
+  [data-section-anim-reduced-motion="always"][data-section-anim-entry="fade"]        { opacity: 0; }
+  [data-section-anim-reduced-motion="always"][data-section-anim-entry="fade-up"]     { opacity: 0; transform: translateY(16px); }
+  [data-section-anim-reduced-motion="always"][data-section-anim-entry="fade-down"]   { opacity: 0; transform: translateY(-16px); }
+  [data-section-anim-reduced-motion="always"][data-section-anim-entry="slide-left"]  { opacity: 0; transform: translateX(24px); }
+  [data-section-anim-reduced-motion="always"][data-section-anim-entry="slide-right"] { opacity: 0; transform: translateX(-24px); }
+  [data-section-anim-reduced-motion="always"][data-section-anim-entry="scale-in"]    { opacity: 0; transform: scale(0.96); }
+}
+[data-section-anim-reduced-motion="always"][data-section-anim-hover="lift"]:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--site-shadow-ambient, 0 20px 42px -24px rgba(17, 17, 17, 0.18));
+}
+
+/* ---------------------------------------------------------------------------
  * M8 — inline italic accent annotation rendered by renderInlineRich().
  * ------------------------------------------------------------------------- */
 .site-accent {

@@ -31,6 +31,8 @@ import { useEditContext } from "./edit-context";
 import { ContentTab } from "./inspectors/content-dispatch";
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
+import { ResponsivePanel } from "./inspectors/responsive-panel";
+import { MotionPanel } from "./inspectors/motion-panel";
 import { PanelSaveChip } from "./inspectors/kit";
 import {
   CHROME,
@@ -42,12 +44,14 @@ import {
   SectionTypeIcon,
 } from "./kit";
 
-type TabKey = "content" | "layout" | "style";
+type TabKey = "content" | "layout" | "style" | "responsive" | "motion";
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "content", label: "Content" },
   { key: "layout", label: "Layout" },
   { key: "style", label: "Style" },
+  { key: "responsive", label: "Responsive" },
+  { key: "motion", label: "Motion" },
 ];
 
 function humanizeTypeKey(key: string | null | undefined): string {
@@ -242,6 +246,98 @@ export function InspectorDock() {
     [setDraftProps, setDirty],
   );
 
+  /**
+   * Phase 6 deep-merge variant for nested presentation patches
+   * (`breakpoints.tablet.*`, `animation.*`, etc.). One level of object-
+   * valued keys is merged into the existing value; primitives at the leaf
+   * follow the same empty-string-strips-the-key semantics as the shallow
+   * variant.
+   */
+  const handlePresentationDeepPatch = useCallback(
+    (patch: Record<string, unknown>) => {
+      setDraftProps((prev) => {
+        if (!prev) return prev;
+        const prevPresentation =
+          (prev.presentation as Record<string, unknown> | undefined) ?? {};
+        const merged: Record<string, unknown> = { ...prevPresentation };
+
+        for (const [topKey, topValue] of Object.entries(patch)) {
+          if (
+            topValue &&
+            typeof topValue === "object" &&
+            !Array.isArray(topValue)
+          ) {
+            const prevSub =
+              (merged[topKey] as Record<string, unknown> | undefined) ?? {};
+            const nextSub: Record<string, unknown> = { ...prevSub };
+
+            for (const [subKey, subValue] of Object.entries(
+              topValue as Record<string, unknown>,
+            )) {
+              if (
+                subValue &&
+                typeof subValue === "object" &&
+                !Array.isArray(subValue)
+              ) {
+                // Two levels deep (breakpoints.tablet.{...}).
+                const prevLeaf =
+                  (nextSub[subKey] as Record<string, unknown> | undefined) ?? {};
+                const nextLeaf: Record<string, unknown> = { ...prevLeaf };
+                for (const [leafKey, leafValue] of Object.entries(
+                  subValue as Record<string, unknown>,
+                )) {
+                  if (
+                    leafValue === "" ||
+                    leafValue === null ||
+                    leafValue === undefined
+                  ) {
+                    delete nextLeaf[leafKey];
+                  } else {
+                    nextLeaf[leafKey] = leafValue;
+                  }
+                }
+                if (Object.keys(nextLeaf).length === 0) {
+                  delete nextSub[subKey];
+                } else {
+                  nextSub[subKey] = nextLeaf;
+                }
+              } else if (
+                subValue === "" ||
+                subValue === null ||
+                subValue === undefined
+              ) {
+                delete nextSub[subKey];
+              } else {
+                nextSub[subKey] = subValue;
+              }
+            }
+
+            if (Object.keys(nextSub).length === 0) {
+              delete merged[topKey];
+            } else {
+              merged[topKey] = nextSub;
+            }
+          } else if (
+            topValue === "" ||
+            topValue === null ||
+            topValue === undefined
+          ) {
+            delete merged[topKey];
+          } else {
+            merged[topKey] = topValue;
+          }
+        }
+
+        return {
+          ...prev,
+          presentation: Object.keys(merged).length ? merged : undefined,
+        };
+      });
+      setDirty(true);
+    },
+    [setDraftProps, setDirty],
+  );
+
   const handleStylePatch = useCallback(
     (patch: Record<string, unknown>) => {
       // Style-panel edits can patch both root-level fields (e.g. hero overlay,
@@ -393,6 +489,26 @@ export function InspectorDock() {
                 sectionTypeKey={loadedSection.sectionTypeKey}
                 draftProps={draftProps ?? {}}
                 onPatch={handleStylePatch}
+              />
+            ) : null}
+            {tab === "responsive" ? (
+              <ResponsivePanel
+                presentation={
+                  (draftProps?.presentation as
+                    | Record<string, unknown>
+                    | undefined) ?? {}
+                }
+                onDeepPatch={handlePresentationDeepPatch}
+              />
+            ) : null}
+            {tab === "motion" ? (
+              <MotionPanel
+                presentation={
+                  (draftProps?.presentation as
+                    | Record<string, unknown>
+                    | undefined) ?? {}
+                }
+                onDeepPatch={handlePresentationDeepPatch}
               />
             ) : null}
           </DrawerBody>
