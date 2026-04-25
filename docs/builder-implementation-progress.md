@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
-- **Last commit on phase-1 branch:** 668629a — PublishDrawer retrofitted to Drawer primitive (kind=publish)
-- **Next action:** CompositionLibrary modal uses `<Drawer>` styling for the modal wrapper
+- **Last commit on phase-1 branch:** aa712c7 — CompositionLibrary/MediaPicker/TalentPicker Drawer kit retrofit
+- **Next action:** Rewrite `inspectors/hero-content.tsx` using Card, Field, Helper, MediaPickerButton, SegmentedControl
 
 ---
 
@@ -81,9 +81,9 @@ items — the user has authorised end-to-end execution.
 #### Retrofit existing drawers to the new `Drawer` primitive
 - [x] InspectorDock uses `<Drawer>` with `kind="dock"`
 - [x] PublishDrawer uses `<Drawer>` with `kind="publish"`
-- [ ] CompositionLibrary modal uses `<Drawer>` styling for the modal wrapper
-- [ ] MediaPicker modal uses `<Drawer>` styling
-- [ ] TalentPicker modal uses `<Drawer>` styling
+- [x] CompositionLibrary modal uses `<Drawer>` styling for the modal wrapper
+- [x] MediaPicker modal uses `<Drawer>` styling
+- [x] TalentPicker modal uses `<Drawer>` styling
 
 #### Upgrade hero inspector to KIT parity
 - [ ] Rewrite `inspectors/hero-content.tsx` using `Card`, `Field`, `Helper`, `MediaPickerButton`, `SegmentedControl` for variant; matches the wave-3 panel quality
@@ -335,3 +335,5 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 342a55b | Strip debug labels: inspector SectionTypeIcon + name cleaner + footer removed + publish drawer (legacy) + library TypeKey |
 | 2026-04-24 (autonomous) | A.1 | cefdbde | InspectorDock retrofitted to Drawer primitive — DrawerHead + DrawerTabs + DrawerBody; selection-layer + BodyPaddingController updated |
 | 2026-04-24 (autonomous) | A.1 | 668629a | PublishDrawer retrofitted to Drawer primitive (kind=publish) — ResizableDrawer replaced, width cycles via DrawerHead expand |
+| 2026-04-24 (autonomous) | A.1 | c885dc1 | PublishDrawer + Drawer open prop — slide animation wired; publish uses kind=publish |
+| 2026-04-24 (autonomous) | A.1 | aa712c7 | CompositionLibrary → Drawer kind=picker right-rail; MediaPicker DrawerHead; TalentPicker data-edit-overlay |
