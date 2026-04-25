@@ -220,6 +220,19 @@ export interface EditContextValue {
   openAssets: () => void;
   closeAssets: () => void;
 
+  // ── schedule drawer (Phase 12) ──
+  /**
+   * Visibility flag for the ScheduleDrawer. Lights up on the topbar
+   * Publish-split-button menu's "Schedule publish…" option, and via the
+   * command palette. Mutexes with the other right-side drawers so it
+   * doesn't visually stack. The drawer itself owns its own load of the
+   * current `cms_pages.scheduled_publish_at` so a previously-set fire
+   * time round-trips without re-rendering EditContext.
+   */
+  scheduleOpen: boolean;
+  openSchedule: () => void;
+  closeSchedule: () => void;
+
   // ── command palette (Phase 8) ──
   /**
    * Visibility flag for the centred ⌘K command palette. Unlike the
@@ -455,6 +468,7 @@ export function EditProvider({
 
   // assets drawer state (Phase 7)
   const [assetsOpen, setAssetsOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   // command palette state (Phase 8) — modal, not mutexed with drawers
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -1012,6 +1026,7 @@ export function EditProvider({
     setRevisionsOpen(false);
     setThemeOpen(false);
     setAssetsOpen(false);
+    setScheduleOpen(false);
     setPublishOpen(true);
   }, []);
   const closePublish = useCallback(() => setPublishOpen(false), []);
@@ -1021,6 +1036,7 @@ export function EditProvider({
     setRevisionsOpen(false);
     setThemeOpen(false);
     setAssetsOpen(false);
+    setScheduleOpen(false);
     setPageSettingsOpen(true);
   }, []);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
@@ -1030,6 +1046,7 @@ export function EditProvider({
     setPageSettingsOpen(false);
     setThemeOpen(false);
     setAssetsOpen(false);
+    setScheduleOpen(false);
     setRevisionsOpen(true);
   }, []);
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
@@ -1039,6 +1056,7 @@ export function EditProvider({
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
     setAssetsOpen(false);
+    setScheduleOpen(false);
     setThemeOpen(true);
   }, []);
   const closeTheme = useCallback(() => setThemeOpen(false), []);
@@ -1048,9 +1066,20 @@ export function EditProvider({
     setPageSettingsOpen(false);
     setRevisionsOpen(false);
     setThemeOpen(false);
+    setScheduleOpen(false);
     setAssetsOpen(true);
   }, []);
   const closeAssets = useCallback(() => setAssetsOpen(false), []);
+
+  const openSchedule = useCallback(() => {
+    setPublishOpen(false);
+    setPageSettingsOpen(false);
+    setRevisionsOpen(false);
+    setThemeOpen(false);
+    setAssetsOpen(false);
+    setScheduleOpen(true);
+  }, []);
+  const closeSchedule = useCallback(() => setScheduleOpen(false), []);
 
   /**
    * Roll the draft back to the chosen revision. Reads `pageVersion` from
@@ -1216,6 +1245,10 @@ export function EditProvider({
       openAssets,
       closeAssets,
 
+      scheduleOpen,
+      openSchedule,
+      closeSchedule,
+
       paletteOpen,
       openPalette,
       closePalette,
@@ -1289,6 +1322,9 @@ export function EditProvider({
       assetsOpen,
       openAssets,
       closeAssets,
+      scheduleOpen,
+      openSchedule,
+      closeSchedule,
       paletteOpen,
       openPalette,
       closePalette,

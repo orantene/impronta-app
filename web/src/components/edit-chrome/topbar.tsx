@@ -922,6 +922,8 @@ export interface TopBarProps {
   onTheme?: () => void;
   /** Open the Assets drawer (folder icon in the right cluster). */
   onAssets?: () => void;
+  /** Open the Schedule drawer (Phase 12 — Publish-split-button menu option). */
+  onSchedule?: () => void;
   /**
    * Save an explicit draft checkpoint. Resolves with the server timestamp
    * the surrounding chrome surfaces in its transient confirmation toast.
@@ -968,6 +970,7 @@ export function TopBar({
   onRevisions,
   onTheme,
   onAssets,
+  onSchedule,
   onSaveDraft,
   onShare,
   pageTitle,
@@ -976,8 +979,8 @@ export function TopBar({
 
   function handleMenuSelect(opt: PublishMenuOption) {
     if (opt === "schedule") {
-      // Phase 12 — placeholder
-      console.info("[topbar] schedule publish: not yet implemented");
+      if (onSchedule) onSchedule();
+      else console.info("[topbar] schedule publish: no handler wired");
     } else if (opt === "save-draft") {
       // Same affordance as the Save draft text button — write a draft
       // revision row through the existing autosave path. Phase 4 layers

@@ -31,6 +31,7 @@ import { PageSettingsDrawer } from "./page-settings-drawer";
 import { RevisionsDrawer } from "./revisions-drawer";
 import { ThemeDrawer } from "./theme-drawer";
 import { AssetsDrawer } from "./assets-drawer";
+import { ScheduleDrawer } from "./schedule-drawer";
 import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
@@ -109,16 +110,19 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openRevisions,
     openTheme,
     openAssets,
+    openSchedule,
     closePublish,
     closePageSettings,
     closeRevisions,
     closeTheme,
     closeAssets,
+    closeSchedule,
     publishOpen,
     pageSettingsOpen,
     revisionsOpen,
     themeOpen,
     assetsOpen,
+    scheduleOpen,
     paletteOpen,
     togglePalette,
     closePalette,
@@ -191,7 +195,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       }
       if (
         e.key === "Escape" &&
-        (publishOpen || pageSettingsOpen || revisionsOpen || themeOpen || assetsOpen)
+        (publishOpen || pageSettingsOpen || revisionsOpen || themeOpen || assetsOpen || scheduleOpen)
       ) {
         e.preventDefault();
         if (publishOpen) closePublish();
@@ -199,6 +203,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         if (revisionsOpen) closeRevisions();
         if (themeOpen) closeTheme();
         if (assetsOpen) closeAssets();
+        if (scheduleOpen) closeSchedule();
         return;
       }
 
@@ -271,12 +276,14 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     revisionsOpen,
     themeOpen,
     assetsOpen,
+    scheduleOpen,
     closePublish,
     closePageSettings,
     closeRevisions,
     closeTheme,
     openAssets,
     closeAssets,
+    closeSchedule,
     paletteOpen,
     togglePalette,
     closePalette,
@@ -305,6 +312,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onRevisions={openRevisions}
         onTheme={openTheme}
         onAssets={openAssets}
+        onSchedule={openSchedule}
         onSaveDraft={() => void saveDraft()}
         onShare={(opts) => handleShareClick(opts, reportMutationError)}
         pageTitle={pageMetadata?.title ?? undefined}
@@ -325,6 +333,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <RevisionsDrawer />
       <ThemeDrawer />
       <AssetsDrawer />
+      <ScheduleDrawer />
       <CommandPalette open={paletteOpen} onClose={closePalette} />
       <ShortcutOverlay
         open={shortcutOverlayOpen}

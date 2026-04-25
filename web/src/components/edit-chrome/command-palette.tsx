@@ -308,6 +308,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           onClose();
         },
       ),
+      drawerRow(
+        "open-schedule",
+        "Schedule publish",
+        "Pick a future date/time to go live",
+        ["schedule", "later", "future", "cron", "publish"],
+        () => {
+          ctx.openSchedule();
+          onClose();
+        },
+      ),
     );
 
     // Actions — undo, redo, save draft, duplicate / move / delete (when
