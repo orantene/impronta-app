@@ -127,7 +127,7 @@ export function TranslationCenterView({
         {" · "}
         Inventory v{bootstrap.languageSettings.translationInventoryVersion}
         {" · "}
-        <Link href="/admin/settings/languages" className="underline underline-offset-2 hover:text-foreground">
+        <Link href="/admin/settings#languages" className="underline underline-offset-2 hover:text-foreground">
           Language settings
         </Link>
       </p>

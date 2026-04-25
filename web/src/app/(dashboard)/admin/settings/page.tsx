@@ -10,6 +10,9 @@ import {
   ADMIN_TABLE_HEAD,
   ADMIN_TABLE_TH,
 } from "@/lib/dashboard-shell-classes";
+import { LanguagesAdminClient } from "@/app/(dashboard)/admin/settings/languages/languages-admin-client";
+import { getLanguageSettings } from "@/lib/language-settings/get-language-settings";
+import type { AppLocaleRow } from "@/lib/language-settings/types";
 import {
   SelectSettingForm,
   ToggleSettingTableRow,
@@ -136,17 +139,34 @@ export default async function AdminSettingsPage() {
   const supabase = await getCachedServerSupabase();
 
   let settingsMap: Record<string, string> = {};
+  let localeRows: AppLocaleRow[] = [];
+  let languageSettings: Awaited<ReturnType<typeof getLanguageSettings>> | null = null;
+  let languageLoadError: string | null = null;
 
   if (supabase) {
-    const { data, error } = await supabase
-      .from("settings")
-      .select("key, value");
+    const [settingsResult, localesResult, langSettings] = await Promise.all([
+      supabase.from("settings").select("key, value"),
+      supabase
+        .from("app_locales")
+        .select(
+          "code, label_native, label_en, enabled_admin, enabled_public, sort_order, is_default, fallback_locale, archived_at",
+        )
+        .is("archived_at", null)
+        .order("sort_order", { ascending: true }),
+      getLanguageSettings(supabase),
+    ]);
 
-    if (!error && data) {
+    if (!settingsResult.error && settingsResult.data) {
       settingsMap = Object.fromEntries(
-        (data as Setting[]).map((s) => [s.key, settingToString(s.value)]),
+        (settingsResult.data as Setting[]).map((s) => [s.key, settingToString(s.value)]),
       );
     }
+    if (localesResult.error) {
+      languageLoadError = localesResult.error.message;
+    } else {
+      localeRows = (localesResult.data ?? []) as AppLocaleRow[];
+    }
+    languageSettings = langSettings;
   }
 
   const textSettings = KNOWN_SETTINGS.filter((s) => s.type === "text");
@@ -166,6 +186,7 @@ export default async function AdminSettingsPage() {
     { id: "workspace", label: "Workspace" },
     { id: "features", label: "Features" },
     { id: "appearance", label: "Appearance" },
+    { id: "languages", label: "Languages" },
     { id: "integrations", label: "Integrations" },
     { id: "advanced", label: "Advanced" },
   ];
@@ -363,6 +384,52 @@ export default async function AdminSettingsPage() {
         </div>
       </section>
 
+      {/* ── Languages ─────────────────────────────────────────────────── */}
+      <section id="languages" className="space-y-4 scroll-mt-24">
+        <header className="space-y-1">
+          <p className="font-display text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Languages
+          </p>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">
+            Locales & translations
+          </h2>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Catalog of locales, public visibility, defaults, and translation
+            inventory controls. Wide-column domains (taxonomy, locations,
+            talent bios) still use EN/ES-specific columns until migrated.
+          </p>
+        </header>
+        {languageLoadError ? (
+          <p className="text-sm text-destructive">
+            Could not load languages: {languageLoadError}
+          </p>
+        ) : languageSettings ? (
+          <>
+            <DashboardSectionCard
+              title="Wide-column content"
+              description="Registry entries declare supportedLocaleMode per domain (en_es_pair, dynamic_json, etc.)."
+              titleClassName={ADMIN_SECTION_TITLE_CLASS}
+            >
+              <p className="text-sm text-muted-foreground">
+                <Link
+                  href="/admin/translations"
+                  className="text-foreground underline-offset-4 hover:underline"
+                >
+                  Open Translation Center →
+                </Link>
+              </p>
+            </DashboardSectionCard>
+            <LanguagesAdminClient
+              locales={localeRows}
+              fallbackMode={languageSettings.fallbackMode}
+              publicSwitcherMode={languageSettings.publicSwitcherMode}
+              inventoryVersion={languageSettings.translationInventoryVersion}
+              inventoryRefreshedAt={languageSettings.translationInventoryRefreshedAt}
+            />
+          </>
+        ) : null}
+      </section>
+
       {/* ── Integrations ──────────────────────────────────────────────── */}
       <section id="integrations" className="space-y-4 scroll-mt-24">
         <header className="space-y-1">
@@ -373,62 +440,62 @@ export default async function AdminSettingsPage() {
             Connected workspaces
           </h2>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Each of these opens its own deeper settings surface. They are
-            linked from here to keep the top-level admin calm.
+            Deep surfaces that have their own page. Linked here to keep the
+            top-level admin calm.
           </p>
         </header>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Link
-            href="/admin/settings/languages"
+            href="/admin/ai-workspace"
             className={cn(
               "group flex items-start gap-3 rounded-2xl border border-border/60 bg-card/40 p-4 shadow-sm",
               "transition-[border-color,background-color,box-shadow] duration-200",
-              "hover:border-[var(--impronta-gold-border)]/55 hover:bg-[var(--impronta-gold)]/[0.03] hover:shadow-md",
+              "hover:border-foreground/40 hover:bg-muted/30 hover:shadow-md",
             )}
           >
-            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)]">
-              <Languages className="size-4" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">Languages & locales</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Add locales, defaults, public visibility, translation inventory.
-              </p>
-            </div>
-          </Link>
-          <Link
-            href="/admin/ai-workspace/settings"
-            className={cn(
-              "group flex items-start gap-3 rounded-2xl border border-border/60 bg-card/40 p-4 shadow-sm",
-              "transition-[border-color,background-color,box-shadow] duration-200",
-              "hover:border-[var(--impronta-gold-border)]/55 hover:bg-[var(--impronta-gold)]/[0.03] hover:shadow-md",
-            )}
-          >
-            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)]">
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-foreground">
               <Sparkles className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">AI workspace</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Chat provider, hybrid search, embeddings, quality v2 toggles.
+                Master toggle, providers, usage, audit, diagnostics — all in one drawer-driven page.
               </p>
             </div>
           </Link>
           <Link
-            href="/admin/site-settings/content/posts"
+            href="/admin/site"
             className={cn(
               "group flex items-start gap-3 rounded-2xl border border-border/60 bg-card/40 p-4 shadow-sm",
               "transition-[border-color,background-color,box-shadow] duration-200",
-              "hover:border-[var(--impronta-gold-border)]/55 hover:bg-[var(--impronta-gold)]/[0.03] hover:shadow-md",
+              "hover:border-foreground/40 hover:bg-muted/30 hover:shadow-md",
             )}
           >
-            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)]">
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-foreground">
               <SlidersHorizontal className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">Content & nav</p>
+              <p className="text-sm font-semibold text-foreground">Site control center</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Posts, header/footer links — edited from the Site area.
+                Content, navigation, SEO, brand, redirects — every storefront surface.
+              </p>
+            </div>
+          </Link>
+          <Link
+            href="/admin/translations"
+            className={cn(
+              "group flex items-start gap-3 rounded-2xl border border-border/60 bg-card/40 p-4 shadow-sm",
+              "transition-[border-color,background-color,box-shadow] duration-200",
+              "hover:border-foreground/40 hover:bg-muted/30 hover:shadow-md",
+            )}
+          >
+            <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-foreground">
+              <Languages className="size-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Translation Center</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Per-domain translation inventory, status, retries.
               </p>
             </div>
           </Link>
@@ -474,7 +541,7 @@ export default async function AdminSettingsPage() {
                 </thead>
                 <tbody className="divide-y divide-border/25">
                   {Object.entries(settingsMap).map(([k, v]) => (
-                    <tr key={k} className="hover:bg-[var(--impronta-gold)]/[0.04]">
+                    <tr key={k} className="hover:bg-muted/30">
                       <td className="px-4 py-2.5 font-mono text-[12px] text-muted-foreground">{k}</td>
                       <td className="px-4 py-2.5 text-sm">{v}</td>
                     </tr>

@@ -198,7 +198,6 @@ export async function refreshTranslationInventory(): Promise<LanguageSettingsAct
 
 function revalidateAll() {
   revalidatePath("/admin/settings");
-  revalidatePath("/admin/settings/languages");
   revalidatePath("/admin/translations");
   revalidatePath("/admin");
 }
