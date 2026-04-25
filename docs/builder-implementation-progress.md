@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 2 — Top bar mission control + Page Settings drawer
-- **Last commit on phase-1 branch:** 7152114 — Page Settings drawer + premium TopBar actually wired (orphaned local TopBar deleted)
-- **Next action:** Phase 2 — Rebuild Publish drawer. Replace inventory-list body with preview thumbnail + page-settings-mini + search-preview + diff list + collapsed-empty list; "Last published" meta in header; Save draft + Cancel + Publish now footer.
+- **Last commit on phase-1 branch:** [pending publish-drawer rebuild]
+- **Next action:** Phase 2 — Wire Save draft button to a `saveNamedDraftAction` (Phase 4 implements; for now the Publish drawer's Save draft is a disabled placeholder, the topbar's is a no-op handler). Once Save draft lands, run the Phase 2 acceptance gate.
 
 ---
 
@@ -127,11 +127,11 @@ items — the user has authorised end-to-end execution.
 - [x] Save action: writes via existing `saveHomepageCompositionAction`
 
 #### Rebuild Publish drawer
-- [ ] Replace inventory-list body with: preview thumbnail card + page-settings-mini card + search-preview card + diff list card + collapsed-empty section list
-- [ ] Footer: Save draft (left) + Cancel (right) + Publish now (right primary)
-- [ ] "Last published 2 days ago by Oran T." meta line in header
-- [ ] Diff list: only sections that differ from live, with edited/added/removed badges
-- [ ] Hide all `(legacy)` slots behind "Show all 6 sections" disclosure
+- [x] Replace inventory-list body with: preview thumbnail card + page-settings-mini card + search-preview card + diff list card + collapsed-empty section list
+- [x] Footer: Save draft (left) + Cancel (right) + Publish now (right primary)
+- [x] "Last published 2 days ago by Oran T." meta line in header (placeholder em-dash until `lastPublishedAt` schema lands; in-flight success path renders the actual just-published timestamp)
+- [ ] Diff list: only sections that differ from live, with edited/added/removed badges (deferred — needs server-side diff vs. last-published snapshot; current rebuild renders full going-live list as graceful fallback)
+- [x] Hide all `(legacy)` slots behind "Show all 6 sections" disclosure
 
 #### Save draft mechanism (lightweight)
 - [ ] Add `saveNamedDraftAction(name, note?)` server action — creates a tagged composition snapshot row in a `page_revisions` table (schema migration)
@@ -341,3 +341,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 50d49d4 | Phase 1 acceptance gate complete — Vercel READY + code QA + prod promote + qa README |
 | 2026-04-24 (autonomous) | A.2 | 1f7e33c | TopBar wired — replace inline 52px shell TopBar with premium 54px import; QA evidence committed |
 | 2026-04-24 (autonomous) | A.2 | 7152114 | PageSettingsDrawer (kind=pageSettings) + actually wire TopBar import (orphaned local helpers deleted, ~430 lines) + EditContext gains pageSettingsOpen/savePageMetadata |
+| 2026-04-24 (autonomous) | A.2 | [pending] | PublishDrawer rebuilt per surface 7 — preview thumbnail card + page-settings mini (Open full → openPageSettings) + search preview + going-live list with legacy disclosure; footer adds Save draft (placeholder) alongside Cancel + Publish now |
