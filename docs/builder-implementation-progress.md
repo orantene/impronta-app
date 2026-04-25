@@ -13,9 +13,9 @@ items — the user has authorised end-to-end execution.
 ## Live state
 
 - **Active milestone:** B — "Real navigator + revisions"
-- **Active phase:** 3 — Structure Navigator (left rail)
-- **Last commit on phase-1 branch:** 4751729 — Tracker advanced to Phase 2 acceptance gate (Phase 2 gate now closes in this commit)
-- **Next action:** Phase 3 — build `edit-chrome/navigator-panel.tsx` (left rail, 280px, `⌘\` toggle). Tree view of the page's slots with drag-to-reorder calling existing `moveSectionTo`, type icons, diff badge, and a per-row visibility toggle. Visibility toggle requires `presentation.hiddenOn: ("desktop"|"tablet"|"mobile")[]` schema extension + migration + render-time respect on each section component. Reference mockup surface "Structure Navigator" in `docs/mockups/builder-experience.html`.
+- **Active phase:** 4 — Revisions + diff
+- **Last commit on phase-1 branch:** be20786 — Phase 3 navigator visibility wiring landed (note: bundled with an unrelated admin/profile fix from a concurrent session — code is correct, just commit message is misleading)
+- **Next action:** Phase 4 — Revisions drawer + diff. Schema-light first pass: surface the existing `cms_page_revisions` rows (already written by every save, no new column needed for the read path) in a Drawer kind="revisions" timeline. Each row gets author + timestamp + auto/published tag inferred from `kind`. Restore action calls a `restoreRevisionAction(revisionId)` server action that loads the snapshot and re-saves it as a new draft revision. The deeper schema (named drafts via `name`/`note`/`tag enum`) lands later when Save-as-named-draft is uplifted from its lightweight Phase 2 wiring.
 
 ---
 
@@ -152,16 +152,25 @@ items — the user has authorised end-to-end execution.
 
 ### Phase 3 — Structure Navigator (left rail)
 
-- [ ] `edit-chrome/navigator-panel.tsx` at `left-0 top-[topbar-height] bottom-0 w-[280px]`
-- [ ] Toggleable via `⌘\` keybind
-- [ ] Tree view: page root → sections (read from `slots`)
-- [ ] Each row: drag dots · type icon · name · diff badge · visibility eye toggle
-- [ ] Selected row syncs with `selectedSectionId`
-- [ ] Drag-to-reorder (call existing `moveSectionTo`)
-- [ ] Visibility toggle → schema extension `presentation.hiddenOn: ("desktop"|"tablet"|"mobile")[]`
-- [ ] Schema migration for `hiddenOn`
-- [ ] Section components respect `hiddenOn` at render time
-- [ ] Footer: Page settings + Theme shortcuts
+- [x] `edit-chrome/navigator-panel.tsx` at `left-0 top-[topbar-height] bottom-0 w-[280px]` (4fc0e9c)
+- [x] Toggleable via `⌘\` keybind (4fc0e9c)
+- [x] Tree view: page root → sections (read from `slots`) (4fc0e9c)
+- [x] Each row: drag dots · type icon · name · visibility eye toggle (4fc0e9c, be20786)
+- [ ] Each row: diff badge — _deferred to Phase 4 (needs server-side diff vs. last published)_
+- [x] Selected row syncs with `selectedSectionId` (4fc0e9c)
+- [x] Drag-to-reorder (call existing `moveSectionTo`) (4fc0e9c)
+- [x] Visibility toggle wired to existing `presentation.visibility` enum (be20786) — schema already supports `always | desktop-only | mobile-only | hidden`; the originally-planned `hiddenOn` array would only be a strictly-more-flexible refactor and isn't required for parity with top-tier builders today
+- [x] Schema migration — _not required; existing `presentation.visibility` is sufficient_
+- [x] Section components respect visibility at render time — `token-presets.css` maps `data-section-visibility` to `display: none` rules for `hidden`, `desktop-only`, and `mobile-only`
+- [x] Footer: Page settings + Theme shortcuts (Theme is a disabled placeholder until Phase 5) (4fc0e9c)
+- [ ] Right-click row menu exposing the full visibility enum (`desktop-only` / `mobile-only`) — _deferred to a follow-up; today the navigator's eye is a binary `hidden ↔ always` toggle and the granular states are set via the Layout inspector_
+
+#### Phase 3 acceptance gate
+- [x] All TS errors fixed (`tsc --noEmit` clean)
+- [ ] Vercel build green for navigator commits (pending — push 4fc0e9c + be20786 trigger builds)
+- [ ] On prod: ⌘\ toggles a 280px left rail; collapsed rail handle restores it
+- [ ] On prod: row click selects the section; drag reorders; eye toggle hides/shows the section in the storefront DOM
+- [ ] Screenshots committed under `docs/qa/phase-3/`
 
 ### Phase 4 — Revisions + diff
 
@@ -343,4 +352,6 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.2 | 7152114 | PageSettingsDrawer (kind=pageSettings) + actually wire TopBar import (orphaned local helpers deleted, ~430 lines) + EditContext gains pageSettingsOpen/savePageMetadata |
 | 2026-04-24 (autonomous) | A.2 | 09eb019 | PublishDrawer rebuilt per surface 7 — preview thumbnail card + page-settings mini (Open full → openPageSettings) + search preview + going-live list with legacy disclosure; footer adds Save draft (placeholder) alongside Cancel + Publish now |
 | 2026-04-24 (autonomous) | A.2 | e8c5fda | Save draft mechanism wired — `saveDraftHomepageAction` server action + EditContext.saveDraft + lastDraftSavedAt; topbar text button + split-menu item + PublishDrawer footer button all call into it; DraftSavedToast surfaces the server timestamp |
-| 2026-04-25 (manual) | A.2 | _(this commit)_ | Phase 2 acceptance gate — TS clean, dpl_Cpjdq9R8s8UgFwtS2wbXLWMu5Dok promoted to prod, smoke check 200 on tulala.digital + impronta.tulala.digital, QA evidence committed under `docs/qa/phase-2/`. Active milestone advances to B (navigator + revisions). |
+| 2026-04-25 (manual) | A.2 | 25b02f3 | Phase 2 acceptance gate — TS clean, dpl_Cpjdq9R8s8UgFwtS2wbXLWMu5Dok promoted to prod, smoke check 200 on tulala.digital + impronta.tulala.digital, QA evidence committed under `docs/qa/phase-2/`. Active milestone advances to B (navigator + revisions). |
+| 2026-04-25 (manual) | B.3 | 4fc0e9c | Phase 3 — Structure Navigator left rail. 280px panel, ⌘\\ toggle, search, tree from slots/slotDefs, click-to-select, drag-to-reorder via moveSectionTo, footer Settings/Theme shortcuts. Visibility eye scaffolded as a noop pending schema work. |
+| 2026-04-25 (concurrent) | B.3 | be20786 | Visibility wiring — extends CompositionSectionRef.visibility, adds `setSectionVisibilityAction` (CAS-safe focused mutation) + `setSectionVisibility` on EditContext; navigator's eye is now a real binary toggle hiding/showing sections through the existing `presentation.visibility` enum (no schema migration). Bundled into a parallel-session profile fix commit; code is correct but commit message references admin/profile only. |
