@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { ArrowUpRight, LayoutDashboard } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
-import { PlanTierToggle } from "@/components/admin/site-control-center/plan-tier-toggle";
 import { SiteShell } from "@/components/admin/site-control-center/site-shell";
 import { parsePlan } from "@/components/admin/site-control-center/capability-catalog";
 import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
@@ -33,9 +32,8 @@ export default async function AdminSiteControlCenterPage({
   const activePlan = parsePlan(params.plan);
 
   return (
-    <div className="-mx-4 min-h-screen bg-[#f2efe6] px-4 pb-8 pt-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-      <div className={ADMIN_PAGE_STACK}>
-        <div className="space-y-6">
+    <div className={ADMIN_PAGE_STACK}>
+      <div className="space-y-6">
           <AdminPageHeader
             icon={LayoutDashboard}
             title="Site"
@@ -53,11 +51,8 @@ export default async function AdminSiteControlCenterPage({
             }
           />
 
-          <PlanTierToggle activePlan={activePlan} />
-
           <SiteShell activePlan={activePlan} />
         </div>
-      </div>
     </div>
   );
 }

@@ -51,7 +51,7 @@ export function AdminPageHeader({
               {eyebrow}
             </div>
           ) : null}
-          <h1 className="text-[22px] font-semibold leading-[1.2] tracking-[-0.01em] text-foreground">
+          <h1 className="font-display text-[22px] font-semibold leading-[1.2] tracking-[-0.01em] text-foreground">
             {title}
           </h1>
           {description ? (

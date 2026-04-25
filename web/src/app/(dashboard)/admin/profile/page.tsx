@@ -99,8 +99,7 @@ export default async function AdminProfileSettingsPage() {
   }));
 
   return (
-    <div className="-mx-4 min-h-screen bg-[#f2efe6] px-4 pb-8 pt-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-      <div className={ADMIN_PAGE_STACK}>
+    <div className={ADMIN_PAGE_STACK}>
         <AdminPageHeader
           icon={UserCircle}
           title="Profile settings"
@@ -117,8 +116,7 @@ export default async function AdminProfileSettingsPage() {
             </a>
           }
         />
-        <ProfileShell groups={groups} fields={fields} terms={terms} />
-      </div>
+      <ProfileShell groups={groups} fields={fields} terms={terms} />
     </div>
   );
 }
