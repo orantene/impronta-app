@@ -23,7 +23,33 @@ function formatWhen(iso: string | null): string {
   }
 }
 
-export default async function SiteSettingsPagesIndexPage() {
+type PageStatus = "draft" | "published" | "archived";
+
+const STATUS_FILTERS: ReadonlyArray<{ key: "all" | PageStatus; label: string }> = [
+  { key: "all", label: "All" },
+  { key: "draft", label: "Drafts" },
+  { key: "published", label: "Published" },
+  { key: "archived", label: "Archived" },
+];
+
+function buildHref(
+  base: string,
+  current: { q: string; status: string },
+  patch: Partial<{ q: string; status: string }>,
+): string {
+  const next = { ...current, ...patch };
+  const params = new URLSearchParams();
+  if (next.q) params.set("q", next.q);
+  if (next.status && next.status !== "all") params.set("status", next.status);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+export default async function SiteSettingsPagesIndexPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const auth = await requireStaff();
   if (!auth.ok) redirect("/login");
 
@@ -44,10 +70,37 @@ export default async function SiteSettingsPagesIndexPage() {
     );
   }
 
-  const [canEdit, rows] = await Promise.all([
+  const sp = (await searchParams) ?? {};
+  const rawQ = typeof sp.q === "string" ? sp.q : "";
+  const rawStatus = typeof sp.status === "string" ? sp.status : "all";
+  const statusFilter: "all" | PageStatus =
+    rawStatus === "draft" ||
+    rawStatus === "published" ||
+    rawStatus === "archived"
+      ? rawStatus
+      : "all";
+  const q = rawQ.trim();
+  const qLower = q.toLowerCase();
+
+  const [canEdit, allRows] = await Promise.all([
     hasPhase5Capability("agency.site_admin.pages.edit", scope.tenantId),
     listPagesForStaff(auth.supabase, scope.tenantId),
   ]);
+
+  const rows = allRows.filter((row) => {
+    if (statusFilter !== "all" && row.status !== statusFilter) return false;
+    if (qLower) {
+      const haystack = `${row.title ?? ""} ${row.slug ?? ""}`.toLowerCase();
+      if (!haystack.includes(qLower)) return false;
+    }
+    return true;
+  });
+
+  const total = allRows.length;
+  const filtered = rows.length;
+  const hasActiveFilter = statusFilter !== "all" || q.length > 0;
+  const basePath = "/admin/site-settings/pages";
+  const current = { q, status: statusFilter };
 
   return (
     <div className="space-y-4">
@@ -56,11 +109,13 @@ export default async function SiteSettingsPagesIndexPage() {
         description="CMS page list. Drafts are private; publishing pushes a page to the storefront. Pages are sorted by most recently updated first."
         titleClassName={ADMIN_SECTION_TITLE_CLASS}
       >
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">
-            {rows.length === 0
+            {total === 0
               ? "Start by creating your first page."
-              : `${rows.length} page${rows.length === 1 ? "" : "s"}`}
+              : hasActiveFilter
+                ? `${filtered} of ${total} page${total === 1 ? "" : "s"}`
+                : `${total} page${total === 1 ? "" : "s"}`}
           </p>
           {canEdit && (
             <Link
@@ -72,7 +127,80 @@ export default async function SiteSettingsPagesIndexPage() {
           )}
         </div>
 
-        {rows.length === 0 ? (
+        {total > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <form
+              method="get"
+              action={basePath}
+              className="flex items-center gap-2"
+            >
+              {statusFilter !== "all" ? (
+                <input type="hidden" name="status" value={statusFilter} />
+              ) : null}
+              <input
+                type="search"
+                name="q"
+                defaultValue={q}
+                placeholder="Filter by title or slug…"
+                aria-label="Filter pages"
+                className="w-56 rounded-md border border-border/60 bg-background px-3 py-1.5 text-sm placeholder:text-muted-foreground/60 focus:border-foreground/40 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-foreground/40 hover:text-foreground"
+              >
+                Filter
+              </button>
+            </form>
+            <div className="flex items-center gap-1">
+              {STATUS_FILTERS.map((opt) => {
+                const active = statusFilter === opt.key;
+                return (
+                  <Link
+                    key={opt.key}
+                    href={buildHref(basePath, current, { status: opt.key })}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                      active
+                        ? "border-foreground/50 bg-foreground/10 text-foreground"
+                        : "border-border/50 text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                    }`}
+                  >
+                    {opt.label}
+                  </Link>
+                );
+              })}
+            </div>
+            {hasActiveFilter && (
+              <Link
+                href={basePath}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Clear
+              </Link>
+            )}
+          </div>
+        )}
+
+        {rows.length === 0 && hasActiveFilter ? (
+          <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-card/30 p-10 text-center">
+            <p className="text-base font-semibold text-foreground">
+              No matching pages
+            </p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              No pages match the current filter
+              {q ? <> for <span className="font-mono">“{q}”</span></> : null}
+              {statusFilter !== "all" ? ` in “${statusFilter}”` : ""}.
+            </p>
+            <div className="mt-4">
+              <Link
+                href={basePath}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Clear filters
+              </Link>
+            </div>
+          </div>
+        ) : rows.length === 0 ? (
           <div className="mt-4 rounded-2xl border border-dashed border-border/60 bg-gradient-to-br from-[var(--impronta-gold)]/[0.04] via-card/30 to-muted/10 p-10 text-center">
             <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[var(--impronta-gold)]/10 text-[var(--impronta-gold)]">
               <svg viewBox="0 0 24 24" fill="none" className="size-6" aria-hidden>
