@@ -181,6 +181,17 @@ export interface EditContextValue {
   pageSettingsOpen: boolean;
   openPageSettings: () => void;
   closePageSettings: () => void;
+
+  // ── structure navigator (left rail) ──
+  /**
+   * Toggle state for the left-rail Structure Navigator (Phase 3).
+   * Controlled so the ⌘\ keybind, the topbar button, and the navigator's
+   * own collapse handle all share one truth. Opens by default in this
+   * phase; later phases may persist user preference per workspace.
+   */
+  navigatorOpen: boolean;
+  setNavigatorOpen: (open: boolean) => void;
+  toggleNavigator: () => void;
   /**
    * Save just the page metadata (title / meta description / tagline).
    * Wraps `dispatchMutation` so the change goes through the same optimistic
@@ -343,6 +354,13 @@ export function EditProvider({
 
   // page settings drawer state
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false);
+
+  // structure navigator (left rail) — open by default; ⌘\ toggles
+  const [navigatorOpen, setNavigatorOpen] = useState(true);
+  const toggleNavigator = useCallback(
+    () => setNavigatorOpen((prev) => !prev),
+    [],
+  );
 
   // Most recent mutation error. Auto-clears after 5s — the operator
   // probably already undid or retried, and we'd rather err toward quiet
@@ -954,6 +972,10 @@ export function EditProvider({
       closePageSettings,
       savePageMetadata,
 
+      navigatorOpen,
+      setNavigatorOpen,
+      toggleNavigator,
+
       saveDraft,
       lastDraftSavedAt,
       clearDraftSavedToast,
@@ -1001,6 +1023,9 @@ export function EditProvider({
       openPageSettings,
       closePageSettings,
       savePageMetadata,
+      navigatorOpen,
+      setNavigatorOpen,
+      toggleNavigator,
       saveDraft,
       lastDraftSavedAt,
       clearDraftSavedToast,

@@ -28,6 +28,7 @@ import { CompositionLibraryOverlay } from "./composition-library";
 import { InlineEditor } from "./inline-editor";
 import { PublishDrawer } from "./publish-drawer";
 import { PageSettingsDrawer } from "./page-settings-drawer";
+import { NavigatorPanel } from "./navigator-panel";
 import { TopBar } from "./topbar";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
@@ -68,6 +69,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     duplicateSection,
     moveSection,
     removeSection,
+    navigatorOpen,
+    toggleNavigator,
   } = useEditContext();
 
   useEffect(() => {
@@ -87,6 +90,13 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         e.preventDefault();
         if (e.shiftKey) void redo();
         else void undo();
+        return;
+      }
+
+      // ⌘\ (or Ctrl\) toggles the Structure Navigator left rail.
+      if (mod && (key === "\\" || e.code === "Backslash")) {
+        e.preventDefault();
+        toggleNavigator();
         return;
       }
 
@@ -131,11 +141,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     duplicateSection,
     moveSection,
     removeSection,
+    toggleNavigator,
   ]);
 
   return (
     <>
-      <BodyPaddingController selectedSectionId={selectedSectionId} />
+      <BodyPaddingController
+        selectedSectionId={selectedSectionId}
+        navigatorOpen={navigatorOpen}
+      />
       <TopBar
         device={device}
         setDevice={setDevice}
@@ -158,6 +172,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <SelectionLayer />
       <CompositionInserters />
       <InlineEditor />
+      <NavigatorPanel />
       <InspectorDock />
       <CompositionLibraryOverlay />
       <PublishDrawer />
@@ -172,14 +187,18 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
 
 function BodyPaddingController({
   selectedSectionId,
+  navigatorOpen,
 }: {
   selectedSectionId: string | null;
+  navigatorOpen: boolean;
 }) {
-  const open = !!selectedSectionId;
+  const dockOpen = !!selectedSectionId;
+  // Navigator collapses to a 22px rail handle so the canvas always cedes
+  // a hair of space; the full panel reserves 280px when open.
+  const left = navigatorOpen ? 280 : 22;
+  const right = dockOpen ? 380 : 0;
   return (
-    <style>{`@media (min-width: 1024px) { body { padding-right: ${
-      open ? "380px" : "0"
-    } !important; transition: padding-right 200ms ease; } }`}</style>
+    <style>{`@media (min-width: 1024px) { body { padding-left: ${left}px !important; padding-right: ${right}px !important; transition: padding-left 200ms ease, padding-right 200ms ease; } }`}</style>
   );
 }
 
