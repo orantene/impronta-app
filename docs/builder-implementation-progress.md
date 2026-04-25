@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
-- **Last commit on phase-1 branch:** aa712c7 — CompositionLibrary/MediaPicker/TalentPicker Drawer kit retrofit
-- **Next action:** Rewrite `inspectors/hero-content.tsx` using Card, Field, Helper, MediaPickerButton, SegmentedControl
+- **Last commit on phase-1 branch:** 4bcfc1f — hero-content.tsx kit rewrite
+- **Next action:** Phase 1 acceptance gate — verify Vercel build green on phase-1; then prod QA checks (rings, dock slide, zero debug labels); screenshots under docs/qa/phase-1/
 
 ---
 
@@ -86,10 +86,10 @@ items — the user has authorised end-to-end execution.
 - [x] TalentPicker modal uses `<Drawer>` styling
 
 #### Upgrade hero inspector to KIT parity
-- [ ] Rewrite `inspectors/hero-content.tsx` using `Card`, `Field`, `Helper`, `MediaPickerButton`, `SegmentedControl` for variant; matches the wave-3 panel quality
+- [x] Rewrite `inspectors/hero-content.tsx` using `Card`, `Field`, `Helper`, `MediaPickerButton`, `SegmentedControl` for variant; matches the wave-3 panel quality
 
 #### Phase 1 acceptance gate
-- [ ] All TS errors fixed
+- [x] All TS errors fixed
 - [ ] Vercel build green on `phase-1`
 - [ ] On prod: rings visible on Editorial Noir dark background
 - [ ] On prod: clicking outside any section slides the dock out
