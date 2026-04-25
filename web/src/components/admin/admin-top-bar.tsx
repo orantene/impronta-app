@@ -19,11 +19,15 @@
  */
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronRight, ExternalLink, Rocket } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useUpgradeModal } from "@/components/admin/site-control-center/upgrade-context";
+import {
+  formatTalentUsage,
+  useAdminWorkspace,
+} from "@/components/admin/workspace-context";
 
 const TIER_DOT: Record<string, string> = {
   free: "#a1a1aa",
@@ -37,13 +41,6 @@ const TIER_LABEL: Record<string, string> = {
   studio: "Studio",
   agency: "Agency",
   network: "Network",
-};
-
-const TIER_USAGE: Record<string, string> = {
-  free: "8 / 10 talents",
-  studio: "34 / 50 talents",
-  agency: "87 / 200 talents",
-  network: "Unlimited talents",
 };
 
 const LABELS: Record<string, string> = {
@@ -123,25 +120,21 @@ function buildCrumbs(pathname: string): Crumb[] {
 
 export function AdminTopBar() {
   const pathname = usePathname() ?? "/admin";
-  const searchParams = useSearchParams();
   const crumbs = useMemo(() => buildCrumbs(pathname), [pathname]);
   const upgradeModal = useUpgradeModal();
+  const workspace = useAdminWorkspace();
 
   const isSiteArea = pathname.startsWith("/admin/site-settings");
   const isComposer = pathname.startsWith("/admin/site-settings/structure");
   const showPublishPill = isSiteArea && !isComposer;
 
-  // Tier-chip — mirrors the mockup's right-side workspace pill. Plan is
-  // surfaced via `?plan=` for prototype routes; fallback to free.
-  const planParam = searchParams?.get("plan") ?? "free";
-  const planKey = (["free", "studio", "agency", "network"] as const).includes(
-    planParam as never,
-  )
-    ? planParam
-    : "free";
+  // Tier-chip — reads the live workspace summary so the chip reflects
+  // what the tenant actually pays for, not a URL param. `formatTalentUsage`
+  // returns "Unlimited talents" for Network (NULL seat limit).
+  const planKey = workspace?.plan ?? "free";
   const planLabel = TIER_LABEL[planKey] ?? "Free";
   const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
-  const planUsage = TIER_USAGE[planKey] ?? TIER_USAGE.free;
+  const planUsage = formatTalentUsage(workspace) || `${TIER_LABEL[planKey] ?? "Free"} plan`;
 
   // Never render the bar on routes where it'd fight composer chrome.
   if (isComposer) {
@@ -189,8 +182,8 @@ export function AdminTopBar() {
           className={cn(
             "inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[12px] text-foreground/80",
             "border border-[rgba(24,24,27,0.18)] transition-[border-color,box-shadow] duration-150",
-            "hover:border-[rgba(201,162,39,0.4)] hover:shadow-[0_4px_12px_-6px_rgba(0,0,0,0.2)]",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(201,162,39,0.5)]",
+            "hover:border-[rgba(24,24,27,0.4)] hover:shadow-[0_4px_12px_-6px_rgba(0,0,0,0.2)]",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(24,24,27,0.45)]",
           )}
           title="Click to view plans"
         >
@@ -210,9 +203,9 @@ export function AdminTopBar() {
           <Link
             href="/admin/site-settings/structure"
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border border-amber-500/40",
-              "bg-amber-500/10 px-3 py-1 text-[11px] font-semibold text-amber-400",
-              "transition-colors hover:border-amber-500/60 hover:bg-amber-500/15",
+              "inline-flex items-center gap-1.5 rounded-full border border-foreground/30",
+              "bg-foreground/[0.06] px-3 py-1 text-[11px] font-semibold text-foreground",
+              "transition-colors hover:border-foreground/50 hover:bg-foreground/10",
             )}
             title="Open the composer to review and publish pending draft changes."
           >

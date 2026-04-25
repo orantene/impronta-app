@@ -4,7 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { SiteShell } from "@/components/admin/site-control-center/site-shell";
-import { parsePlan } from "@/components/admin/site-control-center/capability-catalog";
+import { loadAdminWorkspaceSummary } from "@/lib/dashboard/admin-workspace-summary";
 import { ADMIN_PAGE_STACK } from "@/lib/dashboard-shell-classes";
 import { requireStaff } from "@/lib/server/action-guards";
 
@@ -37,20 +37,17 @@ export const dynamic = "force-dynamic";
  * pattern from `docs/mockups/site-control-center.html`). Locked cards show
  * an upgrade pitch in the drawer instead of navigating away.
  *
- * The plan toggle is purely URL-driven (`?plan=`), so the page stays a
- * server component and re-renders cheaply per pill click. Drawer state
- * lives in the SiteShell client component.
+ * The active plan is read from the workspace's `agencies.plan_tier` row
+ * (via {@link loadAdminWorkspaceSummary}) so the gates here match the
+ * tier-chip in the top bar. Drawer state lives in the SiteShell client
+ * component.
  */
-export default async function AdminSiteControlCenterPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ plan?: string }>;
-}) {
+export default async function AdminSiteControlCenterPage() {
   const auth = await requireStaff();
   if (!auth.ok) redirect("/login");
 
-  const params = await searchParams;
-  const activePlan = parsePlan(params.plan);
+  const workspace = await loadAdminWorkspaceSummary();
+  const activePlan = workspace?.plan ?? "free";
 
   return (
     <div className={ADMIN_PAGE_STACK}>

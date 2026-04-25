@@ -11,6 +11,7 @@ import {
   loadAdminShellPulseCounts,
   loadAdminTier1AlertCount,
 } from "@/lib/dashboard/admin-dashboard-data";
+import { loadAdminWorkspaceSummary } from "@/lib/dashboard/admin-workspace-summary";
 import { getDashboardTheme } from "@/lib/dashboard-theme";
 import { getCachedActorSession } from "@/lib/server/request-cache";
 import { getCurrentUserTenants, getTenantScope } from "@/lib/saas";
@@ -33,14 +34,21 @@ export default async function AdminLayout({
     redirect(resolveAuthenticatedDestination(profile));
   }
 
-  const [pulseCounts, tier1AlertCount, dashboardTheme, tenants, tenantScope] =
-    await Promise.all([
-      loadAdminShellPulseCounts(),
-      loadAdminTier1AlertCount(),
-      getDashboardTheme(session.supabase),
-      getCurrentUserTenants(),
-      getTenantScope(),
-    ]);
+  const [
+    pulseCounts,
+    tier1AlertCount,
+    dashboardTheme,
+    tenants,
+    tenantScope,
+    workspaceSummary,
+  ] = await Promise.all([
+    loadAdminShellPulseCounts(),
+    loadAdminTier1AlertCount(),
+    getDashboardTheme(session.supabase),
+    getCurrentUserTenants(),
+    getTenantScope(),
+    loadAdminWorkspaceSummary(),
+  ]);
 
   return (
     <>
@@ -56,6 +64,7 @@ export default async function AdminLayout({
           navBadges={{ inquiries: tier1AlertCount }}
           tenants={tenants}
           activeTenantId={tenantScope?.tenantId ?? null}
+          workspace={workspaceSummary}
         >
           <AdminWorkspaceShell pulseCounts={pulseCounts}>{children}</AdminWorkspaceShell>
         </AdminDashboardShell>

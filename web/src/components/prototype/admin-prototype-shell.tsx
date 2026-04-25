@@ -41,8 +41,10 @@ import { AdminContextualInspector } from "@/components/admin/inspector/admin-con
 import { UpgradeModalProvider } from "@/components/admin/site-control-center/upgrade-context";
 import { GlobalUpgradeModal } from "@/components/admin/site-control-center/global-upgrade-modal";
 import { AgencySwitcher } from "@/components/admin/agency-switcher";
+import { AdminWorkspaceProvider } from "@/components/admin/workspace-context";
 import { DashboardLocaleToggle } from "@/components/dashboard-locale-toggle";
 import type { TenantMembership } from "@/lib/saas";
+import type { AdminWorkspaceSummary } from "@/lib/dashboard/admin-workspace-summary";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -334,7 +336,25 @@ function PrototypeNavSections({
       return (
         <Tooltip key={item.id}>
           <TooltipTrigger asChild>{row}</TooltipTrigger>
-          <TooltipContent side="right">{item.label}</TooltipContent>
+          <TooltipContent side="right" className="max-w-[18rem]">
+            <div className="font-medium">{item.label}</div>
+            {item.description ? (
+              <div className="mt-0.5 text-[11px] leading-snug opacity-80">{item.description}</div>
+            ) : null}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    if (item.description) {
+      return (
+        <Tooltip key={item.id}>
+          <TooltipTrigger asChild>
+            <div className="min-w-0">{row}</div>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-[18rem] text-[11px] leading-snug">
+            {item.description}
+          </TooltipContent>
         </Tooltip>
       );
     }
@@ -479,6 +499,12 @@ export type AdminDashboardShellProps = {
   tenants?: TenantMembership[];
   /** Tenant id currently in scope per {@link getTenantScope}, or null. */
   activeTenantId?: string | null;
+  /**
+   * Source-of-truth workspace summary (plan tier, display name, seat usage)
+   * for the active tenant. Threaded through {@link AdminWorkspaceProvider}
+   * so the top-bar tier-chip + AccountBillingPanels read live data.
+   */
+  workspace?: AdminWorkspaceSummary | null;
 };
 
 export function AdminDashboardShell({
@@ -487,6 +513,7 @@ export function AdminDashboardShell({
   navBadges,
   tenants = [],
   activeTenantId = null,
+  workspace = null,
 }: AdminDashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -557,6 +584,7 @@ export function AdminDashboardShell({
 
   return (
     <TooltipProvider delayDuration={0}>
+      <AdminWorkspaceProvider workspace={workspace}>
       <UpgradeModalProvider>
       <div
         data-dashboard-theme={dashboardTheme}
@@ -830,6 +858,7 @@ export function AdminDashboardShell({
       </div>
       <GlobalUpgradeModal />
       </UpgradeModalProvider>
+      </AdminWorkspaceProvider>
     </TooltipProvider>
   );
 }

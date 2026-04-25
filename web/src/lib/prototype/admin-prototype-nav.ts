@@ -20,6 +20,12 @@ export type PrototypeNavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  /**
+   * One-line plain-English explanation of what this destination is for. Surfaced
+   * as the sidebar tooltip on hover (and as the only visible label when the
+   * sidebar is collapsed). Aim for "verb-first, what the operator does here".
+   */
+  description?: string;
 };
 
 /** Stable key for a nav item: path under the admin base, plus query when present; or `index` for overview. */
@@ -52,8 +58,15 @@ function navItem(
   href: string,
   icon: LucideIcon,
   idOverride?: string,
+  description?: string,
 ): PrototypeNavItem {
-  return { id: idOverride ?? prototypeNavItemStableId(href), label, href, icon };
+  return {
+    id: idOverride ?? prototypeNavItemStableId(href),
+    label,
+    href,
+    icon,
+    ...(description ? { description } : {}),
+  };
 }
 
 export type PrototypeNavGroup = {
@@ -115,30 +128,102 @@ export const ADMIN_PROTOTYPE_NAV: PrototypeNavGroup[] = [
     id: "workspace",
     label: "Workspace",
     items: [
-      navItem("Home", `${ADMIN_PROTOTYPE_BASE}`, LayoutDashboard),
-      navItem("Inquiries", `${ADMIN_PROTOTYPE_BASE}/inquiries`, Inbox),
-      navItem("Bookings", `${ADMIN_PROTOTYPE_BASE}/bookings`, CalendarCheck),
-      navItem("Talents", `${ADMIN_PROTOTYPE_BASE}/talent`, Users),
-      navItem("Clients", `${ADMIN_PROTOTYPE_BASE}/clients`, UserRound),
+      navItem(
+        "Home",
+        `${ADMIN_PROTOTYPE_BASE}`,
+        LayoutDashboard,
+        undefined,
+        "Daily overview \u2014 alerts, queue, recent activity",
+      ),
+      navItem(
+        "Inquiries",
+        `${ADMIN_PROTOTYPE_BASE}/inquiries`,
+        Inbox,
+        undefined,
+        "Incoming requests, triage and convert to bookings",
+      ),
+      navItem(
+        "Bookings",
+        `${ADMIN_PROTOTYPE_BASE}/bookings`,
+        CalendarCheck,
+        undefined,
+        "Confirmed jobs \u2014 schedule, contracts, talent on call",
+      ),
+      navItem(
+        "Talents",
+        `${ADMIN_PROTOTYPE_BASE}/talent`,
+        Users,
+        undefined,
+        "Roster \u2014 model profiles, applications, availability",
+      ),
+      navItem(
+        "Clients",
+        `${ADMIN_PROTOTYPE_BASE}/clients`,
+        UserRound,
+        undefined,
+        "Client accounts \u2014 contacts, locations, history",
+      ),
     ],
   },
   {
     id: "site-and-ai",
     label: "Site & AI",
     items: [
-      navItem("Site", `${ADMIN_PROTOTYPE_BASE}/site`, LayoutDashboard, "site-control-center"),
-      navItem("Profile settings", `${ADMIN_PROTOTYPE_BASE}/profile`, UserCog),
-      navItem("AI workspace", `${ADMIN_PROTOTYPE_BASE}/ai-workspace`, Sparkles),
+      navItem(
+        "Site",
+        `${ADMIN_PROTOTYPE_BASE}/site`,
+        LayoutDashboard,
+        "site-control-center",
+        "Public storefront \u2014 pages, design, navigation, SEO",
+      ),
+      navItem(
+        "Profile settings",
+        `${ADMIN_PROTOTYPE_BASE}/profile`,
+        UserCog,
+        undefined,
+        "Roster fields, filters, taxonomy \u2014 what shows on profiles",
+      ),
+      navItem(
+        "AI workspace",
+        `${ADMIN_PROTOTYPE_BASE}/ai-workspace`,
+        Sparkles,
+        undefined,
+        "Generators, copy assists, model briefs",
+      ),
     ],
   },
   {
     id: "system",
     label: "System",
     items: [
-      navItem("Account & billing", `${ADMIN_PROTOTYPE_BASE}/account`, UserRound, "system-account"),
-      navItem("Settings", `${ADMIN_PROTOTYPE_BASE}/settings`, Settings, "system-settings"),
-      navItem("Users", `${ADMIN_PROTOTYPE_BASE}/users`, Users),
-      navItem("Help", `${ADMIN_PROTOTYPE_BASE}/docs`, HelpCircle, "system-help"),
+      navItem(
+        "Account & billing",
+        `${ADMIN_PROTOTYPE_BASE}/account`,
+        UserRound,
+        "system-account",
+        "Plan, invoices, agency owner profile",
+      ),
+      navItem(
+        "Settings",
+        `${ADMIN_PROTOTYPE_BASE}/settings`,
+        Settings,
+        "system-settings",
+        "Tenant configuration, locale, integrations",
+      ),
+      navItem(
+        "Users",
+        `${ADMIN_PROTOTYPE_BASE}/users`,
+        Users,
+        undefined,
+        "Staff and admin seats \u2014 invite, permissions",
+      ),
+      navItem(
+        "Help",
+        `${ADMIN_PROTOTYPE_BASE}/docs`,
+        HelpCircle,
+        "system-help",
+        "Operator docs and how-it-works guides",
+      ),
     ],
   },
 ];

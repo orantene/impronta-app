@@ -1,18 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
 import { Calendar, Plus } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useUpgradeModal } from "@/components/admin/site-control-center/upgrade-context";
+import {
+  formatTalentUsage,
+  useAdminWorkspace,
+} from "@/components/admin/workspace-context";
 
 /**
  * AccountBillingPanels — workspace billing surface from the
  * site-control-center mockup (Account view, lines 1168-1308).
  * Renders Current plan / Organization / Payment / Invoices / Danger
- * zone as a stack of `account-panel` cards. Form data is presentational
- * for the prototype — the staff password card is rendered separately.
+ * zone as a stack of `account-panel` cards. Reads the workspace summary
+ * (plan, name, seat usage) from {@link useAdminWorkspace} so every
+ * surface stays in sync with the underlying agencies row.
  */
 
 const TIER_DOT: Record<string, string> = {
@@ -27,16 +31,10 @@ const TIER_LABEL: Record<string, string> = {
   agency: "Agency",
   network: "Network",
 };
-const TIER_USAGE: Record<string, string> = {
-  free: "8 / 10 talents used.",
-  studio: "34 / 50 talents used.",
-  agency: "87 / 200 talents used.",
-  network: "Unlimited talents.",
-};
 const TIER_RENEW: Record<string, string> = {
   free: "No renewal — Free plan.",
-  studio: "Renews May 1 · $49 / month.",
-  agency: "Renews May 1 · $149 / month.",
+  studio: "$49 / month.",
+  agency: "$149 / month.",
   network: "Custom contract · contact billing.",
 };
 
@@ -108,19 +106,22 @@ function BtnSecondary({
 }
 
 export function AccountBillingPanels() {
-  const searchParams = useSearchParams();
   const upgradeModal = useUpgradeModal();
-  const planParam = searchParams?.get("plan") ?? "free";
-  const planKey = (["free", "studio", "agency", "network"] as const).includes(
-    planParam as never,
-  )
-    ? planParam
-    : "free";
+  const workspace = useAdminWorkspace();
+
+  const planKey = workspace?.plan ?? "free";
   const planLabel = TIER_LABEL[planKey] ?? "Free";
   const planDot = TIER_DOT[planKey] ?? TIER_DOT.free;
-  const planUsage = TIER_USAGE[planKey] ?? TIER_USAGE.free;
+  const planUsage = workspace
+    ? `${formatTalentUsage(workspace)} used.`
+    : "—";
   const planRenew = TIER_RENEW[planKey] ?? TIER_RENEW.free;
   const hasPaidInvoices = planKey !== "free";
+
+  // Default the org-name field to the live workspace name so admins see
+  // their actual brand instead of a leftover mockup placeholder. The form
+  // is still presentational (Save organization is wired in a later phase).
+  const orgName = workspace?.displayName ?? "";
 
   return (
     <div className="space-y-3.5">
@@ -170,13 +171,18 @@ export function AccountBillingPanels() {
         <div className="grid gap-3.5 sm:grid-cols-2">
           <div>
             <label className={FORM_LABEL_CLASS}>Organization name</label>
-            <input className={FORM_INPUT_CLASS} defaultValue="Nova Roster" />
+            <input
+              key={orgName}
+              className={FORM_INPUT_CLASS}
+              defaultValue={orgName}
+              placeholder="Your agency name"
+            />
           </div>
           <div>
             <label className={FORM_LABEL_CLASS}>Legal entity</label>
             <input
               className={FORM_INPUT_CLASS}
-              defaultValue="Nova Talent Management LLC"
+              placeholder="As it appears on receipts"
             />
           </div>
           <div>
@@ -191,28 +197,34 @@ export function AccountBillingPanels() {
             <input
               className={FORM_INPUT_CLASS}
               type="email"
-              defaultValue="billing@nova-roster.com"
+              placeholder="billing@your-agency.com"
             />
           </div>
           <div className="sm:col-span-2">
             <label className={FORM_LABEL_CLASS}>Address line 1</label>
-            <input className={FORM_INPUT_CLASS} defaultValue="Av. Tulum 405" />
+            <input
+              className={FORM_INPUT_CLASS}
+              placeholder="Street address"
+            />
           </div>
           <div>
             <label className={FORM_LABEL_CLASS}>City</label>
-            <input className={FORM_INPUT_CLASS} defaultValue="Tulum" />
+            <input className={FORM_INPUT_CLASS} placeholder="City" />
           </div>
           <div>
             <label className={FORM_LABEL_CLASS}>Region / State</label>
-            <input className={FORM_INPUT_CLASS} defaultValue="Quintana Roo" />
+            <input className={FORM_INPUT_CLASS} placeholder="Region / State" />
           </div>
           <div>
             <label className={FORM_LABEL_CLASS}>Postal code</label>
-            <input className={FORM_INPUT_CLASS} defaultValue="77780" />
+            <input className={FORM_INPUT_CLASS} placeholder="Postal code" />
           </div>
           <div>
             <label className={FORM_LABEL_CLASS}>Country</label>
-            <select className={FORM_INPUT_CLASS} defaultValue="Mexico">
+            <select className={FORM_INPUT_CLASS} defaultValue="">
+              <option value="" disabled>
+                Choose country
+              </option>
               <option>Mexico</option>
               <option>United States</option>
               <option>Spain</option>

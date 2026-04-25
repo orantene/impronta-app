@@ -51,7 +51,7 @@ export function SiteCard({
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         locked
           ? "hover:border-foreground/30"
-          : "border-[rgba(24,24,27,0.1)] bg-white hover:border-[rgba(201,162,39,0.4)]",
+          : "border-[rgba(24,24,27,0.1)] bg-white hover:border-[rgba(24,24,27,0.32)]",
       )}
       style={
         tint
@@ -65,9 +65,9 @@ export function SiteCard({
           style={
             capability.iconAccent
               ? {
-                  backgroundColor: "rgba(201, 162, 39, 0.12)",
-                  color: "#8b6d1f",
-                  boxShadow: "inset 0 0 0 1px rgba(201, 162, 39, 0.4)",
+                  backgroundColor: "rgba(24, 24, 27, 0.06)",
+                  color: "#18181b",
+                  boxShadow: "inset 0 0 0 1px rgba(24, 24, 27, 0.18)",
                 }
               : {
                   backgroundColor: "#f5f4ef",

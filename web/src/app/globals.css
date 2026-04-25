@@ -599,24 +599,24 @@ html[data-public-font-preset="editorial"] {
  *
  * The admin is an operator tool, not a tenant-facing surface. It does NOT
  * inherit the warm Impronta cream/brown; that palette belongs on the
- * storefront. Gold survives as a single accent for active nav, primary
- * CTAs, and focus rings — not as a background wash.
+ * storefront. Gold has been removed entirely — the admin is monochrome
+ * neutral. Token names kept as --admin-gold for backward compat with
+ * 100+ callsites; values are now zinc/ink.
  */
 [data-admin-prototype="1"][data-admin-prototype-theme="light"] {
-  /* Admin accent (light) — dark sidebar with gold accent, matching the
-   * site-control-center mockup. Gold is the active-nav highlight only;
-   * everywhere else uses neutral ink. */
-  --admin-gold: #c9a227;
-  --admin-gold-bright: #b8941e;
-  --admin-gold-soft: rgba(201, 162, 39, 0.12);
-  --admin-gold-border: rgba(201, 162, 39, 0.4);
+  /* Admin accent (light) — sidebar stays dark in both themes, so the
+   * active-nav highlight is always near-white. Gold removed entirely. */
+  --admin-gold: #fafafa;
+  --admin-gold-bright: #ffffff;
+  --admin-gold-soft: rgba(255, 255, 255, 0.06);
+  --admin-gold-border: rgba(255, 255, 255, 0.16);
   --admin-gold-muted: rgba(242, 242, 242, 0.62);
   --admin-sidebar-bg: #0d0d10;
   --admin-sidebar-hover: rgba(255, 255, 255, 0.04);
-  --admin-nav-active-label: #c9a227;
+  --admin-nav-active-label: #ffffff;
   --admin-nav-idle: rgba(242, 242, 242, 0.62);
   --admin-nav-hover-fg: #f2f2f2;
-  --admin-workspace-bg: #f2efe6;
+  --admin-workspace-bg: #f4f4f5;
   --admin-workspace-fg: #18181b;
   --admin-workspace-surface: #ffffff;
   --admin-workspace-elevated: #ffffff;

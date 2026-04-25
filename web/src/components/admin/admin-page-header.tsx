@@ -37,9 +37,9 @@ export function AdminPageHeader({
           <span
             className="flex size-11 shrink-0 items-center justify-center rounded-[14px]"
             style={{
-              backgroundColor: "rgba(201, 162, 39, 0.12)",
-              color: "#c9a227",
-              boxShadow: "inset 0 0 0 1px rgba(201, 162, 39, 0.4)",
+              backgroundColor: "rgba(24, 24, 27, 0.06)",
+              color: "#18181b",
+              boxShadow: "inset 0 0 0 1px rgba(24, 24, 27, 0.18)",
             }}
           >
             <Icon className="size-5" aria-hidden />

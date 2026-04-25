@@ -13,7 +13,6 @@ import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import {
   ADMIN_FORM_CONTROL,
   ADMIN_HELP_TRIGGER_BUTTON,
-  ADMIN_PAGE_STACK,
   ADMIN_POPOVER_CONTENT_CLASS,
 } from "@/lib/dashboard-shell-classes";
 import { formatAdminTimestamp } from "@/lib/admin/format-admin-timestamp";
@@ -526,7 +525,7 @@ export default async function AdminInquiriesPage({
     (coordinatorFilter ? 1 : 0);
 
   return (
-    <div className={ADMIN_PAGE_STACK}>
+    <div className={cn("mx-auto max-w-6xl space-y-5 pb-8")}>
       <AdminPageHeader
         icon={MessageSquareText}
         title="Requests"

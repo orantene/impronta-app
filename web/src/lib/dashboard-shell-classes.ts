@@ -37,7 +37,7 @@ export const DASHBOARD_WORKSPACE_STATUS_ROW = "flex min-h-[1.25rem] items-center
  */
 export const LUXURY_GOLD_BUTTON_CLASS =
   "relative overflow-hidden border-0 bg-[var(--impronta-gold)] text-white shadow-md shadow-black/10 " +
-  "hover:bg-[var(--impronta-gold)]/92 hover:shadow-[0_14px_32px_-18px_rgba(201,162,39,0.55)] " +
+  "hover:bg-[var(--impronta-gold)]/92 hover:shadow-[0_14px_32px_-18px_rgba(0,0,0,0.32)] " +
   "focus-visible:ring-2 focus-visible:ring-[var(--impronta-gold)]/35 " +
   "after:pointer-events-none after:absolute after:inset-0 after:opacity-0 after:transition-opacity after:duration-200 " +
   "after:bg-[linear-gradient(115deg,transparent,rgba(255,255,255,0.18),transparent)] " +
