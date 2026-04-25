@@ -64,6 +64,12 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openPublish,
     openPageSettings,
     openRevisions,
+    closePublish,
+    closePageSettings,
+    closeRevisions,
+    publishOpen,
+    pageSettingsOpen,
+    revisionsOpen,
     saveDraft,
     pageMetadata,
     selectedSectionId,
@@ -87,6 +93,17 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
 
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
+
+      // Escape dismisses whichever right-side drawer is up. The drawers
+      // mutex each other on open, so at most one is open at a time —
+      // close-all is a safe no-op when nothing's up.
+      if (e.key === "Escape" && (publishOpen || pageSettingsOpen || revisionsOpen)) {
+        e.preventDefault();
+        if (publishOpen) closePublish();
+        if (pageSettingsOpen) closePageSettings();
+        if (revisionsOpen) closeRevisions();
+        return;
+      }
 
       if (mod && key === "z") {
         e.preventDefault();
@@ -144,6 +161,12 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     moveSection,
     removeSection,
     toggleNavigator,
+    publishOpen,
+    pageSettingsOpen,
+    revisionsOpen,
+    closePublish,
+    closePageSettings,
+    closeRevisions,
   ]);
 
   return (

@@ -913,13 +913,32 @@ export function EditProvider({
   }, []);
   const closeLibrary = useCallback(() => setLibraryTarget(null), []);
 
-  const openPublish = useCallback(() => setPublishOpen(true), []);
+  // The right-side drawers (Publish, Page Settings, Revisions) all anchor
+  // to the same `right: 0` slot. Opening one mutexes out the others so
+  // they never visually stack — picking up a new drawer means dismissing
+  // whichever one was up. The InspectorDock is intentionally NOT included
+  // here because its open state is selection-driven, not topbar-driven;
+  // a drawer slides in front of it (higher z-index) and the inspector
+  // remains underneath as the operator's "current section" anchor.
+  const openPublish = useCallback(() => {
+    setPageSettingsOpen(false);
+    setRevisionsOpen(false);
+    setPublishOpen(true);
+  }, []);
   const closePublish = useCallback(() => setPublishOpen(false), []);
 
-  const openPageSettings = useCallback(() => setPageSettingsOpen(true), []);
+  const openPageSettings = useCallback(() => {
+    setPublishOpen(false);
+    setRevisionsOpen(false);
+    setPageSettingsOpen(true);
+  }, []);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
 
-  const openRevisions = useCallback(() => setRevisionsOpen(true), []);
+  const openRevisions = useCallback(() => {
+    setPublishOpen(false);
+    setPageSettingsOpen(false);
+    setRevisionsOpen(true);
+  }, []);
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
 
   /**

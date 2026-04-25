@@ -213,7 +213,6 @@ export function RevisionsDrawer(): ReactElement | null {
     locale,
     pageMetadata,
     restoreRevision,
-    saving,
   } = useEditContext();
 
   const [revisions, setRevisions] = useState<RevisionListRow[] | null>(null);
@@ -308,7 +307,7 @@ export function RevisionsDrawer(): ReactElement | null {
                     publishedVersion !== null &&
                     rev.version === publishedVersion
                   }
-                  pending={pendingId === rev.id || (saving && pendingId === rev.id)}
+                  pending={pendingId === rev.id}
                   confirming={confirmId === rev.id}
                   onAskConfirm={() => setConfirmId(rev.id)}
                   onCancelConfirm={() => setConfirmId(null)}
