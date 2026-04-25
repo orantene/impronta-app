@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
-- **Last commit on phase-1 branch:** 1eb8679 — selection-layer premium upgrade
-- **Next action:** Strip debug labels — InspectorDock header (remove `(Classic starter) {hash}`) + footer (`v{schemaVersion} / Draft`) + PublishDrawer slot rows.
+- **Last commit on phase-1 branch:** 342a55b — strip debug labels (inspector + publish + library)
+- **Next action:** Inspector auto-hide — when `selectedSectionId === null`, slide dock out (`translateX(100%)` 200ms easing); canvas reclaims full width; click section → dock slides in.
 
 ---
 
@@ -67,11 +67,11 @@ items — the user has authorised end-to-end execution.
 - [x] Source-section drag state — desaturate filter + dashed outline + opacity 0.4
 
 #### Strip debug labels everywhere
-- [ ] InspectorDock header — remove `(Classic starter) {hash}` from name; show name + type icon + saved state only
-- [ ] InspectorDock footer — remove `v{schemaVersion} / Draft` line entirely
-- [ ] PublishDrawer slot list — remove `(legacy)` from labels in operator view; rename `EMPTY` to subtle "No section yet" or hide collapsed
-- [ ] PublishDrawer section rows — remove the `Hero — new (Classic starter) d7b14f` debug subtitle
-- [ ] CompositionLibrary tile descriptions — keep operator copy only
+- [x] InspectorDock header — remove `(Classic starter) {hash}` from name; show name + type icon + saved state only
+- [x] InspectorDock footer — remove `v{schemaVersion} / Draft` line entirely
+- [x] PublishDrawer slot list — remove `(legacy)` from labels in operator view; rename `EMPTY` to subtle "No section yet" or hide collapsed
+- [x] PublishDrawer section rows — remove the `Hero — new (Classic starter) d7b14f` debug subtitle
+- [x] CompositionLibrary tile descriptions — keep operator copy only
 
 #### Inspector auto-hide
 - [ ] When `selectedSectionId === null`, slide the dock out (`translateX(100%)` with 200ms easing) instead of rendering "No selection" empty state
@@ -330,3 +330,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 557380d | autonomous shipped SectionTypeIcon — 12 SVG glyphs |
 | 2026-04-24 (manual) | A.1 | 3941772 | manual SectionTypeIcon merge / tracker advance |
 | 2026-04-24 (autonomous) | A.1 | 1eb8679 | Selection layer premium upgrade — dual-tone ring, chip, drop indicator, ghost |
+| 2026-04-24 (autonomous) | A.1 | 342a55b | Strip debug labels: inspector SectionTypeIcon + name cleaner + footer removed + publish drawer (legacy) + library TypeKey |
