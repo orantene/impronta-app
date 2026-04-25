@@ -32,6 +32,7 @@ import { RevisionsDrawer } from "./revisions-drawer";
 import { ThemeDrawer } from "./theme-drawer";
 import { AssetsDrawer } from "./assets-drawer";
 import { ScheduleDrawer } from "./schedule-drawer";
+import { CommentsDrawer } from "./comments-drawer";
 import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
@@ -111,18 +112,21 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openTheme,
     openAssets,
     openSchedule,
+    openComments,
     closePublish,
     closePageSettings,
     closeRevisions,
     closeTheme,
     closeAssets,
     closeSchedule,
+    closeComments,
     publishOpen,
     pageSettingsOpen,
     revisionsOpen,
     themeOpen,
     assetsOpen,
     scheduleOpen,
+    commentsOpen,
     paletteOpen,
     togglePalette,
     closePalette,
@@ -195,7 +199,13 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       }
       if (
         e.key === "Escape" &&
-        (publishOpen || pageSettingsOpen || revisionsOpen || themeOpen || assetsOpen || scheduleOpen)
+        (publishOpen ||
+          pageSettingsOpen ||
+          revisionsOpen ||
+          themeOpen ||
+          assetsOpen ||
+          scheduleOpen ||
+          commentsOpen)
       ) {
         e.preventDefault();
         if (publishOpen) closePublish();
@@ -204,6 +214,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         if (themeOpen) closeTheme();
         if (assetsOpen) closeAssets();
         if (scheduleOpen) closeSchedule();
+        if (commentsOpen) closeComments();
         return;
       }
 
@@ -277,6 +288,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     themeOpen,
     assetsOpen,
     scheduleOpen,
+    commentsOpen,
     closePublish,
     closePageSettings,
     closeRevisions,
@@ -284,6 +296,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openAssets,
     closeAssets,
     closeSchedule,
+    closeComments,
     paletteOpen,
     togglePalette,
     closePalette,
@@ -313,6 +326,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         onTheme={openTheme}
         onAssets={openAssets}
         onSchedule={openSchedule}
+        onComments={openComments}
         onSaveDraft={() => void saveDraft()}
         onShare={(opts) => handleShareClick(opts, reportMutationError)}
         pageTitle={pageMetadata?.title ?? undefined}
@@ -334,6 +348,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       <ThemeDrawer />
       <AssetsDrawer />
       <ScheduleDrawer />
+      <CommentsDrawer />
       <CommandPalette open={paletteOpen} onClose={closePalette} />
       <ShortcutOverlay
         open={shortcutOverlayOpen}

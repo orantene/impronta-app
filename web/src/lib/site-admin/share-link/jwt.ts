@@ -35,6 +35,21 @@ export const SHARE_JWT_MAX_TTL_SECONDS = 30 * 24 * 60 * 60;
 /** Hard floor on issued share-link lifetimes. 1 hour. */
 export const SHARE_JWT_MIN_TTL_SECONDS = 60 * 60;
 
+/**
+ * Phase 11 — comment permission level carried in the share-link JWT.
+ *
+ *   - `none` (default for legacy tokens): the share viewer can read the
+ *     page but cannot see or write comments.
+ *   - `r`:    can read existing comment threads; cannot post.
+ *   - `rw`:   can read and post (top-level + replies). Cannot resolve;
+ *             only staff resolve threads.
+ *
+ * Defaulting absent claims to `none` keeps legacy share links from
+ * suddenly gaining comment-read access — the operator has to opt in by
+ * re-issuing the link with the new permission set.
+ */
+export type ShareCommentPermission = "none" | "r" | "rw";
+
 export interface ShareClaims {
   /** Tenant id the share is scoped to (used to enforce host match). */
   tenantId: string;
@@ -49,6 +64,11 @@ export interface ShareClaims {
    * draft v3"). Surfaced in the share landing page footer for context.
    */
   label?: string;
+  /**
+   * Phase 11 — comment permission level for the share recipient.
+   * Defaults to `none` when absent (legacy tokens).
+   */
+  comment?: ShareCommentPermission;
 }
 
 export interface SignedShare {
@@ -114,6 +134,7 @@ export function signShareJwt(
     pid: claims.pageId,
     rev: claims.revisionId,
     lbl: claims.label ?? null,
+    cmt: claims.comment ?? "none",
     iat: now,
     exp,
     jti,
@@ -165,6 +186,7 @@ export function verifyShareJwt(token: string): ShareVerifyResult {
     pid: string;
     rev: string;
     lbl: string | null;
+    cmt?: string;
     iat: number;
     exp: number;
     jti: string;
@@ -181,6 +203,10 @@ export function verifyShareJwt(token: string): ShareVerifyResult {
   if (parsed.exp <= now) {
     return { ok: false, reason: "expired" };
   }
+  // Defaulting absent claims to "none" keeps legacy share links from
+  // accidentally gaining comment access on a JWT-only schema migration.
+  const comment: ShareCommentPermission =
+    parsed.cmt === "rw" || parsed.cmt === "r" ? parsed.cmt : "none";
   return {
     ok: true,
     claims: {
@@ -189,6 +215,7 @@ export function verifyShareJwt(token: string): ShareVerifyResult {
       revisionId: parsed.rev,
       issuerProfileId: parsed.sub,
       label: parsed.lbl ?? undefined,
+      comment,
       expiresAt: new Date(parsed.exp * 1000),
       issuedAt: new Date(parsed.iat * 1000),
       jti: parsed.jti,

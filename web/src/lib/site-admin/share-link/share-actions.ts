@@ -33,6 +33,7 @@ import {
   SHARE_JWT_DEFAULT_TTL_SECONDS,
   SHARE_JWT_MAX_TTL_SECONDS,
   SHARE_JWT_MIN_TTL_SECONDS,
+  type ShareCommentPermission,
 } from "./jwt";
 
 export interface CreateShareLinkInput {
@@ -46,6 +47,12 @@ export interface CreateShareLinkInput {
   ttlHours?: number;
   /** Optional human label surfaced on the share landing page. */
   label?: string;
+  /**
+   * Phase 11 — comment permission level for the recipient. Defaults to
+   * `none` (no comment access). The mint UI exposes this as a single
+   * "Allow comments" checkbox that toggles between `none` and `rw`.
+   */
+  comment?: ShareCommentPermission;
 }
 
 export type CreateShareLinkResult =
@@ -143,6 +150,7 @@ export async function createShareLinkAction(
         revisionId: (latestRev as { id: string }).id,
         issuerProfileId: auth.user.id,
         label,
+        comment: input.comment ?? "none",
       },
       ttlSeconds,
     );

@@ -130,6 +130,7 @@ export const DRAWER_WIDTHS = {
   assets: 720,
   assetsExpanded: 960,
   schedule: 460,
+  comments: 480,
 } as const;
 
 export type DrawerKind = keyof typeof DRAWER_WIDTHS;

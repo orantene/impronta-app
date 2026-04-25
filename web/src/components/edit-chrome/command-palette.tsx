@@ -318,6 +318,16 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           onClose();
         },
       ),
+      drawerRow(
+        "open-comments",
+        "Open Comments",
+        "Threaded notes from teammates and reviewers",
+        ["comments", "review", "notes", "feedback", "thread"],
+        () => {
+          ctx.openComments();
+          onClose();
+        },
+      ),
     );
 
     // Actions — undo, redo, save draft, duplicate / move / delete (when

@@ -233,3 +233,25 @@ Append-only. Newest entries at the **top**.
 **Backward compatible:** Yes (no code).
 
 **Migration:** none (deferred)
+
+---
+
+## 2026-04-25 — D.11.M0: Phase 11 Comments — staff-side end-to-end (post-charter resume)
+
+**What changed:** Resumed after the same-day charter and shipped the staff-facing comment loop end to end:
+
+- Migration `20260702120000_cms_p11_m0_section_comments.sql` — `cms_section_comments` (tenant + page + section scoped, threading via `parent_comment_id`, soft-delete, resolve markers, `mentions` reserved column), composite indexes, `updated_at` trigger, RLS policy `cms_section_comments_staff_all` via `is_agency_staff()`, and `supabase_realtime` publication (idempotent guard).
+- Server actions `web/src/lib/site-admin/edit-mode/comment-actions.ts` — `listCommentsAction`, `addCommentAction` (parent-cross-tenant guard + one-level-deep enforcement), `editCommentAction` (author-only), `resolveCommentAction` (staff, top-level only), `deleteCommentAction` (soft).
+- Share-link JWT extended with `cmt: "none" | "r" | "rw"` claim (`web/src/lib/site-admin/share-link/jwt.ts` + `share-actions.ts`); legacy tokens default to `"none"` so a JWT-only schema migration doesn't accidentally grant comment access.
+- `EditContext` mutex + open API (`commentsOpen`, `commentsFocusSectionId`, `openComments`, `openCommentsForSection`, `closeComments`); `CommentsDrawer` component with list / reply / resolve / delete / inline edit + Realtime channel filtered on `(tenant_id, page_id)`.
+- Wired into the topbar (comment-bubble icon, badge slot reserved), Escape key chain in `EditShell`, and `⌘K` palette ("Open Comments").
+
+**Why:** The user pushed back on the "charter only" status the same day. Shipping the staff loop end-to-end gets feedback in operator hands now; reviewer-side authoring is a smaller follow-up because the JWT claim and table schema already model it.
+
+**Paths:** see "What changed".
+
+**Backward compatible:** Yes — table is new; share-link JWT verify defaults absent `cmt` to `"none"` so existing tokens read but cannot author.
+
+**Migration:** `20260702120000_cms_p11_m0_section_comments.sql`.
+
+**Deferred follow-up:** Reviewer-side authoring module (gated on share-link JWT, service-role client) + canvas pin overlay + profile-resolver staff labels — see `docs/qa/phase-11/README.md` § "Deferred (M1 candidates)".

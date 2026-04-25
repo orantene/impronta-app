@@ -924,6 +924,10 @@ export interface TopBarProps {
   onAssets?: () => void;
   /** Open the Schedule drawer (Phase 12 — Publish-split-button menu option). */
   onSchedule?: () => void;
+  /** Open the Comments drawer (Phase 11 — speech-bubble icon in the right cluster). */
+  onComments?: () => void;
+  /** Live count of unresolved threads, surfaced as a badge on the icon. */
+  commentsBadge?: number;
   /**
    * Save an explicit draft checkpoint. Resolves with the server timestamp
    * the surrounding chrome surfaces in its transient confirmation toast.
@@ -971,6 +975,8 @@ export function TopBar({
   onTheme,
   onAssets,
   onSchedule,
+  onComments,
+  commentsBadge,
   onSaveDraft,
   onShare,
   pageTitle,
@@ -1076,6 +1082,15 @@ export function TopBar({
           <circle cx="9.5" cy="7.5" r="1" fill="currentColor" />
           <circle cx="14.5" cy="7.5" r="1" fill="currentColor" />
           <circle cx="17.5" cy="12.5" r="1" fill="currentColor" />
+        </svg>
+      </TbIconBtn>
+      <TbIconBtn
+        title="Comments"
+        onClick={onComments}
+        badge={commentsBadge}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </TbIconBtn>
       <TbIconBtn title="Assets library (⌘L)" onClick={onAssets}>

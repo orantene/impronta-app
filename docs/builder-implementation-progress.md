@@ -13,9 +13,9 @@ items — the user has authorised end-to-end execution.
 ## Live state
 
 - **Active milestone:** D — "Velocity"
-- **Active phase:** Phase 12 schema + UX shipped — scheduled-publish drawer, server actions, migration, command-palette row, Escape chain. Cron sweep route deferred (capability bridge needed). Phase 11 (Comments) deferred to dedicated session — charter at `docs/charters/phase-11-comments.md`.
-- **Last commit on phase-1 branch:** eae3711 — `feat(edit-chrome): Phase 12 — scheduled publish (schema + drawer)`. Migration + drawer + actions + topbar wiring + palette row + Escape chain. Preceded by 67b0c2d (admin aesthetic Path A: gold accents neutralised, inquiries spacing tightened, nav sub-labels).
-- **Next action:** (1) Cron sweep route `/api/cron/publish-scheduled` with capability bridge — small follow-up, see `docs/qa/phase-12/README.md`. (2) Phase 11 Comments — see `docs/charters/phase-11-comments.md`. (3) Visual screenshot pass across phases 3-10 + 12 (requires staff-authenticated session).
+- **Active phase:** Phase 11 (Comments — staff loop) shipped end-to-end after the same-day charter. Phase 12 (Schedule) shipped including the cron sweep route. Phase 11 reviewer-side authoring + canvas pin overlay deferred — both have the trust boundary modeled (JWT claim + open-API), only UI plumbing remains.
+- **Last commit on phase-1 branch:** _pending_ — Phase 11 migration + actions + JWT + drawer + topbar + palette + Escape chain (this fire). Preceded by 3d55ab2 (Phase 12 cron sweep route + capability bridge), eae3711 (Phase 12 schema + drawer), 67b0c2d (admin aesthetic Path A).
+- **Next action:** (1) Phase 11 reviewer-side authoring module (gated on share-link JWT; service-role client). (2) Phase 11 canvas pin overlay (uses `openCommentsForSection`). (3) Phase 13 Team presence (Realtime presence channel + soft-lock). (4) Visual screenshot pass across phases 3-12 (requires staff-authenticated session).
 
 ---
 
@@ -318,13 +318,14 @@ items — the user has authorised end-to-end execution.
 ## Milestone E — Collaboration (Phase 11 + Phase 13)
 
 ### Phase 11 — Comments + client review
-- [ ] Migration `comments` table: `id, thread_id, page_id, section_id null, anchor jsonb, author_profile_id null, author_name, author_email, role enum, body text, parent_id null, resolved_at null, created_at`
-- [ ] Supabase Realtime channel per page
-- [ ] Comment mode toggle in top bar
-- [ ] Pinpoint markers on canvas (anchor: section_id + relative xy)
-- [ ] Comments drawer with thread list + reply box
-- [ ] Resolve / unresolve / delete actions
-- [ ] Client review path: share-link with `commentMode=true` allows no-auth comments scoped to the JWT
+- [x] Migration `cms_section_comments` table — `20260702120000_cms_p11_m0_section_comments.sql`. Tenant + page + section scoped, threading via `parent_comment_id`, soft-delete (`deleted_at`), staff resolve markers, `mentions UUID[]` reserved column, author identity check (staff XOR reviewer), composite indexes, RLS via `is_agency_staff()`, Realtime publication.
+- [x] Supabase Realtime channel per page — `CommentsDrawer` subscribes to `cms_section_comments` filtered on `page_id` and patches local list on INSERT/UPDATE/DELETE.
+- [x] Comments drawer with thread list + reply box — `web/src/components/edit-chrome/comments-drawer.tsx`. Inline edit (author-only), Show resolved toggle, optimistic insert as Realtime backstop.
+- [x] Comment-mode entry points — topbar comment-bubble icon (badge slot reserved) + `⌘K` palette row "Open Comments" + EditContext mutex with the other right-side drawers.
+- [x] Resolve / unresolve / delete actions — `comment-actions.ts` (staff-only resolve, top-level only; soft-delete; one-level-deep replies).
+- [x] Share-link `comment` claim — JWT extended with `cmt: "none" | "r" | "rw"`; legacy tokens default to `"none"`.
+- [ ] Pinpoint markers on canvas (anchor: section_id; click → `openCommentsForSection`) — open API in place; pin overlay deferred. See `docs/qa/phase-11/README.md` § "Deferred (M1 candidates)".
+- [ ] Reviewer-side authoring path — share-link with `comment: 'rw'` allows no-auth comments scoped to the JWT. JWT + table both ready; reviewer-side write module + `/share/<token>` drawer rendering deferred.
 
 ### Phase 13 — Team presence
 - [ ] Realtime presence channel per editing session
@@ -337,7 +338,7 @@ items — the user has authorised end-to-end execution.
 ## Milestone F — Schedule (Phase 12)
 
 - [x] Schema: `cms_pages.scheduled_publish_at`, `cms_pages.scheduled_by`, `cms_pages.scheduled_revision_id` — migration `20260701120000_cms_p12_m0_scheduled_publish.sql`; partial sweep index + 60s-skew trigger
-- [ ] Cron sweep route — **deferred** — needs a capability bridge so the service-role caller can satisfy `requirePhase5Capability` (see `docs/qa/phase-12/README.md` § "Cron sweep — intentionally deferred")
+- [x] Cron sweep route `/api/cron/publish-scheduled` — `3d55ab2`. Capability bridge: `publishHomepage()` accepts `bypassCapabilityCheck?: boolean`; only the cron route sets it. Audit row still attributes to the human in `scheduled_by`.
 - [x] Schedule drawer UI — `schedule-drawer.tsx` (native `datetime-local` picker, 1-min future floor, friendly Intl-formatted "currently scheduled" header)
 - [x] Cancel / reschedule actions — `schedule-actions.ts` (`schedulePublishAction`, `cancelScheduledPublishAction`, `loadScheduledPublishAction`)
 - [x] Topbar wiring + command-palette row + Escape priority chain

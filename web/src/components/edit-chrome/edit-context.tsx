@@ -233,6 +233,25 @@ export interface EditContextValue {
   openSchedule: () => void;
   closeSchedule: () => void;
 
+  // ── comments drawer (Phase 11) ──
+  /**
+   * Visibility flag for the CommentsDrawer. Operators thread comments on
+   * individual sections; the drawer lists every open thread and lets staff
+   * resolve them. Mutexes with the other right-side drawers so it doesn't
+   * visually stack. The drawer owns its own data fetch (via
+   * `listCommentsAction`) and Realtime subscription so a teammate's writes
+   * round-trip without a refresh.
+   *
+   * `openCommentsForSection` opens the drawer with a section preselected
+   * (e.g. when an operator clicks the canvas pin); `openComments` opens it
+   * to the global "all open threads" view.
+   */
+  commentsOpen: boolean;
+  commentsFocusSectionId: string | null;
+  openComments: () => void;
+  openCommentsForSection: (sectionId: string) => void;
+  closeComments: () => void;
+
   // ── command palette (Phase 8) ──
   /**
    * Visibility flag for the centred ⌘K command palette. Unlike the
@@ -469,6 +488,11 @@ export function EditProvider({
   // assets drawer state (Phase 7)
   const [assetsOpen, setAssetsOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  // comments drawer state (Phase 11)
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsFocusSectionId, setCommentsFocusSectionId] = useState<
+    string | null
+  >(null);
 
   // command palette state (Phase 8) — modal, not mutexed with drawers
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -1027,6 +1051,7 @@ export function EditProvider({
     setThemeOpen(false);
     setAssetsOpen(false);
     setScheduleOpen(false);
+    setCommentsOpen(false);
     setPublishOpen(true);
   }, []);
   const closePublish = useCallback(() => setPublishOpen(false), []);
@@ -1037,6 +1062,7 @@ export function EditProvider({
     setThemeOpen(false);
     setAssetsOpen(false);
     setScheduleOpen(false);
+    setCommentsOpen(false);
     setPageSettingsOpen(true);
   }, []);
   const closePageSettings = useCallback(() => setPageSettingsOpen(false), []);
@@ -1047,6 +1073,7 @@ export function EditProvider({
     setThemeOpen(false);
     setAssetsOpen(false);
     setScheduleOpen(false);
+    setCommentsOpen(false);
     setRevisionsOpen(true);
   }, []);
   const closeRevisions = useCallback(() => setRevisionsOpen(false), []);
@@ -1057,6 +1084,7 @@ export function EditProvider({
     setRevisionsOpen(false);
     setAssetsOpen(false);
     setScheduleOpen(false);
+    setCommentsOpen(false);
     setThemeOpen(true);
   }, []);
   const closeTheme = useCallback(() => setThemeOpen(false), []);
@@ -1067,6 +1095,7 @@ export function EditProvider({
     setRevisionsOpen(false);
     setThemeOpen(false);
     setScheduleOpen(false);
+    setCommentsOpen(false);
     setAssetsOpen(true);
   }, []);
   const closeAssets = useCallback(() => setAssetsOpen(false), []);
@@ -1077,9 +1106,40 @@ export function EditProvider({
     setRevisionsOpen(false);
     setThemeOpen(false);
     setAssetsOpen(false);
+    setCommentsOpen(false);
     setScheduleOpen(true);
   }, []);
   const closeSchedule = useCallback(() => setScheduleOpen(false), []);
+
+  // Comments drawer (Phase 11) — same right-side mutex pattern. Two
+  // entry points: `openComments` opens the global "all open threads"
+  // view, `openCommentsForSection` deep-links to a specific section's
+  // thread (used by the canvas pin click). The drawer reads
+  // `commentsFocusSectionId` to decide which view to render on mount.
+  const openComments = useCallback(() => {
+    setPublishOpen(false);
+    setPageSettingsOpen(false);
+    setRevisionsOpen(false);
+    setThemeOpen(false);
+    setAssetsOpen(false);
+    setScheduleOpen(false);
+    setCommentsFocusSectionId(null);
+    setCommentsOpen(true);
+  }, []);
+  const openCommentsForSection = useCallback((sectionId: string) => {
+    setPublishOpen(false);
+    setPageSettingsOpen(false);
+    setRevisionsOpen(false);
+    setThemeOpen(false);
+    setAssetsOpen(false);
+    setScheduleOpen(false);
+    setCommentsFocusSectionId(sectionId);
+    setCommentsOpen(true);
+  }, []);
+  const closeComments = useCallback(() => {
+    setCommentsOpen(false);
+    setCommentsFocusSectionId(null);
+  }, []);
 
   /**
    * Roll the draft back to the chosen revision. Reads `pageVersion` from
@@ -1249,6 +1309,12 @@ export function EditProvider({
       openSchedule,
       closeSchedule,
 
+      commentsOpen,
+      commentsFocusSectionId,
+      openComments,
+      openCommentsForSection,
+      closeComments,
+
       paletteOpen,
       openPalette,
       closePalette,
@@ -1325,6 +1391,11 @@ export function EditProvider({
       scheduleOpen,
       openSchedule,
       closeSchedule,
+      commentsOpen,
+      commentsFocusSectionId,
+      openComments,
+      openCommentsForSection,
+      closeComments,
       paletteOpen,
       openPalette,
       closePalette,

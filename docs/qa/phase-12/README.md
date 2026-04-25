@@ -21,24 +21,29 @@ Code-level verification passed (2026-04-25).
 | Escape priority chain | ✅ | `edit-shell.tsx` — keydown handler's drawer-Escape branch includes `scheduleOpen` in the predicate and `closeSchedule()` in the body. Dependency array updated. |
 | Command palette row | ✅ | `command-palette.tsx` — `drawerRow("open-schedule", "Schedule publish", ...)` with synonyms `["schedule", "later", "future", "cron", "publish"]`. |
 
-## Cron sweep — intentionally deferred
+## Cron sweep — shipped (commit `3d55ab2`)
 
-The `/api/cron/publish-scheduled` route is **not** in this commit. It needs a small bridge:
+`/api/cron/publish-scheduled` is live as of `3d55ab2`. The capability bridge taken: `publishHomepage()` now accepts a `bypassCapabilityCheck?: boolean` opt-in flag. **Only** the cron route sets it; UI-driven publishes still go through `requirePhase5Capability`. The audit row continues to attribute the publish to the human in `scheduled_by`, so the trail is honest.
 
-- `publishHomepage()` calls `requirePhase5Capability("agency.site_admin.homepage.publish", tenantId)` which queries the user-context. A service-role caller bypasses RLS but does not satisfy the capability check.
-- Two clean ways to bridge it:
-  1. Add a `bypassCapabilityCheck: 'cron'` flag to `publishHomepage()` that records the bypass in the audit row.
-  2. Create a service-account profile with the capability granted and impersonate it from the cron handler.
-- Neither is risky — both are ~30 line follow-ups. The schema + UX layer (this commit) is the heavier lift; a row sitting with `scheduled_publish_at` set but no cron is harmless until the sweep ships.
+| Item | Status | Evidence |
+|---|---|---|
+| Cron route | ✅ | `web/src/app/api/cron/publish-scheduled/route.ts` — Bearer `CRON_SECRET` gated; service-role Supabase client; sweeps `cms_pages.scheduled_publish_at <= now() AND status = 'draft'`; per-row `publishHomepage()` call with `bypassCapabilityCheck: true`. |
+| Schedule clear on success | ✅ | After successful publish, the route clears `scheduled_publish_at`, `scheduled_by`, `scheduled_revision_id`. Failed publishes leave the schedule intact so the next sweep retries. |
+| Idempotency | ✅ | `publishHomepage()` itself uses CAS on `version`; a duplicate fire on a stale draft is rejected at the DB layer. |
+| Capability bridge | ✅ | `publishHomepage()` lines 781–800 — `bypassCapabilityCheck?: boolean` parameter; gates the `requirePhase5Capability` call. JSDoc spells out that only `/api/cron/publish-scheduled` should set it. |
+| Audit trail | ✅ | The audit row's `actor_profile_id` is set to `scheduled_by` (the human who scheduled), not a service identity. |
 
-The trigger + partial index are already in place, so once the cron handler lands it just runs:
-```sql
-SELECT id FROM cms_pages
-WHERE scheduled_publish_at IS NOT NULL
-  AND scheduled_publish_at <= now()
-  AND status = 'draft';
+**Configure** the cron in `vercel.json` or via the Vercel dashboard:
+
+```json
+{
+  "crons": [
+    { "path": "/api/cron/publish-scheduled", "schedule": "* * * * *" }
+  ]
+}
 ```
-and calls `publishHomepage(tenantId, locale)` for each row.
+
+Note: Vercel Hobby plan limits crons to once-per-day. For minute-level firing, the project must be on Pro or higher. The schedule string is otherwise standard cron.
 
 ## Notes
 
