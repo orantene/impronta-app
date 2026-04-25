@@ -14,6 +14,8 @@
     "verify:server-actions": "node scripts/check-server-actions.mjs",
     "ci": "npm run typecheck && npm run verify:server-actions && npm run test:phase1-i18n && npm run test:locale-precedence && npm run test:inquiry-workspace && npm run test:ai-guardrails && npm run test:tenant-isolation && npm run verify:ui-messages && npm run lint && npm run build",
     "test:auth-routing": "tsx --test src/lib/auth-routing.test.ts",
+    "test:access": "tsx --test src/lib/access/parity.test.ts",
+    "check:capability-keys": "node scripts/check-capability-keys.mjs",
     "test:tenant-isolation": "tsx --test src/lib/saas/admin-scope.test.ts src/lib/saas/scope.test.ts src/lib/saas/tenant-isolation.test.ts src/lib/saas/surface-allow-list.test.ts",
     "test:phase1-i18n": "tsx --test src/lib/translation/phase1-invariants.test.ts",
     "test:locale-precedence": "tsx --test src/i18n/locale-precedence.test.ts",

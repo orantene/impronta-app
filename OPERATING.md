@@ -83,13 +83,73 @@ local → push to phase-1 → Vercel builds preview → (optional) alias to stag
 
 The Decision Log at [`docs/decision-log.md`](docs/decision-log.md) is binding. L1–L40 are locked. To change a Locked decision: write the rationale in the log first, get approval, then change code. Never silently deviate.
 
-## 9. Open questions parked here (resolve with the user before changing)
+## 9. Plan and access-model governance
+
+The access model — capabilities, roles, plans, limits, status, overrides — has its own ownership rules. See [`web/src/lib/access/`](web/src/lib/access/) for the canonical module and [`docs/special-plans.md`](docs/special-plans.md) for the special-plans register.
+
+### Source of truth (who owns what)
+
+| Concern | Owner today | Owner post-Track-C |
+|---|---|---|
+| Capability registry (the keys + descriptions) | `web/src/lib/access/capabilities.ts` (TS const) | Same — code remains owner |
+| Tenant role definitions + role→capability map | `web/src/lib/access/roles.ts` (TS const) | Same |
+| Platform role definitions + cap map | `web/src/lib/access/platform-role.ts` + `profiles.platform_role` column (Track B.2) | Same |
+| Plan catalog | TS mirror in `plan-catalog.ts` | DB table `plans` |
+| Plan → capability mapping | TS mirror in `plan-capabilities.ts` (permissive Phase 1) | DB table `plan_capabilities` |
+| Plan limits | TS mirror in `plan-limits.ts` | DB table `plan_limits` |
+| Plan pricing | Direct fields on `plan-catalog.ts` | DB columns on `plans` |
+| Status behavior matrix | `web/src/lib/access/status-rules.ts` (TS const) | Same |
+| Tenant identity / domains / memberships | DB (`agencies`, `agency_domains`, `agency_memberships`) | Same |
+| Capability resolver | `web/src/lib/access/has-capability.ts` (TS) | Same |
+| Limit resolver | `web/src/lib/access/tenant-limit.ts` (TS) | Same |
+| Landing path | `web/src/lib/access/landing-path.ts` (TS) | Same |
+| Audit log | DB `platform_audit_log` | Same |
+| Reserved slugs | DB `platform_reserved_slugs` + code mirror | Same |
+
+### Plan governance — Phase 1
+
+- **Plans are migration-only.** Editing `plans` / `plan_capabilities` / `plan_limits` (or, until Track C, the TS files in `lib/access/`) outside a committed migration / PR is a process violation. No Supabase Studio direct edits. No admin UI editing.
+- **Reviewers required:** at least one engineer (or the founder solo) reviews every plan-touching PR.
+- **CI guard:** `npm run check:capability-keys` validates that every capability key referenced anywhere in the access module is in the registry. Runs in `npm run ci`.
+- **Pricing is data, not code.** Live in `plan-catalog.ts` until Track C, then in `plans.monthly_price_cents` / `plans.annual_price_cents`. Never hardcode `$49` / `$149` in JSX.
+
+### Special-plan discipline (the temporary alternative to overrides)
+
+Special plans = `is_visible=false OR is_self_serve=false`. Used today for grandfathered tenants (`legacy`) and reserved for one-off enterprise contracts (`enterprise_<slug>`). Until the override-tables trigger fires (architecture brief §override governance), special plans are the only sanctioned way to give a tenant non-default terms.
+
+- **Naming:** `<base>_<descriptor>` (lowercase, snake_case, ≤32 chars). Patterns: `legacy`, `enterprise_<slug>`, `<base>_<year><quarter>`, `<base>_<reason>_<year>`. **Disallowed:** `customplan1`, `acme`, `temp`, `test`.
+- **Required fields:** `is_visible=false`, `is_self_serve=false`, full `display_name` including the customer/contract, full `description` explaining who/why/what differs/when retire.
+- **Required register:** every special plan adds a row to [`docs/special-plans.md`](docs/special-plans.md) in the same PR. CI script `check:special-plans-doc` (post Track C) asserts every special plan in the DB has a doc row.
+- **Anti-mess thresholds:** when active special plans ≥ 5, near-duplicate pairs ≥ 3, OR tenants on special plans ≥ 10, the override-tables build is triggered. New special-plan PRs blocked past those thresholds until either (a) an existing special plan is retired or (b) override-tables work is scheduled.
+
+### Access resolution contract
+
+`web/src/lib/access/has-capability.ts` is the only entry point for "can this user do X on tenant Y?". 10-step contract:
+
+1. Resolve tenant
+2. Check tenant servability (status)
+3. Resolve user
+4. Platform role bypass (super_admin, audited)
+5. Active membership
+6. Role grants capability
+7. Plan grants capability *(Phase 1: feature-flagged off until Track C; current behavior preserved)*
+8. Limit headroom *(caller invokes `assertWithinLimit` separately)*
+9. Status-degraded behavior *(Phase 1: enforced for `onboarding`/`active`/`suspended`; Phase 2 statuses pass through with a logged warning)*
+10. Allow
+
+super_admin bypass policy:
+- **Reads** (e.g. viewing a tenant via support mode) → audited at `severity='info'`.
+- **Writes** outside an active support-mode session → pre-Track-A: warned + audited at `severity='warn'` with `support_mode='emergency_override'`. Post-Track-A: denied (writes go via dedicated `/admin/tenants/<id>/...` routes only).
+- Cross-tenant writes never happen on `/{slug}/admin` URLs once Track A lands.
+
+## 10. Open questions parked here (resolve with the user before changing)
 
 - **Prototype tenants** at `web/src/app/prototypes/creator-circuit/` and `prototypes/muse-bridal/`. Either migrate to real `agency_domains` rows + `cms_pages` content, or delete. Currently a third route paradigm.
 - **`x-impronta-*` internal headers** (17 usages: `lib/saas/scope.ts`, `lib/auth-routing.ts`, `lib/saas/host-context.ts`, `lib/supabase/middleware.ts`, etc.). These are internal contracts not user-visible; renaming is a 20-file refactor with no functional gain. Leave until there's a reason.
 - **Vercel production branch** stuck on `main`. Fix only by upgrading to Pro and editing `link.productionBranch`. Do at launch.
+- **`draft` status** — keep, merge into `onboarding`, or drop. Recommend merging during Phase 2 status work.
 
-## 10. Where to find more
+## 11. Where to find more
 
 - [`AGENTS.md`](AGENTS.md) — agent operating contract (read on every change)
 - [`README.md`](README.md) — install / dev / test / deploy
