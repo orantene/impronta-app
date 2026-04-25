@@ -12,10 +12,10 @@ items — the user has authorised end-to-end execution.
 
 ## Live state
 
-- **Active milestone:** B — "Real navigator + revisions"
-- **Active phase:** Milestone B closed (pending visual screenshot capture); next milestone C — Theme + responsive
-- **Last commit on phase-1 branch:** ad94b8b — tracker advance for Phase 4 acceptance gate (Phase 4 build itself landed in aee8504 + promoted to prod via `dpl_6oLqEHeFVFbqxQiHrmY5iVxcUd3V`)
-- **Next action:** Phase 5 — Theme drawer + design tokens. Schema-first this time: `site_themes` table (`id, tenant_id, name, tokens jsonb, fonts jsonb, spacing_scale jsonb, effects jsonb, is_default, created_at, updated_at`) with per-tenant CRUD server actions, then `edit-chrome/theme-drawer.tsx` (Drawer kind="theme") with Colors / Typography / Spacing / Effects / Code tabs that read+write that row, and finally the storefront applying theme tokens as CSS vars on `:root`. Diff renderer + named-draft schema deepening + the visual screenshot capture for Phases 3-4 are tracked as deferred bullets and don't block Phase 5 — but should be picked up before Milestone C closes.
+- **Active milestone:** C — "Theme + responsive"
+- **Active phase:** Phase 5 closed (pending visual screenshot capture); next Phase 6 — Responsive + Motion tabs
+- **Last commit on phase-1 branch:** d7cf4a9 — Phase 5 ThemeDrawer + typed `loadDesignAction` / `saveDesignDraftFromEditAction` / `publishDesignFromEditAction` wrappers + EditContext mutex extension + DRAWER_WIDTHS theme entry + TopBar palette icon + Navigator footer wiring. Promoted to prod via `dpl_kZt5KwgeuD393BJRn6USoeRjQoZH`; all three prod aliases return 200.
+- **Next action:** Phase 6 — Responsive + Motion tabs. Schema extension first: `presentation.breakpoints: { desktop: {...}, tablet: {...}, mobile: {...} }` with override inheritance, plus `animation: { entry, scroll, hover, reducedMotion }`. Then `inspectors/responsive-panel.tsx` (active breakpoint follows the topbar viewport switcher; "↳ Override · Desktop is X" inheritance hints) and `inspectors/motion-panel.tsx`. Storefront runtime: section components apply animations and respect `prefers-reduced-motion`. Schema-first plan was *not* needed: M6 already shipped `agency_branding.theme_json` + `theme_json_draft` + `theme_preset_slug` + the token registry + storefront token application via `web/src/app/layout.tsx` + `token-presets.css`. Phase 5 build connects the existing pipe to the editor chrome. Theme history surface (restore-as-draft over `loadDesignRevisionsForStaff`), font-upload flow, and a token-usage scanner are tracked as Milestone C follow-ups; Phase 6 (Responsive + Motion) starts after the acceptance gate closes.
 
 ---
 
@@ -204,12 +204,19 @@ items — the user has authorised end-to-end execution.
 ## Milestone C — Theme + responsive (Phase 5 + Phase 6)
 
 ### Phase 5 — Theme drawer + design tokens
-- [ ] Migration `site_themes` table: `id, tenant_id, name, tokens jsonb, fonts jsonb, spacing_scale jsonb, effects jsonb, is_default, created_at, updated_at`
-- [ ] Per-tenant theme CRUD server actions
-- [ ] Token usage scanner (search section props for `--brand-primary` etc., return reference counts)
-- [ ] Font upload flow (woff2 → tenant-scoped storage bucket)
-- [ ] Storefront applies theme tokens as CSS vars on `:root`
-- [ ] `edit-chrome/theme-drawer.tsx` — same chrome — Colors / Typography / Spacing / Effects / Code tabs
+- [x] Migration `site_themes` table — _not needed_; M6 already ships `agency_branding.theme_json` (live) + `theme_json_draft` (draft) + `theme_preset_slug`, with CAS via `theme_version`. The Phase 5 plan to add a separate `site_themes` table was redundant — the existing schema is the source of truth.
+- [x] Per-tenant theme CRUD server actions — typed wrappers over the existing M6 lib ops (`loadDesignForStaff` / `saveDesignDraft` / `publishDesign`) live at `web/src/lib/site-admin/edit-mode/design-actions.ts`: `loadDesignAction()`, `saveDesignDraftFromEditAction({patch, expectedVersion})`, `publishDesignFromEditAction({expectedVersion})`. CAS conflict + audit + revision rows + cache-bust all inherited (d7cf4a9).
+- [ ] Token usage scanner — _deferred_ to a Milestone C follow-up; non-blocking for Phase 5 close
+- [ ] Font upload flow (woff2 → tenant-scoped storage bucket) — _deferred_ to a Milestone C follow-up; the typography tab today exposes preset families which is the same coverage top-tier builders ship at this milestone
+- [x] Storefront applies theme tokens as CSS vars on `:root` — already wired in `web/src/app/layout.tsx` lines 135-137 via `designTokensToCssVars` (color tokens) + `designTokensToDataAttrs` (enum tokens projected onto `<html>`). `web/src/app/styles/token-presets.css` (1708 lines) keys storefront rules off the `data-token-*` attrs.
+- [x] `edit-chrome/theme-drawer.tsx` — Colors / Typography / Layout / Effects / Code tabs (renamed Spacing → Layout to match the M6 token group); five tabs total. ColorRow for brand + editorial colors, Segmented for typography / layout / effect presets, read-only JSON + Copy + reset-to-defaults on the Code tab. In-row publish confirm; VERSION_CONFLICT recovery refreshes the snapshot. Drawer kind="theme" (zIndex 87, mutex with the other right-side drawers). (d7cf4a9)
+
+#### Phase 5 acceptance gate
+- [x] All TS errors fixed (`tsc --noEmit` clean)
+- [x] Vercel build green for d7cf4a9 — `dpl_kZt5KwgeuD393BJRn6USoeRjQoZH` `state=READY`, promoted to prod
+- [x] Smoke check 200 on `tulala.digital` + `impronta.tulala.digital` + `app.tulala.digital` after promote
+- [x] QA evidence committed under `docs/qa/phase-5/README.md`
+- [ ] Visual screenshots committed under `docs/qa/phase-5/` — pending manual capture against `impronta.tulala.digital?edit=1`
 
 ### Phase 6 — Responsive + Motion tabs
 - [ ] Schema extension: `presentation.breakpoints: { desktop: {...}, tablet: {...}, mobile: {...} }` with override inheritance
@@ -353,3 +360,5 @@ The big one. Three parallel tracks:
 | 2026-04-25 (manual) | B.3 | 4fc0e9c | Phase 3 — Structure Navigator left rail. 280px panel, ⌘\\ toggle, search, tree from slots/slotDefs, click-to-select, drag-to-reorder via moveSectionTo, footer Settings/Theme shortcuts. Visibility eye scaffolded as a noop pending schema work. |
 | 2026-04-25 (concurrent) | B.3 | be20786 | Visibility wiring — extends CompositionSectionRef.visibility, adds `setSectionVisibilityAction` (CAS-safe focused mutation) + `setSectionVisibility` on EditContext; navigator's eye is now a real binary toggle hiding/showing sections through the existing `presentation.visibility` enum (no schema migration). Bundled into a parallel-session profile fix commit; code is correct but commit message references admin/profile only. |
 | 2026-04-25 (manual) | B.4 | aee8504 | Phase 4 — RevisionsDrawer + restore. New typed actions `loadHomepageRevisionsAction` / `restoreHomepageRevisionAction` over the existing `cms_page_revisions` table (no schema migration). Drawer kind="revisions" (480px) lazy-fetches on open, joins `display_name` from `profiles`, surfaces kind chip + Live badge + relative time + section count, and runs a two-step Restore confirm that round-trips through the existing CAS-safe `restoreHomepageRevision` lib op. Topbar's clock-arrow icon is now wired through `onRevisions`. |
+| 2026-04-25 (autonomous) | C.5 | d7cf4a9 | Phase 5 — ThemeDrawer + design tokens. New `web/src/lib/site-admin/edit-mode/design-actions.ts` typed wrappers (`loadDesignAction`, `saveDesignDraftFromEditAction`, `publishDesignFromEditAction`) over existing M6 lib ops; new `theme-drawer.tsx` (~700 lines) with Colors / Typography / Layout / Effects / Code tabs, full working-copy patch semantics, in-row publish confirm, VERSION_CONFLICT snapshot refresh. EditContext gains `themeOpen` + mutex extended to four right-side drawers; DRAWER_WIDTHS gains `theme: 540 / themeExpanded: 760`; TopBar palette icon button after Revisions; Navigator footer Theme shortcut wired; EditShell mounts `<ThemeDrawer />` and Escape dismisses it alongside the other drawers. |
+| 2026-04-25 (autonomous) | C.5 acceptance | (this commit) | Phase 5 acceptance gate — TS clean, `dpl_kZt5KwgeuD393BJRn6USoeRjQoZH` promoted to prod, smoke check 200 on `tulala.digital` + `impronta.tulala.digital` + `app.tulala.digital`, QA evidence committed under `docs/qa/phase-5/README.md`. Active phase advances to C.6 (Responsive + Motion). |
