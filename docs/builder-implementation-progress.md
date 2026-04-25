@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 2 — Top bar mission control + Page Settings drawer
-- **Last commit on phase-1 branch:** 50d49d4 — Phase 1 acceptance gate complete
-- **Next action:** Phase 2 — build `edit-chrome/topbar.tsx` top bar overhaul: brand mark + name pill + page picker + save status pill + undo/redo + viewport switcher + page settings cog + revisions clock + preview eye + share + save draft + publish split-button. Read mockup surface 1 (#s1) first.
+- **Last commit on phase-1 branch:** 1f7e33c — TopBar wired into edit-shell (premium 54px bar live)
+- **Next action:** Phase 2 — Page Settings drawer. Create `edit-chrome/page-settings-drawer.tsx` triggered by the cog icon; tabs Basics / SEO / Social / URL & robots / Code; reads pageMetadata from EditContext.
 
 ---
 
@@ -103,17 +103,17 @@ items — the user has authorised end-to-end execution.
 **Goal:** match mockup surface 1 (top bar anatomy) + surface 5 (Page Settings) + surface 7 (rebuilt Publish drawer).
 
 #### Top bar overhaul (`edit-chrome/topbar.tsx` if it exists, else create)
-- [ ] Brand mark + name pill at left
-- [ ] Page picker button (chevron) — opens menu (Phase 24 feature; show simple mock for now)
-- [ ] Save status pill (Saved / Saving / Unsaved colours)
-- [ ] Undo / Redo icon buttons with `⌘Z` / `⇧⌘Z` titles
-- [ ] Viewport switcher pill group (Desktop / Tablet / Mobile) — already exists, just restyle
-- [ ] Page settings icon button (cog) — opens Page Settings drawer
-- [ ] Revisions icon button (clock-arrow) — opens Revisions drawer (placeholder for Phase 4)
-- [ ] Preview icon button (eye) — keyboard hint `⌘P` (Phase 9 implements full preview mode; for now opens the storefront URL in a new tab)
-- [ ] Share icon button (share) — placeholder for share-link
-- [ ] Save draft text button — calls `saveNamedDraftAction` (Phase 4 implements; for now wire to existing autosave + commit a no-op revision)
-- [ ] Publish split-button (main + chevron arrow opens menu with Schedule / Save as draft / Discard)
+- [x] Brand mark + name pill at left
+- [x] Page picker button (chevron) — opens menu (Phase 24 feature; show simple mock for now)
+- [x] Save status pill (Saved / Saving / Unsaved colours)
+- [x] Undo / Redo icon buttons with `⌘Z` / `⇧⌘Z` titles
+- [x] Viewport switcher pill group (Desktop / Tablet / Mobile) — already exists, just restyle
+- [x] Page settings icon button (cog) — opens Page Settings drawer
+- [x] Revisions icon button (clock-arrow) — opens Revisions drawer (placeholder for Phase 4)
+- [x] Preview icon button (eye) — keyboard hint `⌘P` (Phase 9 implements full preview mode; for now opens the storefront URL in a new tab)
+- [x] Share icon button (share) — placeholder for share-link
+- [x] Save draft text button — calls `saveNamedDraftAction` (Phase 4 implements; for now wire to existing autosave + commit a no-op revision)
+- [x] Publish split-button (main + chevron arrow opens menu with Schedule / Save as draft / Discard)
 
 #### Extract Page Settings drawer
 - [ ] Create `edit-chrome/page-settings-drawer.tsx`
@@ -339,3 +339,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | aa712c7 | CompositionLibrary → Drawer kind=picker right-rail; MediaPicker DrawerHead; TalentPicker data-edit-overlay |
 | 2026-04-24 (autonomous) | A.1 | 4bcfc1f | Hero inspector kit rewrite — Card/Field/Helper/MediaPickerButton/CtaDuoEditor; removes raw class constants |
 | 2026-04-24 (autonomous) | A.1 | 50d49d4 | Phase 1 acceptance gate complete — Vercel READY + code QA + prod promote + qa README |
+| 2026-04-24 (autonomous) | A.2 | 1f7e33c | TopBar wired — replace inline 52px shell TopBar with premium 54px import; QA evidence committed |
