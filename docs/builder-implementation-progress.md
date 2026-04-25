@@ -14,8 +14,8 @@ items — the user has authorised end-to-end execution.
 
 - **Active milestone:** A — "Premium look, same features"
 - **Active phase:** 1 — Design system primitives + visual cleanup
-- **Last commit on phase-1 branch:** 8faccf1 — inspector auto-hide (slide out + BodyPaddingController)
-- **Next action:** Retrofit existing drawers — InspectorDock uses `<Drawer kind="dock">`, PublishDrawer uses `<Drawer kind="publish">`, etc.
+- **Last commit on phase-1 branch:** cefdbde — InspectorDock retrofitted to Drawer primitive (kind=dock)
+- **Next action:** PublishDrawer uses `<Drawer kind="publish">` — replace ResizableDrawer with kit Drawer
 
 ---
 
@@ -79,7 +79,7 @@ items — the user has authorised end-to-end execution.
 - [x] Click any section → dock slides in
 
 #### Retrofit existing drawers to the new `Drawer` primitive
-- [ ] InspectorDock uses `<Drawer>` with `kind="dock"`
+- [x] InspectorDock uses `<Drawer>` with `kind="dock"`
 - [ ] PublishDrawer uses `<Drawer>` with `kind="publish"`
 - [ ] CompositionLibrary modal uses `<Drawer>` styling for the modal wrapper
 - [ ] MediaPicker modal uses `<Drawer>` styling
@@ -333,3 +333,4 @@ The big one. Three parallel tracks:
 | 2026-04-24 (autonomous) | A.1 | 342a55b | Strip debug labels — InspectorDock header/footer, PublishDrawer slots/rows, Library |
 | 2026-04-24 (autonomous) | A.1 | 8faccf1 | Inspector auto-hide — translateX slide + BodyPaddingController canvas reclaim |
 | 2026-04-24 (autonomous) | A.1 | 342a55b | Strip debug labels: inspector SectionTypeIcon + name cleaner + footer removed + publish drawer (legacy) + library TypeKey |
+| 2026-04-24 (autonomous) | A.1 | cefdbde | InspectorDock retrofitted to Drawer primitive — DrawerHead + DrawerTabs + DrawerBody; selection-layer + BodyPaddingController updated |
