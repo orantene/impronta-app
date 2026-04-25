@@ -1,8 +1,56 @@
+# OS
 .DS_Store
+Thumbs.db
 
-# Cursor MCP: GitHub PAT for Docker-based github/github-mcp-server (see .cursor/github-mcp.env.example)
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Node
+node_modules/
+
+# Next.js (web/)
+web/.next/
+web/out/
+web/build/
+web/next-env.d.ts
+*.tsbuildinfo
+
+# Caches
+.turbo/
+.cache/
+
+# Test artifacts
+coverage/
+.playwright-mcp/
+test-results/
+playwright-report/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Env files (allow examples)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Vercel
+.vercel/
+.vercel
+
+# Cursor MCP secret
 .cursor/github-mcp.env
 
-# Supabase CLI local cache (project ref, versions)
+# Supabase CLI cache
 supabase/.temp/
-.vercel
+
+# Throwaway dev artifacts
+tmp-*
+*.tmp

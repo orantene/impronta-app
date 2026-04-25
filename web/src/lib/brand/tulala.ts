@@ -8,13 +8,27 @@
  * Shape kept stable under `PLATFORM_BRAND` for back-compat during the
  * Rostra → Tulala rename; callers should import from here going forward.
  */
+/**
+ * Production marketing apex. Reused by the middleware www-redirect, by SEO
+ * canonical builders, and anywhere the SaaS brand domain is rendered. Do not
+ * hardcode "tulala.digital" elsewhere — import this.
+ */
+export const TULALA_APEX_HOST = "tulala.digital" as const;
+
+/**
+ * Production www host that 308-redirects to the apex. Hardcoded here only
+ * because Vercel's apex-level redirect can't be set while the apex is
+ * ghost-attached to a deleted Vercel project (see project memory).
+ */
+export const TULALA_WWW_HOST = "www.tulala.digital" as const;
+
 export const TULALA_BRAND = {
   /** Wordmark / display name — all-lowercase per brand guide (`tulala.`). */
   name: "Tulala",
   /** Corporate entity. Used in footers, legal, contracts. */
   legalName: "Tulala Digital",
   /** Production marketing surface hostname. */
-  domain: "tulala.digital",
+  domain: TULALA_APEX_HOST,
   /** Primary positioning line — one sentence, no period in buttons. */
   tagline: "The Talent Business Platform",
   /** Used in meta tags + social cards. */

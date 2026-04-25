@@ -34,6 +34,7 @@ import {
   previewCookieNameFor,
 } from "@/lib/site-admin/preview/cookie";
 import { readPreviewFromQueryParam } from "@/lib/site-admin/preview/middleware";
+import { TULALA_APEX_HOST, TULALA_WWW_HOST } from "@/lib/brand/tulala";
 
 function clientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
@@ -56,13 +57,13 @@ export async function middleware(request: NextRequest) {
   // server code reads the resulting context from request headers.
   const hostHeader = request.headers.get("host") ?? "";
 
-  // Canonical apex redirect. Vercel's own domain-level redirect for
-  // `www.tulala.digital → tulala.digital` can't be configured while the apex
-  // is ghost-attached to a deleted Vercel project (see project memory). Handle
-  // it here so SEO stays consistent regardless of which host the request lands on.
-  if (hostHeader.toLowerCase() === "www.tulala.digital") {
+  // Canonical apex redirect. Vercel's own domain-level redirect for the
+  // www → apex redirect can't be configured while the apex is ghost-attached
+  // to a deleted Vercel project (see project memory). Handle it here so SEO
+  // stays consistent regardless of which host the request lands on.
+  if (hostHeader.toLowerCase() === TULALA_WWW_HOST) {
     const target = new URL(request.url);
-    target.hostname = "tulala.digital";
+    target.hostname = TULALA_APEX_HOST;
     target.port = "";
     return NextResponse.redirect(target, 308);
   }
