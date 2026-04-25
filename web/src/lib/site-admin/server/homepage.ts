@@ -785,6 +785,19 @@ export async function publishHomepage(
     values: HomepagePublishValues;
     actorProfileId: string | null;
     correlationId?: string;
+    /**
+     * Phase 12 cron-sweep escape hatch. When `true`, skips the
+     * `requirePhase5Capability` check that would otherwise block a
+     * service-role caller without a user-context membership row.
+     *
+     * Only the `/api/cron/publish-scheduled` route should ever set this —
+     * it gates on a `CRON_SECRET` token, runs the same validation gates
+     * (CAS, schema, required slots, OG image), and writes the audit row
+     * with `actor_profile_id` set to the operator who originally
+     * scheduled the publish (so the audit trail still attributes a
+     * human, not a service identity).
+     */
+    bypassCapabilityCheck?: boolean;
   },
 ): Promise<
   Phase5Result<{ id: string; version: number; publishedAt: string }>
@@ -792,7 +805,12 @@ export async function publishHomepage(
   const { tenantId, values, actorProfileId } = params;
   const correlationId = params.correlationId ?? randomUUID();
 
-  await requirePhase5Capability("agency.site_admin.homepage.publish", tenantId);
+  if (!params.bypassCapabilityCheck) {
+    await requirePhase5Capability(
+      "agency.site_admin.homepage.publish",
+      tenantId,
+    );
+  }
 
   if (values.tenantId !== tenantId) {
     return fail("FORBIDDEN", "tenantId mismatch");
