@@ -43,8 +43,8 @@ export interface SiteShellRenderHints {
 
 /**
  * Server-side helper for the calling layout to decide whether to mount the
- * legacy header/footer. Single source of truth — both `<PublishedShell>`
- * and the layout MUST consult this to stay in sync.
+ * legacy header/footer. Single source of truth — both the wrapper helpers
+ * below and the layout MUST consult this to stay in sync.
  */
 export async function shouldRenderSnapshotShell(
   tenantId: string,
@@ -55,26 +55,58 @@ export async function shouldRenderSnapshotShell(
   return shell !== null;
 }
 
-export async function PublishedShell({ tenantId, locale, children }: Props) {
-  if (!isSiteShellEnabledForTenant(tenantId)) {
-    return <>{children}</>;
-  }
+/**
+ * Render the snapshot shell's HEADER slot, or null if no shell is engaged
+ * for this tenant. Mount this at the top of the page, where the legacy
+ * `PublicHeader` would otherwise live. The calling layout is responsible
+ * for not also mounting `PublicHeader` in this case (use
+ * `shouldRenderSnapshotShell` to gate).
+ */
+export async function PublishedShellHeader({
+  tenantId,
+  locale,
+}: {
+  tenantId: string;
+  locale: Locale;
+}) {
+  if (!isSiteShellEnabledForTenant(tenantId)) return null;
   const shell = await loadPublishedShell(tenantId, locale);
-  if (!shell) {
-    // Tenant opted in via flag but hasn't published a shell yet. Belt-and-
-    // suspenders: render children alone; calling layout will mount the
-    // legacy header/footer because shouldRenderSnapshotShell returns false.
-    return <>{children}</>;
-  }
+  if (!shell) return null;
+  const slot = shell.snapshot.slots.find((s) => s.slotKey === "header");
+  return slot ? renderShellSlot(slot, tenantId, locale) : null;
+}
 
-  const headerSlot = shell.snapshot.slots.find((s) => s.slotKey === "header");
-  const footerSlot = shell.snapshot.slots.find((s) => s.slotKey === "footer");
+/**
+ * Render the snapshot shell's FOOTER slot, or null. Mount at the bottom of
+ * the page where the legacy footer would otherwise live.
+ */
+export async function PublishedShellFooter({
+  tenantId,
+  locale,
+}: {
+  tenantId: string;
+  locale: Locale;
+}) {
+  if (!isSiteShellEnabledForTenant(tenantId)) return null;
+  const shell = await loadPublishedShell(tenantId, locale);
+  if (!shell) return null;
+  const slot = shell.snapshot.slots.find((s) => s.slotKey === "footer");
+  return slot ? renderShellSlot(slot, tenantId, locale) : null;
+}
 
+/**
+ * Convenience wrapper that nests children between header + footer when the
+ * shell is engaged, or just renders children when not. Useful for pages
+ * whose body is small enough to nest. Larger pages (homepage with 9+
+ * sections) prefer mounting `PublishedShellHeader` and
+ * `PublishedShellFooter` directly at their top + bottom positions.
+ */
+export async function PublishedShell({ tenantId, locale, children }: Props) {
   return (
     <>
-      {headerSlot ? renderShellSlot(headerSlot, tenantId, locale) : null}
+      <PublishedShellHeader tenantId={tenantId} locale={locale} />
       {children}
-      {footerSlot ? renderShellSlot(footerSlot, tenantId, locale) : null}
+      <PublishedShellFooter tenantId={tenantId} locale={locale} />
     </>
   );
 }

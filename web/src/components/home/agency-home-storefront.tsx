@@ -34,6 +34,17 @@ import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active"
 import { isLocale } from "@/lib/site-admin/locales";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
 import { EmptyCanvasStarter } from "@/components/edit-chrome/empty-canvas-starter";
+// Phase B.2.A — snapshot site shell wrappers. Two server components that
+// return the snapshot-rendered header + footer slots when the feature
+// flag is on for this tenant AND a published shell exists; otherwise
+// null so the legacy PublicHeader / footer mount via the mutex below.
+// Both ends consult `shouldRenderSnapshotShell` so double-headers are
+// impossible.
+import {
+  PublishedShellHeader,
+  PublishedShellFooter,
+  shouldRenderSnapshotShell,
+} from "@/components/site-shell/PublishedShell";
 
 /**
  * Agency-surface storefront (what was the old root homepage).
@@ -57,6 +68,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     identity,
     previewActive,
     editActive,
+    snapshotShellActive,
   ] = await Promise.all([
     getHomepageData({ tenantId }),
     cmsLocale
@@ -65,6 +77,13 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
     loadPublicIdentity(tenantId),
     isPreviewActiveForTenant(tenantId),
     isEditModeActiveForTenant(tenantId),
+    // Phase B.2.A — single source of truth for "does this tenant render the
+    // snapshot shell instead of the legacy PublicHeader/footer?" Closed
+    // unless: feature flag covers this tenant AND a published shell row
+    // exists. Mutex below uses this both above and below the body.
+    cmsLocale
+      ? shouldRenderSnapshotShell(tenantId, cmsLocale)
+      : Promise.resolve(false),
   ]);
   // Suppress the draft banner when the in-place edit chrome is engaged — the
   // top bar already signals draft state and its "Publish" button replaces the
@@ -207,7 +226,13 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       ) : null}
       <PublicDiscoveryStateProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
-        <PublicHeader />
+        {/* Phase B.2.A mutex — snapshot shell wins when its gates open;
+         *  otherwise legacy PublicHeader. Never both. */}
+        {snapshotShellActive && cmsLocale ? (
+          <PublishedShellHeader tenantId={tenantId} locale={cmsLocale} />
+        ) : (
+          <PublicHeader />
+        )}
         <main className="flex flex-1 flex-col">
           {/* Edit-mode empty-canvas short-circuit.
            *
@@ -363,21 +388,25 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
             </>
           )}
 
-          <footer className="border-t border-border px-4 py-10 sm:px-6 lg:px-8">
-            <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-center text-sm text-[var(--impronta-muted)]">
-              <PublicCmsFooterNav locale={locale} />
-              <p className="font-display text-m uppercase tracking-[0.2em] text-foreground">
-                {brandLabel}
-              </p>
-              <p>{footerTagline}</p>
-              <p>
-                {t("public.home.footer.copyright")
-                  .replace("{year}", String(year))
-                  .replace("{brand}", brandLabel)}
-              </p>
-              <PoweredByTulala className="mt-2" />
-            </div>
-          </footer>
+          {snapshotShellActive && cmsLocale ? (
+            <PublishedShellFooter tenantId={tenantId} locale={cmsLocale} />
+          ) : (
+            <footer className="border-t border-border px-4 py-10 sm:px-6 lg:px-8">
+              <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 text-center text-sm text-[var(--impronta-muted)]">
+                <PublicCmsFooterNav locale={locale} />
+                <p className="font-display text-m uppercase tracking-[0.2em] text-foreground">
+                  {brandLabel}
+                </p>
+                <p>{footerTagline}</p>
+                <p>
+                  {t("public.home.footer.copyright")
+                    .replace("{year}", String(year))
+                    .replace("{brand}", brandLabel)}
+                </p>
+                <PoweredByTulala className="mt-2" />
+              </div>
+            </footer>
+          )}
         </main>
       </PublicDiscoveryStateProvider>
     </div>

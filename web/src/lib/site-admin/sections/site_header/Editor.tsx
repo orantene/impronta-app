@@ -27,6 +27,11 @@ export function SiteHeaderEditor({
     sticky: initial.sticky ?? true,
     tone: initial.tone ?? "surface",
     variant: initial.variant ?? "standard",
+    authArea: initial.authArea ?? {
+      showAccountMenu: true,
+      showLanguageToggle: true,
+      showDiscoveryTools: true,
+    },
     presentation: initial.presentation,
   };
   return (

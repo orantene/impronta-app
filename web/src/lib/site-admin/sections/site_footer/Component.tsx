@@ -19,6 +19,7 @@ import type { SiteFooterV1 } from "./schema";
  */
 export function SiteFooterComponent({
   props,
+  sectionId,
 }: SectionComponentProps<SiteFooterV1>) {
   const { brand, columns, social, legal, variant, tone, presentation } = props;
   const hasColumns = columns.length > 0;
@@ -29,6 +30,8 @@ export function SiteFooterComponent({
   return (
     <footer
       className="site-footer"
+      data-section-id={sectionId}
+      data-section-type="site_footer"
       data-variant={variant}
       data-tone={tone}
       {...presentationDataAttrs(presentation)}
