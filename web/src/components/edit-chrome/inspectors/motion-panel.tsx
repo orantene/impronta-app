@@ -378,6 +378,98 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
           )}
         </div>
       </section>
+
+      {/* ── Phase 5: scroll-reveal + parallax ─────────────────────────── */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Scroll reveal</div>
+          {!presentation.scrollReveal ? (
+            <span className={INHERIT_HINT}>None</span>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className={FIELD_LABEL}>Entry direction (one-shot)</span>
+          <Segmented
+            fullWidth
+            compact
+            value={(presentation.scrollReveal as string) ?? "none"}
+            onChange={(next) =>
+              onDeepPatch({ scrollReveal: next === "none" ? undefined : next })
+            }
+            options={[
+              { value: "none", label: "None" },
+              { value: "fade", label: "Fade" },
+              { value: "fade-up", label: "Up" },
+              { value: "fade-down", label: "Down" },
+              { value: "fade-left", label: "Left" },
+              { value: "fade-right", label: "Right" },
+              { value: "zoom", label: "Zoom" },
+            ]}
+          />
+          <span className={HINT}>
+            Plays once when the section enters the viewport. Skipped when the
+            visitor prefers reduced motion.
+          </span>
+        </div>
+        {presentation.scrollReveal && presentation.scrollReveal !== "none" ? (
+          <div className="flex flex-col gap-2">
+            <span className={FIELD_LABEL}>
+              Reveal delay (
+              {(presentation.scrollRevealDelay as number | undefined) ?? 0}ms)
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={1500}
+              step={50}
+              value={
+                (presentation.scrollRevealDelay as number | undefined) ?? 0
+              }
+              onChange={(e) =>
+                onDeepPatch({
+                  scrollRevealDelay: Number(e.target.value) || undefined,
+                })
+              }
+            />
+          </div>
+        ) : null}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Parallax</div>
+          {!presentation.parallaxIntensity ? (
+            <span className={INHERIT_HINT}>Off</span>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className={FIELD_LABEL}>
+            Intensity (
+            {Math.round(
+              ((presentation.parallaxIntensity as number | undefined) ?? 0) *
+                100,
+            )}
+            %)
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={(presentation.parallaxIntensity as number | undefined) ?? 0}
+            onChange={(e) =>
+              onDeepPatch({
+                parallaxIntensity: Number(e.target.value) || undefined,
+              })
+            }
+          />
+          <span className={HINT}>
+            Section translates ±60px relative to scroll. Falls back to no
+            motion in browsers without scroll-driven animation support, and
+            for visitors who prefer reduced motion.
+          </span>
+        </div>
+      </section>
     </div>
   );
 }

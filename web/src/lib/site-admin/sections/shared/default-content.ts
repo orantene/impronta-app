@@ -286,6 +286,116 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       stickyMedia: false,
     },
   },
+  timeline: {
+    name: "Timeline — new",
+    props: {
+      eyebrow: "Our story",
+      headline: "How the studio came together.",
+      items: [
+        { date: "2018", title: "Founded", body: "Three founders, one shared studio." },
+        { date: "2021", title: "First international booking", body: "Tulum wedding for a NY couple." },
+        { date: "2024", title: "180 cities served" },
+      ],
+      variant: "left-rail",
+      numberStyle: "dot",
+    },
+  },
+  pricing_grid: {
+    name: "Pricing — new",
+    props: {
+      eyebrow: "Investment",
+      headline: "Three ways to work with us.",
+      plans: [
+        { name: "Essential", price: "$2,400", cadence: "starting at", description: "Half-day coverage.", features: ["Trial session", "4-hour day-of", "Single revision"], ctaLabel: "Inquire", ctaHref: "/contact", highlighted: false },
+        { name: "Signature", price: "$4,800", cadence: "starting at", description: "Full-day coverage with extras.", features: ["Trial session", "8-hour day-of", "Travel included", "Two revision rounds"], ctaLabel: "Inquire", ctaHref: "/contact", highlighted: true, badge: "Most popular" },
+        { name: "Destination", price: "Custom", cadence: "scoped per trip", features: ["Trial + planning call", "Multi-day", "International logistics"], ctaLabel: "Talk to us", ctaHref: "/contact", highlighted: false },
+      ],
+      variant: "cards",
+    },
+  },
+  team_grid: {
+    name: "Team — new",
+    props: {
+      eyebrow: "The studio",
+      headline: "Who you'll be working with.",
+      members: [
+        { name: "Alex Rivera", role: "Founder + creative director" },
+        { name: "Maya Chen", role: "Head of production" },
+        { name: "Jordan Park", role: "Lead photographer" },
+      ],
+      variant: "portrait",
+      columnsDesktop: 3,
+    },
+  },
+  contact_form: {
+    name: "Contact form — new",
+    props: {
+      eyebrow: "Get in touch",
+      headline: "Tell us about your project.",
+      intro: "We answer within 24 business hours.",
+      fields: [
+        { name: "name", label: "Name", type: "text", required: true, placeholder: "Your name" },
+        { name: "email", label: "Email", type: "email", required: true, placeholder: "you@studio.com" },
+        { name: "message", label: "Message", type: "textarea", required: true, placeholder: "Tell us about your project" },
+      ],
+      submitLabel: "Send",
+      action: "https://formspree.io/f/your-id",
+      method: "POST",
+      honeypot: "website",
+      successMessage: "Thanks — we'll be in touch.",
+      variant: "card",
+    },
+  },
+  anchor_nav: {
+    name: "Anchor nav — new",
+    props: {
+      links: [
+        { label: "About", href: "#about" },
+        { label: "Services", href: "#services" },
+        { label: "Work", href: "#work" },
+        { label: "Contact", href: "#contact" },
+      ],
+      variant: "pills",
+      sticky: false,
+      align: "center",
+    },
+  },
+  before_after: {
+    name: "Before/After — new",
+    props: {
+      beforeUrl: "https://images.unsplash.com/photo-1519741497674-611481863552",
+      afterUrl: "https://images.unsplash.com/photo-1519225421980-715cb0215aed",
+      beforeAlt: "Before",
+      afterAlt: "After",
+      beforeLabel: "Before",
+      afterLabel: "After",
+      initialPosition: 50,
+      ratio: "16/9",
+    },
+  },
+  content_tabs: {
+    name: "Tabs — new",
+    props: {
+      eyebrow: "Find what you need",
+      headline: "Explore the studio.",
+      tabs: [
+        { label: "Approach", body: "How we work, in one paragraph." },
+        { label: "Process", body: "Three-step flow from inquiry to wrap." },
+        { label: "FAQ", body: "Common questions, short answers." },
+      ],
+      variant: "underline",
+      defaultTab: 0,
+    },
+  },
+  code_embed: {
+    name: "Embed — new",
+    props: {
+      headline: "Watch the reel",
+      url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+      ratio: "16/9",
+      title: "Studio reel",
+    },
+  },
 };
 
 export function getLibraryDefault(

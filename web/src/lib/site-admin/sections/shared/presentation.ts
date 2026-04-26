@@ -233,6 +233,24 @@ export const sectionPresentationSchema = z
     videoBackground: z.string().url().optional(),
     videoPoster: z.string().url().optional(),
     videoOverlay: z.number().min(0).max(1).optional(),
+
+    /**
+     * Scroll-reveal entry animation. CSS-only via IntersectionObserver
+     * + `[data-scroll-reveal]` attr the global `scroll-reveal.ts` script
+     * toggles to `data-revealed`. The CSS for each preset lives in
+     * token-presets.css. `none` disables the attr entirely.
+     *
+     * `parallaxIntensity`: 0..1, drives a CSS var the section uses to
+     *   translateY relative to scroll position. 0 → no parallax,
+     *   1 → strong (~80px range). Pure-CSS implementation via
+     *   `animation-timeline: scroll()` where supported; falls back to
+     *   no parallax in older browsers.
+     */
+    scrollReveal: z
+      .enum(["none", "fade", "fade-up", "fade-down", "fade-left", "fade-right", "zoom"])
+      .optional(),
+    scrollRevealDelay: z.number().int().min(0).max(2000).optional(),
+    parallaxIntensity: z.number().min(0).max(1).optional(),
   })
   .optional();
 
@@ -307,6 +325,20 @@ export function presentationDataAttrs(
     }
   }
 
+  // Phase 5 — scroll-reveal + parallax data-attrs. The scroll-reveal
+  // attr is read by `scroll-reveal.ts` (mounted in root layout) which
+  // toggles `data-revealed` when the section enters the viewport. The
+  // parallax attr is consumed via CSS animation-timeline.
+  if (p.scrollReveal && p.scrollReveal !== "none") {
+    out["data-scroll-reveal"] = p.scrollReveal;
+    if (p.scrollRevealDelay) {
+      out["data-scroll-reveal-delay"] = String(p.scrollRevealDelay);
+    }
+  }
+  if (typeof p.parallaxIntensity === "number" && p.parallaxIntensity > 0) {
+    out["data-parallax"] = "1";
+  }
+
   return out;
 }
 
@@ -359,6 +391,20 @@ export function presentationInlineStyles(
   if (p.videoBackground) {
     out.position = out.position ?? "relative";
     out.overflow = "hidden";
+  }
+  // Phase 5 — parallax intensity drives a CSS var consumed by the
+  // [data-parallax] selector in token-presets.css. Clamped 0..1 by zod.
+  if (typeof p.parallaxIntensity === "number" && p.parallaxIntensity > 0) {
+    out["--parallax-intensity"] = String(p.parallaxIntensity);
+  }
+  // Phase 5 — scroll-reveal delay drives a CSS var the reveal animation
+  // keyframes consume.
+  if (
+    p.scrollReveal &&
+    p.scrollReveal !== "none" &&
+    typeof p.scrollRevealDelay === "number"
+  ) {
+    out["--scroll-reveal-delay"] = `${p.scrollRevealDelay}ms`;
   }
   return out;
 }

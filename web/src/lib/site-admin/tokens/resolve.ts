@@ -99,6 +99,14 @@ const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   // resolver chain).
   "typography.heading-font-family": "--token-typography-heading-font-family",
   "typography.body-font-family": "--token-typography-body-font-family",
+  // Phase 13 — per-heading-level type-scale overrides.
+  "typography.h1-size": "--token-typography-h1-size",
+  "typography.h2-size": "--token-typography-h2-size",
+  "typography.h3-size": "--token-typography-h3-size",
+  "typography.h4-size": "--token-typography-h4-size",
+  "typography.h5-size": "--token-typography-h5-size",
+  "typography.h6-size": "--token-typography-h6-size",
+  "typography.body-size": "--token-typography-body-size",
 };
 
 /**

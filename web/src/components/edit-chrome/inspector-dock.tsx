@@ -37,6 +37,7 @@ import { StylePanel } from "./inspectors/style-panel";
 import { ResponsivePanel } from "./inspectors/responsive-panel";
 import { MotionPanel } from "./inspectors/motion-panel";
 import { PanelSaveChip } from "./inspectors/kit";
+import { SectionA11yWarning } from "./inspectors/SectionA11yWarning";
 import {
   CHROME,
   Drawer,
@@ -474,6 +475,10 @@ export function InspectorDock() {
                 {saveError}
               </div>
             ) : null}
+            <SectionA11yWarning
+              sectionTypeKey={loadedSection.sectionTypeKey}
+              draftProps={draftProps}
+            />
             {tab === "content" ? (
               <ContentTab
                 sectionTypeKey={loadedSection.sectionTypeKey}

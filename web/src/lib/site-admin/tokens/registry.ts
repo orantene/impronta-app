@@ -266,6 +266,77 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
       "Free CSS font-family value. Wins over body preset when non-empty.",
   },
 
+  /**
+   * Phase 13 — per-heading-level type-scale overrides. Each level is a
+   * free CSS font-size value (`clamp(...)`, `48px`, `2.5rem`, etc.) or
+   * empty to inherit from the scale-preset. Stored as strings; projected
+   * as `--token-typography-h{N}-size` CSS vars consumed by typography
+   * rules in token-presets.css.
+   */
+  "typography.h1-size": {
+    key: "typography.h1-size",
+    label: "H1 size (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(80).regex(/^$|^[a-zA-Z0-9.,()\s%-]+$/, "Invalid CSS length"),
+    defaultValue: "",
+    group: "Type scale",
+  },
+  "typography.h2-size": {
+    key: "typography.h2-size",
+    label: "H2 size (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(80).regex(/^$|^[a-zA-Z0-9.,()\s%-]+$/, "Invalid CSS length"),
+    defaultValue: "",
+    group: "Type scale",
+  },
+  "typography.h3-size": {
+    key: "typography.h3-size",
+    label: "H3 size (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(80).regex(/^$|^[a-zA-Z0-9.,()\s%-]+$/, "Invalid CSS length"),
+    defaultValue: "",
+    group: "Type scale",
+  },
+  "typography.h4-size": {
+    key: "typography.h4-size",
+    label: "H4 size (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(80).regex(/^$|^[a-zA-Z0-9.,()\s%-]+$/, "Invalid CSS length"),
+    defaultValue: "",
+    group: "Type scale",
+  },
+  "typography.h5-size": {
+    key: "typography.h5-size",
+    label: "H5 size (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(80).regex(/^$|^[a-zA-Z0-9.,()\s%-]+$/, "Invalid CSS length"),
+    defaultValue: "",
+    group: "Type scale",
+  },
+  "typography.h6-size": {
+    key: "typography.h6-size",
+    label: "H6 size (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(80).regex(/^$|^[a-zA-Z0-9.,()\s%-]+$/, "Invalid CSS length"),
+    defaultValue: "",
+    group: "Type scale",
+  },
+  "typography.body-size": {
+    key: "typography.body-size",
+    label: "Body size (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(80).regex(/^$|^[a-zA-Z0-9.,()\s%-]+$/, "Invalid CSS length"),
+    defaultValue: "",
+    group: "Type scale",
+  },
+
   // ── Shape & feel ────────────────────────────────────────────────────
   "radius.base": {
     key: "radius.base",

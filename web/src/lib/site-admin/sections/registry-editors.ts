@@ -68,6 +68,30 @@ import { FaqAccordionEditor } from "./faq_accordion/Editor";
 import { splitScreenMeta } from "./split_screen/meta";
 import { SplitScreenEditor } from "./split_screen/Editor";
 
+import { timelineMeta } from "./timeline/meta";
+import { TimelineEditor } from "./timeline/Editor";
+
+import { pricingGridMeta } from "./pricing_grid/meta";
+import { PricingGridEditor } from "./pricing_grid/Editor";
+
+import { teamGridMeta } from "./team_grid/meta";
+import { TeamGridEditor } from "./team_grid/Editor";
+
+import { contactFormMeta } from "./contact_form/meta";
+import { ContactFormEditor } from "./contact_form/Editor";
+
+import { anchorNavMeta } from "./anchor_nav/meta";
+import { AnchorNavEditor } from "./anchor_nav/Editor";
+
+import { beforeAfterMeta } from "./before_after/meta";
+import { BeforeAfterEditor } from "./before_after/Editor";
+
+import { contentTabsMeta } from "./content_tabs/meta";
+import { ContentTabsEditor } from "./content_tabs/Editor";
+
+import { codeEmbedMeta } from "./code_embed/meta";
+import { CodeEmbedEditor } from "./code_embed/Editor";
+
 import type { SectionEditorProps, SectionMeta } from "./types";
 
 export interface SectionEditorRegistryEntry {
@@ -189,6 +213,62 @@ export const SECTION_EDITOR_REGISTRY: Record<
     meta: splitScreenMeta,
     currentVersion: 1,
     Editor: SplitScreenEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  timeline: {
+    meta: timelineMeta,
+    currentVersion: 1,
+    Editor: TimelineEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  pricing_grid: {
+    meta: pricingGridMeta,
+    currentVersion: 1,
+    Editor: PricingGridEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  team_grid: {
+    meta: teamGridMeta,
+    currentVersion: 1,
+    Editor: TeamGridEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  contact_form: {
+    meta: contactFormMeta,
+    currentVersion: 1,
+    Editor: ContactFormEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  anchor_nav: {
+    meta: anchorNavMeta,
+    currentVersion: 1,
+    Editor: AnchorNavEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  before_after: {
+    meta: beforeAfterMeta,
+    currentVersion: 1,
+    Editor: BeforeAfterEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  content_tabs: {
+    meta: contentTabsMeta,
+    currentVersion: 1,
+    Editor: ContentTabsEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  code_embed: {
+    meta: codeEmbedMeta,
+    currentVersion: 1,
+    Editor: CodeEmbedEditor as unknown as ComponentType<
       SectionEditorProps<Record<string, unknown>>
     >,
   },

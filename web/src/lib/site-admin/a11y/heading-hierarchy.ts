@@ -75,6 +75,15 @@ const HEADING_MAP: Record<
   faq_accordion: { level: 2, propKey: "headline" },
   split_screen: { level: 2, propKey: "headline" },
   marquee: { level: 0, propKey: "headline" }, // emits no heading
+  // M10
+  timeline: { level: 2, propKey: "headline" },
+  pricing_grid: { level: 2, propKey: "headline" },
+  team_grid: { level: 2, propKey: "headline" },
+  contact_form: { level: 2, propKey: "headline" },
+  before_after: { level: 2, propKey: "headline" },
+  content_tabs: { level: 2, propKey: "headline" },
+  code_embed: { level: 2, propKey: "headline" },
+  anchor_nav: { level: 0, propKey: "headline" }, // emits no heading
 };
 
 export function buildHeadingOutline(

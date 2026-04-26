@@ -147,6 +147,73 @@ import {
 import { SplitScreenComponent } from "./split_screen/Component";
 import { SplitScreenEditor } from "./split_screen/Editor";
 
+// ── M10 archetype expansion (Phase 6 cont.) ─────────────────────────────
+import { timelineMeta } from "./timeline/meta";
+import { timelineMigrations } from "./timeline/migrations";
+import { timelineSchemasByVersion, type TimelineV1 } from "./timeline/schema";
+import { TimelineComponent } from "./timeline/Component";
+import { TimelineEditor } from "./timeline/Editor";
+
+import { pricingGridMeta } from "./pricing_grid/meta";
+import { pricingGridMigrations } from "./pricing_grid/migrations";
+import {
+  pricingGridSchemasByVersion,
+  type PricingGridV1,
+} from "./pricing_grid/schema";
+import { PricingGridComponent } from "./pricing_grid/Component";
+import { PricingGridEditor } from "./pricing_grid/Editor";
+
+import { teamGridMeta } from "./team_grid/meta";
+import { teamGridMigrations } from "./team_grid/migrations";
+import { teamGridSchemasByVersion, type TeamGridV1 } from "./team_grid/schema";
+import { TeamGridComponent } from "./team_grid/Component";
+import { TeamGridEditor } from "./team_grid/Editor";
+
+import { contactFormMeta } from "./contact_form/meta";
+import { contactFormMigrations } from "./contact_form/migrations";
+import {
+  contactFormSchemasByVersion,
+  type ContactFormV1,
+} from "./contact_form/schema";
+import { ContactFormComponent } from "./contact_form/Component";
+import { ContactFormEditor } from "./contact_form/Editor";
+
+import { anchorNavMeta } from "./anchor_nav/meta";
+import { anchorNavMigrations } from "./anchor_nav/migrations";
+import {
+  anchorNavSchemasByVersion,
+  type AnchorNavV1,
+} from "./anchor_nav/schema";
+import { AnchorNavComponent } from "./anchor_nav/Component";
+import { AnchorNavEditor } from "./anchor_nav/Editor";
+
+import { beforeAfterMeta } from "./before_after/meta";
+import { beforeAfterMigrations } from "./before_after/migrations";
+import {
+  beforeAfterSchemasByVersion,
+  type BeforeAfterV1,
+} from "./before_after/schema";
+import { BeforeAfterComponent } from "./before_after/Component";
+import { BeforeAfterEditor } from "./before_after/Editor";
+
+import { contentTabsMeta } from "./content_tabs/meta";
+import { contentTabsMigrations } from "./content_tabs/migrations";
+import {
+  contentTabsSchemasByVersion,
+  type ContentTabsV1,
+} from "./content_tabs/schema";
+import { ContentTabsComponent } from "./content_tabs/Component";
+import { ContentTabsEditor } from "./content_tabs/Editor";
+
+import { codeEmbedMeta } from "./code_embed/meta";
+import { codeEmbedMigrations } from "./code_embed/migrations";
+import {
+  codeEmbedSchemasByVersion,
+  type CodeEmbedV1,
+} from "./code_embed/schema";
+import { CodeEmbedComponent } from "./code_embed/Component";
+import { CodeEmbedEditor } from "./code_embed/Editor";
+
 // ── entries ──────────────────────────────────────────────────────────────
 
 export const heroSection: SectionRegistryEntry<HeroV1> = {
@@ -293,6 +360,78 @@ export const splitScreenSection: SectionRegistryEntry<SplitScreenV1> = {
   Editor: SplitScreenEditor,
 };
 
+export const timelineSection: SectionRegistryEntry<TimelineV1> = {
+  meta: timelineMeta,
+  currentVersion: 1,
+  schemasByVersion: timelineSchemasByVersion,
+  migrations: timelineMigrations,
+  Component: TimelineComponent,
+  Editor: TimelineEditor,
+};
+
+export const pricingGridSection: SectionRegistryEntry<PricingGridV1> = {
+  meta: pricingGridMeta,
+  currentVersion: 1,
+  schemasByVersion: pricingGridSchemasByVersion,
+  migrations: pricingGridMigrations,
+  Component: PricingGridComponent,
+  Editor: PricingGridEditor,
+};
+
+export const teamGridSection: SectionRegistryEntry<TeamGridV1> = {
+  meta: teamGridMeta,
+  currentVersion: 1,
+  schemasByVersion: teamGridSchemasByVersion,
+  migrations: teamGridMigrations,
+  Component: TeamGridComponent,
+  Editor: TeamGridEditor,
+};
+
+export const contactFormSection: SectionRegistryEntry<ContactFormV1> = {
+  meta: contactFormMeta,
+  currentVersion: 1,
+  schemasByVersion: contactFormSchemasByVersion,
+  migrations: contactFormMigrations,
+  Component: ContactFormComponent,
+  Editor: ContactFormEditor,
+};
+
+export const anchorNavSection: SectionRegistryEntry<AnchorNavV1> = {
+  meta: anchorNavMeta,
+  currentVersion: 1,
+  schemasByVersion: anchorNavSchemasByVersion,
+  migrations: anchorNavMigrations,
+  Component: AnchorNavComponent,
+  Editor: AnchorNavEditor,
+};
+
+export const beforeAfterSection: SectionRegistryEntry<BeforeAfterV1> = {
+  meta: beforeAfterMeta,
+  currentVersion: 1,
+  schemasByVersion: beforeAfterSchemasByVersion,
+  migrations: beforeAfterMigrations,
+  Component: BeforeAfterComponent,
+  Editor: BeforeAfterEditor,
+};
+
+export const contentTabsSection: SectionRegistryEntry<ContentTabsV1> = {
+  meta: contentTabsMeta,
+  currentVersion: 1,
+  schemasByVersion: contentTabsSchemasByVersion,
+  migrations: contentTabsMigrations,
+  Component: ContentTabsComponent,
+  Editor: ContentTabsEditor,
+};
+
+export const codeEmbedSection: SectionRegistryEntry<CodeEmbedV1> = {
+  meta: codeEmbedMeta,
+  currentVersion: 1,
+  schemasByVersion: codeEmbedSchemasByVersion,
+  migrations: codeEmbedMigrations,
+  Component: CodeEmbedComponent,
+  Editor: CodeEmbedEditor,
+};
+
 export const SECTION_REGISTRY = {
   hero: heroSection,
   trust_strip: trustStripSection,
@@ -312,6 +451,15 @@ export const SECTION_REGISTRY = {
   stats: statsSection,
   faq_accordion: faqAccordionSection,
   split_screen: splitScreenSection,
+  // ── M10 archetype expansion ───────────────────────────────────────────
+  timeline: timelineSection,
+  pricing_grid: pricingGridSection,
+  team_grid: teamGridSection,
+  contact_form: contactFormSection,
+  anchor_nav: anchorNavSection,
+  before_after: beforeAfterSection,
+  content_tabs: contentTabsSection,
+  code_embed: codeEmbedSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;

@@ -28,6 +28,7 @@ import {
 } from "@/lib/site-admin";
 import { loadPublicBranding } from "@/lib/site-admin/server/reads";
 import { GoogleFontsLink } from "./google-fonts-link";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 import "./globals.css";
 
@@ -94,6 +95,15 @@ export const metadata: Metadata = {
     template: `%s · ${PLATFORM_BRAND.name}`,
   },
   description: PLATFORM_BRAND.description,
+  // PWA / installable-app metadata — lets users add Tulala to their
+  // home screen on iOS/Android. The manifest itself lives at
+  // /manifest.webmanifest (public/).
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: PLATFORM_BRAND.name,
+    statusBarStyle: "default",
+  },
   openGraph: {
     siteName: PLATFORM_BRAND.name,
     title: `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`,
@@ -106,6 +116,12 @@ export const metadata: Metadata = {
     title: `${PLATFORM_BRAND.name} — ${PLATFORM_BRAND.tagline}`,
     description: PLATFORM_BRAND.description,
   },
+};
+
+// Theme color drives the iOS/Android browser chrome tint when the app is
+// added to home screen — forest accent matches the rest of the brand.
+export const viewport = {
+  themeColor: "#0F4F3E",
 };
 
 /** Root reads locale from middleware header + cookies via `getRequestLocale()` — must not be statically prerendered. */
@@ -153,6 +169,8 @@ export default async function RootLayout({
       >
         {/* Phase 13 — load tenant Google Fonts when picker tokens set. */}
         <GoogleFontsLink tokens={designTokens} />
+        {/* Phase 5 — global scroll-reveal observer (no-op when no targets). */}
+        <ScrollReveal />
         <AnalyticsScripts />
         <WebVitalsReporter />
         <CspViolationReporter />

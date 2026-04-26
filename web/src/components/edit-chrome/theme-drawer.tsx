@@ -622,6 +622,49 @@ export function ThemeDrawer(): ReactElement | null {
                     </Field>
                   </CardBody>
                 </Card>
+
+                <Card>
+                  <CardHead icon={<TypeIcon />} title="Type scale (h1–h6)" />
+                  <CardBody>
+                    {(
+                      [
+                        ["typography.h1-size", "H1", "clamp(40px, 6vw, 72px)"],
+                        ["typography.h2-size", "H2", "clamp(28px, 4vw, 48px)"],
+                        ["typography.h3-size", "H3", "clamp(22px, 3vw, 32px)"],
+                        ["typography.h4-size", "H4", "clamp(18px, 2.4vw, 24px)"],
+                        ["typography.h5-size", "H5", "16px"],
+                        ["typography.h6-size", "H6", "14px"],
+                        ["typography.body-size", "Body", "16px"],
+                      ] as const
+                    ).map(([key, label, placeholder], i, arr) => (
+                      <Field key={key} flush={i === arr.length - 1}>
+                        <FieldLabel htmlFor={`theme-${key}`}>{label}</FieldLabel>
+                        <input
+                          id={`theme-${key}`}
+                          type="text"
+                          placeholder={placeholder}
+                          value={draft[key] ?? ""}
+                          onChange={(e) => set(key, e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "6px 9px",
+                            border: `1px solid ${CHROME.lineMid}`,
+                            borderRadius: 6,
+                            background: CHROME.surface2,
+                            boxShadow: CHROME_SHADOWS.inputInset,
+                            fontFamily:
+                              'ui-monospace, "SF Mono", Menlo, monospace',
+                            fontSize: 12,
+                          }}
+                        />
+                      </Field>
+                    ))}
+                    <Helper>
+                      Free CSS length values (clamp(), px, rem, %). Empty = use
+                      the type-scale preset above.
+                    </Helper>
+                  </CardBody>
+                </Card>
               </>
             ) : null}
             {tab === "layout" ? (

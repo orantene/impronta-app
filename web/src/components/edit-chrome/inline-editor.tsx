@@ -445,9 +445,30 @@ export function InlineEditor() {
             </svg>
           </ToolbarButton>
           <ToolbarButton
+            label="Bold"
+            title="Wrap selection in bold"
+            onClick={() => wrapSelection("{b}", "{/b}")}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M7 5h6.5a3.5 3.5 0 0 1 0 7H7z" />
+              <path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z" />
+            </svg>
+          </ToolbarButton>
+          <ToolbarButton
+            label="Italic"
+            title="Wrap selection in italic"
+            onClick={() => wrapSelection("{i}", "{/i}")}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M19 4 L10 4" />
+              <path d="M14 20 L5 20" />
+              <path d="M15 4 L9 20" />
+            </svg>
+          </ToolbarButton>
+          <ToolbarButton
             label="Plain"
-            title="Strip accent markers from selection"
-            onClick={() => stripAccentMarkers()}
+            title="Strip all formatting markers from selection"
+            onClick={() => stripAllMarkers()}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M5 12 L19 12" />
@@ -466,6 +487,17 @@ export function InlineEditor() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          </ToolbarButton>
+          <ToolbarButton
+            label="Unlink"
+            title="Remove links from selection"
+            onClick={() => stripLinkMarkers()}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M9 17l-2 2a4.95 4.95 0 0 1-7-7l3-3" />
+              <path d="M15 7l2-2a4.95 4.95 0 0 1 7 7l-3 3" />
+              <path d="M2 22 22 2" />
             </svg>
           </ToolbarButton>
         </div>
@@ -537,16 +569,37 @@ function wrapSelection(before: string, after: string) {
 }
 
 /**
- * Strip `{accent}` / `{/accent}` markers from the active editable element's
- * text content. We rewrite the whole element rather than try to surgically
- * unwrap a selection range because the markers are paired and unbalanced
- * surgery would corrupt the doc.
+ * Strip ALL formatting markers from the active editable element's text
+ * content (accent, bold, italic, link). We rewrite the whole element
+ * rather than try to surgically unwrap a selection range because the
+ * markers are paired and unbalanced surgery would corrupt the doc.
  */
-function stripAccentMarkers() {
+function stripAllMarkers() {
   const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
   if (!el) return;
   const before = el.textContent ?? "";
-  const after = before.replace(/\{accent\}/g, "").replace(/\{\/accent\}/g, "");
+  let after = before
+    .replace(/\{accent\}/g, "")
+    .replace(/\{\/accent\}/g, "")
+    .replace(/\{b\}/g, "")
+    .replace(/\{\/b\}/g, "")
+    .replace(/\{i\}/g, "")
+    .replace(/\{\/i\}/g, "");
+  // Markdown-style link → just the visible label.
+  after = after.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  if (before === after) return;
+  el.textContent = after;
+}
+
+/**
+ * Convert every `[text](url)` to plain `text`. Leaves accent/bold/italic
+ * markers intact.
+ */
+function stripLinkMarkers() {
+  const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
+  if (!el) return;
+  const before = el.textContent ?? "";
+  const after = before.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   if (before === after) return;
   el.textContent = after;
 }
