@@ -33,6 +33,9 @@ import {
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
 import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
 import { publishSection } from "@/lib/site-admin/server/sections";
+import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
+import { revalidateTag } from "next/cache";
+import { tagFor } from "@/lib/site-admin/cache-tags";
 import {
   listAgencyVisibleSections,
   getSectionType,
@@ -914,6 +917,90 @@ export async function publishHomepageFromEditModeAction(input: {
         code: result.code,
       };
     }
+
+    // ── Phase B.2.B — site shell republish step ──────────────────────────
+    // Single Publish click promotes BOTH the homepage AND the shell snapshot
+    // when the tenant has a shell row. Operator never has to know the shell
+    // is a separate row. If no shell row exists, this is a no-op.
+    //
+    // Auto-publish any draft shell sections first (mirrors the homepage
+    // auto-publish loop above) so a tenant that's edited the header inline
+    // doesn't get stranded on "publish your draft section first" errors.
+    const { data: shellRow } = await auth.supabase
+      .from("cms_pages")
+      .select("id")
+      .eq("tenant_id", scope.tenantId)
+      .eq("locale", input.locale)
+      .eq("system_template_key", "site_shell")
+      .neq("status", "archived")
+      .maybeSingle<{ id: string }>();
+    if (shellRow) {
+      const { data: shellDraftRefs } = await auth.supabase
+        .from("cms_page_sections")
+        .select("section_id")
+        .eq("tenant_id", scope.tenantId)
+        .eq("page_id", shellRow.id)
+        .eq("is_draft", true);
+      const shellSectionIds = (shellDraftRefs ?? []).map(
+        (r) => r.section_id as string,
+      );
+      if (shellSectionIds.length > 0) {
+        const { data: shellSectionRows } = await auth.supabase
+          .from("cms_sections")
+          .select("id, name, status, version")
+          .eq("tenant_id", scope.tenantId)
+          .in("id", shellSectionIds);
+        const draftShellSections = (shellSectionRows ?? []).filter(
+          (s) => (s as { status: string }).status === "draft",
+        ) as Array<{
+          id: string;
+          name: string;
+          status: string;
+          version: number;
+        }>;
+        for (const section of draftShellSections) {
+          const pub = await publishSection(auth.supabase, {
+            tenantId: scope.tenantId,
+            values: {
+              id: section.id,
+              tenantId: scope.tenantId,
+              expectedVersion: section.version,
+            },
+            actorProfileId: auth.user.id,
+          });
+          if (!pub.ok) {
+            return {
+              ok: false,
+              error: `Couldn't auto-publish shell section "${section.name}": ${pub.message ?? "unknown error"}`,
+              code: pub.code,
+            };
+          }
+        }
+      }
+      const shellRes = await republishSiteShellSnapshot(auth.supabase, {
+        tenantId: scope.tenantId,
+        locale: input.locale,
+        actorProfileId: auth.user.id,
+      });
+      if (!shellRes.ok) {
+        // Homepage already published; shell-republish failure is degraded
+        // success. Surface as a soft warning to the caller — but the
+        // homepage edit went live. Operator can retry shell publish later.
+        return {
+          ok: false,
+          error: `Homepage published, but the site shell republish failed: ${shellRes.error}`,
+          code: "PARTIAL_PUBLISH",
+        };
+      }
+      // Bust the public reader's cache tag so the new shell snapshot
+      // shows up immediately on the storefront.
+      try {
+        revalidateTag(tagFor(scope.tenantId, "pages-all"), "default");
+      } catch {
+        // tag system not initialised in test contexts; safe to ignore.
+      }
+    }
+
     return {
       ok: true,
       pageVersion: result.data.version,

@@ -113,6 +113,8 @@ export async function PublishedShell({ tenantId, locale, children }: Props) {
 
 function renderShellSlot(
   slot: {
+    slotKey: string;
+    sortOrder: number;
     sectionTypeKey: string;
     sectionId: string;
     props: Record<string, unknown>;
@@ -130,14 +132,29 @@ function renderShellSlot(
     return null;
   }
   const Comp = reg.Component;
+  // Phase B.2.B — wrap each shell section in the same `data-cms-section`
+  // outer the homepage composer uses (see homepage-cms-sections.tsx). The
+  // EditShell selection layer queries `[data-cms-section]` to detect
+  // hover / click; without this wrapper, shell sections are visible but
+  // not selectable. Markers + fields are identical to body sections so
+  // selection chrome, inspector binding, and save flow all work without
+  // any special-case code paths.
   return (
-    <Comp
+    <div
       key={slot.sectionId}
-      sectionId={slot.sectionId}
-      tenantId={tenantId}
-      locale={locale}
-      preview={false}
-      props={slot.props}
-    />
+      data-cms-section=""
+      data-section-id={slot.sectionId}
+      data-section-type-key={slot.sectionTypeKey}
+      data-slot-key={slot.slotKey}
+      data-sort-order={slot.sortOrder}
+    >
+      <Comp
+        sectionId={slot.sectionId}
+        tenantId={tenantId}
+        locale={locale}
+        preview={false}
+        props={slot.props}
+      />
+    </div>
   );
 }
