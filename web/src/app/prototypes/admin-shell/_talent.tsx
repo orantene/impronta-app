@@ -3769,7 +3769,7 @@ type CalendarEvent = {
 };
 
 function CalendarPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer, toast } = useProto();
   const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "all">("booked");
 
   // Build a unified event list from the existing data fixtures.
@@ -3909,10 +3909,23 @@ function CalendarPage() {
         }
       />
 
-      {/* Conflict alert — coral banner when overlaps exist. Renders ONE
-          line per conflict pair so the resolution is unambiguous. */}
+      {/* Conflict alert — coral banner when overlaps exist. Renders one
+          line per conflict pair with three resolution actions so the
+          talent can act without leaving the calendar. Severity escalates
+          to red when 3+ conflicts (rare; signals broken availability). */}
       {conflicts.length > 0 && (
-        <ConflictBanner conflicts={conflicts} />
+        <ConflictBanner
+          conflicts={conflicts}
+          onResolve={(action, target) => {
+            const verb =
+              action === "decline"
+                ? `Declined ${target.client}`
+                : action === "talk"
+                  ? `Coordinator notified about ${target.client}`
+                  : `Reschedule request sent for ${target.client}`;
+            toast(verb);
+          }}
+        />
       )}
 
       {/* Filter chip strip — Booked is default since "calendar" mentally
@@ -4135,20 +4148,24 @@ function FilterChipStrip({
 
 function ConflictBanner({
   conflicts,
+  onResolve,
 }: {
   conflicts: { a: CalendarEvent; b: CalendarEvent }[];
+  onResolve: (action: "decline" | "talk" | "reschedule", target: CalendarEvent) => void;
 }) {
+  // Severity escalates with conflict count: 1–2 is warning, 3+ is critical.
+  const severe = conflicts.length >= 3;
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: 8,
         padding: "12px 16px",
         marginBottom: 16,
-        background: COLORS.coralSoft,
-        border: `1px solid rgba(194,106,69,0.25)`,
-        borderLeft: `3px solid ${COLORS.coral}`,
+        background: severe ? COLORS.criticalSoft : COLORS.coralSoft,
+        border: `1px solid ${severe ? "rgba(176,48,58,0.25)" : "rgba(194,106,69,0.25)"}`,
+        borderLeft: `3px solid ${severe ? COLORS.critical : COLORS.coral}`,
         borderRadius: 10,
         fontFamily: FONTS.body,
       }}
@@ -4160,7 +4177,7 @@ function ConflictBanner({
           gap: 8,
           fontSize: 13,
           fontWeight: 600,
-          color: COLORS.coralDeep,
+          color: severe ? COLORS.criticalDeep : COLORS.coralDeep,
         }}
       >
         <Icon name="bolt" size={13} stroke={1.7} />
@@ -4168,27 +4185,90 @@ function ConflictBanner({
           ? "1 date conflict needs your attention"
           : `${conflicts.length} date conflicts need your attention`}
       </div>
-      {conflicts.map((c, i) => (
-        <div
-          key={`${c.a.id}-${c.b.id}-${i}`}
-          style={{
-            fontSize: 12,
-            color: COLORS.coralDeep,
-            opacity: 0.85,
-            paddingLeft: 22,
-          }}
-        >
-          <strong style={{ color: COLORS.coralDeep, fontWeight: 600 }}>
-            {c.a.client} {c.a.dateLabel}
-          </strong>
-          {" "}({kindToLabel(c.a.kind)}) overlaps with{" "}
-          <strong style={{ color: COLORS.coralDeep, fontWeight: 600 }}>
-            {c.b.client} {c.b.dateLabel}
-          </strong>
-          {" "}({kindToLabel(c.b.kind)}). Resolve before either party expects a commitment.
-        </div>
-      ))}
+      {conflicts.map((c, i) => {
+        // The "pending" or "inquiry" side is the resolvable one — you can
+        // decline a hold or talk to a coordinator. A confirmed booking is
+        // already committed; resolution lives on the other side.
+        const resolvable = c.a.kind === "pending" || c.a.kind === "inquiry" ? c.a : c.b;
+        return (
+          <div
+            key={`${c.a.id}-${c.b.id}-${i}`}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              padding: "8px 0 6px 22px",
+              borderTop: i === 0 ? "none" : `1px solid ${severe ? "rgba(176,48,58,0.18)" : "rgba(194,106,69,0.18)"}`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                color: severe ? COLORS.criticalDeep : COLORS.coralDeep,
+                opacity: 0.95,
+                lineHeight: 1.5,
+              }}
+            >
+              <strong style={{ fontWeight: 600 }}>
+                {c.a.client} {c.a.dateLabel}
+              </strong>
+              {" "}({kindToLabel(c.a.kind)}) overlaps with{" "}
+              <strong style={{ fontWeight: 600 }}>
+                {c.b.client} {c.b.dateLabel}
+              </strong>
+              {" "}({kindToLabel(c.b.kind)}).
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <ConflictActionChip
+                label={`Decline ${resolvable.client}`}
+                onClick={() => onResolve("decline", resolvable)}
+                severe={severe}
+              />
+              <ConflictActionChip
+                label="Talk to coordinator"
+                onClick={() => onResolve("talk", resolvable)}
+                severe={severe}
+              />
+              <ConflictActionChip
+                label="Ask to reschedule"
+                onClick={() => onResolve("reschedule", resolvable)}
+                severe={severe}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
+  );
+}
+
+function ConflictActionChip({
+  label,
+  onClick,
+  severe,
+}: {
+  label: string;
+  onClick: () => void;
+  severe: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        background: "#fff",
+        border: `1px solid ${severe ? "rgba(176,48,58,0.30)" : "rgba(194,106,69,0.30)"}`,
+        borderRadius: 7,
+        padding: "4px 10px",
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        fontSize: 11.5,
+        fontWeight: 500,
+        color: severe ? COLORS.criticalDeep : COLORS.coralDeep,
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
