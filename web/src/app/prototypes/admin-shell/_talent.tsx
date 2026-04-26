@@ -828,6 +828,8 @@ function TalentTodayPage() {
           }
           actionLabel="See calendar →"
           onAction={() => setTalentPage("calendar")}
+          secondaryActionLabel="+ Add manually"
+          onSecondaryAction={() => openDrawer("talent-add-event")}
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           {upcoming.map((b) => (
@@ -858,6 +860,10 @@ function TalentTodayPage() {
             subtitle={`${paidCurrencyAndTotal(paidThisMonthCurrency, paidThisMonthTotal)} this month · ${paidThisMonth.length} payout${paidThisMonth.length !== 1 ? "s" : ""}`}
             actionLabel="See activity →"
             onAction={() => setTalentPage("activity")}
+            secondaryActionLabel="+ Log work"
+            onSecondaryAction={() =>
+              openDrawer("talent-add-event", { mode: "work" })
+            }
           />
           <div style={{ marginTop: 4 }}>
             {EARNINGS_ROWS.slice(0, 3).map((e) => (
@@ -1031,11 +1037,18 @@ function SectionHeader({
   subtitle,
   actionLabel,
   onAction,
+  secondaryActionLabel,
+  onSecondaryAction,
 }: {
   title: string;
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Optional secondary action — renders to the LEFT of the primary
+   *  action with a small visual separator. Used for "+ Log work" alongside
+   *  "See activity →" — distinct semantic (add vs view) on one row. */
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
 }) {
   return (
     <div
@@ -1044,9 +1057,10 @@ function SectionHeader({
         alignItems: "baseline",
         justifyContent: "space-between",
         marginBottom: 4,
+        gap: 8,
       }}
     >
-      <div>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
             fontFamily: FONTS.body,
@@ -1071,25 +1085,57 @@ function SectionHeader({
           </div>
         )}
       </div>
-      {actionLabel && onAction && (
-        <button
-          type="button"
-          onClick={onAction}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: COLORS.ink,
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-            padding: 0,
-            flexShrink: 0,
-          }}
-        >
-          {actionLabel}
-        </button>
-      )}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          flexShrink: 0,
+        }}
+      >
+        {secondaryActionLabel && onSecondaryAction && (
+          <button
+            type="button"
+            onClick={onSecondaryAction}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {secondaryActionLabel}
+          </button>
+        )}
+        {secondaryActionLabel && actionLabel && (
+          <span
+            aria-hidden
+            style={{ width: 1, height: 12, background: COLORS.borderSoft }}
+          />
+        )}
+        {actionLabel && onAction && (
+          <button
+            type="button"
+            onClick={onAction}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {actionLabel}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -3903,9 +3949,14 @@ function CalendarPage() {
         title="Bookings & availability"
         subtitle="Confirmed work, pending replies, inquiries — all in one timeline."
         actions={
-          <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
-            Availability
-          </SecondaryButton>
+          <>
+            <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
+              Availability
+            </SecondaryButton>
+            <PrimaryButton onClick={() => openDrawer("talent-add-event")}>
+              + Add
+            </PrimaryButton>
+          </>
         }
       />
 
@@ -6386,6 +6437,8 @@ function SourceChip({ source }: { source: import("./_state").EarningSource }) {
         return `via ${s.name}`;
       case "marketplace":
         return `via ${s.name}`;
+      case "manual":
+        return "Off-platform · added by you";
     }
   };
   const palette: Record<typeof source.kind, { bg: string; fg: string }> = {
@@ -6394,6 +6447,7 @@ function SourceChip({ source }: { source: import("./_state").EarningSource }) {
     personal: { bg: COLORS.royalSoft, fg: COLORS.royalDeep },
     studio: { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42" },
     marketplace: { bg: "rgba(82,96,109,0.10)", fg: "#3A4651" },
+    manual: { bg: COLORS.coralSoft, fg: COLORS.coralDeep },
   };
   const c = palette[source.kind];
   return (
@@ -6633,6 +6687,629 @@ const MOCK_CLOSED_DETAIL: Record<
     chat: [],
   },
 };
+
+// ─── Add event (manual booking / block) ─────────────────────────────
+//
+// Talents have lives outside the platform — full-time jobs, school,
+// vacation, friend's photo shoots, repeat clients they've worked with
+// for years. Tulala becomes their booking manager only if they can
+// log ALL of it here — not just Tulala-routed gigs.
+//
+// Two flows, one entry point:
+//   work    → off-platform booking. Earnings row + calendar event +
+//             coral "Off-platform" source chip when surfaced later.
+//             Quick form (3 fields, 5 seconds) by default; advanced
+//             toggle reveals location / time / contact / brief / notes.
+//   block   → calendar block for non-work. Reason taxonomy: travel /
+//             personal / other job / family / other. Doesn't count as
+//             earnings, doesn't fight booking pitches the way "paused"
+//             availability does — it's a single window.
+//
+// In production this also feeds tax exports (talent self-reports
+// off-platform income) and powers the "convert to Tulala-tracked"
+// suggestion when a manual client name matches a verified Tulala
+// client identity.
+
+type AddEventMode = "pick" | "work" | "block";
+
+export function TalentAddEventDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-add-event";
+  const initialMode = (state.drawer.payload?.mode as AddEventMode | undefined) ?? "pick";
+  const [mode, setMode] = useState<AddEventMode>(initialMode);
+
+  // Reset to picker when drawer reopens with no mode (open from a generic CTA)
+  // — but if reopened with a specific mode (e.g., from a "Block dates" link),
+  // honor that.
+  // Note: state.drawer.payload changes don't auto-reset useState; this only
+  // matters on first mount.
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={() => {
+        setMode("pick");
+        closeDrawer();
+      }}
+      title={
+        mode === "pick"
+          ? "Add to your calendar"
+          : mode === "work"
+            ? "Log work"
+            : "Block time"
+      }
+      description={
+        mode === "pick"
+          ? "Track your booking life — even when the gig didn't come through Tulala."
+          : mode === "work"
+            ? "Off-platform booking? Log it here so it counts toward your earnings + history."
+            : "Block your calendar so agencies don't pitch you when you're unavailable."
+      }
+      width={540}
+      footer={
+        mode === "pick" ? (
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+        ) : undefined // forms own their own footers
+      }
+    >
+      {mode === "pick" && (
+        <ModePicker
+          onPick={(m) => setMode(m)}
+        />
+      )}
+      {mode === "work" && (
+        <LogWorkForm
+          onCancel={() => setMode("pick")}
+          onSave={(data) => {
+            const summary =
+              data.client && data.amount
+                ? `Logged ${data.client} · ${data.amount}`
+                : "Booking logged";
+            toast(`${summary} · added to your calendar + earnings`);
+            closeDrawer();
+          }}
+        />
+      )}
+      {mode === "block" && (
+        <BlockTimeForm
+          onCancel={() => setMode("pick")}
+          onSave={(data) => {
+            toast(
+              `${data.reason || "Time"} blocked · ${data.from || "—"}${data.to ? ` → ${data.to}` : ""}`,
+            );
+            closeDrawer();
+          }}
+        />
+      )}
+    </DrawerShell>
+  );
+}
+
+/** Mode picker — two big choices, clear contracts. */
+function ModePicker({ onPick }: { onPick: (m: "work" | "block") => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <ModePickerCard
+        kind="work"
+        title="Log work"
+        body="A booking you did (or will do) outside Tulala. Adds to your earnings + calendar."
+        meta="Quick add or full details"
+        toneFg={COLORS.green}
+        toneBg="rgba(46,125,91,0.10)"
+        icon="credit"
+        onPick={() => onPick("work")}
+      />
+      <ModePickerCard
+        kind="block"
+        title="Block time"
+        body="Vacation, day job, school, family — anything that means you're not available. Won't count as earnings."
+        meta="Reason + date range"
+        toneFg={COLORS.amber}
+        toneBg="rgba(82,96,109,0.10)"
+        icon="lock"
+        onPick={() => onPick("block")}
+      />
+    </div>
+  );
+}
+
+function ModePickerCard({
+  title,
+  body,
+  meta,
+  toneFg,
+  toneBg,
+  icon,
+  onPick,
+}: {
+  kind: "work" | "block";
+  title: string;
+  body: string;
+  meta: string;
+  toneFg: string;
+  toneBg: string;
+  icon: "credit" | "lock";
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        width: "100%",
+        padding: "16px 18px",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: FONTS.body,
+        transition: "border-color .12s, transform .12s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = COLORS.border;
+        e.currentTarget.style.transform = "translateY(-1px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = COLORS.borderSoft;
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 8,
+          background: toneBg,
+          color: toneFg,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Icon name={icon} size={14} stroke={1.7} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: COLORS.ink,
+            letterSpacing: -0.05,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontSize: 12.5,
+            color: COLORS.inkMuted,
+            marginTop: 2,
+            lineHeight: 1.5,
+          }}
+        >
+          {body}
+        </div>
+        <div
+          style={{
+            fontSize: 11,
+            color: COLORS.inkDim,
+            marginTop: 6,
+            fontWeight: 500,
+            letterSpacing: 0.3,
+            textTransform: "uppercase",
+          }}
+        >
+          {meta}
+        </div>
+      </div>
+      <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+    </button>
+  );
+}
+
+/** Log work form — Quick by default, Advanced on toggle. */
+function LogWorkForm({
+  onCancel,
+  onSave,
+}: {
+  onCancel: () => void;
+  onSave: (data: {
+    client: string;
+    date: string;
+    amount: string;
+    advanced: boolean;
+  }) => void;
+}) {
+  const [client, setClient] = useState("");
+  const [date, setDate] = useState("");
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("€");
+  const [advanced, setAdvanced] = useState(false);
+  const [brief, setBrief] = useState("");
+  const [location, setLocation] = useState("");
+  const [callTime, setCallTime] = useState("");
+  const [contact, setContact] = useState("");
+  const [notes, setNotes] = useState("");
+  const [delivered, setDelivered] = useState("");
+
+  const canSave = client.trim().length > 0 && date.trim().length > 0;
+
+  return (
+    <>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        {/* Quick fields — always visible. The MVP for one-tap logging. */}
+        <section>
+          <SubsectionLabel>The basics</SubsectionLabel>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 12 }}>
+            <FieldRow label="Client" hint="Who paid you. Free text — they don't have to be on Tulala.">
+              <TextInput
+                value={client}
+                onChange={(e) => setClient(e.target.value)}
+                placeholder="e.g. Friend's brand · Studio Roca · Old colleague"
+              />
+            </FieldRow>
+            <FieldRow label="Date" hint="When you worked.">
+              <TextInput
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                placeholder="May 12, 2026  or  May 12–13"
+              />
+            </FieldRow>
+            <FieldRow label="Amount" hint="What you earned. Optional if you haven't been paid yet.">
+              <div style={{ display: "flex", gap: 8 }}>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  style={{
+                    background: "#fff",
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: 8,
+                    padding: "0 10px",
+                    fontFamily: FONTS.body,
+                    fontSize: 13,
+                    color: COLORS.ink,
+                    cursor: "pointer",
+                    minWidth: 64,
+                  }}
+                >
+                  <option>€</option>
+                  <option>£</option>
+                  <option>$</option>
+                  <option>¥</option>
+                  <option>—</option>
+                </select>
+                <div style={{ flex: 1 }}>
+                  <TextInput
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="1,800"
+                  />
+                </div>
+              </div>
+            </FieldRow>
+          </div>
+        </section>
+
+        {/* Advanced toggle — on by talent's choice */}
+        <button
+          type="button"
+          onClick={() => setAdvanced((o) => !o)}
+          aria-expanded={advanced}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            color: COLORS.ink,
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            fontWeight: 500,
+            cursor: "pointer",
+            alignSelf: "flex-start",
+          }}
+        >
+          <Icon
+            name="chevron-down"
+            size={11}
+            stroke={2}
+            color={COLORS.ink}
+          />
+          <span
+            style={{
+              transform: advanced ? "none" : "none",
+            }}
+          >
+            {advanced ? "Hide details" : "Add details (location, time, contact, deliverables)"}
+          </span>
+        </button>
+
+        {advanced && (
+          <section>
+            <SubsectionLabel>Details</SubsectionLabel>
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 12 }}>
+              <FieldRow label="Brief" hint="What was the job?">
+                <TextInput
+                  value={brief}
+                  onChange={(e) => setBrief(e.target.value)}
+                  placeholder="e.g. Lookbook · spring capsule · 1 day"
+                />
+              </FieldRow>
+              <FieldRow label="Location">
+                <TextInput
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="City · studio or address"
+                />
+              </FieldRow>
+              <FieldRow label="Call time">
+                <TextInput
+                  value={callTime}
+                  onChange={(e) => setCallTime(e.target.value)}
+                  placeholder="08:30 — 18:00"
+                />
+              </FieldRow>
+              <FieldRow label="Contact" optional hint="Producer / photographer / who to message after.">
+                <TextInput
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  placeholder="Name · email or phone"
+                />
+              </FieldRow>
+              <FieldRow label="Delivered" optional hint="Comma-separated list of deliverables.">
+                <TextInput
+                  value={delivered}
+                  onChange={(e) => setDelivered(e.target.value)}
+                  placeholder="8 looks, hero image, BTS carousel"
+                />
+              </FieldRow>
+              <FieldRow label="Notes" optional>
+                <TextArea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Anything you want to remember about this job."
+                  rows={3}
+                />
+              </FieldRow>
+            </div>
+          </section>
+        )}
+
+        {/* Off-platform note — sets expectations on what this means. */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+            padding: "10px 12px",
+            background: COLORS.coralSoft,
+            border: `1px solid rgba(194,106,69,0.18)`,
+            borderRadius: 8,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.coralDeep,
+            lineHeight: 1.55,
+          }}
+        >
+          <Icon name="info" size={11} stroke={1.7} />
+          <span>
+            <strong>Off-platform booking</strong> — visible only to you. Adds to your earnings,
+            calendar and history. Not shared with agencies unless you choose to.
+          </span>
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "sticky",
+          bottom: 0,
+          marginTop: 24,
+          marginLeft: -24,
+          marginRight: -24,
+          padding: "12px 24px",
+          background: "#fff",
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+        }}
+      >
+        <SecondaryButton onClick={onCancel}>Back</SecondaryButton>
+        <button
+          type="button"
+          disabled={!canSave}
+          onClick={() =>
+            onSave({
+              client: client.trim(),
+              date: date.trim(),
+              amount: amount ? `${currency}${amount.trim()}` : "",
+              advanced,
+            })
+          }
+          style={{
+            background: canSave ? COLORS.ink : "rgba(11,11,13,0.20)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            padding: "9px 16px",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: canSave ? "pointer" : "not-allowed",
+          }}
+        >
+          Log booking
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** Block time form — date range + reason taxonomy. */
+function BlockTimeForm({
+  onCancel,
+  onSave,
+}: {
+  onCancel: () => void;
+  onSave: (data: { from: string; to: string; reason: string; note: string }) => void;
+}) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [reason, setReason] = useState<string>("");
+  const [note, setNote] = useState("");
+
+  const reasonOptions: { id: string; label: string; hint: string }[] = [
+    { id: "travel", label: "Travel", hint: "Flight, holiday, between cities" },
+    { id: "personal", label: "Personal", hint: "Time off, recovery, life" },
+    { id: "other-job", label: "Other job", hint: "Day job, school, recurring shift" },
+    { id: "family", label: "Family", hint: "Wedding, illness, kid's event" },
+    { id: "audition", label: "Audition / casting", hint: "Off-platform casting prep" },
+    { id: "other", label: "Other", hint: "" },
+  ];
+
+  const canSave = from.trim().length > 0 && reason.trim().length > 0;
+
+  return (
+    <>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <section>
+          <SubsectionLabel>When</SubsectionLabel>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 12 }}>
+            <FieldRow label="From">
+              <TextInput
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                placeholder="May 22, 2026"
+              />
+            </FieldRow>
+            <FieldRow label="To" optional hint="Leave blank for a single day.">
+              <TextInput
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                placeholder="May 26, 2026"
+              />
+            </FieldRow>
+          </div>
+        </section>
+
+        <section>
+          <SubsectionLabel>Reason</SubsectionLabel>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 6,
+              marginTop: 10,
+            }}
+          >
+            {reasonOptions.map((r) => {
+              const active = reason === r.id;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setReason(r.id)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 11px",
+                    borderRadius: 999,
+                    background: active ? COLORS.ink : "#fff",
+                    border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+                    cursor: "pointer",
+                    fontFamily: FONTS.body,
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                    color: active ? "#fff" : COLORS.ink,
+                  }}
+                >
+                  {r.label}
+                </button>
+              );
+            })}
+          </div>
+          {reason && (
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 11.5,
+                color: COLORS.inkMuted,
+                fontFamily: FONTS.body,
+              }}
+            >
+              {reasonOptions.find((r) => r.id === reason)?.hint}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <SubsectionLabel>Note for your agencies</SubsectionLabel>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: COLORS.inkMuted,
+              marginTop: 4,
+              marginBottom: 10,
+            }}
+          >
+            Optional. They see this when they try to pitch you on a blocked date.
+          </div>
+          <TextInput
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="e.g. Annual family trip · back full availability May 27"
+          />
+        </section>
+      </div>
+
+      <div
+        style={{
+          position: "sticky",
+          bottom: 0,
+          marginTop: 24,
+          marginLeft: -24,
+          marginRight: -24,
+          padding: "12px 24px",
+          background: "#fff",
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+        }}
+      >
+        <SecondaryButton onClick={onCancel}>Back</SecondaryButton>
+        <button
+          type="button"
+          disabled={!canSave}
+          onClick={() => onSave({ from, to, reason, note })}
+          style={{
+            background: canSave ? COLORS.ink : "rgba(11,11,13,0.20)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            padding: "9px 16px",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: canSave ? "pointer" : "not-allowed",
+          }}
+        >
+          Block time
+        </button>
+      </div>
+    </>
+  );
+}
 
 // ─── Profile edit ─────────────────────────────────────────────────
 

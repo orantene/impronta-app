@@ -81,6 +81,7 @@ import {
 import {
   TalentTodayPulseDrawer,
   TalentOfferDetailDrawer,
+  TalentAddEventDrawer,
   TalentBookingDetailDrawer,
   TalentClosedBookingDrawer,
   TalentProfileEditDrawer,
@@ -294,6 +295,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentBookingDetailDrawer />;
     case "talent-closed-booking":
       return <TalentClosedBookingDrawer />;
+    case "talent-add-event":
+      return <TalentAddEventDrawer />;
     case "talent-profile-edit":
       return <TalentProfileEditDrawer />;
     case "talent-profile-section":

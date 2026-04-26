@@ -422,6 +422,7 @@ export type DrawerId =
   | "talent-request-detail"
   | "talent-booking-detail"
   | "talent-closed-booking"
+  | "talent-add-event"
   | "talent-profile-edit"
   | "talent-profile-section"
   | "talent-availability"
@@ -3153,7 +3154,8 @@ export type EarningSource =
   | { kind: "hub"; name: string }
   | { kind: "personal" }
   | { kind: "studio"; name: string }
-  | { kind: "marketplace"; name: string };
+  | { kind: "marketplace"; name: string }
+  | { kind: "manual" }; // off-platform booking added manually by the talent
 
 export type EarningsRow = {
   id: string;
