@@ -1470,9 +1470,19 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
   const peers = idx === 0 ? 3 : idx === 1 ? 2 : 4;
   const acceptedPeers = idx === 0 ? 1 : idx === 1 ? 0 : 2;
   const summary = inquiry.brief.length > 40 ? `${inquiry.brief.slice(0, 38)}…` : inquiry.brief;
-  // Click → open the inquiry workspace from the talent POV (read-only
-  // for inquiries the talent isn't yet booked on; full thread view if
-  // they are).
+  // Competition heat — Tier 2 audit fix:
+  //   hot   → 0 others accepted yet, your shot is best (coral signal)
+  //   warm  → 1 other accepted (still in play, neutral)
+  //   cold  → 2+ others accepted, you're losing the race (slate)
+  // Visually nudges the eye toward the inquiry that most rewards attention.
+  const heat: "hot" | "warm" | "cold" =
+    acceptedPeers === 0 ? "hot" : acceptedPeers === 1 ? "warm" : "cold";
+  const chipPalette = {
+    hot: { bg: COLORS.coralSoft, fg: COLORS.coral, deep: COLORS.coralDeep },
+    warm: { bg: COLORS.indigoSoft, fg: COLORS.indigo, deep: COLORS.indigoDeep },
+    cold: { bg: "rgba(82,96,109,0.10)", fg: COLORS.amber, deep: "#3A444E" },
+  } as const;
+  const palette = chipPalette[heat];
   return (
     <button
       type="button"
@@ -1497,16 +1507,17 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.05)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
     >
-      {/* Indigo "insight"-tinted icon chip — distinguishes the funnel
-          rows from action-rows (which use coral/forest). */}
+      {/* Icon chip color tracks competition heat — coral when nobody's
+          accepted yet (your shot is best). The user's eye learns to scan
+          for the coral chips first. */}
       <span
         aria-hidden
         style={{
           width: 28,
           height: 28,
           borderRadius: 8,
-          background: COLORS.indigoSoft,
-          color: COLORS.indigo,
+          background: palette.bg,
+          color: palette.fg,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1539,12 +1550,12 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
           letterSpacing: 0.4,
           textTransform: "uppercase",
           padding: "3px 7px",
-          background: COLORS.indigoSoft,
-          color: COLORS.indigoDeep,
+          background: palette.bg,
+          color: palette.deep,
           borderRadius: 999,
         }}
       >
-        Pending
+        {heat === "hot" ? "Your shot" : heat === "warm" ? "In play" : "Behind"}
       </span>
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
     </button>

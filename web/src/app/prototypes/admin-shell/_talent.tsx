@@ -728,32 +728,51 @@ function TalentTodayPage() {
   const mineNeedsMe = mine.filter((i) => myStatusOn(i) === "pending");
   const mineInProgress = mine.filter((i) => myStatusOn(i) !== "pending");
   const pendingCount = mineNeedsMe.length + needsAnswer.length;
-  // Top 2 pending names for context-aware hero copy.
-  const pendingNames: string[] = [
-    ...needsAnswer.map((r) => r.client),
-    ...mineNeedsMe.map((i) => i.clientName),
+  // Top 2 pending items as name + click → drawer. Names render as inline
+  // clickable links in the hero headline. Direct route to action.
+  const pendingTargets: { name: string; onClick: () => void }[] = [
+    ...needsAnswer.map((r) => ({
+      name: r.client,
+      onClick: () => openDrawer("talent-offer-detail", { id: r.id }),
+    })),
+    ...mineNeedsMe.map((i) => ({
+      name: i.clientName,
+      onClick: () =>
+        openDrawer("inquiry-workspace", { inquiryId: i.id, pov: "talent" }),
+    })),
   ].slice(0, 2);
+
+  // Jump to the first pending item when "Reply now" is clicked — one
+  // hop instead of "go to inbox, find the top item, click it."
+  const firstPending = pendingTargets[0];
 
   return (
     <>
       <TalentTodayHero
         firstName={profile.name.split(" ")[0]}
         pendingCount={pendingCount}
-        pendingNames={pendingNames}
+        pendingTargets={pendingTargets}
         upcomingCount={upcoming.length}
         nextBookingDate={upcoming[0]?.startDate}
         paidThisMonth={paidThisMonthTotal}
         paidCurrency={paidThisMonthCurrency}
         profileCompleteness={profile.completeness}
-        onReplyNow={() => setTalentPage("inbox")}
+        onReplyNow={
+          firstPending
+            ? firstPending.onClick
+            : () => setTalentPage("inbox")
+        }
         onMarkUnavailable={() => openDrawer("talent-block-dates")}
+        onOpenProfile={() => openDrawer("talent-profile-edit")}
       />
 
-      {/* Needs reply — the ONLY action-needed feed on the page.
-          Coral edge container, mixed offers/holds/inquiry-pending in one
-          single-grain list. Replaces the prior Needs-your-answer card +
-          Needs-your-attention feed (which mixed action with in-progress
-          and triple-counted the same offers in three places). */}
+      {/* Order rationale (Tier 2 audit): group temporally.
+            Forward-facing first  → Needs reply, Inquiries (in flight), Calendar
+            Backward-facing after → Earnings, Profile views (looking back, 2-up)
+          The eye flows top-to-bottom in the same direction as the data. */}
+
+      {/* 1 — Needs reply. The ONLY action-needed feed on the page.
+            Coral edge container; only renders when pending > 0. */}
       {pendingCount > 0 && (
         <NeedsReplySection
           requests={needsAnswer}
@@ -762,34 +781,45 @@ function TalentTodayPage() {
         />
       )}
 
+      {/* 2 — Inquiries you're competing in (in-flight pipeline).
+            Promoted directly under Needs-reply per audit feedback —
+            these are kin (both forward-looking, both pipeline state). */}
+      {mineInProgress.length > 0 && <TalentFunnelCard />}
+
       <div style={{ height: 12 }} />
 
-      {/* Upcoming + earnings — money & calendar pulse in one row */}
+      {/* 3 — Calendar (forward-facing). */}
+      <section
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          padding: "16px 18px 6px",
+        }}
+      >
+        <SectionHeader
+          title="Next on the calendar"
+          subtitle={
+            upcoming.length === 0
+              ? "No confirmed bookings yet."
+              : `${upcoming.length} upcoming · ${upcoming[0]?.startDate}`
+          }
+          actionLabel="See calendar →"
+          onAction={() => setTalentPage("calendar")}
+        />
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {upcoming.map((b) => (
+            <BookingRow key={b.id} booking={b} />
+          ))}
+        </div>
+      </section>
+
+      <div style={{ height: 12 }} />
+
+      {/* 4 + 5 — Looking back: earnings + analytics, paired in a 2-up.
+            Both are reflective surfaces (what already happened / how it's
+            performing), so they share a row at the bottom of the page. */}
       <Grid cols="2">
-        <section
-          style={{
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            padding: "16px 18px 6px",
-          }}
-        >
-          <SectionHeader
-            title="Next on the calendar"
-            subtitle={
-              upcoming.length === 0
-                ? "No confirmed bookings yet."
-                : `${upcoming.length} upcoming · ${upcoming[0]?.startDate}`
-            }
-            actionLabel="See calendar →"
-            onAction={() => setTalentPage("calendar")}
-          />
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {upcoming.map((b) => (
-              <BookingRow key={b.id} booking={b} />
-            ))}
-          </div>
-        </section>
         <SecondaryCard
           title="Recent earnings"
           description={`${paidCurrencyAndTotal(paidThisMonthCurrency, paidThisMonthTotal)} this month · ${paidThisMonth.length} payout${paidThisMonth.length !== 1 ? "s" : ""}.`}
@@ -821,18 +851,8 @@ function TalentTodayPage() {
             ))}
           </div>
         </SecondaryCard>
+        <TalentAnalyticsCard />
       </Grid>
-
-      <div style={{ height: 12 }} />
-
-      {/* Pipeline status — what's being considered (no action needed from
-          you on these; that's why they're below "Needs reply"). */}
-      {mineInProgress.length > 0 && <TalentFunnelCard />}
-
-      <div style={{ height: 12 }} />
-
-      {/* Profile views — analytics last (informational, not actionable). */}
-      <TalentAnalyticsCard />
     </>
   );
 }
@@ -928,7 +948,7 @@ function SectionHeader({
 function TalentTodayHero({
   firstName,
   pendingCount,
-  pendingNames,
+  pendingTargets,
   upcomingCount,
   nextBookingDate,
   paidThisMonth,
@@ -936,10 +956,14 @@ function TalentTodayHero({
   profileCompleteness,
   onReplyNow,
   onMarkUnavailable,
+  onOpenProfile,
 }: {
   firstName: string;
   pendingCount: number;
-  pendingNames: string[];
+  /** Top 2 pending items as name + click handler — names render as
+   *  inline clickable links in the headline so the user can jump straight
+   *  to the offer drawer without scanning the list below. */
+  pendingTargets: { name: string; onClick: () => void }[];
   upcomingCount: number;
   nextBookingDate?: string;
   paidThisMonth: number;
@@ -947,25 +971,45 @@ function TalentTodayHero({
   profileCompleteness: number;
   onReplyNow: () => void;
   onMarkUnavailable: () => void;
+  onOpenProfile: () => void;
 }) {
-  // Context-aware copy. The page reads differently based on state — that's
-  // the whole point. A flat "Today" title every visit is wallpaper.
-  let headline: string;
+  // Context-aware headline. Renders as an array so individual names can
+  // be clickable spans (jump-to-offer affordance) while the connective
+  // text stays plain.
+  let headlineParts: ReactNode;
   let subline: string;
   if (pendingCount === 0) {
-    headline = "You're all caught up.";
+    headlineParts = "You're all caught up.";
     subline =
       upcomingCount > 0
         ? `Next up: ${nextBookingDate ?? "no bookings yet"}.`
         : "Nothing on the calendar yet.";
   } else if (pendingCount === 1) {
-    headline = `${pendingNames[0]} is waiting on you.`;
+    headlineParts = (
+      <>
+        <HeroNameLink onClick={pendingTargets[0]!.onClick}>
+          {pendingTargets[0]!.name}
+        </HeroNameLink>{" "}
+        is waiting on you.
+      </>
+    );
     subline = "Reply to keep the inquiry alive.";
   } else if (pendingCount === 2) {
-    headline = `${pendingNames[0]} and ${pendingNames[1]} are waiting on you.`;
+    headlineParts = (
+      <>
+        <HeroNameLink onClick={pendingTargets[0]!.onClick}>
+          {pendingTargets[0]!.name}
+        </HeroNameLink>{" "}
+        and{" "}
+        <HeroNameLink onClick={pendingTargets[1]!.onClick}>
+          {pendingTargets[1]!.name}
+        </HeroNameLink>{" "}
+        are waiting on you.
+      </>
+    );
     subline = `${pendingCount} replies needed today.`;
   } else {
-    headline = `${pendingCount} things need your reply.`;
+    headlineParts = `${pendingCount} things need your reply.`;
     subline = "Top of inbox first.";
   }
 
@@ -1009,7 +1053,7 @@ function TalentTodayHero({
               lineHeight: 1.15,
             }}
           >
-            {headline}
+            {headlineParts}
           </h1>
           <div
             style={{
@@ -1041,8 +1085,11 @@ function TalentTodayHero({
       </div>
 
       {/* Micro-stat strip — slim row of secondary numbers. Replaces the
-          old 4-tile grid; lighter, scannable in one glance. Each chip is
-          monochrome with a micro-tone hue carrying the semantic. */}
+          old 4-tile grid; lighter, scannable in one glance.
+          Confirmed drops the "next Tue, May 6" caption — calendar section
+          owns dates. Profile is interactive (opens edit drawer); when
+          incomplete it stays neutral ink rather than indigo so the strip
+          reads uniformly — the % below 100 is the signal, not the color. */}
       <div
         style={{
           display: "flex",
@@ -1057,27 +1104,54 @@ function TalentTodayHero({
         <HeroStat
           label="Confirmed"
           value={String(upcomingCount)}
-          caption={
-            nextBookingDate ? `next ${nextBookingDate}` : "none yet"
-          }
-          tone="success"
+          tone="ink"
         />
         <HeroStatDivider />
         <HeroStat
           label="Paid this month"
           value={`${paidCurrency}${paidThisMonth.toLocaleString()}`}
-          caption=""
-          tone="success"
+          tone="ink"
         />
         <HeroStatDivider />
         <HeroStat
           label="Profile"
           value={`${profileCompleteness}%`}
-          caption={profileCompleteness < 100 ? "complete it" : "complete"}
-          tone={profileCompleteness < 100 ? "indigo" : "success"}
+          tone="ink"
+          onClick={onOpenProfile}
         />
       </div>
     </section>
+  );
+}
+
+/** Inline clickable name in the hero headline — underlined on hover.
+ *  Teaches the user that names are entry points to their detail drawer. */
+function HeroNameLink({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        font: "inherit",
+        color: COLORS.ink,
+        cursor: "pointer",
+        textDecoration: hover ? "underline" : "none",
+        textDecorationThickness: 1,
+        textUnderlineOffset: 4,
+        textDecorationColor: COLORS.coral,
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -1086,24 +1160,18 @@ function HeroStat({
   value,
   caption,
   tone,
+  onClick,
 }: {
   label: string;
   value: string;
-  caption: string;
+  caption?: string;
   tone: "success" | "indigo" | "ink";
+  onClick?: () => void;
 }) {
   const fg =
     tone === "success" ? COLORS.green : tone === "indigo" ? COLORS.indigo : COLORS.ink;
-  return (
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        gap: 1,
-        minWidth: 0,
-      }}
-    >
+  const inner = (
+    <>
       <div
         style={{
           fontFamily: FONTS.body,
@@ -1141,6 +1209,42 @@ function HeroStat({
           </span>
         )}
       </div>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          minWidth: 0,
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          textAlign: "left",
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        {inner}
+      </button>
+    );
+  }
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        minWidth: 0,
+      }}
+    >
+      {inner}
     </div>
   );
 }
@@ -1202,12 +1306,12 @@ function NeedsReplySection({
       />
       <SectionHeader
         title="Needs your reply"
-        subtitle={`${total} ${total === 1 ? "thing" : "things"} waiting on you · sorted by urgency`}
+        subtitle={`${total} waiting · sorted by urgency`}
         actionLabel="Open inbox →"
         onAction={onSeeAll}
       />
       {requests.map((r) => (
-        <RequestRow key={r.id} request={r} />
+        <RequestRow key={r.id} request={r} compact />
       ))}
       {inquiries.map((i) => (
         <InquiryRow key={i.id} inquiry={i} />
@@ -1216,8 +1320,23 @@ function NeedsReplySection({
   );
 }
 
-function RequestRow({ request }: { request: TalentRequest }) {
+function RequestRow({
+  request,
+  compact = false,
+}: {
+  request: TalentRequest;
+  /**
+   * Compact mode for high-density surfaces (Talent Today). Drops:
+   *   - ClientTrustChip (already-vetted context — noise on Today)
+   *   - "via {agency}" prefix (single-agency talent — redundant)
+   * Adds:
+   *   - Coral-escalated timestamp when age > 12h (urgency cue)
+   *   - Hover "Reply" button (per-row primary affordance)
+   */
+  compact?: boolean;
+}) {
   const { openDrawer } = useProto();
+  const [hover, setHover] = useState(false);
   const kindMeta: Record<TalentRequest["kind"], { label: string; tone: "amber" | "ink" | "green" | "dim" }> = {
     offer: { label: "Offer", tone: "amber" },
     hold: { label: "Hold", tone: "amber" },
@@ -1225,9 +1344,22 @@ function RequestRow({ request }: { request: TalentRequest }) {
     request: { label: "Request", tone: "ink" },
   };
   const km = kindMeta[request.kind];
+  // Timestamp urgency: 0–12h neutral, 12–24h coral, >24h coral bold.
+  // Pressure rises with time.
+  const ageLabel =
+    request.ageHrs < 24 ? `${request.ageHrs}h ago` : `${Math.floor(request.ageHrs / 24)}d ago`;
+  const ageColor =
+    request.ageHrs >= 24
+      ? COLORS.coral
+      : request.ageHrs >= 12
+        ? COLORS.coral
+        : COLORS.inkDim;
+  const ageWeight = request.ageHrs >= 24 ? 600 : request.ageHrs >= 12 ? 500 : 400;
   return (
     <button
       onClick={() => openDrawer("talent-offer-detail", { id: request.id })}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
       style={{
         display: "flex",
         alignItems: "center",
@@ -1272,7 +1404,7 @@ function RequestRow({ request }: { request: TalentRequest }) {
           }}
         >
           {request.client}
-          <ClientTrustChip level={request.clientTrust} compact />
+          {!compact && <ClientTrustChip level={request.clientTrust} compact />}
           <Bullet />
           <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{request.brief}</span>
         </div>
@@ -1284,13 +1416,50 @@ function RequestRow({ request }: { request: TalentRequest }) {
             marginTop: 2,
           }}
         >
-          via {request.agency}
-          {request.date && <> · {request.date}</>}
-          {request.amount && <> · {request.amount}</>}
+          {!compact && (
+            <>
+              via {request.agency}
+              {(request.date || request.amount) && " · "}
+            </>
+          )}
+          {request.date}
+          {request.date && request.amount && " · "}
+          {request.amount}
         </div>
       </div>
-      <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim }}>
-        {request.ageHrs < 24 ? `${request.ageHrs}h ago` : `${Math.floor(request.ageHrs / 24)}d ago`}
+      {/* Hover Reply button — per-row primary affordance.
+          Click opens the offer detail drawer (same target as the row), but
+          the explicit "Reply" label teaches the action. After ~5 exposures
+          the user reaches for it directly instead of scanning. */}
+      {compact && hover && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "5px 10px",
+            borderRadius: 7,
+            background: COLORS.coralSoft,
+            color: COLORS.coralDeep,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 600,
+            letterSpacing: -0.05,
+          }}
+        >
+          Reply →
+        </span>
+      )}
+      <span
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          color: ageColor,
+          fontWeight: ageWeight,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {ageLabel}
       </span>
       <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
     </button>
