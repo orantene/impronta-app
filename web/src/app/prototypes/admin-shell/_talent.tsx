@@ -4613,7 +4613,16 @@ function ReachPage() {
     if (ch) toast(`${ch.name} · ${on ? "on" : "off"}`);
   };
 
-  const applyPreset = (next: ExposurePreset) => {
+  // Maximum-confirm dialog state. Picking Maximum opens unverified
+  // marketplace channels — the talent might get spammed by Basic clients.
+  // Confirming makes the trade-off explicit before we apply it.
+  const [showMaxConfirm, setShowMaxConfirm] = useState(false);
+
+  const applyPreset = (next: ExposurePreset, skipMaxConfirm = false) => {
+    if (next === "maximum" && !skipMaxConfirm) {
+      setShowMaxConfirm(true);
+      return;
+    }
     setPreset(next);
     // Preset rules — translates a high-level intent into per-channel state.
     // Agency channels are unaffected (contracts handle them). Personal
@@ -4654,7 +4663,19 @@ function ReachPage() {
     (sum, c) => sum + c.inquiries7d,
     0,
   );
+  const totalInquiriesDelta = TALENT_CHANNELS.filter((c) => channelOn[c.id]).reduce(
+    (sum, c) => sum + (c.inquiries7dDelta ?? 0),
+    0,
+  );
   const totalBookings90d = TALENT_CHANNELS.reduce((sum, c) => sum + c.bookings90d, 0);
+  const totalEarnings90d = TALENT_CHANNELS.reduce((sum, c) => sum + c.earnings90d, 0);
+  // Find the talent's top earning channel — surfaces "what's actually
+  // working" at a glance.
+  const topChannel = TALENT_CHANNELS.reduce<ChannelEntry | null>(
+    (best, c) =>
+      c.earnings90d > 0 && (!best || c.earnings90d > best.earnings90d) ? c : best,
+    null,
+  );
 
   return (
     <>
@@ -4669,7 +4690,10 @@ function ReachPage() {
         }
       />
 
-      {/* Top stat strip — at-a-glance reach summary */}
+      {/* Top stat strip — at-a-glance reach summary. Each stat carries
+          a delta or context line so the strip reads as "here's where I
+          am, here's the trend." Earnings is the single most important
+          metric — it answers "what did distribution actually earn me?" */}
       <div
         style={{
           display: "flex",
@@ -4682,11 +4706,32 @@ function ReachPage() {
           marginBottom: 16,
         }}
       >
-        <ReachStat label="Live channels" value={String(liveChannels)} caption={`of ${TALENT_CHANNELS.length}`} />
+        <ReachStat
+          label="Live channels"
+          value={`${liveChannels}/${TALENT_CHANNELS.length}`}
+          caption={topChannel ? `top: ${topChannel.name}` : ""}
+        />
         <ReachStatDivider />
-        <ReachStat label="Inquiries · 7d" value={String(totalInquiries7d)} caption="across channels" tone="indigo" />
+        <ReachStat
+          label="Inquiries · 7d"
+          value={String(totalInquiries7d)}
+          caption={
+            totalInquiriesDelta > 0
+              ? `+${totalInquiriesDelta} vs prior 7d`
+              : totalInquiriesDelta < 0
+                ? `${totalInquiriesDelta} vs prior 7d`
+                : "flat vs prior 7d"
+          }
+          captionTone={totalInquiriesDelta > 0 ? "success" : totalInquiriesDelta < 0 ? "coral" : "default"}
+          tone="indigo"
+        />
         <ReachStatDivider />
-        <ReachStat label="Bookings · 90d" value={String(totalBookings90d)} caption="from these channels" tone="success" />
+        <ReachStat
+          label="Earnings · 90d"
+          value={`€${totalEarnings90d.toLocaleString()}`}
+          caption={`across ${totalBookings90d} bookings`}
+          tone="success"
+        />
       </div>
 
       {/* Exposure preset slider — the headline control */}
@@ -4784,24 +4829,157 @@ function ReachPage() {
           <TextInput placeholder="Search Models.com, Cast Iron, Atelier Paris…" />
         </div>
       </section>
+
+      {/* Maximum-exposure confirm dialog. Surfaces the real trade-off
+          (marketplace inquiries from Basic clients) before applying. */}
+      {showMaxConfirm && (
+        <ModalConfirm
+          title="Open every channel?"
+          body={
+            <>
+              <p style={{ margin: "0 0 10px" }}>
+                <strong>Maximum</strong> exposure adds unverified marketplace channels
+                (BookEm.app, etc.). You may get inquiries from Basic-tier clients you
+                wouldn't otherwise see.
+              </p>
+              <p style={{ margin: 0, color: COLORS.inkMuted }}>
+                You can still toggle individual channels off below, or slide back to
+                Wide at any time. No commitment.
+              </p>
+            </>
+          }
+          confirmLabel="Open every channel"
+          confirmTone="critical"
+          onConfirm={() => {
+            setShowMaxConfirm(false);
+            applyPreset("maximum", true);
+          }}
+          onCancel={() => setShowMaxConfirm(false)}
+        />
+      )}
     </>
   );
 }
 
 // ─── Reach helpers ───────────────────────────────────────────────────
 
+/**
+ * Reusable confirm modal. Used when an action has a real trade-off the
+ * user should see before committing (e.g., Maximum exposure).
+ */
+function ModalConfirm({
+  title,
+  body,
+  confirmLabel,
+  confirmTone = "ink",
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  body: ReactNode;
+  confirmLabel: string;
+  confirmTone?: "ink" | "critical";
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <>
+      <div
+        onClick={onCancel}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(11,11,13,0.40)",
+          zIndex: 200,
+        }}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 440,
+          maxWidth: "calc(100vw - 32px)",
+          background: "#fff",
+          borderRadius: 14,
+          boxShadow: "0 20px 50px rgba(11,11,13,0.18)",
+          padding: "22px 24px",
+          fontFamily: FONTS.body,
+          zIndex: 201,
+        }}
+      >
+        <h2
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 20,
+            fontWeight: 500,
+            letterSpacing: -0.3,
+            color: COLORS.ink,
+            margin: "0 0 10px",
+          }}
+        >
+          {title}
+        </h2>
+        <div
+          style={{
+            fontSize: 13,
+            color: COLORS.ink,
+            lineHeight: 1.55,
+            marginBottom: 18,
+          }}
+        >
+          {body}
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              background: confirmTone === "critical" ? COLORS.critical : COLORS.ink,
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "9px 14px",
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function ReachStat({
   label,
   value,
   caption,
+  captionTone = "default",
   tone = "ink",
 }: {
   label: string;
   value: string;
   caption?: string;
+  captionTone?: "default" | "success" | "coral" | "indigo";
   tone?: "ink" | "indigo" | "success";
 }) {
   const fg = tone === "indigo" ? COLORS.indigo : tone === "success" ? COLORS.green : COLORS.ink;
+  const captionColor =
+    captionTone === "success"
+      ? COLORS.green
+      : captionTone === "coral"
+        ? COLORS.coral
+        : captionTone === "indigo"
+          ? COLORS.indigo
+          : COLORS.inkDim;
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
       <div
@@ -4834,7 +5012,8 @@ function ReachStat({
             style={{
               fontFamily: FONTS.body,
               fontSize: 11.5,
-              color: COLORS.inkDim,
+              color: captionColor,
+              fontWeight: captionTone !== "default" ? 500 : 400,
             }}
           >
             {caption}
@@ -5269,14 +5448,47 @@ function ChannelRow({
         )}
         <div
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginTop: 4,
             fontSize: 11.5,
             color: COLORS.inkMuted,
-            marginTop: 4,
             fontVariantNumeric: "tabular-nums",
+            flexWrap: "wrap",
           }}
         >
-          {channel.views7d} views · {channel.inquiries7d} inquiries · 7d
-          {channel.bookings90d > 0 && ` · ${channel.bookings90d} bookings · 90d`}
+          <span>
+            {channel.views7d} views · {channel.inquiries7d} inquiries · 7d
+          </span>
+          {channel.bookings90d > 0 && (
+            <span style={{ color: COLORS.inkDim }}>·</span>
+          )}
+          {channel.bookings90d > 0 && (
+            <span>{channel.bookings90d} bookings · 90d</span>
+          )}
+          {channel.earnings90d > 0 && (
+            <>
+              <span style={{ color: COLORS.inkDim }}>·</span>
+              <span style={{ color: COLORS.green, fontWeight: 600 }}>
+                {channel.earningsCurrency ?? "€"}
+                {channel.earnings90d.toLocaleString()} · 90d
+              </span>
+            </>
+          )}
+          {channel.feeRate !== undefined && channel.feeRate > 0 && (
+            <span
+              style={{
+                fontSize: 10.5,
+                color: COLORS.inkDim,
+                padding: "1px 6px",
+                borderRadius: 4,
+                background: "rgba(11,11,13,0.04)",
+              }}
+            >
+              {Math.round(channel.feeRate * 100)}% fee
+            </span>
+          )}
         </div>
       </div>
       {channel.toggleable ? (

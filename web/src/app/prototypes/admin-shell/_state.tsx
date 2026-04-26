@@ -3241,14 +3241,29 @@ export type ChannelEntry = {
   status: "live" | "off" | "pending" | "published" | "invited";
   /** Last-7d signal counts. Drives the value-of-channel display. */
   views7d: number;
+  /** Trend vs prior 7d — drives the +/- delta caption on Reach stats. */
+  views7dDelta?: number;
   inquiries7d: number;
+  inquiries7dDelta?: number;
   bookings90d: number;
+  /**
+   * Earnings attributable to this channel over the last 90 days. The
+   * single most important Reach metric — answers "what did this channel
+   * actually earn me?" Drives every distribution decision.
+   */
+  earnings90d: number;
+  /** ISO currency symbol for earnings90d display. */
+  earningsCurrency?: string;
   /** Whether the talent can toggle this channel on/off themselves. */
   toggleable: boolean;
   /** Optional verified flag for external hubs (Tulala-vetted partners). */
   verified?: boolean;
   /** Optional badge ("Pro tier", "Trusted", etc.) shown next to name. */
   badge?: string;
+  /** Brief description shown in the hub-detail mini-drawer. */
+  description?: string;
+  /** Standard fee/take rate the platform charges (0 = none, .15 = 15%). */
+  feeRate?: number;
 };
 
 export type ExposurePreset = "selective" | "curated" | "wide" | "maximum";
@@ -3285,10 +3300,17 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     url: "tulala.digital/t/marta-reyes",
     status: "live",
     views7d: 48,
+    views7dDelta: 12,
     inquiries7d: 3,
+    inquiries7dDelta: 1,
     bookings90d: 1,
+    earnings90d: 3600,
+    earningsCurrency: "€",
     toggleable: true,
     badge: "Pro tier",
+    description:
+      "Your premium personal page on Tulala. The only channel you fully own — clients reach you directly, no platform routing. Custom domain available on Portfolio tier.",
+    feeRate: 0,
   },
   // 2 — Tulala Hub
   {
@@ -3297,10 +3319,17 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     name: "Tulala Hub",
     status: "live",
     views7d: 12,
+    views7dDelta: 4,
     inquiries7d: 1,
+    inquiries7dDelta: 0,
     bookings90d: 1,
+    earnings90d: 1200,
+    earningsCurrency: "€",
     toggleable: true,
     verified: true,
+    description:
+      "Tulala's curated discovery directory. Editorially vetted talent only. Inquiries are pre-filtered by client trust tier and subject to your contact policy.",
+    feeRate: 0,
   },
   // 3 — Agencies on roster
   {
@@ -3310,8 +3339,12 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     url: "acme-models.tulala.app",
     status: "published",
     views7d: 22,
+    views7dDelta: -3,
     inquiries7d: 2,
+    inquiries7dDelta: 0,
     bookings90d: 4,
+    earnings90d: 9800,
+    earningsCurrency: "€",
     toggleable: false, // agency contract, not solo-toggleable
     badge: "Primary · exclusive",
   },
@@ -3322,8 +3355,12 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     url: "praline-london.tulala.app",
     status: "published",
     views7d: 9,
+    views7dDelta: 1,
     inquiries7d: 1,
+    inquiries7dDelta: 0,
     bookings90d: 1,
+    earnings90d: 2400,
+    earningsCurrency: "£",
     toggleable: false,
     badge: "Non-exclusive",
   },
@@ -3335,10 +3372,17 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     url: "models.com/marta-reyes",
     status: "live",
     views7d: 14,
+    views7dDelta: 6,
     inquiries7d: 4,
+    inquiries7dDelta: 2,
     bookings90d: 0,
+    earnings90d: 0,
+    earningsCurrency: "€",
     toggleable: true,
     verified: true,
+    description:
+      "Industry-standard talent directory. Long-running platform with strong client base in editorial / fashion. Higher inquiry volume than booking yield.",
+    feeRate: 0.1,
   },
   {
     id: "ch-ext-talent",
@@ -3346,10 +3390,17 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     name: "talent.com",
     status: "live",
     views7d: 6,
+    views7dDelta: 1,
     inquiries7d: 2,
+    inquiries7dDelta: 1,
     bookings90d: 0,
+    earnings90d: 0,
+    earningsCurrency: "€",
     toggleable: true,
     verified: true,
+    description:
+      "Open marketplace with broader audience. Mixed quality — many Basic-tier clients. Filter via your contact policy.",
+    feeRate: 0.15,
   },
   {
     id: "ch-ext-bookem",
@@ -3359,8 +3410,13 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     views7d: 0,
     inquiries7d: 0,
     bookings90d: 0,
+    earnings90d: 0,
+    earningsCurrency: "€",
     toggleable: true,
     verified: false,
+    description:
+      "Newer platform focused on direct-to-talent booking. Not yet Tulala-verified — caveat emptor.",
+    feeRate: 0.2,
   },
   // 5 — Studios / free books
   {
@@ -3369,9 +3425,16 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     name: "Estudio Roca community",
     status: "live",
     views7d: 4,
+    views7dDelta: 0,
     inquiries7d: 0,
+    inquiries7dDelta: 0,
     bookings90d: 1,
+    earnings90d: 2000,
+    earningsCurrency: "€",
     toggleable: true,
+    description:
+      "Madrid-based creative community. Free books + studio referrals. Slower but high-quality leads from local creatives.",
+    feeRate: 0,
   },
   {
     id: "ch-studio-mitte",
@@ -3381,7 +3444,11 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
     views7d: 0,
     inquiries7d: 0,
     bookings90d: 0,
+    earnings90d: 0,
+    earningsCurrency: "€",
     toggleable: true,
+    description: "Berlin photography studio collective. Editorial + commercial referrals.",
+    feeRate: 0,
   },
 ];
 
@@ -3396,8 +3463,13 @@ export const AVAILABLE_CHANNELS: ChannelEntry[] = [
     views7d: 0,
     inquiries7d: 0,
     bookings90d: 0,
+    earnings90d: 0,
+    earningsCurrency: "€",
     toggleable: true,
     verified: true,
+    description:
+      "Editorial + indie fashion network. Strong art-direction sensibility, lower volume but premium clients.",
+    feeRate: 0.12,
   },
   {
     id: "ch-ext-network",
@@ -3407,8 +3479,13 @@ export const AVAILABLE_CHANNELS: ChannelEntry[] = [
     views7d: 0,
     inquiries7d: 0,
     bookings90d: 0,
+    earnings90d: 0,
+    earningsCurrency: "€",
     toggleable: true,
     verified: true,
+    description:
+      "London / NYC industry directory. Producer + casting director focus. Bookings tend to be larger campaigns.",
+    feeRate: 0.1,
   },
   {
     id: "ch-studio-paris",
@@ -3418,7 +3495,12 @@ export const AVAILABLE_CHANNELS: ChannelEntry[] = [
     views7d: 0,
     inquiries7d: 0,
     bookings90d: 0,
+    earnings90d: 0,
+    earningsCurrency: "€",
     toggleable: true,
+    description:
+      "Paris-based stylist + photographer collective. Co-op style — talent split a small monthly fee for shared studio + referrals.",
+    feeRate: 0,
   },
 ];
 
