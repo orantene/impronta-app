@@ -617,3 +617,156 @@ Four mechanisms, all already encoded in the plan above:
 4. **Lived-experience smoke test on a real tenant.** Every phase ends here. Operator unfamiliar with the change completes the relevant flow on `impronta.tulala.digital` (or equivalent). If they hit a confusion state, the phase is not done.
 
 The combined effect: a phase cannot ship by being engineering-correct alone. It has to *feel right* on a real tenant against a real prototype. That's the discipline that prevents "cleaner but weaker."
+
+---
+
+## Master task checklist
+
+Every task across every phase, in one place. Completed items are checked + crossed out. Updated as each phase ships. Last updated 2026-04-26 after Phase A.
+
+### Phase 0 — Immediate sweep (commit `d05ec75`, shipped 2026-04-26)
+
+- [x] ~~Pull `SiteDarkModeSwitcher` from public storefront mount~~
+- [x] ~~Pull `FocusOrderOverlay` from public storefront mount~~
+- [x] ~~Delete `web/src/app/prototypes/admin-shell/*` (11 files, ~6k LoC)~~
+- [x] ~~Remove "Code" tab from page-settings drawer (was "Coming soon" placeholder)~~
+- [x] ~~Move "Templates" tab out of page-settings drawer~~
+- [x] ~~Single mount for `WorkspaceTemplateGallery` (kept `EmptyCanvasStarter`, removed drawer mount)~~
+- [x] ~~Replace `/admin/site-settings/sections` route tree with single redirect page~~
+- [x] ~~Confirm `/admin/site-settings/structure` redirect~~
+- [x] ~~Move `starter-action.ts` to `lib/site-admin/edit-mode/`~~
+- [x] ~~Wire `runAriaLandmarkCheck` into `runPublishPreflight` as `aria` category~~
+- [x] ~~Decide on `suggestLayoutImprovement` (deferred to post-v1 unified AI panel)~~
+- [x] ~~Decide on `loadAiUsageSummary` (action kept; dashboard card deferred to post-v1)~~
+- [ ] Document in deployment memory: GH Action handles aliases on push; manual `vercel promote` not needed for `phase-1` pushes
+- [ ] Add `prebuild` step or CI check that nukes `.next/dev/types` before `tsc` (workaround used: manual `rm -rf .next/dev` before each tsc — not yet permanent)
+
+### Phase A — Convergence cleanup (commit `e617db0`, shipped 2026-04-26)
+
+- [x] ~~Move `BrandKitImport` behind "Power tools" disclosure inside Theme drawer Code tab~~
+- [x] ~~Mount + demote `MeshGradientGenerator` behind same Power tools disclosure (was orphan code)~~
+- [x] ~~Hide `presentation.customCss` behind "Advanced" `<details>` in Style panel~~
+- [x] ~~Active-state pip on Advanced label when `customCss` is set (discoverability cue)~~
+- [x] ~~Wire `?panel=` first-paint deep-linking in `EditShellInner`~~
+- [x] ~~Strip `panel=` param via `history.replaceState` after dispatch~~
+- [x] ~~Mockup compare §1 (top bar) — pre-existing parity confirmed~~
+- [x] ~~Mockup compare §5 (page settings) — Code-tab divergence documented~~
+- [x] ~~Mockup compare §7 (publish drawer) — ARIA wired into preflight rows~~
+- [x] ~~Mockup compare §12 (theme drawer) — tab strip kept verbatim, internal hierarchy improved~~
+- [x] ~~Promote build to production + smoke-test on `impronta.tulala.digital`~~
+
+### Phase B — Header + footer editing (NOT STARTED, est. 1.5–2 weeks)
+
+- [ ] Add `site_shell` row per tenant per locale (or extend `cms_pages` shape) carrying `header` + `footer` slot keys
+- [ ] New section types: `site_header` (logo, nav items, CTA) and `site_footer` (columns, social, legal)
+- [ ] Make `PublicHeader` and public footer snapshot-rendered from the published shell snapshot
+- [ ] EditShell: header and footer become selectable on the canvas with the same chrome as body sections (mockup §9)
+- [ ] Inspector tabs (Content / Layout / Style / Responsive / Motion) wired for `site_header` and `site_footer` (mockup §2)
+- [ ] One-off seed migration: capture current hardcoded `PublicHeader` + footer state into `site_header` / `site_footer` rows for every existing tenant
+- [ ] Per-tenant feature flag for snapshot renderer rollout
+- [ ] Hard-coded fallback kept for one full release after rollout (deletion timing rule)
+- [ ] Verify: editing header on `impronta.tulala.digital` doesn't break marketing apex or app shell
+- [ ] Verify: cache busting repaints all pages on tenant after header publish
+- [ ] Mockup compare: selection chrome + drag handles match §9; inspector depth matches §2
+- [ ] Lived-experience smoke test: operator unfamiliar with the change edits header without instruction
+
+### Phase C — Inline rich-text WYSIWYG (NOT STARTED, est. 1.5 weeks)
+
+- [ ] One-day evaluation: Lexical vs thin Slate config (size, maintenance, a11y, marker round-trip support) — written justification before commit
+- [ ] Build editor primitive: live-styled bold / italic / accent / link rendering on contentEditable
+- [ ] Serialization layer round-trips back to existing `{accent}` / `[link]()` / `{b}` / `{i}` markers (no storage migration)
+- [ ] Floating selection toolbar (Bold / Italic / Accent / Link only — no font picker, no color wheel, no alignment)
+- [ ] Toolbar buttons reflect active styles in current selection
+- [ ] Link mode reuses existing `LinkPicker` as a popover anchored to toolbar
+- [ ] Accent color uses tenant brand-accent token
+- [ ] Wire into `ZodSchemaForm` text/textarea renderer (one phase, not piecemeal — every section adopts simultaneously)
+- [ ] Replace `inline-editor.tsx` toolbar in-place
+- [ ] Verify: existing `{accent}` storage shows accent-styled text in editor with zero visible markers
+- [ ] Verify: round-trip preserves marker form in storage
+- [ ] Keyboard: Cmd-B / Cmd-I / Cmd-K (link) work
+- [ ] Performance: 60fps typing in 200-word paragraph
+- [ ] a11y: SR announces formatting changes; toolbar keyboard-navigable
+- [ ] Mockup compare §17: toolbar position, button rhythm, caret feel
+
+### Phase D — Section-add UX (NOT STARTED, est. 3–5 days)
+
+- [ ] Each section's `meta.ts` gets `category` field (`hero` / `trust` / `showcase` / `story` / `convert` / `form` / `embed` / `footer-shape` / `advanced`)
+- [ ] Each section's `meta.ts` gets `inDefault: boolean`
+- [ ] Section picker modal: command-palette style, search at top, categories left, results grid center
+- [ ] Server-rendered thumbnails (real renders with placeholder content payload, cached at first request)
+- [ ] "Advanced sections" toggle reveals the remaining ~28 types
+- [ ] Insert affordance: hover gap between two sections → "+ Add section" button → opens picker → inserted at gap
+- [ ] Remove existing section-add entry points (navigator panel "+" if exists, OR refactor to open new picker)
+- [ ] Verify: default picker shows 12–15 sections organized
+- [ ] Verify: search returns matches across all sections including advanced
+- [ ] Mockup compare §8: category strip, grid rhythm, thumbnail aspect, search-bar position, hover-preview
+- [ ] Lived-experience smoke test with non-engineer: add 3 sections without instruction
+
+### Phase E — Visual unification (NOT STARTED, est. 2–3 weeks; HIGHEST CARE)
+
+- [ ] One `SectionHead` primitive (eyebrow + headline + intro)
+- [ ] One `SectionContainer` (container-width tokens + unified internal padding scale)
+- [ ] One `Cta` primitive (label, href, variant)
+- [ ] Two type-scale variants on heading ramp: `editorial` + `clean`
+- [ ] Refactor 43 `Component.tsx` files to use the three primitives (sequenced simplest-first)
+- [ ] Visual regression snapshot tests per section type
+- [ ] **Distinctiveness audit:** 6 random sections still individually identifiable in 2 seconds without reading copy
+- [ ] **Cohesion audit:** page composed from 6 different sections reads as a single designed document
+- [ ] **Mockup parity check** against §1 / §2 / §3 / §9 composite screenshots
+- [ ] **Operator A/B:** non-engineer composes a page that's genuinely better than free-form output
+- [ ] Preserve distinctive visual signatures (hero photographic backdrop, mosaic asymmetry, marquee scroll, timeline rail, testimonials accent rotation, bespoke pickers per §23) — do NOT flatten
+- [ ] Existing published sites don't shift unexpectedly
+
+### Phase F — Non-homepage inline composer (NOT STARTED, est. 1 week)
+
+- [ ] `EditShell` binds to `pageId` from URL (e.g. `/about?edit=1` → About page row; default `/?edit=1` → homepage)
+- [ ] Pages dropdown in topbar (mockup §24): list non-archived pages, status badges (draft/live), search, "+ New page"
+- [ ] Create-new-page modal: slug + title + locale → row created → switch into editing it with empty composition
+- [ ] Reuse existing `page-composer-action.ts` server actions for save/publish
+- [ ] Replace `PagesComposerList` with the topbar dropdown
+- [ ] Retire `/admin/site-settings/pages` route (redirect to `?edit=1&page=<slug>`) — final piece of the single-admin-model bar
+- [ ] Verify: switch between two pages mid-edit, draft state preserved per page
+- [ ] Verify: header/footer remain stable across page switches (Phase B dependency)
+- [ ] Mockup compare §24 (Pages dropdown) and §1 (topbar with dropdown)
+
+### v1 milestone — six capabilities
+
+- [ ] **1.** Header + footer editable on the canvas using the same flow as page sections *(Phase B)*
+- [ ] **2.** Inline rich-text editing shows live styling, not raw markers *(Phase C)*
+- [ ] **3.** Section-add UX is categorized, searchable, and previewed *(Phase D)*
+- [ ] **4.** All sections share one visual rhythm *(Phase E)*
+- [ ] **5.** Non-homepage pages compose inline using the same EditShell *(Phase F)*
+- [ ] **6.** Single admin model — partially complete:
+  - [x] ~~`/admin/site-settings/sections` removed/redirected *(Phase 0)*~~
+  - [x] ~~`/admin/site-settings/structure` removed/redirected *(Phase 0 + A)*~~
+  - [x] ~~`?panel=` deep-linking lands old links in the right drawer *(Phase A)*~~
+  - [ ] `/admin/site-settings/pages` retired *(Phase F)*
+
+### Post-v1 polish (sequenced AFTER v1, NOT part of milestone)
+
+- [ ] Image focal-point + crop (~3 days)
+- [ ] Unified AI panel — folds rewrite, translate, alt-text, critique, layout-suggest into one inspector tab (~1 week)
+- [ ] AI usage dashboard card (the home for `loadAiUsageSummary`)
+- [ ] Layout-suggest UI surface (the home for `suggestLayoutImprovement`)
+- [ ] Page-level undo / redo (Cmd-Z / Cmd-Shift-Z) (~1 week)
+- [ ] Per-breakpoint responsive editor beyond mobileStack/visibility (~2 weeks)
+- [ ] Reusable global blocks across pages (~2 weeks)
+- [ ] Publish-path Playwright tests (~3 days)
+- [ ] CSS code-splitting per section type (~1 week, drops 452KB bundle)
+- [ ] Re-mount `SiteDarkModeSwitcher` (or delete) — pending real product story
+- [ ] Re-mount `FocusOrderOverlay` inside EditShell Tools panel — pending design integration
+
+### Progress summary
+
+| Bucket | Done | Total |
+|---|---|---|
+| Phase 0 | 12 | 14 |
+| Phase A | 11 | 11 |
+| Phase B | 0 | 12 |
+| Phase C | 0 | 15 |
+| Phase D | 0 | 11 |
+| Phase E | 0 | 12 |
+| Phase F | 0 | 9 |
+| v1 milestone capabilities | 0.5 | 6 |
+| Post-v1 polish | 0 | 11 |
+| **Convergence-phase total (0 + A → F)** | **23** | **84** |
