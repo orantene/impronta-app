@@ -743,13 +743,59 @@ function TalentTodayPage() {
           description={
             profile.completeness >= 100
               ? "Your profile is fully filled out."
-              : "Agencies favour complete profiles. A few fields left."
+              : "Agencies favour complete profiles."
           }
           icon={<Icon name="user" size={14} stroke={1.7} />}
           affordance="Finish my profile"
           meta={<>{profile.completeness}% complete</>}
           onClick={() => openDrawer("talent-profile-edit")}
-        />
+        >
+          {profile.completeness < 100 && (
+            <ul
+              style={{
+                listStyle: "none",
+                margin: "8px 0 0",
+                padding: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              {/* Mock "what's missing" list — in production read from the
+                  profile shape itself. Surfaces the next-action so users
+                  don't have to guess what 16% means. */}
+              {[
+                { id: "polaroids", label: "5 polaroids (you have 3)" },
+                { id: "rate-card", label: "Rate card" },
+                { id: "showreel", label: "Showreel link" },
+              ].map((m) => (
+                <li
+                  key={m.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 12,
+                    color: COLORS.inkMuted,
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: "rgba(11,11,13,0.18)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  {m.label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </PrimaryCard>
       </Grid>
 
       <div style={{ height: 12 }} />

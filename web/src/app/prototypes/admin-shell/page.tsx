@@ -271,6 +271,17 @@ export default function AdminShellPrototypePage() {
              and gaps without overwriting type sizes — comfortable stays
              the default. Targets list rows that opt in by setting the
              [data-tulala-row] attribute on themselves. */
+          /* Hide the Next.js dev "N" badge that floats over the bottom-
+             left corner. It overlaps the avatar / first column of the
+             mobile bottom tab bar in the prototype. Selectors target the
+             various names Next has used across versions. */
+          [data-nextjs-toast],
+          [data-next-mark],
+          .__next-dev-overlay-icon,
+          #__next-build-watcher,
+          nextjs-portal {
+            display: none !important;
+          }
           /* Typing-indicator dot animation. Used by <TypingIndicator>
              (#11). Three dots pulse opacity in sequence. */
           @keyframes tulalaTypingDot {

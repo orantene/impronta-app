@@ -34,6 +34,7 @@ import {
   pluralize,
   useProto,
   Z,
+  RADIUS,
   ACTIVATION_TASKS,
   FREE_PLAN_VALUE,
   SITE_PAGES,
@@ -80,6 +81,7 @@ import {
   StatusCard,
   StatusPill,
   PlanChip,
+  Popover,
   PayoutStatusChip,
   PaymentStatusChip,
   SwipeableRow,
@@ -415,10 +417,15 @@ export function WorkspaceTopbar() {
           height: 56,
         }}
       >
-        {/* Tenant identity — clicking the chip opens summary; clicking the name goes home */}
+        {/* Tenant identity — single button. Avatar + name (visible) opens
+            the workspace switcher. The plan/entity chips that used to
+            sit beside the name and open a *different* drawer are now
+            hidden behind the chevron's menu, eliminating the
+            "two-affordances-side-by-side" ambiguity. */}
         <div data-tulala-tenant-chip style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           <button
-            onClick={() => setPage("overview")}
+            onClick={() => openDrawer("tenant-switcher")}
+            aria-label={`${tenant.name} — switch workspace`}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -426,8 +433,16 @@ export function WorkspaceTopbar() {
               background: "transparent",
               border: "none",
               cursor: "pointer",
-              padding: 0,
+              padding: "4px 8px 4px 0",
               fontFamily: FONTS.body,
+              borderRadius: RADIUS.md,
+              transition: "background .12s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(11,11,13,0.04)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
             }}
           >
             <span
@@ -459,25 +474,37 @@ export function WorkspaceTopbar() {
             >
               {tenant.name}
             </span>
+            <Icon name="chevron-down" size={11} color={COLORS.inkDim} />
           </button>
+          {/* Home shortcut — a tiny icon button that takes you to the
+              overview page. Was implicit on the old name-button click;
+              now lives as its own affordance. */}
           <button
             data-tulala-tenant-meta
-            onClick={() => openDrawer("tenant-switcher")}
-            aria-label="Switch workspace"
-            title="Switch workspace"
+            onClick={() => setPage("overview")}
+            aria-label="Go to overview"
+            title="Overview"
             style={{
               background: "transparent",
               border: "none",
-              padding: 0,
+              padding: 4,
               cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
+              color: COLORS.inkMuted,
+              borderRadius: RADIUS.sm,
+              transition: "background .12s, color .12s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(11,11,13,0.04)";
+              e.currentTarget.style.color = COLORS.ink;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = COLORS.inkMuted;
             }}
           >
-            <PlanChip plan={state.plan} variant="outline" />
-            <EntityChip entityType={state.entityType} variant="outline" />
-            <Icon name="chevron-down" size={11} color={COLORS.inkDim} />
+            <Icon name="sparkle" size={12} stroke={1.7} />
           </button>
         </div>
 
@@ -584,6 +611,39 @@ export function WorkspaceTopbar() {
               }}
             />
           </button>
+
+          {/* Settings gear shortcut — settings is the last tab in the
+              nav, but every "how do I change X" question goes here
+              first. A gear in the right cluster makes it 1-click. */}
+          <Popover content="Settings">
+            <button
+              type="button"
+              onClick={() => setPage("workspace")}
+              aria-label="Settings"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                border: `1px solid ${COLORS.borderSoft}`,
+                background: "#fff",
+                color: COLORS.inkMuted,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = COLORS.border;
+                e.currentTarget.style.color = COLORS.ink;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = COLORS.borderSoft;
+                e.currentTarget.style.color = COLORS.inkMuted;
+              }}
+            >
+              <Icon name="settings" size={15} stroke={1.7} />
+            </button>
+          </Popover>
 
           <RoleChip role={state.role} />
           {state.alsoTalent && (

@@ -450,6 +450,19 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
         >
           <span>⌘ ↵ to send</span>
           <Bullet />
+          <span>
+            Type <kbd
+              style={{
+                fontFamily: FONTS.mono,
+                fontSize: 10.5,
+                padding: "1px 5px",
+                borderRadius: 4,
+                background: "rgba(11,11,13,0.06)",
+                color: COLORS.ink,
+              }}
+            >/</kbd> for snippets
+          </span>
+          <Bullet />
           <span>{active === "private" ? "Visible to client + coordinator" : "Visible to coordinator + booked talent"}</span>
         </div>
       </div>

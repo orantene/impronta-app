@@ -2604,18 +2604,45 @@ function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting" | "con
 
 function NotificationsDrawer() {
   const { closeDrawer, openDrawer } = useProto();
-  const items = [
-    { id: "n1", icon: "mail", title: "Vogue Italia replied to your offer", sub: "“Love it. Can we lock dates?”", when: "22m ago", drawer: "inquiry-peek", payload: { id: "iq1" } },
-    { id: "n2", icon: "user", title: "Lina Park submitted profile changes", sub: "Awaiting your approval.", when: "1h ago", drawer: "talent-profile", payload: { id: "t4" } },
+  const [filter, setFilter] = useState<"all" | "unread" | "mentions">("all");
+  // Mock list — in production reads from the events/notifications view.
+  // Wave 2 added a NotificationsPrefsDrawer; this drawer now links to
+  // it from the toolbar so users can adjust what reaches them.
+  const items: {
+    id: string;
+    icon: "mail" | "user" | "calendar" | "team";
+    title: string;
+    sub: string;
+    when: string;
+    drawer: DrawerId;
+    payload?: { id?: string };
+    unread?: boolean;
+    mention?: boolean;
+  }[] = [
+    { id: "n1", icon: "mail", title: "Vogue Italia replied to your offer", sub: "“Love it. Can we lock dates?”", when: "22m ago", drawer: "inquiry-peek", payload: { id: "iq1" }, unread: true, mention: true },
+    { id: "n2", icon: "user", title: "Lina Park submitted profile changes", sub: "Awaiting your approval.", when: "1h ago", drawer: "talent-profile", payload: { id: "t4" }, unread: true },
     { id: "n3", icon: "calendar", title: "Bvlgari booking starts Thursday", sub: "Kai Lin · €8,200", when: "3h ago", drawer: "inquiry-peek", payload: { id: "iq6" } },
-    { id: "n4", icon: "team", title: "Andrés Lopez accepted invite", sub: "Now an editor on your team.", when: "1d ago", drawer: "team", payload: undefined },
+    { id: "n4", icon: "team", title: "Andrés Lopez accepted invite", sub: "Now an editor on your team.", when: "1d ago", drawer: "team" },
   ];
+  const filtered = items.filter((n) => {
+    if (filter === "unread") return n.unread;
+    if (filter === "mentions") return n.mention;
+    return true;
+  });
+  const unreadCount = items.filter((n) => n.unread).length;
+  const mentionCount = items.filter((n) => n.mention).length;
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Notifications"
       description="Everything that happened recently across your workspace."
+      toolbar={
+        <GhostButton size="sm" onClick={() => openDrawer("notifications-prefs")}>
+          Preferences
+        </GhostButton>
+      }
       footer={
         <>
           <GhostButton onClick={closeDrawer}>Mark all read</GhostButton>
@@ -2623,13 +2650,57 @@ function NotificationsDrawer() {
         </>
       }
     >
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+        {(
+          [
+            { id: "all", label: `All · ${items.length}` },
+            { id: "unread", label: `Unread · ${unreadCount}` },
+            { id: "mentions", label: `Mentions · ${mentionCount}` },
+          ] as const
+        ).map((f) => {
+          const active = filter === f.id;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              style={{
+                padding: "5px 11px",
+                background: active ? COLORS.ink : "rgba(11,11,13,0.04)",
+                color: active ? "#fff" : COLORS.ink,
+                border: "none",
+                borderRadius: 999,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              {f.label}
+            </button>
+          );
+        })}
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {items.map((n) => (
+        {filtered.length === 0 && (
+          <div
+            style={{
+              padding: "24px 14px",
+              textAlign: "center",
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+            }}
+          >
+            Nothing here. Switch filter to see other items.
+          </div>
+        )}
+        {filtered.map((n) => (
           <button
             key={n.id}
-            onClick={() => openDrawer(n.drawer as DrawerId, n.payload as any)}
+            onClick={() => openDrawer(n.drawer, n.payload)}
             style={{
-              background: "#fff",
+              background: n.unread ? "#fff" : "rgba(11,11,13,0.015)",
               border: `1px solid ${COLORS.borderSoft}`,
               borderRadius: 10,
               padding: 12,
@@ -2639,13 +2710,28 @@ function NotificationsDrawer() {
               display: "flex",
               gap: 10,
               alignItems: "flex-start",
+              position: "relative",
             }}
           >
             <IconChip size={28}>
-              <Icon name={n.icon as any} size={13} stroke={1.7} />
+              <Icon name={n.icon} size={13} stroke={1.7} />
             </IconChip>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{n.title}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{n.title}</span>
+                {n.unread && (
+                  <span
+                    aria-label="Unread"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: COLORS.accent,
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+              </div>
               <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
                 {n.sub}
               </div>
@@ -3919,7 +4005,11 @@ function PlanCompareDrawer() {
                   style={{
                     padding: "12px 14px",
                     borderLeft: `1px solid ${COLORS.borderSoft}`,
-                    background: isCurrent ? COLORS.accentSoft : "#fff",
+                    // Quieter "current plan" tint — was the heavier
+                    // accentSoft tone, which read as branded too forest-y
+                    // throughout. A neutral 3% ink wash with a thin
+                    // accent top-bar is enough signal.
+                    background: isCurrent ? "rgba(11,11,13,0.03)" : "#fff",
                     position: "relative",
                   }}
                 >
@@ -3930,7 +4020,7 @@ function PlanCompareDrawer() {
                         top: 0,
                         left: 0,
                         right: 0,
-                        height: 3,
+                        height: 2,
                         background: COLORS.accent,
                       }}
                     />
@@ -4086,9 +4176,11 @@ function PlanCompareDrawer() {
                       padding: "10px 14px",
                       fontSize: 12.5,
                       fontWeight: isCurrent ? 500 : 400,
-                      color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                      color: COLORS.ink,
                       borderLeft: `1px solid ${COLORS.borderSoft}`,
-                      background: isCurrent ? COLORS.accentSoft : "transparent",
+                      // Same neutral wash as the column header above —
+                      // less branded than the previous accentSoft tint.
+                      background: isCurrent ? "rgba(11,11,13,0.025)" : "transparent",
                       lineHeight: 1.45,
                     }}
                   >

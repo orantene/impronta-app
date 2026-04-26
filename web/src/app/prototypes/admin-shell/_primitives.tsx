@@ -1179,7 +1179,7 @@ export function PrimaryCard({
                 style={{
                   fontFamily: FONTS.display,
                   fontSize: 16,
-                  fontWeight: 600,
+                  fontWeight: 500,
                   letterSpacing: -0.15,
                   color: COLORS.ink,
                   margin: 0,
@@ -3152,8 +3152,10 @@ export function SwipeableRow({
   rightActions?: { label: string; onClick: () => void; tone?: "ink" | "red" | "green" }[];
 }) {
   const [dx, setDx] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   const startX = useRef<number | null>(null);
   const startDx = useRef(0);
+  const allActions = [...(leftActions ?? []), ...(rightActions ?? [])];
   const ACTION_WIDTH = 80;
   const leftMax = (leftActions?.length ?? 0) * ACTION_WIDTH;
   const rightMax = (rightActions?.length ?? 0) * ACTION_WIDTH;
@@ -3272,9 +3274,116 @@ export function SwipeableRow({
           transform: `translateX(${dx}px)`,
           transition: startX.current === null ? "transform .2s ease" : "none",
           willChange: "transform",
+          position: "relative",
         }}
       >
         {children}
+        {/* Keyboard / accessibility fallback: a kebab "..." button that
+            opens a small popover listing the same actions. Keyboard
+            users can't drag, so without this all actions were
+            mouse/touch-only. */}
+        {allActions.length > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              top: 6,
+              right: 6,
+            }}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((o) => !o);
+              }}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="Row actions"
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: 6,
+                border: "none",
+                background: "transparent",
+                color: COLORS.inkDim,
+                cursor: "pointer",
+                fontSize: 14,
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                lineHeight: 1,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(11,11,13,0.05)";
+                e.currentTarget.style.color = COLORS.ink;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = COLORS.inkDim;
+              }}
+            >
+              ⋯
+            </button>
+            {menuOpen && (
+              <div
+                role="menu"
+                onBlur={() => setMenuOpen(false)}
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  right: 0,
+                  background: "#fff",
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 8,
+                  boxShadow: "0 8px 24px rgba(11,11,13,0.10)",
+                  minWidth: 140,
+                  padding: 4,
+                  zIndex: 5,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {allActions.map((a, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    role="menuitem"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      a.onClick();
+                      setMenuOpen(false);
+                    }}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      fontFamily: FONTS.body,
+                      fontSize: 13,
+                      color:
+                        a.tone === "red"
+                          ? COLORS.red
+                          : a.tone === "green"
+                            ? COLORS.green
+                            : COLORS.ink,
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      textAlign: "left",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(11,11,13,0.04)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </span>
+        )}
       </div>
     </div>
   );
