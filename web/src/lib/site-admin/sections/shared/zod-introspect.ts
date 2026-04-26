@@ -42,6 +42,8 @@ export type IntrospectedKind =
   | "object"
   | "array_of_objects"
   | "array_of_strings"
+  /** `i18nString` — a string OR a {default,en,es,...} locale map. */
+  | "i18n_text"
   | "unknown";
 
 export interface IntrospectedField {
@@ -173,8 +175,22 @@ function readChecks(inner: z.ZodTypeAny): {
 
 function classify(node: z.ZodTypeAny): IntrospectedField["kind"] {
   const { inner } = unwrap(node);
-  const def = (inner as unknown as { _def?: { type?: string; element?: z.ZodTypeAny; entries?: Record<string, string>; shape?: () => Record<string, z.ZodTypeAny> } })._def ?? {};
+  const def = (inner as unknown as { _def?: { type?: string; element?: z.ZodTypeAny; entries?: Record<string, string>; shape?: () => Record<string, z.ZodTypeAny>; options?: ReadonlyArray<z.ZodTypeAny> } })._def ?? {};
   const t = def.type;
+  // i18nString is encoded as union(string, locale-map-object); detect it
+  // here so the form renderer can render a tabbed LocalizedTextInput.
+  if (t === "union" && Array.isArray(def.options)) {
+    const opts = def.options;
+    const hasString = opts.some((o) => {
+      const inner = (o as unknown as { _def?: { type?: string } })._def?.type;
+      return inner === "string";
+    });
+    const hasObject = opts.some((o) => {
+      const inner = (o as unknown as { _def?: { type?: string } })._def?.type;
+      return inner === "object";
+    });
+    if (hasString && hasObject) return "i18n_text";
+  }
   switch (t) {
     case "string": {
       const { format, max } = readChecks(inner);

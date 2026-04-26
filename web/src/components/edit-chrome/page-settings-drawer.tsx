@@ -51,8 +51,10 @@ import {
   Toggle,
 } from "./kit";
 import { useEditContext, type PageMetadata } from "./edit-context";
+import { WorkspaceTemplateGallery } from "./WorkspaceTemplateGallery";
+import { PagesComposerList } from "./PagesComposerList";
 
-type TabKey = "basics" | "seo" | "social" | "url" | "code";
+type TabKey = "basics" | "seo" | "social" | "url" | "code" | "templates";
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "basics", label: "Basics" },
@@ -60,6 +62,7 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "social", label: "Social" },
   { key: "url", label: "URL & robots" },
   { key: "code", label: "Code" },
+  { key: "templates", label: "Templates" },
 ];
 
 const TITLE_MAX = 60;
@@ -750,6 +753,31 @@ export function PageSettingsDrawer() {
               </div>
             </CardBody>
           </Card>
+        ) : null}
+
+        {draft && tab === "templates" ? (
+          <>
+            <Card>
+              <CardHead
+                icon={null}
+                title="Page templates"
+                sub="Save the current draft as a reusable template, or apply one you saved earlier."
+              />
+              <CardBody>
+                <WorkspaceTemplateGallery defaultOpen enableSave reloadOnApply />
+              </CardBody>
+            </Card>
+            <Card>
+              <CardHead
+                icon={null}
+                title="Other pages on this workspace"
+                sub="See all composable pages, open them in edit mode, or publish a draft snapshot."
+              />
+              <CardBody>
+                <PagesComposerList />
+              </CardBody>
+            </Card>
+          </>
         ) : null}
       </DrawerBody>
 

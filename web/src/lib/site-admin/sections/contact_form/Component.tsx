@@ -18,8 +18,16 @@ export function ContactFormComponent({
     honeypot,
     successMessage,
     variant,
+    captcha,
     presentation,
   } = props;
+
+  // Phase 8 — captcha widget (env-driven site keys; absent env = no widget).
+  const hcaptchaKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY;
+  const turnstileKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const captchaActive =
+    (captcha === "hcaptcha" && hcaptchaKey) ||
+    (captcha === "turnstile" && turnstileKey);
 
   // Phase 8 — when the operator picks `internal:auto` (or just leaves
   // the action blank with a non-null sectionId), route the form to
@@ -132,6 +140,29 @@ export function ContactFormComponent({
               </div>
             );
           })}
+
+          {captchaActive && captcha === "hcaptcha" ? (
+            <>
+              <div
+                className="h-captcha"
+                data-sitekey={hcaptchaKey}
+                data-callback="__tulalaCaptchaDone"
+              />
+              {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+              <script src="https://js.hcaptcha.com/1/api.js" async defer />
+            </>
+          ) : null}
+          {captchaActive && captcha === "turnstile" ? (
+            <>
+              <div className="cf-turnstile" data-sitekey={turnstileKey} />
+              {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+              <script
+                src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+                async
+                defer
+              />
+            </>
+          ) : null}
 
           <button type="submit" className="site-btn site-btn--primary site-form__submit">
             {submitLabel}

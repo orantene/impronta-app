@@ -32,6 +32,7 @@ export function ContactFormEditor({
     honeypot: initial.honeypot ?? "website",
     successMessage: initial.successMessage ?? "Thanks — we'll be in touch.",
     variant: initial.variant ?? "card",
+    captcha: initial.captcha ?? "none",
     presentation: initial.presentation,
   };
   return (

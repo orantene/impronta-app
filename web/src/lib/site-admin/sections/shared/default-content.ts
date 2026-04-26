@@ -344,6 +344,7 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       honeypot: "website",
       successMessage: "Thanks — we'll be in touch.",
       variant: "card",
+      captcha: "none",
     },
   },
   anchor_nav: {
@@ -626,6 +627,18 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       ],
       variant: "spread",
       ratio: "3/4",
+    },
+  },
+  booking_widget: {
+    name: "Booking widget — new",
+    props: {
+      eyebrow: "Book a call",
+      headline: "Pick a time that works",
+      intro: "We'll meet over Google Meet — link arrives in your inbox.",
+      url: "https://calendly.com/your-handle/intro",
+      variant: "inline",
+      buttonLabel: "Book a call",
+      ratio: "4/3",
     },
   },
 };

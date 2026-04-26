@@ -325,6 +325,13 @@ import { lookbookSchemasByVersion, type LookbookV1 } from "./lookbook/schema";
 import { LookbookComponent } from "./lookbook/Component";
 import { LookbookEditor } from "./lookbook/Editor";
 
+// ── Phase 9 (XS) booking_widget ──────────────────────────────────────────
+import { bookingWidgetMeta } from "./booking_widget/meta";
+import { bookingWidgetMigrations } from "./booking_widget/migrations";
+import { bookingWidgetSchemasByVersion, type BookingWidgetV1 } from "./booking_widget/schema";
+import { BookingWidgetComponent } from "./booking_widget/Component";
+import { BookingWidgetEditor } from "./booking_widget/Editor";
+
 // ── entries ──────────────────────────────────────────────────────────────
 
 export const heroSection: SectionRegistryEntry<HeroV1> = {
@@ -642,6 +649,9 @@ export const eventListingSection: SectionRegistryEntry<EventListingV1> = {
 export const lookbookSection: SectionRegistryEntry<LookbookV1> = {
   meta: lookbookMeta, currentVersion: 1, schemasByVersion: lookbookSchemasByVersion, migrations: lookbookMigrations, Component: LookbookComponent, Editor: LookbookEditor,
 };
+export const bookingWidgetSection: SectionRegistryEntry<BookingWidgetV1> = {
+  meta: bookingWidgetMeta, currentVersion: 1, schemasByVersion: bookingWidgetSchemasByVersion, migrations: bookingWidgetMigrations, Component: BookingWidgetComponent, Editor: BookingWidgetEditor,
+};
 
 export const SECTION_REGISTRY = {
   hero: heroSection,
@@ -691,6 +701,7 @@ export const SECTION_REGISTRY = {
   code_snippet: codeSnippetSection,
   event_listing: eventListingSection,
   lookbook: lookbookSection,
+  booking_widget: bookingWidgetSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;

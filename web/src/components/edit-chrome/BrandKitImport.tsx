@@ -18,7 +18,9 @@
  * draft via the onApply callback.
  */
 
-import { useState, type ReactElement } from "react";
+import { useState, useTransition, type ReactElement } from "react";
+
+import { extractBrandKitFromUrl } from "@/lib/site-admin/edit-mode/brand-kit-url-action";
 
 interface Props {
   onApply: (tokens: Record<string, string>) => void;
@@ -86,8 +88,10 @@ function parseBundle(raw: string): { ok: true; tokens: Record<string, string>; i
 export function BrandKitImport({ onApply }: Props): ReactElement {
   const [open, setOpen] = useState(false);
   const [raw, setRaw] = useState("");
+  const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [appliedCount, setAppliedCount] = useState<number | null>(null);
+  const [extractPending, startExtract] = useTransition();
 
   function handleApply() {
     setError(null);
@@ -105,6 +109,21 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
     setAppliedCount(count);
   }
 
+  function handleExtract() {
+    setError(null);
+    setAppliedCount(null);
+    startExtract(async () => {
+      const result = await extractBrandKitFromUrl({ url });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      // Pre-fill the textarea with the extracted JSON so the operator
+      // can review + tweak before clicking Apply.
+      setRaw(JSON.stringify(result.tokens, null, 2));
+    });
+  }
+
   return (
     <div className="flex flex-col gap-2 text-xs">
       <button
@@ -116,6 +135,33 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
       </button>
       {open ? (
         <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Or extract from a website URL
+            </label>
+            <div className="flex items-center gap-1">
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1 text-xs"
+                disabled={extractPending}
+              />
+              <button
+                type="button"
+                onClick={handleExtract}
+                disabled={extractPending || !url.trim()}
+                className="rounded-md border border-border/60 bg-background px-2 py-1 text-[10px] font-medium hover:bg-muted/50 disabled:opacity-50"
+              >
+                {extractPending ? "…" : "Extract"}
+              </button>
+            </div>
+            <span className="text-[10px] text-muted-foreground/70">
+              Best-effort scan for brand colors + Google Fonts on the page.
+              Result fills the box below — review then click Apply.
+            </span>
+          </div>
           <textarea
             rows={10}
             value={raw}

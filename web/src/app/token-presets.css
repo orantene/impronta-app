@@ -247,6 +247,40 @@ html[data-token-background-mode="mesh-aurora"] body {
   background-attachment: fixed;
 }
 
+/* Phase 5 — animated noise/grain overlay. Uses the same SVG fractalNoise
+ * trick as static noise-texture, but layered with a slow keyframe shift
+ * so the grain visibly moves. The shift is small (4px) and slow (8s) so
+ * it reads as ambient texture rather than distraction. */
+html[data-token-background-mode="noise-animated"] body {
+  background-color: var(--token-color-background, #fafaf8);
+  position: relative;
+}
+html[data-token-background-mode="noise-animated"] body::after {
+  content: "";
+  position: fixed;
+  inset: -4px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 120px 120px;
+  animation: site-noise-shift 8s steps(8) infinite;
+}
+@keyframes site-noise-shift {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-2px, 1px); }
+  40% { transform: translate(1px, -1px); }
+  60% { transform: translate(-1px, 2px); }
+  80% { transform: translate(2px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-token-background-mode="noise-animated"] body::after {
+    animation: none;
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * Radius scale.
  * ------------------------------------------------------------------------- */
@@ -3044,6 +3078,36 @@ body { font-size: var(--token-typography-body-size, revert); }
       from { transform: translateY(calc(var(--parallax-intensity, 0.3) * 60px)); }
       to { transform: translateY(calc(var(--parallax-intensity, 0.3) * -60px)); }
     }
+    /* Multi-layer parallax — sections opt children in via
+     * data-parallax-layer="1|2|3". Each layer translates by a
+     * different magnitude (front layer moves most, back least). */
+    [data-parallax-layer="1"] {
+      animation: site-parallax-l1 linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+    [data-parallax-layer="2"] {
+      animation: site-parallax-l2 linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+    [data-parallax-layer="3"] {
+      animation: site-parallax-l3 linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+    @keyframes site-parallax-l1 {
+      from { transform: translateY(calc(var(--parallax-l1, 0.6) * 90px)); }
+      to { transform: translateY(calc(var(--parallax-l1, 0.6) * -90px)); }
+    }
+    @keyframes site-parallax-l2 {
+      from { transform: translateY(calc(var(--parallax-l2, 0.4) * 60px)); }
+      to { transform: translateY(calc(var(--parallax-l2, 0.4) * -60px)); }
+    }
+    @keyframes site-parallax-l3 {
+      from { transform: translateY(calc(var(--parallax-l3, 0.2) * 30px)); }
+      to { transform: translateY(calc(var(--parallax-l3, 0.2) * -30px)); }
+    }
   }
 }
 
@@ -3365,3 +3429,89 @@ body { font-size: var(--token-typography-body-size, revert); }
 .site-prim-head--center { text-align: center; margin-inline: auto; align-items: center; }
 .site-prim-head__headline { font-family: var(--site-heading-font); font-size: clamp(28px, 4vw, 48px); color: var(--token-color-ink); line-height: 1.1; }
 .site-prim-head__intro { font-size: 16px; color: var(--token-color-muted); line-height: 1.55; }
+
+/* =========================================================================
+ * Phase 9 (XS-9) — booking_widget
+ * Inline iframe (default) or button-link variant.
+ * ========================================================================= */
+.site-booking { padding-block: var(--site-section-y); }
+.site-booking__inner { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
+.site-booking__head { text-align: center; margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.site-booking__headline { font-family: var(--site-heading-font); font-size: clamp(24px, 3vw, 36px); color: var(--token-color-ink); line-height: 1.15; }
+.site-booking__intro { color: var(--token-color-muted); max-width: 640px; margin-inline: auto; line-height: 1.55; }
+.site-booking__frame { width: 100%; overflow: hidden; border-radius: var(--token-shape-radius-card, 12px); background: var(--token-color-surface-raised, #faf7f1); border: 1px solid color-mix(in srgb, var(--token-color-ink) 8%, transparent); }
+.site-booking__iframe { width: 100%; height: 100%; min-height: 100%; border: 0; display: block; }
+.site-booking[data-variant="button"] .site-booking__btn-row { display: flex; justify-content: center; }
+.site-booking__btn { min-width: 220px; text-align: center; }
+
+/* =========================================================================
+ * Phase 13 (S-14) — dark-mode sibling stylesheet
+ *
+ * Independent of `data-token-background-mode`, this lets any tenant flip
+ * a switch (URL: `?theme=dark`, persisted via localStorage by the
+ * SiteDarkModeSwitcher) and have the entire storefront re-pigment via
+ * token vars. Designers don't have to ship a dark variant per section —
+ * sections that use --token-color-* recolor automatically.
+ *
+ * The remap is conservative: only inks, surfaces, lines, muted, and the
+ * shadcn legacy bridge. Tenant brand colours (primary / accent) are left
+ * alone so the brand doesn't go invisible on a dark canvas.
+ * ========================================================================= */
+html[data-theme="dark"] {
+  --site-page-background: #0b0b0d;
+  --token-color-surface-raised: #14151a;
+  --token-color-line: rgba(255, 255, 255, 0.08);
+  --token-color-muted: #a1a1aa;
+  --token-color-ink: #f4f4f5;
+  --background: #0b0b0d;
+  --foreground: #f4f4f5;
+  --card: #14151a;
+  --card-foreground: #f4f4f5;
+  --popover: #18181b;
+  --popover-foreground: #f4f4f5;
+  --secondary: #1c1c22;
+  --secondary-foreground: #f4f4f5;
+  --muted: #1c1c22;
+  --muted-foreground: #a1a1aa;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.07);
+  --site-shadow-soft: 0 6px 16px -8px rgba(0, 0, 0, 0.55);
+  --site-shadow-ambient: 0 20px 42px -24px rgba(0, 0, 0, 0.65);
+  color-scheme: dark;
+}
+html[data-theme="dark"] body {
+  background: var(--site-page-background);
+  color: var(--token-color-ink);
+}
+/* Storefront tenant-override layer pins values at body scope; mirror the
+ * dark-mode tokens there so they beat the remap rules. */
+html[data-theme="dark"] body.site-theme-tenant-override {
+  --background: #0b0b0d;
+  --foreground: #f4f4f5;
+  --site-ambient-base: #0b0b0d;
+}
+/* Image media that's tagged as light-only fades down so it doesn't punch
+ * a hole in dark canvases. Sections opt-in by setting data-tone="light". */
+html[data-theme="dark"] [data-tone="light"] {
+  filter: brightness(0.92) saturate(0.94);
+}
+
+/* Small float switcher used by SiteDarkModeSwitcher.tsx (chrome-only). */
+.site-dark-switch {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--token-color-surface-raised, #fff);
+  color: var(--token-color-ink, #111);
+  border: 1px solid var(--token-color-line, rgba(0, 0, 0, 0.1));
+  box-shadow: var(--site-shadow-soft);
+  font: 500 11px/1 var(--site-body-font, system-ui, sans-serif);
+  cursor: pointer;
+}
+.site-dark-switch:hover { transform: translateY(-1px); }

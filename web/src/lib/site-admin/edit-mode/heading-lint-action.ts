@@ -70,6 +70,7 @@ const HEADLINE_PROP_BY_TYPE: Record<string, "headline" | "eyebrow"> = {
   code_snippet: "headline",
   event_listing: "headline",
   lookbook: "headline",
+  booking_widget: "headline",
   // blog_detail uses a different prop name; treated separately below.
 };
 

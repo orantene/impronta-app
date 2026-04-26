@@ -104,6 +104,7 @@ const HEADING_MAP: Record<
   code_snippet: { level: 2, propKey: "headline" },
   event_listing: { level: 2, propKey: "headline" },
   lookbook: { level: 2, propKey: "headline" },
+  booking_widget: { level: 2, propKey: "headline" },
 };
 
 export function buildHeadingOutline(

@@ -28,6 +28,15 @@ export const contactFormSchemaV1 = z.object({
   honeypot: z.string().max(60).default("website"),
   successMessage: z.string().max(200).default("Thanks — we'll be in touch."),
   variant: z.enum(["card", "inline", "minimal"]).default("card"),
+  /**
+   * Optional captcha provider. When set, the form renders the matching
+   * widget and the /api/cms/forms/submit endpoint validates the token
+   * server-side. Site-key + secret come from env vars (operator sets
+   * them once per deployment), not per-section.
+   *   - hcaptcha: NEXT_PUBLIC_HCAPTCHA_SITE_KEY + HCAPTCHA_SECRET
+   *   - turnstile: NEXT_PUBLIC_TURNSTILE_SITE_KEY + TURNSTILE_SECRET
+   */
+  captcha: z.enum(["none", "hcaptcha", "turnstile"]).default("none"),
   presentation: sectionPresentationSchema,
 });
 

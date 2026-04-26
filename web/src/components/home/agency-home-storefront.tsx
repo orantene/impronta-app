@@ -14,6 +14,8 @@ import { resolveStorefrontLifestyleSlides } from "@/lib/site-admin/storefront-li
 import { getHomepageData } from "@/lib/home-data";
 import { PublicDiscoveryStateProvider } from "@/components/directory/public-discovery-state";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
+import { SiteDarkModeSwitcher } from "@/components/site-chrome/SiteDarkModeSwitcher";
+import { FocusOrderOverlay } from "@/components/site-chrome/FocusOrderOverlay";
 import type { Locale } from "@/i18n/config";
 import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -202,6 +204,8 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       ) : null}
       <PublicDiscoveryStateProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
+        <SiteDarkModeSwitcher />
+        {editActive ? <FocusOrderOverlay /> : null}
         <PublicHeader />
         <main className="flex flex-1 flex-col">
           {/* Edit-mode empty-canvas short-circuit.

@@ -98,6 +98,7 @@ const REWRITABLE_FIELDS: Record<string, ReadonlyArray<string>> = {
   code_snippet: ["eyebrow", "headline"],
   event_listing: ["eyebrow", "headline"],
   lookbook: ["eyebrow", "headline"],
+  booking_widget: ["eyebrow", "headline", "intro", "buttonLabel"],
 };
 
 const SYSTEM_PROMPT = `You rewrite copy for sections of a small-business website. The operator gives you the current text and a one-line instruction. Return ONLY the rewritten text — no preamble, no explanation, no quotes around it.

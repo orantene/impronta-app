@@ -5,6 +5,7 @@ import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { MediaPicker } from "../shared/MediaPicker";
 import { AltTextField } from "../shared/AltTextField";
+import { BlueprintPicker } from "../shared/BlueprintPicker";
 import type { HeroSlide, HeroV1 } from "./schema";
 
 type OverlayFlavor = NonNullable<HeroV1["overlay"]>;
@@ -123,6 +124,11 @@ export function HeroEditor({
 
   return (
     <div className="flex flex-col gap-6 text-sm">
+      <BlueprintPicker
+        sectionTypeKey="hero"
+        current={state}
+        onApply={(next) => commit(next)}
+      />
       <div className="grid gap-4 md:grid-cols-2">
         <label className={FIELD}>
           <span className={LABEL}>Headline</span>

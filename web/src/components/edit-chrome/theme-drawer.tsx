@@ -225,6 +225,7 @@ const LAYOUT_PRESETS: ReadonlyArray<PresetSpec> = [
       { value: "mesh-sage", label: "Mesh sage" },
       { value: "mesh-noir", label: "Mesh noir" },
       { value: "mesh-aurora", label: "Mesh aurora" },
+      { value: "noise-animated", label: "Noise (animated)" },
     ],
   },
 ];

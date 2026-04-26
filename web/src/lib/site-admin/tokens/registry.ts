@@ -622,6 +622,7 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
       "mesh-sage",
       "mesh-noir",
       "mesh-aurora",
+      "noise-animated",
     ]),
     defaultValue: "plain",
     group: "Site shell",

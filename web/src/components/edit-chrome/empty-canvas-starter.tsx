@@ -33,6 +33,7 @@ import {
   WireEditorial,
   WireStudioMinimal,
 } from "./starter-wireframes";
+import { WorkspaceTemplateGallery } from "./WorkspaceTemplateGallery";
 
 interface RecipeTile {
   slug: string;
@@ -207,6 +208,14 @@ export function EmptyCanvasStarter() {
           copy. You can change anything — including the starter&apos;s brand
           preset — after it&apos;s applied.
         </p>
+
+        <div className="mt-6 border-t border-zinc-100 pt-4">
+          <WorkspaceTemplateGallery
+            defaultOpen={false}
+            enableSave={false}
+            reloadOnApply
+          />
+        </div>
       </div>
     </div>
   );

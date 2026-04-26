@@ -31,6 +31,9 @@ import { introspectSectionSchema } from "./zod-introspect";
 import { LinkPicker } from "./LinkPicker";
 import { MediaPicker } from "./MediaPicker";
 import { AltTextField } from "./AltTextField";
+import { BlueprintPicker } from "./BlueprintPicker";
+import { LocalizedTextInput } from "./LocalizedTextInput";
+import type { I18nString } from "./i18n-text";
 import { AiRewriteButton } from "@/components/edit-chrome/inspectors/AiRewriteButton";
 
 import type { z } from "zod";
@@ -67,6 +70,13 @@ export function ZodSchemaForm<T>({
 
   return (
     <div className="flex flex-col gap-4">
+      {sectionTypeKey ? (
+        <BlueprintPicker
+          sectionTypeKey={sectionTypeKey}
+          current={props}
+          onApply={(next) => onChange(next as Partial<T>)}
+        />
+      ) : null}
       {fields
         .filter((f) => !excludeKeys?.includes(f.name))
         .map((f) => (
@@ -154,6 +164,22 @@ function FieldNode({
           ) : null}
         </div>
       </div>
+    );
+  }
+
+  // ---- Locale-aware text (i18nString) ---------------------------------
+  if (field.kind === "i18n_text") {
+    const longish =
+      typeof field.max === "number" ? field.max > 240 : false;
+    return (
+      <LocalizedTextInput
+        label={field.label + (field.optional ? "" : " *")}
+        value={value as I18nString | undefined}
+        onChange={(next) => onChange(next)}
+        multiline={longish}
+        maxLength={field.max}
+        hint={field.description}
+      />
     );
   }
 

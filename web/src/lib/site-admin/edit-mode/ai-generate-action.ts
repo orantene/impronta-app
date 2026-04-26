@@ -353,3 +353,101 @@ export async function critiquePage(): Promise<CritiqueResult> {
     return { ok: false, error: "Couldn't reach the AI provider.", code: "AI_PROVIDER_ERROR" };
   }
 }
+
+// ── Action: suggest a better layout ─────────────────────────────────────
+
+export interface LayoutSuggestion {
+  /** What rearrangement / variant change to try. */
+  recommendation: string;
+  /** Concrete next ordering, in slot/sectionTypeKey form, when reorder is suggested. */
+  proposedOrder?: ReadonlyArray<{ slot: string; type: string }>;
+  /** Per-section variant nudges (e.g. cta_banner → minimal-band) when relevant. */
+  variantSwaps?: ReadonlyArray<{ type: string; toVariant: string; reason: string }>;
+}
+
+export type LayoutSuggestResult =
+  | { ok: true; summary: string; suggestions: ReadonlyArray<LayoutSuggestion> }
+  | { ok: false; error: string; code?: string };
+
+const LAYOUT_SUGGEST_SYSTEM_PROMPT = `You are a senior page-layout strategist. Given the section list of a small-business homepage, suggest 1–3 concrete layout improvements. Return ONLY JSON of shape:
+
+{
+  "summary": "one paragraph diagnosis (what's off about the current rhythm / hierarchy / pacing)",
+  "suggestions": [
+    {
+      "recommendation": "describe ONE concrete change, in plain English",
+      "proposedOrder": [{ "slot": "hero", "type": "hero" }, ...],
+      "variantSwaps": [{ "type": "cta_banner", "toVariant": "minimal-band", "reason": "..." }]
+    }
+  ]
+}
+
+Rules:
+- "proposedOrder" is the FULL section order if reordering is part of the suggestion, else omit.
+- Prefer moves the operator can execute via drag-reorder + variant picker — no asks for new section types they don't already have.
+- Be specific. "Move CTA before testimonials so social proof reinforces the click decision" beats "improve flow".
+- 1–3 suggestions is ideal. Don't pad.`;
+
+export async function suggestLayoutImprovement(): Promise<LayoutSuggestResult> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error, code: "UNAUTHORIZED" };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "Pick an agency workspace first." };
+  const limit = checkRate(scope.tenantId);
+  if (!limit.ok) {
+    return { ok: false, error: "AI limit reached (50/hour).", code: "RATE_LIMITED" };
+  }
+
+  const rows = await listSectionsForStaff(auth.supabase, scope.tenantId);
+  const sections = rows.map((r) => {
+    const props = (r.props_jsonb as Record<string, unknown> | null) ?? {};
+    const variant =
+      typeof props.variant === "string" ? props.variant : undefined;
+    const headline =
+      typeof props.headline === "string"
+        ? (props.headline as string).slice(0, 160)
+        : undefined;
+    return {
+      type: r.section_type_key,
+      name: r.name,
+      variant,
+      headline,
+    };
+  });
+
+  const userMessage = [
+    `Current section composition (${sections.length} sections, ordered as they appear on the page):`,
+    JSON.stringify(sections, null, 2),
+  ].join("\n");
+
+  const adapter = await resolveAiChatAdapter();
+  try {
+    const result = await adapter.chatCompletion({
+      systemPrompt: LAYOUT_SUGGEST_SYSTEM_PROMPT,
+      userMessage,
+      temperature: 0.5,
+      maxTokens: 1500,
+    });
+    if (!result.ok) {
+      return { ok: false, error: result.message ?? "AI failed.", code: result.code };
+    }
+    let raw = result.text.trim();
+    if (raw.startsWith("```")) {
+      raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+    }
+    let parsed: { summary?: string; suggestions?: ReadonlyArray<LayoutSuggestion> };
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return { ok: false, error: "AI returned invalid JSON.", code: "AI_OUTPUT_INVALID" };
+    }
+    return {
+      ok: true,
+      summary: parsed.summary ?? "",
+      suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+    };
+  } catch (err) {
+    logServerError("ai-generate/layout-suggest", err);
+    return { ok: false, error: "Couldn't reach the AI provider.", code: "AI_PROVIDER_ERROR" };
+  }
+}

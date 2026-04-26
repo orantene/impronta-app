@@ -251,6 +251,19 @@ export const sectionPresentationSchema = z
       .optional(),
     scrollRevealDelay: z.number().int().min(0).max(2000).optional(),
     parallaxIntensity: z.number().min(0).max(1).optional(),
+    /**
+     * Phase 5 — multi-layer parallax. When set, three CSS vars are
+     * emitted (`--parallax-l1`, `--parallax-l2`, `--parallax-l3`) which
+     * a section's renderer can attach to layered elements with
+     * different translate magnitudes. Layer 1 = front, Layer 3 = back.
+     */
+    parallaxLayers: z
+      .object({
+        l1: z.number().min(0).max(1).optional(),
+        l2: z.number().min(0).max(1).optional(),
+        l3: z.number().min(0).max(1).optional(),
+      })
+      .optional(),
 
     /**
      * ── Phase 4 — composition lift (continued) ─────────────────────
@@ -423,6 +436,14 @@ export function presentationInlineStyles(
   // [data-parallax] selector in token-presets.css. Clamped 0..1 by zod.
   if (typeof p.parallaxIntensity === "number" && p.parallaxIntensity > 0) {
     out["--parallax-intensity"] = String(p.parallaxIntensity);
+  }
+  // Multi-layer parallax — emit three vars when set. Sections that
+  // support layered parallax (hero, hero_split, sticky_scroll) attach
+  // each var to a child layer via `[data-parallax-layer="1|2|3"]`.
+  if (p.parallaxLayers) {
+    if (typeof p.parallaxLayers.l1 === "number") out["--parallax-l1"] = String(p.parallaxLayers.l1);
+    if (typeof p.parallaxLayers.l2 === "number") out["--parallax-l2"] = String(p.parallaxLayers.l2);
+    if (typeof p.parallaxLayers.l3 === "number") out["--parallax-l3"] = String(p.parallaxLayers.l3);
   }
   // Phase 5 — scroll-reveal delay drives a CSS var the reveal animation
   // keyframes consume.

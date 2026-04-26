@@ -129,6 +129,8 @@ import { eventListingMeta } from "./event_listing/meta";
 import { EventListingEditor } from "./event_listing/Editor";
 import { lookbookMeta } from "./lookbook/meta";
 import { LookbookEditor } from "./lookbook/Editor";
+import { bookingWidgetMeta } from "./booking_widget/meta";
+import { BookingWidgetEditor } from "./booking_widget/Editor";
 
 import type { SectionEditorProps, SectionMeta } from "./types";
 
@@ -381,6 +383,7 @@ export const SECTION_EDITOR_REGISTRY: Record<
   code_snippet: { meta: codeSnippetMeta, currentVersion: 1, Editor: CodeSnippetEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
   event_listing: { meta: eventListingMeta, currentVersion: 1, Editor: EventListingEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
   lookbook: { meta: lookbookMeta, currentVersion: 1, Editor: LookbookEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  booking_widget: { meta: bookingWidgetMeta, currentVersion: 1, Editor: BookingWidgetEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
 };
 
 export function getSectionEditorEntry(

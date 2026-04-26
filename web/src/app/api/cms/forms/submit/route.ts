@@ -119,6 +119,51 @@ export async function POST(req: Request) {
     delete payload[honeypotField];
   }
 
+  // Phase 8 — captcha validation. Caller can include `h-captcha-response`
+  // (hCaptcha) or `cf-turnstile-response` (Cloudflare Turnstile). When the
+  // matching server-side secret is configured, validate the token; when
+  // absent, treat the captcha as a no-op so a misconfigured tenant still
+  // gets submissions through (honeypot + rate-limit are the floor).
+  const hcaptchaToken = typeof payload["h-captcha-response"] === "string" ? (payload["h-captcha-response"] as string) : "";
+  const turnstileToken = typeof payload["cf-turnstile-response"] === "string" ? (payload["cf-turnstile-response"] as string) : "";
+  delete payload["h-captcha-response"];
+  delete payload["cf-turnstile-response"];
+
+  const hcaptchaSecret = process.env.HCAPTCHA_SECRET;
+  const turnstileSecret = process.env.TURNSTILE_SECRET;
+  let captchaOk = true;
+  if (hcaptchaSecret && hcaptchaToken) {
+    try {
+      const r = await fetch("https://api.hcaptcha.com/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ secret: hcaptchaSecret, response: hcaptchaToken }),
+      });
+      const j = (await r.json()) as { success?: boolean };
+      captchaOk = j.success === true;
+    } catch {
+      captchaOk = false;
+    }
+  } else if (turnstileSecret && turnstileToken) {
+    try {
+      const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ secret: turnstileSecret, response: turnstileToken, remoteip: ip === "unknown" ? "" : ip }),
+      });
+      const j = (await r.json()) as { success?: boolean };
+      captchaOk = j.success === true;
+    } catch {
+      captchaOk = false;
+    }
+  }
+  if (!captchaOk) {
+    return NextResponse.json(
+      { ok: false, error: "Captcha failed — please try again." },
+      { status: 400 },
+    );
+  }
+
   // Project email + name when present (cheap admin-list field).
   const contactEmail =
     typeof payload.email === "string"
