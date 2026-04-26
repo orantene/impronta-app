@@ -504,7 +504,63 @@ function TalentTopbar() {
         </nav>
 
         {/* Right */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Notifications bell — matches the workspace topbar pattern.
+              Numbered badge with the unread count, capped at 9+. */}
+          {(() => {
+            const unread = 2; // mock count for talent surface
+            const iconBtn: React.CSSProperties = {
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff",
+              color: COLORS.inkMuted,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+            };
+            return (
+              <button
+                onClick={() => openDrawer("talent-notifications")}
+                aria-label={`Notifications${unread > 0 ? ` — ${unread} unread` : ""}`}
+                style={iconBtn}
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
+                  <path d="M10 21a2 2 0 0 0 4 0" />
+                </svg>
+                {unread > 0 && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: -3,
+                      right: -3,
+                      minWidth: 16,
+                      height: 16,
+                      padding: "0 4px",
+                      borderRadius: 999,
+                      background: COLORS.accent,
+                      color: "#fff",
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 0 0 2px #fff",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </button>
+            );
+          })()}
           <button
             onClick={() => openDrawer("talent-today-pulse")}
             aria-label="Inbox"

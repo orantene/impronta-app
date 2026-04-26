@@ -896,34 +896,49 @@ export function TalentAnalyticsCard() {
 
 function Stat({ value, label, trend }: { value: string; label: string; trend?: string }) {
   const positive = trend?.startsWith("+");
+  // Compact layout: number sits left at the same height as the
+  // label+trend stack on the right. Two visual lines instead of three.
   return (
-    <div style={{ padding: "12px 14px", background: "rgba(11,11,13,0.02)", borderRadius: 9 }}>
+    <div
+      style={{
+        padding: "12px 14px",
+        background: "rgba(11,11,13,0.02)",
+        borderRadius: 9,
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
       <div
         style={{
           fontFamily: FONTS.display,
-          fontSize: 22,
+          fontSize: 26,
           fontWeight: 500,
           letterSpacing: -0.4,
           color: COLORS.ink,
           fontVariantNumeric: "tabular-nums",
+          lineHeight: 1,
+          flexShrink: 0,
         }}
       >
         {value}
       </div>
-      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{label}</div>
-      {trend && (
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: positive ? COLORS.green : COLORS.red,
-            marginTop: 4,
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {trend} vs prior 7d
-        </div>
-      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+        <div style={{ fontSize: 12, color: COLORS.ink, fontWeight: 500, lineHeight: 1.2 }}>{label}</div>
+        {trend && (
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: positive ? COLORS.green : COLORS.red,
+              fontVariantNumeric: "tabular-nums",
+              lineHeight: 1.2,
+            }}
+          >
+            {trend} vs prior 7d
+          </div>
+        )}
+      </div>
     </div>
   );
 }
