@@ -25,11 +25,13 @@ import {
 } from "./_wave2";
 import {
   AVAILABILITY_BLOCKS,
+  AVAILABLE_CHANNELS,
   CLIENT_TRUST_LEVELS,
   CLIENT_TRUST_META,
   COLORS,
   DEFAULT_CONTACT_POLICY,
   EARNINGS_ROWS,
+  EXPOSURE_PRESET_META,
   FONTS,
   INQUIRY_STAGE_META,
   MY_AGENCIES,
@@ -38,6 +40,7 @@ import {
   RICH_INQUIRIES,
   SELECTIVE_CONTACT_POLICY,
   TALENT_BOOKINGS,
+  TALENT_CHANNELS,
   TALENT_PAGES,
   TALENT_PAGE_META,
   TALENT_PAGE_TEMPLATES,
@@ -48,6 +51,9 @@ import {
   summarizeLanguages,
   tierAllows,
   useProto,
+  type ChannelEntry,
+  type ChannelKind,
+  type ExposurePreset,
   type RichInquiry,
   type TalentBooking,
   type TalentBadge,
@@ -633,6 +639,8 @@ function TalentRouter() {
       return <CalendarPage />;
     case "activity":
       return <ActivityPage />;
+    case "reach":
+      return <ReachPage />;
     case "settings":
       return <SettingsPage />;
   }
@@ -4237,6 +4245,805 @@ function ActivityPage() {
         ))}
       </div>
     </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// REACH — distribution channels
+// ════════════════════════════════════════════════════════════════════
+//
+// Where the talent shows up. Five distribution lanes, each with live
+// performance counts. Talent can scan one screen and know:
+//   - which channels are sending them work
+//   - what each channel costs them in unwanted inquiries
+//   - how to grow their reach (browse-to-add) or pull back (toggle off)
+//
+// The four-preset Exposure slider sits on top — it sets sensible
+// defaults across all toggleable channels in one move. Per-channel
+// granular toggles below let the talent override.
+//
+// Distinct from Settings (configuration) and Privacy (what to hide):
+// Reach is operational. Distribution is a lever the talent owns.
+
+function ReachPage() {
+  const { openDrawer, toast } = useProto();
+
+  // Local state — preset slider + per-channel overrides. In production
+  // these would persist via mutations on TalentDistribution rows.
+  const [preset, setPreset] = useState<ExposurePreset>("wide");
+  // Per-channel toggle state, keyed by channel id. Initial value mirrors
+  // the channel's `status === "live" || "published"` state.
+  const [channelOn, setChannelOn] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(
+      [...TALENT_CHANNELS, ...AVAILABLE_CHANNELS].map((c) => [
+        c.id,
+        c.status === "live" || c.status === "published",
+      ]),
+    ),
+  );
+
+  const setOn = (id: string, on: boolean) => {
+    setChannelOn((prev) => ({ ...prev, [id]: on }));
+    const ch =
+      TALENT_CHANNELS.find((c) => c.id === id) ??
+      AVAILABLE_CHANNELS.find((c) => c.id === id);
+    if (ch) toast(`${ch.name} · ${on ? "on" : "off"}`);
+  };
+
+  const applyPreset = (next: ExposurePreset) => {
+    setPreset(next);
+    // Preset rules — translates a high-level intent into per-channel state.
+    // Agency channels are unaffected (contracts handle them). Personal
+    // page is always on (talent's own surface).
+    setChannelOn((prev) => {
+      const newState = { ...prev };
+      for (const c of [...TALENT_CHANNELS, ...AVAILABLE_CHANNELS]) {
+        if (!c.toggleable) continue;
+        if (c.kind === "personal") {
+          newState[c.id] = true;
+          continue;
+        }
+        if (c.kind === "tulala-hub") {
+          // On for everyone except Selective.
+          newState[c.id] = next !== "selective";
+          continue;
+        }
+        if (c.kind === "external") {
+          if (next === "selective") newState[c.id] = false;
+          else if (next === "curated") newState[c.id] = false;
+          else if (next === "wide") newState[c.id] = c.verified === true;
+          else newState[c.id] = true; // maximum
+          continue;
+        }
+        if (c.kind === "studio") {
+          if (next === "selective" || next === "curated") newState[c.id] = false;
+          else newState[c.id] = next === "wide" ? prev[c.id] ?? false : true;
+        }
+      }
+      return newState;
+    });
+    toast(`Exposure set to ${EXPOSURE_PRESET_META[next].label}`);
+  };
+
+  // Aggregate counts for hero strip
+  const liveChannels = TALENT_CHANNELS.filter((c) => channelOn[c.id]).length;
+  const totalInquiries7d = TALENT_CHANNELS.filter((c) => channelOn[c.id]).reduce(
+    (sum, c) => sum + c.inquiries7d,
+    0,
+  );
+  const totalBookings90d = TALENT_CHANNELS.reduce((sum, c) => sum + c.bookings90d, 0);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Reach"
+        title="Where you appear, and what each channel sent you."
+        subtitle="Distribution is a lever you own. Toggle channels, see what works, grow your reach."
+        actions={
+          <SecondaryButton onClick={() => openDrawer("talent-public-preview")}>
+            Preview public profile
+          </SecondaryButton>
+        }
+      />
+
+      {/* Top stat strip — at-a-glance reach summary */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0,
+          padding: "10px 14px",
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 10,
+          marginBottom: 16,
+        }}
+      >
+        <ReachStat label="Live channels" value={String(liveChannels)} caption={`of ${TALENT_CHANNELS.length}`} />
+        <ReachStatDivider />
+        <ReachStat label="Inquiries · 7d" value={String(totalInquiries7d)} caption="across channels" tone="indigo" />
+        <ReachStatDivider />
+        <ReachStat label="Bookings · 90d" value={String(totalBookings90d)} caption="from these channels" tone="success" />
+      </div>
+
+      {/* Exposure preset slider — the headline control */}
+      <ExposurePresetSlider preset={preset} onChange={applyPreset} />
+
+      <div style={{ height: 20 }} />
+
+      {/* Five distribution cards — one per lane */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <DistributionCard
+          kind="personal"
+          title="Personal page"
+          description="Your premium page on Tulala. The only channel you fully own."
+          channels={TALENT_CHANNELS.filter((c) => c.kind === "personal")}
+          channelOn={channelOn}
+          onToggle={setOn}
+          onPrimary={{
+            label: "Edit page",
+            handler: () => openDrawer("talent-personal-page"),
+          }}
+        />
+        <DistributionCard
+          kind="tulala-hub"
+          title="Tulala Hub"
+          description="Curated discovery inside Tulala. Vetted by editorial."
+          channels={TALENT_CHANNELS.filter((c) => c.kind === "tulala-hub")}
+          channelOn={channelOn}
+          onToggle={setOn}
+        />
+        <DistributionCard
+          kind="agency"
+          title="Agencies on roster"
+          description="Agency contracts route inquiries through them. Manage relationships in Settings."
+          channels={TALENT_CHANNELS.filter((c) => c.kind === "agency")}
+          channelOn={channelOn}
+          onToggle={setOn}
+          onPrimary={{
+            label: "+ Join another agency",
+            handler: () => toast("Agency search · coming soon"),
+          }}
+        />
+        <DistributionCard
+          kind="external"
+          title="External hubs"
+          description="Verified third-party platforms that forward inquiries to you."
+          channels={TALENT_CHANNELS.filter((c) => c.kind === "external")}
+          channelOn={channelOn}
+          onToggle={setOn}
+          available={AVAILABLE_CHANNELS.filter((c) => c.kind === "external")}
+          onAdd={(c) => setOn(c.id, true)}
+        />
+        <DistributionCard
+          kind="studio"
+          title="Studios & free books"
+          description="Creative-studio communities and free-book partnerships."
+          channels={TALENT_CHANNELS.filter((c) => c.kind === "studio")}
+          channelOn={channelOn}
+          onToggle={setOn}
+          available={AVAILABLE_CHANNELS.filter((c) => c.kind === "studio")}
+          onAdd={(c) => setOn(c.id, true)}
+        />
+      </div>
+
+      <div style={{ height: 24 }} />
+
+      {/* Search / browse — quick add */}
+      <section
+        style={{
+          background: COLORS.surfaceAlt,
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          padding: "16px 18px",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 8,
+          }}
+        >
+          <Icon name="search" size={14} stroke={1.7} color={COLORS.inkMuted} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+            Find a hub or studio to join
+          </span>
+        </div>
+        <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          New partner platforms are added monthly. Tulala vets every external hub before
+          surfacing it here. Inquiries through verified hubs follow the same trust + payout
+          rules as agency-routed work.
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <TextInput placeholder="Search Models.com, Cast Iron, Atelier Paris…" />
+        </div>
+      </section>
+    </>
+  );
+}
+
+// ─── Reach helpers ───────────────────────────────────────────────────
+
+function ReachStat({
+  label,
+  value,
+  caption,
+  tone = "ink",
+}: {
+  label: string;
+  value: string;
+  caption?: string;
+  tone?: "ink" | "indigo" | "success";
+}) {
+  const fg = tone === "indigo" ? COLORS.indigo : tone === "success" ? COLORS.green : COLORS.ink;
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 10.5,
+          fontWeight: 600,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <span
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 18,
+            fontWeight: 500,
+            color: fg,
+            letterSpacing: -0.2,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {value}
+        </span>
+        {caption && (
+          <span
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              color: COLORS.inkDim,
+            }}
+          >
+            {caption}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReachStatDivider() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 1,
+        height: 28,
+        background: COLORS.borderSoft,
+        margin: "0 14px",
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+/**
+ * Exposure preset slider — four named levels with a live tooltip-style
+ * description. Click a level to apply it. Recommended level (Wide) gets
+ * a sage "Recommended" tag.
+ */
+function ExposurePresetSlider({
+  preset,
+  onChange,
+}: {
+  preset: ExposurePreset;
+  onChange: (p: ExposurePreset) => void;
+}) {
+  const presets: ExposurePreset[] = ["selective", "curated", "wide", "maximum"];
+  const current = EXPOSURE_PRESET_META[preset];
+
+  return (
+    <section
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        padding: "16px 18px",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: COLORS.ink,
+              letterSpacing: -0.05,
+            }}
+          >
+            Exposure level
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+              marginTop: 2,
+              lineHeight: 1.5,
+            }}
+          >
+            One control, four levels. Sets sensible defaults across every channel.
+            Override individual channels below.
+          </div>
+        </div>
+      </div>
+
+      {/* Segmented control */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 6,
+          padding: 4,
+          background: COLORS.surfaceAlt,
+          borderRadius: 10,
+        }}
+      >
+        {presets.map((p) => {
+          const meta = EXPOSURE_PRESET_META[p];
+          const active = preset === p;
+          return (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onChange(p)}
+              style={{
+                position: "relative",
+                background: active ? "#fff" : "transparent",
+                border: "none",
+                padding: "10px 8px",
+                borderRadius: 7,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                textAlign: "center",
+                boxShadow: active ? COLORS.shadow : "none",
+                transition: "background .12s, box-shadow .12s",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12.5,
+                  fontWeight: active ? 600 : 500,
+                  color: active ? COLORS.ink : COLORS.inkMuted,
+                  letterSpacing: -0.05,
+                }}
+              >
+                {meta.label}
+              </div>
+              {meta.recommended && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: -6,
+                    right: 6,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    padding: "1px 5px",
+                    borderRadius: 4,
+                    background: "rgba(46,125,91,0.15)",
+                    color: COLORS.green,
+                  }}
+                >
+                  Recommended
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Description for current preset */}
+      <div
+        style={{
+          marginTop: 12,
+          fontSize: 12.5,
+          color: COLORS.inkMuted,
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ color: COLORS.ink, fontWeight: 600 }}>
+          {current.label}.
+        </strong>{" "}
+        {current.description}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Distribution card — one per lane. Header has lane title + description +
+ * optional primary action (Edit / Join another). Body is a list of
+ * channels in this lane with toggle + counts. Optional "Browse more"
+ * footer when there are unjoined available channels.
+ */
+function DistributionCard({
+  kind,
+  title,
+  description,
+  channels,
+  channelOn,
+  onToggle,
+  onPrimary,
+  available,
+  onAdd,
+}: {
+  kind: ChannelKind;
+  title: string;
+  description: string;
+  channels: ChannelEntry[];
+  channelOn: Record<string, boolean>;
+  onToggle: (id: string, on: boolean) => void;
+  onPrimary?: { label: string; handler: () => void };
+  available?: ChannelEntry[];
+  onAdd?: (c: ChannelEntry) => void;
+}) {
+  // Lane-level icon + tone
+  const laneMeta: Record<ChannelKind, { icon: string; toneFg: string; toneBg: string }> = {
+    personal: { icon: "🌐", toneFg: COLORS.royal, toneBg: COLORS.royalSoft },
+    "tulala-hub": { icon: "✦", toneFg: COLORS.accent, toneBg: COLORS.accentSoft },
+    agency: { icon: "🏢", toneFg: COLORS.ink, toneBg: "rgba(11,11,13,0.05)" },
+    external: { icon: "🌍", toneFg: COLORS.indigo, toneBg: COLORS.indigoSoft },
+    studio: { icon: "🎬", toneFg: COLORS.green, toneBg: "rgba(46,125,91,0.10)" },
+  };
+  const lane = laneMeta[kind];
+  const liveCount = channels.filter((c) => channelOn[c.id]).length;
+  const totalAvail = channels.length + (available?.length ?? 0);
+  const showAvailable = available && available.length > 0;
+
+  return (
+    <section
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        padding: "16px 18px",
+        fontFamily: FONTS.body,
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            background: lane.toneBg,
+            color: lane.toneFg,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            fontSize: 14,
+          }}
+        >
+          {lane.icon}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 14,
+              fontWeight: 600,
+              color: COLORS.ink,
+              letterSpacing: -0.05,
+            }}
+          >
+            <span>{title}</span>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: COLORS.inkMuted,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {liveCount}/{totalAvail}
+            </span>
+          </div>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+              marginTop: 2,
+              lineHeight: 1.5,
+            }}
+          >
+            {description}
+          </div>
+        </div>
+        {onPrimary && (
+          <button
+            type="button"
+            onClick={onPrimary.handler}
+            style={{
+              flexShrink: 0,
+              background: "transparent",
+              border: "none",
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {onPrimary.label} →
+          </button>
+        )}
+      </div>
+
+      {/* Channel list */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 0,
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 10,
+          overflow: "hidden",
+        }}
+      >
+        {channels.map((c, i) => (
+          <ChannelRow
+            key={c.id}
+            channel={c}
+            on={channelOn[c.id] ?? false}
+            onToggle={(next) => onToggle(c.id, next)}
+            first={i === 0}
+          />
+        ))}
+        {showAvailable && (
+          <>
+            {available!.map((c) => (
+              <AvailableChannelRow
+                key={c.id}
+                channel={c}
+                onAdd={() => onAdd!(c)}
+              />
+            ))}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** A row for a channel the talent is on. Shows performance + toggle. */
+function ChannelRow({
+  channel,
+  on,
+  onToggle,
+  first,
+}: {
+  channel: ChannelEntry;
+  on: boolean;
+  onToggle: (next: boolean) => void;
+  first: boolean;
+}) {
+  const status =
+    channel.toggleable === false
+      ? channel.badge ?? "Contract"
+      : on
+        ? "Live"
+        : "Off";
+  const statusFg = on ? COLORS.green : COLORS.inkDim;
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 14px",
+        borderTop: first ? "none" : `1px solid ${COLORS.borderSoft}`,
+        opacity: !on && channel.toggleable ? 0.7 : 1,
+        transition: "opacity .12s",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13,
+            fontWeight: 500,
+            color: COLORS.ink,
+          }}
+        >
+          <span>{channel.name}</span>
+          {channel.verified && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                padding: "1px 5px",
+                borderRadius: 4,
+                background: COLORS.indigoSoft,
+                color: COLORS.indigoDeep,
+              }}
+            >
+              Verified
+            </span>
+          )}
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              color: statusFg,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: "50%",
+                background: statusFg,
+              }}
+            />
+            {status}
+          </span>
+        </div>
+        {channel.url && (
+          <div
+            style={{
+              fontSize: 11.5,
+              color: COLORS.inkMuted,
+              marginTop: 1,
+              fontFamily: FONTS.body,
+            }}
+          >
+            {channel.url}
+          </div>
+        )}
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            marginTop: 4,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {channel.views7d} views · {channel.inquiries7d} inquiries · 7d
+          {channel.bookings90d > 0 && ` · ${channel.bookings90d} bookings · 90d`}
+        </div>
+      </div>
+      {channel.toggleable ? (
+        <Toggle on={on} onChange={() => onToggle(!on)} />
+      ) : (
+        <span
+          style={{
+            fontSize: 11,
+            color: COLORS.inkDim,
+            fontFamily: FONTS.body,
+          }}
+        >
+          Contract-managed
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** A row for a channel the talent is NOT YET on. One-click add. */
+function AvailableChannelRow({
+  channel,
+  onAdd,
+}: {
+  channel: ChannelEntry;
+  onAdd: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        background: "rgba(11,11,13,0.015)",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12.5,
+            fontWeight: 500,
+            color: COLORS.inkMuted,
+          }}
+        >
+          <span>{channel.name}</span>
+          {channel.verified && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                padding: "1px 5px",
+                borderRadius: 4,
+                background: COLORS.indigoSoft,
+                color: COLORS.indigoDeep,
+              }}
+            >
+              Verified
+            </span>
+          )}
+          <span style={{ fontSize: 11, color: COLORS.inkDim }}>
+            Available · not joined
+          </span>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onAdd}
+        style={{
+          flexShrink: 0,
+          background: "transparent",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 7,
+          padding: "4px 10px",
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          fontWeight: 500,
+          color: COLORS.ink,
+          cursor: "pointer",
+        }}
+      >
+        + Add
+      </button>
+    </div>
   );
 }
 

@@ -45,6 +45,7 @@ export type TalentPage =
   | "inbox"
   | "calendar"
   | "activity"
+  | "reach"
   | "settings";
 
 // Client surface — its own plan ladder. Free is browse-only, Pro adds active
@@ -95,6 +96,7 @@ export const TALENT_PAGES: TalentPage[] = [
   "inbox",
   "calendar",
   "activity",
+  "reach",
   "settings",
 ];
 export const CLIENT_PAGES: ClientPage[] = [
@@ -279,6 +281,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   inbox: { label: "Inbox" },
   calendar: { label: "Calendar" },
   activity: { label: "Activity" },
+  reach: { label: "Reach" },
   settings: { label: "Settings" },
 };
 
@@ -3208,6 +3211,215 @@ export const EARNINGS_ROWS: EarningsRow[] = [
   { id: "e3", workDate: "Mar 1, 2026", payoutDate: "Mar 12, 2026", agency: "Acme Models", client: "Vogue Italia", amount: "€2,800", status: "paid", source: { kind: "agency" } },
   { id: "e4", workDate: "Feb 14, 2026", payoutDate: "Feb 28, 2026", agency: "Acme Models", client: "Mango", amount: "€1,600", status: "paid", source: { kind: "agency" } },
   { id: "e5", workDate: "Jan 30, 2026", payoutDate: "Feb 14, 2026", agency: "Acme Models", client: "Net-a-Porter", amount: "€3,400", status: "paid", source: { kind: "agency" } },
+];
+
+// ════════════════════════════════════════════════════════════════════
+// REACH — distribution channels
+// ════════════════════════════════════════════════════════════════════
+//
+// The talent's "Reach" is the set of channels through which inquiries
+// can find them. Five lanes, each with its own ownership model:
+//
+//   personal    Talent's own premium page (Pro/Portfolio tier)
+//   tulala-hub  Tulala's curated discovery directory
+//   agency      Agencies the talent is on roster with
+//   external    External hubs / aggregators (Models.com etc.)
+//   studio      Studio / free-book partners (creative communities)
+//
+// Each ChannelEntry has performance counts so the talent SEES the
+// inquiry / view yield per channel and can make informed decisions.
+
+export type ChannelKind = "personal" | "tulala-hub" | "agency" | "external" | "studio";
+
+export type ChannelEntry = {
+  id: string;
+  kind: ChannelKind;
+  name: string;
+  /** "tulala.digital/t/marta-reyes" or "models.com/marta-reyes" */
+  url?: string;
+  /** Live state — published / off / pending invite. */
+  status: "live" | "off" | "pending" | "published" | "invited";
+  /** Last-7d signal counts. Drives the value-of-channel display. */
+  views7d: number;
+  inquiries7d: number;
+  bookings90d: number;
+  /** Whether the talent can toggle this channel on/off themselves. */
+  toggleable: boolean;
+  /** Optional verified flag for external hubs (Tulala-vetted partners). */
+  verified?: boolean;
+  /** Optional badge ("Pro tier", "Trusted", etc.) shown next to name. */
+  badge?: string;
+};
+
+export type ExposurePreset = "selective" | "curated" | "wide" | "maximum";
+
+export const EXPOSURE_PRESET_META: Record<
+  ExposurePreset,
+  { label: string; description: string; recommended?: boolean }
+> = {
+  selective: {
+    label: "Selective",
+    description: "Personal page only. Highest control, lowest volume.",
+  },
+  curated: {
+    label: "Curated",
+    description: "Tulala Hub + agencies you're on. Vetted channels only.",
+  },
+  wide: {
+    label: "Wide",
+    description: "All verified channels including trusted external hubs.",
+    recommended: true,
+  },
+  maximum: {
+    label: "Maximum",
+    description: "Every available channel, including marketplace inquiries from Basic clients.",
+  },
+};
+
+export const TALENT_CHANNELS: ChannelEntry[] = [
+  // 1 — Personal page
+  {
+    id: "ch-personal",
+    kind: "personal",
+    name: "Personal page",
+    url: "tulala.digital/t/marta-reyes",
+    status: "live",
+    views7d: 48,
+    inquiries7d: 3,
+    bookings90d: 1,
+    toggleable: true,
+    badge: "Pro tier",
+  },
+  // 2 — Tulala Hub
+  {
+    id: "ch-tulala-hub",
+    kind: "tulala-hub",
+    name: "Tulala Hub",
+    status: "live",
+    views7d: 12,
+    inquiries7d: 1,
+    bookings90d: 1,
+    toggleable: true,
+    verified: true,
+  },
+  // 3 — Agencies on roster
+  {
+    id: "ch-agency-acme",
+    kind: "agency",
+    name: "Acme Models",
+    url: "acme-models.tulala.app",
+    status: "published",
+    views7d: 22,
+    inquiries7d: 2,
+    bookings90d: 4,
+    toggleable: false, // agency contract, not solo-toggleable
+    badge: "Primary · exclusive",
+  },
+  {
+    id: "ch-agency-praline",
+    kind: "agency",
+    name: "Praline London",
+    url: "praline-london.tulala.app",
+    status: "published",
+    views7d: 9,
+    inquiries7d: 1,
+    bookings90d: 1,
+    toggleable: false,
+    badge: "Non-exclusive",
+  },
+  // 4 — External hubs
+  {
+    id: "ch-ext-models",
+    kind: "external",
+    name: "Models.com",
+    url: "models.com/marta-reyes",
+    status: "live",
+    views7d: 14,
+    inquiries7d: 4,
+    bookings90d: 0,
+    toggleable: true,
+    verified: true,
+  },
+  {
+    id: "ch-ext-talent",
+    kind: "external",
+    name: "talent.com",
+    status: "live",
+    views7d: 6,
+    inquiries7d: 2,
+    bookings90d: 0,
+    toggleable: true,
+    verified: true,
+  },
+  {
+    id: "ch-ext-bookem",
+    kind: "external",
+    name: "BookEm.app",
+    status: "off",
+    views7d: 0,
+    inquiries7d: 0,
+    bookings90d: 0,
+    toggleable: true,
+    verified: false,
+  },
+  // 5 — Studios / free books
+  {
+    id: "ch-studio-roca",
+    kind: "studio",
+    name: "Estudio Roca community",
+    status: "live",
+    views7d: 4,
+    inquiries7d: 0,
+    bookings90d: 1,
+    toggleable: true,
+  },
+  {
+    id: "ch-studio-mitte",
+    kind: "studio",
+    name: "Studio Mitte Berlin",
+    status: "off",
+    views7d: 0,
+    inquiries7d: 0,
+    bookings90d: 0,
+    toggleable: true,
+  },
+];
+
+// Channels NOT yet joined — surfaced in the "Browse more" affordances
+// so the talent can grow their reach without leaving the page.
+export const AVAILABLE_CHANNELS: ChannelEntry[] = [
+  {
+    id: "ch-ext-cast",
+    kind: "external",
+    name: "Cast Iron Network",
+    status: "off",
+    views7d: 0,
+    inquiries7d: 0,
+    bookings90d: 0,
+    toggleable: true,
+    verified: true,
+  },
+  {
+    id: "ch-ext-network",
+    kind: "external",
+    name: "The Industry Network",
+    status: "off",
+    views7d: 0,
+    inquiries7d: 0,
+    bookings90d: 0,
+    toggleable: true,
+    verified: true,
+  },
+  {
+    id: "ch-studio-paris",
+    kind: "studio",
+    name: "Atelier Paris collective",
+    status: "off",
+    views7d: 0,
+    inquiries7d: 0,
+    bookings90d: 0,
+    toggleable: true,
+  },
 ];
 
 // ════════════════════════════════════════════════════════════════════
