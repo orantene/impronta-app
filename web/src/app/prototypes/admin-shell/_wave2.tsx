@@ -791,6 +791,18 @@ const NOTIF_CATEGORY_META: Record<NotifCategory, { label: string; hint: string }
   update: { label: "Updates", hint: "dismissible" },
 };
 
+/** Parse rough age strings ("5h", "2h", "1d", "2d", "today") to a numeric
+ *  hours value for sorting. Closer values = lower number. */
+function parseAge(s: string): number {
+  if (!s) return 0;
+  const lower = s.toLowerCase();
+  if (lower === "today" || lower === "now") return 0;
+  const match = lower.match(/(\d+)\s*([hd])/);
+  if (!match) return 0;
+  const n = parseInt(match[1]!, 10);
+  return match[2] === "d" ? n * 24 : n;
+}
+
 // Compact notification row — ~52px tall. Single-line title with
 // time-stamp on the right, optional sub on a second line, optional
 // progress bar at the bottom for sticky/system items.
@@ -998,6 +1010,15 @@ export function TalentNotificationsDrawer() {
   const { state, closeDrawer, openDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-notifications";
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Recent / Archive tab state — Archive shows previously-dismissed
+  // updates so the talent can find a notification they cleared by mistake.
+  const [view, setView] = useState<"recent" | "archive">("recent");
+  // Read state — drives the unread dot. "Mark all read" clears it.
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const markAllRead = () => {
+    setReadIds(new Set(MOCK_TALENT_NOTIFS.map((n) => n.id)));
+    toast("All notifications marked as read");
+  };
   // Same prefs as the workspace notifications-prefs drawer — mirrored
   // here so the talent surface owns its own copy. Real implementation
   // shares storage by user_id.
@@ -1021,12 +1042,43 @@ export function TalentNotificationsDrawer() {
 
   // Local dismiss state — non-sticky updates can be cleared.
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const visible = MOCK_TALENT_NOTIFS.filter((n) => !dismissed.has(n.id));
+  const restore = (id: string) =>
+    setDismissed((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  const visible = MOCK_TALENT_NOTIFS.filter((n) =>
+    view === "recent" ? !dismissed.has(n.id) : dismissed.has(n.id),
+  );
+  // Apply readIds to dim the unread dot for items the user marked read
+  const visibleWithRead = visible.map((n) => ({
+    ...n,
+    unread: n.unread && !readIds.has(n.id),
+  }));
   const grouped: Record<NotifCategory, TalentNotif[]> = {
-    action: visible.filter((n) => n.category === "action"),
-    system: visible.filter((n) => n.category === "system"),
-    update: visible.filter((n) => n.category === "update"),
+    action: visibleWithRead.filter((n) => n.category === "action"),
+    system: visibleWithRead.filter((n) => n.category === "system"),
+    update: visibleWithRead.filter((n) => n.category === "update"),
   };
+  // Oldest timestamp per category — drives "oldest 18h" hint in headers.
+  const oldestForCategory = (cat: NotifCategory): string | null => {
+    const items = grouped[cat];
+    if (items.length === 0) return null;
+    const withWhen = items.filter((n) => n.when);
+    if (withWhen.length === 0) return null;
+    // Whens are mock strings ("5h", "2h", "1d") — pick the longest one
+    // by simple character + numeric heuristic.
+    const ranked = withWhen.sort((a, b) => {
+      const av = parseAge(a.when ?? "");
+      const bv = parseAge(b.when ?? "");
+      return bv - av;
+    });
+    return ranked[0]?.when ?? null;
+  };
+  const totalUnread = grouped.action
+    .concat(grouped.system, grouped.update)
+    .filter((n) => n.unread).length;
 
   return (
     <DrawerShell
@@ -1035,6 +1087,81 @@ export function TalentNotificationsDrawer() {
       title="Notifications"
       description="What's waiting on you, and what's running through email + push."
     >
+      {/* Tab strip: Recent | Archive. Tabs sit above the list so the
+          talent can flip between active items and previously-dismissed
+          ones without leaving the drawer. "Mark all read" lives here as
+          the rightmost action — quiet ghost button, no caps. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 14,
+          paddingBottom: 10,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+        }}
+      >
+        <div style={{ display: "flex", gap: 4 }}>
+          {(["recent", "archive"] as const).map((v) => {
+            const active = view === v;
+            const archiveCount = dismissed.size;
+            const recentCount = MOCK_TALENT_NOTIFS.length - dismissed.size;
+            const count = v === "archive" ? archiveCount : recentCount;
+            return (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "5px 11px",
+                  background: active ? COLORS.ink : "transparent",
+                  border: "none",
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: active ? "#fff" : COLORS.inkMuted,
+                  textTransform: "capitalize",
+                }}
+              >
+                {v}
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: active ? "rgba(255,255,255,0.6)" : COLORS.inkDim,
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {view === "recent" && totalUnread > 0 && (
+          <button
+            type="button"
+            onClick={markAllRead}
+            style={{
+              background: "transparent",
+              border: "none",
+              padding: "4px 8px",
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: COLORS.inkMuted,
+              cursor: "pointer",
+            }}
+          >
+            Mark all read
+          </button>
+        )}
+      </div>
+
       {/* Grouped notifications by category. Each group has a tiny header
           with count + behavior hint so the user learns the contract. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -1063,6 +1190,19 @@ export function TalentNotificationsDrawer() {
                   }}
                 >
                   {meta.label} · {items.length}
+                  {oldestForCategory(cat) && cat === "action" && (
+                    <span
+                      style={{
+                        marginLeft: 8,
+                        color: COLORS.coral,
+                        textTransform: "none",
+                        letterSpacing: 0,
+                        fontWeight: 500,
+                      }}
+                    >
+                      oldest {oldestForCategory(cat)}
+                    </span>
+                  )}
                 </span>
                 <span
                   style={{
@@ -1079,14 +1219,20 @@ export function TalentNotificationsDrawer() {
                   <NotifRow
                     key={n.id}
                     notif={n}
-                    onOpen={() => toast(`Opening ${n.title}`)}
+                    onOpen={() =>
+                      view === "archive"
+                        ? restore(n.id)
+                        : toast(`Opening ${n.title}`)
+                    }
                     onDismiss={
-                      n.sticky
-                        ? undefined
-                        : () =>
-                            setDismissed((prev) => {
-                              const next = new Set(prev);
-                              next.add(n.id);
+                      view === "archive"
+                        ? () => restore(n.id)
+                        : n.sticky
+                          ? undefined
+                          : () =>
+                              setDismissed((prev) => {
+                                const next = new Set(prev);
+                                next.add(n.id);
                               return next;
                             })
                     }
