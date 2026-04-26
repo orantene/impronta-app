@@ -976,16 +976,13 @@ function ProfileCompletenessBanner({
  * archived team, chat, and booking facts. Each completed booking becomes
  * a portfolio entry the talent can revisit.
  *
- * Uses the same anatomy as Calendar event rows: 44×44 date block on the
- * left, title/brief/status chip in the middle, amount + chevron on the
- * right. One row pattern across all of Today + Calendar.
+ * Uses a client AVATAR on the left (initials + auto-tinted brand color)
+ * — date is secondary information for past bookings; brand identity is
+ * what the talent actually scans for. Same avatar pattern used by
+ * "Inquiries you're in" rows.
  */
 function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
   const { openDrawer } = useProto();
-  // Parse "Mar 28, 2026" → month "Mar", day 28
-  const dateMatch = earning.workDate.match(/^([A-Za-z]+)\s+(\d{1,2})/);
-  const month = dateMatch?.[1]?.toUpperCase() ?? "—";
-  const day = dateMatch?.[2] ?? "—";
   return (
     <button
       type="button"
@@ -1007,7 +1004,12 @@ function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <DateBlock day={day} month={month} />
+      <Avatar
+        size={36}
+        tone="auto"
+        hashSeed={earning.client}
+        initials={clientInitialsLocal(earning.client)}
+      />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -1053,6 +1055,15 @@ function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
     </button>
   );
+}
+
+/** Brand initials helper — "Mango" → "M", "Vogue Italia" → "VI". */
+function clientInitialsLocal(name: string): string {
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0]!.charAt(0) + words[1]!.charAt(0)).toUpperCase();
+  }
+  return name.charAt(0).toUpperCase();
 }
 
 /**
@@ -1901,10 +1912,18 @@ function RequestRow({
         transition: "background .12s",
       }}
     >
-      {/* Date block — shared with Calendar event rows + Earning rows.
-          Renders only when the request has a parseable date. */}
-      {compact && day && month ? (
-        <DateBlock day={day} month={month} />
+      {/* Client avatar on the left — same pattern as "Inquiries you're
+          in" + Recent earnings. Brand identity is what the talent scans
+          for; date / kind move to the second meta line. Falls back to the
+          KindChip-leading layout when not in compact mode (legacy use
+          on other surfaces). */}
+      {compact ? (
+        <Avatar
+          size={36}
+          tone="auto"
+          hashSeed={request.client}
+          initials={clientInitialsLocal(request.client)}
+        />
       ) : (
         <KindChip label={km.label} tone={km.tone} />
       )}
@@ -1934,11 +1953,7 @@ function RequestRow({
             fontSize: 11.5,
           }}
         >
-          {/* When compact + date block on left, the kind chip moves to
-              the second line so the kind context isn't lost. */}
-          {compact && day && month && (
-            <KindChip label={km.label} tone={km.tone} />
-          )}
+          {compact && <KindChip label={km.label} tone={km.tone} />}
           <span style={{ color: COLORS.inkMuted }}>
             {!compact && (
               <>
@@ -1946,7 +1961,7 @@ function RequestRow({
                 {(request.date || request.amount) && " · "}
               </>
             )}
-            {compact ? request.date : request.date}
+            {request.date}
             {request.date && request.amount && " · "}
             {request.amount}
           </span>
@@ -1993,13 +2008,18 @@ function RequestRow({
 
 function BookingRow({ booking }: { booking: TalentBooking }) {
   const { openDrawer } = useProto();
+  // Parse "Tue, May 6" or "May 14" → month "MAY", day "6" / "14".
+  // Previous parser was broken (showed "May / TUE" instead of "6 / MAY").
+  const dateMatch = booking.startDate.match(/([A-Za-z]+)\s+(\d{1,2})/);
+  const month = dateMatch?.[1]?.toUpperCase() ?? "—";
+  const day = dateMatch?.[2] ?? "—";
   return (
     <button
       onClick={() => openDrawer("talent-booking-detail", { id: booking.id })}
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 10,
+        gap: 12,
         padding: "10px 0",
         borderTop: `1px solid ${COLORS.borderSoft}`,
         background: "transparent",
@@ -2008,29 +2028,12 @@ function BookingRow({ booking }: { booking: TalentBooking }) {
         textAlign: "left",
         width: "100%",
         fontFamily: FONTS.body,
+        transition: "background .12s",
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <span
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 8,
-          background: COLORS.surfaceAlt,
-          display: "inline-flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          fontFamily: FONTS.display,
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, lineHeight: 1 }}>
-          {booking.startDate.split(" ")[1]?.replace(",", "") ?? "—"}
-        </span>
-        <span style={{ fontSize: 9, color: COLORS.inkMuted, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 600 }}>
-          {booking.startDate.slice(0, 3)}
-        </span>
-      </span>
+      <DateBlock day={day} month={month} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
           {booking.client} · {booking.brief}
@@ -7531,7 +7534,7 @@ export function TalentAvailabilityDrawer() {
  * for travel) than blocking specific date ranges.
  */
 export function TalentBlockDatesDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-block-dates";
   const p = MY_TALENT_PROFILE;
 
@@ -7622,9 +7625,15 @@ export function TalentBlockDatesDrawer() {
           </div>
         </section>
 
-        {/* ─── 3. Block specific dates ──────────────────────────── */}
+        {/* ─── 3. Add to your calendar ────────────────────────────
+            Two action paths into the full Add Event drawer. Replaces the
+            prior inline From/To/Reason form because the dedicated drawer
+            does it better — reason chips, currency picker, advanced
+            details, source attribution. The Availability drawer now
+            handles the simple state (location + toggles) and hands off
+            to the richer flow when the talent needs to log or block. */}
         <section>
-          <SubsectionLabel>Block specific dates</SubsectionLabel>
+          <SubsectionLabel>Add to your calendar</SubsectionLabel>
           <div
             style={{
               marginTop: 6,
@@ -7634,26 +7643,122 @@ export function TalentBlockDatesDrawer() {
               marginBottom: 10,
             }}
           >
-            One-off windows when you can't work — travel, family, conflict.
+            Track work you did off-platform, or block dates when you can't work.
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <FieldRow label="From">
-              <TextInput placeholder="May 22, 2026" />
-            </FieldRow>
-            <FieldRow label="To">
-              <TextInput placeholder="May 26, 2026" />
-            </FieldRow>
-            <FieldRow
-              label="Reason"
-              optional
-              hint="Visible to your agencies."
-            >
-              <TextInput placeholder="Travel · personal · other" />
-            </FieldRow>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <AvailabilityAddAction
+              icon="credit"
+              tone="success"
+              title="Log work"
+              body="Off-platform booking — adds to earnings + calendar."
+              onClick={() => {
+                openDrawer("talent-add-event", { mode: "work" });
+              }}
+            />
+            <AvailabilityAddAction
+              icon="lock"
+              tone="caution"
+              title="Block time"
+              body="Vacation, day job, school, family — anything that means you're not available."
+              onClick={() => {
+                openDrawer("talent-add-event", { mode: "block" });
+              }}
+            />
           </div>
         </section>
       </div>
     </DrawerShell>
+  );
+}
+
+/**
+ * Compact action row used inside the Availability drawer's "Add to your
+ * calendar" section. Tinted icon chip + title + body + chevron. Click
+ * launches the full TalentAddEventDrawer in the appropriate mode.
+ */
+function AvailabilityAddAction({
+  icon,
+  tone,
+  title,
+  body,
+  onClick,
+}: {
+  icon: "credit" | "lock";
+  tone: "success" | "caution";
+  title: string;
+  body: string;
+  onClick: () => void;
+}) {
+  const palette = {
+    success: { bg: "rgba(46,125,91,0.10)", fg: COLORS.green },
+    caution: { bg: "rgba(82,96,109,0.10)", fg: COLORS.amber },
+  }[tone];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        width: "100%",
+        padding: "12px 14px",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        textAlign: "left",
+        transition: "border-color .12s, transform .12s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = COLORS.border;
+        e.currentTarget.style.transform = "translateY(-1px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = COLORS.borderSoft;
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 7,
+          background: palette.bg,
+          color: palette.fg,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Icon name={icon} size={13} stroke={1.7} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: COLORS.ink,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            marginTop: 2,
+            lineHeight: 1.4,
+          }}
+        >
+          {body}
+        </div>
+      </div>
+      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+    </button>
   );
 }
 
