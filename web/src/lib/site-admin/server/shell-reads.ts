@@ -54,10 +54,13 @@ export function loadPublishedShell(
     async (): Promise<PublishedShell | null> => {
       const supabase = createPublicSupabaseClient();
       if (!supabase) return null;
+      // Phase B.2.A fix (2026-04-26): direct SELECT on cms_pages is blocked
+      // by anon RLS; the public read path goes through the SECURITY INVOKER
+      // RPC `cms_public_pages_for_tenant` which sets the tenant GUC so the
+      // tenant-aware policy permits the row. Same pattern as loadPublicPage.
       const { data, error } = await supabase
-        .from("cms_pages")
+        .rpc("cms_public_pages_for_tenant", { p_tenant_id: tenantId })
         .select(SELECT)
-        .eq("tenant_id", tenantId)
         .eq("locale", locale)
         .eq("system_template_key", "site_shell")
         .maybeSingle<ShellRow>();
