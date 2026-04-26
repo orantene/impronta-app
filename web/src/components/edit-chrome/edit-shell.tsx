@@ -18,7 +18,7 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { EditProvider, useEditContext, type EditDevice } from "./edit-context";
 import { SelectionLayer } from "./selection-layer";
@@ -164,6 +164,47 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     locale,
     availableLocales,
   } = useEditContext();
+
+  // Phase A (2026-04-26) — convergence-plan §1 deep-link contract.
+  //
+  // The Phase 0 redirects from the legacy `/admin/site-settings/{sections,
+  // structure}` routes land an operator at `/?edit=1&panel=<name>`. This
+  // first-paint effect reads `?panel=` and dispatches to the matching
+  // drawer, then strips the param so a reload doesn't re-pin and so URL
+  // sharing stays clean. Honors a deliberate set of valid panel names; an
+  // unknown value is a silent no-op (the operator just lands in the editor).
+  //
+  // `panel=sections` is intentionally a no-op drawer-wise: per the
+  // convergence plan, the canvas itself IS the section navigator, so
+  // landing on `?edit=1` is sufficient. We still consume the param so the
+  // URL clears on first paint.
+  const ranPanelDispatchRef = useRef(false);
+  useEffect(() => {
+    if (ranPanelDispatchRef.current) return;
+    ranPanelDispatchRef.current = true;
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const panel = url.searchParams.get("panel");
+    if (!panel) return;
+    const dispatch: Record<string, (() => void) | "noop"> = {
+      publish: openPublish,
+      pageSettings: openPageSettings,
+      revisions: openRevisions,
+      theme: openTheme,
+      assets: openAssets,
+      schedule: openSchedule,
+      comments: openComments,
+      // Canvas is the sections navigator; landing in edit mode is enough.
+      sections: "noop",
+    };
+    const handler = dispatch[panel];
+    if (typeof handler === "function") handler();
+    url.searchParams.delete("panel");
+    window.history.replaceState(null, "", url.toString());
+    // We deliberately depend on the open* callbacks so they're stable
+    // references at first-paint. They come from useCallback in EditProvider.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

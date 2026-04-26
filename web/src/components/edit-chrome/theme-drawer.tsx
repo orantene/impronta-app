@@ -75,10 +75,18 @@ import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
 import { GoogleFontPicker } from "./GoogleFontPicker";
 import { ContrastChecker } from "./ContrastChecker";
 import { BrandKitImport } from "./BrandKitImport";
+import { MeshGradientGenerator } from "./MeshGradientGenerator";
 import { classifyContrast, contrastRatio } from "@/lib/site-admin/a11y/contrast";
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 
+// Phase A (2026-04-26) — convergence-plan §1 / mockup §12.
+// Tab strip kept verbatim from the approved prototype (Colors / Typography /
+// Layout / Effects / Code). The "calmer Theme experience" is delivered INSIDE
+// the Code tab (formerly a wall of three peer surfaces — JSON + import +
+// nothing for mesh) by introducing a clear two-card hierarchy: Theme JSON at
+// top, Power tools disclosure card below. The everyday tabs (Colors →
+// Typography → Layout → Effects) are unchanged.
 type TabKey = "colors" | "typography" | "layout" | "effects" | "code";
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
@@ -694,7 +702,7 @@ export function ThemeDrawer(): ReactElement | null {
               />
             ) : null}
             {tab === "code" ? (
-              <CodeTab
+              <AdvancedTab
                 draft={draft}
                 onResetDefaults={resetToDefaults}
                 onBulkApply={(tokens) => {
@@ -917,7 +925,26 @@ function PresetsTab({
   );
 }
 
-function CodeTab({
+/**
+ * Phase A (2026-04-26) — convergence-plan §1 / mockup §12.
+ *
+ * The legacy CodeTab mixed three things into one panel without hierarchy:
+ * the JSON view, the brand-kit importer, and (implicitly) anywhere else the
+ * theme had power-user tools. AdvancedTab restores the hierarchy:
+ *
+ *   1. **Theme JSON** card — read-only export + copy + reset (the original
+ *      CodeTab payload). This is the single most-used advanced affordance,
+ *      so it stays at the top.
+ *   2. **Power tools** disclosures — BrandKitImport and MeshGradientGenerator.
+ *      Each is its own collapsed-by-default `<details>` block so the panel
+ *      reads as a quiet menu of options, not a wall of three competing
+ *      surfaces. Operators who don't need them never see their bodies.
+ *
+ * The everyday tabs (Colors / Typography / Layout / Effects) are unchanged.
+ * The "Advanced" label on the tab itself signals: power-user territory,
+ * not "secret features." Compare against builder-experience.html §12.
+ */
+function AdvancedTab({
   draft,
   onResetDefaults,
   onBulkApply,
@@ -945,86 +972,161 @@ function CodeTab({
   }, [json]);
 
   return (
-    <Card>
-      <CardHead
-        icon={<CodeIcon />}
-        title="Theme JSON"
-        sub={`${Object.keys(draft).length} tokens`}
-        action={
-          <button
-            type="button"
-            onClick={() => void onCopy()}
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: copied ? CHROME.green : CHROME.blue,
-              background: "transparent",
-              border: "none",
-              padding: "2px 4px",
-              cursor: "pointer",
-            }}
-          >
-            {copied ? "Copied" : "Copy"}
-          </button>
-        }
-      />
-      <CardBody padding="tight">
-        <div style={{ marginBottom: 12 }}>
-          <BrandKitImport onApply={onBulkApply} />
-        </div>
-        <textarea
-          readOnly
-          value={json}
-          spellCheck={false}
-          style={{
-            width: "100%",
-            minHeight: 240,
-            maxHeight: "60vh",
-            padding: "10px 12px",
-            fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-            fontSize: 11.5,
-            lineHeight: 1.5,
-            color: CHROME.text2,
-            background: CHROME.paper,
-            border: `1px solid ${CHROME.line}`,
-            borderRadius: 7,
-            resize: "vertical",
-            outline: "none",
-            boxShadow: CHROME_SHADOWS.inputInset,
-          }}
+    <>
+      <Card>
+        <CardHead
+          icon={<CodeIcon />}
+          title="Theme JSON"
+          sub={`${Object.keys(draft).length} tokens`}
+          action={
+            <button
+              type="button"
+              onClick={() => void onCopy()}
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: copied ? CHROME.green : CHROME.blue,
+                background: "transparent",
+                border: "none",
+                padding: "2px 4px",
+                cursor: "pointer",
+              }}
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          }
         />
-        <div
-          style={{
-            marginTop: 10,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <span style={{ fontSize: 11, color: CHROME.muted }}>
-            Read-only — edit through the controls above.
-          </span>
-          <button
-            type="button"
-            onClick={onResetDefaults}
+        <CardBody padding="tight">
+          <textarea
+            readOnly
+            value={json}
+            spellCheck={false}
             style={{
-              fontSize: 11,
-              fontWeight: 500,
-              color: CHROME.muted,
-              background: "transparent",
-              border: "none",
-              padding: "2px 4px",
-              cursor: "pointer",
-              textDecoration: "underline",
-              textUnderlineOffset: 3,
+              width: "100%",
+              minHeight: 240,
+              maxHeight: "60vh",
+              padding: "10px 12px",
+              fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+              fontSize: 11.5,
+              lineHeight: 1.5,
+              color: CHROME.text2,
+              background: CHROME.paper,
+              border: `1px solid ${CHROME.line}`,
+              borderRadius: 7,
+              resize: "vertical",
+              outline: "none",
+              boxShadow: CHROME_SHADOWS.inputInset,
+            }}
+          />
+          <div
+            style={{
+              marginTop: 10,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 8,
             }}
           >
-            Reset to platform defaults
-          </button>
-        </div>
-      </CardBody>
-    </Card>
+            <span style={{ fontSize: 11, color: CHROME.muted }}>
+              Read-only — edit through the controls above.
+            </span>
+            <button
+              type="button"
+              onClick={onResetDefaults}
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: CHROME.muted,
+                background: "transparent",
+                border: "none",
+                padding: "2px 4px",
+                cursor: "pointer",
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+              }}
+            >
+              Reset to platform defaults
+            </button>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHead
+          icon={null}
+          title="Power tools"
+          sub="Bulk-apply tokens or generate visual recipes."
+        />
+        <CardBody>
+          <details
+            style={{
+              borderRadius: 7,
+              border: `1px solid ${CHROME.line}`,
+              background: CHROME.surface,
+              padding: "10px 12px",
+              marginBottom: 8,
+            }}
+          >
+            <summary
+              style={{
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+                color: CHROME.ink,
+              }}
+            >
+              Brand-kit import
+              <span
+                style={{
+                  marginLeft: 6,
+                  fontSize: 11,
+                  fontWeight: 400,
+                  color: CHROME.muted,
+                }}
+              >
+                Paste a JSON token bundle or extract from a URL.
+              </span>
+            </summary>
+            <div style={{ marginTop: 10 }}>
+              <BrandKitImport onApply={onBulkApply} />
+            </div>
+          </details>
+
+          <details
+            style={{
+              borderRadius: 7,
+              border: `1px solid ${CHROME.line}`,
+              background: CHROME.surface,
+              padding: "10px 12px",
+            }}
+          >
+            <summary
+              style={{
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+                color: CHROME.ink,
+              }}
+            >
+              Mesh gradient generator
+              <span
+                style={{
+                  marginLeft: 6,
+                  fontSize: 11,
+                  fontWeight: 400,
+                  color: CHROME.muted,
+                }}
+              >
+                Compose a free mesh background and copy the CSS.
+              </span>
+            </summary>
+            <div style={{ marginTop: 10 }}>
+              <MeshGradientGenerator />
+            </div>
+          </details>
+        </CardBody>
+      </Card>
+    </>
   );
 }
 

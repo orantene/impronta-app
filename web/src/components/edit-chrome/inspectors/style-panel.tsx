@@ -302,59 +302,101 @@ export function StylePanel({
         </div>
       </section>
 
-      {/* ── Custom CSS (per-section escape hatch, scoped to this section) ─ */}
-      <section className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className={SECTION_TITLE}>Custom CSS</div>
+      {/*
+        ── Advanced (Phase A 2026-04-26) ────────────────────────────────────
+        Custom CSS is now folded into a collapsible "Advanced" disclosure at
+        the bottom of the Style panel. Reasoning: 90% of operators don't write
+        custom CSS, and an always-visible textarea ahead of the more-common
+        controls (background mode, divider, video, etc.) made the panel feel
+        like an admin form, not a Style panel.
+
+        It is NOT hidden in the way a power-user feature would be hidden —
+        it has its own labelled disclosure with a clear "Custom CSS" title
+        and the existing scoped-to-this-section warning. An operator who has
+        custom CSS set sees the row marker (•) so they know the field is in
+        use even before opening the disclosure. Opening it preserves the
+        original Clear button + textarea + hint — no behavior changes.
+        Convergence-plan §1 / DEMOTE bucket.
+      */}
+      <details
+        open={Boolean(customCss)}
+        className="flex flex-col gap-2"
+      >
+        <summary
+          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.18em]"
+          style={{ color: CHROME.muted }}
+        >
+          Advanced
           {customCss ? (
-            <button
-              type="button"
-              onClick={() =>
-                onPatch({ __presentation: { customCss: undefined } })
-              }
-              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+            <span
+              aria-hidden
               style={{
-                background: "transparent",
-                border: "none",
-                color: CHROME.muted,
-                padding: 0,
+                marginLeft: 8,
+                width: 6,
+                height: 6,
+                background: CHROME.blue,
+                borderRadius: 999,
+                display: "inline-block",
+                verticalAlign: "middle",
               }}
-            >
-              Clear
-            </button>
+            />
           ) : null}
-        </div>
-        <textarea
-          value={customCss}
-          onChange={(e) =>
-            onPatch({
-              __presentation: { customCss: e.target.value || undefined },
-            })
-          }
-          placeholder={
-            "/* Scoped to this section. Modern CSS supported. */\n.site-section-headline {\n  letter-spacing: -0.02em;\n}"
-          }
-          spellCheck={false}
-          rows={6}
-          className="w-full px-2 py-2"
-          style={{
-            fontSize: 11.5,
-            lineHeight: 1.45,
-            fontFamily: "ui-monospace, SFMono-Regular, monospace",
-            background: CHROME.surface2,
-            border: `1px solid ${CHROME.lineMid}`,
-            borderRadius: 6,
-            color: CHROME.ink,
-            outline: "none",
-            resize: "vertical",
-            minHeight: 110,
-          }}
-        />
-        <span className={HINT}>
-          Wrapped in <code>[data-section-id]</code> so it can&apos;t leak
-          across sections. Use <code>&amp;</code> to nest.
-        </span>
-      </section>
+        </summary>
+        <section className="mt-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <div className={SECTION_TITLE}>Custom CSS</div>
+            {customCss ? (
+              <button
+                type="button"
+                onClick={() =>
+                  onPatch({ __presentation: { customCss: undefined } })
+                }
+                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: CHROME.muted,
+                  padding: 0,
+                }}
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+          <textarea
+            value={customCss}
+            onChange={(e) =>
+              onPatch({
+                __presentation: { customCss: e.target.value || undefined },
+              })
+            }
+            placeholder={
+              "/* Scoped to this section. Modern CSS supported. */\n.site-section-headline {\n  letter-spacing: -0.02em;\n}"
+            }
+            spellCheck={false}
+            rows={6}
+            className="w-full px-2 py-2"
+            style={{
+              fontSize: 11.5,
+              lineHeight: 1.45,
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.lineMid}`,
+              borderRadius: 6,
+              color: CHROME.ink,
+              outline: "none",
+              resize: "vertical",
+              minHeight: 110,
+            }}
+          />
+          <span className={HINT}>
+            Per-section escape hatch. Wrapped in{" "}
+            <code>[data-section-id]</code> so it can&apos;t leak across
+            sections. Use <code>&amp;</code> to nest. Use sparingly — most
+            visual changes belong in Layout, Style, or the Theme drawer.
+          </span>
+        </section>
+      </details>
 
       {/* ── Divider ──────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">

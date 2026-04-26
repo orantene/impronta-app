@@ -543,8 +543,8 @@ Use this section to track progress. Add a row per phase as it ships.
 
 | Phase | Status | Started | Shipped | Commit | Notes |
 |---|---|---|---|---|---|
-| 0 — Immediate sweep | not started | | | | |
-| A — Convergence cleanup | not started | | | | |
+| 0 — Immediate sweep | shipped | 2026-04-26 | 2026-04-26 | `d05ec75` | 11 admin-shell files removed; sections CRUD route → redirect; starter-action moved to lib/edit-mode; Code+Templates tabs out of page-settings; dev chips unmounted; ARIA wired into preflight; tsc clean. Promoted to prod (`dpl_DC6i47jrr3ENCw6DzpGWV1Z2SGKk`); bundle hash swap verified on `impronta.tulala.digital`. |
+| A — Convergence cleanup | shipped | 2026-04-26 | 2026-04-26 | (this commit) | Theme drawer Code tab restructured into Theme JSON + Power tools cards (BrandKitImport + MeshGradientGenerator finally wired); customCss demoted to Advanced `<details>` in Style panel with active-marker pip; `?panel=` first-paint deep-linking lands old admin links in the right drawer; tab strip kept verbatim to match builder-experience.html §12. Mockup compare §1/§5/§7/§12 documented in commit message. |
 | B — Header + footer editing | not started | | | | |
 | C — WYSIWYG rich text | not started | | | | |
 | D — Section-add UX | not started | | | | |
