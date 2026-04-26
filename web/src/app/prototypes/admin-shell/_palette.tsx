@@ -234,6 +234,8 @@ export function CommandPalette() {
       { id: "domain", label: "Custom domain", surface: "workspace", keywords: "domain custom storefront url" },
       { id: "notifications", label: "Notifications", keywords: "notifications bell alerts" },
       { id: "danger-zone", label: "Danger zone", surface: "workspace", keywords: "danger zone pause delete transfer" },
+      { id: "whats-new", label: "What's new", keywords: "changelog whats new release notes recent" },
+      { id: "help", label: "Help & shortcuts", keywords: "help shortcuts keybindings docs support" },
       { id: "inbox-snippets", label: "Saved snippets", surface: "workspace", keywords: "snippets canned response template reply" },
       { id: "notifications-prefs", label: "Notification preferences", keywords: "notification preferences settings email digest quiet" },
       { id: "data-export", label: "Export workspace data", surface: "workspace", keywords: "export download data backup gdpr off-boarding" },

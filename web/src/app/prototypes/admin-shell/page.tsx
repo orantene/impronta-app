@@ -288,6 +288,11 @@ export default function AdminShellPrototypePage() {
             0%, 80%, 100% { opacity: 0.25; }
             40% { opacity: 1; }
           }
+          /* Skeleton shimmer — left-to-right gradient sweep. */
+          @keyframes tulalaSkeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
           [data-tulala-density="compact"] .tulala-shell [data-tulala-row] {
             padding-top: 8px !important;
             padding-bottom: 8px !important;

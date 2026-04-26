@@ -505,7 +505,9 @@ export type DrawerId =
   | "data-export"
   | "audit-log"
   | "tenant-switcher"
-  | "talent-share-card";
+  | "talent-share-card"
+  | "whats-new"
+  | "help";
 
 export type DrawerContext = {
   drawerId: DrawerId | null;

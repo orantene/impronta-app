@@ -74,6 +74,8 @@ import {
   TalentShareCardDrawer,
   InquiryTemplatesPicker,
   DoubleBookingWarning,
+  WhatsNewDrawer,
+  HelpDrawer,
 } from "./_wave2";
 import {
   TalentTodayPulseDrawer,
@@ -459,6 +461,10 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TenantSwitcherDrawer />;
     case "talent-share-card":
       return <TalentShareCardDrawer />;
+    case "whats-new":
+      return <WhatsNewDrawer />;
+    case "help":
+      return <HelpDrawer />;
 
     default:
       return <SimpleStubDrawer title="Coming up next" description="This drawer's full design lands in the next iteration." sections={[]} />;

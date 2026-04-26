@@ -3389,6 +3389,215 @@ export function SwipeableRow({
   );
 }
 
+// ─── Skeleton ────────────────────────────────────────────────────────
+/**
+ * Loading-state placeholder. A muted block with a shimmering gradient.
+ * Use any time we mount a real-data list/card before the data arrives,
+ * so the layout doesn't pop and dimensions stay stable. Inherits height
+ * + width from props or sets a sensible default.
+ */
+export function Skeleton({
+  width,
+  height = 16,
+  radius = 6,
+  style,
+}: {
+  width?: number | string;
+  height?: number | string;
+  radius?: number;
+  style?: CSSProperties;
+}) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: "inline-block",
+        width: width ?? "100%",
+        height,
+        borderRadius: radius,
+        background:
+          "linear-gradient(90deg, rgba(11,11,13,0.04) 25%, rgba(11,11,13,0.08) 50%, rgba(11,11,13,0.04) 75%)",
+        backgroundSize: "200% 100%",
+        animation: "tulalaSkeleton 1.4s ease-in-out infinite",
+        ...style,
+      }}
+    />
+  );
+}
+
+// ─── KeyboardListNav ─────────────────────────────────────────────────
+/**
+ * j/k-style row navigation hook for list pages. Hooks into a ref of
+ * focusable row elements; j/Down moves selection forward, k/Up backward,
+ * Enter activates. Skips when focus is in a text input so typing isn't
+ * hijacked.
+ *
+ * Pattern: each row in the list gets ref={(el) => rowsRef.current[i] = el}
+ * plus a tabindex / data-attr. The hook listens at window level and
+ * focuses+highlights rows on key.
+ */
+export function useKeyboardListNav<T extends HTMLElement = HTMLElement>({
+  rows,
+  onActivate,
+}: {
+  rows: (T | null)[];
+  onActivate?: (index: number) => void;
+}) {
+  const [activeIdx, setActiveIdx] = useState(0);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const live = rows.filter((r): r is T => r !== null);
+      if (live.length === 0) return;
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIdx((i) => {
+          const next = Math.min(i + 1, live.length - 1);
+          live[next]?.focus();
+          return next;
+        });
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIdx((i) => {
+          const next = Math.max(i - 1, 0);
+          live[next]?.focus();
+          return next;
+        });
+      } else if (e.key === "Enter") {
+        if (onActivate) {
+          e.preventDefault();
+          onActivate(activeIdx);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [rows, onActivate, activeIdx]);
+  return activeIdx;
+}
+
+// ─── BulkSelect ──────────────────────────────────────────────────────
+/**
+ * Sticky multi-select toolbar that shows when one or more list rows
+ * are selected. Drop a row checkbox into each list item via the small
+ * <BulkRowCheckbox> primitive, manage a Set<string> of selected ids in
+ * the parent, and render <BulkSelectBar> at the top of the page.
+ *
+ * Pattern is intentionally generic — actions are a per-list concern;
+ * this primitive only handles "show the bar when N selected" + "clear".
+ */
+export function BulkSelectBar({
+  count,
+  onClear,
+  actions,
+}: {
+  count: number;
+  onClear: () => void;
+  actions: { label: string; onClick: () => void; tone?: "ink" | "red" }[];
+}) {
+  if (count === 0) return null;
+  return (
+    <div
+      data-tulala-row
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        background: COLORS.ink,
+        color: "#fff",
+        borderRadius: 10,
+        marginBottom: 12,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <span style={{ fontSize: 13, fontWeight: 500 }}>
+        {count} selected
+      </span>
+      <button
+        type="button"
+        onClick={onClear}
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "rgba(255,255,255,0.65)",
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        Clear
+      </button>
+      <span style={{ flex: 1 }} />
+      {actions.map((a, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={a.onClick}
+          style={{
+            background: a.tone === "red" ? COLORS.red : "rgba(255,255,255,0.10)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 7,
+            padding: "6px 12px",
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
+        >
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function BulkRowCheckbox({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange();
+      }}
+      aria-checked={checked}
+      role="checkbox"
+      style={{
+        width: 18,
+        height: 18,
+        borderRadius: 5,
+        border: `1.5px solid ${checked ? COLORS.ink : COLORS.borderStrong}`,
+        background: checked ? COLORS.ink : "transparent",
+        color: "#fff",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        padding: 0,
+      }}
+    >
+      {checked && <Icon name="check" size={11} stroke={2.4} color="#fff" />}
+    </button>
+  );
+}
+
 // ─── Popover ─────────────────────────────────────────────────────────
 /**
  * Hover/focus-triggered popover with a 200ms open delay (vs. the 700ms

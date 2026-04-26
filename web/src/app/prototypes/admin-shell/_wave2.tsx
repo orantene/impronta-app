@@ -24,7 +24,7 @@
  * the main _state.tsx until any of these graduate to "real."
  */
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   COLORS,
   FONTS,
@@ -1755,6 +1755,601 @@ export function SavedViewsBar<T>({
     </div>
   );
 }
+
+// ════════════════════════════════════════════════════════════════════
+// #3 — LoadMore pagination primitive
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Generic "Load more" pagination wrapper. Slices the input array based
+ * on `pageSize` * `pagesShown` and renders a button at the bottom that
+ * extends `pagesShown`. Each list page tracks its own state — no
+ * coordination across pages.
+ *
+ * Real version would call a `loadMore` server action; this is shape-
+ * compatible (just swap the slice for the API call later).
+ */
+export function LoadMore({
+  total,
+  shown,
+  onMore,
+}: {
+  total: number;
+  shown: number;
+  onMore: () => void;
+}) {
+  if (shown >= total) {
+    return (
+      <div
+        style={{
+          padding: "16px 0 0",
+          textAlign: "center",
+          fontSize: 11.5,
+          color: COLORS.inkDim,
+          fontFamily: FONTS.body,
+        }}
+      >
+        End of list · {total} {total === 1 ? "item" : "items"}
+      </div>
+    );
+  }
+  return (
+    <div style={{ padding: "16px 0 0", textAlign: "center" }}>
+      <button
+        type="button"
+        onClick={onMore}
+        style={{
+          padding: "8px 16px",
+          background: "#fff",
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 8,
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: COLORS.ink,
+          cursor: "pointer",
+        }}
+      >
+        Load more · {total - shown} remaining
+      </button>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #4 — DraggableList primitive (HTML5 drag/drop)
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Minimal HTML5 drag-and-drop reorder. Each row sets draggable, and
+ * onDragOver/onDrop swap positions in the consumer's array. Touch users
+ * get a fallback up/down button pair next to each row (mobile DnD via
+ * native HTML5 doesn't work).
+ */
+export function DraggableList<T extends { id: string }>({
+  items,
+  onReorder,
+  renderItem,
+}: {
+  items: T[];
+  onReorder: (next: T[]) => void;
+  renderItem: (item: T, index: number) => ReactNode;
+}) {
+  const [dragId, setDragId] = useState<string | null>(null);
+  const move = (from: number, to: number) => {
+    if (from === to || to < 0 || to >= items.length) return;
+    const next = items.slice();
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item!);
+    onReorder(next);
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {items.map((item, idx) => (
+        <div
+          key={item.id}
+          draggable
+          onDragStart={() => setDragId(item.id)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            if (!dragId || dragId === item.id) return;
+            const fromIdx = items.findIndex((i) => i.id === dragId);
+            move(fromIdx, idx);
+          }}
+          onDragEnd={() => setDragId(null)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: dragId === item.id ? COLORS.accentSoft : "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 9,
+            padding: 10,
+            cursor: "grab",
+            opacity: dragId === item.id ? 0.6 : 1,
+            transition: "opacity .12s",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              fontSize: 14,
+              color: COLORS.inkDim,
+              padding: "0 4px",
+              lineHeight: 1,
+            }}
+          >
+            ⋮⋮
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>{renderItem(item, idx)}</div>
+          {/* Mobile/keyboard fallback — up/down arrows */}
+          <button
+            type="button"
+            aria-label={`Move ${item.id} up`}
+            onClick={() => move(idx, idx - 1)}
+            disabled={idx === 0}
+            style={arrowBtnStyle(idx === 0)}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            aria-label={`Move ${item.id} down`}
+            onClick={() => move(idx, idx + 1)}
+            disabled={idx === items.length - 1}
+            style={arrowBtnStyle(idx === items.length - 1)}
+          >
+            ↓
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const arrowBtnStyle = (disabled: boolean): React.CSSProperties => ({
+  width: 24,
+  height: 24,
+  borderRadius: 5,
+  border: "none",
+  background: "transparent",
+  color: disabled ? COLORS.inkDim : COLORS.inkMuted,
+  cursor: disabled ? "default" : "pointer",
+  fontSize: 12,
+  opacity: disabled ? 0.3 : 1,
+});
+
+// ════════════════════════════════════════════════════════════════════
+// #6 — DrawerCopyLink button (drop into DrawerShell toolbar slot)
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Copies the current URL to the clipboard. The drawer state already
+ * lives in the URL (see ProtoProvider's drawer query-param sync), so
+ * this gives users a one-click "share this exact view" affordance.
+ */
+export function DrawerCopyLink() {
+  const { toast } = useProto();
+  return (
+    <button
+      type="button"
+      title="Copy link to this drawer"
+      aria-label="Copy link to this drawer"
+      onClick={() => {
+        if (typeof window === "undefined") return;
+        navigator.clipboard?.writeText(window.location.href);
+        toast("Link copied — anyone with access lands here.");
+      }}
+      style={{
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        border: `1px solid ${COLORS.borderSoft}`,
+        background: "#fff",
+        color: COLORS.inkMuted,
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 12,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = COLORS.border;
+        e.currentTarget.style.color = COLORS.ink;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = COLORS.borderSoft;
+        e.currentTarget.style.color = COLORS.inkMuted;
+      }}
+    >
+      🔗
+    </button>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #7 — MentionTypeahead UI shell
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Lightweight @-typeahead. Watches a textarea's value; when the cursor
+ * sits after an "@" + N alphanumeric chars, opens a dropdown of matched
+ * teammates. Pick → splice the username into the textarea.
+ *
+ * Mock teammate list — production reads from `tenant_members`.
+ */
+const MOCK_MENTIONS = [
+  { id: "u1", name: "Lina Park", role: "Coordinator" },
+  { id: "u2", name: "Andrés López", role: "Editor" },
+  { id: "u3", name: "Marta Reyes", role: "Talent" },
+  { id: "u4", name: "Estudio Solé", role: "Client" },
+];
+
+export function MentionTypeahead({
+  value,
+  onChange,
+  textareaRef,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+}) {
+  // Detect @<chars> at the current cursor position.
+  const match = useMemo(() => {
+    if (typeof window === "undefined" || !textareaRef.current) return null;
+    const ta = textareaRef.current;
+    const upTo = value.slice(0, ta.selectionStart);
+    const m = /@([\w]*)$/.exec(upTo);
+    if (!m) return null;
+    return { query: m[1] ?? "", offset: m.index, full: m[0] };
+  }, [value, textareaRef]);
+
+  if (!match) return null;
+  const filtered = MOCK_MENTIONS.filter((u) =>
+    u.name.toLowerCase().includes(match.query.toLowerCase()),
+  );
+  if (filtered.length === 0) return null;
+
+  const insert = (name: string) => {
+    const before = value.slice(0, match.offset);
+    const after = value.slice(match.offset + match.full.length);
+    onChange(`${before}@${name.replace(/\s+/g, "")} ${after}`);
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: "100%",
+        left: 0,
+        marginBottom: 6,
+        background: "#fff",
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 8,
+        boxShadow: "0 8px 24px rgba(11,11,13,0.10)",
+        minWidth: 220,
+        zIndex: 4,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {filtered.slice(0, 5).map((u) => (
+        <button
+          key={u.id}
+          type="button"
+          onClick={() => insert(u.name)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            width: "100%",
+            padding: "8px 10px",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          <Avatar initials={u.name.split(" ").map((p) => p[0]).join("").slice(0, 2)} hashSeed={u.name} size={22} tone="auto" />
+          <span style={{ flex: 1 }}>{u.name}</span>
+          <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{u.role}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #8 — QuickReplyButtons (offer-pending inline)
+// ════════════════════════════════════════════════════════════════════
+export function QuickReplyButtons({
+  onAccept,
+  onCounter,
+  onDecline,
+}: {
+  onAccept: () => void;
+  onCounter: () => void;
+  onDecline: () => void;
+}) {
+  return (
+    <div style={{ display: "inline-flex", gap: 6 }}>
+      <button
+        type="button"
+        onClick={onAccept}
+        style={quickReplyStyle("ink")}
+      >
+        Accept
+      </button>
+      <button
+        type="button"
+        onClick={onCounter}
+        style={quickReplyStyle("ghost")}
+      >
+        Counter
+      </button>
+      <button
+        type="button"
+        onClick={onDecline}
+        style={quickReplyStyle("red")}
+      >
+        Decline
+      </button>
+    </div>
+  );
+}
+
+function quickReplyStyle(tone: "ink" | "ghost" | "red"): React.CSSProperties {
+  const palette =
+    tone === "ink"
+      ? { bg: COLORS.ink, fg: "#fff", border: COLORS.ink }
+      : tone === "red"
+        ? { bg: "transparent", fg: COLORS.red, border: "rgba(176,48,58,0.30)" }
+        : { bg: "#fff", fg: COLORS.ink, border: COLORS.border };
+  return {
+    background: palette.bg,
+    color: palette.fg,
+    border: `1px solid ${palette.border}`,
+    borderRadius: 7,
+    padding: "5px 10px",
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: "pointer",
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #9 — CSV export helper
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Convert an array of rows to a CSV string and trigger a download. No
+ * dependencies; quote-escapes anything with comma/quote/newline.
+ */
+export function downloadCsv(filename: string, rows: Record<string, unknown>[]) {
+  if (rows.length === 0) return;
+  const headers = Array.from(
+    rows.reduce((set, r) => {
+      Object.keys(r).forEach((k) => set.add(k));
+      return set;
+    }, new Set<string>()),
+  );
+  const escape = (v: unknown) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+  const lines = [
+    headers.join(","),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #24 — WhatsNewDrawer (changelog)
+// ════════════════════════════════════════════════════════════════════
+
+const CHANGELOG: { date: string; title: string; body: string }[] = [
+  {
+    date: "Apr 26",
+    title: "Command palette · ⌘K",
+    body: "Jump to any surface, page, plan, or drawer. Press ? for the shortcut list.",
+  },
+  {
+    date: "Apr 25",
+    title: "Mobile bottom tab bar + native-feel swipe rows",
+    body: "Drag inbox rows for Snooze / Pin / Archive. The page nav moved to the bottom on small screens.",
+  },
+  {
+    date: "Apr 24",
+    title: "Plan-compare drawer rebuilt",
+    body: "Tooltip icons replace inline explainers. Sticky headers, pinned footer, mobile horizontal scroll.",
+  },
+  {
+    date: "Apr 22",
+    title: "Forest accent palette + mobile-first responsive layer",
+    body: "Goodbye gold/rust. Drawers go full-bleed on phones; grids collapse to one column.",
+  },
+];
+
+export function WhatsNewDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "whats-new";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="What's new"
+      description="Recent product updates, newest first."
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {CHANGELOG.map((item, idx) => (
+          <div
+            key={idx}
+            data-tulala-row
+            style={{
+              display: "flex",
+              gap: 14,
+              paddingBottom: 12,
+              borderBottom:
+                idx === CHANGELOG.length - 1 ? "none" : `1px solid ${COLORS.borderSoft}`,
+            }}
+          >
+            <div
+              style={{
+                width: 56,
+                flexShrink: 0,
+                fontFamily: FONTS.mono,
+                fontSize: 11,
+                color: COLORS.inkDim,
+                textTransform: "uppercase",
+                letterSpacing: 0.4,
+                paddingTop: 1,
+              }}
+            >
+              {item.date}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                {item.title}
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: COLORS.inkMuted,
+                  marginTop: 4,
+                  lineHeight: 1.55,
+                }}
+              >
+                {item.body}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// #25 — HelpDrawer
+// ════════════════════════════════════════════════════════════════════
+export function HelpDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "help";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Help"
+      description="Keyboard shortcuts, getting-started videos, and how to reach support."
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: 14,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 10 }}>
+            Keyboard shortcuts
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: FONTS.body }}>
+            {(
+              [
+                ["⌘K · Ctrl+K", "Command palette"],
+                ["?", "Show this list"],
+                ["Esc", "Close drawers / overlays"],
+                ["j / k", "Navigate list rows"],
+                ["Enter", "Open selected row"],
+              ] as const
+            ).map(([key, desc]) => (
+              <div key={key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span
+                  style={{
+                    fontFamily: FONTS.mono,
+                    fontSize: 11,
+                    padding: "2px 7px",
+                    background: "rgba(11,11,13,0.06)",
+                    color: COLORS.ink,
+                    borderRadius: 5,
+                    minWidth: 80,
+                  }}
+                >
+                  {key}
+                </span>
+                <span style={{ fontSize: 12.5, color: COLORS.inkMuted }}>{desc}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: 14,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, marginBottom: 10 }}>
+            Get help
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => toast("Docs site opens in production")}
+              style={helpRowStyle}
+            >
+              Read the docs →
+            </button>
+            <button
+              type="button"
+              onClick={() => toast("Support chat — coming soon")}
+              style={helpRowStyle}
+            >
+              Chat with support →
+            </button>
+            <button
+              type="button"
+              onClick={() => toast("Calendar booking — coming soon")}
+              style={helpRowStyle}
+            >
+              Book onboarding call →
+            </button>
+          </div>
+        </section>
+      </div>
+    </DrawerShell>
+  );
+}
+
+const helpRowStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "10px 12px",
+  background: "rgba(11,11,13,0.02)",
+  border: "none",
+  borderRadius: 8,
+  fontFamily: FONTS.body,
+  fontSize: 13,
+  fontWeight: 500,
+  color: COLORS.ink,
+  cursor: "pointer",
+  textAlign: "left",
+};
 
 // ════════════════════════════════════════════════════════════════════
 // Empty wrapper to keep file shape stable for future additions

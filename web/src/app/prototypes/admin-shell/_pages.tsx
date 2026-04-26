@@ -571,47 +571,77 @@ export function WorkspaceTopbar() {
         <div data-tulala-app-topbar-right style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {canCreate && <QuickCreateMenu />}
 
-          {/* Bell */}
-          <button
-            onClick={() => openDrawer("notifications")}
-            aria-label="Notifications"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              border: `1px solid ${COLORS.borderSoft}`,
-              background: "#fff",
-              color: COLORS.inkMuted,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = COLORS.border;
-              e.currentTarget.style.color = COLORS.ink;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = COLORS.borderSoft;
-              e.currentTarget.style.color = COLORS.inkMuted;
-            }}
-          >
-            <BellIcon />
-            <span
-              style={{
-                position: "absolute",
-                top: 7,
-                right: 8,
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: COLORS.amber,
-                boxShadow: "0 0 0 2px #fff",
-              }}
-            />
-          </button>
+          {/* Bell — numbered badge with real unread count, capped at 9+.
+              Was a dot; the count makes triage faster. */}
+          {(() => {
+            // Mock unread count — production reads from notifications view.
+            const unreadCount = 3;
+            const badge = unreadCount > 9 ? "9+" : String(unreadCount);
+            return (
+              <button
+                onClick={() => openDrawer("notifications")}
+                aria-label={`Notifications${unreadCount > 0 ? ` — ${unreadCount} unread` : ""}`}
+                style={{ ...iconButtonStyle, position: "relative" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = COLORS.border;
+                  e.currentTarget.style.color = COLORS.ink;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = COLORS.borderSoft;
+                  e.currentTarget.style.color = COLORS.inkMuted;
+                }}
+              >
+                <BellIcon />
+                {unreadCount > 0 && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: -3,
+                      right: -3,
+                      minWidth: 16,
+                      height: 16,
+                      padding: "0 4px",
+                      borderRadius: 999,
+                      background: COLORS.accent,
+                      color: "#fff",
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: "0 0 0 2px #fff",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })()}
 
+          {/* Help — opens the help drawer with shortcuts + support
+              entries. Shares its hot-key (?) with the palette. */}
+          <Popover content="Help (press ?)">
+            <button
+              type="button"
+              onClick={() => openDrawer("help")}
+              aria-label="Help"
+              style={iconButtonStyle}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = COLORS.border;
+                e.currentTarget.style.color = COLORS.ink;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = COLORS.borderSoft;
+                e.currentTarget.style.color = COLORS.inkMuted;
+              }}
+            >
+              <span style={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: 14 }}>?</span>
+            </button>
+          </Popover>
           {/* Settings gear shortcut — settings is the last tab in the
               nav, but every "how do I change X" question goes here
               first. A gear in the right cluster makes it 1-click. */}
@@ -620,18 +650,7 @@ export function WorkspaceTopbar() {
               type="button"
               onClick={() => setPage("workspace")}
               aria-label="Settings"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                border: `1px solid ${COLORS.borderSoft}`,
-                background: "#fff",
-                color: COLORS.inkMuted,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              style={iconButtonStyle}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = COLORS.border;
                 e.currentTarget.style.color = COLORS.ink;
@@ -674,13 +693,51 @@ export function WorkspaceTopbar() {
             }}
             aria-label="My profile"
           >
-            <Avatar initials="OT" size={30} tone="ink" />
+            {/* Real avatar: ringed, gradient seeded by name. Initials
+                fallback if photoUrl ever resolves null. The gradient
+                is lightweight; production should swap in an uploaded
+                photo via the photoUrl prop. */}
+            <span
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                background:
+                  "conic-gradient(from 200deg at 50% 50%, #0F4F3E, #1F7B5C, #093328, #0F4F3E)",
+                color: "#fff",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: FONTS.display,
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: 0.3,
+                border: "2px solid #fff",
+                boxShadow: "0 1px 2px rgba(11,11,13,0.10)",
+              }}
+            >
+              OT
+            </span>
           </button>
         </div>
       </div>
     </header>
   );
 }
+
+// Shared icon-button shape for the workspace topbar right cluster.
+const iconButtonStyle: React.CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: 8,
+  border: `1px solid ${COLORS.borderSoft}`,
+  background: "#fff",
+  color: COLORS.inkMuted,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
 
 function BellIcon() {
   return (
@@ -744,6 +801,30 @@ function QuickCreateMenu() {
       drawer: "client-profile",
       shortcut: "G C",
       canDo: meetsRole(state.role, "coordinator") && state.plan !== "free",
+    },
+    {
+      id: "invite-team",
+      label: "Invite teammate",
+      sub: "Add a coordinator or editor",
+      drawer: "team",
+      shortcut: "G U",
+      canDo: meetsRole(state.role, "admin"),
+    },
+    {
+      id: "snippets",
+      label: "New snippet",
+      sub: "Reusable reply for the message composer",
+      drawer: "inbox-snippets",
+      shortcut: "G S",
+      canDo: meetsRole(state.role, "coordinator"),
+    },
+    {
+      id: "share-card",
+      label: "Share talent",
+      sub: "Send a client-facing standalone link",
+      drawer: "talent-share-card",
+      shortcut: "G H",
+      canDo: meetsRole(state.role, "coordinator"),
     },
   ];
 
