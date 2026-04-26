@@ -736,21 +736,262 @@ export function TenantSwitcherDrawer() {
 // "Notification settings" section underneath. Bell-icon click target.
 // ════════════════════════════════════════════════════════════════════
 
-const MOCK_TALENT_NOTIFS: {
+// ─── Notifications data model ──────────────────────────────────────
+//
+// Three categories, each with its own behavior contract:
+//
+//   action  — inquiry pipeline events that need a response. Sticky until
+//             the action is taken (offer accepted, hold confirmed, etc.).
+//             Coral tone (your-move signal). Shows when-stamp.
+//   system  — onboarding / setup / account-level guidance. Sticky until
+//             the milestone is reached. Optional progress meter. Indigo
+//             tone (informational). Persistent — clears itself when done.
+//   update  — informational events already resolved. Dismissible × .
+//             Sage (success) or indigo (neutral) tone. Auto-archive after
+//             N days in production.
+//
+// A `sticky` notification has no dismiss button — it lives until the
+// underlying state resolves. This is deliberate: it's the difference
+// between "a thing happened" (dismissible) and "you have an open loop"
+// (stays until closed). Mixing them visually = lost signal.
+
+type NotifCategory = "action" | "system" | "update";
+
+type TalentNotif = {
   id: string;
-  icon: "mail" | "user" | "calendar" | "team" | "bolt";
+  category: NotifCategory;
+  icon: "mail" | "user" | "calendar" | "team" | "bolt" | "sparkle" | "check";
+  tone?: "ink" | "coral" | "indigo" | "success" | "caution";
   title: string;
-  sub: string;
-  when: string;
+  sub?: string;
+  when?: string;
   unread?: boolean;
-  tone?: "ink" | "amber" | "green";
-}[] = [
-  { id: "tn1", icon: "mail", title: "Mango — Spring lookbook · new offer", sub: "€1,800 · awaiting your reply.", when: "5h ago", unread: true, tone: "amber" },
-  { id: "tn2", icon: "calendar", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry campaign · May 18–20.", when: "2h", unread: true, tone: "amber" },
-  { id: "tn3", icon: "user", title: "Profile 84% complete", sub: "3 fields left — polaroids, rate card, showreel.", when: "today", unread: true },
-  { id: "tn4", icon: "bolt", title: "Vogue Italia booking confirmed", sub: "Tue, May 6 · €1,800.", when: "1d ago", tone: "green" },
-  { id: "tn5", icon: "team", title: "Mango site referred 12 new views", sub: "+8 vs prior week.", when: "2d ago" },
+  /** Sticky = no dismiss. Stays until the underlying action/state resolves. */
+  sticky?: boolean;
+  /** Optional progress (e.g. 84% profile complete, 1/4 setup steps). */
+  progress?: { done: number; total: number; label?: string };
+};
+
+const MOCK_TALENT_NOTIFS: TalentNotif[] = [
+  // Action needed — sticky, coral, your move.
+  { id: "tn1", category: "action", icon: "mail", tone: "coral", title: "Mango — Spring lookbook · new offer", sub: "€1,800 · awaiting your reply", when: "5h", unread: true, sticky: true },
+  { id: "tn2", category: "action", icon: "calendar", tone: "coral", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry · May 18–20", when: "2h", unread: true, sticky: true },
+  // System / setup — sticky, indigo, has progress.
+  { id: "tn3", category: "system", icon: "sparkle", tone: "indigo", title: "4 steps to get booked", sub: "Complete your profile to enter the inquiry pipeline", unread: true, sticky: true, progress: { done: 0, total: 4, label: "0 of 4 steps" } },
+  { id: "tn4", category: "system", icon: "user", tone: "indigo", title: "Profile 84% complete", sub: "3 fields left — polaroids, rate card, showreel", unread: true, sticky: true, progress: { done: 84, total: 100, label: "84%" } },
+  // Updates — dismissible × on hover.
+  { id: "tn5", category: "update", icon: "check", tone: "success", title: "Vogue Italia booking confirmed", sub: "Tue, May 6 · €1,800", when: "1d" },
+  { id: "tn6", category: "update", icon: "team", tone: "indigo", title: "Mango site referred 12 new views", sub: "+8 vs prior week", when: "2d" },
 ];
+
+const NOTIF_CATEGORY_META: Record<NotifCategory, { label: string; hint: string }> = {
+  action: { label: "Action needed", hint: "stays here until you respond" },
+  system: { label: "Setup", hint: "auto-clears when complete" },
+  update: { label: "Updates", hint: "dismissible" },
+};
+
+// Compact notification row — ~52px tall. Single-line title with
+// time-stamp on the right, optional sub on a second line, optional
+// progress bar at the bottom for sticky/system items.
+function NotifRow({
+  notif,
+  onOpen,
+  onDismiss,
+}: {
+  notif: TalentNotif;
+  onOpen: () => void;
+  onDismiss?: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const tonePalette = {
+    coral: { bg: COLORS.coralSoft, fg: COLORS.coral },
+    indigo: { bg: COLORS.indigoSoft, fg: COLORS.indigo },
+    success: { bg: "rgba(46,125,91,0.10)", fg: COLORS.green },
+    caution: { bg: "rgba(82,96,109,0.10)", fg: COLORS.amber },
+    ink: { bg: "rgba(11,11,13,0.04)", fg: COLORS.ink },
+  } as const;
+  const tone = tonePalette[notif.tone ?? "ink"];
+
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      data-tulala-row
+      style={{
+        position: "relative",
+        background: notif.unread ? "#fff" : "rgba(11,11,13,0.015)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 8,
+        transition: "border-color .15s ease, background .15s ease",
+        borderColor: hover ? COLORS.border : COLORS.borderSoft,
+      }}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open: ${notif.title}`}
+        style={{
+          all: "unset",
+          display: "flex",
+          gap: 9,
+          alignItems: "flex-start",
+          padding: "8px 10px",
+          paddingRight: onDismiss ? 30 : 10,
+          width: "100%",
+          boxSizing: "border-box",
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            background: tone.bg,
+            color: tone.fg,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            marginTop: 1,
+          }}
+        >
+          <Icon name={notif.icon} size={11} stroke={1.8} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span
+              style={{
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: COLORS.ink,
+                letterSpacing: -0.05,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              {notif.title}
+            </span>
+            {notif.unread && (
+              <span
+                aria-label="Unread"
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: "50%",
+                  background: tone.fg,
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            {notif.when && (
+              <span
+                style={{
+                  fontSize: 10.5,
+                  color: COLORS.inkDim,
+                  flexShrink: 0,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                {notif.when}
+              </span>
+            )}
+          </div>
+          {notif.sub && (
+            <div
+              style={{
+                fontSize: 11.5,
+                color: COLORS.inkMuted,
+                marginTop: 1,
+                lineHeight: 1.4,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {notif.sub}
+            </div>
+          )}
+          {notif.progress && (
+            <div
+              style={{
+                marginTop: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <div
+                aria-hidden
+                style={{
+                  flex: 1,
+                  height: 3,
+                  background: "rgba(11,11,13,0.06)",
+                  borderRadius: 2,
+                  overflow: "hidden",
+                }}
+              >
+                <span
+                  style={{
+                    display: "block",
+                    height: "100%",
+                    width: `${(notif.progress.done / notif.progress.total) * 100}%`,
+                    background: tone.fg,
+                    borderRadius: 2,
+                  }}
+                />
+              </div>
+              <span
+                style={{
+                  fontSize: 10.5,
+                  color: COLORS.inkMuted,
+                  flexShrink: 0,
+                  fontFamily: FONTS.body,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {notif.progress.label ??
+                  `${notif.progress.done}/${notif.progress.total}`}
+              </span>
+            </div>
+          )}
+        </div>
+      </button>
+      {onDismiss && hover && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismiss();
+          }}
+          aria-label={`Dismiss: ${notif.title}`}
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            width: 20,
+            height: 20,
+            borderRadius: 5,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: COLORS.inkDim,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Icon name="x" size={11} stroke={1.8} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function TalentNotificationsDrawer() {
   const { state, closeDrawer, openDrawer, toast } = useProto();
@@ -777,6 +1018,15 @@ export function TalentNotificationsDrawer() {
     setPrefs((p) => ({ ...p, [id]: { ...p[id]!, [ch]: !p[id]![ch] } }));
   };
 
+  // Local dismiss state — non-sticky updates can be cleared.
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const visible = MOCK_TALENT_NOTIFS.filter((n) => !dismissed.has(n.id));
+  const grouped: Record<NotifCategory, TalentNotif[]> = {
+    action: visible.filter((n) => n.category === "action"),
+    system: visible.filter((n) => n.category === "system"),
+    update: visible.filter((n) => n.category === "update"),
+  };
+
   return (
     <DrawerShell
       open={open}
@@ -784,75 +1034,80 @@ export function TalentNotificationsDrawer() {
       title="Notifications"
       description="What's waiting on you, and what's running through email + push."
     >
-      {/* Real notifications first */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {MOCK_TALENT_NOTIFS.map((n) => (
-          <button
-            key={n.id}
-            type="button"
-            onClick={() => {
-              toast(`Opening ${n.title}`);
-            }}
-            data-tulala-row
+      {/* Grouped notifications by category. Each group has a tiny header
+          with count + behavior hint so the user learns the contract. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        {(["action", "system", "update"] as NotifCategory[]).map((cat) => {
+          const items = grouped[cat];
+          if (items.length === 0) return null;
+          const meta = NOTIF_CATEGORY_META[cat];
+          return (
+            <section key={cat}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  marginBottom: 6,
+                  padding: "0 2px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    letterSpacing: 0.6,
+                    textTransform: "uppercase",
+                    color: COLORS.inkMuted,
+                  }}
+                >
+                  {meta.label} · {items.length}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    color: COLORS.inkDim,
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  {meta.hint}
+                </span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {items.map((n) => (
+                  <NotifRow
+                    key={n.id}
+                    notif={n}
+                    onOpen={() => toast(`Opening ${n.title}`)}
+                    onDismiss={
+                      n.sticky
+                        ? undefined
+                        : () =>
+                            setDismissed((prev) => {
+                              const next = new Set(prev);
+                              next.add(n.id);
+                              return next;
+                            })
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+        {visible.length === 0 && (
+          <div
             style={{
-              background: n.unread ? "#fff" : "rgba(11,11,13,0.015)",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              padding: 12,
-              cursor: "pointer",
+              padding: "24px 12px",
+              textAlign: "center",
+              fontSize: 13,
+              color: COLORS.inkMuted,
               fontFamily: FONTS.body,
-              textAlign: "left",
-              display: "flex",
-              gap: 10,
-              alignItems: "flex-start",
             }}
           >
-            <span
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 8,
-                background: n.tone === "green"
-                  ? "rgba(46,125,91,0.10)"
-                  : n.tone === "amber"
-                    ? "rgba(82,96,109,0.10)"
-                    : "rgba(11,11,13,0.04)",
-                color: n.tone === "green"
-                  ? COLORS.green
-                  : n.tone === "amber"
-                    ? COLORS.amber
-                    : COLORS.ink,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <Icon name={n.icon} size={13} stroke={1.7} />
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{n.title}</span>
-                {n.unread && (
-                  <span
-                    aria-label="Unread"
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: COLORS.accent,
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-              </div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
-                {n.sub}
-              </div>
-              <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 4 }}>{n.when}</div>
-            </div>
-          </button>
-        ))}
+            All clear. No notifications right now.
+          </div>
+        )}
       </div>
 
       {/* Divider */}
