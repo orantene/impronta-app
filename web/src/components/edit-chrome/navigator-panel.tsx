@@ -87,6 +87,50 @@ export function NavigatorPanel() {
 
   const [search, setSearch] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  // Phase B.2.C — shell sections (header / footer) live on a different
+  // page row than the homepage, so they're not in the EditProvider's
+  // `slots` state. But when the snapshot shell is engaged, they ARE
+  // rendered on the canvas with the canonical [data-cms-section]
+  // wrappers. Detect them here so the Navigator has a fallback path to
+  // select header/footer (the canvas-click path is also restored in
+  // composition-inserter B.2.C, but the Navigator should always list
+  // every selectable section regardless of canvas hit-test edge cases).
+  //
+  // Re-query on every navigator open + on MutationObserver so a publish
+  // that swaps shell sections doesn't leave stale entries.
+  interface ShellNavRow {
+    sectionId: string;
+    sectionTypeKey: "site_header" | "site_footer";
+    slotKey: "header" | "footer";
+    label: string;
+  }
+  const [shellRows, setShellRows] = useState<ShellNavRow[]>([]);
+  useEffect(() => {
+    if (!navigatorOpen) return;
+    const recompute = () => {
+      const out: ShellNavRow[] = [];
+      const headers = document.querySelectorAll<HTMLElement>(
+        '[data-cms-section][data-section-type-key="site_header"]',
+      );
+      headers.forEach((el) => {
+        const id = el.getAttribute("data-section-id");
+        if (id) out.push({ sectionId: id, sectionTypeKey: "site_header", slotKey: "header", label: "Site header" });
+      });
+      const footers = document.querySelectorAll<HTMLElement>(
+        '[data-cms-section][data-section-type-key="site_footer"]',
+      );
+      footers.forEach((el) => {
+        const id = el.getAttribute("data-section-id");
+        if (id) out.push({ sectionId: id, sectionTypeKey: "site_footer", slotKey: "footer", label: "Site footer" });
+      });
+      setShellRows(out);
+    };
+    recompute();
+    const mo = new MutationObserver(() => recompute());
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [navigatorOpen]);
   /** Flat-index of the current drop-line target (insert *before* this row). null → no drop visible. */
   const [dropAt, setDropAt] = useState<number | null>(null);
   const dropEdgeRef = useRef<"top" | "bottom">("top");
@@ -428,6 +472,129 @@ export function NavigatorPanel() {
 
       {/* Tree */}
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
+        {/* Phase B.2.C — Site shell group. Renders above the page root
+         *  whenever the snapshot shell is engaged (shellRows non-empty).
+         *  Selecting a row here behaves identically to clicking the
+         *  rendered header/footer on the canvas — same setSelectedSectionId,
+         *  same downstream inspector + save flow. No special shell mental
+         *  model. */}
+        {shellRows.length > 0 ? (
+          <div style={{ marginBottom: 6 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "7px 8px",
+                borderRadius: CHROME_RADII.sm,
+                fontSize: 11.5,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: CHROME.muted,
+              }}
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              <span>Site shell</span>
+              <span
+                style={{
+                  color: CHROME.muted2,
+                  fontWeight: 500,
+                  letterSpacing: 0,
+                  textTransform: "none",
+                }}
+              >
+                · header + footer
+              </span>
+            </div>
+            <div
+              style={{
+                marginLeft: 8,
+                borderLeft: `1px solid ${CHROME.line}`,
+                paddingLeft: 6,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+              }}
+            >
+              {shellRows.map((row) => {
+                const selected = selectedSectionId === row.sectionId;
+                return (
+                  <div
+                    key={row.sectionId}
+                    onClick={() => setSelectedSectionId(row.sectionId)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedSectionId(row.sectionId);
+                      }
+                    }}
+                    title={row.label}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 7,
+                      padding: "6px 8px",
+                      borderRadius: CHROME_RADII.sm,
+                      background: selected ? CHROME.ink : "transparent",
+                      color: selected ? "#ffffff" : CHROME.text,
+                      fontSize: 12,
+                      fontWeight: selected ? 600 : 500,
+                      cursor: "pointer",
+                      transition: "background 80ms ease, color 80ms ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!selected) {
+                        e.currentTarget.style.background =
+                          "rgba(24,24,27,0.04)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!selected) {
+                        e.currentTarget.style.background = "transparent";
+                      }
+                    }}
+                  >
+                    <SectionTypeIcon
+                      typeKey={row.sectionTypeKey}
+                      size={13}
+                      style={{
+                        flexShrink: 0,
+                        opacity: selected ? 0.85 : 0.65,
+                      }}
+                    />
+                    <span
+                      style={{
+                        flex: 1,
+                        letterSpacing: "-0.005em",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {row.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         {/* Page root */}
         <div
           style={{

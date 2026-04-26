@@ -39,6 +39,19 @@ interface Zone {
   insertAfterSortOrder: number | null;
 }
 
+/**
+ * Phase B.2.C — `slot_key === "header" | "footer"` are SHELL slots
+ * (site_shell row), not homepage composition slots. The inserter affordance
+ * exists to add body sections; it must NOT appear above/below/around shell
+ * sections, otherwise its hit area covers the shell header row and clicks
+ * meant to select the header open the section picker instead.
+ *
+ * Filtering here means: top-of-page inserter attaches to the first BODY
+ * section (not the shell header), bottom-of-page attaches to the last BODY
+ * section, and between-inserters never bridge a shell-to-body gap.
+ */
+const SHELL_SLOT_KEYS = new Set<string>(["header", "footer"]);
+
 function readSectionsInOrder(): Array<{
   el: HTMLElement;
   id: string;
@@ -55,6 +68,7 @@ function readSectionsInOrder(): Array<{
     const slotKey = el.getAttribute("data-slot-key");
     const so = Number(el.getAttribute("data-sort-order") ?? "");
     if (!id || !slotKey || !Number.isFinite(so)) return;
+    if (SHELL_SLOT_KEYS.has(slotKey)) return;
     out.push({ el, id, slotKey, sortOrder: so });
   });
   return out;
