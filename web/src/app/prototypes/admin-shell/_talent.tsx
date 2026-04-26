@@ -756,6 +756,17 @@ function TalentTodayPage() {
 
   return (
     <>
+      {/* Profile-completeness banner — only when below the visibility
+          threshold. Indigo soft (info, not urgent) with a clear CTA.
+          Auto-disappears at >= 80% so it never becomes wallpaper. */}
+      {profile.completeness < 80 && (
+        <ProfileCompletenessBanner
+          percent={profile.completeness}
+          missing={profile.missing}
+          onFinish={() => openDrawer("talent-profile-edit")}
+        />
+      )}
+
       <TalentTodayHero
         firstName={profile.name.split(" ")[0]}
         pendingCount={pendingCount}
@@ -864,6 +875,94 @@ function TalentTodayPage() {
 
 function paidCurrencyAndTotal(currency: string, total: number) {
   return `${currency}${total.toLocaleString()}`;
+}
+
+/**
+ * Slim banner above the hero when the talent's profile is below the
+ * "Verified visibility" threshold. Indigo soft = info, not urgent.
+ * Disappears at >= 80% so it never becomes wallpaper.
+ */
+function ProfileCompletenessBanner({
+  percent,
+  missing,
+  onFinish,
+}: {
+  percent: number;
+  missing: string[];
+  onFinish: () => void;
+}) {
+  const remaining = 80 - percent;
+  return (
+    <button
+      type="button"
+      onClick={onFinish}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        width: "100%",
+        padding: "10px 14px",
+        marginBottom: 12,
+        background: COLORS.indigoSoft,
+        border: `1px solid rgba(91,107,160,0.18)`,
+        borderRadius: 8,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        textAlign: "left",
+      }}
+    >
+      <span
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 7,
+          background: "rgba(91,107,160,0.18)",
+          color: COLORS.indigoDeep,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Icon name="user" size={13} stroke={1.7} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: COLORS.indigoDeep,
+          }}
+        >
+          {remaining > 0
+            ? `${remaining}% from Verified visibility · ${percent}% complete`
+            : `${percent}% complete · finish strong`}
+        </div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.indigoDeep,
+            opacity: 0.75,
+            marginTop: 1,
+          }}
+        >
+          {missing.length > 0
+            ? `${missing.slice(0, 3).join(" · ")}`
+            : "A few more fields and agencies favour your profile in pitches."}
+        </div>
+      </div>
+      <span
+        style={{
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: COLORS.indigoDeep,
+          flexShrink: 0,
+        }}
+      >
+        Finish profile →
+      </span>
+    </button>
+  );
 }
 
 /**
@@ -1191,7 +1290,10 @@ function TalentTodayHero({
           }}
         >
           {pendingCount > 0 && (
-            <PrimaryButton onClick={onReplyNow}>Reply now →</PrimaryButton>
+            <ReplyNowSplitButton
+              pendingTargets={pendingTargets}
+              onPrimary={onReplyNow}
+            />
           )}
           <SecondaryButton onClick={onAvailability}>
             Availability
@@ -1199,12 +1301,9 @@ function TalentTodayHero({
         </div>
       </div>
 
-      {/* Micro-stat strip — slim row of secondary numbers. Replaces the
-          old 4-tile grid; lighter, scannable in one glance.
-          Confirmed drops the "next Tue, May 6" caption — calendar section
-          owns dates. Profile is interactive (opens edit drawer); when
-          incomplete it stays neutral ink rather than indigo so the strip
-          reads uniformly — the % below 100 is the signal, not the color. */}
+      {/* Micro-stat strip — at-a-glance secondary numbers. Each stat
+          carries a small caption (next-up, trend, or status hint) so the
+          strip is scannable on its own without re-scrolling the page. */}
       <div
         style={{
           display: "flex",
@@ -1219,23 +1318,155 @@ function TalentTodayHero({
         <HeroStat
           label="Confirmed"
           value={String(upcomingCount)}
+          caption={nextBookingDate ? `next ${nextBookingDate}` : "none yet"}
           tone="ink"
         />
         <HeroStatDivider />
         <HeroStat
           label="Paid this month"
           value={`${paidCurrency}${paidThisMonth.toLocaleString()}`}
+          caption="+€800 vs prior 30d"
+          captionTone="success"
           tone="ink"
         />
         <HeroStatDivider />
         <HeroStat
           label="Profile"
           value={`${profileCompleteness}%`}
+          caption={profileCompleteness < 100 ? "tap to finish" : "complete"}
           tone="ink"
           onClick={onOpenProfile}
         />
       </div>
     </section>
+  );
+}
+
+/**
+ * Reply now split button — primary action sends to the FIRST pending
+ * (one-click default), with a chevron menu listing both pending names so
+ * the user can choose which one to reply to first. The split eliminates
+ * the previous "go to inbox, find the right one, click it" hop.
+ */
+function ReplyNowSplitButton({
+  pendingTargets,
+  onPrimary,
+}: {
+  pendingTargets: { name: string; onClick: () => void }[];
+  onPrimary: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ position: "relative", display: "inline-flex" }}>
+      <button
+        type="button"
+        onClick={onPrimary}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          padding: "9px 14px",
+          background: COLORS.ink,
+          color: "#fff",
+          border: "none",
+          borderRadius: "8px 0 0 8px",
+          fontFamily: FONTS.body,
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Reply now →
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Choose which to reply to"
+        aria-expanded={open}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          padding: "9px 8px",
+          background: COLORS.ink,
+          color: "#fff",
+          border: "none",
+          borderLeft: "1px solid rgba(255,255,255,0.18)",
+          borderRadius: "0 8px 8px 0",
+          fontFamily: FONTS.body,
+          cursor: "pointer",
+        }}
+      >
+        <Icon name="chevron-down" size={12} stroke={2} color="#fff" />
+      </button>
+      {open && (
+        <>
+          <span
+            aria-hidden
+            onClick={() => setOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 6px)",
+              right: 0,
+              minWidth: 220,
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              boxShadow: COLORS.shadowHover,
+              padding: 4,
+              zIndex: 60,
+              fontFamily: FONTS.body,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: COLORS.inkMuted,
+                padding: "6px 10px 4px",
+              }}
+            >
+              Reply to
+            </div>
+            {pendingTargets.map((t) => (
+              <button
+                key={t.name}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  t.onClick();
+                }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 10px",
+                  background: "transparent",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 13,
+                  color: COLORS.ink,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1274,17 +1505,28 @@ function HeroStat({
   label,
   value,
   caption,
+  captionTone,
   tone,
   onClick,
 }: {
   label: string;
   value: string;
   caption?: string;
+  /** Caption tint — `success` for positive deltas, default ink-dim. */
+  captionTone?: "success" | "indigo" | "coral" | "default";
   tone: "success" | "indigo" | "ink";
   onClick?: () => void;
 }) {
   const fg =
     tone === "success" ? COLORS.green : tone === "indigo" ? COLORS.indigo : COLORS.ink;
+  const captionColor =
+    captionTone === "success"
+      ? COLORS.green
+      : captionTone === "indigo"
+        ? COLORS.indigo
+        : captionTone === "coral"
+          ? COLORS.coral
+          : COLORS.inkDim;
   const inner = (
     <>
       <div
@@ -1317,7 +1559,8 @@ function HeroStat({
             style={{
               fontFamily: FONTS.body,
               fontSize: 11.5,
-              color: COLORS.inkDim,
+              color: captionColor,
+              fontWeight: captionTone === "success" ? 500 : 400,
             }}
           >
             {caption}
