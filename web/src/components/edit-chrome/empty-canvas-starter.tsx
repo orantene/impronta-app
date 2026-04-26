@@ -26,7 +26,7 @@ import { useActionState, useEffect, useState, type ComponentType } from "react";
 import {
   applyStarterComposition,
   type StarterActionState,
-} from "@/app/(dashboard)/admin/site-settings/structure/starter-action";
+} from "@/lib/site-admin/edit-mode/starter-action";
 import { InfoTip } from "@/components/ui/info-tip";
 import {
   WireClassic,

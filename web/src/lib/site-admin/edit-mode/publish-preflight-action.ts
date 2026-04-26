@@ -8,17 +8,24 @@
  * Doesn't block publish — just returns warnings the operator should
  * acknowledge. The publish-drawer caller decides whether to surface
  * a "publish anyway" override.
+ *
+ * Phase 0 sweep (2026-04-26) — convergence-plan §1: the previously-orphan
+ * `runAriaLandmarkCheck` action is now folded in here so its findings reach
+ * an actual UI surface. `suggestLayoutImprovement` and `loadAiUsageSummary`
+ * remain standalone server actions; their unified home is the post-v1 AI
+ * panel (see plan §5 Post-v1 polish).
  */
 
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
+import { runAriaLandmarkCheck } from "./aria-landmark-action";
 
 export type PreflightSeverity = "error" | "warn";
 
 export interface PreflightIssue {
   severity: PreflightSeverity;
-  category: "headings" | "alt_text" | "image_size";
+  category: "headings" | "alt_text" | "image_size" | "aria";
   /** Optional sectionId for click-to-focus in the drawer. */
   sectionId?: string;
   message: string;
@@ -143,6 +150,26 @@ export async function runPublishPreflight(): Promise<PreflightResult> {
         }
       }
     }
+  }
+
+  // ARIA landmark check — folded in Phase 0 sweep. Maps high/med/low →
+  // error/warn/warn so operators see structurally-significant naming gaps
+  // alongside other preflight findings without inventing a third severity.
+  try {
+    const aria = await runAriaLandmarkCheck();
+    if (aria.ok) {
+      for (const f of aria.findings) {
+        if (f.severity === "ok") continue;
+        issues.push({
+          severity: f.severity === "high" ? "error" : "warn",
+          category: "aria",
+          sectionId: f.sectionId,
+          message: f.message,
+        });
+      }
+    }
+  } catch {
+    // Preflight is best-effort; ARIA check failures don't block publish.
   }
 
   return { ok: true, issues };

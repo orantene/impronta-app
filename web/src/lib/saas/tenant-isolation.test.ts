@@ -174,10 +174,11 @@ test("no admin action uses bare requireStaff + tenant-scoped table write", () =>
         "src/app/(dashboard)/admin/site-settings/pages/page.tsx",
         "src/app/(dashboard)/admin/site-settings/pages/new/page.tsx",
         "src/app/(dashboard)/admin/site-settings/pages/[id]/page.tsx",
-        "src/app/(dashboard)/admin/site-settings/sections/actions.ts",
+        // Phase 0 sweep (2026-04-26) — sections CRUD route was deleted; only
+        // a single redirect page.tsx remains and uses requireStaff (no tenant
+        // writes). Listed for documentation; missing-file paths are filtered
+        // out of the input set automatically.
         "src/app/(dashboard)/admin/site-settings/sections/page.tsx",
-        "src/app/(dashboard)/admin/site-settings/sections/new/page.tsx",
-        "src/app/(dashboard)/admin/site-settings/sections/[id]/page.tsx",
         "src/app/(dashboard)/admin/analytics/talent/page.tsx",
         "src/app/(dashboard)/admin/analytics/seo/page.tsx",
         "src/app/(dashboard)/admin/analytics/search/page.tsx",

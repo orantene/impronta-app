@@ -51,18 +51,21 @@ import {
   Toggle,
 } from "./kit";
 import { useEditContext, type PageMetadata } from "./edit-context";
-import { WorkspaceTemplateGallery } from "./WorkspaceTemplateGallery";
-import { PagesComposerList } from "./PagesComposerList";
 
-type TabKey = "basics" | "seo" | "social" | "url" | "code" | "templates";
+// Phase 0 sweep (2026-04-26) — convergence-plan §1:
+// - "Code" tab said "Coming soon"; product debt removed until per-page custom
+//   code is genuinely in scope.
+// - "Templates" tab moved out: templates are a composition operation, not a
+//   page setting. Single canonical surface remains the EmptyCanvasStarter
+//   gallery; Phase A will lift it to a topbar button per builder mockup
+//   §8 / §18.
+type TabKey = "basics" | "seo" | "social" | "url";
 
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "basics", label: "Basics" },
   { key: "seo", label: "SEO" },
   { key: "social", label: "Social" },
   { key: "url", label: "URL & robots" },
-  { key: "code", label: "Code" },
-  { key: "templates", label: "Templates" },
 ];
 
 const TITLE_MAX = 60;
@@ -128,15 +131,6 @@ function LinkIcon() {
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-  );
-}
-
-function CodeIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <polyline points="16 18 22 12 16 6" />
-      <polyline points="8 6 2 12 8 18" />
     </svg>
   );
 }
@@ -732,53 +726,6 @@ export function PageSettingsDrawer() {
           </>
         ) : null}
 
-        {draft && tab === "code" ? (
-          <Card>
-            <CardHead
-              icon={<CodeIcon />}
-              title="Custom code"
-              sub="Coming soon"
-            />
-            <CardBody>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: CHROME.muted,
-                  lineHeight: 1.5,
-                }}
-              >
-                Per-page <code>&lt;head&gt;</code> snippets and custom CSS for
-                power users land in a later phase. Until then, theme-wide code
-                lives in the Theme drawer.
-              </div>
-            </CardBody>
-          </Card>
-        ) : null}
-
-        {draft && tab === "templates" ? (
-          <>
-            <Card>
-              <CardHead
-                icon={null}
-                title="Page templates"
-                sub="Save the current draft as a reusable template, or apply one you saved earlier."
-              />
-              <CardBody>
-                <WorkspaceTemplateGallery defaultOpen enableSave reloadOnApply />
-              </CardBody>
-            </Card>
-            <Card>
-              <CardHead
-                icon={null}
-                title="Other pages on this workspace"
-                sub="See all composable pages, open them in edit mode, or publish a draft snapshot."
-              />
-              <CardBody>
-                <PagesComposerList />
-              </CardBody>
-            </Card>
-          </>
-        ) : null}
       </DrawerBody>
 
       <DrawerFoot

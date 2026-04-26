@@ -14,8 +14,11 @@ import { resolveStorefrontLifestyleSlides } from "@/lib/site-admin/storefront-li
 import { getHomepageData } from "@/lib/home-data";
 import { PublicDiscoveryStateProvider } from "@/components/directory/public-discovery-state";
 import { PublicFlashHost } from "@/components/directory/public-flash-host";
-import { SiteDarkModeSwitcher } from "@/components/site-chrome/SiteDarkModeSwitcher";
-import { FocusOrderOverlay } from "@/components/site-chrome/FocusOrderOverlay";
+// Phase 0 sweep (2026-04-26) — convergence-plan §1: SiteDarkModeSwitcher and
+// FocusOrderOverlay were mounted on the public storefront in M15 but lacked a
+// real product story. Files preserved at
+// `components/site-chrome/{SiteDarkModeSwitcher,FocusOrderOverlay}.tsx`; will
+// be re-mounted (if at all) inside the EditShell via a future Tools panel.
 import type { Locale } from "@/i18n/config";
 import { createTranslator, getMessageStringArray } from "@/i18n/messages";
 import { getRequestLocale } from "@/i18n/request-locale";
@@ -204,8 +207,6 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
       ) : null}
       <PublicDiscoveryStateProvider>
         <PublicFlashHost dismissAria={t("public.directory.ui.flash.dismissAria")} />
-        <SiteDarkModeSwitcher />
-        {editActive ? <FocusOrderOverlay /> : null}
         <PublicHeader />
         <main className="flex flex-1 flex-col">
           {/* Edit-mode empty-canvas short-circuit.
