@@ -1,0 +1,6486 @@
+"use client";
+
+/**
+ * Talent surface — what a model sees when they sign in.
+ *
+ * Shape:
+ *   TalentShell        — sticky topbar (my identity + agency switcher) + page nav
+ *   TalentRouter       — switches between the 6 pages
+ *   TalentTodayPage    — pulse of offers/holds/upcoming
+ *   MyProfilePage      — profile-centric: completeness + sections + public preview
+ *   InboxPage          — offers / holds / castings (kanban-ish list)
+ *   CalendarPage       — bookings + availability blocks (week-view list)
+ *   ActivityPage       — earnings + history feed
+ *   SettingsPage       — agencies, notifications, privacy, payouts
+ *
+ *   plus ~15 talent drawer bodies dispatched from _drawers.tsx via talentDrawer()
+ */
+
+import { useState, type ReactNode } from "react";
+import {
+  TalentAnalyticsCard,
+  TalentFunnelCard,
+  ICalSubscribeCard,
+  TalentOnboardingArc,
+} from "./_wave2";
+import {
+  AVAILABILITY_BLOCKS,
+  CLIENT_TRUST_LEVELS,
+  CLIENT_TRUST_META,
+  COLORS,
+  DEFAULT_CONTACT_POLICY,
+  EARNINGS_ROWS,
+  FONTS,
+  INQUIRY_STAGE_META,
+  MY_AGENCIES,
+  MY_TALENT_PROFILE,
+  POLAROID_SET,
+  RICH_INQUIRIES,
+  SELECTIVE_CONTACT_POLICY,
+  TALENT_BOOKINGS,
+  TALENT_PAGES,
+  TALENT_PAGE_META,
+  TALENT_PAGE_TEMPLATES,
+  TALENT_REQUESTS,
+  TALENT_SPECIALTY_LABEL,
+  TALENT_TIER_META,
+  pluralize,
+  summarizeLanguages,
+  tierAllows,
+  useProto,
+  type RichInquiry,
+  type TalentBooking,
+  type TalentBadge,
+  type TalentContactPolicy,
+  type TalentCredit,
+  type TalentLink,
+  type TalentLimit,
+  type TalentMediaEmbed,
+  type TalentPage,
+  type TalentRequest,
+  type TalentReview,
+  type TalentSkill,
+  type TalentSubscriptionTier,
+} from "./_state";
+import {
+  Affordance,
+  Avatar,
+  Bullet,
+  CapsLabel,
+  ClientTrustChip,
+  Divider,
+  EmptyState,
+  FieldRow,
+  GhostButton,
+  Icon,
+  IconChip,
+  PrimaryButton,
+  PrimaryCard,
+  SecondaryButton,
+  SecondaryCard,
+  StatDot,
+  StatusCard,
+  StarterCard,
+  TextArea,
+  TextInput,
+  Toggle,
+  DrawerShell,
+} from "./_primitives";
+
+// ════════════════════════════════════════════════════════════════════
+// Mine-from-RICH_INQUIRIES helpers
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * Returns inquiries where I (the talent) appear in either a requirement
+ * group's roster, or as a line item on the offer. This is the bridge
+ * between the agency-side workspace (RICH_INQUIRIES) and the talent
+ * inbox — same record, talent POV.
+ */
+function myInquiries(): RichInquiry[] {
+  const myName = MY_TALENT_PROFILE.name;
+  return RICH_INQUIRIES.filter((i) => {
+    const inRoster = i.requirementGroups.some((g) =>
+      g.talents.some((t) => t.name === myName),
+    );
+    const onOffer = i.offer?.lineItems.some((l) => l.talentName === myName) ?? false;
+    return inRoster || onOffer;
+  });
+}
+
+/**
+ * My status on an inquiry — the most relevant signal for the talent inbox.
+ * Prioritise offer line item status (most concrete), fall back to roster.
+ */
+function myStatusOn(inquiry: RichInquiry): "pending" | "accepted" | "declined" | "none" {
+  const myName = MY_TALENT_PROFILE.name;
+  const line = inquiry.offer?.lineItems.find((l) => l.talentName === myName);
+  if (line) {
+    if (line.status === "accepted") return "accepted";
+    if (line.status === "declined") return "declined";
+    if (line.status === "pending") return "pending";
+  }
+  for (const g of inquiry.requirementGroups) {
+    const t = g.talents.find((tt) => tt.name === myName);
+    if (t) {
+      if (t.status === "accepted") return "accepted";
+      if (t.status === "declined") return "declined";
+      if (t.status === "pending") return "pending";
+    }
+  }
+  return "none";
+}
+
+function unreadOnInquiry(inquiry: RichInquiry): number {
+  // Talent only ever sees the group thread, so private unread is hidden from them.
+  return inquiry.unreadGroup;
+}
+
+function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
+  const { openDrawer, toast } = useProto();
+  const stage = INQUIRY_STAGE_META[inquiry.stage];
+  const myStatus = myStatusOn(inquiry);
+  const unread = unreadOnInquiry(inquiry);
+  const myLine = inquiry.offer?.lineItems.find((l) => l.talentName === MY_TALENT_PROFILE.name);
+
+  const stageBg =
+    stage.tone === "amber" ? "rgba(82,96,109,0.10)"
+    : stage.tone === "green" ? "rgba(46,125,91,0.10)"
+    : stage.tone === "red" ? "rgba(176,48,58,0.08)"
+    : "rgba(11,11,13,0.05)";
+  const stageFg =
+    stage.tone === "amber" ? "#3A4651"
+    : stage.tone === "green" ? "#1F5C42"
+    : stage.tone === "red" ? "#7A2026"
+    : COLORS.inkMuted;
+
+  // T1: Stage-aware confirmed text — "You're confirmed" was ambiguous
+  const myStatusLabel =
+    myStatus === "pending" ? "Awaiting your answer"
+    : myStatus === "accepted" && inquiry.stage === "offer_pending" ? "Waiting on client"
+    : myStatus === "accepted" && inquiry.stage === "approved" ? "Client approved — booking being set up"
+    : myStatus === "accepted" && inquiry.stage === "booked" ? "Booked · locked in"
+    : myStatus === "accepted" ? "You're confirmed"
+    : myStatus === "declined" ? "You declined"
+    : null;
+  const myStatusFg =
+    myStatus === "pending" ? "#3A4651"
+    : myStatus === "accepted" && inquiry.stage === "booked" ? "#1F5C42"
+    : myStatus === "accepted" ? "#1F5C42"
+    : myStatus === "declined" ? COLORS.inkDim
+    : COLORS.inkMuted;
+
+  // T2: "Updated Xh ago" timestamp
+  const activityLabel =
+    inquiry.lastActivityHrs < 1 ? "Just now"
+    : inquiry.lastActivityHrs < 24 ? `${inquiry.lastActivityHrs}h ago`
+    : `${Math.round(inquiry.lastActivityHrs / 24)}d ago`;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        padding: "14px 0",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        position: "relative",
+      }}
+    >
+      {/* Main clickable area — vertical stack so identity, chips and meta
+          each get their own line. Easier to scan, breathes at narrow widths. */}
+      <button
+        onClick={() => openDrawer("inquiry-workspace", { inquiryId: inquiry.id, pov: "talent" })}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "stretch",
+          gap: 6,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+          flex: 1,
+          minWidth: 0,
+          fontFamily: FONTS.body,
+          padding: 0,
+        }}
+      >
+        {/* Line 1 — identity. Client name (bold) · brief (muted continuation),
+            with the trust chip pinned to the right. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: 14,
+              color: COLORS.ink,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span style={{ fontWeight: 600 }}>{inquiry.clientName}</span>
+            <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}> · {inquiry.brief}</span>
+          </div>
+          <ClientTrustChip level={inquiry.clientTrust} compact />
+        </div>
+
+        {/* Line 2 — chip strip. Stage + repeat + unread, all in one row of
+            equal-weight pills. Wraps gracefully at narrow widths. */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: stageBg,
+              color: stageFg,
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              flexShrink: 0,
+            }}
+          >
+            {stage.label}
+          </span>
+          {inquiry.repeatBookings > 0 && (
+            <span
+              style={{
+                fontSize: 10.5,
+                color: COLORS.inkMuted,
+                background: "rgba(11,11,13,0.06)",
+                padding: "2px 8px",
+                borderRadius: 999,
+                fontWeight: 500,
+                flexShrink: 0,
+              }}
+            >
+              Repeat · {inquiry.repeatBookings}×
+            </span>
+          )}
+          {unread > 0 && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 10.5,
+                fontWeight: 600,
+                color: "#3A4651",
+                background: "rgba(82,96,109,0.12)",
+                padding: "2px 8px",
+                borderRadius: 999,
+                letterSpacing: 0.3,
+                flexShrink: 0,
+              }}
+            >
+              {unread} new
+            </span>
+          )}
+        </div>
+
+        {/* Line 3 — meta. Agency, date, fee, last activity. */}
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            display: "flex",
+            gap: 6,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <span>via {inquiry.agencyName}</span>
+          {inquiry.date && <><span style={{ color: COLORS.inkDim }}>·</span><span>{inquiry.date}</span></>}
+          {inquiry.location && <><span style={{ color: COLORS.inkDim }}>·</span><span>{inquiry.location}</span></>}
+          {myLine && <><span style={{ color: COLORS.inkDim }}>·</span><span>{myLine.fee}</span></>}
+          <span style={{ color: COLORS.inkDim }}>·</span>
+          <span style={{ color: COLORS.inkDim }}>Updated {activityLabel}</span>
+        </div>
+
+        {myStatusLabel && (
+          <div style={{ fontSize: 11.5, color: myStatusFg, fontWeight: 500 }}>
+            {myStatusLabel}
+          </div>
+        )}
+      </button>
+
+      {/* Right rail — Snooze + chevron, centered against the row's first line. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, paddingTop: 2 }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            toast("Reminder set for 4h.");
+          }}
+          title="Set a reminder"
+          style={{
+            background: "transparent",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 6,
+            padding: "4px 8px",
+            cursor: "pointer",
+            fontSize: 10.5,
+            fontFamily: FONTS.body,
+            color: COLORS.inkDim,
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.ink; e.currentTarget.style.borderColor = COLORS.border; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkDim; e.currentTarget.style.borderColor = COLORS.borderSoft; }}
+        >
+          Remind me
+        </button>
+        <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Surface entry
+// ════════════════════════════════════════════════════════════════════
+
+export function TalentSurface() {
+  return (
+    <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 50px)" }}>
+      <TalentTopbar />
+      <main
+        data-tulala-surface-main
+        style={{
+          padding: "28px 28px 60px",
+          maxWidth: 1240,
+          margin: "0 auto",
+        }}
+      >
+        <TalentRouter />
+      </main>
+    </div>
+  );
+}
+
+// ─── Topbar (lighter than workspace admin) ─────────────────────────
+
+function TalentTopbar() {
+  const { state, setTalentPage, openDrawer } = useProto();
+  const profile = MY_TALENT_PROFILE;
+
+  return (
+    <header
+      data-tulala-app-topbar
+      style={{
+        background: "#fff",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        padding: "0 28px",
+        position: "sticky",
+        top: 50,
+        zIndex: 40,
+      }}
+    >
+      <div
+        data-tulala-app-topbar-row
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
+          height: 56,
+        }}
+      >
+        {/* My identity (talent-side, NOT a tenant) */}
+        <button
+          onClick={() => setTalentPage("profile")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            fontFamily: FONTS.body,
+          }}
+        >
+          <Avatar initials={profile.initials} size={28} tone="ink" />
+          <span
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 16,
+              fontWeight: 500,
+              letterSpacing: -0.1,
+              color: COLORS.ink,
+            }}
+          >
+            {profile.name}
+          </span>
+        </button>
+
+        {/* Agency switcher chip — opens which agency I'm acting under */}
+        <button
+          onClick={() => openDrawer("talent-agency-relationship")}
+          aria-label="Agency"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "rgba(11,11,13,0.04)",
+            border: "none",
+            padding: "4px 10px",
+            borderRadius: 999,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.ink,
+            fontWeight: 500,
+          }}
+        >
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: COLORS.green,
+            }}
+          />
+          {profile.primaryAgency}
+          <Icon name="chevron-down" size={11} color={COLORS.inkDim} />
+        </button>
+
+        <div data-tulala-topbar-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 8px" }} />
+
+        {/* Page nav */}
+        <nav data-tulala-app-topbar-nav aria-label="Talent sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
+          {TALENT_PAGES.map((p) => {
+            const active = state.talentPage === p;
+            return (
+              <button
+                key={p}
+                onClick={() => setTalentPage(p)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "8px 12px",
+                  fontFamily: FONTS.body,
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 500,
+                  color: active ? COLORS.ink : COLORS.inkMuted,
+                  letterSpacing: 0.1,
+                  borderRadius: 7,
+                  position: "relative",
+                  transition: "color .12s, background .12s",
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) e.currentTarget.style.color = COLORS.ink;
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) e.currentTarget.style.color = COLORS.inkMuted;
+                }}
+              >
+                {TALENT_PAGE_META[p].label}
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    bottom: -16,
+                    left: 8,
+                    right: 8,
+                    height: 3,
+                    background: COLORS.ink,
+                    borderRadius: 2,
+                    opacity: active ? 1 : 0,
+                    transform: active ? "scaleX(1)" : "scaleX(0.4)",
+                    transformOrigin: "center",
+                    transition: "opacity .18s ease, transform .25s cubic-bezier(.4,.0,.2,1)",
+                    pointerEvents: "none",
+                  }}
+                />
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Right */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => openDrawer("talent-today-pulse")}
+            aria-label="Inbox"
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff",
+              color: COLORS.inkMuted,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              position: "relative",
+            }}
+          >
+            <Icon name="mail" size={14} stroke={1.7} />
+            <span
+              style={{
+                position: "absolute",
+                top: 7,
+                right: 8,
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                background: COLORS.amber,
+                boxShadow: "0 0 0 2px #fff",
+              }}
+            />
+          </button>
+          <a
+            href={`https://${profile.publicUrl}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              color: COLORS.inkMuted,
+              textDecoration: "none",
+              padding: "5px 9px",
+              borderRadius: 999,
+              background: "rgba(11,11,13,0.04)",
+            }}
+          >
+            <Icon name="external" size={11} />
+            Preview public profile
+          </a>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ─── Router ───────────────────────────────────────────────────────
+
+function TalentRouter() {
+  const { state } = useProto();
+  switch (state.talentPage) {
+    case "today":
+      return <TalentTodayPage />;
+    case "profile":
+      return <MyProfilePage />;
+    case "inbox":
+      return <InboxPage />;
+    case "calendar":
+      return <CalendarPage />;
+    case "activity":
+      return <ActivityPage />;
+    case "settings":
+      return <SettingsPage />;
+  }
+}
+
+// ─── Shared header ────────────────────────────────────────────────
+
+function PageHeader({
+  eyebrow,
+  title,
+  subtitle,
+  actions,
+}: {
+  eyebrow?: string;
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {eyebrow && (
+          <div style={{ marginBottom: 6 }}>
+            <CapsLabel>{eyebrow}</CapsLabel>
+          </div>
+        )}
+        <h1
+          data-tulala-h1
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 30,
+            fontWeight: 500,
+            letterSpacing: -0.6,
+            color: COLORS.ink,
+            margin: 0,
+            lineHeight: 1.15,
+          }}
+        >
+          {title}
+        </h1>
+        {subtitle && (
+          <p
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 14,
+              color: COLORS.inkMuted,
+              margin: "6px 0 0",
+              lineHeight: 1.55,
+              maxWidth: 720,
+            }}
+          >
+            {subtitle}
+          </p>
+        )}
+      </div>
+      {actions && (
+        <div data-tulala-page-header-actions style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          {actions}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Grid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto" | "2" | "3" | "4" }) {
+  const colMap = {
+    auto: "repeat(auto-fit, minmax(280px, 1fr))",
+    "2": "repeat(2, 1fr)",
+    "3": "repeat(3, 1fr)",
+    "4": "repeat(4, 1fr)",
+  };
+  return (
+    <div data-tulala-grid={cols} style={{ display: "grid", gridTemplateColumns: colMap[cols], gap: 12 }}>{children}</div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TODAY
+// ════════════════════════════════════════════════════════════════════
+
+function TalentTodayPage() {
+  const { openDrawer, setTalentPage } = useProto();
+  const profile = MY_TALENT_PROFILE;
+  const needsAnswer = TALENT_REQUESTS.filter((r) => r.status === "needs-answer");
+  const upcoming = TALENT_BOOKINGS.filter((b) => b.status === "confirmed").slice(0, 3);
+  // T3: derive paid-this-month from payoutDate field
+  const paidThisMonth = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
+  const paidThisMonthTotal = paidThisMonth.reduce((sum, e) => {
+    const num = parseFloat(e.amount.replace(/[^0-9.]/g, ""));
+    return sum + (isNaN(num) ? 0 : num);
+  }, 0);
+  const paidThisMonthCurrency = paidThisMonth[0]?.amount.match(/[€£$]/)?.[0] ?? "€";
+  const mine = myInquiries();
+  const mineNeedsMe = mine.filter((i) => myStatusOn(i) === "pending");
+  const mineUnread = mine.reduce((sum, i) => sum + unreadOnInquiry(i), 0);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow={`Hi ${profile.name.split(" ")[0]}`}
+        title="Today"
+        subtitle="Offers, holds and upcoming bookings — the things your agencies need an answer on right now."
+        actions={
+          <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
+            Mark unavailable
+          </SecondaryButton>
+        }
+      />
+
+      <TalentOnboardingArc />
+      <TalentFunnelCard />
+      <div style={{ height: 12 }} />
+      <TalentAnalyticsCard />
+      <div style={{ height: 12 }} />
+      <Grid cols="4">
+        <StatusCard
+          label="Awaiting your answer"
+          value={mineNeedsMe.length + needsAnswer.length}
+          caption="offers + holds"
+          tone="amber"
+          onClick={() => setTalentPage("inbox")}
+        />
+        <StatusCard
+          label="Active conversations"
+          value={mineUnread}
+          caption={pluralize(mineUnread, "unread message", "unread messages", false)}
+          tone={mineUnread > 0 ? "amber" : "dim"}
+          onClick={() => setTalentPage("inbox")}
+        />
+        <StatusCard
+          label="Upcoming"
+          value={upcoming.length}
+          caption={pluralize(upcoming.length, "confirmed booking", "confirmed bookings", false)}
+          tone="green"
+        />
+        <StatusCard
+          label="Paid this month"
+          value={`${paidThisMonthCurrency}${paidThisMonthTotal.toLocaleString()}`}
+          caption={`${pluralize(paidThisMonth.length, "payout", "payouts")} received`}
+          tone="green"
+          onClick={() => setTalentPage("activity")}
+        />
+      </Grid>
+
+      <div style={{ height: 24 }} />
+
+      {/* What needs answer */}
+      <Grid cols="2">
+        <PrimaryCard
+          title="Needs your answer"
+          description={
+            needsAnswer.length === 0
+              ? "Nothing waiting on you."
+              : `${pluralize(needsAnswer.length, "request", "requests")} ${needsAnswer.length === 1 ? "is" : "are"} waiting on you.`
+          }
+          icon={<Icon name="bolt" size={14} stroke={1.7} />}
+          affordance="Open inbox"
+          meta={<>{pluralize(needsAnswer.length, "pending", "pending", true)}</>}
+          onClick={() => openDrawer("talent-today-pulse")}
+          variant={needsAnswer.length > 0 ? "accent" : "primary"}
+        />
+        <PrimaryCard
+          title="Profile completeness"
+          description={
+            profile.completeness >= 100
+              ? "Your profile is fully filled out."
+              : "Agencies favour complete profiles."
+          }
+          icon={<Icon name="user" size={14} stroke={1.7} />}
+          affordance="Finish my profile"
+          meta={<>{profile.completeness}% complete</>}
+          onClick={() => openDrawer("talent-profile-edit")}
+        >
+          {profile.completeness < 100 && (
+            <ul
+              style={{
+                listStyle: "none",
+                margin: "8px 0 0",
+                padding: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              {/* Mock "what's missing" list — in production read from the
+                  profile shape itself. Surfaces the next-action so users
+                  don't have to guess what 16% means. */}
+              {[
+                { id: "polaroids", label: "5 polaroids (you have 3)" },
+                { id: "rate-card", label: "Rate card" },
+                { id: "showreel", label: "Showreel link" },
+              ].map((m) => (
+                <li
+                  key={m.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 12,
+                    color: COLORS.inkMuted,
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: "rgba(11,11,13,0.18)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  {m.label}
+                </li>
+              ))}
+            </ul>
+          )}
+        </PrimaryCard>
+      </Grid>
+
+      <div style={{ height: 12 }} />
+
+      {/* T4: Merged priority list — inquiries + holds/castings in one ranked section */}
+      {(mine.length > 0 || needsAnswer.length > 0) && (
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: "16px 18px 4px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 6,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: COLORS.ink,
+                  letterSpacing: -0.05,
+                }}
+              >
+                Needs your attention
+              </div>
+              <div
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  color: COLORS.inkMuted,
+                  marginTop: 2,
+                }}
+              >
+                Inquiries, offers, holds and castings — all in one place, sorted by urgency.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTalentPage("inbox")}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: COLORS.ink,
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              See all →
+            </button>
+          </div>
+          {/* Pending inquiries first (need the talent's answer) */}
+          {mineNeedsMe.slice(0, 3).map((i) => (
+            <InquiryRow key={i.id} inquiry={i} />
+          ))}
+          {/* Quick-decision holds/castings */}
+          {needsAnswer.map((r) => <RequestRow key={r.id} request={r} />)}
+          {/* Remaining active inquiries (no pending action needed from talent) */}
+          {mine.filter((i) => myStatusOn(i) !== "pending").slice(0, 2).map((i) => (
+            <InquiryRow key={i.id} inquiry={i} />
+          ))}
+        </section>
+      )}
+
+      <div style={{ height: 12 }} />
+
+      {/* Upcoming bookings preview */}
+      <Grid cols="2">
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: "16px 18px 6px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              marginBottom: 4,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: COLORS.ink,
+                  letterSpacing: -0.05,
+                }}
+              >
+                Next on the calendar
+              </div>
+              <div
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  color: COLORS.inkMuted,
+                  marginTop: 2,
+                }}
+              >
+                {upcoming.length === 0
+                  ? "No confirmed bookings yet."
+                  : `${upcoming.length} upcoming · ${upcoming[0]?.startDate}`}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTalentPage("calendar")}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: COLORS.ink,
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              See calendar →
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {upcoming.map((b) => (
+              <BookingRow key={b.id} booking={b} />
+            ))}
+          </div>
+        </section>
+        <SecondaryCard
+          title="Recent earnings"
+          description={`${paidThisMonth.length} payout${paidThisMonth.length !== 1 ? "s" : ""} landed this month.`}
+          affordance="See activity"
+          onClick={() => setTalentPage("activity")}
+        >
+          {/* T8: Show payout date (when money landed), not just work date */}
+          <div style={{ marginTop: 4 }}>
+            {EARNINGS_ROWS.slice(0, 3).map((e) => (
+              <div
+                key={e.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "8px 0",
+                  borderTop: `1px solid ${COLORS.borderSoft}`,
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: COLORS.ink }}>{e.client}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>
+                    Worked {e.workDate} · Paid {e.payoutDate}
+                  </div>
+                </div>
+                <span style={{ color: COLORS.ink, fontWeight: 600 }}>{e.amount}</span>
+              </div>
+            ))}
+          </div>
+        </SecondaryCard>
+      </Grid>
+    </>
+  );
+}
+
+function RequestRow({ request }: { request: TalentRequest }) {
+  const { openDrawer } = useProto();
+  const kindMeta: Record<TalentRequest["kind"], { label: string; tone: "amber" | "ink" | "green" | "dim" }> = {
+    offer: { label: "Offer", tone: "amber" },
+    hold: { label: "Hold", tone: "amber" },
+    casting: { label: "Casting", tone: "dim" },
+    request: { label: "Request", tone: "ink" },
+  };
+  const km = kindMeta[request.kind];
+  return (
+    <button
+      onClick={() => openDrawer("talent-offer-detail", { id: request.id })}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 0",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        textAlign: "left",
+        width: "100%",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "3px 8px",
+          borderRadius: 999,
+          background: km.tone === "amber" ? "rgba(82,96,109,0.10)" : "rgba(11,11,13,0.05)",
+          color: km.tone === "amber" ? "#3A4651" : COLORS.ink,
+          fontFamily: FONTS.body,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+        }}
+      >
+        {km.label}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontFamily: FONTS.body,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: COLORS.ink,
+          }}
+        >
+          {request.client}
+          <ClientTrustChip level={request.clientTrust} compact />
+          <Bullet />
+          <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{request.brief}</span>
+        </div>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            marginTop: 2,
+          }}
+        >
+          via {request.agency}
+          {request.date && <> · {request.date}</>}
+          {request.amount && <> · {request.amount}</>}
+        </div>
+      </div>
+      <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim }}>
+        {request.ageHrs < 24 ? `${request.ageHrs}h ago` : `${Math.floor(request.ageHrs / 24)}d ago`}
+      </span>
+      <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+    </button>
+  );
+}
+
+function BookingRow({ booking }: { booking: TalentBooking }) {
+  const { openDrawer } = useProto();
+  return (
+    <button
+      onClick={() => openDrawer("talent-booking-detail", { id: booking.id })}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 0",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        textAlign: "left",
+        width: "100%",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <span
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 8,
+          background: COLORS.surfaceAlt,
+          display: "inline-flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontFamily: FONTS.display,
+        }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, lineHeight: 1 }}>
+          {booking.startDate.split(" ")[1]?.replace(",", "") ?? "—"}
+        </span>
+        <span style={{ fontSize: 9, color: COLORS.inkMuted, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 600 }}>
+          {booking.startDate.slice(0, 3)}
+        </span>
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
+          {booking.client} · {booking.brief}
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+          {booking.location} · call {booking.call}
+        </div>
+      </div>
+      <span style={{ fontSize: 12.5, color: COLORS.ink, fontWeight: 600 }}>{booking.amount}</span>
+      <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+    </button>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MY PROFILE — talent comp-card surface.
+// Designed to mirror the breadth of an industry comp card: identity,
+// physicality, capability, history, trust, commercial. Each band has
+// its own dedicated drawer; the overall page is the "agency book entry"
+// the talent uses as their professional shopfront.
+// ════════════════════════════════════════════════════════════════════
+
+function MyProfilePage() {
+  const { openDrawer } = useProto();
+  const p = MY_TALENT_PROFILE;
+  const m = p.measurements;
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="My profile"
+        title={p.name}
+        subtitle={`${p.measurementsSummary} · ${p.city}. Published since ${p.publishedAt}.`}
+        actions={
+          <>
+            <SecondaryButton onClick={() => openDrawer("talent-public-preview")}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <Icon name="external" size={11} /> Preview as client
+              </span>
+            </SecondaryButton>
+            <PrimaryButton onClick={() => openDrawer("talent-profile-edit")}>Edit profile</PrimaryButton>
+          </>
+        }
+      />
+
+      {/* ── Hero band ──────────────────────────────────────────────── */}
+      <ProfileHero />
+
+      {/* ── Engagement strip ──────────────────────────────────────── */}
+      <div style={{ marginTop: 20 }}>
+        <EngagementStrip />
+      </div>
+
+      {/* ── Completeness + Public URL ─────────────────────────────── */}
+      <div style={{ marginTop: 20 }}>
+        <Grid cols="2">
+          <PrimaryCard
+            title="Profile completeness"
+            description={
+              p.completeness >= 100
+                ? "Fully complete. You'll show up on every search filter."
+                : "Complete profiles get higher placement on agency rosters and the Tulala hub."
+            }
+            icon={<Icon name="user" size={14} stroke={1.7} />}
+            affordance="Finish missing items"
+            onClick={() => openDrawer("talent-profile-edit")}
+          >
+            <div style={{ marginTop: 8 }}>
+              <CompletenessBar value={p.completeness} />
+              {p.missing.length > 0 && (
+                <ul style={{ margin: "10px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+                  {p.missing.map((mItem) => (
+                    <li
+                      key={mItem}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        fontFamily: FONTS.body,
+                        fontSize: 12.5,
+                        color: COLORS.inkMuted,
+                      }}
+                    >
+                      <span
+                        style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.amber }}
+                      />
+                      {mItem}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </PrimaryCard>
+          <PrimaryCard
+            title="Public profile"
+            description={`Lives at ${p.publicUrl}. Always reflects your latest published edits.`}
+            icon={<Icon name="globe" size={14} stroke={1.7} />}
+            affordance="Open in new tab"
+            onClick={() => window.open(`https://${p.publicUrl}`, "_blank")}
+          >
+            <div
+              style={{
+                marginTop: 10,
+                padding: "12px 14px",
+                background: COLORS.surfaceAlt,
+                borderRadius: 10,
+                border: `1px solid rgba(15,79,62,0.18)`,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <Icon name="external" size={12} color={COLORS.accentDeep} />
+              <span style={{ fontFamily: FONTS.mono, fontSize: 11.5, color: COLORS.ink }}>{p.publicUrl}</span>
+            </div>
+          </PrimaryCard>
+        </Grid>
+      </div>
+
+      {/* ── Visual identity (cover · headshot · polaroids · showreel) ── */}
+      <Divider label="Visual identity" />
+      <Grid cols="3">
+        <SecondaryCard
+          title="Cover photo"
+          description="The hero shot at the top of your public profile. Landscape, 16:9 ideal."
+          meta={<><StatDot tone="green" /> 1 image set</>}
+          affordance="Replace cover"
+          onClick={() => openDrawer("talent-photo-edit", { which: "cover" })}
+        />
+        <SecondaryCard
+          title="Headshot"
+          description="The single shot used everywhere — agency rosters, Tulala hub, search results."
+          meta={<><StatDot tone="green" /> 1 image set</>}
+          affordance="Replace headshot"
+          onClick={() => openDrawer("talent-photo-edit", { which: "headshot" })}
+        />
+        <SecondaryCard
+          title="Polaroids · naturals"
+          description={`Front · Side · Back · Smile · No-makeup. ${POLAROID_SET.filter(x => x.thumb !== "—").length} of 5 set — coordinators ask for these first.`}
+          meta={<><StatDot tone={POLAROID_SET.every(x => x.thumb !== "—") ? "green" : "amber"} /> {POLAROID_SET.filter(x => x.thumb !== "—").length}/5</>}
+          affordance="Manage polaroids"
+          onClick={() => openDrawer("talent-polaroids")}
+        />
+        <SecondaryCard
+          title="Portfolio"
+          description="12 / 15 styled shots. Your agencies favour fresh work — keep at least 3 from this year."
+          meta={<><StatDot tone="amber" /> Needs 3 from 2026</>}
+          affordance="Manage portfolio"
+          onClick={() => openDrawer("talent-portfolio")}
+        />
+        <SecondaryCard
+          title="Showreel"
+          description={p.showreelThumb ? `${p.showreelDuration} clip · used for casting requests with movement, dialogue, or runway.` : "Add a 30-60s clip — opens up acting + dance + runway leads."}
+          meta={p.showreelThumb ? <><StatDot tone="green" /> {p.showreelDuration}</> : <><StatDot tone="dim" /> Not set</>}
+          affordance="Open showreel"
+          onClick={() => openDrawer("talent-showreel")}
+        />
+        <SecondaryCard
+          title="Mood / vibe board"
+          description="Pin 6-9 references for the kind of work you want more of. Agencies use this to pitch you smarter."
+          meta={<><StatDot tone="dim" /> Optional</>}
+          affordance="Set mood board"
+          onClick={() => openDrawer("talent-profile-section", { sectionId: "mood-board", label: "Mood board" })}
+        />
+      </Grid>
+
+      {/* ── Physicality (measurements + features) ─────────────────── */}
+      <Divider label="Physicality" />
+      <PrimaryCard
+        title="Measurements & features"
+        description="Height · sizes · features. Visible to agencies and clients you're shortlisted by."
+        icon={<Icon name="user" size={14} stroke={1.7} />}
+        affordance="Edit measurements"
+        onClick={() => openDrawer("talent-measurements")}
+      >
+        <div style={{ marginTop: 12 }}>
+          <MeasurementsTable />
+        </div>
+      </PrimaryCard>
+
+      {/* ── Capability (specialties · skills · languages · limits) ── */}
+      <Divider label="Capability" />
+      <Grid cols="2">
+        <SecondaryCard
+          title="Specialties"
+          description="What kinds of work fit you — drives discovery filters."
+          meta={`${p.specialties.length} chosen`}
+          affordance="Edit specialties"
+          onClick={() => openDrawer("talent-profile-section", { sectionId: "specialties", label: "Specialties" })}
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+            {p.specialties.map((s) => (
+              <ProfileChip key={s} label={TALENT_SPECIALTY_LABEL[s]} tone="ink" />
+            ))}
+          </div>
+        </SecondaryCard>
+        <SecondaryCard
+          title="Languages"
+          description={summarizeLanguages(p.languages)}
+          meta={`${p.languages.length} languages`}
+          affordance="Edit languages"
+          onClick={() => openDrawer("talent-profile-section", { sectionId: "languages", label: "Languages" })}
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+            {p.languages.map((l) => (
+              <ProfileChip
+                key={l.language}
+                label={`${l.language} · ${l.level}`}
+                tone={l.level === "native" ? "green" : l.level === "fluent" ? "ink" : "dim"}
+              />
+            ))}
+          </div>
+        </SecondaryCard>
+        <SecondaryCard
+          title="Skills"
+          description="Movement · sport · voice · instruments. Triggers casting filters for active leads."
+          meta={`${p.skills.length} skills`}
+          affordance="Edit skills"
+          onClick={() => openDrawer("talent-skills")}
+          fullHeight
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+            {p.skills.slice(0, 5).map((s, i) => (
+              <SkillRow key={i} skill={s} />
+            ))}
+            {p.skills.length > 5 && (
+              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                +{p.skills.length - 5} more
+              </span>
+            )}
+          </div>
+        </SecondaryCard>
+        <SecondaryCard
+          title="Wardrobe & limits"
+          description="Hard limits block pitches. Soft limits ask for a confirmation."
+          meta={
+            <>
+              <StatDot tone="amber" />
+              {p.limits.filter((l) => l.enforcement === "hard").length} hard ·{" "}
+              {p.limits.filter((l) => l.enforcement === "soft").length} soft
+            </>
+          }
+          affordance="Edit limits"
+          onClick={() => openDrawer("talent-limits")}
+          fullHeight
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 6 }}>
+            {p.limits.slice(0, 5).map((l) => (
+              <LimitRow key={l.id} limit={l} />
+            ))}
+          </div>
+        </SecondaryCard>
+      </Grid>
+
+      {/* ── History (credits · runway · reviews · stats) ──────────── */}
+      <Divider label="History & track record" />
+      <Grid cols="2">
+        <SecondaryCard
+          title="Credits & tearsheet"
+          description={`${p.credits.length} entries · ${p.credits.filter(c => c.pinned).length} pinned. Pinned credits show on the public profile.`}
+          meta={`Most recent: ${p.credits[0].brand}`}
+          affordance="Manage credits"
+          onClick={() => openDrawer("talent-credits")}
+          fullHeight
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+            {p.credits.filter((c) => c.pinned).slice(0, 3).map((c) => (
+              <CreditRow key={c.id} credit={c} />
+            ))}
+          </div>
+        </SecondaryCard>
+        <SecondaryCard
+          title="Reviews & endorsements"
+          description="Testimonials from booked clients and producers. Auto-requested after wrapped shoots."
+          meta={
+            <>
+              <StatDot tone="green" />
+              {p.reviews.length} reviews · ★ {(p.reviews.reduce((s, r) => s + r.rating, 0) / p.reviews.length).toFixed(1)}
+            </>
+          }
+          affordance="Open reviews"
+          onClick={() => openDrawer("talent-reviews")}
+          fullHeight
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+            {p.reviews.slice(0, 2).map((r) => (
+              <ReviewSnippet key={r.id} review={r} />
+            ))}
+          </div>
+        </SecondaryCard>
+        <PrimaryCard
+          title="Booking record"
+          description="What an agency or client sees when they short-list you."
+          icon={<Icon name="bolt" size={14} stroke={1.7} />}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <BookingStatCell label="Bookings" value={p.bookingStats.completedBookings.toString()} accent="ink" />
+            <BookingStatCell label="On time" value={`${p.bookingStats.onTimeRate}%`} accent={p.bookingStats.onTimeRate === 100 ? "green" : "amber"} />
+            <BookingStatCell label="Repeat clients" value={p.bookingStats.repeatClients.toString()} accent="ink" />
+            <BookingStatCell label="Years active" value={p.bookingStats.yearsActive.toString()} accent="dim" />
+          </div>
+        </PrimaryCard>
+      </Grid>
+
+      {/* ── Trust (badges · documents) ─────────────────────────────── */}
+      <Divider label="Trust & verification" />
+      <PrimaryCard
+        title="Badges"
+        description="Each badge proves a specific check. Clients filter on these."
+        icon={<Icon name="check" size={14} stroke={1.8} />}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+          {p.badges.map((b) => (
+            <BadgeChip key={b.kind} badge={b} />
+          ))}
+        </div>
+      </PrimaryCard>
+      <div style={{ marginTop: 12 }}>
+        <Grid cols="2">
+          <SecondaryCard
+            title="Documents"
+            description="ID · tax · health & safety. Stored encrypted; only shared during active bookings."
+            meta={
+              <>
+                <StatDot tone={p.documents.some((d) => d.state === "missing") ? "amber" : "green"} />
+                {p.documents.filter((d) => d.state === "uploaded").length}/{p.documents.length} uploaded
+              </>
+            }
+            affordance="Manage documents"
+            onClick={() => openDrawer("talent-documents")}
+          />
+          <SecondaryCard
+            title="Emergency contact"
+            description="Used by agencies during active bookings only — never shown publicly."
+            meta={`${p.emergencyContact.name} · ${p.emergencyContact.relation}`}
+            affordance="Update contact"
+            onClick={() => openDrawer("talent-emergency-contact")}
+          />
+        </Grid>
+      </div>
+
+      {/* ── Commercial (rate card · travel · social) ─────────────── */}
+      <Divider label="Commercial" />
+      <Grid cols="2">
+        <SecondaryCard
+          title="Rate card"
+          description={`${p.rateCard.lines.length} usage tiers · visibility: ${p.rateCard.visibility.replace("-", " ")}.`}
+          meta={
+            p.rateCard.visibility === "public"
+              ? <><StatDot tone="green" /> Visible to clients</>
+              : p.rateCard.visibility === "agency-only"
+                ? <><StatDot tone="amber" /> Agency only</>
+                : <><StatDot tone="dim" /> On request</>
+          }
+          affordance="Edit rate card"
+          onClick={() => openDrawer("talent-rate-card")}
+          fullHeight
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 6 }}>
+            {p.rateCard.lines.slice(0, 3).map((l, i) => (
+              <RateLine key={i} label={l.label} range={l.range} />
+            ))}
+          </div>
+        </SecondaryCard>
+        <SecondaryCard
+          title="Travel & work auth"
+          description={`Based in ${p.travel.basedIn}. ${p.travel.workAuth.length} work authorizations.`}
+          meta={
+            <>
+              <StatDot tone="green" />
+              {p.travel.willingTravel}
+            </>
+          }
+          affordance="Edit travel"
+          onClick={() => openDrawer("talent-travel")}
+          fullHeight
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+            {p.travel.workAuth.slice(0, 3).map((a) => (
+              <ProfileChip key={a} label={a} tone="dim" />
+            ))}
+            {p.travel.workAuth.length > 3 && (
+              <ProfileChip label={`+${p.travel.workAuth.length - 3}`} tone="dim" />
+            )}
+          </div>
+        </SecondaryCard>
+      </Grid>
+      <div style={{ marginTop: 12 }}>
+        <SecondaryCard
+          title="External links"
+          description="Instagram, TikTok, IMDb — your audience on other platforms. Surfaces follower counts on the public profile."
+          meta={`${p.links.length} links`}
+          affordance="Edit links"
+          onClick={() => openDrawer("talent-links")}
+        >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+            {p.links.map((l) => (
+              <LinkChip key={l.kind} link={l} />
+            ))}
+          </div>
+        </SecondaryCard>
+      </div>
+
+      {/* ── Personal page (premium subscription tier) ────────────────
+       *
+       * This band is the surface for Tulala's direct-to-talent
+       * subscription. It coexists with — does NOT replace — agency
+       * roster + hub presence. Locked features show a tier badge
+       * and route through the upgrade drawer rather than the editor.
+       */}
+      <Divider label="Personal page" />
+      <PersonalPageBand />
+
+      {/* ── Visibility & availability (existing) ───────────────────── */}
+      <Divider label="Visibility & availability" />
+      <Grid cols="2">
+        <SecondaryCard
+          title="Where you appear"
+          description="Acme Models roster · Praline London roster · Tulala hub (featured)"
+          meta="3 surfaces"
+          affordance="Adjust visibility"
+          onClick={() => openDrawer("talent-privacy")}
+        />
+        <SecondaryCard
+          title="Availability"
+          description={`${AVAILABILITY_BLOCKS.length} blocks set · next block ${AVAILABILITY_BLOCKS[0]?.startDate}`}
+          affordance="Open availability"
+          onClick={() => openDrawer("talent-availability")}
+        />
+      </Grid>
+    </>
+  );
+}
+
+// ─── Hero (cover photo + headshot + identity strip) ─────────────────
+
+function ProfileHero() {
+  const { openDrawer } = useProto();
+  const p = MY_TALENT_PROFILE;
+
+  return (
+    <section
+      style={{
+        position: "relative",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 14,
+        overflow: "hidden",
+      }}
+    >
+      {/* Cover photo */}
+      <div
+        style={{
+          position: "relative",
+          height: 180,
+          background: `linear-gradient(180deg, ${COLORS.surfaceAlt} 0%, rgba(15,79,62,0.18) 100%)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 72,
+          letterSpacing: 8,
+        }}
+      >
+        <span style={{ filter: "saturate(0.8)" }}>{p.coverPhoto}</span>
+        <button
+          onClick={() => openDrawer("talent-photo-edit", { which: "cover" })}
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            background: "rgba(11,11,13,0.55)",
+            color: "#fff",
+            border: "none",
+            padding: "5px 10px",
+            borderRadius: 999,
+            fontFamily: FONTS.body,
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: "pointer",
+            backdropFilter: "blur(6px)",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            letterSpacing: 0.3,
+          }}
+        >
+          <Icon name="palette" size={11} stroke={2} color="#fff" /> Replace cover
+        </button>
+      </div>
+
+      {/* Identity strip */}
+      <div style={{ padding: "0 24px 22px", position: "relative" }}>
+        {/* Avatar overlapping the cover */}
+        <button
+          onClick={() => openDrawer("talent-photo-edit", { which: "headshot" })}
+          style={{
+            position: "absolute",
+            top: -52,
+            left: 24,
+            width: 104,
+            height: 104,
+            borderRadius: "50%",
+            background: COLORS.surfaceAlt,
+            border: `4px solid #fff`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 50,
+            cursor: "pointer",
+            boxShadow: "0 6px 18px -8px rgba(0,0,0,0.25)",
+            padding: 0,
+          }}
+          aria-label="Edit headshot"
+        >
+          <span>{p.profilePhoto}</span>
+          <span
+            style={{
+              position: "absolute",
+              bottom: 2,
+              right: 2,
+              width: 26,
+              height: 26,
+              borderRadius: "50%",
+              background: COLORS.ink,
+              color: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "2px solid #fff",
+            }}
+          >
+            <Icon name="palette" size={11} stroke={2} color="#fff" />
+          </span>
+        </button>
+
+        <div style={{ paddingTop: 64, display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 360px", minWidth: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: FONTS.display,
+                  fontSize: 26,
+                  fontWeight: 500,
+                  letterSpacing: -0.5,
+                  margin: 0,
+                  color: COLORS.ink,
+                }}
+              >
+                {p.name}
+              </h2>
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  color: COLORS.inkMuted,
+                  fontWeight: 500,
+                  padding: "2px 8px",
+                  background: "rgba(11,11,13,0.04)",
+                  borderRadius: 999,
+                }}
+              >
+                {p.pronouns} · {p.age}
+              </span>
+              <TierPill tier={p.subscription.tier} onClick={() => openDrawer("talent-tier-compare")} />
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                fontFamily: FONTS.body,
+                fontSize: 13.5,
+                color: COLORS.inkMuted,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+              }}
+            >
+              <span>{p.measurementsSummary}</span>
+              <Bullet />
+              <span>{p.city}</span>
+              <Bullet />
+              <span>{p.primaryAgency}</span>
+            </div>
+
+            {/* Specialties chips */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
+              {p.specialties.map((s) => (
+                <ProfileChip key={s} label={TALENT_SPECIALTY_LABEL[s]} tone="ink" />
+              ))}
+            </div>
+          </div>
+
+          {/* Trust badges column */}
+          <div
+            style={{
+              flex: "0 0 auto",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 6,
+              maxWidth: 280,
+            }}
+          >
+            <CapsLabel>Trust</CapsLabel>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+              {p.badges.slice(0, 4).map((b) => (
+                <BadgeChip key={b.kind} badge={b} compact />
+              ))}
+              {p.badges.length > 4 && (
+                <span
+                  style={{
+                    fontFamily: FONTS.body,
+                    fontSize: 11,
+                    color: COLORS.inkMuted,
+                    padding: "3px 8px",
+                  }}
+                >
+                  +{p.badges.length - 4}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Engagement strip (rank · views · inquiries · trend) ────────────
+
+function EngagementStrip() {
+  const p = MY_TALENT_PROFILE;
+  const items: { label: string; value: string; sub?: string; tone: "ink" | "green" | "amber" }[] = [
+    { label: "Tulala discover rank", value: `#${p.discoverRank}`, sub: "Updated daily", tone: "ink" },
+    {
+      label: "Profile views · 7d",
+      value: p.profileViews7d.toLocaleString(),
+      sub: `${p.viewsTrend > 0 ? "▲" : "▼"} ${Math.abs(p.viewsTrend)}% vs last week`,
+      tone: p.viewsTrend > 0 ? "green" : "amber",
+    },
+    { label: "Inquiries · 7d", value: p.inquiries7d.toString(), sub: `${p.bookingStats.repeatClients} repeat clients`, tone: "ink" },
+    { label: "On-time rate", value: `${p.bookingStats.onTimeRate}%`, sub: `${p.bookingStats.completedBookings} bookings`, tone: "green" },
+  ];
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: 10,
+      }}
+    >
+      {items.map((it) => (
+        <div
+          key={it.label}
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: "14px 16px",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted,
+            }}
+          >
+            {it.label}
+          </div>
+          <div
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 22,
+              fontWeight: 500,
+              letterSpacing: -0.4,
+              color: COLORS.ink,
+              marginTop: 4,
+            }}
+          >
+            {it.value}
+          </div>
+          {it.sub && (
+            <div
+              style={{
+                fontSize: 11.5,
+                color:
+                  it.tone === "green"
+                    ? "#1F5C42"
+                    : it.tone === "amber"
+                      ? "#3A4651"
+                      : COLORS.inkMuted,
+                marginTop: 2,
+              }}
+            >
+              {it.sub}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Personal page band (premium tier surface) ──────────────────────
+//
+// The talent's personal Tulala destination — separate from agency
+// rosters and hub listings. Locked modules render with a tier badge
+// rather than disabled controls, so the ladder is always visible.
+
+function PersonalPageBand() {
+  const { openDrawer } = useProto();
+  const p = MY_TALENT_PROFILE;
+  const sub = p.subscription;
+  const tier = sub.tier;
+  const meta = TALENT_TIER_META[tier];
+  const activeTemplate = TALENT_PAGE_TEMPLATES.find((t) => t.id === sub.template) ?? TALENT_PAGE_TEMPLATES[0];
+  const allowEmbeds = tierAllows(tier, "media-embeds");
+  const allowPress = tierAllows(tier, "press-band");
+  const allowKit = tierAllows(tier, "media-kit");
+  const allowDomain = tierAllows(tier, "custom-domain");
+  const allowExtraSections = tierAllows(tier, "extra-sections");
+
+  return (
+    <>
+      {/* Header strip — current tier + URL + manage CTA */}
+      <PrimaryCard
+        title={`Your personal Tulala page · ${meta.label}`}
+        description={
+          tier === "basic"
+            ? "Right now this is the standard roster-style page. Upgrade to unlock richer templates, embeds, press, and a custom domain."
+            : tier === "pro"
+              ? "Pro template, social + video embeds, press band, and a downloadable media kit. Custom domain unlocks at Portfolio."
+              : "Full mini personal site. Multi-section page builder, custom domain, EPK kit, SEO controls, priority discover placement."
+        }
+        icon={<Icon name="globe" size={14} stroke={1.7} />}
+        affordance={tier === "portfolio" ? "Manage page" : "Compare tiers"}
+        onClick={() =>
+          tier === "portfolio" ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare")
+        }
+      >
+        <div
+          style={{
+            marginTop: 12,
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 12,
+            padding: "10px 12px",
+            background: COLORS.surfaceAlt,
+            border: `1px solid rgba(15,79,62,0.18)`,
+            borderRadius: 10,
+          }}
+        >
+          <Icon name="external" size={12} color={COLORS.accentDeep} />
+          <span style={{ fontFamily: FONTS.mono, fontSize: 12, color: COLORS.ink, flex: "1 1 auto", minWidth: 0 }}>
+            {sub.customDomain ?? sub.personalPageUrl}
+          </span>
+          {sub.customDomain && sub.customDomainStatus === "verified" && (
+            <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.green, fontWeight: 500 }}>
+              ● Verified
+            </span>
+          )}
+          {sub.renewsOn && (
+            <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted }}>
+              Renews {sub.renewsOn}
+            </span>
+          )}
+        </div>
+      </PrimaryCard>
+
+      {/* Modules grid — template / embeds / press / media-kit / domain / sections */}
+      <div style={{ marginTop: 12 }}>
+        <Grid cols="3">
+          <SecondaryCard
+            title="Page template"
+            description={
+              allowEmbeds
+                ? `Active: ${activeTemplate.label}. ${activeTemplate.blurb}`
+                : "Roster style only on Basic. Pro unlocks Editorial / Studio. Portfolio adds Stage / Creator / EPK."
+            }
+            meta={
+              tierAllows(tier, "template-picker")
+                ? <><StatDot tone="green" /> {activeTemplate.label}</>
+                : <LockedBadge requiredTier="pro" />
+            }
+            affordance={tierAllows(tier, "template-picker") ? "Switch template" : "Unlock templates"}
+            onClick={() =>
+              tierAllows(tier, "template-picker")
+                ? openDrawer("talent-page-template")
+                : openDrawer("talent-tier-compare")
+            }
+          />
+          <SecondaryCard
+            title="Media embeds"
+            description={
+              allowEmbeds
+                ? `Spotify · YouTube · TikTok · IG · Vimeo. ${sub.embeds.length} embeds active.`
+                : "Add Spotify / YouTube / TikTok / Instagram / Vimeo blocks to your page. Pro+."
+            }
+            meta={allowEmbeds ? <><StatDot tone="green" /> {sub.embeds.length} embeds</> : <LockedBadge requiredTier="pro" />}
+            affordance={allowEmbeds ? "Manage embeds" : "Unlock embeds"}
+            onClick={() => (allowEmbeds ? openDrawer("talent-media-embeds") : openDrawer("talent-tier-compare"))}
+          />
+          <SecondaryCard
+            title="Press & clippings"
+            description={
+              allowPress
+                ? `${sub.press.length} clips · auto-pulled from RSS or pasted manually.`
+                : "Vogue, El País, FT — show off press mentions on your page. Pro+."
+            }
+            meta={allowPress ? <><StatDot tone="green" /> {sub.press.length} clips</> : <LockedBadge requiredTier="pro" />}
+            affordance={allowPress ? "Manage press" : "Unlock press band"}
+            onClick={() => (allowPress ? openDrawer("talent-press") : openDrawer("talent-tier-compare"))}
+          />
+          <SecondaryCard
+            title="Media kit (EPK)"
+            description={
+              allowKit
+                ? sub.mediaKit
+                  ? `${sub.mediaKit.filename} · ${sub.mediaKit.size} · updated ${sub.mediaKit.updatedAt}.`
+                  : "Generate a downloadable EPK PDF — bio, credits, comp card, contact CTA."
+                : "One-click downloadable EPK · credits · comp card · contact CTA. Pro+."
+            }
+            meta={allowKit ? <><StatDot tone="green" /> Ready</> : <LockedBadge requiredTier="pro" />}
+            affordance={allowKit ? "Manage media kit" : "Unlock media kit"}
+            onClick={() => (allowKit ? openDrawer("talent-media-kit") : openDrawer("talent-tier-compare"))}
+          />
+          <SecondaryCard
+            title="Custom domain"
+            description={
+              allowDomain
+                ? sub.customDomain
+                  ? `Live at ${sub.customDomain} · ${sub.customDomainStatus}`
+                  : "Connect your own domain — yourname.com → personal page."
+                : "Personal domain (yourname.com) routed straight to your Tulala page. Portfolio only."
+            }
+            meta={allowDomain ? <><StatDot tone={sub.customDomain ? "green" : "dim"} /> {sub.customDomain ? "Live" : "Not set"}</> : <LockedBadge requiredTier="portfolio" />}
+            affordance={allowDomain ? "Manage domain" : "Unlock custom domain"}
+            onClick={() => (allowDomain ? openDrawer("talent-custom-domain") : openDrawer("talent-tier-compare"))}
+          />
+          <SecondaryCard
+            title="Extra sections"
+            description={
+              allowExtraSections
+                ? "Bio · About · Press · Tour dates · Show calendar · Contact CTA. Drag to re-order."
+                : "Multi-section page — story, tour dates, show calendar, contact CTA. Portfolio only."
+            }
+            meta={allowExtraSections ? <><StatDot tone="green" /> 6 sections</> : <LockedBadge requiredTier="portfolio" />}
+            affordance={allowExtraSections ? "Edit sections" : "Unlock sections"}
+            onClick={() => (allowExtraSections ? openDrawer("talent-personal-page") : openDrawer("talent-tier-compare"))}
+          />
+        </Grid>
+      </div>
+    </>
+  );
+}
+
+// ─── Atomic profile primitives (chips, rows, snippets) ──────────────
+
+/**
+ * Tier pill shown on hero. Tone scales with tier — Basic ink, Pro
+ * forest accent, Portfolio deep ink. Click opens the tier-compare drawer.
+ */
+function TierPill({ tier, onClick }: { tier: TalentSubscriptionTier; onClick: () => void }) {
+  const meta = TALENT_TIER_META[tier];
+  const palette: Record<TalentSubscriptionTier, { bg: string; fg: string; border: string }> = {
+    basic: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink, border: "rgba(11,11,13,0.10)" },
+    pro: { bg: COLORS.accentSoft, fg: COLORS.accent, border: "rgba(15,79,62,0.28)" },
+    portfolio: { bg: COLORS.ink, fg: "#fff", border: COLORS.ink },
+  };
+  const c = palette[tier];
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "2px 9px",
+        background: c.bg,
+        color: c.fg,
+        border: `1px solid ${c.border}`,
+        fontFamily: FONTS.body,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.3,
+        borderRadius: 999,
+        cursor: "pointer",
+      }}
+      title={`${meta.label} · ${meta.tagline} · click to compare tiers`}
+    >
+      <span style={{ fontSize: 9, opacity: 0.85 }}>●</span>
+      {meta.label} plan
+      {tier !== "portfolio" && (
+        <span style={{ fontSize: 10, marginLeft: 2, opacity: 0.7 }}>↗</span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * Lock badge — shown next to a feature card when the talent's
+ * current tier doesn't unlock it. Hint surfaces what tier they need.
+ */
+function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier }) {
+  const meta = TALENT_TIER_META[requiredTier];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 7px",
+        background: requiredTier === "portfolio" ? COLORS.ink : COLORS.accentSoft,
+        color: requiredTier === "portfolio" ? "#fff" : COLORS.accent,
+        border: `1px solid ${requiredTier === "portfolio" ? COLORS.ink : "rgba(15,79,62,0.28)"}`,
+        fontFamily: FONTS.body,
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: 0.3,
+        borderRadius: 999,
+        textTransform: "uppercase",
+      }}
+      title={`Unlocked at ${meta.label}`}
+    >
+      <span style={{ fontSize: 9 }}>🔒</span>
+      {meta.label}
+    </span>
+  );
+}
+
+function ProfileChip({ label, tone = "ink" }: { label: string; tone?: "ink" | "green" | "amber" | "dim" | "red" }) {
+  const palette: Record<typeof tone, { bg: string; fg: string }> = {
+    ink: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink },
+    green: { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42" },
+    amber: { bg: "rgba(82,96,109,0.12)", fg: "#3A4651" },
+    dim: { bg: "rgba(11,11,13,0.03)", fg: COLORS.inkMuted },
+    red: { bg: "rgba(176,48,58,0.10)", fg: "#7A2026" },
+  };
+  const c = palette[tone];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        background: c.bg,
+        color: c.fg,
+        fontFamily: FONTS.body,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.2,
+        padding: "3px 9px",
+        borderRadius: 999,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function BadgeChip({ badge, compact }: { badge: TalentBadge; compact?: boolean }) {
+  const glyph: Record<TalentBadge["kind"], string> = {
+    "id-verified": "🛡",
+    "age-verified": "✓",
+    union: "♢",
+    "top-rated": "★",
+    "tulala-featured": "❖",
+    "agency-verified": "▣",
+    "background-check": "⌾",
+  };
+  return (
+    <span
+      title={`${badge.label} · ${badge.hint}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: compact ? "3px 8px" : "4px 10px",
+        background: "#fff",
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 999,
+        fontFamily: FONTS.body,
+        fontSize: compact ? 11 : 11.5,
+        color: COLORS.ink,
+        fontWeight: 500,
+      }}
+    >
+      <span style={{ fontSize: compact ? 11 : 12, color: COLORS.accentDeep }}>{glyph[badge.kind]}</span>
+      {badge.label}
+    </span>
+  );
+}
+
+function MeasurementsTable() {
+  const m = MY_TALENT_PROFILE.measurements;
+  const cells: { label: string; value: string }[] = [
+    { label: "Height", value: `${m.heightImperial} · ${m.heightMetric}` },
+    { label: "Bust", value: m.bust },
+    { label: "Waist", value: m.waist },
+    { label: "Hips", value: m.hips },
+    { label: "Inseam", value: m.inseam ?? "—" },
+    { label: "Shoe", value: `EU ${m.shoeEU} · US ${m.shoeUS} · UK ${m.shoeUK}` },
+    { label: "Dress", value: m.dress },
+    { label: "Hair", value: `${m.hairColor} · ${m.hairLength}` },
+    { label: "Eyes", value: m.eyeColor },
+    { label: "Skin tone", value: m.skinTone },
+    { label: "Tattoos", value: m.hasTattoos ? (m.tattoosNote ?? "Yes") : "None" },
+    { label: "Piercings", value: m.hasPiercings ? (m.piercingsNote ?? "Yes") : "None" },
+  ];
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: 10,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {cells.map((c) => (
+        <div
+          key={c.label}
+          style={{
+            padding: "10px 12px",
+            background: "rgba(11,11,13,0.02)",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 8,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted,
+            }}
+          >
+            {c.label}
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: COLORS.ink,
+              marginTop: 3,
+              fontWeight: 500,
+            }}
+          >
+            {c.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SkillRow({ skill }: { skill: TalentSkill }) {
+  const catGlyph: Record<TalentSkill["category"], string> = {
+    movement: "⟁",
+    voice: "♪",
+    instrument: "♫",
+    sport: "⚑",
+    performance: "★",
+    other: "·",
+  };
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        fontFamily: FONTS.body,
+        fontSize: 12.5,
+        color: COLORS.ink,
+      }}
+    >
+      <span
+        style={{
+          width: 18,
+          textAlign: "center",
+          color: COLORS.inkDim,
+          fontSize: 13,
+        }}
+      >
+        {catGlyph[skill.category]}
+      </span>
+      <span style={{ flex: 1 }}>{skill.label}</span>
+      {skill.level && <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{skill.level}</span>}
+    </div>
+  );
+}
+
+function LimitRow({ limit }: { limit: TalentLimit }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        fontFamily: FONTS.body,
+        fontSize: 12.5,
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: limit.enforcement === "hard" ? COLORS.red : COLORS.amber,
+        }}
+      />
+      <span style={{ flex: 1, color: COLORS.ink }}>{limit.label}</span>
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          color: limit.enforcement === "hard" ? "#7A2026" : "#3A4651",
+        }}
+      >
+        {limit.enforcement}
+      </span>
+    </div>
+  );
+}
+
+function CreditRow({ credit }: { credit: TalentCredit }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 8,
+        fontFamily: FONTS.body,
+        fontSize: 12.5,
+        padding: "5px 0",
+        borderBottom: `1px dashed ${COLORS.borderSoft}`,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          color: COLORS.inkDim,
+          letterSpacing: 0.3,
+          flexShrink: 0,
+          minWidth: 60,
+        }}
+      >
+        {credit.year}
+      </span>
+      <span style={{ flex: 1, color: COLORS.ink }}>
+        <strong style={{ fontWeight: 600 }}>{credit.brand}</strong>
+        <span style={{ color: COLORS.inkMuted }}> · {credit.type}</span>
+        {credit.role && <span style={{ color: COLORS.inkMuted }}> · {credit.role}</span>}
+      </span>
+      {credit.pinned && (
+        <span style={{ color: COLORS.accentDeep, fontSize: 12 }}>★</span>
+      )}
+    </div>
+  );
+}
+
+function ReviewSnippet({ review }: { review: TalentReview }) {
+  return (
+    <div
+      style={{
+        padding: "9px 11px",
+        background: "rgba(11,11,13,0.02)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 8,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 4,
+        }}
+      >
+        <span style={{ fontSize: 12, color: COLORS.ink, fontWeight: 600 }}>
+          {review.reviewerName}
+        </span>
+        <span style={{ fontSize: 11, color: COLORS.accentDeep, letterSpacing: 1 }}>
+          {"★".repeat(review.rating)}
+        </span>
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 5 }}>
+        {review.reviewerRole}
+      </div>
+      <div
+        style={{
+          fontSize: 12.5,
+          color: COLORS.ink,
+          lineHeight: 1.5,
+          fontStyle: "italic",
+        }}
+      >
+        "{review.body.length > 110 ? review.body.slice(0, 108) + "…" : review.body}"
+      </div>
+    </div>
+  );
+}
+
+function BookingStatCell({ label, value, accent }: { label: string; value: string; accent: "ink" | "green" | "amber" | "dim" }) {
+  const colorMap = {
+    ink: COLORS.ink,
+    green: "#1F5C42",
+    amber: "#3A4651",
+    dim: COLORS.inkMuted,
+  };
+  return (
+    <div
+      style={{
+        padding: "10px 12px",
+        background: "rgba(11,11,13,0.02)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 8,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10.5,
+          fontWeight: 600,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontFamily: FONTS.display,
+          fontSize: 20,
+          fontWeight: 500,
+          letterSpacing: -0.3,
+          color: colorMap[accent],
+          marginTop: 3,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function RateLine({ label, range }: { label: string; range: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 8,
+        fontFamily: FONTS.body,
+        fontSize: 12.5,
+        padding: "3px 0",
+      }}
+    >
+      <span style={{ flex: 1, color: COLORS.ink }}>{label}</span>
+      <span style={{ color: COLORS.inkMuted, fontSize: 12 }}>{range}</span>
+    </div>
+  );
+}
+
+function LinkChip({ link }: { link: TalentLink }) {
+  const glyph: Record<TalentLink["kind"], string> = {
+    instagram: "◉",
+    tiktok: "♪",
+    imdb: "▶",
+    site: "🌐︎",
+    linkedin: "in",
+    youtube: "▶",
+    spotify: "♫",
+    other: "→",
+  };
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 10px",
+        background: "rgba(11,11,13,0.04)",
+        borderRadius: 999,
+        fontFamily: FONTS.body,
+        fontSize: 11.5,
+        color: COLORS.ink,
+        fontWeight: 500,
+      }}
+    >
+      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{glyph[link.kind]}</span>
+      {link.label}
+      {link.followers && (
+        <span style={{ fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 500 }}>
+          · {link.followers}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function CompletenessBar({ value }: { value: number }) {
+  return (
+    <div>
+      <div
+        style={{
+          height: 6,
+          background: "rgba(11,11,13,0.06)",
+          borderRadius: 999,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${value}%`,
+            height: "100%",
+            background: value >= 100 ? COLORS.green : COLORS.ink,
+          }}
+        />
+      </div>
+      <div
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          color: COLORS.inkMuted,
+          marginTop: 6,
+          letterSpacing: 0.2,
+        }}
+      >
+        {value}% complete
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// INBOX
+// ════════════════════════════════════════════════════════════════════
+
+function InboxPage() {
+  const { openDrawer } = useProto();
+  const [search, setSearch] = useState("");
+  const allMine = myInquiries();
+  // T9: filter by search across client name + brief
+  const mine = search.trim()
+    ? allMine.filter(
+        (i) =>
+          i.clientName.toLowerCase().includes(search.toLowerCase()) ||
+          i.brief.toLowerCase().includes(search.toLowerCase()),
+      )
+    : allMine;
+
+  const inquiryGroups: { id: string; label: string; filter: (i: RichInquiry) => boolean }[] = [
+    {
+      id: "needs-me",
+      label: "Awaiting your answer",
+      filter: (i) => myStatusOn(i) === "pending",
+    },
+    {
+      id: "in-flight",
+      label: "Active — coordinator is working it",
+      filter: (i) =>
+        (i.stage === "coordination" || i.stage === "submitted") &&
+        myStatusOn(i) !== "pending" &&
+        myStatusOn(i) !== "declined",
+    },
+    {
+      id: "approved-booked",
+      label: "Confirmed",
+      filter: (i) =>
+        (i.stage === "approved" || i.stage === "booked") &&
+        myStatusOn(i) !== "declined",
+    },
+    {
+      id: "closed",
+      label: "Closed",
+      filter: (i) =>
+        i.stage === "rejected" ||
+        i.stage === "expired" ||
+        myStatusOn(i) === "declined",
+    },
+  ];
+
+  const requestGroups: { id: string; label: string; filter: (r: TalentRequest) => boolean }[] = [
+    { id: "needs-answer", label: "Needs your answer", filter: (r) => r.status === "needs-answer" },
+    { id: "viewed", label: "Viewed — no answer needed yet", filter: (r) => r.status === "viewed" },
+    {
+      id: "decided",
+      label: "Decided",
+      filter: (r) => r.status === "accepted" || r.status === "declined" || r.status === "expired",
+    },
+  ];
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Inbox"
+        title="Inquiries & requests"
+        subtitle="Live inquiries put you in the same group thread as your coordinator. Holds and casting calls are quick decisions that may not need a thread yet."
+      />
+
+      {/* T9: Search bar */}
+      <div style={{ marginBottom: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            background: "#fff",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 8,
+            padding: "9px 14px",
+            maxWidth: 480,
+          }}
+        >
+          <Icon name="search" size={13} color={COLORS.inkDim} />
+          <input
+            type="text"
+            placeholder="Search by client or brief…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              border: "none",
+              background: "transparent",
+              outline: "none",
+              fontFamily: FONTS.body,
+              fontSize: 13.5,
+              color: COLORS.ink,
+              flex: 1,
+            }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, color: COLORS.inkDim }}
+            >
+              <Icon name="x" size={12} color={COLORS.inkDim} />
+            </button>
+          )}
+        </div>
+        {search && mine.length === 0 && (
+          <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
+            No inquiries match "{search}"
+          </div>
+        )}
+      </div>
+
+      {/* RICH INQUIRIES — talent's POV */}
+      {mine.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <CapsLabel>From your agencies</CapsLabel>
+        </div>
+      )}
+      {inquiryGroups.map((g) => {
+        const items = mine.filter(g.filter);
+        if (items.length === 0) return null;
+        return (
+          <section key={g.id} style={{ marginBottom: 24 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  color: COLORS.inkMuted,
+                  fontWeight: 500,
+                  letterSpacing: 0.2,
+                }}
+              >
+                {g.label}
+              </span>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim }}>
+                {items.length} {items.length === 1 ? "inquiry" : "inquiries"}
+              </span>
+            </div>
+            <div
+              style={{
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 12,
+                padding: "0 14px",
+              }}
+            >
+              {items.map((i) => (
+                <InquiryRow key={i.id} inquiry={i} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+
+      {/* LEGACY REQUESTS — holds and casting calls (one-off pings) */}
+      {TALENT_REQUESTS.length > 0 && (
+        <div style={{ marginBottom: 12, marginTop: mine.length > 0 ? 32 : 0 }}>
+          <CapsLabel>Holds & casting calls</CapsLabel>
+        </div>
+      )}
+      {requestGroups.map((g) => {
+        const items = TALENT_REQUESTS.filter(g.filter);
+        if (items.length === 0) return null;
+        return (
+          <section key={g.id} style={{ marginBottom: 24 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  color: COLORS.inkMuted,
+                  fontWeight: 500,
+                  letterSpacing: 0.2,
+                }}
+              >
+                {g.label}
+              </span>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim }}>
+                {items.length} {items.length === 1 ? "item" : "items"}
+              </span>
+            </div>
+            <div
+              style={{
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 12,
+                padding: "0 14px",
+              }}
+            >
+              {items.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => openDrawer("talent-offer-detail", { id: r.id })}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 0",
+                    borderBottom: `1px solid ${COLORS.borderSoft}`,
+                    background: "transparent",
+                    border: "none",
+                    borderTop: "none",
+                    borderLeft: "none",
+                    borderRight: "none",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    width: "100%",
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  <RequestKindBadge kind={r.kind} status={r.status} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink }}>
+                      {r.client} · {r.brief}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                      via {r.agency}
+                      {r.date && <> · {r.date}</>}
+                      {r.amount && <> · {r.amount}</>}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11.5, color: COLORS.inkDim }}>
+                    {r.ageHrs < 24 ? `${r.ageHrs}h` : `${Math.floor(r.ageHrs / 24)}d`} ago
+                  </span>
+                  <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+function RequestKindBadge({ kind, status }: { kind: TalentRequest["kind"]; status: TalentRequest["status"] }) {
+  const labels: Record<TalentRequest["kind"], string> = {
+    offer: "Offer",
+    hold: "Hold",
+    casting: "Casting",
+    request: "Request",
+  };
+  let bg = "rgba(11,11,13,0.05)";
+  let fg = COLORS.ink;
+  if (status === "needs-answer") {
+    bg = "rgba(82,96,109,0.12)";
+    fg = "#3A4651";
+  } else if (status === "accepted") {
+    bg = "rgba(46,125,91,0.10)";
+    fg = "#1F5C42";
+  } else if (status === "declined" || status === "expired") {
+    bg = "rgba(11,11,13,0.04)";
+    fg = COLORS.inkDim;
+  }
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "3px 9px",
+        borderRadius: 999,
+        background: bg,
+        color: fg,
+        fontFamily: FONTS.body,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        textTransform: "uppercase",
+      }}
+    >
+      {labels[kind]}
+    </span>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CALENDAR
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * CalendarMonthGrid — month grid for the talent's calendar page,
+ * showing confirmed bookings (green) and availability blocks (amber for
+ * travel, neutral for personal). Hard-coded to May 2026 to match the
+ * fixtures in `TALENT_BOOKINGS` + `AVAILABILITY_BLOCKS`.
+ *
+ * In production this becomes a real date-aware grid that paginates by
+ * month and reads from the same data sources. For prototype purposes the
+ * one-month view is enough to show the layout and visual language.
+ */
+function CalendarMonthGrid() {
+  const { openDrawer } = useProto();
+
+  // May 2026 starts on a Friday (verified). Map cells: empty for the
+  // first 4 days (Mon–Thu), then 1..31 for the days of the month.
+  // Layout is Mon-first, 6 weeks max.
+  const firstWeekday = 4; // 0=Mon, 4=Fri
+  const daysInMonth = 31;
+
+  // Define what's on each day. Dates are loosely aligned with fixtures.
+  // bk1 = May 6, bk2 = May 14-15, av1 = Apr 28 → May 2, av2 = May 22-26.
+  type DayMark =
+    | { kind: "booking"; id: string; label: string; client: string }
+    | { kind: "block"; id: string; label: string; type: "travel" | "personal" | "blocked" };
+
+  const marksByDay: Record<number, DayMark[]> = {};
+  const addMark = (day: number, mark: DayMark) => {
+    marksByDay[day] = marksByDay[day] ? [...marksByDay[day], mark] : [mark];
+  };
+
+  // Block: Apr 28 → May 2 (travel) — only May 1, 2 fall in this view
+  addMark(1, { kind: "block", id: "av1", label: "Travel · Lisbon", type: "travel" });
+  addMark(2, { kind: "block", id: "av1", label: "Travel · Lisbon", type: "travel" });
+
+  // Booking bk1 — May 6
+  addMark(6, { kind: "booking", id: "bk1", label: "Mango lookbook", client: "Mango" });
+
+  // Booking bk2 — May 14, 15
+  addMark(14, { kind: "booking", id: "bk2", label: "Vogue Italia editorial", client: "Vogue Italia" });
+  addMark(15, { kind: "booking", id: "bk2", label: "Vogue Italia editorial", client: "Vogue Italia" });
+
+  // Block av2 — May 22-26 (personal)
+  for (let d = 22; d <= 26; d++) {
+    addMark(d, { kind: "block", id: "av2", label: "Personal", type: "personal" });
+  }
+
+  const totalCells = Math.ceil((firstWeekday + daysInMonth) / 7) * 7;
+  const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+  return (
+    <section style={{ marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <CapsLabel>May 2026</CapsLabel>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <CalendarLegendDot tone="green" label="Booking" />
+          <CalendarLegendDot tone="amber" label="Travel" />
+          <CalendarLegendDot tone="dim" label="Personal" />
+        </div>
+      </div>
+
+      <div
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
+        {/* Weekday header */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            background: "rgba(11,11,13,0.02)",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+          }}
+        >
+          {weekdayLabels.map((d) => (
+            <div
+              key={d}
+              style={{
+                padding: "10px 12px",
+                fontFamily: FONTS.body,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                color: COLORS.inkMuted,
+              }}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Day cells */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            gridAutoRows: "minmax(86px, auto)",
+          }}
+        >
+          {Array.from({ length: totalCells }).map((_, idx) => {
+            const dayNum = idx - firstWeekday + 1;
+            const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
+            const marks = inMonth ? marksByDay[dayNum] ?? [] : [];
+            const isWeekend = idx % 7 >= 5;
+            const colCount = idx % 7;
+            const rowEnd = idx >= totalCells - 7;
+
+            return (
+              <div
+                key={idx}
+                style={{
+                  borderRight: colCount === 6 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                  borderBottom: rowEnd ? "none" : `1px solid ${COLORS.borderSoft}`,
+                  background: inMonth ? "#fff" : "rgba(11,11,13,0.02)",
+                  padding: "8px 10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                  minHeight: 86,
+                }}
+              >
+                {inMonth && (
+                  <div
+                    style={{
+                      fontFamily: FONTS.body,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: isWeekend ? COLORS.inkMuted : COLORS.ink,
+                    }}
+                  >
+                    {dayNum}
+                  </div>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  {marks.map((mark, mi) => (
+                    <button
+                      key={`${idx}-${mi}`}
+                      onClick={() => {
+                        if (mark.kind === "booking") {
+                          openDrawer("talent-booking-detail", { id: mark.id });
+                        } else {
+                          openDrawer("talent-availability", { id: mark.id });
+                        }
+                      }}
+                      style={{
+                        background:
+                          mark.kind === "booking"
+                            ? "rgba(46,125,91,0.10)"
+                            : mark.type === "travel"
+                              ? "rgba(82,96,109,0.12)"
+                              : "rgba(11,11,13,0.05)",
+                        color:
+                          mark.kind === "booking"
+                            ? "#1F5C42"
+                            : mark.type === "travel"
+                              ? "#3A4651"
+                              : COLORS.inkMuted,
+                        border: "none",
+                        borderRadius: 5,
+                        padding: "3px 6px",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontFamily: FONTS.body,
+                        fontSize: 10.5,
+                        fontWeight: 500,
+                        lineHeight: 1.25,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                      title={mark.label}
+                    >
+                      {mark.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim"; label: string }) {
+  const c =
+    tone === "green"
+      ? COLORS.green
+      : tone === "amber"
+        ? COLORS.amber
+        : COLORS.inkMuted;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontFamily: FONTS.body,
+        fontSize: 11,
+        color: COLORS.inkMuted,
+      }}
+    >
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          background: c,
+          display: "inline-block",
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
+function CalendarPage() {
+  const { openDrawer } = useProto();
+  const upcoming = TALENT_BOOKINGS.filter((b) => b.status === "confirmed");
+  const past = TALENT_BOOKINGS.filter((b) => b.status === "wrapped" || b.status === "paid");
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Calendar"
+        title="Bookings & availability"
+        subtitle="Confirmed bookings sit alongside your blocks. Block dates so your agencies don't pitch you when you're unavailable."
+        actions={
+          <>
+            <SecondaryButton onClick={() => openDrawer("talent-availability")}>
+              Edit availability
+            </SecondaryButton>
+            <PrimaryButton onClick={() => openDrawer("talent-block-dates")}>
+              Mark unavailable
+            </PrimaryButton>
+          </>
+        }
+      />
+
+      <Grid cols="3">
+        <StatusCard label="Upcoming" value={upcoming.length} caption="confirmed bookings" tone="green" />
+        <StatusCard label="Blocks set" value={AVAILABILITY_BLOCKS.length} caption="upcoming blocks" tone="ink" />
+        <StatusCard label="Past 90d" value={past.length} caption="wrapped jobs" tone="dim" />
+      </Grid>
+
+      <div style={{ height: 16 }} />
+      <ICalSubscribeCard talentName={MY_TALENT_PROFILE.name} slug="marta-reyes" />
+
+      <div style={{ height: 24 }} />
+
+      {/* Month grid */}
+      <CalendarMonthGrid />
+
+      <div style={{ height: 24 }} />
+
+      {/* Upcoming */}
+      <section style={{ marginBottom: 24 }}>
+        <CapsLabel>Upcoming</CapsLabel>
+        <div style={{ marginTop: 10, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: "0 14px" }}>
+          {upcoming.map((b) => (
+            <BookingRow key={b.id} booking={b} />
+          ))}
+          {upcoming.length === 0 && (
+            <EmptyState
+              icon="calendar"
+              title="No confirmed bookings yet"
+              body="Once an offer is approved, the booking will land here. Mark dates unavailable ahead of time so agencies don't book over your trips."
+              primaryLabel="Mark unavailable"
+              onPrimary={() => openDrawer("talent-block-dates")}
+              compact
+            />
+          )}
+        </div>
+      </section>
+
+      {/* Availability blocks */}
+      <section style={{ marginBottom: 24 }}>
+        <CapsLabel>Blocked dates</CapsLabel>
+        <div style={{ marginTop: 10, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: "0 14px" }}>
+          {AVAILABILITY_BLOCKS.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 0",
+                borderTop: `1px solid ${COLORS.borderSoft}`,
+                fontFamily: FONTS.body,
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: a.type === "travel" ? COLORS.amber : COLORS.inkMuted,
+                }}
+              />
+              <span style={{ flex: 1, fontSize: 13.5, color: COLORS.ink }}>
+                {a.startDate} – {a.endDate}
+              </span>
+              <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{a.reason}</span>
+              <button
+                onClick={() => openDrawer("talent-availability", { id: a.id })}
+                style={{
+                  background: "transparent",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 7,
+                  padding: "4px 9px",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  color: COLORS.inkMuted,
+                  cursor: "pointer",
+                }}
+              >
+                Edit
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Past */}
+      <section>
+        <CapsLabel>Recent past</CapsLabel>
+        <div style={{ marginTop: 10, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: "0 14px" }}>
+          {past.map((b) => (
+            <BookingRow key={b.id} booking={b} />
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ACTIVITY (earnings + history)
+// ════════════════════════════════════════════════════════════════════
+
+function ActivityPage() {
+  const { openDrawer } = useProto();
+  const total = EARNINGS_ROWS.reduce((sum, e) => {
+    const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
+    return sum + num;
+  }, 0);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Activity"
+        title="Earnings & history"
+        subtitle="Everything you've been paid through Tulala-tracked agencies. Tap a row to see the booking and contract."
+        actions={<SecondaryButton onClick={() => openDrawer("talent-payouts")}>Payout settings</SecondaryButton>}
+      />
+
+      <Grid cols="3">
+        <StatusCard label="Paid YTD" value={`€${total.toLocaleString()}`} caption="across 5 bookings" tone="green" />
+        <StatusCard label="Avg booking" value={`€${Math.round(total / 5).toLocaleString()}`} caption="across 5 bookings" tone="ink" />
+        <StatusCard label="Top client" value="Net-a-Porter" caption="€3,400 in Feb" tone="dim" />
+      </Grid>
+
+      <div style={{ height: 24 }} />
+
+      <CapsLabel>All earnings</CapsLabel>
+      <div
+        style={{
+          marginTop: 10,
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1.4fr 1.4fr 0.8fr 0.8fr 36px",
+            padding: "10px 16px",
+            background: "rgba(11,11,13,0.02)",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+          }}
+        >
+          <span>Date</span>
+          <span>Agency</span>
+          <span>Client</span>
+          <span style={{ textAlign: "right" }}>Amount</span>
+          <span style={{ textAlign: "right" }}>Status</span>
+          <span />
+        </div>
+        {EARNINGS_ROWS.map((e) => (
+          <button
+            key={e.id}
+            onClick={() => openDrawer("talent-earnings-detail", { id: e.id })}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1.4fr 1.4fr 0.8fr 0.8fr 36px",
+              padding: "13px 16px",
+              borderBottom: `1px solid ${COLORS.borderSoft}`,
+              background: "transparent",
+              border: "none",
+              borderTop: "none",
+              borderLeft: "none",
+              borderRight: "none",
+              cursor: "pointer",
+              textAlign: "left",
+              width: "100%",
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              alignItems: "center",
+            }}
+          >
+            <span style={{ color: COLORS.inkMuted }}>{e.workDate}</span>
+            <span style={{ color: COLORS.ink, fontWeight: 500 }}>{e.agency}</span>
+            <span style={{ color: COLORS.ink }}>{e.client}</span>
+            <span style={{ textAlign: "right", color: COLORS.ink, fontWeight: 600 }}>{e.amount}</span>
+            <span style={{ textAlign: "right" }}>
+              <span
+                style={{
+                  display: "inline-flex",
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: e.status === "paid" ? "rgba(46,125,91,0.10)" : "rgba(82,96,109,0.10)",
+                  color: e.status === "paid" ? "#1F5C42" : "#3A4651",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: 0.3,
+                  textTransform: "capitalize",
+                }}
+              >
+                {e.status}
+              </span>
+            </span>
+            <span style={{ display: "inline-flex", justifyContent: "flex-end" }}>
+              <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+            </span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════════════════════════════════
+
+function SettingsPage() {
+  const { openDrawer } = useProto();
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Settings"
+        title="Your account"
+        subtitle="Agencies, notifications, privacy and payouts."
+      />
+
+      <Divider label="Agencies" />
+      <Grid cols="auto">
+        {MY_AGENCIES.map((a) => (
+          <SecondaryCard
+            key={a.id}
+            title={a.name}
+            description={`${a.status === "exclusive" ? "Exclusive" : "Non-exclusive"} · joined ${a.joinedAt}`}
+            meta={
+              <>
+                <StatDot tone={a.isPrimary ? "green" : "ink"} />
+                {a.isPrimary ? "Primary" : "Secondary"} · {a.bookingsYTD} bookings
+              </>
+            }
+            affordance="Open relationship"
+            onClick={() => openDrawer("talent-agency-relationship", { id: a.id })}
+          />
+        ))}
+        <SecondaryCard
+          title="Add another agency"
+          description="Get invited via email — agencies onboard talent, not the other way around."
+          affordance="Learn more"
+          onClick={() => openDrawer("talent-agency-relationship", { mode: "add" })}
+        />
+      </Grid>
+
+      <Divider label="Personal page" />
+      <Grid cols="2">
+        <SecondaryCard
+          title={`Plan · ${TALENT_TIER_META[MY_TALENT_PROFILE.subscription.tier].label}`}
+          description={
+            MY_TALENT_PROFILE.subscription.tier === "basic"
+              ? "Standard public profile. Upgrade to unlock templates, embeds, press band, and a custom domain."
+              : MY_TALENT_PROFILE.subscription.tier === "pro"
+                ? `Pro · ${TALENT_TIER_META.pro.monthlyPrice}. Renews ${MY_TALENT_PROFILE.subscription.renewsOn ?? "monthly"}.`
+                : `Portfolio · ${TALENT_TIER_META.portfolio.monthlyPrice}. Renews ${MY_TALENT_PROFILE.subscription.renewsOn ?? "monthly"}.`
+          }
+          meta={
+            <>
+              <StatDot tone={MY_TALENT_PROFILE.subscription.tier === "basic" ? "dim" : "green"} />
+              {MY_TALENT_PROFILE.subscription.tier === "basic" ? "Free" : "Active"}
+            </>
+          }
+          affordance={MY_TALENT_PROFILE.subscription.tier === "portfolio" ? "Manage plan" : "Compare plans"}
+          onClick={() => openDrawer("talent-tier-compare")}
+        />
+        <SecondaryCard
+          title="Personal page builder"
+          description="Templates, sections, embeds and (Portfolio) custom domain. Coexists with all your agency rosters."
+          meta={MY_TALENT_PROFILE.subscription.personalPageEnabled ? <><StatDot tone="green" /> Live</> : <><StatDot tone="dim" /> Off</>}
+          affordance={tierAllows(MY_TALENT_PROFILE.subscription.tier, "extra-sections") ? "Edit page" : "Choose template"}
+          onClick={() =>
+            tierAllows(MY_TALENT_PROFILE.subscription.tier, "extra-sections")
+              ? openDrawer("talent-personal-page")
+              : openDrawer("talent-page-template")
+          }
+        />
+      </Grid>
+
+      <Divider label="Account" />
+      <Grid cols="2">
+        <SecondaryCard
+          title="Contact preferences"
+          description="Choose which client trust tiers can send you inquiries. Selectivity is opt-in — defaults stay open."
+          meta={<ContactPolicySummary policy={MY_TALENT_PROFILE.contactPolicy} />}
+          affordance="Manage"
+          onClick={() => openDrawer("talent-contact-preferences")}
+        />
+        <SecondaryCard
+          title="Notifications"
+          description="What email and push you get when an agency sends you a request."
+          affordance="Manage"
+          onClick={() => openDrawer("talent-notifications")}
+        />
+        <SecondaryCard
+          title="Privacy"
+          description="Where your profile appears — Tulala hub, agency rosters, public search."
+          affordance="Manage"
+          onClick={() => openDrawer("talent-privacy")}
+        />
+        <SecondaryCard
+          title="Payouts"
+          description="Bank info for direct payouts when an agency uses Tulala billing."
+          affordance="Manage"
+          onClick={() => openDrawer("talent-payouts")}
+        />
+        <SecondaryCard
+          title="Sign out / leave"
+          description="Sign out of your account or end your relationship with an agency."
+          affordance="Open"
+          onClick={() => openDrawer("talent-leave-agency")}
+        />
+      </Grid>
+    </>
+  );
+}
+
+/** Compact "open to all" / "selective · 3 of 4" summary for the card meta. */
+function ContactPolicySummary({ policy }: { policy: TalentContactPolicy }) {
+  const allowed = (Object.values(policy) as boolean[]).filter(Boolean).length;
+  const total = Object.values(policy).length;
+  const allOn = allowed === total;
+  return (
+    <>
+      <StatDot tone={allOn ? "green" : "amber"} />
+      {allOn ? "Open to all tiers" : `Selective · ${allowed} of ${total} tiers on`}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DRAWERS
+// ════════════════════════════════════════════════════════════════════
+
+// Helper — close + toast
+function useSaveAndClose(message = "Saved") {
+  const { closeDrawer, toast } = useProto();
+  return () => {
+    toast(message);
+    closeDrawer();
+  };
+}
+
+function StandardFooter({
+  onSave,
+  saveLabel = "Save",
+  destructive,
+}: {
+  onSave?: () => void;
+  saveLabel?: string;
+  destructive?: { label: string; onClick: () => void };
+}) {
+  const { closeDrawer } = useProto();
+  return (
+    <>
+      {destructive && (
+        <button
+          onClick={destructive.onClick}
+          style={{
+            background: "transparent",
+            border: `1px solid ${COLORS.borderSoft}`,
+            color: COLORS.red,
+            padding: "8px 12px",
+            borderRadius: 8,
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            fontWeight: 500,
+            cursor: "pointer",
+            marginRight: "auto",
+          }}
+        >
+          {destructive.label}
+        </button>
+      )}
+      <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+      {onSave && <PrimaryButton onClick={onSave}>{saveLabel}</PrimaryButton>}
+    </>
+  );
+}
+
+// ─── Today pulse drawer ───────────────────────────────────────────
+
+export function TalentTodayPulseDrawer() {
+  const { state, closeDrawer, openDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-today-pulse";
+  const items = TALENT_REQUESTS.filter((r) => r.status === "needs-answer" || r.status === "viewed");
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Inbox · what's hot"
+      description="Everything from your agencies that's still in motion."
+      width={560}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.map((r) => (
+          <button
+            key={r.id}
+            onClick={() => openDrawer("talent-offer-detail", { id: r.id })}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: FONTS.body,
+            }}
+          >
+            <RequestKindBadge kind={r.kind} status={r.status} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                  color: COLORS.ink,
+                }}
+              >
+                <span style={{ flex: "0 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {r.client} · {r.brief}
+                </span>
+                <ClientTrustChip level={r.clientTrust} compact />
+              </div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                via {r.agency}
+                {r.date && <> · {r.date}</>}
+                {r.amount && <> · {r.amount}</>}
+              </div>
+            </div>
+            <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+          </button>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Offer detail drawer ──────────────────────────────────────────
+
+export function TalentOfferDetailDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-offer-detail" || state.drawer.drawerId === "talent-request-detail";
+  const id = (state.drawer.payload?.id as string) ?? "rq1";
+  const r = TALENT_REQUESTS.find((x) => x.id === id) ?? TALENT_REQUESTS[0];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={`${r.client} · ${r.brief}`}
+      description={`via ${r.agency}${r.date ? ` · ${r.date}` : ""}`}
+      toolbar={<ClientTrustChip level={r.clientTrust} />}
+      width={560}
+      footer={
+        r.status === "needs-answer" ? (
+          <>
+            <button
+              onClick={() => {
+                toast("Declined — agency notified");
+                closeDrawer();
+              }}
+              style={{
+                background: "transparent",
+                border: `1px solid ${COLORS.borderSoft}`,
+                color: COLORS.red,
+                padding: "8px 12px",
+                borderRadius: 8,
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                fontWeight: 500,
+                cursor: "pointer",
+                marginRight: "auto",
+              }}
+            >
+              Decline
+            </button>
+            <SecondaryButton
+              onClick={() => {
+                toast("Marked as 'on hold' for the agency");
+                closeDrawer();
+              }}
+            >
+              Hold open
+            </SecondaryButton>
+            <PrimaryButton
+              onClick={() => {
+                toast("Accepted — booking will be created when terms are final");
+                closeDrawer();
+              }}
+            >
+              Accept
+            </PrimaryButton>
+          </>
+        ) : (
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        )
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <KvRow label="Status" value={statusLabel(r.status)} />
+        <KvRow label="Date" value={r.date ?? "TBC"} />
+        <KvRow label="Fee" value={r.amount ?? "TBC"} />
+        <KvRow label="Client" value={r.client} />
+        <KvRow label="Agency" value={r.agency} />
+        <Divider label="Brief" />
+        <p style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.6 }}>
+          The agency briefed this as: "<em>{r.brief}</em>". Tap accept to confirm — your agency
+          will turn this into a confirmed booking with full call sheet and contract once the
+          client locks in. You can also hold open if you want more time.
+        </p>
+        <Divider label="Terms (preview)" />
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.7 }}>
+          <li>Usage: web + social, 12 months · in-region (Europe)</li>
+          <li>Turnaround: deliver same week</li>
+          <li>Buyout option: clients can extend usage at +30%</li>
+          <li>Cancellation: 50% if &lt; 48h notice</li>
+        </ul>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function statusLabel(s: TalentRequest["status"]): string {
+  return ({
+    "needs-answer": "Needs your answer",
+    viewed: "Viewed",
+    accepted: "Accepted",
+    declined: "Declined",
+    expired: "Expired",
+  } as const)[s];
+}
+
+function KvRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+      <span
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: 1.2,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+          minWidth: 90,
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Booking detail (call sheet) ──────────────────────────────────
+
+export function TalentBookingDetailDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-booking-detail";
+  const id = (state.drawer.payload?.id as string) ?? "bk1";
+  const b = TALENT_BOOKINGS.find((x) => x.id === id) ?? TALENT_BOOKINGS[0];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={`${b.client} · ${b.brief}`}
+      description={`Booking via ${b.agency}`}
+      width={560}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Saved to calendar")}>Add to calendar</SecondaryButton>
+          <PrimaryButton onClick={closeDrawer}>Got it</PrimaryButton>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <KvRow label="Date" value={b.endDate ? `${b.startDate} → ${b.endDate}` : b.startDate} />
+        <KvRow label="Call time" value={b.call} />
+        <KvRow label="Location" value={b.location} />
+        <KvRow label="Fee" value={b.amount} />
+        <KvRow label="Status" value={b.status} />
+        <Divider label="What to bring" />
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
+          <li>Nude underwear · neutral footwear</li>
+          <li>Hair dry & natural · light skin prep only</li>
+          <li>Government ID · agency contract reference</li>
+        </ul>
+        <Divider label="Contacts on the day" />
+        <KvRow label="Producer" value="Inés López · +34 612 — 451" />
+        <KvRow label="Stylist" value="Lia Roca" />
+        <KvRow label="Photographer" value="Studio Roca" />
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Profile edit ─────────────────────────────────────────────────
+
+export function TalentProfileEditDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-profile-edit";
+  const onSave = useSaveAndClose("Profile saved · agencies notified");
+  const p = MY_TALENT_PROFILE;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Edit profile basics"
+      description="Changes flow to your public profile and to every agency that has you on roster."
+      width={560}
+      footer={<StandardFooter onSave={onSave} saveLabel="Save profile" />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <FieldRow label="Name">
+          <TextInput defaultValue={p.name} />
+        </FieldRow>
+        <FieldRow label="City">
+          <TextInput defaultValue={p.city.split(" ·")[0]} />
+        </FieldRow>
+        <FieldRow label="Height">
+          <TextInput defaultValue={p.measurements.heightImperial} />
+        </FieldRow>
+        <FieldRow label="Bio" hint="Shown on your public profile and on agency rosters.">
+          <TextArea
+            defaultValue="Madrid-based · editorial + commercial. Comfortable on movement-heavy shoots, multilingual on set (ES · EN · IT)."
+            rows={4}
+          />
+        </FieldRow>
+        <Divider label="Visibility" />
+        <ToggleRow label="Show on Tulala hub" hint="Appear in Tulala's curated talent directory." defaultOn={true} />
+        <ToggleRow label="Show on public storefronts" hint="Acme Models · Praline London public sites." defaultOn={true} />
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ToggleRow({ label, hint, defaultOn }: { label: string; hint?: string; defaultOn?: boolean }) {
+  const [on, setOn] = useState(defaultOn ?? false);
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        padding: "12px 14px",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+          {label}
+        </div>
+        {hint && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+            {hint}
+          </div>
+        )}
+      </div>
+      <Toggle on={on} onChange={setOn} />
+    </div>
+  );
+}
+
+// ─── Section editor (used for sub-sections of profile) ───────────
+
+export function TalentProfileSectionDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-profile-section";
+  const label = (state.drawer.payload?.label as string) ?? "Section";
+  const onSave = useSaveAndClose(`${label} saved`);
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={`Edit · ${label}`}
+      description="Update this section. Changes propagate to all your rosters automatically."
+      width={520}
+      footer={<StandardFooter onSave={onSave} />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <FieldRow label="Notes" hint="Field-specific UI lands in production. Prototype shows a textarea.">
+          <TextArea rows={6} defaultValue="Edit this section's content here." />
+        </FieldRow>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Availability ────────────────────────────────────────────────
+
+export function TalentAvailabilityDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-availability";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Availability"
+      description="Your blocks are visible to your agencies — they won't pitch you when you're unavailable."
+      width={520}
+      footer={<StandardFooter onSave={() => closeDrawer()} saveLabel="Done" />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {AVAILABILITY_BLOCKS.map((a) => (
+          <div
+            key={a.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              fontFamily: FONTS.body,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: a.type === "travel" ? COLORS.amber : COLORS.inkMuted,
+              }}
+            />
+            <span style={{ flex: 1, fontSize: 13.5, color: COLORS.ink }}>
+              {a.startDate} – {a.endDate}
+            </span>
+            <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{a.reason}</span>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Block dates ────────────────────────────────────────────────
+
+export function TalentBlockDatesDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-block-dates";
+  const onSave = useSaveAndClose("Dates blocked · agencies notified");
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Block dates"
+      description="Hide yourself from new pitches between these dates. Existing bookings aren't affected."
+      width={520}
+      footer={<StandardFooter onSave={onSave} saveLabel="Block dates" />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <FieldRow label="From">
+          <TextInput placeholder="May 22, 2026" />
+        </FieldRow>
+        <FieldRow label="To">
+          <TextInput placeholder="May 26, 2026" />
+        </FieldRow>
+        <FieldRow label="Reason" optional hint="Visible to your agencies.">
+          <TextInput placeholder="Travel · personal · other" />
+        </FieldRow>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Portfolio manager ───────────────────────────────────────────
+
+export function TalentPortfolioDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-portfolio";
+  const onSave = useSaveAndClose("Portfolio updated");
+  const shots = ["🌸", "🌊", "🍃", "🌷", "🌹", "🪷", "🌾", "🌺", "🌿", "🌳", "🍂", "🌲"];
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Portfolio"
+      description="12 / 15 shots. Your agencies favour fresh work — try to keep at least 3 from this year."
+      width={620}
+      footer={<StandardFooter onSave={onSave} saveLabel="Save order" />}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: 8,
+        }}
+      >
+        {shots.map((s, i) => (
+          <div
+            key={i}
+            style={{
+              aspectRatio: "3 / 4",
+              background: COLORS.surfaceAlt,
+              borderRadius: 8,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 28,
+              border: `1px solid ${COLORS.borderSoft}`,
+            }}
+          >
+            {s}
+          </div>
+        ))}
+        <div
+          style={{
+            aspectRatio: "3 / 4",
+            background: "rgba(11,11,13,0.02)",
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: `1px dashed rgba(11,11,13,0.18)`,
+            color: COLORS.inkMuted,
+            fontFamily: FONTS.body,
+            fontSize: 12,
+          }}
+        >
+          + Add
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Agency relationship ─────────────────────────────────────────
+
+export function TalentAgencyRelationshipDrawer() {
+  const { state, closeDrawer, openDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-agency-relationship";
+  const mode = state.drawer.payload?.mode;
+  if (mode === "add") {
+    return (
+      <DrawerShell
+        open={open}
+        onClose={closeDrawer}
+        title="Add another agency"
+        description="On Tulala, agencies invite talent — not the other way around. Forward an invite to your inbox or share your public profile with the agency."
+        width={520}
+        footer={<SecondaryButton onClick={closeDrawer}>Got it</SecondaryButton>}
+      >
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.6 }}>
+          Share this URL with the agency you'd like to work with — they can request you onto
+          their roster, and you'll see the request in your inbox.
+        </div>
+        <div
+          style={{
+            marginTop: 14,
+            padding: "10px 12px",
+            background: COLORS.surfaceAlt,
+            border: `1px solid rgba(15,79,62,0.18)`,
+            borderRadius: 10,
+            fontFamily: FONTS.mono,
+            fontSize: 12,
+            color: COLORS.ink,
+          }}
+        >
+          {MY_TALENT_PROFILE.publicUrl}
+        </div>
+      </DrawerShell>
+    );
+  }
+  const id = (state.drawer.payload?.id as string) ?? "ag1";
+  const a = MY_AGENCIES.find((x) => x.id === id) ?? MY_AGENCIES[0];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={a.name}
+      description={`${a.status === "exclusive" ? "Exclusive" : "Non-exclusive"} relationship · joined ${a.joinedAt}`}
+      width={520}
+      footer={
+        <StandardFooter
+          onSave={() => closeDrawer()}
+          saveLabel="Done"
+          destructive={{ label: "End relationship", onClick: () => openDrawer("talent-leave-agency", { id: a.id }) }}
+        />
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <KvRow label="Status" value={a.status} />
+        <KvRow label="Joined" value={a.joinedAt} />
+        <KvRow label="Bookings YTD" value={a.bookingsYTD} />
+        <KvRow label="Primary" value={a.isPrimary ? "Yes" : "No"} />
+        <Divider label="What this agency can do" />
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
+          <li>Pitch you to clients (you confirm before anything is booked)</li>
+          <li>List you on their public roster</li>
+          <li>Hold dates on your calendar with your approval</li>
+          <li>Send you direct messages via the inbox</li>
+        </ul>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Leave agency ───────────────────────────────────────────────
+
+export function TalentLeaveAgencyDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-leave-agency";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="End relationship"
+      description="This is a serious step. Your agency is notified and has 14 days to wind down active bookings."
+      width={520}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Keep working with them</SecondaryButton>
+          <button
+            onClick={() => {
+              toast("Notice sent — agency informed");
+              closeDrawer();
+            }}
+            style={{
+              background: COLORS.red,
+              color: "#fff",
+              border: "none",
+              padding: "9px 16px",
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 500,
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Send 14-day notice
+          </button>
+        </>
+      }
+    >
+      <div style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.6 }}>
+        Active bookings stay confirmed and get paid out. New pitches stop immediately. Past
+        earnings remain in your activity log. Your agency can't see your inbox or calendar
+        once the 14 days are up.
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Notifications ──────────────────────────────────────────────
+
+export function TalentNotificationsDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-notifications";
+  const onSave = useSaveAndClose("Notification settings saved");
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Notifications"
+      description="Pick when we email or push notify you. Inbox always shows new requests."
+      width={520}
+      footer={<StandardFooter onSave={onSave} />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <ToggleRow label="New offer · email" hint="When an agency sends you an offer." defaultOn={true} />
+        <ToggleRow label="New offer · push" hint="Mobile push notifications." defaultOn={true} />
+        <ToggleRow label="Hold expiring soon" hint="When a hold is about to release." defaultOn={true} />
+        <ToggleRow label="Booking reminders" hint="24h and 2h before a confirmed booking." defaultOn={true} />
+        <ToggleRow label="Payouts" hint="When a booking is paid." defaultOn={false} />
+        <ToggleRow label="Weekly summary" hint="Monday digest of last week's activity." defaultOn={false} />
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Privacy ────────────────────────────────────────────────────
+
+export function TalentPrivacyDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-privacy";
+  const onSave = useSaveAndClose("Privacy saved");
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Privacy"
+      description="Where you appear, and who can see your full profile."
+      width={520}
+      footer={<StandardFooter onSave={onSave} />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <ToggleRow label="Tulala hub (curated discovery)" hint="Only featured talent are shown." defaultOn={true} />
+        <ToggleRow label="Acme Models public roster" defaultOn={true} />
+        <ToggleRow label="Praline London public roster" defaultOn={true} />
+        <ToggleRow
+          label="Search engines (Google etc.)"
+          hint="Lets people find your public page from a Google search."
+          defaultOn={true}
+        />
+        <Divider label="Sensitive data" />
+        <ToggleRow
+          label="Show measurements publicly"
+          hint="Off = only agencies + clients you accept can see them."
+          defaultOn={true}
+        />
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Contact preferences ────────────────────────────────────────
+//
+// Per-tier on/off gate for inbound inquiries. Default = all tiers on
+// (open marketplace). Selectivity is opt-in. The "Most selective"
+// preset offers a one-click move to Verified+. Copy is plain English —
+// never frames it as "pay to message". See project_client_trust_badges.md.
+
+export function TalentContactPreferencesDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-contact-preferences";
+  const [policy, setPolicy] = useState<TalentContactPolicy>(MY_TALENT_PROFILE.contactPolicy);
+  const allowedCount = (Object.values(policy) as boolean[]).filter(Boolean).length;
+  const allOn = allowedCount === CLIENT_TRUST_LEVELS.length;
+
+  const onSave = () => {
+    toast(
+      allOn
+        ? "Contact preferences saved · open to all tiers"
+        : `Contact preferences saved · ${allowedCount} of ${CLIENT_TRUST_LEVELS.length} tiers on`,
+    );
+    closeDrawer();
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Contact preferences"
+      description="Decide which client trust tiers can send you inquiries. Your agency still sees everything internally — this gates inbound contact, not visibility."
+      width={560}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <PrimaryButton onClick={onSave}>Save</PrimaryButton>
+        </>
+      }
+    >
+      {/* Framing card — explains the principle without leaking the
+          "pay to DM" anti-pattern. */}
+      <div
+        style={{
+          padding: "14px 16px",
+          background: "rgba(11,11,13,0.03)",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          marginBottom: 18,
+        }}
+      >
+        <CapsLabel>How this works</CapsLabel>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+            marginTop: 6,
+            lineHeight: 1.55,
+          }}
+        >
+          Higher-trust clients have completed verification or funded their
+          account on Tulala. You decide which tiers can reach you. Lower-trust
+          tiers always have your agency's roster page available — they just
+          can't drop straight into your inbox.
+        </div>
+      </div>
+
+      {/* Presets — quick way to flip without micromanaging four toggles. */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <PresetButton
+          label="Open to everyone"
+          active={JSON.stringify(policy) === JSON.stringify(DEFAULT_CONTACT_POLICY)}
+          onClick={() => setPolicy({ ...DEFAULT_CONTACT_POLICY })}
+        />
+        <PresetButton
+          label="Verified clients only"
+          active={JSON.stringify(policy) === JSON.stringify(SELECTIVE_CONTACT_POLICY)}
+          onClick={() => setPolicy({ ...SELECTIVE_CONTACT_POLICY })}
+        />
+      </div>
+
+      {/* Per-tier toggles — the actual control surface. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {CLIENT_TRUST_LEVELS.map((tier) => {
+          const meta = CLIENT_TRUST_META[tier];
+          return (
+            <div
+              key={tier}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 12,
+                padding: "12px 14px",
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 10,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontFamily: FONTS.body,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: COLORS.ink,
+                  }}
+                >
+                  <ClientTrustChip level={tier} compact withDot={false} />
+                  Allow inquiries from {meta.label} clients
+                </div>
+                <div
+                  style={{
+                    fontFamily: FONTS.body,
+                    fontSize: 12,
+                    color: COLORS.inkMuted,
+                    marginTop: 4,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {meta.rationale}
+                </div>
+              </div>
+              <Toggle
+                on={policy[tier]}
+                onChange={(next) => setPolicy({ ...policy, [tier]: next })}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* What changes — a soft note about the consequence of selectivity. */}
+      {!allOn && (
+        <div
+          style={{
+            marginTop: 14,
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            color: COLORS.inkMuted,
+            lineHeight: 1.55,
+          }}
+        >
+          Blocked tiers can still see your roster page. They'll be invited to
+          verify or fund their account before they can send you a direct
+          inquiry. Your agency's coordinator inbox is unaffected.
+        </div>
+      )}
+    </DrawerShell>
+  );
+}
+
+function PresetButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: active ? COLORS.ink : "#fff",
+        color: active ? "#fff" : COLORS.ink,
+        border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+        borderRadius: 999,
+        padding: "6px 12px",
+        fontFamily: FONTS.body,
+        fontSize: 12,
+        fontWeight: 500,
+        cursor: "pointer",
+        letterSpacing: 0.2,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ─── Payouts ────────────────────────────────────────────────────
+
+export function TalentPayoutsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-payouts";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Payouts"
+      description="Direct deposit when an agency uses Tulala billing. For agencies that pay you directly, nothing changes."
+      width={520}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <PrimaryButton onClick={() => toast("Take this to your agency to enter banking info securely")}>
+            Set up via agency
+          </PrimaryButton>
+        </>
+      }
+    >
+      <div
+        style={{
+          padding: "14px 16px",
+          background: COLORS.surfaceAlt,
+          border: `1px solid rgba(15,79,62,0.18)`,
+          borderRadius: 12,
+          marginBottom: 14,
+        }}
+      >
+        <CapsLabel color={COLORS.accentDeep}>For your security</CapsLabel>
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, marginTop: 6, lineHeight: 1.55 }}>
+          We never collect bank details directly inside Tulala's prototype. In production, banking
+          is set up via your agency's encrypted Stripe Connect onboarding.
+        </div>
+      </div>
+      <KvRow label="Currency" value="EUR" />
+      <KvRow label="Schedule" value="Per-booking · paid 14 days after wrap" />
+      <KvRow label="Tax form" value="W-8BEN · pending" />
+    </DrawerShell>
+  );
+}
+
+// ─── Earnings detail ────────────────────────────────────────────
+
+export function TalentEarningsDetailDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-earnings-detail";
+  const id = (state.drawer.payload?.id as string) ?? "e1";
+  const e = EARNINGS_ROWS.find((x) => x.id === id) ?? EARNINGS_ROWS[0];
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={`${e.client} · ${e.amount}`}
+      description={`Paid ${e.payoutDate} via ${e.agency}`}
+      width={520}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <KvRow label="Work date" value={e.workDate} />
+        <KvRow label="Paid on" value={e.payoutDate} />
+        <KvRow label="Agency" value={e.agency} />
+        <KvRow label="Client" value={e.client} />
+        <KvRow label="Gross" value={e.amount} />
+        <KvRow label="Agency cut" value="20%" />
+        <KvRow label="Net to you" value={netOf(e.amount)} />
+        <Divider label="Documents" />
+        <button
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+            cursor: "pointer",
+            textAlign: "left",
+            width: "100%",
+          }}
+        >
+          <Icon name="external" size={13} />
+          Booking contract.pdf
+          <span style={{ marginLeft: "auto", color: COLORS.inkMuted, fontSize: 11.5 }}>2 pages</span>
+        </button>
+        <button
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+            cursor: "pointer",
+            textAlign: "left",
+            width: "100%",
+          }}
+        >
+          <Icon name="external" size={13} />
+          Payout statement.pdf
+          <span style={{ marginLeft: "auto", color: COLORS.inkMuted, fontSize: 11.5 }}>1 page</span>
+        </button>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function netOf(gross: string): string {
+  const num = parseFloat(gross.replace(/[^0-9.]/g, "")) || 0;
+  const symbol = gross.match(/[^0-9.,\s]/)?.[0] ?? "€";
+  return `${symbol}${Math.round(num * 0.8).toLocaleString()}`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EXPANDED PROFILE DRAWERS
+// ────────────────────────────────────────────────────────────────────
+//   These 14 drawers back the new MyProfilePage bands:
+//   visual identity · physicality · capability · history · trust ·
+//   commercial · public preview.
+//
+//   Pattern: DrawerShell + useSaveAndClose + StandardFooter,
+//   matching the rest of the talent surface.
+// ════════════════════════════════════════════════════════════════════
+
+// ─── Photo edit (cover or headshot) ───────────────────────────────
+
+export function TalentPhotoEditDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-photo-edit";
+  const which = (state.drawer.payload?.which as "cover" | "headshot") ?? "headshot";
+  const isCover = which === "cover";
+  const onSave = useSaveAndClose(`${isCover ? "Cover photo" : "Headshot"} updated · agencies notified`);
+
+  const swatches = isCover
+    ? ["🌅", "🌊", "🏔️", "🌆", "🏝️", "🌃", "🌌", "🌇"]
+    : ["🌸", "🌷", "🌹", "🪷", "🌺", "🌻", "🌼", "🌿"];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={isCover ? "Replace cover photo" : "Replace headshot"}
+      description={
+        isCover
+          ? "1600 × 480 minimum. Wide horizon shots work best — your headshot will overlap the lower edge."
+          : "Square crop. Faces forward, daylight, neutral background — the same headshot used on your comp card."
+      }
+      width={560}
+      footer={<StandardFooter onSave={onSave} saveLabel="Use selection" />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div
+          style={{
+            background: COLORS.surfaceAlt,
+            border: `1px solid rgba(15,79,62,0.18)`,
+            borderRadius: 12,
+            padding: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: isCover ? 96 : 64,
+              height: 64,
+              background: "#fff",
+              borderRadius: isCover ? 8 : "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 32,
+              border: `1px solid ${COLORS.borderSoft}`,
+            }}
+          >
+            {isCover ? MY_TALENT_PROFILE.coverPhoto : MY_TALENT_PROFILE.profilePhoto}
+          </div>
+          <div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>Currently using</div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, marginTop: 2 }}>
+              {isCover ? "Sunset over a coastline · uploaded Apr 12" : "Pink florals · uploaded Mar 28"}
+            </div>
+          </div>
+        </div>
+        <FieldRow label="Upload" hint="JPG / PNG / HEIC up to 12 MB. We'll auto-crop and generate retina sizes.">
+          <button
+            onClick={() => toast("Upload picker — coming soon")}
+            style={{
+              padding: "16px 14px",
+              background: "rgba(11,11,13,0.02)",
+              border: `1px dashed rgba(11,11,13,0.18)`,
+              borderRadius: 10,
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              color: COLORS.inkMuted,
+              cursor: "pointer",
+              textAlign: "center",
+            }}
+          >
+            Drop a file or click to upload
+          </button>
+        </FieldRow>
+        <Divider label="Or pick a placeholder" />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+          {swatches.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => toast(`${isCover ? "Cover" : "Headshot"} placeholder selected`)}
+              style={{
+                aspectRatio: isCover ? "16 / 9" : "1 / 1",
+                background: COLORS.surfaceAlt,
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 28,
+                cursor: "pointer",
+              }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+        {!isCover && (
+          <>
+            <Divider label="Crop guide" />
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: 18,
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                color: COLORS.inkMuted,
+                lineHeight: 1.7,
+              }}
+            >
+              <li>Eyes on the upper third</li>
+              <li>Neutral or daylight background</li>
+              <li>No filters or heavy retouch — agencies use this to verify identity</li>
+            </ul>
+          </>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Polaroids ───────────────────────────────────────────────────
+
+export function TalentPolaroidsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-polaroids";
+  const onSave = useSaveAndClose("Polaroid set updated");
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Polaroid set"
+      description="Industry standard: 5 angles, no styling, daylight. Clients use polaroids to verify what you actually look like in person."
+      width={560}
+      footer={<StandardFooter onSave={onSave} saveLabel="Save set" />}
+    >
+      <div
+        style={{
+          padding: "12px 14px",
+          background: COLORS.surfaceAlt,
+          border: `1px solid rgba(15,79,62,0.18)`,
+          borderRadius: 10,
+          marginBottom: 14,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <Icon name="info" size={14} color={COLORS.accentDeep} />
+        <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+          Refresh every 3 months · before / after major haircuts · weight changes ≥ 4 kg.
+        </span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        {POLAROID_SET.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              border: `1px solid ${p.updatedAgo === "missing" ? COLORS.red : COLORS.borderSoft}`,
+              borderRadius: 10,
+              overflow: "hidden",
+              background: "#fff",
+            }}
+          >
+            <div
+              style={{
+                aspectRatio: "3 / 4",
+                background: COLORS.surfaceAlt,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 36,
+                color: p.thumb === "—" ? COLORS.inkDim : "inherit",
+              }}
+            >
+              {p.thumb}
+            </div>
+            <div style={{ padding: "8px 10px" }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+                {p.angle}
+              </div>
+              <div
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 11,
+                  color: p.updatedAgo === "missing" ? COLORS.red : COLORS.inkMuted,
+                  marginTop: 2,
+                }}
+              >
+                {p.updatedAgo === "missing" ? "Missing — upload now" : `Updated ${p.updatedAgo} ago`}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={() => toast("Bulk uploader — coming soon")}
+        style={{
+          marginTop: 14,
+          padding: "12px 14px",
+          width: "100%",
+          background: "rgba(11,11,13,0.02)",
+          border: `1px dashed rgba(11,11,13,0.18)`,
+          borderRadius: 10,
+          fontFamily: FONTS.body,
+          fontSize: 13,
+          color: COLORS.inkMuted,
+          cursor: "pointer",
+        }}
+      >
+        Replace all 5 in a single shoot
+      </button>
+    </DrawerShell>
+  );
+}
+
+// ─── Credits ─────────────────────────────────────────────────────
+
+export function TalentCreditsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-credits";
+  const onSave = useSaveAndClose("Credits updated");
+  const credits = MY_TALENT_PROFILE.credits;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Credits & tearsheets"
+      description="Your work history. Pin up to 3 — they show first to clients. Add new credits as bookings wrap."
+      width={620}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("New credit form — coming soon")}>+ Add credit</SecondaryButton>
+          <StandardFooter onSave={onSave} saveLabel="Save order" />
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {credits.map((c) => (
+          <div
+            key={c.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+            }}
+          >
+            <span
+              style={{
+                width: 56,
+                fontFamily: FONTS.mono,
+                fontSize: 11,
+                color: COLORS.inkMuted,
+              }}
+            >
+              {c.year}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
+                {c.brand}
+                {c.pinned && <span style={{ color: COLORS.accentDeep, marginLeft: 6 }}>★</span>}
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                {c.type}
+                {c.role && <> · {c.role}</>}
+                {c.credit && <> · {c.credit}</>}
+              </div>
+            </div>
+            <button
+              onClick={() => toast(c.pinned ? "Unpinned" : "Pinned to top")}
+              style={{
+                background: "transparent",
+                border: `1px solid ${COLORS.borderSoft}`,
+                color: c.pinned ? COLORS.accentDeep : COLORS.inkMuted,
+                padding: "6px 10px",
+                borderRadius: 6,
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                cursor: "pointer",
+              }}
+            >
+              {c.pinned ? "★ Pinned" : "Pin"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Skills ─────────────────────────────────────────────────────
+
+export function TalentSkillsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-skills";
+  const onSave = useSaveAndClose("Skills updated");
+  const skills = MY_TALENT_PROFILE.skills;
+
+  const grouped: Record<string, typeof skills> = {};
+  for (const s of skills) {
+    grouped[s.category] = grouped[s.category] || [];
+    grouped[s.category].push(s);
+  }
+
+  const categoryLabels: Record<string, string> = {
+    movement: "Movement",
+    voice: "Voice",
+    instrument: "Instruments",
+    sport: "Sports",
+    performance: "Performance",
+    other: "Other",
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Skills"
+      description="Movement, voice, sports, instruments — anything a client might cast for. Honesty matters more than completeness."
+      width={560}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Add-skill picker — coming soon")}>+ Add skill</SecondaryButton>
+          <StandardFooter onSave={onSave} />
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {Object.keys(grouped).map((cat) => (
+          <div key={cat}>
+            <CapsLabel>{categoryLabels[cat] ?? cat}</CapsLabel>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+              {grouped[cat].map((s, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    background: "#fff",
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    borderRadius: 8,
+                  }}
+                >
+                  <span style={{ flex: 1, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink }}>
+                    {s.label}
+                  </span>
+                  {s.level && (
+                    <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+                      {s.level}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Limits ─────────────────────────────────────────────────────
+
+export function TalentLimitsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-limits";
+  const onSave = useSaveAndClose("Limits saved · agencies notified");
+  const limits = MY_TALENT_PROFILE.limits;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Wardrobe & lifestyle limits"
+      description="Hard limits block any pitch with that brief. Soft limits trigger an extra confirmation step before you're put forward."
+      width={560}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Add-limit form — coming soon")}>+ Add limit</SecondaryButton>
+          <StandardFooter onSave={onSave} />
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {limits.map((l) => (
+          <div
+            key={l.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: l.enforcement === "hard" ? COLORS.red : COLORS.amber,
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, fontWeight: 500 }}>
+                {l.label}
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, textTransform: "capitalize" }}>
+                {l.category} · {l.enforcement === "hard" ? "Hard limit" : "Needs confirmation"}
+              </div>
+            </div>
+            <button
+              onClick={() => toast("Limit removed")}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: COLORS.inkMuted,
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                cursor: "pointer",
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          marginTop: 14,
+          padding: "12px 14px",
+          background: COLORS.surfaceAlt,
+          border: `1px solid rgba(15,79,62,0.18)`,
+          borderRadius: 10,
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          color: COLORS.ink,
+          lineHeight: 1.55,
+        }}
+      >
+        Agencies on Tulala are contractually bound to honour your limits. If a client brief
+        violates a hard limit, the offer is auto-blocked before it ever reaches your inbox.
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Rate card ──────────────────────────────────────────────────
+
+export function TalentRateCardDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-rate-card";
+  const onSave = useSaveAndClose("Rate card saved");
+  const rc = MY_TALENT_PROFILE.rateCard;
+  const [vis, setVis] = useState(rc.visibility);
+
+  const visOptions: Array<{ value: typeof rc.visibility; label: string; hint: string }> = [
+    { value: "public", label: "Public", hint: "Shown on your public profile to anyone." },
+    { value: "agency-only", label: "Agency only", hint: "Only your agencies and confirmed clients see ranges." },
+    { value: "on-request", label: "On request", hint: "Hidden — clients have to inquire to get a quote." },
+  ];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Rate card"
+      description="Reference ranges, not final fees. The actual offer is per-booking and includes usage."
+      width={580}
+      footer={<StandardFooter onSave={onSave} saveLabel="Save rate card" />}
+    >
+      <CapsLabel>Visibility</CapsLabel>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6, marginBottom: 16 }}>
+        {visOptions.map((o) => (
+          <button
+            key={o.value}
+            onClick={() => setVis(o.value)}
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              padding: "10px 12px",
+              background: vis === o.value ? COLORS.surfaceAlt : "#fff",
+              border: `1px solid ${vis === o.value ? "rgba(15,79,62,0.32)" : COLORS.borderSoft}`,
+              borderRadius: 10,
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <span
+              style={{
+                width: 14,
+                height: 14,
+                borderRadius: "50%",
+                border: `1.5px solid ${vis === o.value ? COLORS.accentDeep : COLORS.inkMuted}`,
+                background: vis === o.value ? COLORS.accentDeep : "transparent",
+                flexShrink: 0,
+                marginTop: 2,
+              }}
+            />
+            <div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+                {o.label}
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                {o.hint}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+      <Divider label="Rate lines" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+        {rc.lines.map((line, i) => (
+          <div
+            key={i}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 160px",
+              gap: 8,
+              padding: "10px 12px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 8,
+            }}
+          >
+            <div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
+                {line.label}
+              </div>
+              {line.note && (
+                <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                  {line.note}
+                </div>
+              )}
+            </div>
+            <div
+              style={{
+                fontFamily: FONTS.mono,
+                fontSize: 12.5,
+                color: COLORS.ink,
+                textAlign: "right",
+                alignSelf: "center",
+              }}
+            >
+              {line.range}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <FieldRow label="Usage policy" hint="One sentence on what's included and what triggers an upcharge.">
+          <TextArea defaultValue={rc.usagePolicy} rows={3} />
+        </FieldRow>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Travel & work auth ─────────────────────────────────────────
+
+export function TalentTravelDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-travel";
+  const onSave = useSaveAndClose("Travel preferences saved");
+  const t = MY_TALENT_PROFILE.travel;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Travel & work authorization"
+      description="What countries can book you without visa drama, plus how far you'll fly for a job."
+      width={560}
+      footer={<StandardFooter onSave={onSave} />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <FieldRow label="Based in">
+          <TextInput defaultValue={t.basedIn} />
+        </FieldRow>
+        <FieldRow label="Willing to travel" hint="City · country · region · global.">
+          <TextInput defaultValue={t.willingTravel} />
+        </FieldRow>
+        <FieldRow label="Home radius" optional hint="How fast can you arrive? Same-day, 24h, weekend?">
+          <TextInput defaultValue={t.homeRadius ?? ""} />
+        </FieldRow>
+        <FieldRow label="Preferred travel class" optional>
+          <TextInput defaultValue={t.preferredClass ?? "economy"} />
+        </FieldRow>
+        <Divider label="Work authorization" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {t.workAuth.map((w, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 12px",
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 8,
+              }}
+            >
+              <Icon name="check" size={12} color={COLORS.green} />
+              <span style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, flex: 1 }}>{w}</span>
+            </div>
+          ))}
+        </div>
+        <Divider label="Passports" />
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {t.passports.map((p, i) => (
+            <span
+              key={i}
+              style={{
+                padding: "5px 10px",
+                background: COLORS.surfaceAlt,
+                border: `1px solid rgba(15,79,62,0.24)`,
+                borderRadius: 999,
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                color: COLORS.ink,
+              }}
+            >
+              {p}
+            </span>
+          ))}
+        </div>
+        {t.lastTrip && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+            Last trip: {t.lastTrip}
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── External links ─────────────────────────────────────────────
+
+export function TalentLinksDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-links";
+  const onSave = useSaveAndClose("Links saved");
+  const links = MY_TALENT_PROFILE.links;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="External links"
+      description="Social, IMDb, personal site. Follower counts auto-refresh weekly when you connect the account."
+      width={560}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Connect account flow in production")}>+ Connect account</SecondaryButton>
+          <StandardFooter onSave={onSave} />
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {links.map((l, i) => (
+          <div
+            key={i}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "auto 1fr auto",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: FONTS.body,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: 1.2,
+                textTransform: "uppercase",
+                color: COLORS.inkMuted,
+                width: 80,
+              }}
+            >
+              {l.kind}
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
+                {l.label}
+              </div>
+              <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                {l.url}
+              </div>
+            </div>
+            {l.followers ? (
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  color: COLORS.inkMuted,
+                }}
+              >
+                {l.followers}
+              </span>
+            ) : (
+              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim }}>—</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Reviews ────────────────────────────────────────────────────
+
+export function TalentReviewsDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-reviews";
+  const reviews = MY_TALENT_PROFILE.reviews;
+  const stats = MY_TALENT_PROFILE.bookingStats;
+  const avg = reviews.reduce((a, r) => a + r.rating, 0) / Math.max(reviews.length, 1);
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Reviews & endorsements"
+      description="Producers and creative directors can leave a review after a wrap. They're verified — no anonymous critiques."
+      width={580}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 8,
+          marginBottom: 16,
+        }}
+      >
+        <SummaryStat label="Average" value={`${avg.toFixed(1)} / 5`} accent="green" />
+        <SummaryStat label="Reviews" value={String(reviews.length)} accent="ink" />
+        <SummaryStat label="On-time rate" value={`${stats.onTimeRate}%`} accent="green" />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {reviews.map((r) => (
+          <div
+            key={r.id}
+            style={{
+              padding: "14px 16px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+              <span style={{ color: COLORS.accentDeep, fontSize: 13 }}>
+                {"★".repeat(r.rating)}
+                <span style={{ color: COLORS.inkDim }}>{"★".repeat(5 - r.rating)}</span>
+              </span>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginLeft: "auto" }}>
+                {r.shootDate}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, lineHeight: 1.55 }}>
+              "{r.body}"
+            </p>
+            <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+              — {r.reviewerName} · {r.reviewerRole} · {r.brand}
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function SummaryStat({ label, value, accent }: { label: string; value: string; accent: "green" | "ink" | "amber" }) {
+  const tone = accent === "green" ? COLORS.green : accent === "amber" ? COLORS.amber : COLORS.ink;
+  return (
+    <div
+      style={{
+        padding: "12px 14px",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 10.5,
+          fontWeight: 600,
+          letterSpacing: 1.2,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontFamily: FONTS.display, fontSize: 18, color: tone, marginTop: 4 }}>{value}</div>
+    </div>
+  );
+}
+
+// ─── Showreel ───────────────────────────────────────────────────
+
+export function TalentShowreelDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-showreel";
+  const p = MY_TALENT_PROFILE;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Showreel"
+      description={`${p.showreelDuration ?? "0:42"} · A 30–45 sec clip of you on camera. Casting directors love these.`}
+      width={620}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Replace showreel flow in production")}>Replace clip</SecondaryButton>
+          <PrimaryButton onClick={closeDrawer}>Close</PrimaryButton>
+        </>
+      }
+    >
+      <div
+        style={{
+          aspectRatio: "16 / 9",
+          background: COLORS.surfaceAlt,
+          borderRadius: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 96,
+          border: `1px solid ${COLORS.borderSoft}`,
+          marginBottom: 16,
+          position: "relative",
+        }}
+      >
+        {p.showreelThumb ?? "🎞️"}
+        <button
+          onClick={() => toast("Showreel plays in production")}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <span
+            style={{
+              width: 60,
+              height: 60,
+              borderRadius: "50%",
+              background: "rgba(11,11,13,0.78)",
+              color: "#fff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 22,
+            }}
+          >
+            ▶
+          </span>
+        </button>
+      </div>
+      <Divider label="Why a showreel" />
+      <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
+        <li>Speaking voice + accent for any TV/voiceover briefs</li>
+        <li>Range of expression beyond what a still shows</li>
+        <li>Movement quality — walking, turning, gesture</li>
+        <li>Natural light + tight crop is fine. No need for a studio piece.</li>
+      </ul>
+    </DrawerShell>
+  );
+}
+
+// ─── Measurements ───────────────────────────────────────────────
+
+export function TalentMeasurementsDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-measurements";
+  const onSave = useSaveAndClose("Measurements saved · agencies notified");
+  const m = MY_TALENT_PROFILE.measurements;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Measurements"
+      description="Your full comp card. Re-measure every 6 months — accurate stats prevent fitting reshoots."
+      width={580}
+      footer={<StandardFooter onSave={onSave} saveLabel="Save measurements" />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div
+          style={{
+            padding: "12px 14px",
+            background: COLORS.surfaceAlt,
+            border: `1px solid rgba(15,79,62,0.18)`,
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <Icon name="info" size={14} color={COLORS.accentDeep} />
+          <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+            Sensitive data. Public visibility is controlled in Privacy settings.
+          </span>
+        </div>
+        <Divider label="Body" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <FieldRow label="Height (Imperial)">
+            <TextInput defaultValue={m.heightImperial} />
+          </FieldRow>
+          <FieldRow label="Height (Metric)">
+            <TextInput defaultValue={m.heightMetric} />
+          </FieldRow>
+          <FieldRow label="Bust">
+            <TextInput defaultValue={m.bust} />
+          </FieldRow>
+          <FieldRow label="Waist">
+            <TextInput defaultValue={m.waist} />
+          </FieldRow>
+          <FieldRow label="Hips">
+            <TextInput defaultValue={m.hips} />
+          </FieldRow>
+          <FieldRow label="Inseam" optional>
+            <TextInput defaultValue={m.inseam ?? ""} />
+          </FieldRow>
+          <FieldRow label="Dress">
+            <TextInput defaultValue={m.dress} />
+          </FieldRow>
+          <FieldRow label="Suit" optional>
+            <TextInput defaultValue={m.suit ?? ""} />
+          </FieldRow>
+        </div>
+        <Divider label="Shoes" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <FieldRow label="EU">
+            <TextInput defaultValue={m.shoeEU} />
+          </FieldRow>
+          <FieldRow label="US">
+            <TextInput defaultValue={m.shoeUS} />
+          </FieldRow>
+          <FieldRow label="UK">
+            <TextInput defaultValue={m.shoeUK} />
+          </FieldRow>
+        </div>
+        <Divider label="Features" />
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <FieldRow label="Hair colour">
+            <TextInput defaultValue={m.hairColor} />
+          </FieldRow>
+          <FieldRow label="Hair length">
+            <TextInput defaultValue={m.hairLength} />
+          </FieldRow>
+          <FieldRow label="Eye colour">
+            <TextInput defaultValue={m.eyeColor} />
+          </FieldRow>
+          <FieldRow label="Skin tone">
+            <TextInput defaultValue={m.skinTone} />
+          </FieldRow>
+        </div>
+        <FieldRow label="Tattoos" hint={m.hasTattoos ? "Visible · note location and coverability." : "None."}>
+          <TextInput defaultValue={m.tattoosNote ?? ""} />
+        </FieldRow>
+        <FieldRow label="Piercings" hint={m.hasPiercings ? "Visible piercings only." : "None."}>
+          <TextInput defaultValue={m.piercingsNote ?? ""} />
+        </FieldRow>
+        <FieldRow label="Scars / marks" optional>
+          <TextInput defaultValue={m.scarsNote ?? ""} />
+        </FieldRow>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Documents ──────────────────────────────────────────────────
+
+export function TalentDocumentsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-documents";
+  const onSave = useSaveAndClose("Documents saved");
+  const docs = MY_TALENT_PROFILE.documents;
+
+  const stateMeta: Record<string, { color: string; label: string }> = {
+    uploaded: { color: COLORS.green, label: "Uploaded" },
+    missing: { color: COLORS.red, label: "Missing" },
+    expired: { color: COLORS.amber, label: "Expired" },
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Documents"
+      description="ID, tax forms, certifications. Stored encrypted. Visible only to your agency's admin team."
+      width={560}
+      footer={<StandardFooter onSave={onSave} />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {docs.map((d) => {
+          const meta = stateMeta[d.state];
+          return (
+            <div
+              key={d.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 14px",
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 10,
+              }}
+            >
+              <Icon name="external" size={14} color={COLORS.inkMuted} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>
+                  {d.label}
+                </div>
+                <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                  {meta.label}
+                  {d.expiresOn && d.state === "uploaded" && <> · expires {d.expiresOn}</>}
+                </div>
+              </div>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: meta.color,
+                  flexShrink: 0,
+                }}
+              />
+              <button
+                onClick={() => toast(d.state === "uploaded" ? "Replace flow in production" : "Upload picker in production")}
+                style={{
+                  background: "transparent",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  color: COLORS.ink,
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  cursor: "pointer",
+                }}
+              >
+                {d.state === "uploaded" ? "Replace" : "Upload"}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Emergency contact ──────────────────────────────────────────
+
+export function TalentEmergencyContactDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-emergency-contact";
+  const onSave = useSaveAndClose("Emergency contact saved");
+  const c = MY_TALENT_PROFILE.emergencyContact;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Emergency contact"
+      description="Visible only during an active booking, to the producer running the call sheet. Hidden the rest of the time."
+      width={520}
+      footer={<StandardFooter onSave={onSave} />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <FieldRow label="Name">
+          <TextInput defaultValue={c.name} />
+        </FieldRow>
+        <FieldRow label="Relation">
+          <TextInput defaultValue={c.relation} />
+        </FieldRow>
+        <FieldRow label="Phone" hint="Stored encrypted. Masked on every other surface.">
+          <TextInput defaultValue={c.phone} />
+        </FieldRow>
+        <Divider label="When this is shown" />
+        <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.7 }}>
+          <li>The day of a confirmed booking, on that booking's call sheet only</li>
+          <li>To the producer named on the contract — no one else</li>
+          <li>Auto-revoked 24h after the wrap time</li>
+        </ul>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Public preview ─────────────────────────────────────────────
+
+export function TalentPublicPreviewDrawer() {
+  const { state, closeDrawer, toast, openDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-public-preview";
+  const p = MY_TALENT_PROFILE;
+  const currentTier = p.subscription.tier;
+  const [previewTier, setPreviewTier] = useState<TalentSubscriptionTier>(currentTier);
+  const showEmbeds = previewTier !== "basic";
+  const showPress = previewTier !== "basic";
+  const showPortfolioExtras = previewTier === "portfolio";
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Preview as a client"
+      description="What an unverified visitor sees on your personal page. Use the tier toggle to see how your page changes if you upgrade."
+      width={720}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Public URL copied")}>Copy public URL</SecondaryButton>
+          {previewTier !== currentTier && (
+            <PrimaryButton onClick={() => { closeDrawer(); openDrawer("talent-tier-compare"); }}>
+              Upgrade to {TALENT_TIER_META[previewTier].label}
+            </PrimaryButton>
+          )}
+          {previewTier === currentTier && <PrimaryButton onClick={closeDrawer}>Close preview</PrimaryButton>}
+        </>
+      }
+    >
+      {/* Tier toggle */}
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          padding: 4,
+          background: "rgba(11,11,13,0.04)",
+          borderRadius: 999,
+          marginBottom: 14,
+          width: "fit-content",
+        }}
+      >
+        {(["basic", "pro", "portfolio"] as const).map((t) => {
+          const isActive = previewTier === t;
+          const isCurrent = currentTier === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setPreviewTier(t)}
+              style={{
+                padding: "5px 12px",
+                background: isActive ? "#fff" : "transparent",
+                color: isActive ? COLORS.ink : COLORS.inkMuted,
+                border: "none",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                fontWeight: 500,
+                borderRadius: 999,
+                cursor: "pointer",
+                boxShadow: isActive ? "0 1px 3px rgba(11,11,13,0.06)" : "none",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              {TALENT_TIER_META[t].label}
+              {isCurrent && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: COLORS.accentDeep,
+                    fontWeight: 700,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  · current
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <div
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
+        {/* Cover */}
+        <div
+          style={{
+            height: 120,
+            background: `linear-gradient(135deg, ${COLORS.surfaceAlt} 0%, #fff 100%)`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 56,
+          }}
+        >
+          {p.coverPhoto}
+        </div>
+        {/* Identity */}
+        <div style={{ padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 14, position: "relative" }}>
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              background: COLORS.surfaceAlt,
+              border: `3px solid #fff`,
+              boxShadow: "0 1px 4px rgba(11,11,13,0.08)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 32,
+              marginTop: -36,
+              flexShrink: 0,
+            }}
+          >
+            {p.profilePhoto}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink, lineHeight: 1.2 }}>{p.name}</div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, marginTop: 4 }}>
+              {p.pronouns} · {p.measurementsSummary} · {p.city.split(" ·")[0]}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+              {p.specialties.slice(0, 4).map((s) => (
+                <span
+                  key={s}
+                  style={{
+                    padding: "3px 9px",
+                    background: COLORS.surfaceAlt,
+                    border: `1px solid rgba(15,79,62,0.24)`,
+                    borderRadius: 999,
+                    fontFamily: FONTS.body,
+                    fontSize: 11,
+                    color: COLORS.ink,
+                  }}
+                >
+                  {TALENT_SPECIALTY_LABEL[s]}
+                </span>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => toast("Inquiry form — coming soon")}
+            style={{
+              background: COLORS.ink,
+              color: "#fff",
+              border: "none",
+              padding: "8px 14px",
+              borderRadius: 8,
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              fontWeight: 500,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            Send inquiry
+          </button>
+        </div>
+        {/* Body */}
+        <div style={{ padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <Divider label="What's public" />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+            <PreviewKv label="Languages" value={summarizeLanguages(p.languages)} />
+            <PreviewKv label="Travel" value="Global · 2 wk lead" />
+            <PreviewKv label="Track record" value={`${p.bookingStats.completedBookings} bookings · ${p.bookingStats.onTimeRate}% on time`} />
+            <PreviewKv label="Verified" value={`${p.badges.length} badges`} />
+          </div>
+          {/* Pro+ — embeds */}
+          {showEmbeds && p.subscription.embeds.length > 0 && (
+            <>
+              <Divider label="Featured media" />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {p.subscription.embeds.slice(0, 3).map((e) => (
+                  <div
+                    key={e.id}
+                    style={{
+                      aspectRatio: "1 / 1",
+                      background: COLORS.surfaceAlt,
+                      border: `1px solid ${COLORS.borderSoft}`,
+                      borderRadius: 8,
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: 28 }}>{e.thumb}</span>
+                    <span style={{ fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkMuted, textTransform: "capitalize" }}>
+                      {e.kind}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {/* Pro+ — press */}
+          {showPress && p.subscription.press.length > 0 && (
+            <>
+              <Divider label="Press" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {p.subscription.press.slice(0, 2).map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      padding: "8px 10px",
+                      background: "rgba(11,11,13,0.02)",
+                      border: `1px solid ${COLORS.borderSoft}`,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, color: COLORS.accentDeep, letterSpacing: 0.4, textTransform: "uppercase" }}>
+                      {c.outlet}
+                    </div>
+                    <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, marginTop: 2 }}>
+                      {c.headline}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {/* Portfolio — extra sections hint */}
+          {showPortfolioExtras && (
+            <>
+              <Divider label="Portfolio sections" />
+              <div
+                style={{
+                  padding: "10px 12px",
+                  background: COLORS.ink,
+                  color: "#fff",
+                  borderRadius: 10,
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                <strong style={{ letterSpacing: 0.4 }}>+ Story / About · Tour dates · Show calendar · EPK download · FAQ.</strong>
+                <div style={{ opacity: 0.7, marginTop: 4 }}>
+                  Custom domain: marta-reyes.com (replaces tulala.digital/t/marta-reyes).
+                </div>
+              </div>
+            </>
+          )}
+          <Divider label="What's hidden until they inquire" />
+          <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.7 }}>
+            <li>Full measurements (private — agency-controlled)</li>
+            <li>Rate ranges (rate card visibility = {p.rateCard.visibility})</li>
+            <li>Limits and wardrobe constraints</li>
+            <li>Documents, emergency contact, agency-internal notes</li>
+          </ul>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function PreviewKv({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        padding: "8px 10px",
+        background: "rgba(11,11,13,0.02)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 8,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: 1.2,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, marginTop: 3 }}>{value}</div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PREMIUM TALENT PAGE DRAWERS
+// ────────────────────────────────────────────────────────────────────
+//   Tulala-direct subscription tier (Basic / Pro / Portfolio) is a
+//   parallel monetization path: agencies pay for workspaces, talent
+//   pay for richer personal pages. Tiers coexist — a Portfolio talent
+//   on Acme's roster keeps appearing on Acme's site exactly the same.
+// ════════════════════════════════════════════════════════════════════
+
+// ─── Tier compare ────────────────────────────────────────────────
+
+const TIER_FEATURE_MATRIX: Array<{ label: string; basic: string | true; pro: string | true; portfolio: string | true }> = [
+  { label: "Standard public profile", basic: true, pro: true, portfolio: true },
+  { label: "Roster · Tulala hub discovery", basic: true, pro: true, portfolio: true },
+  { label: "Inquiry inbox + bookings", basic: true, pro: true, portfolio: true },
+  { label: "Page templates", basic: "Roster only", pro: "+ Editorial / Studio", portfolio: "+ Stage / Creator / EPK" },
+  { label: "Social + video embeds", basic: "—", pro: "Up to 6", portfolio: "Unlimited" },
+  { label: "Press / clippings band", basic: "—", pro: true, portfolio: true },
+  { label: "Downloadable media kit (EPK)", basic: "—", pro: true, portfolio: true },
+  { label: "Custom domain (yourname.com)", basic: "—", pro: "—", portfolio: true },
+  { label: "Multi-section page builder", basic: "—", pro: "—", portfolio: true },
+  { label: "SEO controls + meta", basic: "—", pro: "—", portfolio: true },
+  { label: "Priority discover placement", basic: "—", pro: "—", portfolio: true },
+];
+
+export function TalentTierCompareDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-tier-compare";
+  const current = MY_TALENT_PROFILE.subscription.tier;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Compare talent plans"
+      description="Your Tulala personal page tier. Coexists with whatever agencies and hubs you're on — agency rosters never change."
+      width={760}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Maybe later</SecondaryButton>
+          {current !== "portfolio" && (
+            <PrimaryButton onClick={() => toast(`${current === "basic" ? "Pro" : "Portfolio"} trial started · 14 days free`)}>
+              Start {current === "basic" ? "Pro" : "Portfolio"} trial
+            </PrimaryButton>
+          )}
+        </>
+      }
+    >
+      {/* Tier columns */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        {(["basic", "pro", "portfolio"] as const).map((t) => {
+          const meta = TALENT_TIER_META[t];
+          const isCurrent = t === current;
+          return (
+            <div
+              key={t}
+              style={{
+                padding: "16px 16px",
+                background: t === "portfolio" ? COLORS.ink : "#fff",
+                color: t === "portfolio" ? "#fff" : COLORS.ink,
+                border: `1.5px solid ${isCurrent ? COLORS.accentDeep : t === "portfolio" ? COLORS.ink : COLORS.borderSoft}`,
+                borderRadius: 12,
+                position: "relative",
+              }}
+            >
+              {isCurrent && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -10,
+                    left: 14,
+                    background: COLORS.accentDeep,
+                    color: "#fff",
+                    fontFamily: FONTS.body,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    padding: "3px 9px",
+                    borderRadius: 999,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Current
+                </span>
+              )}
+              <div
+                style={{
+                  fontFamily: FONTS.display,
+                  fontSize: 22,
+                  fontWeight: 500,
+                  letterSpacing: -0.3,
+                }}
+              >
+                {meta.label}
+              </div>
+              <div
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  opacity: 0.75,
+                  marginTop: 3,
+                }}
+              >
+                {meta.tagline}
+              </div>
+              <div
+                style={{
+                  fontFamily: FONTS.display,
+                  fontSize: 18,
+                  marginTop: 12,
+                  color: t === "portfolio" ? "#fff" : COLORS.accentDeep,
+                  fontWeight: 600,
+                }}
+              >
+                {meta.monthlyPrice}
+              </div>
+              <p
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  lineHeight: 1.55,
+                  marginTop: 8,
+                  marginBottom: 0,
+                  opacity: 0.85,
+                }}
+              >
+                {meta.blurb}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Feature matrix */}
+      <div style={{ marginTop: 18 }}>
+        <CapsLabel>What's included</CapsLabel>
+        <div
+          style={{
+            marginTop: 8,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            overflow: "hidden",
+          }}
+        >
+          {/* Header */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.6fr 1fr 1fr 1fr",
+              padding: "10px 14px",
+              background: "rgba(11,11,13,0.025)",
+              borderBottom: `1px solid ${COLORS.borderSoft}`,
+              fontFamily: FONTS.body,
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted,
+            }}
+          >
+            <span>Feature</span>
+            <span style={{ textAlign: "center" }}>Basic</span>
+            <span style={{ textAlign: "center" }}>Pro</span>
+            <span style={{ textAlign: "center" }}>Portfolio</span>
+          </div>
+          {/* Rows */}
+          {TIER_FEATURE_MATRIX.map((f, i) => (
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.6fr 1fr 1fr 1fr",
+                padding: "10px 14px",
+                borderBottom: i < TIER_FEATURE_MATRIX.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                color: COLORS.ink,
+                alignItems: "center",
+              }}
+            >
+              <span style={{ fontWeight: 500 }}>{f.label}</span>
+              <FeatureCell value={f.basic} />
+              <FeatureCell value={f.pro} />
+              <FeatureCell value={f.portfolio} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginTop: 16,
+          padding: "12px 14px",
+          background: COLORS.surfaceAlt,
+          border: `1px solid rgba(15,79,62,0.18)`,
+          borderRadius: 10,
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          color: COLORS.ink,
+          lineHeight: 1.55,
+        }}
+      >
+        Personal page tiers are independent of agency / hub presence. You stay on every roster
+        you're on now. The tier only affects your direct Tulala destination page.
+      </div>
+    </DrawerShell>
+  );
+}
+
+function FeatureCell({ value }: { value: string | true }) {
+  if (value === true) {
+    return (
+      <span style={{ textAlign: "center", color: COLORS.green, fontWeight: 600 }}>✓</span>
+    );
+  }
+  if (value === "—") {
+    return <span style={{ textAlign: "center", color: COLORS.inkDim }}>—</span>;
+  }
+  return (
+    <span
+      style={{
+        textAlign: "center",
+        fontSize: 11.5,
+        color: COLORS.inkMuted,
+      }}
+    >
+      {value}
+    </span>
+  );
+}
+
+// ─── Personal page (page-builder lite, Portfolio) ──────────────────
+
+export function TalentPersonalPageDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-personal-page";
+  const sub = MY_TALENT_PROFILE.subscription;
+  const sections = [
+    { id: "hero", label: "Hero", body: "Cover · headshot · name · pronouns · tagline.", removable: false },
+    { id: "story", label: "About / story", body: "1-2 paragraphs in your own voice.", removable: true },
+    { id: "embeds", label: "Media embeds", body: `${sub.embeds.length} embed${sub.embeds.length === 1 ? "" : "s"} live.`, removable: true },
+    { id: "credits", label: "Credits & tearsheet", body: "Pulled from your profile credits.", removable: true },
+    { id: "press", label: "Press band", body: `${sub.press.length} clip${sub.press.length === 1 ? "" : "s"}.`, removable: true },
+    { id: "contact", label: "Contact CTA", body: "'Inquire' button → routes through your agency unless you're un-rep'd.", removable: false },
+  ];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Personal page builder"
+      description="Drag sections to re-order. Hero and Contact CTA are required — everything else is optional."
+      width={620}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Page preview — coming soon")}>Preview page</SecondaryButton>
+          <PrimaryButton onClick={() => toast("Page saved · changes live in 30 sec")}>Publish</PrimaryButton>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {sections.map((s) => (
+          <div
+            key={s.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+            }}
+          >
+            <span style={{ color: COLORS.inkDim, fontSize: 14, cursor: "grab" }}>⋮⋮</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
+                {s.label}
+                {!s.removable && (
+                  <span style={{ marginLeft: 8, fontSize: 11, color: COLORS.inkMuted, fontWeight: 400 }}>
+                    Required
+                  </span>
+                )}
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                {s.body}
+              </div>
+            </div>
+            <Toggle on={true} onChange={() => {}} />
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <button
+          onClick={() => toast("Section catalog — coming soon")}
+          style={{
+            padding: "12px 14px",
+            width: "100%",
+            background: "rgba(11,11,13,0.02)",
+            border: `1px dashed rgba(11,11,13,0.18)`,
+            borderRadius: 10,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.inkMuted,
+            cursor: "pointer",
+          }}
+        >
+          + Add section · Tour dates · Show calendar · FAQ · Custom block
+        </button>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Page template picker ───────────────────────────────────────────
+
+export function TalentPageTemplateDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-page-template";
+  const tier = MY_TALENT_PROFILE.subscription.tier;
+  const active = MY_TALENT_PROFILE.subscription.template;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Choose a template"
+      description="Templates set the layout, hero size, and section order of your personal page. Switch any time — content stays."
+      width={680}
+      footer={<StandardFooter onSave={() => { toast("Template saved · page rebuilt"); closeDrawer(); }} saveLabel="Use template" />}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+        {TALENT_PAGE_TEMPLATES.map((t) => {
+          const locked = !tierAllows(tier, "template-picker") && t.availableAt !== "basic";
+          const tierLocked = !tierAllows(tier, "media-embeds") && t.availableAt === "pro";
+          const sigLocked = !tierAllows(tier, "extra-sections") && t.availableAt === "portfolio";
+          const isLocked = locked || tierLocked || sigLocked;
+          const isActive = t.id === active;
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                if (isLocked) {
+                  toast(`Unlock ${TALENT_TIER_META[t.availableAt].label} to use ${t.label}`);
+                  return;
+                }
+                toast(`${t.label} selected`);
+              }}
+              style={{
+                position: "relative",
+                padding: 14,
+                textAlign: "left",
+                background: isActive ? COLORS.surfaceAlt : "#fff",
+                border: `1.5px solid ${isActive ? COLORS.accentDeep : COLORS.borderSoft}`,
+                borderRadius: 12,
+                cursor: "pointer",
+                opacity: isLocked ? 0.78 : 1,
+              }}
+            >
+              <div
+                style={{
+                  aspectRatio: "16 / 9",
+                  background: COLORS.surfaceAlt,
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 48,
+                  marginBottom: 10,
+                  filter: isLocked ? "grayscale(0.4)" : "none",
+                }}
+              >
+                {t.thumb}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <span style={{ fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink }}>{t.label}</span>
+                {isActive && (
+                  <span style={{ fontFamily: FONTS.body, fontSize: 10, color: COLORS.accentDeep, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                    Active
+                  </span>
+                )}
+                {isLocked && <LockedBadge requiredTier={t.availableAt} />}
+              </div>
+              <p style={{ margin: "4px 0 0", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+                {t.blurb}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Media embeds ──────────────────────────────────────────────────
+
+export function TalentMediaEmbedsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-media-embeds";
+  const onSave = useSaveAndClose("Embeds saved");
+  const embeds = MY_TALENT_PROFILE.subscription.embeds;
+
+  const supported: Array<{ kind: TalentMediaEmbed["kind"]; label: string; thumb: string }> = [
+    { kind: "instagram", label: "Instagram", thumb: "📷" },
+    { kind: "tiktok", label: "TikTok", thumb: "🎵" },
+    { kind: "youtube", label: "YouTube", thumb: "▶️" },
+    { kind: "spotify", label: "Spotify", thumb: "🎧" },
+    { kind: "soundcloud", label: "SoundCloud", thumb: "☁️" },
+    { kind: "vimeo", label: "Vimeo", thumb: "🎬" },
+  ];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Media embeds"
+      description="Drop in a public URL and Tulala renders the live embed on your personal page. Update any time."
+      width={580}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Connect-account flow in production")}>+ Connect account</SecondaryButton>
+          <StandardFooter onSave={onSave} />
+        </>
+      }
+    >
+      <CapsLabel>Live on your page</CapsLabel>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+        {embeds.map((e) => (
+          <div
+            key={e.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+            }}
+          >
+            <span
+              style={{
+                width: 36,
+                height: 36,
+                background: COLORS.surfaceAlt,
+                borderRadius: 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+              }}
+            >
+              {e.thumb}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink, textTransform: "capitalize" }}>
+                {e.kind} · {e.label}
+              </div>
+              <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                {e.url}
+              </div>
+            </div>
+            <button
+              onClick={() => toast("Embed removed")}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: COLORS.inkMuted,
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                cursor: "pointer",
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      <Divider label="Supported sources" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+        {supported.map((s) => (
+          <div
+            key={s.kind}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 12px",
+              background: COLORS.surfaceAlt,
+              border: `1px solid rgba(15,79,62,0.18)`,
+              borderRadius: 8,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: COLORS.ink,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>{s.thumb}</span>
+            {s.label}
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Press / clippings ──────────────────────────────────────────────
+
+export function TalentPressDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-press";
+  const onSave = useSaveAndClose("Press band saved");
+  const press = MY_TALENT_PROFILE.subscription.press;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Press & clippings"
+      description="Magazine, blog, podcast, or TV mentions. Pulled from Google Alerts or pasted in manually."
+      width={580}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Add-clip form in production")}>+ Add clip</SecondaryButton>
+          <StandardFooter onSave={onSave} />
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {press.map((c) => (
+          <div
+            key={c.id}
+            style={{
+              padding: "14px 16px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.accentDeep, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                {c.outlet}
+              </span>
+              <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginLeft: "auto" }}>
+                {c.date}
+              </span>
+            </div>
+            <div style={{ fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink, marginTop: 4 }}>
+              {c.headline}
+            </div>
+            {c.quote && (
+              <p style={{ margin: "6px 0 0", fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55, fontStyle: "italic" }}>
+                "{c.quote}"
+              </p>
+            )}
+            <div style={{ marginTop: 6, fontFamily: FONTS.mono, fontSize: 11, color: COLORS.inkMuted }}>
+              {c.url}
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Media kit / EPK ────────────────────────────────────────────────
+
+export function TalentMediaKitDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-media-kit";
+  const kit = MY_TALENT_PROFILE.subscription.mediaKit;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Media kit (EPK)"
+      description="A single PDF with your bio, credits, comp card, press, and contact CTA. Auto-built from your profile data."
+      width={560}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("Regenerated · ready to download in 30 sec")}>Re-generate</SecondaryButton>
+          <PrimaryButton onClick={() => toast("Download starts in production")}>Download PDF</PrimaryButton>
+        </>
+      }
+    >
+      {kit ? (
+        <div
+          style={{
+            padding: "14px 16px",
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+          }}
+        >
+          <div
+            style={{
+              width: 56,
+              height: 70,
+              background: COLORS.surfaceAlt,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 28,
+              border: `1px solid ${COLORS.borderSoft}`,
+              flexShrink: 0,
+            }}
+          >
+            {kit.thumb}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
+              {kit.filename}
+            </div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              {kit.size} · updated {kit.updatedAt}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
+          No kit generated yet. Click Re-generate to build one from your current profile.
+        </div>
+      )}
+      <Divider label="What's in the kit" />
+      <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
+        <li>Cover page · headshot · name · contact CTA</li>
+        <li>Comp card spread (measurements + 4 polaroids)</li>
+        <li>Pinned credits + tear-sheets</li>
+        <li>Press band (up to 6 clippings)</li>
+        <li>Travel + work auth + agency info</li>
+        <li>QR code → live Tulala personal page</li>
+      </ul>
+    </DrawerShell>
+  );
+}
+
+// ─── Custom domain ──────────────────────────────────────────────────
+
+export function TalentCustomDomainDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-custom-domain";
+  const sub = MY_TALENT_PROFILE.subscription;
+  const onSave = useSaveAndClose("Domain saved · DNS check started");
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Custom domain"
+      description="Point your own domain at your Tulala personal page. Visitors see yourname.com — Tulala handles SSL + redirects."
+      width={580}
+      footer={<StandardFooter onSave={onSave} saveLabel="Save & verify" />}
+    >
+      <FieldRow label="Domain" hint="Use the apex (yourname.com) or a subdomain (page.yourname.com).">
+        <TextInput placeholder="marta-reyes.com" defaultValue={sub.customDomain ?? ""} />
+      </FieldRow>
+      <div style={{ marginTop: 14 }}>
+        <CapsLabel>DNS configuration</CapsLabel>
+        <div
+          style={{
+            marginTop: 8,
+            padding: "12px 14px",
+            background: COLORS.surfaceAlt,
+            border: `1px solid rgba(15,79,62,0.18)`,
+            borderRadius: 10,
+            fontFamily: FONTS.mono,
+            fontSize: 12,
+            color: COLORS.ink,
+            lineHeight: 1.7,
+          }}
+        >
+          <div>A record &nbsp;@ &nbsp;→ &nbsp;76.76.21.21</div>
+          <div>CNAME &nbsp;www &nbsp;→ &nbsp;cname.tulala.digital</div>
+        </div>
+      </div>
+      <div
+        style={{
+          marginTop: 14,
+          padding: "12px 14px",
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: sub.customDomainStatus === "verified" ? COLORS.green : COLORS.amber,
+          }}
+        />
+        <span style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+          Status:{" "}
+          <strong>
+            {sub.customDomain
+              ? sub.customDomainStatus === "verified"
+                ? "Verified"
+                : sub.customDomainStatus === "pending"
+                  ? "Awaiting DNS propagation"
+                  : "Failed verification"
+              : "Not set"}
+          </strong>
+        </span>
+        <button
+          onClick={() => toast("Re-checking DNS")}
+          style={{
+            marginLeft: "auto",
+            background: "transparent",
+            border: `1px solid ${COLORS.borderSoft}`,
+            color: COLORS.ink,
+            padding: "5px 10px",
+            borderRadius: 6,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            cursor: "pointer",
+          }}
+        >
+          Re-check
+        </button>
+      </div>
+      <p style={{ marginTop: 14, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.55 }}>
+        Tulala issues + auto-renews a Let's Encrypt SSL certificate once your DNS is pointing
+        correctly. No manual cert config needed.
+      </p>
+    </DrawerShell>
+  );
+}
