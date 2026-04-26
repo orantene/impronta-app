@@ -16,7 +16,7 @@ const iconKeySchema = z.enum([
 
 const itemSchema = z.object({
   eyebrow: z.string().max(60).optional(),
-  title: z.string().min(1).max(140),
+  title: z.string().min(1).max(140).describe("@rich"),
   italicTagline: z.string().max(180).optional(),
   body: z.string().max(640).optional(),
   imageUrl: z.string().url().max(2048).optional(),

@@ -35,6 +35,7 @@ import { BlueprintPicker } from "./BlueprintPicker";
 import { LocalizedTextInput } from "./LocalizedTextInput";
 import type { I18nString } from "./i18n-text";
 import { AiRewriteButton } from "@/components/edit-chrome/inspectors/AiRewriteButton";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 import type { z } from "zod";
 
@@ -179,6 +180,8 @@ function FieldNode({
         multiline={longish}
         maxLength={field.max}
         hint={field.description}
+        rich={field.hint === "rich_text"}
+        tenantId={tenantId}
       />
     );
   }
@@ -214,15 +217,27 @@ function FieldNode({
               />
             ) : null}
           </div>
-          <input
-            type={field.kind === "text" ? "text" : field.kind}
-            className={INPUT}
-            maxLength={field.max}
-            value={(value as string) ?? ""}
-            onChange={(e) =>
-              onChange(e.target.value || (field.optional ? undefined : ""))
-            }
-          />
+          {field.kind === "text" && field.hint === "rich_text" ? (
+            <RichEditor
+              value={(value as string) ?? ""}
+              onChange={(next) =>
+                onChange(next || (field.optional ? undefined : ""))
+              }
+              variant="single"
+              tenantId={tenantId}
+              ariaLabel={field.label}
+            />
+          ) : (
+            <input
+              type={field.kind === "text" ? "text" : field.kind}
+              className={INPUT}
+              maxLength={field.max}
+              value={(value as string) ?? ""}
+              onChange={(e) =>
+                onChange(e.target.value || (field.optional ? undefined : ""))
+              }
+            />
+          )}
           {field.description ? (
             <span className="text-[11px] text-muted-foreground">
               {field.description}
@@ -249,21 +264,27 @@ function FieldNode({
               />
             ) : null}
           </div>
-          <textarea
-            className={INPUT}
-            rows={field.hint === "rich_text" ? 4 : 3}
-            maxLength={field.max}
-            value={(value as string) ?? ""}
-            onChange={(e) =>
-              onChange(e.target.value || (field.optional ? undefined : ""))
-            }
-          />
           {field.hint === "rich_text" ? (
-            <span className="text-[11px] text-muted-foreground">
-              Supports {"{accent}…{/accent}"}, {"{b}…{/b}"}, {"{i}…{/i}"},
-              {" [text](url)"}.
-            </span>
-          ) : null}
+            <RichEditor
+              value={(value as string) ?? ""}
+              onChange={(next) =>
+                onChange(next || (field.optional ? undefined : ""))
+              }
+              variant="multi"
+              tenantId={tenantId}
+              ariaLabel={field.label}
+            />
+          ) : (
+            <textarea
+              className={INPUT}
+              rows={3}
+              maxLength={field.max}
+              value={(value as string) ?? ""}
+              onChange={(e) =>
+                onChange(e.target.value || (field.optional ? undefined : ""))
+              }
+            />
+          )}
         </label>
       );
 

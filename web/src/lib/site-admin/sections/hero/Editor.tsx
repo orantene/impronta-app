@@ -6,6 +6,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { MediaPicker } from "../shared/MediaPicker";
 import { AltTextField } from "../shared/AltTextField";
 import { BlueprintPicker } from "../shared/BlueprintPicker";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import type { HeroSlide, HeroV1 } from "./schema";
 
 type OverlayFlavor = NonNullable<HeroV1["overlay"]>;
@@ -130,30 +131,26 @@ export function HeroEditor({
         onApply={(next) => commit(next)}
       />
       <div className="grid gap-4 md:grid-cols-2">
-        <label className={FIELD}>
+        <div className={FIELD}>
           <span className={LABEL}>Headline</span>
-          <input
-            type="text"
-            className={INPUT}
+          <RichEditor
             value={state.headline ?? ""}
-            maxLength={140}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              update("headline", e.target.value)
-            }
+            onChange={(next) => update("headline", next)}
+            variant="single"
+            tenantId={tenantId}
+            ariaLabel="Headline"
           />
-        </label>
-        <label className={FIELD}>
+        </div>
+        <div className={FIELD}>
           <span className={LABEL}>Sub-headline</span>
-          <input
-            type="text"
-            className={INPUT}
+          <RichEditor
             value={state.subheadline ?? ""}
-            maxLength={240}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              update("subheadline", e.target.value || undefined)
-            }
+            onChange={(next) => update("subheadline", next || undefined)}
+            variant="single"
+            tenantId={tenantId}
+            ariaLabel="Sub-headline"
           />
-        </label>
+        </div>
       </div>
 
       <fieldset className="flex flex-col gap-4 rounded-md border border-border/60 p-4">
@@ -343,30 +340,28 @@ export function HeroEditor({
                       }
                     />
                   </label>
-                  <label className={FIELD}>
+                  <div className={FIELD}>
                     <span className={LABEL}>Slide headline</span>
-                    <input
-                      type="text"
-                      className={INPUT}
+                    <RichEditor
+                      key={`slide-${i}-headline`}
                       value={slide.headline ?? ""}
-                      maxLength={140}
-                      onChange={(e) =>
-                        patchSlide(i, { headline: e.target.value })
-                      }
+                      onChange={(next) => patchSlide(i, { headline: next })}
+                      variant="single"
+                      tenantId={tenantId}
+                      ariaLabel="Slide headline"
                     />
-                  </label>
-                  <label className={`${FIELD} md:col-span-2`}>
+                  </div>
+                  <div className={`${FIELD} md:col-span-2`}>
                     <span className={LABEL}>Slide sub-headline</span>
-                    <input
-                      type="text"
-                      className={INPUT}
+                    <RichEditor
+                      key={`slide-${i}-subheadline`}
                       value={slide.subheadline ?? ""}
-                      maxLength={240}
-                      onChange={(e) =>
-                        patchSlide(i, { subheadline: e.target.value })
-                      }
+                      onChange={(next) => patchSlide(i, { subheadline: next || undefined })}
+                      variant="single"
+                      tenantId={tenantId}
+                      ariaLabel="Slide sub-headline"
                     />
-                  </label>
+                  </div>
                 </div>
               </li>
             ))}

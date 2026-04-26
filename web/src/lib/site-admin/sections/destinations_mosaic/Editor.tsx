@@ -5,6 +5,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { LinkPicker } from "../shared/LinkPicker";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import type {
   DestinationsMosaicV1,
   DestinationsMosaicItem,
@@ -52,15 +53,15 @@ export function DestinationsMosaicEditor({
           <span className={LABEL}>Eyebrow</span>
           <input className={INPUT} maxLength={60} value={value.eyebrow ?? ""} onChange={(e) => patch({ eyebrow: e.target.value })} placeholder="Destinations" />
         </label>
-        <label className={FIELD}>
+        <div className={FIELD}>
           <span className={LABEL}>Headline</span>
-          <input className={INPUT} maxLength={200} value={value.headline ?? ""} onChange={(e) => patch({ headline: e.target.value })} />
-        </label>
+          <RichEditor value={value.headline ?? ""} onChange={(next) => patch({ headline: next })} variant="single" tenantId={tenantId} ariaLabel="Headline" />
+        </div>
       </div>
-      <label className={FIELD}>
+      <div className={FIELD}>
         <span className={LABEL}>Copy</span>
-        <textarea className={`${INPUT} min-h-[60px]`} maxLength={400} value={value.copy ?? ""} onChange={(e) => patch({ copy: e.target.value })} />
-      </label>
+        <RichEditor value={value.copy ?? ""} onChange={(next) => patch({ copy: next })} variant="multi" tenantId={tenantId} ariaLabel="Copy" />
+      </div>
       <label className={FIELD}>
         <span className={LABEL}>Italic footnote</span>
         <input className={INPUT} maxLength={200} value={value.footnote ?? ""} onChange={(e) => patch({ footnote: e.target.value })} />

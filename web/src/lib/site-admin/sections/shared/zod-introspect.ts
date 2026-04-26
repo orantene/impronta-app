@@ -77,6 +77,12 @@ export interface IntrospectedField {
 }
 
 // Field-name → hint mapping used to swap in dedicated primitives.
+//
+// Phase C — `headline`, `subheadline` added so the auto-bound inspector
+// renders the live RichEditor for the universal heading-ish fields.
+// Outlier rich-eligible fields (e.g. blog_detail.title) opt in via a
+// `.describe("@rich …")` Zod marker — see `descriptionImpliesRichText`
+// below.
 const NAME_HINTS: Record<string, IntrospectedField["hint"]> = {
   imageUrl: "image_url",
   imageAlt: "alt_text",
@@ -93,12 +99,34 @@ const NAME_HINTS: Record<string, IntrospectedField["hint"]> = {
   color: "color",
   bg: "color",
   presentation: "presentation",
+  // Phase C — rich-eligible heading + body field names.
+  headline: "rich_text",
+  subheadline: "rich_text",
   body: "rich_text",
   intro: "rich_text",
   detail: "rich_text",
   copy: "rich_text",
   message: "rich_text",
 };
+
+/**
+ * Phase C — per-schema escape hatch for fields whose name is shared with
+ * non-rich uses elsewhere (e.g. `title` is rich on `blog_detail` but a
+ * button label on `code_embed`). Schemas opt in by writing
+ * `.describe("@rich …")`. The leading `@rich` marker is stripped before
+ * the description is shown; the rest of the string remains the human-
+ * readable hint.
+ */
+const RICH_DESCRIBE_PREFIX = "@rich";
+function descriptionImpliesRichText(description: string | undefined): boolean {
+  if (!description) return false;
+  return description.startsWith(RICH_DESCRIBE_PREFIX);
+}
+function stripRichMarker(description: string | undefined): string | undefined {
+  if (!description) return description;
+  if (!description.startsWith(RICH_DESCRIBE_PREFIX)) return description;
+  return description.slice(RICH_DESCRIBE_PREFIX.length).trimStart() || undefined;
+}
 
 function humanize(name: string): string {
   return name
@@ -250,13 +278,14 @@ export function introspectField(
   const { inner, optional, defaultValue, description } = unwrap(node);
   const kind = classify(node);
   const limits = readChecks(inner);
-  const hint = NAME_HINTS[name];
+  const richViaDescribe = descriptionImpliesRichText(description);
+  const hint = richViaDescribe ? "rich_text" : NAME_HINTS[name];
   const base: IntrospectedField = {
     name,
     kind,
     optional,
     defaultValue,
-    description,
+    description: richViaDescribe ? stripRichMarker(description) : description,
     label: humanize(name),
     min: limits.min,
     max: limits.max,

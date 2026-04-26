@@ -3,6 +3,7 @@
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { LinkPicker } from "../shared/LinkPicker";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import type { SectionEditorProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
 
@@ -31,6 +32,7 @@ const INPUT =
 export function FeaturedTalentEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<FeaturedTalentV1>) {
   const value: FeaturedTalentV1 = {
     eyebrow: initial.eyebrow ?? "Featured collective",
@@ -60,26 +62,28 @@ export function FeaturedTalentEditor({
             onChange={(e) => patch({ eyebrow: e.target.value })}
           />
         </label>
-        <label className={FIELD}>
+        <div className={FIELD}>
           <span className={LABEL}>Headline</span>
-          <input
-            className={INPUT}
-            maxLength={200}
+          <RichEditor
             value={value.headline ?? ""}
-            onChange={(e) => patch({ headline: e.target.value })}
+            onChange={(next) => patch({ headline: next })}
+            variant="single"
+            tenantId={tenantId}
+            ariaLabel="Headline"
           />
-        </label>
+        </div>
       </div>
 
-      <label className={FIELD}>
+      <div className={FIELD}>
         <span className={LABEL}>Copy</span>
-        <textarea
-          className={`${INPUT} min-h-[68px]`}
-          maxLength={400}
+        <RichEditor
           value={value.copy ?? ""}
-          onChange={(e) => patch({ copy: e.target.value })}
+          onChange={(next) => patch({ copy: next })}
+          variant="multi"
+          tenantId={tenantId}
+          ariaLabel="Copy"
         />
-      </label>
+      </div>
 
       <VariantPicker
         name="featured_talent.variant"

@@ -4,6 +4,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { LinkPicker } from "../shared/LinkPicker";
 import { AltTextField } from "../shared/AltTextField";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import type { SectionEditorProps } from "../types";
 import type { SplitScreenV1 } from "./schema";
 
@@ -16,6 +17,7 @@ const INPUT =
 export function SplitScreenEditor({
   initial,
   onChange,
+  tenantId,
 }: SectionEditorProps<SplitScreenV1>) {
   const value: SplitScreenV1 = {
     eyebrow: initial.eyebrow ?? "",
@@ -46,26 +48,27 @@ export function SplitScreenEditor({
             onChange={(e) => patch({ eyebrow: e.target.value })}
           />
         </label>
-        <label className={FIELD}>
+        <div className={FIELD}>
           <span className={LABEL}>Headline</span>
-          <input
-            className={INPUT}
-            maxLength={200}
+          <RichEditor
             value={value.headline}
-            onChange={(e) => patch({ headline: e.target.value })}
+            onChange={(next) => patch({ headline: next })}
+            variant="single"
+            tenantId={tenantId}
+            ariaLabel="Headline"
           />
-        </label>
+        </div>
       </div>
-      <label className={FIELD}>
+      <div className={FIELD}>
         <span className={LABEL}>Body</span>
-        <textarea
-          className={INPUT}
-          rows={4}
-          maxLength={800}
+        <RichEditor
           value={value.body ?? ""}
-          onChange={(e) => patch({ body: e.target.value })}
+          onChange={(next) => patch({ body: next })}
+          variant="multi"
+          tenantId={tenantId}
+          ariaLabel="Body"
         />
-      </label>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className={FIELD}>

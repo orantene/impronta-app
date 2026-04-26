@@ -6,6 +6,7 @@ import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { LinkPicker } from "../shared/LinkPicker";
 import { AltTextField } from "../shared/AltTextField";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import type { CtaBannerV1 } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -52,39 +53,42 @@ export function CtaBannerEditor({
             onChange={(e) => patch({ eyebrow: e.target.value })}
           />
         </label>
-        <label className={FIELD}>
+        <div className={FIELD}>
           <span className={LABEL}>Headline *</span>
-          <input
-            className={INPUT}
-            maxLength={160}
-            placeholder="Tell us about your celebration."
+          <RichEditor
             value={value.headline}
-            onChange={(e) => patch({ headline: e.target.value })}
+            onChange={(next) => patch({ headline: next })}
+            variant="single"
+            tenantId={tenantId}
+            placeholder="Tell us about your celebration."
+            ariaLabel="Headline"
           />
-        </label>
+        </div>
       </div>
 
-      <label className={FIELD}>
+      <div className={FIELD}>
         <span className={LABEL}>Copy</span>
-        <textarea
-          className={`${INPUT} min-h-[68px]`}
-          maxLength={320}
-          placeholder="Share a few details and your concierge will return a curated team."
+        <RichEditor
           value={value.copy ?? ""}
-          onChange={(e) => patch({ copy: e.target.value })}
+          onChange={(next) => patch({ copy: next || undefined })}
+          variant="multi"
+          tenantId={tenantId}
+          placeholder="Share a few details and your concierge will return a curated team."
+          ariaLabel="Copy"
         />
-      </label>
+      </div>
 
-      <label className={FIELD}>
+      <div className={FIELD}>
         <span className={LABEL}>Reassurance (italic)</span>
-        <input
-          className={INPUT}
-          maxLength={120}
-          placeholder="Quiet, unhurried, always in the same key."
+        <RichEditor
           value={value.reassurance ?? ""}
-          onChange={(e) => patch({ reassurance: e.target.value })}
+          onChange={(next) => patch({ reassurance: next || undefined })}
+          variant="single"
+          tenantId={tenantId}
+          placeholder="Quiet, unhurried, always in the same key."
+          ariaLabel="Reassurance"
         />
-      </label>
+      </div>
 
       {/* ── CTAs ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

@@ -5,6 +5,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { LinkPicker } from "../shared/LinkPicker";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import type { CategoryGridV1, CategoryGridItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -85,26 +86,28 @@ export function CategoryGridEditor({
             placeholder="Services"
           />
         </label>
-        <label className={FIELD}>
+        <div className={FIELD}>
           <span className={LABEL}>Headline</span>
-          <input
-            className={INPUT}
-            maxLength={200}
+          <RichEditor
             value={value.headline ?? ""}
-            onChange={(e) => patch({ headline: e.target.value })}
+            onChange={(next) => patch({ headline: next })}
+            variant="single"
+            tenantId={tenantId}
             placeholder="A house of beauty, image, and live experience."
+            ariaLabel="Headline"
           />
-        </label>
+        </div>
       </div>
-      <label className={FIELD}>
+      <div className={FIELD}>
         <span className={LABEL}>Copy</span>
-        <textarea
-          className={`${INPUT} min-h-[60px]`}
-          maxLength={320}
+        <RichEditor
           value={value.copy ?? ""}
-          onChange={(e) => patch({ copy: e.target.value })}
+          onChange={(next) => patch({ copy: next })}
+          variant="multi"
+          tenantId={tenantId}
+          ariaLabel="Copy"
         />
-      </label>
+      </div>
 
       <VariantPicker
         name="category_grid.variant"

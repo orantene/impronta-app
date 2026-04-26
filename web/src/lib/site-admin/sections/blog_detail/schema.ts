@@ -4,7 +4,7 @@ import { sectionPresentationSchema } from "../shared/presentation";
 export const blogDetailSchemaV1 = z.object({
   category: z.string().max(40).optional(),
   date: z.string().max(40).optional(),
-  title: z.string().min(1).max(200),
+  title: z.string().min(1).max(200).describe("@rich"),
   byline: z.string().max(120).optional(),
   heroImageUrl: z.string().url().max(2048).optional(),
   heroImageAlt: z.string().max(200).optional(),

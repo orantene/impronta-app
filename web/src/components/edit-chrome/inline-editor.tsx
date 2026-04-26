@@ -27,6 +27,24 @@
  * props within a single section are usually small + text values don't
  * collide in practice. We fail loudly rather than silently writing to the
  * wrong field.
+ *
+ * --- Phase C scope note ---
+ *
+ * Phase C ships the §17 premium rich-text experience inside the inspector
+ * (right rail) via `inline-editor/RichEditor`. The canvas-dblclick path
+ * here is intentionally left as raw-marker editing — replacing it with a
+ * properly-mounted Lexical instance "on top of" the rendered section
+ * element is a sub-project (own DOM root, selection model, scroll sync).
+ *
+ * Operators who want live styling, the four-action toolbar, and the
+ * brand-accent token use the inspector. The on-canvas dblclick remains a
+ * quick-edit affordance for plain text. The marker grammar is shared, so
+ * anything typed on the canvas continues to round-trip through the
+ * public `renderInlineRich` correctly.
+ *
+ * If lived-experience verification surfaces this as a real gap, Phase
+ * C.1 will replace the canvas dblclick path with the same RichEditor
+ * primitive. Until then: scope discipline.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";

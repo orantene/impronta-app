@@ -32,6 +32,7 @@ import {
   setI18n,
   type I18nString,
 } from "./i18n-text";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 const KNOWN_LOCALES: ReadonlyArray<{ value: string; label: string }> = [
   { value: "default", label: "Default" },
@@ -58,6 +59,10 @@ interface Props {
   maxLength?: number;
   /** Optional helper line beneath the field. */
   hint?: string;
+  /** Phase C — when true, the per-locale field renders the RichEditor. */
+  rich?: boolean;
+  /** Required when `rich` is true to scope LinkPicker lookups. */
+  tenantId?: string;
 }
 
 export function LocalizedTextInput({
@@ -67,6 +72,8 @@ export function LocalizedTextInput({
   multiline,
   maxLength,
   hint,
+  rich,
+  tenantId,
 }: Props): ReactElement {
   const [activeLocale, setActiveLocale] = useState<string>("default");
   const populated = listI18nLocales(value);
@@ -151,7 +158,20 @@ export function LocalizedTextInput({
           ))}
         </select>
       </div>
-      {multiline ? (
+      {rich ? (
+        <RichEditor
+          // Per-locale key so the editor remounts on locale switch — the
+          // initial Lexical state is captured at mount, so without a key
+          // change the editor would show the previous locale's content
+          // until the operator typed.
+          key={`${activeLocale}`}
+          value={displayValue}
+          onChange={(next) => handleChange(next)}
+          variant={multiline ? "multi" : "single"}
+          tenantId={tenantId}
+          ariaLabel={label}
+        />
+      ) : multiline ? (
         <textarea
           className="min-h-[80px] w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm"
           value={displayValue}
