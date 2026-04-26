@@ -51,6 +51,7 @@ import {
   PaymentStatusChip,
   PayoutStatusChip,
   PlanChip,
+  Popover,
   PrimaryButton,
   RepresentationChip,
   RoleChip,
