@@ -89,6 +89,15 @@ const REWRITABLE_FIELDS: Record<string, ReadonlyArray<string>> = {
   blog_detail: ["category", "title", "byline", "body", "pullQuote"],
   magazine_layout: ["eyebrow", "headline"],
   hero_split: ["eyebrow", "headline", "subheadline"],
+  // M13
+  logo_cloud: ["eyebrow", "headline"],
+  image_orbit: ["eyebrow", "headline"],
+  video_reel: ["eyebrow", "headline"],
+  map_overlay: ["eyebrow", "headline"],
+  donation_form: ["eyebrow", "headline", "intro", "trustNote"],
+  code_snippet: ["eyebrow", "headline"],
+  event_listing: ["eyebrow", "headline"],
+  lookbook: ["eyebrow", "headline"],
 };
 
 const SYSTEM_PROMPT = `You rewrite copy for sections of a small-business website. The operator gives you the current text and a one-line instruction. Return ONLY the rewritten text — no preamble, no explanation, no quotes around it.

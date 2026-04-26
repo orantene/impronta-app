@@ -276,6 +276,55 @@ import { heroSplitSchemasByVersion, type HeroSplitV1 } from "./hero_split/schema
 import { HeroSplitComponent } from "./hero_split/Component";
 import { HeroSplitEditor } from "./hero_split/Editor";
 
+// ── M13 archetype expansion ──────────────────────────────────────────────
+import { logoCloudMeta } from "./logo_cloud/meta";
+import { logoCloudMigrations } from "./logo_cloud/migrations";
+import { logoCloudSchemasByVersion, type LogoCloudV1 } from "./logo_cloud/schema";
+import { LogoCloudComponent } from "./logo_cloud/Component";
+import { LogoCloudEditor } from "./logo_cloud/Editor";
+
+import { imageOrbitMeta } from "./image_orbit/meta";
+import { imageOrbitMigrations } from "./image_orbit/migrations";
+import { imageOrbitSchemasByVersion, type ImageOrbitV1 } from "./image_orbit/schema";
+import { ImageOrbitComponent } from "./image_orbit/Component";
+import { ImageOrbitEditor } from "./image_orbit/Editor";
+
+import { videoReelMeta } from "./video_reel/meta";
+import { videoReelMigrations } from "./video_reel/migrations";
+import { videoReelSchemasByVersion, type VideoReelV1 } from "./video_reel/schema";
+import { VideoReelComponent } from "./video_reel/Component";
+import { VideoReelEditor } from "./video_reel/Editor";
+
+import { mapOverlayMeta } from "./map_overlay/meta";
+import { mapOverlayMigrations } from "./map_overlay/migrations";
+import { mapOverlaySchemasByVersion, type MapOverlayV1 } from "./map_overlay/schema";
+import { MapOverlayComponent } from "./map_overlay/Component";
+import { MapOverlayEditor } from "./map_overlay/Editor";
+
+import { donationFormMeta } from "./donation_form/meta";
+import { donationFormMigrations } from "./donation_form/migrations";
+import { donationFormSchemasByVersion, type DonationFormV1 } from "./donation_form/schema";
+import { DonationFormComponent } from "./donation_form/Component";
+import { DonationFormEditor } from "./donation_form/Editor";
+
+import { codeSnippetMeta } from "./code_snippet/meta";
+import { codeSnippetMigrations } from "./code_snippet/migrations";
+import { codeSnippetSchemasByVersion, type CodeSnippetV1 } from "./code_snippet/schema";
+import { CodeSnippetComponent } from "./code_snippet/Component";
+import { CodeSnippetEditor } from "./code_snippet/Editor";
+
+import { eventListingMeta } from "./event_listing/meta";
+import { eventListingMigrations } from "./event_listing/migrations";
+import { eventListingSchemasByVersion, type EventListingV1 } from "./event_listing/schema";
+import { EventListingComponent } from "./event_listing/Component";
+import { EventListingEditor } from "./event_listing/Editor";
+
+import { lookbookMeta } from "./lookbook/meta";
+import { lookbookMigrations } from "./lookbook/migrations";
+import { lookbookSchemasByVersion, type LookbookV1 } from "./lookbook/schema";
+import { LookbookComponent } from "./lookbook/Component";
+import { LookbookEditor } from "./lookbook/Editor";
+
 // ── entries ──────────────────────────────────────────────────────────────
 
 export const heroSection: SectionRegistryEntry<HeroV1> = {
@@ -569,6 +618,31 @@ export const heroSplitSection: SectionRegistryEntry<HeroSplitV1> = {
   Editor: HeroSplitEditor,
 };
 
+export const logoCloudSection: SectionRegistryEntry<LogoCloudV1> = {
+  meta: logoCloudMeta, currentVersion: 1, schemasByVersion: logoCloudSchemasByVersion, migrations: logoCloudMigrations, Component: LogoCloudComponent, Editor: LogoCloudEditor,
+};
+export const imageOrbitSection: SectionRegistryEntry<ImageOrbitV1> = {
+  meta: imageOrbitMeta, currentVersion: 1, schemasByVersion: imageOrbitSchemasByVersion, migrations: imageOrbitMigrations, Component: ImageOrbitComponent, Editor: ImageOrbitEditor,
+};
+export const videoReelSection: SectionRegistryEntry<VideoReelV1> = {
+  meta: videoReelMeta, currentVersion: 1, schemasByVersion: videoReelSchemasByVersion, migrations: videoReelMigrations, Component: VideoReelComponent, Editor: VideoReelEditor,
+};
+export const mapOverlaySection: SectionRegistryEntry<MapOverlayV1> = {
+  meta: mapOverlayMeta, currentVersion: 1, schemasByVersion: mapOverlaySchemasByVersion, migrations: mapOverlayMigrations, Component: MapOverlayComponent, Editor: MapOverlayEditor,
+};
+export const donationFormSection: SectionRegistryEntry<DonationFormV1> = {
+  meta: donationFormMeta, currentVersion: 1, schemasByVersion: donationFormSchemasByVersion, migrations: donationFormMigrations, Component: DonationFormComponent, Editor: DonationFormEditor,
+};
+export const codeSnippetSection: SectionRegistryEntry<CodeSnippetV1> = {
+  meta: codeSnippetMeta, currentVersion: 1, schemasByVersion: codeSnippetSchemasByVersion, migrations: codeSnippetMigrations, Component: CodeSnippetComponent, Editor: CodeSnippetEditor,
+};
+export const eventListingSection: SectionRegistryEntry<EventListingV1> = {
+  meta: eventListingMeta, currentVersion: 1, schemasByVersion: eventListingSchemasByVersion, migrations: eventListingMigrations, Component: EventListingComponent, Editor: EventListingEditor,
+};
+export const lookbookSection: SectionRegistryEntry<LookbookV1> = {
+  meta: lookbookMeta, currentVersion: 1, schemasByVersion: lookbookSchemasByVersion, migrations: lookbookMigrations, Component: LookbookComponent, Editor: LookbookEditor,
+};
+
 export const SECTION_REGISTRY = {
   hero: heroSection,
   trust_strip: trustStripSection,
@@ -608,6 +682,15 @@ export const SECTION_REGISTRY = {
   blog_detail: blogDetailSection,
   magazine_layout: magazineLayoutSection,
   hero_split: heroSplitSection,
+  // ── M13 archetype expansion ─────────────────────────────────────────
+  logo_cloud: logoCloudSection,
+  image_orbit: imageOrbitSection,
+  video_reel: videoReelSection,
+  map_overlay: mapOverlaySection,
+  donation_form: donationFormSection,
+  code_snippet: codeSnippetSection,
+  event_listing: eventListingSection,
+  lookbook: lookbookSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;

@@ -61,6 +61,15 @@ const HEADLINE_PROP_BY_TYPE: Record<string, "headline" | "eyebrow"> = {
   scroll_carousel: "headline",
   magazine_layout: "headline",
   hero_split: "headline",
+  // M13
+  logo_cloud: "headline",
+  image_orbit: "headline",
+  video_reel: "headline",
+  map_overlay: "headline",
+  donation_form: "headline",
+  code_snippet: "headline",
+  event_listing: "headline",
+  lookbook: "headline",
   // blog_detail uses a different prop name; treated separately below.
 };
 

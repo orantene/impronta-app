@@ -48,6 +48,7 @@ import {
   HelperCounter,
 } from "./kit";
 import { useEditContext } from "./edit-context";
+import { PublishPreflight } from "./PublishPreflight";
 
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
@@ -336,6 +337,10 @@ export function PublishDrawer() {
           />
         ) : (
           <>
+            {/* Phase 10 — preflight (heading + alt-text + contrast). */}
+            <div style={{ marginBottom: 12 }}>
+              <PublishPreflight refreshKey={publishOpen ? 1 : 0} />
+            </div>
             {/* ── Preview thumbnail + stats ───────────────────────── */}
             <Card>
               <CardBody>

@@ -251,6 +251,25 @@ export const sectionPresentationSchema = z
       .optional(),
     scrollRevealDelay: z.number().int().min(0).max(2000).optional(),
     parallaxIntensity: z.number().min(0).max(1).optional(),
+
+    /**
+     * ── Phase 4 — composition lift (continued) ─────────────────────
+     *
+     * `gridArea`: when the page composer's slot supports CSS Grid
+     *   placement, this is the CSS `grid-area` value applied to the
+     *   section. Free string (e.g. "1 / 1 / 3 / 5" or "main").
+     *   Today's slot model is flat-stack; this is reserved for the
+     *   asymmetric-grid composer when it ships.
+     * `zIndex`: stacking-order escape for sections that overlap. Use
+     *   sparingly with overlapTop / overlapBottom.
+     * `pinScrollSection`: when true, the section becomes a scroll-
+     *   pinned region — children scroll while the section stays in
+     *   the viewport. Pure-CSS via `position: sticky` on the section
+     *   wrapper plus `min-height: 100vh` (set by the renderer).
+     */
+    gridArea: z.string().max(60).optional(),
+    zIndex: z.number().int().min(-10).max(50).optional(),
+    pinScrollSection: z.boolean().optional(),
   })
   .optional();
 
@@ -383,6 +402,14 @@ export function presentationInlineStyles(
     out.position = "sticky";
     out.top = `${p.stickyTop}px`;
     out.zIndex = "1";
+  }
+  // Phase 4 — composition lift continued.
+  if (p.gridArea) out.gridArea = p.gridArea;
+  if (typeof p.zIndex === "number") out.zIndex = String(p.zIndex);
+  if (p.pinScrollSection) {
+    out.position = "sticky";
+    out.top = "0";
+    out.minHeight = "100vh";
   }
   // Phase 5 — video background marker. The actual <video> element is
   // emitted by the wrapper renderer; here we just ensure the section root

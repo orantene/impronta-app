@@ -521,6 +521,113 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       variant: "asymmetric",
     },
   },
+  logo_cloud: {
+    name: "Logo cloud — new",
+    props: {
+      eyebrow: "Trusted by",
+      logos: [
+        { imageUrl: "https://placehold.co/160x60/png?text=Logo+1", alt: "Logo 1" },
+        { imageUrl: "https://placehold.co/160x60/png?text=Logo+2", alt: "Logo 2" },
+        { imageUrl: "https://placehold.co/160x60/png?text=Logo+3", alt: "Logo 3" },
+        { imageUrl: "https://placehold.co/160x60/png?text=Logo+4", alt: "Logo 4" },
+      ],
+      columnsDesktop: 6,
+      variant: "muted",
+    },
+  },
+  image_orbit: {
+    name: "Image with tags — new",
+    props: {
+      eyebrow: "What's inside",
+      headline: "A closer look.",
+      imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552",
+      imageAlt: "",
+      tags: [
+        { x: 25, y: 30, label: "First detail", detail: "What this part is." },
+        { x: 70, y: 50, label: "Second detail", detail: "Why it matters." },
+      ],
+      ratio: "4/3",
+    },
+  },
+  video_reel: {
+    name: "Video reel — new",
+    props: {
+      eyebrow: "Watch",
+      headline: "The studio reel.",
+      videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      chapters: [
+        { time: 0, label: "Open" },
+        { time: 30, label: "Process" },
+      ],
+      ratio: "16/9",
+      controls: true,
+      loop: false,
+      muted: false,
+      autoplay: false,
+    },
+  },
+  map_overlay: {
+    name: "Map — new",
+    props: {
+      eyebrow: "Find us",
+      headline: "Visit the studio.",
+      mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3024.123!2d-74.006!3d40.7128!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1",
+      card: { title: "Studio", address: "123 Example St", hours: "Wed-Sun · 10am-6pm" },
+      side: "card-left",
+      ratio: "16/9",
+    },
+  },
+  donation_form: {
+    name: "Donation — new",
+    props: {
+      eyebrow: "Support our work",
+      headline: "Every contribution counts.",
+      intro: "Pick an amount or enter your own.",
+      amounts: [25, 50, 100, 250, 500],
+      currency: "USD",
+      defaultAmountIndex: 1,
+      allowCustom: true,
+      checkoutUrl: "https://buy.stripe.com/your-link",
+      ctaLabel: "Donate",
+      trustNote: "Powered by Stripe — secure encrypted checkout.",
+    },
+  },
+  code_snippet: {
+    name: "Code — new",
+    props: {
+      filename: "example.ts",
+      language: "typescript",
+      code: "const hello = 'world';\nconsole.log(hello);",
+      showLineNumbers: false,
+      showCopyButton: true,
+      variant: "dark",
+    },
+  },
+  event_listing: {
+    name: "Events — new",
+    props: {
+      eyebrow: "Calendar",
+      headline: "Upcoming events.",
+      events: [
+        { date: "Apr 28", time: "7pm", title: "Open studio", description: "Drinks and demos.", location: "Studio" },
+        { date: "May 12", time: "2pm", title: "Bridal trial day", description: "By appointment.", location: "Studio", rsvpUrl: "/contact" },
+      ],
+      variant: "list",
+    },
+  },
+  lookbook: {
+    name: "Lookbook — new",
+    props: {
+      pages: [
+        { imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552", alt: "" },
+        { imageUrl: "https://images.unsplash.com/photo-1519225421980-715cb0215aed", alt: "" },
+        { imageUrl: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3", alt: "" },
+        { imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552", alt: "" },
+      ],
+      variant: "spread",
+      ratio: "3/4",
+    },
+  },
 };
 
 export function getLibraryDefault(

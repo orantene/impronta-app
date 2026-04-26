@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 
 import { PublicCmsFooterNav } from "@/components/public-cms-footer";
 import { PublicHeader } from "@/components/public-header";
+import { HomepageCmsSections } from "@/components/home/homepage-cms-sections";
 import { getCachedServerSupabase } from "@/lib/server/request-cache";
 import { slugPathFromParams } from "@/lib/cms/paths";
 import { getRequestLocale } from "@/i18n/request-locale";
 import type { Locale } from "@/i18n/config";
 import { buildPublicLocaleAlternates } from "@/lib/seo/locale-alternates";
 import { getPublicTenantScope } from "@/lib/saas/scope";
+import { loadPublicPage } from "@/lib/site-admin/server/page-reads";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +97,31 @@ export default async function CmsPublicPage({
 
   const publicScope = await getPublicTenantScope();
   if (!publicScope) notFound();
+
+  // Phase 7 — first try the section-composed snapshot. If the page has
+  // one, render it via the same HomepageCmsSections renderer used for
+  // the homepage. Falls through to legacy body-rendering if the snapshot
+  // is null (existing pages stay unaffected).
+  const sectionPage = await loadPublicPage(publicScope.tenantId, locale as Locale, slugPath);
+  if (sectionPage?.snapshot && sectionPage.snapshot.slots?.length > 0) {
+    return (
+      <>
+        <PublicHeader />
+        <main className="w-full flex-1">
+          <HomepageCmsSections
+            snapshot={sectionPage.snapshot}
+            tenantId={publicScope.tenantId}
+            locale={locale}
+          />
+        </main>
+        <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
+            <PublicCmsFooterNav locale={locale} />
+          </div>
+        </footer>
+      </>
+    );
+  }
 
   const { data } = await supabase
     .rpc("cms_public_pages_for_tenant", { p_tenant_id: publicScope.tenantId })

@@ -113,6 +113,23 @@ import { MagazineLayoutEditor } from "./magazine_layout/Editor";
 import { heroSplitMeta } from "./hero_split/meta";
 import { HeroSplitEditor } from "./hero_split/Editor";
 
+import { logoCloudMeta } from "./logo_cloud/meta";
+import { LogoCloudEditor } from "./logo_cloud/Editor";
+import { imageOrbitMeta } from "./image_orbit/meta";
+import { ImageOrbitEditor } from "./image_orbit/Editor";
+import { videoReelMeta } from "./video_reel/meta";
+import { VideoReelEditor } from "./video_reel/Editor";
+import { mapOverlayMeta } from "./map_overlay/meta";
+import { MapOverlayEditor } from "./map_overlay/Editor";
+import { donationFormMeta } from "./donation_form/meta";
+import { DonationFormEditor } from "./donation_form/Editor";
+import { codeSnippetMeta } from "./code_snippet/meta";
+import { CodeSnippetEditor } from "./code_snippet/Editor";
+import { eventListingMeta } from "./event_listing/meta";
+import { EventListingEditor } from "./event_listing/Editor";
+import { lookbookMeta } from "./lookbook/meta";
+import { LookbookEditor } from "./lookbook/Editor";
+
 import type { SectionEditorProps, SectionMeta } from "./types";
 
 export interface SectionEditorRegistryEntry {
@@ -356,6 +373,14 @@ export const SECTION_EDITOR_REGISTRY: Record<
       SectionEditorProps<Record<string, unknown>>
     >,
   },
+  logo_cloud: { meta: logoCloudMeta, currentVersion: 1, Editor: LogoCloudEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  image_orbit: { meta: imageOrbitMeta, currentVersion: 1, Editor: ImageOrbitEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  video_reel: { meta: videoReelMeta, currentVersion: 1, Editor: VideoReelEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  map_overlay: { meta: mapOverlayMeta, currentVersion: 1, Editor: MapOverlayEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  donation_form: { meta: donationFormMeta, currentVersion: 1, Editor: DonationFormEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  code_snippet: { meta: codeSnippetMeta, currentVersion: 1, Editor: CodeSnippetEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  event_listing: { meta: eventListingMeta, currentVersion: 1, Editor: EventListingEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  lookbook: { meta: lookbookMeta, currentVersion: 1, Editor: LookbookEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
 };
 
 export function getSectionEditorEntry(

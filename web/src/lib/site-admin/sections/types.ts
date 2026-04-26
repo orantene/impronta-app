@@ -40,6 +40,13 @@ export interface SectionComponentProps<TShape> {
   tenantId: string;
   locale: string;
   preview: boolean;
+  /**
+   * Phase 8 — instance id of this section row. Available to renderers
+   * that need a stable, server-resolvable handle (form-submission
+   * routing, section-scoped analytics, etc.). Optional in the type so
+   * legacy renderers / test harnesses keep working without changes.
+   */
+  sectionId?: string;
 }
 
 export interface SectionEditorProps<TShape> {

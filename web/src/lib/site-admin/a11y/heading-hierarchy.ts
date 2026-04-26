@@ -95,6 +95,15 @@ const HEADING_MAP: Record<
   blog_detail: { level: 1, propKey: "title" },
   magazine_layout: { level: 2, propKey: "headline" },
   hero_split: { level: 1, propKey: "headline" },
+  // M13
+  logo_cloud: { level: 2, propKey: "headline" },
+  image_orbit: { level: 2, propKey: "headline" },
+  video_reel: { level: 2, propKey: "headline" },
+  map_overlay: { level: 2, propKey: "headline" },
+  donation_form: { level: 2, propKey: "headline" },
+  code_snippet: { level: 2, propKey: "headline" },
+  event_listing: { level: 2, propKey: "headline" },
+  lookbook: { level: 2, propKey: "headline" },
 };
 
 export function buildHeadingOutline(

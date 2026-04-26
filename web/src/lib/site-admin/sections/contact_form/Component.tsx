@@ -3,7 +3,10 @@ import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { ContactFormV1 } from "./schema";
 
-export function ContactFormComponent({ props }: SectionComponentProps<ContactFormV1>) {
+export function ContactFormComponent({
+  props,
+  sectionId,
+}: SectionComponentProps<ContactFormV1>) {
   const {
     eyebrow,
     headline,
@@ -13,9 +16,22 @@ export function ContactFormComponent({ props }: SectionComponentProps<ContactFor
     action,
     method,
     honeypot,
+    successMessage,
     variant,
     presentation,
   } = props;
+
+  // Phase 8 — when the operator picks `internal:auto` (or just leaves
+  // the action blank with a non-null sectionId), route the form to
+  // Tulala's own /api/cms/forms/submit endpoint and inject the
+  // section-id + honeypot-name as hidden fields the API requires.
+  const useInternal =
+    sectionId &&
+    (action.trim() === "internal" ||
+      action.trim() === "internal:auto" ||
+      action.trim().startsWith("internal:"));
+  const formAction = useInternal ? "/api/cms/forms/submit" : action;
+  const formMethod = useInternal ? "POST" : method;
 
   return (
     <section
@@ -35,7 +51,14 @@ export function ContactFormComponent({ props }: SectionComponentProps<ContactFor
           </header>
         )}
 
-        <form className="site-form__form" action={action} method={method}>
+        <form className="site-form__form" action={formAction} method={formMethod}>
+          {useInternal && sectionId ? (
+            <>
+              <input type="hidden" name="__tulala_section" value={sectionId} />
+              <input type="hidden" name="__tulala_honeypot" value={honeypot} />
+            </>
+          ) : null}
+
           {/* Spam honeypot — hidden field bots fill out; legitimate users don't. */}
           <div
             aria-hidden
@@ -114,6 +137,22 @@ export function ContactFormComponent({ props }: SectionComponentProps<ContactFor
             {submitLabel}
           </button>
         </form>
+        {/* Inline success banner — shown when the URL has the
+            ?__tulala_form=ok flag the API redirects with. CSS-only via
+            :has() and :target-like trick (querystring isn't a state
+            CSS can read directly, so we use a tiny inline script). */}
+        {useInternal ? (
+          <p className="site-form__success" data-success-msg hidden>
+            {successMessage}
+          </p>
+        ) : null}
+        {useInternal ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(){var u=new URL(window.location.href);if(u.searchParams.get('__tulala_form')==='ok'){var els=document.querySelectorAll('[data-success-msg]');for(var i=0;i<els.length;i++){els[i].hidden=false;}}})();`,
+            }}
+          />
+        ) : null}
       </div>
     </section>
   );

@@ -2,15 +2,20 @@
 
 /**
  * Phase 10 — AltTextField primitive.
+ * Phase 14 addendum — AI alt-text generation button.
  *
  * Pairs with any image input (URL or MediaPicker). Required by default;
- * shows an inline warning chip when the alt is empty AND the linked image
- * URL is set, so the operator sees the missing-alt state at a glance.
+ * shows an inline warning chip when the alt is empty AND the linked
+ * image URL is set.
  *
- * Decorative images can opt out by passing `decorative` — the field is
- * disabled, the value is forced to `""`, and the lint pill switches to a
- * neutral "decorative" badge.
+ * The "Suggest" button calls the AI provider with the image URL +
+ * surrounding context to produce a draft alt; the operator decides
+ * whether to apply.
  */
+
+import { useState, useTransition } from "react";
+
+import { generateAltTextWithAi } from "@/lib/site-admin/edit-mode/ai-generate-action";
 
 interface AltTextFieldProps {
   imageUrl: string | null | undefined;
@@ -20,6 +25,8 @@ interface AltTextFieldProps {
   decorative?: boolean;
   onDecorativeChange?: (next: boolean) => void;
   className?: string;
+  /** Optional context string sent to the AI generator (section type / headline / etc). */
+  aiContext?: string;
 }
 
 const INPUT =
@@ -32,9 +39,25 @@ export function AltTextField({
   decorative = false,
   onDecorativeChange,
   className,
+  aiContext,
 }: AltTextFieldProps) {
   const hasImage = Boolean(imageUrl && imageUrl.trim());
   const missing = hasImage && !decorative && !value.trim();
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function suggestAlt() {
+    if (!imageUrl) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await generateAltTextWithAi(imageUrl, aiContext ?? "");
+      if (result.ok) {
+        onChange(result.alt);
+      } else {
+        setError(result.error);
+      }
+    });
+  }
 
   return (
     <div className={`flex flex-col gap-1.5 ${className ?? ""}`}>
@@ -43,6 +66,17 @@ export function AltTextField({
           Alt text {decorative ? "" : "*"}
         </label>
         <div className="flex items-center gap-2">
+          {hasImage && !decorative ? (
+            <button
+              type="button"
+              onClick={suggestAlt}
+              disabled={pending}
+              title="Suggest alt text with AI"
+              className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:bg-muted/50 disabled:opacity-50"
+            >
+              {pending ? "…" : "AI Suggest"}
+            </button>
+          ) : null}
           {missing ? (
             <span
               className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
@@ -88,6 +122,9 @@ export function AltTextField({
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={missing || undefined}
       />
+      {error ? (
+        <span className="text-[10px] text-amber-700 dark:text-amber-300">{error}</span>
+      ) : null}
     </div>
   );
 }

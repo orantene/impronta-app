@@ -137,6 +137,7 @@ export async function HomepageCmsSections({
             tenantId={tenantId}
             locale={locale}
             preview={false}
+            sectionId={entry.sectionId}
           />
         );
         // Pixel-first companion: emit per-section scoped CSS when the
