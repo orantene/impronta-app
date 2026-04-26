@@ -4,6 +4,9 @@
  * RevisionsDrawer — Phase 4 surface for browsing + restoring saved
  * revisions of the current page.
  *
+ * Implements builder-experience.html surface §6 (Revisions — the safety
+ * net). Last reconciled: 2026-04-25.
+ *
  * Schema-light first pass. Reads existing `cms_page_revisions` rows
  * (already written by every save and every publish — no new column is
  * needed for the read path) via `loadHomepageRevisionsAction`. Each row

@@ -78,34 +78,34 @@ Legend: ✅ live & matches mockup · 🟡 partial / select-heavy · ❌ missing 
 
 | # | Surface | Status | Live code | Notes |
 |---|---|---|---|---|
-| 1 | Top bar — mission control | 🐛 | `topbar.tsx` | PagePicker has no `onClick`; LocaleSwitcher click doesn't navigate; gear icon opens drawer that renders empty body |
+| 1 | Top bar — mission control | ✅ | `topbar.tsx` | Phase A wired PagePicker dropdown + LocaleSwitcher refresh + gear→Page Settings hydration. |
 | 2 | Inspector — five-tab depth | ✅ | `inspector-dock.tsx` (631 LOC) | Tabs render correctly: Content/Layout/Style/Responsive/Motion |
-| 3 | Style — every visual property | 🟡 | `inspectors/style-panel.tsx` (163 LOC) | Only 4 selects: Background, Top Divider, Mood, Overlay. No color picker, no divider gallery, no gradient editor |
-| 4 | Responsive — per-breakpoint everything | 🟡 | `inspectors/responsive-panel.tsx` (220 LOC) | Re-uses 6 Layout selects per breakpoint. No visibility toggles, no media-query authoring, no side-by-side preview |
-| 5 | Page settings — its own drawer | 🐛 | `page-settings-drawer.tsx` (891 LOC) | Substantial code but renders empty body when opened in live editor — needs root-cause fix |
+| 3 | Style — every visual property | ✅ | `inspectors/style-panel.tsx` | Phase B.2 rewrite: Swatch grid for background palette + thumbnail gallery for divider treatments + Segmented chips for hero mood/overlay. |
+| 4 | Responsive — per-breakpoint everything | ✅ | `inspectors/responsive-panel.tsx` | Phase B.3 rewrite: device toggle drives canvas + chip rows for tablet/mobile overrides with desktop-base dot indicator and "Override · Desktop is X" inheritance hint that turns blue on divergence. |
+| 5 | Page settings — its own drawer | ✅ | `page-settings-drawer.tsx` (891 LOC) | Phase A.3 fix: secondary hydration useEffect + loading skeleton + per-tab gating on `draft &&`. Renders properly. |
 | 6 | Revisions — the safety net | ✅ | `revisions-drawer.tsx` (526 LOC) | Working |
 | 7 | Publish drawer — alive and unified | ✅ | `publish-drawer.tsx` (1100 LOC) | Largest drawer, fully built |
 | 8 | Add section library | ✅ | composition-inserter | The `+` button on canvas works |
-| 9 | Drag in progress | 🟡 | `draggable-list.tsx` exists in kit | Primitive built but only used inside specific content panels; no canvas-level drag |
+| 9 | Drag in progress | 🟡 | `draggable-list.tsx` exists in kit | Primitive built but only used inside specific content panels; no canvas-level drag. **Backlogged.** |
 | 10 | Design tokens (reference) | ✅ | `kit/tokens.ts` | Tokens defined in kit |
 | 11 | Structure navigator | ✅ | `navigator-panel.tsx` (776 LOC) | Working — left rail tree |
-| 12 | Theme — global design system | 🟡 | `theme-drawer.tsx` (960 LOC) | Has hex input + swatch + preset chips. Missing: HSL picker, eyedropper, recent colors, per-element typography overrides |
+| 12 | Theme — global design system | 🟡 | `theme-drawer.tsx` (960 LOC) | Has hex input + swatch + preset chips. Missing: HSL picker, eyedropper, recent colors, per-element typography overrides. **Backlogged.** |
 | 13 | Assets — workspace media library | ✅ | `assets-drawer.tsx` (1007 LOC) | Working |
-| 14 | Motion — entry, scroll, hover | 🟡 | `inspectors/motion-panel.tsx` (169 LOC) | 4 selects + reduced-motion warning. No timeline, no curve editor, no preview |
-| 15 | Comments — async client feedback | 🐛 | `comments-drawer.tsx` (994 LOC) | "Could not find" red error chip visible in editor; needs investigation |
-| 16 | Compare revisions | ❓ | unknown | Need to check whether revisions-drawer covers compare or it's a separate surface |
-| 17 | Inline text editing | ✅ | `selection-layer.tsx` | Click-to-edit text on canvas works (and stash@{0} touches this 193 lines) |
-| 18 | Empty canvas — fresh tenant onboarding | ❓ | unknown | Need to check empty-state in editor entry point |
+| 14 | Motion — entry, scroll, hover | ✅ | `inspectors/motion-panel.tsx` | Phase B.4 rewrite: iconographic Segmented chips for entry directions/scroll/hover + two-state Respect/Force-animate accessibility toggle with amber callout. |
+| 15 | Comments — async client feedback | ✅ | `comments-drawer.tsx` (994 LOC) | Phase A.5 fix: NOT_FOUND treated as expected empty state, not error. |
+| 16 | Compare revisions | ❌ | none found | No side-by-side diff UI. **Deferred** — single restore covers the v1 use case. |
+| 17 | Inline text editing | ✅ | `selection-layer.tsx` | Click-to-edit text on canvas works |
+| 18 | Empty canvas — fresh tenant onboarding | ✅ | `empty-canvas-starter.tsx` | Three-recipe starter rendered when slots are empty in edit mode. |
 | 19 | Preview mode — visitor view | ✅ | eye icon in topbar | Working |
-| 20 | Command palette | 🟡 | `admin-command-palette.tsx` (admin-only?) | Editor command palette unclear — may not exist; admin palette has work in stash@{0} |
+| 20 | Command palette | ✅ | `command-palette.tsx` | Phase 8 ⌘K palette with search + grouped results + keyboard nav. |
 | 21 | Schedule publish | ✅ | `schedule-drawer.tsx` (379 LOC) | Built |
-| 22 | Team presence | ❌ | none found | Realtime presence indicators not implemented |
+| 22 | Team presence | ❌ | none found | Realtime presence indicators not implemented. **Deferred** until multi-user editing is a real use case. |
 | 23 | Bespoke content panel — featured talent picker | ✅ | `inspectors/kit/talent-picker.tsx` (436 LOC) | Built and used by featured-talent-content |
-| 24 | Pages picker — multi-page sites | 🐛 | PagePicker in `topbar.tsx` | Button exists, no `onClick`. Surface defined in mockup but not wired |
-| 25 | Import from prototype | ❌ | none found | "Strategic differentiator" surface not implemented |
-| 26 | Keyboard shortcuts overlay | 🟡 | `kit/shortcuts.ts` exists | Shortcuts defined; the `?`-to-open overlay surface unclear |
+| 24 | Pages picker — multi-page sites | ✅ | `topbar.tsx` (PagePicker) | Phase A.1 wired full dropdown + outside-click dismiss + Link to /admin/site-settings/pages. |
+| 25 | Import from prototype | ❌ | none found | "Strategic differentiator" surface not implemented. **Deferred** — large scope. |
+| 26 | Keyboard shortcuts overlay | ✅ | `shortcut-overlay.tsx` | `?`-key reference modal reading from `kit/shortcuts.ts` — chips never drift between palette and reference. |
 
-**Score:** 8 ✅ · 7 🟡 · 4 🐛 · 3 ❌ · 4 ❓ (need verification) — out of 26 surfaces
+**Score (post Phase A+B+C, 2026-04-25):** 21 ✅ · 2 🟡 (backlogged) · 3 ❌ (deferred) · 0 🐛 · 0 ❓ — out of 26 surfaces
 
 ---
 

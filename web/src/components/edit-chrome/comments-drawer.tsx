@@ -3,6 +3,9 @@
 /**
  * Phase 11 — CommentsDrawer.
  *
+ * Implements builder-experience.html surface §15 (Comments — async client
+ * feedback). Last reconciled: 2026-04-25.
+ *
  * Right-side drawer that lists every open comment thread on the current
  * homepage. Operators can scope the list to a specific section (e.g. when
  * the canvas pin is clicked) or browse globally. Each thread supports:

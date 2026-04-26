@@ -3,6 +3,9 @@
 /**
  * NavigatorPanel — left-rail Structure Navigator (Phase 3).
  *
+ * Implements builder-experience.html surface §11 (Structure navigator).
+ * Last reconciled: 2026-04-25.
+ *
  * Same role every premium builder ships: Webflow's Navigator, Framer's
  * Layers panel, Figma's Layers list. A 280px-wide left rail that shows
  * every section in document order with a section-type icon, name,

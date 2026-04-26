@@ -1,7 +1,10 @@
 "use client";
 
 /**
- * AssetsDrawer — engaged-state media library (Phase 7 / mockup surface 8).
+ * AssetsDrawer — engaged-state media library (Phase 7).
+ *
+ * Implements builder-experience.html surface §13 (Assets — workspace media
+ * library). Last reconciled: 2026-04-25.
  *
  * Lives in the right-side drawer family alongside Publish, Page Settings,
  * Revisions, and Theme. Same chrome (paper-tinted body, white cards float

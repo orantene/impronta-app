@@ -3,14 +3,17 @@
 /**
  * EditTopBar — mission control bar for the canvas editor.
  *
+ * Implements builder-experience.html surface §1 (Top bar — mission control).
+ * Last reconciled: 2026-04-25.
+ *
  * Layout (left to right):
  *   Brand mark → divider → page picker → save status → divider →
  *   undo/redo → [spacer] → viewport switcher → [spacer] →
  *   page-settings · revisions · preview · share → divider →
  *   Save draft · Publish split-button → divider → Exit
  *
- * Matches mockup surface 1 exactly — tokens, heights, radii, shadows.
- * Visual language: 54px glass bar, warm-white tint, hairline border.
+ * Visual language: 54px glass bar, warm-white tint, hairline border —
+ * tokens, heights, radii, shadows all match the mockup §1 spec.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";

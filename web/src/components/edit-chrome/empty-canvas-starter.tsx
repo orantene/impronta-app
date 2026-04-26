@@ -4,6 +4,9 @@
  * EmptyCanvasStarter — first-run canvas surface for tenants with no CMS
  * homepage composed.
  *
+ * Implements builder-experience.html surface §18 (Empty canvas — fresh
+ * tenant onboarding). Last reconciled: 2026-04-25.
+ *
  * Shown only in edit mode on tenants whose homepage has zero sections. The
  * edit-chrome (topbar, inspector dock, overlay portal) still mounts around
  * this card so the operator is in "editing" from first click; they just

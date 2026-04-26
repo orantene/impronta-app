@@ -3,6 +3,9 @@
 /**
  * Phase 12 — ScheduleDrawer.
  *
+ * Implements builder-experience.html surface §21 (Schedule publish). Last
+ * reconciled: 2026-04-25.
+ *
  * Right-side drawer that lets staff schedule a future publish (or cancel
  * one). Mounted in `EditShell` next to the other drawers. Mutexed via
  * `EditContext.openSchedule()` so it doesn't visually stack.

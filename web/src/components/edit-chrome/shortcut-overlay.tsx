@@ -3,6 +3,9 @@
 /**
  * ShortcutOverlay — keyboard reference modal (Phase 10).
  *
+ * Implements builder-experience.html surface §26 (Keyboard shortcuts
+ * overlay). Last reconciled: 2026-04-25.
+ *
  * Toggled by the `?` global keybind (or via the command palette /
  * topbar Help affordance). Reads from the centralised `SHORTCUTS`
  * registry in `kit/shortcuts.ts` so chips never drift between the

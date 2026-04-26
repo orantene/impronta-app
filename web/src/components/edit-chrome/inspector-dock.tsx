@@ -3,6 +3,9 @@
 /**
  * InspectorDock — right-rail canvas editor panel.
  *
+ * Implements builder-experience.html surface §2 (Inspector — five-tab
+ * depth). Last reconciled: 2026-04-25.
+ *
  * Responsibilities:
  *   1. Watch `selectedSectionId`; whenever it changes, fetch the section from
  *      the server and seed `loadedSection` + `draftProps`.

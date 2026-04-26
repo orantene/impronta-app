@@ -3,6 +3,9 @@
 /**
  * CommandPalette — Phase 8 of the builder.
  *
+ * Implements builder-experience.html surface §20 (Command palette). Last
+ * reconciled: 2026-04-25.
+ *
  * A `⌘K`-triggered overlay (Cmd on macOS, Ctrl elsewhere) that lets the
  * operator jump to anything in one keystroke: a section on the page, a
  * drawer (Publish / Page Settings / Revisions / Theme / Assets), an

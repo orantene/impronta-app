@@ -1,7 +1,10 @@
 "use client";
 
 /**
- * ThemeDrawer — engaged-state design / theme editor (Phase 5 / mockup surface 7).
+ * ThemeDrawer — engaged-state design / theme editor (Phase 5).
+ *
+ * Implements builder-experience.html surface §12 (Theme — global design
+ * system). Last reconciled: 2026-04-25.
  *
  * Lives next to PageSettingsDrawer and RevisionsDrawer in the right-side
  * drawer family. Same chrome shape: paper-tinted body, white cards float on
