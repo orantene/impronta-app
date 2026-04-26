@@ -435,7 +435,7 @@ export function NavigatorPanel() {
                 fontStyle: "italic",
               }}
             >
-              No sections match "{search}".
+              No sections match &ldquo;{search}&rdquo;.
             </div>
           )}
           {visible.length === 0 && !search.trim() && (
@@ -569,7 +569,12 @@ export function NavigatorPanel() {
           Page
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          <FooterShortcut onClick={openPageSettings}>Settings</FooterShortcut>
+          <FooterShortcut
+            onClick={openPageSettings}
+            title="Edit page title, SEO, social, URL"
+          >
+            Settings
+          </FooterShortcut>
           <FooterShortcut onClick={openTheme} title="Edit colours, type, and spacing">
             Theme
           </FooterShortcut>

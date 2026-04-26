@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
@@ -177,52 +178,168 @@ function BrandMark() {
   );
 }
 
+/**
+ * PagePicker — popover surfacing the current page + a route to the multi-
+ * page manager. Mockup surface §24 (Pages picker).
+ *
+ * Today the editor only edits a single page (the homepage), so the
+ * popover is intentionally light: it surfaces the current page row with
+ * a check, plus a "Manage pages…" link that takes the operator to the
+ * admin pages list. When multi-page editing lands, this is the surface
+ * that will host the full picker — for now it makes the button do
+ * something instead of being an inert visual.
+ */
 function PagePicker({ title }: { title: string }) {
+  const [open, setOpen] = useState(false);
+
+  // Outside-click dismiss — same pattern as PublishSplitButton.
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-page-picker]")) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
   return (
-    <button
-      type="button"
-      title="Switch page"
-      className="inline-flex shrink-0 items-center gap-[7px] rounded-[7px] border border-transparent transition-colors"
-      style={{
-        padding: "5px 9px 5px 11px",
-        fontSize: 12.5,
-        fontWeight: 500,
-        color: CHROME.ink,
-        background: "transparent",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = CHROME.paper2;
-        e.currentTarget.style.borderColor = CHROME.line;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-        e.currentTarget.style.borderColor = "transparent";
-      }}
-    >
-      <span
-        className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
+    <div className="relative shrink-0" data-page-picker>
+      <button
+        type="button"
+        title="Switch page"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex shrink-0 cursor-pointer items-center gap-[7px] rounded-[7px] border border-transparent transition-colors"
         style={{
-          width: 18,
-          height: 18,
-          background: CHROME.paper2,
-          color: CHROME.muted,
+          padding: "5px 9px 5px 11px",
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: CHROME.ink,
+          background: open ? CHROME.paper2 : "transparent",
+          borderColor: open ? CHROME.line : "transparent",
         }}
-        aria-hidden
+        onMouseEnter={(e) => {
+          if (!open) {
+            e.currentTarget.style.background = CHROME.paper2;
+            e.currentTarget.style.borderColor = CHROME.line;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!open) {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.borderColor = "transparent";
+          }
+        }}
       >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
-      </span>
-      <span className="font-semibold tracking-[-0.005em]" style={{ color: CHROME.ink }}>
-        {title || "Homepage"}
-      </span>
-      <span style={{ color: CHROME.muted2 }} aria-hidden>
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </span>
-    </button>
+        <span
+          className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
+          style={{
+            width: 18,
+            height: 18,
+            background: CHROME.paper2,
+            color: CHROME.muted,
+          }}
+          aria-hidden
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+        </span>
+        <span className="font-semibold tracking-[-0.005em]" style={{ color: CHROME.ink }}>
+          {title || "Homepage"}
+        </span>
+        <span style={{ color: CHROME.muted2 }} aria-hidden>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </button>
+
+      {open ? (
+        <div
+          role="menu"
+          className="absolute left-0 top-[42px] z-[120] min-w-[260px] rounded-[10px] p-[6px]"
+          style={{
+            background: CHROME.surface,
+            border: `1px solid ${CHROME.line}`,
+            boxShadow:
+              "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
+          }}
+        >
+          <div
+            style={{
+              padding: "6px 10px 4px",
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: CHROME.muted,
+            }}
+          >
+            Pages
+          </div>
+          <div
+            role="menuitemradio"
+            aria-checked
+            className="flex cursor-default items-center gap-[8px] rounded-[6px] px-[10px] py-[7px]"
+            style={{ background: CHROME.paper2, color: CHROME.ink }}
+          >
+            <span
+              className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
+              style={{ width: 18, height: 18, background: CHROME.surface, color: CHROME.muted }}
+              aria-hidden
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+              </svg>
+            </span>
+            <span className="flex-1 font-semibold tracking-[-0.005em]" style={{ fontSize: 12.5 }}>
+              {title || "Homepage"}
+            </span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={CHROME.green} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <div aria-hidden style={{ height: 1, background: CHROME.line, margin: "6px 2px" }} />
+          <Link
+            href="/admin/site-settings/pages"
+            role="menuitem"
+            className="flex cursor-pointer items-center gap-[8px] rounded-[6px] px-[10px] py-[7px] no-underline transition-colors"
+            style={{ color: CHROME.text }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = CHROME.paper2;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+            }}
+            onClick={() => setOpen(false)}
+          >
+            <span
+              className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
+              style={{ width: 18, height: 18, background: CHROME.paper2, color: CHROME.muted }}
+              aria-hidden
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M3 6h18M3 12h18M3 18h18" />
+              </svg>
+            </span>
+            <span className="flex-1 font-semibold tracking-[-0.005em]" style={{ fontSize: 12.5 }}>
+              Manage pages…
+            </span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={CHROME.muted2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <line x1="7" y1="17" x2="17" y2="7" />
+              <polyline points="7 7 17 7 17 17" />
+            </svg>
+          </Link>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

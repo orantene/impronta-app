@@ -208,6 +208,8 @@ export function PageSettingsDrawer() {
     pageMetadata,
     savePageMetadata,
     saving,
+    compositionLoaded,
+    compositionLoading,
   } = useEditContext();
 
   const [tab, setTab] = useState<TabKey>("basics");
@@ -235,6 +237,23 @@ export function PageSettingsDrawer() {
       setTab("basics");
     }
   }, [pageSettingsOpen, pageMetadata]);
+
+  // Race condition: the operator can hit "Page settings" before the
+  // composition fetch resolves (router.refresh + slow DB, or first-paint
+  // open via a deep link). When the drawer opens, `pageMetadata` is still
+  // null, so the prev-open effect above seeds `draft` with null and the
+  // body renders empty inputs that look broken — exactly the "empty body"
+  // symptom flagged in the builder-experience audit. As soon as the
+  // composition lands and `pageMetadata` becomes non-null, hydrate the
+  // draft once. We gate on `draft === null` so we never clobber an
+  // in-flight edit; the prev-open effect already handles the
+  // closed→open re-seed for the normal warm-cache case.
+  useEffect(() => {
+    if (!pageSettingsOpen) return;
+    if (draft !== null) return;
+    if (!pageMetadata) return;
+    setDraft(pageMetadata);
+  }, [pageSettingsOpen, draft, pageMetadata]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -361,7 +380,57 @@ export function PageSettingsDrawer() {
           </div>
         ) : null}
 
-        {tab === "basics" || tab === "seo" ? (
+        {!draft ? (
+          // Loading / not-yet-loaded state. Without this, the inputs render
+          // with empty `?? ""` fallbacks and the drawer reads as broken.
+          // Show a soft skeleton + status line so the operator knows we're
+          // waiting on the composition fetch (or surface the failure if the
+          // fetch is done but returned no metadata).
+          <div
+            className="rounded-[10px] px-4 py-6 text-[12px]"
+            style={{
+              background: CHROME.paper2,
+              border: `1px solid ${CHROME.line}`,
+              color: CHROME.muted,
+            }}
+            aria-busy={compositionLoading || !compositionLoaded || undefined}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-block animate-pulse rounded-full"
+                style={{ width: 8, height: 8, background: CHROME.muted2 }}
+                aria-hidden
+              />
+              {compositionLoading || !compositionLoaded
+                ? "Loading page settings…"
+                : "Page settings unavailable for this page."}
+            </div>
+            <div
+              className="mt-3 space-y-2"
+              aria-hidden
+              style={{ opacity: 0.6 }}
+            >
+              <div
+                className="h-3 w-1/3 rounded"
+                style={{ background: CHROME.line }}
+              />
+              <div
+                className="h-9 w-full rounded"
+                style={{ background: CHROME.line }}
+              />
+              <div
+                className="h-3 w-1/4 rounded"
+                style={{ background: CHROME.line }}
+              />
+              <div
+                className="h-16 w-full rounded"
+                style={{ background: CHROME.line }}
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {draft && (tab === "basics" || tab === "seo") ? (
           <Card>
             <CardHead icon={<FileIcon />} title="Basics" />
             <CardBody>
@@ -435,7 +504,7 @@ export function PageSettingsDrawer() {
           </Card>
         ) : null}
 
-        {tab === "seo" ? (
+        {draft && tab === "seo" ? (
           <Card>
             <CardHead icon={<GlobeIcon />} title="Search preview" />
             <CardBody>
@@ -448,7 +517,7 @@ export function PageSettingsDrawer() {
           </Card>
         ) : null}
 
-        {tab === "social" ? (
+        {draft && tab === "social" ? (
           <>
             <Card>
               <CardHead
@@ -555,7 +624,7 @@ export function PageSettingsDrawer() {
           </>
         ) : null}
 
-        {tab === "url" ? (
+        {draft && tab === "url" ? (
           <>
             <Card>
               <CardHead icon={<LinkIcon />} title="URL slug" />
@@ -660,7 +729,7 @@ export function PageSettingsDrawer() {
           </>
         ) : null}
 
-        {tab === "code" ? (
+        {draft && tab === "code" ? (
           <Card>
             <CardHead
               icon={<CodeIcon />}

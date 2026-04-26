@@ -626,11 +626,30 @@ export function EditProvider({
   // Initial load: only once per provider lifetime. Subsequent reloads go
   // through refreshComposition on mutation conflicts or explicit refresh.
   const initialLoadRef = useRef(false);
+  const lastLoadedLocaleRef = useRef<string>(locale);
   useEffect(() => {
     if (initialLoadRef.current) return;
     initialLoadRef.current = true;
+    lastLoadedLocaleRef.current = locale;
     void refreshComposition();
-  }, [refreshComposition]);
+  }, [refreshComposition, locale]);
+
+  // Locale switch in-session: when the topbar LocaleSwitcher navigates to
+  // `/<locale>?edit=1`, the server re-resolves the request locale and the
+  // EditChromeMount layout re-renders EditProvider with a new `locale` prop.
+  // The provider instance is preserved (same React tree key), so without an
+  // explicit refresh the canvas would still show the previous locale's
+  // composition. Refire `refreshComposition` whenever the locale prop
+  // actually changes after the initial load. We compare against
+  // `lastLoadedLocaleRef` rather than depending directly on `locale` in the
+  // initial-load effect so the fetch only fires on the *transition*, not on
+  // every render that happens to share the same locale value.
+  useEffect(() => {
+    if (!initialLoadRef.current) return;
+    if (lastLoadedLocaleRef.current === locale) return;
+    lastLoadedLocaleRef.current = locale;
+    void refreshComposition();
+  }, [locale, refreshComposition]);
 
   // ── mutation helper ─────────────────────────────────────────────────
   const currentSnapshot = useCallback<() => CompositionSnapshot>(() => {

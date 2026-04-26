@@ -177,7 +177,20 @@ export function CommentsDrawer() {
     }).then((res) => {
       if (cancelled) return;
       if (!res.ok) {
-        setErrorMessage(res.error);
+        // NOT_FOUND is the expected steady state for a tenant that hasn't
+        // created a homepage row in this locale yet — surfacing it as a red
+        // error chip reads as "Comments is broken" when in reality there's
+        // simply nothing to comment on yet. Treat it as the empty state:
+        // clear rows + suppress the error so the body shows the normal
+        // "No comments yet" affordance. Real auth / network failures still
+        // raise the alert.
+        if (res.code === "NOT_FOUND") {
+          setRows([]);
+          setPageId(null);
+          setErrorMessage(null);
+        } else {
+          setErrorMessage(res.error);
+        }
         setLoading(false);
         return;
       }
