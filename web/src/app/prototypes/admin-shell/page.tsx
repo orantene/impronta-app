@@ -29,7 +29,7 @@
 
 import { Suspense } from "react";
 import { ProtoProvider, useProto, COLORS, FONTS } from "./_state";
-import { ToastHost } from "./_primitives";
+import { ToastHost, BackToTop } from "./_primitives";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./_pages";
 import { DrawerRoot, UpgradeModal } from "./_drawers";
 import { CommandPalette } from "./_palette";
@@ -383,6 +383,9 @@ export default function AdminShellPrototypePage() {
 
           {/* Mobile-only bottom tab bar (hidden on desktop via CSS). */}
           <MobileBottomNav />
+
+          {/* Floating "↑ Top" — appears after 600px of scroll. */}
+          <BackToTop />
         </div>
       </ProtoProvider>
     </Suspense>

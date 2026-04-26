@@ -2434,6 +2434,47 @@ export function DrawerShell({
             )}
           </div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            {/* Auto-rendered "Copy link" button — drawer state is already
+                in the URL via ProtoProvider, so this turns every drawer
+                into a shareable link with one click. */}
+            <Popover content="Copy link to this drawer">
+              <button
+                type="button"
+                aria-label="Copy link to this drawer"
+                onClick={() => {
+                  if (typeof window === "undefined") return;
+                  navigator.clipboard?.writeText(window.location.href);
+                  proto.toast("Link copied — anyone with access lands here.");
+                }}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 6,
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  background: "#fff",
+                  color: COLORS.inkMuted,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  marginRight: 4,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = COLORS.border;
+                  e.currentTarget.style.color = COLORS.ink;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = COLORS.borderSoft;
+                  e.currentTarget.style.color = COLORS.inkMuted;
+                }}
+              >
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.07 0l3.5-3.5a5 5 0 0 0-7.07-7.07l-1 1" />
+                  <path d="M14 11a5 5 0 0 0-7.07 0l-3.5 3.5a5 5 0 0 0 7.07 7.07l1-1" />
+                </svg>
+              </button>
+            </Popover>
             {resizable && (
               <div
                 data-tulala-drawer-size-toolbar
@@ -3386,6 +3427,54 @@ export function SwipeableRow({
         )}
       </div>
     </div>
+  );
+}
+
+// ─── BackToTop ───────────────────────────────────────────────────────
+/**
+ * Floating "↑ Top" pill that appears after the user has scrolled past
+ * the threshold. Click → smooth-scrolls to the top. Mounted once at the
+ * page root; works for any long surface.
+ */
+export function BackToTop({ threshold = 600 }: { threshold?: number }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      setVisible(window.scrollY > threshold);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  if (!visible) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      aria-label="Scroll to top"
+      style={{
+        position: "fixed",
+        bottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
+        right: 20,
+        width: 40,
+        height: 40,
+        borderRadius: "50%",
+        background: COLORS.ink,
+        color: "#fff",
+        border: "none",
+        boxShadow: "0 4px 12px rgba(11,11,13,0.18)",
+        cursor: "pointer",
+        zIndex: Z.toast - 1,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 14,
+        opacity: 0.9,
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+      onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.9")}
+    >
+      ↑
+    </button>
   );
 }
 

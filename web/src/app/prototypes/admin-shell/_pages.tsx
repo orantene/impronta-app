@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import {
   CLIENT_PAGES,
   CLIENT_PAGE_META,
@@ -85,8 +85,11 @@ import {
   PayoutStatusChip,
   PaymentStatusChip,
   SwipeableRow,
+  BulkSelectBar,
+  BulkRowCheckbox,
+  useKeyboardListNav,
 } from "./_primitives";
-import { SavedViewsBar } from "./_wave2";
+import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv } from "./_wave2";
 import { TalentSurface } from "./_talent";
 import { ClientSurface } from "./_client";
 import { PlatformSurface } from "./_platform";
@@ -1637,21 +1640,83 @@ function UnifiedInboxPage() {
   // Use RICH_INQUIRIES so we have nextActionBy / unread / lastActivityHrs.
   const inquiries = RICH_INQUIRIES;
   const [filter, setFilter] = useState<"needs-me" | "all" | "mentions">("needs-me");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"recent" | "oldest" | "client">("recent");
+  const [pagesShown, setPagesShown] = useState(1);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const PAGE_SIZE = 8;
 
   const isOpen = (s: typeof inquiries[number]["stage"]) =>
     s !== "rejected" && s !== "expired";
-  const rows = inquiries
+
+  const matched = inquiries
     .filter((i) => isOpen(i.stage))
     .filter((i) => {
       if (filter === "needs-me") return i.nextActionBy === "coordinator";
       if (filter === "mentions") return i.unreadGroup > 0;
       return true;
     })
-    .sort((a, b) => a.lastActivityHrs - b.lastActivityHrs);
+    .filter((i) => {
+      if (!search.trim()) return true;
+      const q = search.trim().toLowerCase();
+      return (
+        i.clientName.toLowerCase().includes(q) || i.brief.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sort === "client") return a.clientName.localeCompare(b.clientName);
+      if (sort === "oldest") return b.lastActivityHrs - a.lastActivityHrs;
+      return a.lastActivityHrs - b.lastActivityHrs;
+    });
+
+  const rows = matched.slice(0, PAGE_SIZE * pagesShown);
+
+  // Reset pagination + selection when filter / search changes.
+  useEffect(() => {
+    setPagesShown(1);
+  }, [filter, search, sort]);
 
   // Saved-views payload — capture the active filter; restore on click.
-  type InboxView = { filter: typeof filter };
-  const onApplyView = (v: InboxView) => setFilter(v.filter);
+  type InboxView = { filter: typeof filter; sort: typeof sort };
+  const onApplyView = (v: InboxView) => {
+    setFilter(v.filter);
+    setSort(v.sort);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => setSelected(new Set());
+
+  // Keyboard nav refs — populated on render.
+  const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  useKeyboardListNav({
+    rows: rowRefs.current,
+    onActivate: (idx) => {
+      const inq = rows[idx];
+      if (inq) openDrawer("inquiry-workspace", { inquiryId: inq.id });
+    },
+  });
+
+  const exportCsv = () => {
+    downloadCsv(
+      `inbox-${new Date().toISOString().slice(0, 10)}.csv`,
+      matched.map((i) => ({
+        client: i.clientName,
+        brief: i.brief,
+        stage: INQUIRY_STAGE_META[i.stage].label,
+        nextActionBy: i.nextActionBy ?? "",
+        unread: i.unreadGroup,
+        ageHours: i.lastActivityHrs,
+      })),
+    );
+    toast(`Exported ${matched.length} rows to CSV`);
+  };
 
   return (
     <>
@@ -1659,8 +1724,92 @@ function UnifiedInboxPage() {
         eyebrow="Inbox"
         title="Unified inbox"
         subtitle="Inquiry threads, mentions, and notifications in one place — sorted by what needs you next."
+        actions={
+          <GhostButton size="sm" onClick={exportCsv}>
+            Export CSV
+          </GhostButton>
+        }
       />
-      <SavedViewsBar viewKey="inbox" current={{ filter }} onApply={onApplyView} />
+      <SavedViewsBar viewKey="inbox" current={{ filter, sort }} onApply={onApplyView} />
+
+      <BulkSelectBar
+        count={selected.size}
+        onClear={clearSelection}
+        actions={[
+          {
+            label: "Mark read",
+            onClick: () => {
+              toast(`Marked ${selected.size} read`);
+              clearSelection();
+            },
+          },
+          {
+            label: "Snooze 4h",
+            onClick: () => {
+              toast(`Snoozed ${selected.size} for 4 hours`);
+              clearSelection();
+            },
+          },
+          {
+            label: "Archive",
+            tone: "red",
+            onClick: () => {
+              toast(`Archived ${selected.size}`);
+              clearSelection();
+            },
+          },
+        ]}
+      />
+
+      {/* Search + sort row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by client or brief…"
+            style={{
+              width: "100%",
+              padding: "9px 12px",
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              color: COLORS.ink,
+              background: "#fff",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 8,
+              outline: "none",
+            }}
+          />
+        </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as typeof sort)}
+          aria-label="Sort"
+          style={{
+            padding: "9px 12px",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+            background: "#fff",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 8,
+            cursor: "pointer",
+          }}
+        >
+          <option value="recent">Most recent</option>
+          <option value="oldest">Oldest</option>
+          <option value="client">Client name</option>
+        </select>
+      </div>
       <div
         style={{
           display: "flex",
@@ -1717,120 +1866,160 @@ function UnifiedInboxPage() {
             overflow: "hidden",
           }}
         >
-          {rows.map((inq, idx) => (
-            <SwipeableRow
-              key={inq.id}
-              leftActions={[
-                {
-                  label: "Pin",
-                  tone: "ink",
-                  onClick: () => toast(`Pinned ${inq.clientName}`),
-                },
-              ]}
-              rightActions={[
-                {
-                  label: "Snooze",
-                  tone: "ink",
-                  onClick: () => toast(`Snoozed ${inq.clientName} 4h`),
-                },
-                {
-                  label: "Archive",
-                  tone: "red",
-                  onClick: () => toast(`Archived ${inq.clientName}`),
-                },
-              ]}
-            >
-            <button
-              type="button"
-              data-tulala-row
-              onClick={() => openDrawer("inquiry-workspace", { inquiryId: inq.id })}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 12,
-                width: "100%",
-                padding: "14px 16px",
-                background: "#fff",
-                border: "none",
-                borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
-                cursor: "pointer",
-                textAlign: "left",
-                fontFamily: FONTS.body,
-              }}
-            >
-              <Avatar
-                initials={inq.clientName.slice(0, 2).toUpperCase()}
-                hashSeed={inq.clientName}
-                size={32}
-                tone="auto"
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-                    {inq.clientName}
-                  </span>
-                  <ClientTrustChip level={inq.clientTrust} compact />
-                  {inq.unreadGroup > 0 && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        background: COLORS.accent,
-                        color: "#fff",
-                        padding: "1px 6px",
-                        borderRadius: 999,
-                      }}
-                    >
-                      {inq.unreadGroup}
-                    </span>
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12.5,
-                    color: COLORS.inkMuted,
-                    marginTop: 2,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+          {rows.map((inq, idx) => {
+            const isOfferPending = inq.stage === "offer_pending";
+            const isSelected = selected.has(inq.id);
+            return (
+              <SwipeableRow
+                key={inq.id}
+                leftActions={[
+                  {
+                    label: "Pin",
+                    tone: "ink",
+                    onClick: () => toast(`Pinned ${inq.clientName}`),
+                  },
+                ]}
+                rightActions={[
+                  {
+                    label: "Snooze",
+                    tone: "ink",
+                    onClick: () => toast(`Snoozed ${inq.clientName} 4h`),
+                  },
+                  {
+                    label: "Archive",
+                    tone: "red",
+                    onClick: () => toast(`Archived ${inq.clientName}`),
+                  },
+                ]}
+              >
+                <button
+                  type="button"
+                  data-tulala-row
+                  ref={(el) => {
+                    rowRefs.current[idx] = el;
                   }}
-                >
-                  {inq.brief}
-                </div>
-                <div
+                  onClick={() => openDrawer("inquiry-workspace", { inquiryId: inq.id })}
                   style={{
                     display: "flex",
-                    gap: 8,
-                    marginTop: 6,
-                    fontSize: 11,
-                    color: COLORS.inkDim,
+                    alignItems: "flex-start",
+                    gap: 12,
+                    width: "100%",
+                    padding: "14px 16px",
+                    background: isSelected ? COLORS.accentSoft : "#fff",
+                    border: "none",
+                    borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: FONTS.body,
                   }}
                 >
-                  <span>
-                    {INQUIRY_STAGE_META[inq.stage].label}
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelect(inq.id);
+                    }}
+                    style={{ display: "inline-flex", marginTop: 8 }}
+                  >
+                    <BulkRowCheckbox
+                      checked={isSelected}
+                      onChange={() => toggleSelect(inq.id)}
+                    />
                   </span>
-                  <Bullet />
-                  <span>
-                    {inq.lastActivityHrs < 1
-                      ? "just now"
-                      : inq.lastActivityHrs < 24
-                        ? `${Math.round(inq.lastActivityHrs)}h ago`
-                        : `${Math.round(inq.lastActivityHrs / 24)}d ago`}
-                  </span>
-                  {inq.nextActionBy && (
-                    <>
+                  <Avatar
+                    initials={inq.clientName.slice(0, 2).toUpperCase()}
+                    hashSeed={inq.clientName}
+                    size={32}
+                    tone="auto"
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                        {inq.clientName}
+                      </span>
+                      <ClientTrustChip level={inq.clientTrust} compact />
+                      {inq.unreadGroup > 0 && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            background: COLORS.accent,
+                            color: "#fff",
+                            padding: "1px 6px",
+                            borderRadius: 999,
+                          }}
+                        >
+                          {inq.unreadGroup}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12.5,
+                        color: COLORS.inkMuted,
+                        marginTop: 2,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {inq.brief}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        marginTop: 6,
+                        fontSize: 11,
+                        color: COLORS.inkDim,
+                        alignItems: "center",
+                      }}
+                    >
+                      <span>{INQUIRY_STAGE_META[inq.stage].label}</span>
                       <Bullet />
-                      <span>Waiting on {inq.nextActionBy}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
-            </button>
-            </SwipeableRow>
-          ))}
+                      <span>
+                        {inq.lastActivityHrs < 1
+                          ? "just now"
+                          : inq.lastActivityHrs < 24
+                            ? `${Math.round(inq.lastActivityHrs)}h ago`
+                            : `${Math.round(inq.lastActivityHrs / 24)}d ago`}
+                      </span>
+                      {inq.nextActionBy && (
+                        <>
+                          <Bullet />
+                          <span>Waiting on {inq.nextActionBy}</span>
+                        </>
+                      )}
+                    </div>
+                    {/* Inline quick-reply trio for offer_pending rows.
+                        Lets coordinators / clients act without opening
+                        the workspace drawer. */}
+                    {isOfferPending && (
+                      <div
+                        style={{ marginTop: 10 }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <QuickReplyButtons
+                          onAccept={() => toast(`Accepted offer from ${inq.clientName}`)}
+                          onCounter={() => {
+                            openDrawer("inquiry-workspace", { inquiryId: inq.id });
+                          }}
+                          onDecline={() => toast(`Declined offer from ${inq.clientName}`)}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+                </button>
+              </SwipeableRow>
+            );
+          })}
         </div>
       )}
+      <LoadMore
+        total={matched.length}
+        shown={rows.length}
+        onMore={() => setPagesShown((p) => p + 1)}
+      />
     </>
   );
 }
@@ -2064,9 +2253,9 @@ function WorkPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Pipeline"
-        title="Inquiries → confirmed bookings"
-        subtitle="Every conversation that could become a booking. Coordinators move work forward; admins track the whole flow."
+        eyebrow="Workflow"
+        title="In-flight work"
+        subtitle="Every inquiry that hasn't closed yet, grouped by where it's stuck. Coordinators move things forward; admins watch the flow."
         actions={
           <>
             {!canEdit && <ReadOnlyChip />}
