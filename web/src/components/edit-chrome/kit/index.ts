@@ -33,6 +33,7 @@ export { Stepper } from "./stepper";
 export { Segmented, type SegmentedOption } from "./segmented";
 export { Toggle } from "./toggle";
 export { Swatch, ColorRow } from "./swatch";
+export { ColorPickerPopover } from "./color-picker";
 export { SaveChip, type SaveChipStatus } from "./savechip";
 export { Kbd, KbdSequence } from "./kbd";
 export { SectionTypeIcon } from "./section-type-icon";

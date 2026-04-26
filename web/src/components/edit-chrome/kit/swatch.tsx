@@ -8,14 +8,17 @@
  *                        and segmented previews)
  *   - <ColorRow>        full row: swatch + hex text field (+ optional
  *                        opacity stepper) — used in inspector Style tab
+ *                        and theme drawer. Clicking the swatch opens
+ *                        the editor's HSL+eyedropper popover (kit/color-picker).
  *
  * Matches mockup `.color-swatch` and `.color-row`. The swatch surface
  * carries an inset top highlight so it reads as physical, not flat.
  */
 
-import type { CSSProperties, ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { CHROME, CHROME_SHADOWS } from "./tokens";
+import { ColorPickerPopover } from "./color-picker";
 
 interface SwatchProps {
   color: string;
@@ -84,9 +87,39 @@ export function ColorRow({
   onOpacityChange,
   trailing,
 }: ColorRowProps) {
+  const swatchRef = useRef<HTMLButtonElement | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   return (
     <div className="flex items-center gap-2">
-      <Swatch color={value} size={30} />
+      {/* Use a custom button wrapper so we can capture the ref + open the
+          popover without having to plumb a ref through <Swatch>. */}
+      <button
+        ref={swatchRef}
+        type="button"
+        onClick={() => setPickerOpen((v) => !v)}
+        title="Open color picker"
+        aria-haspopup="dialog"
+        aria-expanded={pickerOpen}
+        className="inline-block cursor-pointer transition-transform hover:scale-110"
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: "50%",
+          background: value,
+          border: `2px solid ${CHROME.line}`,
+          boxShadow: CHROME_SHADOWS.inputInset,
+          padding: 0,
+          flexShrink: 0,
+        }}
+      />
+      <ColorPickerPopover
+        open={pickerOpen}
+        anchor={swatchRef.current}
+        value={value}
+        onChange={onChange}
+        onClose={() => setPickerOpen(false)}
+      />
       <input
         type="text"
         value={value}
