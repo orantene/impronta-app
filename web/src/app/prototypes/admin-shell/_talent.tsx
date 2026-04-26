@@ -975,56 +975,173 @@ function ProfileCompletenessBanner({
  * Clickable past-earning row → opens TalentClosedBookingDrawer with the
  * archived team, chat, and booking facts. Each completed booking becomes
  * a portfolio entry the talent can revisit.
+ *
+ * Uses the same anatomy as Calendar event rows: 44×44 date block on the
+ * left, title/brief/status chip in the middle, amount + chevron on the
+ * right. One row pattern across all of Today + Calendar.
  */
 function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
   const { openDrawer } = useProto();
-  const [hover, setHover] = useState(false);
+  // Parse "Mar 28, 2026" → month "Mar", day 28
+  const dateMatch = earning.workDate.match(/^([A-Za-z]+)\s+(\d{1,2})/);
+  const month = dateMatch?.[1]?.toUpperCase() ?? "—";
+  const day = dateMatch?.[2] ?? "—";
   return (
     <button
       type="button"
       onClick={() => openDrawer("talent-closed-booking", { earningId: earning.id })}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        padding: "8px 0",
+        gap: 12,
+        width: "100%",
+        padding: "10px 0",
         borderTop: `1px solid ${COLORS.borderSoft}`,
-        fontFamily: FONTS.body,
-        fontSize: 12.5,
         background: "transparent",
         border: "none",
-        borderTopColor: COLORS.borderSoft,
-        borderTopStyle: "solid",
-        borderTopWidth: 1,
-        width: "100%",
         cursor: "pointer",
         textAlign: "left",
+        fontFamily: FONTS.body,
+        transition: "background .12s",
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
+      <DateBlock day={day} month={month} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13.5,
+            fontWeight: 500,
             color: COLORS.ink,
-            textDecoration: hover ? "underline" : "none",
-            textDecorationColor: COLORS.inkDim,
-            textUnderlineOffset: 3,
           }}
         >
-          {earning.client}
+          <span>{earning.client}</span>
         </div>
-        <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>
-          Worked {earning.workDate} · Paid {earning.payoutDate}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 2,
+            fontSize: 11.5,
+          }}
+        >
+          <KindChip
+            label={earning.source.kind === "manual" ? "Off-platform" : "Paid"}
+            tone={earning.source.kind === "manual" ? "coral" : "success"}
+          />
+          <span style={{ color: COLORS.inkMuted }}>
+            Paid {earning.payoutDate}
+          </span>
         </div>
       </div>
-      <span style={{ color: COLORS.ink, fontWeight: 600 }}>{earning.amount}</span>
-      <Icon
-        name="chevron-right"
-        size={12}
-        color={hover ? COLORS.ink : COLORS.inkDim}
-      />
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: COLORS.ink,
+          fontVariantNumeric: "tabular-nums",
+          flexShrink: 0,
+        }}
+      >
+        {earning.amount}
+      </span>
+      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
     </button>
+  );
+}
+
+/**
+ * Shared 44×44 date block — used across Calendar event rows, Earning
+ * rows, and any other "date-anchored" Today surface. The single source
+ * of date-anchor visual language across Talent.
+ */
+function DateBlock({
+  day,
+  month,
+  size = 44,
+}: {
+  day: string | number;
+  month: string;
+  size?: number;
+}) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 8,
+        background: COLORS.surfaceAlt,
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        fontFamily: FONTS.display,
+      }}
+    >
+      <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, lineHeight: 1 }}>
+        {day}
+      </span>
+      <span
+        style={{
+          fontSize: 9,
+          color: COLORS.inkMuted,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          fontWeight: 600,
+          marginTop: 2,
+        }}
+      >
+        {month}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Shared status chip — used across Today rows (BOOKED, PAID, OFFER, HOLD,
+ * PENDING) for consistent semantic language. Tone-coded to the tone
+ * tokens (success / coral / indigo / amber / ink).
+ */
+function KindChip({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: "success" | "coral" | "indigo" | "amber" | "ink";
+}) {
+  const palette = {
+    success: { bg: "rgba(46,125,91,0.10)", fg: COLORS.green },
+    coral: { bg: COLORS.coralSoft, fg: COLORS.coral },
+    indigo: { bg: COLORS.indigoSoft, fg: COLORS.indigo },
+    amber: { bg: "rgba(82,96,109,0.10)", fg: "#3A4651" },
+    ink: { bg: "rgba(11,11,13,0.06)", fg: COLORS.ink },
+  } as const;
+  const c = palette[tone];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "1px 7px",
+        borderRadius: 999,
+        background: c.bg,
+        color: c.fg,
+        fontFamily: FONTS.body,
+        fontSize: 10.5,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </span>
   );
 }
 
@@ -1736,18 +1853,24 @@ function RequestRow({
    * Adds:
    *   - Coral-escalated timestamp when age > 12h (urgency cue)
    *   - Hover "Reply" button (per-row primary affordance)
+   *   - Date block on the left (Calendar event-row pattern)
    */
   compact?: boolean;
 }) {
   const { openDrawer } = useProto();
   const [hover, setHover] = useState(false);
-  const kindMeta: Record<TalentRequest["kind"], { label: string; tone: "amber" | "ink" | "green" | "dim" }> = {
-    offer: { label: "Offer", tone: "amber" },
-    hold: { label: "Hold", tone: "amber" },
-    casting: { label: "Casting", tone: "dim" },
+  const kindMeta: Record<TalentRequest["kind"], { label: string; tone: "coral" | "indigo" | "amber" | "ink" }> = {
+    offer: { label: "Offer", tone: "coral" },
+    hold: { label: "Hold", tone: "coral" },
+    casting: { label: "Casting", tone: "indigo" },
     request: { label: "Request", tone: "ink" },
   };
   const km = kindMeta[request.kind];
+  // Parse the request date for the date block. Handles "Tue · May 6",
+  // "May 18–20", "Apr 30" formats.
+  const dateMatch = request.date?.match(/([A-Za-z]+)\s+(\d{1,2})/);
+  const month = dateMatch?.[1]?.toUpperCase();
+  const day = dateMatch?.[2];
   // Timestamp urgency: 0–12h neutral, 12–24h coral, >24h coral bold.
   // Pressure rises with time.
   const ageLabel =
@@ -1775,26 +1898,16 @@ function RequestRow({
         cursor: "pointer",
         textAlign: "left",
         width: "100%",
+        transition: "background .12s",
       }}
     >
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "3px 8px",
-          borderRadius: 999,
-          background: km.tone === "amber" ? "rgba(82,96,109,0.10)" : "rgba(11,11,13,0.05)",
-          color: km.tone === "amber" ? "#3A4651" : COLORS.ink,
-          fontFamily: FONTS.body,
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: 0.4,
-          textTransform: "uppercase",
-        }}
-      >
-        {km.label}
-      </span>
+      {/* Date block — shared with Calendar event rows + Earning rows.
+          Renders only when the request has a parseable date. */}
+      {compact && day && month ? (
+        <DateBlock day={day} month={month} />
+      ) : (
+        <KindChip label={km.label} tone={km.tone} />
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -1814,21 +1927,29 @@ function RequestRow({
         </div>
         <div
           style={{
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
             marginTop: 2,
+            fontSize: 11.5,
           }}
         >
-          {!compact && (
-            <>
-              via {request.agency}
-              {(request.date || request.amount) && " · "}
-            </>
+          {/* When compact + date block on left, the kind chip moves to
+              the second line so the kind context isn't lost. */}
+          {compact && day && month && (
+            <KindChip label={km.label} tone={km.tone} />
           )}
-          {request.date}
-          {request.date && request.amount && " · "}
-          {request.amount}
+          <span style={{ color: COLORS.inkMuted }}>
+            {!compact && (
+              <>
+                via {request.agency}
+                {(request.date || request.amount) && " · "}
+              </>
+            )}
+            {compact ? request.date : request.date}
+            {request.date && request.amount && " · "}
+            {request.amount}
+          </span>
         </div>
       </div>
       {/* Hover Reply button — per-row primary affordance.
@@ -4344,12 +4465,12 @@ function CalendarEventRow({
   onOpen: () => void;
   first: boolean;
 }) {
-  const tone = {
-    booked: { bg: "rgba(46,125,91,0.10)", fg: COLORS.green },
-    pending: { bg: COLORS.coralSoft, fg: COLORS.coral },
-    inquiry: { bg: COLORS.indigoSoft, fg: COLORS.indigo },
-    past: { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted },
-  }[event.kind];
+  const kindToTone: Record<CalendarEventKind, "success" | "coral" | "indigo" | "amber"> = {
+    booked: "success",
+    pending: "coral",
+    inquiry: "indigo",
+    past: "amber",
+  };
   const kindLabel = {
     booked: "Booked",
     pending: "Pending",
@@ -4395,37 +4516,9 @@ function CalendarEventRow({
         />
       )}
 
-      {/* Date block — visual anchor */}
-      <span
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 8,
-          background: COLORS.surfaceAlt,
-          display: "inline-flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          fontFamily: FONTS.display,
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, lineHeight: 1 }}>
-          {event.startDay ?? "—"}
-        </span>
-        <span
-          style={{
-            fontSize: 9,
-            color: COLORS.inkMuted,
-            letterSpacing: 0.5,
-            textTransform: "uppercase",
-            fontWeight: 600,
-            marginTop: 2,
-          }}
-        >
-          May
-        </span>
-      </span>
+      {/* Shared date block — same primitive used on Today's Earning rows
+          and Calendar peek section. One row pattern across surfaces. */}
+      <DateBlock day={event.startDay ?? "—"} month="May" />
 
       {/* Title + status */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -4451,42 +4544,8 @@ function CalendarEventRow({
             fontSize: 11.5,
           }}
         >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "1px 7px",
-              borderRadius: 999,
-              background: tone.bg,
-              color: tone.fg,
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-            }}
-          >
-            {kindLabel}
-          </span>
-          {conflicted && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "1px 7px",
-                borderRadius: 999,
-                background: COLORS.coralSoft,
-                color: COLORS.coralDeep,
-                fontSize: 10.5,
-                fontWeight: 600,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-              }}
-            >
-              Conflict
-            </span>
-          )}
+          <KindChip label={kindLabel} tone={kindToTone[event.kind]} />
+          {conflicted && <KindChip label="Conflict" tone="coral" />}
           <span style={{ color: COLORS.inkMuted }}>{event.status}</span>
         </div>
       </div>
