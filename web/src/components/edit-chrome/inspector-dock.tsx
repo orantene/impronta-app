@@ -38,6 +38,7 @@ import { ResponsivePanel } from "./inspectors/responsive-panel";
 import { MotionPanel } from "./inspectors/motion-panel";
 import { PanelSaveChip } from "./inspectors/kit";
 import { SectionA11yWarning } from "./inspectors/SectionA11yWarning";
+import { AiTranslateSectionButton } from "./inspectors/AiTranslateSectionButton";
 import {
   CHROME,
   Drawer,
@@ -479,6 +480,28 @@ export function InspectorDock() {
               sectionTypeKey={loadedSection.sectionTypeKey}
               draftProps={draftProps}
             />
+            {draftProps ? (
+              <div className="mb-3 flex justify-end">
+                <AiTranslateSectionButton
+                  sectionTypeKey={loadedSection.sectionTypeKey}
+                  currentProps={draftProps}
+                  onApply={(translations) => {
+                    // Bulk-apply: each translated field overwrites the
+                    // current value on the draft. Save loop picks it up
+                    // via the autosave timer.
+                    setDraftProps((prev) => {
+                      if (!prev) return prev;
+                      const next = { ...prev };
+                      for (const [k, v] of Object.entries(translations)) {
+                        next[k] = v;
+                      }
+                      return next;
+                    });
+                    setDirty(true);
+                  }}
+                />
+              </div>
+            ) : null}
             {tab === "content" ? (
               <ContentTab
                 sectionTypeKey={loadedSection.sectionTypeKey}

@@ -431,6 +431,96 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       variant: "striped",
     },
   },
+  lottie: {
+    name: "Lottie — new",
+    props: {
+      headline: "Animated explainer",
+      src: "https://lottie.host/d7c0c9c4-6e91-4d83-aaf1-8c5c5e4b2d6a/eGD9bN9Yt8.json",
+      trigger: "autoplay",
+      loop: true,
+      speed: 1,
+      ratio: "1/1",
+      maxWidth: 480,
+    },
+  },
+  sticky_scroll: {
+    name: "Sticky scroll — new",
+    props: {
+      eyebrow: "Process",
+      headline: "How it works.",
+      imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552",
+      imageAlt: "",
+      blocks: [
+        { title: "Step one", body: "Why this matters first." },
+        { title: "Step two", body: "What we do next." },
+        { title: "Step three", body: "How it ends." },
+      ],
+      side: "media-left",
+      variant: "minimal",
+    },
+  },
+  masonry: {
+    name: "Masonry — new",
+    props: {
+      eyebrow: "Recent",
+      headline: "Selected work.",
+      items: [
+        { src: "https://images.unsplash.com/photo-1519741497674-611481863552", alt: "" },
+        { src: "https://images.unsplash.com/photo-1519225421980-715cb0215aed", alt: "" },
+        { src: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3", alt: "" },
+      ],
+      columnsDesktop: 3,
+      gap: "standard",
+    },
+  },
+  scroll_carousel: {
+    name: "Carousel — new",
+    props: {
+      eyebrow: "Featured",
+      headline: "Swipe to see more.",
+      slides: [
+        { imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552", title: "Slide 1" },
+        { imageUrl: "https://images.unsplash.com/photo-1519225421980-715cb0215aed", title: "Slide 2" },
+        { imageUrl: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3", title: "Slide 3" },
+      ],
+      cardWidthVw: 28,
+      showProgress: true,
+    },
+  },
+  blog_detail: {
+    name: "Post — new",
+    props: {
+      category: "Field notes",
+      date: "April 2026",
+      title: "An untitled post",
+      byline: "By the studio",
+      body: "First paragraph.\n\nSecond paragraph.",
+    },
+  },
+  magazine_layout: {
+    name: "Magazine — new",
+    props: {
+      eyebrow: "Featured",
+      headline: "From the studio.",
+      hero: { title: "Headlining post", excerpt: "Lead with the most important story.", category: "Field notes", href: "#" },
+      secondary: [
+        { title: "Secondary post one", excerpt: "Supporting story.", category: "Craft", href: "#" },
+        { title: "Secondary post two", excerpt: "Supporting story.", category: "Workflow", href: "#" },
+        { title: "Secondary post three", excerpt: "Supporting story.", category: "Field notes", href: "#" },
+      ],
+    },
+  },
+  hero_split: {
+    name: "Hero split — new",
+    props: {
+      headline: "Quiet, unhurried, in {accent}the same key{/accent}.",
+      subheadline: "A short subhead that sets the tone.",
+      imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552",
+      imageAlt: "",
+      side: "media-right",
+      variant: "asymmetric",
+    },
+  },
 };
 
 export function getLibraryDefault(

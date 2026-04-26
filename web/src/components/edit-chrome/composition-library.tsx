@@ -52,6 +52,7 @@ export function CompositionLibraryOverlay() {
   const [busyTypeKey, setBusyTypeKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [purposeFilter, setPurposeFilter] = useState<string | null>(null);
   const queryInputRef = useRef<HTMLInputElement | null>(null);
 
   // Reset + auto-focus the search input each time the library opens so the
@@ -86,12 +87,22 @@ export function CompositionLibraryOverlay() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return slotFiltered;
     return slotFiltered.filter((entry) => {
+      if (purposeFilter && entry.purpose !== purposeFilter) return false;
+      if (!q) return true;
       const hay = `${entry.label} ${entry.description} ${entry.typeKey}`.toLowerCase();
       return hay.includes(q);
     });
-  }, [slotFiltered, query]);
+  }, [slotFiltered, query, purposeFilter]);
+
+  // Which purposes have at least one section in the slot-filtered set?
+  // Render only those as filter chips so the operator never sees an
+  // empty bucket they could click into.
+  const availablePurposes = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of slotFiltered) set.add(e.purpose);
+    return PURPOSE_ORDER.filter((p) => set.has(p));
+  }, [slotFiltered]);
 
   const grouped = useMemo(() => {
     const by: Record<string, typeof filtered> = {};
@@ -163,6 +174,37 @@ export function CompositionLibraryOverlay() {
             className="w-full rounded-md border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
           />
         </div>
+        {/* Purpose filter chips — only shown when there's more than one
+            purpose available in the current slot scope. */}
+        {availablePurposes.length > 1 ? (
+          <div className="mt-2 flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => setPurposeFilter(null)}
+              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                purposeFilter == null
+                  ? "bg-zinc-900 text-white"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+              }`}
+            >
+              All
+            </button>
+            {availablePurposes.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPurposeFilter(purposeFilter === p ? null : p)}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                  purposeFilter === p
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                {PURPOSE_LABEL[p] ?? p}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {error ? (

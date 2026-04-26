@@ -35,7 +35,7 @@
  *   right-click menu will surface the full enum.
  */
 
-import { useCallback, useMemo, useRef, useState, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
 
 import {
   CHROME,
@@ -52,7 +52,9 @@ import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/e
 
 import { useEditContext } from "./edit-context";
 import { HeadingLintBadge } from "./inspectors/HeadingLintBadge";
+import { loadHeadingProbeForLint } from "@/lib/site-admin/edit-mode/heading-lint-action";
 import {
+  buildHeadingOutline,
   buildStructuralHeadingOutline,
   lintHeadingOutline,
 } from "@/lib/site-admin/a11y/heading-hierarchy";
@@ -113,18 +115,48 @@ export function NavigatorPanel() {
     );
   }, [flat, search]);
 
-  // Phase 10 — heading hierarchy lint, structural mode (we only have
-  // section types here, not loaded props). Catches missing-H1, multi-H1,
-  // skipped-level issues from the section composition alone.
+  // Phase 10 — heading hierarchy lint. Two modes:
+  //   - Structural (default, instant): infers from section types alone.
+  //   - Props-aware (after lazy fetch): fills in actual headline text so
+  //     sections with empty headlines drop OUT of the outline (preventing
+  //     false "skipped level" warnings from configured-but-empty sections).
+  // The fetch fires once when the navigator opens and re-fires when the
+  // section list changes shape (id set diff).
+  const [headingProbe, setHeadingProbe] = useState<
+    Record<string, string> | null
+  >(null);
+  const flatIdsKey = flat.map((r) => r.ref.sectionId).sort().join(",");
+  useEffect(() => {
+    let cancelled = false;
+    if (!navigatorOpen || flat.length === 0) return;
+    void (async () => {
+      const result = await loadHeadingProbeForLint();
+      if (cancelled || !result.ok) return;
+      const map: Record<string, string> = {};
+      for (const s of result.sections) map[s.sectionId] = s.headlineText;
+      setHeadingProbe(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [navigatorOpen, flatIdsKey, flat.length]);
+
   const headingIssues = useMemo(() => {
-    const outline = buildStructuralHeadingOutline(
-      flat.map((r) => ({
-        sectionId: r.ref.sectionId,
-        sectionTypeKey: r.ref.sectionTypeKey,
-      })),
-    );
-    return lintHeadingOutline(outline);
-  }, [flat]);
+    const flatLite = flat.map((r) => ({
+      sectionId: r.ref.sectionId,
+      sectionTypeKey: r.ref.sectionTypeKey,
+    }));
+    if (headingProbe) {
+      // Props-aware: feed the loaded headline back in via a synthetic
+      // SectionLike payload that buildHeadingOutline can consume.
+      const propBased = flatLite.map((s) => ({
+        ...s,
+        props: { headline: headingProbe[s.sectionId] ?? "", eyebrow: headingProbe[s.sectionId] ?? "" },
+      }));
+      return lintHeadingOutline(buildHeadingOutline(propBased));
+    }
+    return lintHeadingOutline(buildStructuralHeadingOutline(flatLite));
+  }, [flat, headingProbe]);
 
   const onDragStart = useCallback(
     (e: DragEvent<HTMLDivElement>, sectionId: string) => {

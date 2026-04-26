@@ -27,6 +27,8 @@ interface AiRewriteButtonProps {
   currentValue: string;
   /** Called when the operator clicks Apply on a proposed rewrite. */
   onApply: (next: string) => void;
+  /** Other field values from the same section (context for the prompt). */
+  siblingContext?: Record<string, string>;
 }
 
 const PRESETS: ReadonlyArray<{ label: string; instruction: string }> = [
@@ -41,6 +43,7 @@ export function AiRewriteButton({
   fieldName,
   currentValue,
   onApply,
+  siblingContext,
 }: AiRewriteButtonProps): ReactElement | null {
   const [open, setOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
@@ -58,6 +61,7 @@ export function AiRewriteButton({
         fieldName,
         currentValue,
         instruction: text,
+        siblingContext,
       });
       if (result.ok) {
         setProposed(result.text);

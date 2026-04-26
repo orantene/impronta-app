@@ -74,6 +74,8 @@ import {
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
 import { GoogleFontPicker } from "./GoogleFontPicker";
 import { ContrastChecker } from "./ContrastChecker";
+import { BrandKitImport } from "./BrandKitImport";
+import { classifyContrast, contrastRatio } from "@/lib/site-admin/a11y/contrast";
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 
@@ -691,7 +693,15 @@ export function ThemeDrawer(): ReactElement | null {
               />
             ) : null}
             {tab === "code" ? (
-              <CodeTab draft={draft} onResetDefaults={resetToDefaults} />
+              <CodeTab
+                draft={draft}
+                onResetDefaults={resetToDefaults}
+                onBulkApply={(tokens) => {
+                  for (const [k, v] of Object.entries(tokens)) {
+                    set(k, v);
+                  }
+                }}
+              />
             ) : null}
           </>
         )}
@@ -702,9 +712,43 @@ export function ThemeDrawer(): ReactElement | null {
           start={
             confirmingPublish ? (
               <span style={{ fontSize: 11, color: CHROME.text2 }}>
-                {draftDiffersFromLive
-                  ? "This will replace what visitors see."
-                  : "Re-publish current draft?"}
+                {(() => {
+                  // Phase 13 — contrast warning at publish time. Computes
+                  // the same pairings ContrastChecker shows in the Colors
+                  // tab and warns if any FAIL the AA threshold (ratio < 3).
+                  // Doesn't block — operator can still ship if they accept
+                  // the trade-off.
+                  const pairs: Array<[string, string]> = [
+                    ["color.ink", "color.surface-raised"],
+                    ["color.primary", "color.background"],
+                    ["color.secondary", "color.surface-raised"],
+                    ["color.muted", "color.surface-raised"],
+                    ["color.accent", "color.background"],
+                  ];
+                  const fallback: Record<string, string> = {
+                    "color.ink": "#111111",
+                    "color.surface-raised": "#ffffff",
+                    "color.primary": "#111111",
+                    "color.background": "#ffffff",
+                    "color.secondary": "#444444",
+                    "color.muted": "#666666",
+                    "color.accent": "#111111",
+                  };
+                  const failing = pairs.filter(([fg, bg]) => {
+                    const r = contrastRatio(
+                      draft[fg] || fallback[fg],
+                      draft[bg] || fallback[bg],
+                    );
+                    return classifyContrast(r) === "fail";
+                  });
+                  const base = draftDiffersFromLive
+                    ? "This will replace what visitors see."
+                    : "Re-publish current draft?";
+                  if (failing.length > 0) {
+                    return `⚠ ${failing.length} color pair${failing.length > 1 ? "s fail" : " fails"} WCAG AA. ${base}`;
+                  }
+                  return base;
+                })()}
               </span>
             ) : (
               <button
@@ -875,9 +919,11 @@ function PresetsTab({
 function CodeTab({
   draft,
   onResetDefaults,
+  onBulkApply,
 }: {
   draft: Record<string, string>;
   onResetDefaults: () => void;
+  onBulkApply: (tokens: Record<string, string>) => void;
 }) {
   const [copied, setCopied] = useState(false);
   const json = useMemo(() => {
@@ -922,6 +968,9 @@ function CodeTab({
         }
       />
       <CardBody padding="tight">
+        <div style={{ marginBottom: 12 }}>
+          <BrandKitImport onApply={onBulkApply} />
+        </div>
         <textarea
           readOnly
           value={json}

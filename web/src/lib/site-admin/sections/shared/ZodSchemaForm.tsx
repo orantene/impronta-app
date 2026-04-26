@@ -112,6 +112,7 @@ function FieldNode({
         <LinkPicker
           value={(value as string) ?? ""}
           onChange={(next) => onChange(next || (field.optional ? undefined : ""))}
+          tenantId={tenantId}
         />
       </div>
     );
@@ -183,6 +184,7 @@ function FieldNode({
                 fieldName={field.name}
                 currentValue={(value as string) ?? ""}
                 onApply={(next) => onChange(next)}
+                siblingContext={pickStringSiblings(siblings, field.name)}
               />
             ) : null}
           </div>
@@ -217,6 +219,7 @@ function FieldNode({
                 fieldName={field.name}
                 currentValue={(value as string) ?? ""}
                 onApply={(next) => onChange(next)}
+                siblingContext={pickStringSiblings(siblings, field.name)}
               />
             ) : null}
           </div>
@@ -416,7 +419,23 @@ const AI_REWRITABLE_FIELD_NAMES = new Set([
   "reassurance",
   "successMessage",
   "title",
+  "category",
+  "byline",
+  "pullQuote",
 ]);
+
+/** Strip non-string siblings + the field itself for the AI context block. */
+function pickStringSiblings(
+  siblings: Record<string, unknown>,
+  excludeKey: string,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(siblings)) {
+    if (k === excludeKey) continue;
+    if (typeof v === "string" && v.trim().length > 0) out[k] = v;
+  }
+  return out;
+}
 
 function humanizeEnumValue(value: string): string {
   // "fade-up" → "Fade up"; "5/6" → "5/6"; "edge-to-edge" → "Edge to edge"

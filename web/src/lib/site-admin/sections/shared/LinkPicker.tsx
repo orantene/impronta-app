@@ -17,7 +17,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type LinkKind = "internal" | "external" | "email" | "tel" | "anchor";
+import { loadCmsPagesForLinkPicker } from "@/lib/site-admin/edit-mode/cms-pages-list-action";
+import { MediaPicker } from "./MediaPicker";
+
+type LinkKind = "internal" | "external" | "email" | "tel" | "anchor" | "asset";
 
 interface LinkPickerProps {
   value: string;
@@ -28,6 +31,8 @@ interface LinkPickerProps {
   forceKind?: LinkKind;
   className?: string;
   placeholder?: string;
+  /** Required to enable the "asset" mode (link to a media-library file). */
+  tenantId?: string;
 }
 
 const DEFAULT_SUGGESTIONS: ReadonlyArray<{ path: string; label?: string }> = [
@@ -57,6 +62,7 @@ const KIND_LABEL: Record<LinkKind, string> = {
   email: "Email",
   tel: "Phone",
   anchor: "Anchor",
+  asset: "File",
 };
 
 const INPUT =
@@ -73,9 +79,36 @@ export function LinkPicker({
   forceKind,
   className,
   placeholder,
+  tenantId,
 }: LinkPickerProps) {
   const initialKind = forceKind ?? inferKind(value);
   const [kind, setKind] = useState<LinkKind>(initialKind);
+
+  // Phase 8 — fetched cms_pages list, lazy-loaded the first time the
+  // operator focuses the internal-mode input. Cached for the life of
+  // the inspector mount.
+  const [pageOptions, setPageOptions] = useState<
+    ReadonlyArray<{ path: string; label?: string }> | null
+  >(null);
+  const [pagesLoading, setPagesLoading] = useState(false);
+
+  async function ensurePagesLoaded() {
+    if (pageOptions !== null || pagesLoading) return;
+    setPagesLoading(true);
+    try {
+      const result = await loadCmsPagesForLinkPicker();
+      if (result.ok) {
+        setPageOptions(
+          result.pages.map((p) => ({ path: p.path, label: p.title })),
+        );
+      } else {
+        // Quiet fallback — keep the suggestions defaults visible.
+        setPageOptions([]);
+      }
+    } finally {
+      setPagesLoading(false);
+    }
+  }
 
   // Keep the visible kind in sync if the underlying value swaps shape
   // (e.g. a parent reset to mailto:…).
@@ -128,7 +161,9 @@ export function LinkPicker({
 
   const tabs: ReadonlyArray<LinkKind> = forceKind
     ? [forceKind]
-    : ["internal", "external", "email", "tel", "anchor"];
+    : tenantId
+      ? ["internal", "external", "email", "tel", "anchor", "asset"]
+      : ["internal", "external", "email", "tel", "anchor"];
 
   const inputType =
     kind === "email" ? "email" : kind === "tel" ? "tel" : "text";
@@ -154,37 +189,40 @@ export function LinkPicker({
           ))}
         </div>
       )}
-      <div className="flex items-center gap-2">
-        {kind === "email" || kind === "tel" || kind === "anchor" ? (
-          <span
-            aria-hidden
-            className="inline-flex items-center rounded-md bg-muted px-2 py-1.5 text-xs font-mono text-muted-foreground"
-          >
-            {kind === "email" ? "mailto:" : kind === "tel" ? "tel:" : "#"}
-          </span>
-        ) : null}
-        <input
-          type={inputType}
-          className={INPUT}
-          placeholder={
-            placeholder ??
-            (kind === "internal"
-              ? "/about"
-              : kind === "external"
-                ? "https://example.com"
-                : kind === "email"
-                  ? "hello@studio.com"
-                  : kind === "tel"
-                    ? "+1 555 123 4567"
-                    : "section-id")
-          }
-          value={visible}
-          onChange={(e) => emit(e.target.value)}
-        />
-      </div>
-      {kind === "internal" && suggestions.length > 0 ? (
+      {kind !== "asset" ? (
+        <div className="flex items-center gap-2">
+          {kind === "email" || kind === "tel" || kind === "anchor" ? (
+            <span
+              aria-hidden
+              className="inline-flex items-center rounded-md bg-muted px-2 py-1.5 text-xs font-mono text-muted-foreground"
+            >
+              {kind === "email" ? "mailto:" : kind === "tel" ? "tel:" : "#"}
+            </span>
+          ) : null}
+          <input
+            type={inputType}
+            className={INPUT}
+            placeholder={
+              placeholder ??
+              (kind === "internal"
+                ? "/about"
+                : kind === "external"
+                  ? "https://example.com"
+                  : kind === "email"
+                    ? "hello@studio.com"
+                    : kind === "tel"
+                      ? "+1 555 123 4567"
+                      : "section-id")
+            }
+            value={visible}
+            onChange={(e) => emit(e.target.value)}
+            onFocus={kind === "internal" ? () => void ensurePagesLoaded() : undefined}
+          />
+        </div>
+      ) : null}
+      {kind === "internal" ? (
         <div className="flex flex-wrap gap-1 pt-1">
-          {suggestions.map((s) => (
+          {(pageOptions ?? suggestions).map((s) => (
             <button
               key={s.path}
               type="button"
@@ -194,6 +232,32 @@ export function LinkPicker({
               {s.label ?? s.path}
             </button>
           ))}
+          {pagesLoading && pageOptions === null ? (
+            <span className="text-[10px] text-muted-foreground/70">
+              loading pages…
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      {kind === "asset" && tenantId ? (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <input
+              type="url"
+              className={INPUT}
+              placeholder="https://…/file.pdf"
+              value={visible}
+              onChange={(e) => onChange(e.target.value)}
+            />
+            <MediaPicker
+              tenantId={tenantId}
+              label="Pick file"
+              onPick={(url) => onChange(url)}
+            />
+          </div>
+          <span className="text-[10px] text-muted-foreground/70">
+            Picks from your tenant&apos;s media library. Any file type.
+          </span>
         </div>
       ) : null}
     </div>

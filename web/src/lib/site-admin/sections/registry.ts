@@ -233,6 +233,49 @@ import {
 import { ComparisonTableComponent } from "./comparison_table/Component";
 import { ComparisonTableEditor } from "./comparison_table/Editor";
 
+// ── M12 archetype expansion ──────────────────────────────────────────────
+import { lottieMeta } from "./lottie/meta";
+import { lottieMigrations } from "./lottie/migrations";
+import { lottieSchemasByVersion, type LottieV1 } from "./lottie/schema";
+import { LottieComponent } from "./lottie/Component";
+import { LottieEditor } from "./lottie/Editor";
+
+import { stickyScrollMeta } from "./sticky_scroll/meta";
+import { stickyScrollMigrations } from "./sticky_scroll/migrations";
+import { stickyScrollSchemasByVersion, type StickyScrollV1 } from "./sticky_scroll/schema";
+import { StickyScrollComponent } from "./sticky_scroll/Component";
+import { StickyScrollEditor } from "./sticky_scroll/Editor";
+
+import { masonryMeta } from "./masonry/meta";
+import { masonryMigrations } from "./masonry/migrations";
+import { masonrySchemasByVersion, type MasonryV1 } from "./masonry/schema";
+import { MasonryComponent } from "./masonry/Component";
+import { MasonryEditor } from "./masonry/Editor";
+
+import { scrollCarouselMeta } from "./scroll_carousel/meta";
+import { scrollCarouselMigrations } from "./scroll_carousel/migrations";
+import { scrollCarouselSchemasByVersion, type ScrollCarouselV1 } from "./scroll_carousel/schema";
+import { ScrollCarouselComponent } from "./scroll_carousel/Component";
+import { ScrollCarouselEditor } from "./scroll_carousel/Editor";
+
+import { blogDetailMeta } from "./blog_detail/meta";
+import { blogDetailMigrations } from "./blog_detail/migrations";
+import { blogDetailSchemasByVersion, type BlogDetailV1 } from "./blog_detail/schema";
+import { BlogDetailComponent } from "./blog_detail/Component";
+import { BlogDetailEditor } from "./blog_detail/Editor";
+
+import { magazineLayoutMeta } from "./magazine_layout/meta";
+import { magazineLayoutMigrations } from "./magazine_layout/migrations";
+import { magazineLayoutSchemasByVersion, type MagazineLayoutV1 } from "./magazine_layout/schema";
+import { MagazineLayoutComponent } from "./magazine_layout/Component";
+import { MagazineLayoutEditor } from "./magazine_layout/Editor";
+
+import { heroSplitMeta } from "./hero_split/meta";
+import { heroSplitMigrations } from "./hero_split/migrations";
+import { heroSplitSchemasByVersion, type HeroSplitV1 } from "./hero_split/schema";
+import { HeroSplitComponent } from "./hero_split/Component";
+import { HeroSplitEditor } from "./hero_split/Editor";
+
 // ── entries ──────────────────────────────────────────────────────────────
 
 export const heroSection: SectionRegistryEntry<HeroV1> = {
@@ -469,6 +512,63 @@ export const comparisonTableSection: SectionRegistryEntry<ComparisonTableV1> = {
   Editor: ComparisonTableEditor,
 };
 
+export const lottieSection: SectionRegistryEntry<LottieV1> = {
+  meta: lottieMeta,
+  currentVersion: 1,
+  schemasByVersion: lottieSchemasByVersion,
+  migrations: lottieMigrations,
+  Component: LottieComponent,
+  Editor: LottieEditor,
+};
+export const stickyScrollSection: SectionRegistryEntry<StickyScrollV1> = {
+  meta: stickyScrollMeta,
+  currentVersion: 1,
+  schemasByVersion: stickyScrollSchemasByVersion,
+  migrations: stickyScrollMigrations,
+  Component: StickyScrollComponent,
+  Editor: StickyScrollEditor,
+};
+export const masonrySection: SectionRegistryEntry<MasonryV1> = {
+  meta: masonryMeta,
+  currentVersion: 1,
+  schemasByVersion: masonrySchemasByVersion,
+  migrations: masonryMigrations,
+  Component: MasonryComponent,
+  Editor: MasonryEditor,
+};
+export const scrollCarouselSection: SectionRegistryEntry<ScrollCarouselV1> = {
+  meta: scrollCarouselMeta,
+  currentVersion: 1,
+  schemasByVersion: scrollCarouselSchemasByVersion,
+  migrations: scrollCarouselMigrations,
+  Component: ScrollCarouselComponent,
+  Editor: ScrollCarouselEditor,
+};
+export const blogDetailSection: SectionRegistryEntry<BlogDetailV1> = {
+  meta: blogDetailMeta,
+  currentVersion: 1,
+  schemasByVersion: blogDetailSchemasByVersion,
+  migrations: blogDetailMigrations,
+  Component: BlogDetailComponent,
+  Editor: BlogDetailEditor,
+};
+export const magazineLayoutSection: SectionRegistryEntry<MagazineLayoutV1> = {
+  meta: magazineLayoutMeta,
+  currentVersion: 1,
+  schemasByVersion: magazineLayoutSchemasByVersion,
+  migrations: magazineLayoutMigrations,
+  Component: MagazineLayoutComponent,
+  Editor: MagazineLayoutEditor,
+};
+export const heroSplitSection: SectionRegistryEntry<HeroSplitV1> = {
+  meta: heroSplitMeta,
+  currentVersion: 1,
+  schemasByVersion: heroSplitSchemasByVersion,
+  migrations: heroSplitMigrations,
+  Component: HeroSplitComponent,
+  Editor: HeroSplitEditor,
+};
+
 export const SECTION_REGISTRY = {
   hero: heroSection,
   trust_strip: trustStripSection,
@@ -500,6 +600,14 @@ export const SECTION_REGISTRY = {
   // ── M11 archetype expansion ─────────────────────────────────────────
   blog_index: blogIndexSection,
   comparison_table: comparisonTableSection,
+  // ── M12 archetype expansion ─────────────────────────────────────────
+  lottie: lottieSection,
+  sticky_scroll: stickyScrollSection,
+  masonry: masonrySection,
+  scroll_carousel: scrollCarouselSection,
+  blog_detail: blogDetailSection,
+  magazine_layout: magazineLayoutSection,
+  hero_split: heroSplitSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;

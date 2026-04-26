@@ -87,6 +87,14 @@ const HEADING_MAP: Record<
   // M11
   blog_index: { level: 2, propKey: "headline" },
   comparison_table: { level: 2, propKey: "headline" },
+  // M12
+  lottie: { level: 2, propKey: "headline" },
+  sticky_scroll: { level: 2, propKey: "headline" },
+  masonry: { level: 2, propKey: "headline" },
+  scroll_carousel: { level: 2, propKey: "headline" },
+  blog_detail: { level: 1, propKey: "title" },
+  magazine_layout: { level: 2, propKey: "headline" },
+  hero_split: { level: 1, propKey: "headline" },
 };
 
 export function buildHeadingOutline(

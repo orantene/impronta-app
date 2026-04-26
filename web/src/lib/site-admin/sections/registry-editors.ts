@@ -98,6 +98,21 @@ import { BlogIndexEditor } from "./blog_index/Editor";
 import { comparisonTableMeta } from "./comparison_table/meta";
 import { ComparisonTableEditor } from "./comparison_table/Editor";
 
+import { lottieMeta } from "./lottie/meta";
+import { LottieEditor } from "./lottie/Editor";
+import { stickyScrollMeta } from "./sticky_scroll/meta";
+import { StickyScrollEditor } from "./sticky_scroll/Editor";
+import { masonryMeta } from "./masonry/meta";
+import { MasonryEditor } from "./masonry/Editor";
+import { scrollCarouselMeta } from "./scroll_carousel/meta";
+import { ScrollCarouselEditor } from "./scroll_carousel/Editor";
+import { blogDetailMeta } from "./blog_detail/meta";
+import { BlogDetailEditor } from "./blog_detail/Editor";
+import { magazineLayoutMeta } from "./magazine_layout/meta";
+import { MagazineLayoutEditor } from "./magazine_layout/Editor";
+import { heroSplitMeta } from "./hero_split/meta";
+import { HeroSplitEditor } from "./hero_split/Editor";
+
 import type { SectionEditorProps, SectionMeta } from "./types";
 
 export interface SectionEditorRegistryEntry {
@@ -289,6 +304,55 @@ export const SECTION_EDITOR_REGISTRY: Record<
     meta: comparisonTableMeta,
     currentVersion: 1,
     Editor: ComparisonTableEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  lottie: {
+    meta: lottieMeta,
+    currentVersion: 1,
+    Editor: LottieEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  sticky_scroll: {
+    meta: stickyScrollMeta,
+    currentVersion: 1,
+    Editor: StickyScrollEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  masonry: {
+    meta: masonryMeta,
+    currentVersion: 1,
+    Editor: MasonryEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  scroll_carousel: {
+    meta: scrollCarouselMeta,
+    currentVersion: 1,
+    Editor: ScrollCarouselEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  blog_detail: {
+    meta: blogDetailMeta,
+    currentVersion: 1,
+    Editor: BlogDetailEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  magazine_layout: {
+    meta: magazineLayoutMeta,
+    currentVersion: 1,
+    Editor: MagazineLayoutEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  hero_split: {
+    meta: heroSplitMeta,
+    currentVersion: 1,
+    Editor: HeroSplitEditor as unknown as ComponentType<
       SectionEditorProps<Record<string, unknown>>
     >,
   },
