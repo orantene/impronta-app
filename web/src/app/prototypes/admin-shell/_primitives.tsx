@@ -55,7 +55,8 @@ export function Icon({
     | "calendar"
     | "mail"
     | "bolt"
-    | "circle";
+    | "circle"
+    | "map-pin";
   size?: number;
   stroke?: number;
   color?: string;
@@ -216,6 +217,13 @@ export function Icon({
       return (
         <svg {...common}>
           <circle cx="12" cy="12" r="9" />
+        </svg>
+      );
+    case "map-pin":
+      return (
+        <svg {...common}>
+          <path d="M12 22s7-7.58 7-12a7 7 0 1 0-14 0c0 4.42 7 12 7 12z" />
+          <circle cx="12" cy="10" r="2.5" />
         </svg>
       );
   }

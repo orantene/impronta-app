@@ -757,12 +757,15 @@ function TalentTodayPage() {
         paidThisMonth={paidThisMonthTotal}
         paidCurrency={paidThisMonthCurrency}
         profileCompleteness={profile.completeness}
+        currentLocation={profile.currentLocation}
+        availableForWork={profile.availableForWork}
+        availableToTravel={profile.availableToTravel}
         onReplyNow={
           firstPending
             ? firstPending.onClick
             : () => setTalentPage("inbox")
         }
-        onMarkUnavailable={() => openDrawer("talent-block-dates")}
+        onAvailability={() => openDrawer("talent-block-dates")}
         onOpenProfile={() => openDrawer("talent-profile-edit")}
       />
 
@@ -1003,36 +1006,56 @@ function TalentTodayHero({
   paidThisMonth,
   paidCurrency,
   profileCompleteness,
+  currentLocation,
+  availableForWork,
+  availableToTravel,
   onReplyNow,
-  onMarkUnavailable,
+  onAvailability,
   onOpenProfile,
 }: {
   firstName: string;
   pendingCount: number;
-  /** Top 2 pending items as name + click handler — names render as
-   *  inline clickable links in the headline so the user can jump straight
-   *  to the offer drawer without scanning the list below. */
   pendingTargets: { name: string; onClick: () => void }[];
   upcomingCount: number;
   nextBookingDate?: string;
   paidThisMonth: number;
   paidCurrency: string;
   profileCompleteness: number;
+  /** "Playa del Carmen · Mexico" — where the talent is right now. */
+  currentLocation: string;
+  /** Master availability toggle. When false, hidden from new pitches. */
+  availableForWork: boolean;
+  /** Open to travel for work. Distinct from availableForWork. */
+  availableToTravel: boolean;
   onReplyNow: () => void;
-  onMarkUnavailable: () => void;
+  onAvailability: () => void;
   onOpenProfile: () => void;
 }) {
-  // Context-aware headline. Renders as an array so individual names can
-  // be clickable spans (jump-to-offer affordance) while the connective
-  // text stays plain.
+  // Display location: drop the "·" separator for hero copy, keep it in
+  // the chip. "Playa del Carmen · Mexico" → "Playa del Carmen, Mexico".
+  const locationDisplay = currentLocation.replace(/\s*·\s*/, ", ");
+
+  // Context-aware headline + subline. The hero changes meaning based on
+  // TWO axes:
+  //   - pending replies (urgent / not urgent)
+  //   - availability + location (where you are, what you're up for)
+  //
+  // When pending > 0, urgency wins and the headline names the clients
+  // waiting. When pending = 0, the headline becomes the availability
+  // statement — the page tells the talent where they are and what
+  // they're up for, which is what they want to know on a quiet day.
   let headlineParts: ReactNode;
   let subline: string;
   if (pendingCount === 0) {
-    headlineParts = "You're all caught up.";
-    subline =
-      upcomingCount > 0
-        ? `Next up: ${nextBookingDate ?? "no bookings yet"}.`
-        : "Nothing on the calendar yet.";
+    if (!availableForWork) {
+      headlineParts = `You're in ${locationDisplay} — not taking work.`;
+      subline = "Existing bookings aren't affected. Toggle availability when you're back.";
+    } else {
+      headlineParts = `You're available to work in ${locationDisplay}.`;
+      subline = availableToTravel
+        ? "Open to travel internationally."
+        : "Local jobs only — toggle travel anytime.";
+    }
   } else if (pendingCount === 1) {
     headlineParts = (
       <>
@@ -1115,6 +1138,41 @@ function TalentTodayHero({
           >
             {subline}
           </div>
+
+          {/* Persistent location strip — visible when pending > 0 so the
+              talent always knows where they are even when the headline is
+              about urgent work. Clickable → opens availability drawer.
+              Hidden when pending = 0 since the headline already says it. */}
+          {pendingCount > 0 && (
+            <button
+              type="button"
+              onClick={onAvailability}
+              style={{
+                marginTop: 10,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                color: availableForWork ? COLORS.inkMuted : COLORS.coral,
+              }}
+            >
+              <Icon name="map-pin" size={11} stroke={1.7} />
+              <span>
+                {locationDisplay}
+                {" · "}
+                {!availableForWork
+                  ? "Paused"
+                  : availableToTravel
+                    ? "Open to travel"
+                    : "Local only"}
+              </span>
+            </button>
+          )}
         </div>
         <div
           style={{
@@ -1127,8 +1185,8 @@ function TalentTodayHero({
           {pendingCount > 0 && (
             <PrimaryButton onClick={onReplyNow}>Reply now →</PrimaryButton>
           )}
-          <SecondaryButton onClick={onMarkUnavailable}>
-            Mark unavailable
+          <SecondaryButton onClick={onAvailability}>
+            Availability
           </SecondaryButton>
         </div>
       </div>
@@ -4540,31 +4598,223 @@ export function TalentAvailabilityDrawer() {
 
 // ─── Block dates ────────────────────────────────────────────────
 
+/**
+ * Availability drawer — formerly "Block dates", expanded to be the talent's
+ * single availability surface. Three layers, in order of decision frequency:
+ *
+ *   1. Where are you?       → Current location. Changes weekly for traveling
+ *                              talent. Drives "available to work in {city}"
+ *                              hero copy + powers location-aware pitch routing.
+ *   2. Taking work?         → Master availability + travel toggle. Daily/weekly.
+ *   3. Block specific dates → Single-shot date-range blocks. Monthly.
+ *
+ * The previous "Block dates" surface only handled #3. Talents in real life
+ * spend more time toggling #1 (where they ARE) and #2 (whether they're up
+ * for travel) than blocking specific date ranges.
+ */
 export function TalentBlockDatesDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-block-dates";
-  const onSave = useSaveAndClose("Dates blocked · agencies notified");
+  const p = MY_TALENT_PROFILE;
+
+  // Local form state. In production this would persist via a mutation;
+  // for the prototype it just toasts on save and closes.
+  const [location, setLocation] = useState(p.currentLocation);
+  const [availableForWork, setAvailableForWork] = useState(p.availableForWork);
+  const [availableToTravel, setAvailableToTravel] = useState(p.availableToTravel);
+
+  const handleSave = () => {
+    // In production: persist the three fields + any blocked-date range,
+    // then notify representing agencies. Toast labels what changed so
+    // the user can verify the right thing was saved.
+    const parts: string[] = [];
+    if (location !== p.currentLocation) parts.push(`location → ${location.split("·")[0]?.trim()}`);
+    if (availableForWork !== p.availableForWork)
+      parts.push(availableForWork ? "available" : "paused");
+    if (availableToTravel !== p.availableToTravel)
+      parts.push(availableToTravel ? "open to travel" : "local-only");
+    toast(
+      parts.length > 0
+        ? `Updated · ${parts.join(", ")} · agencies notified`
+        : "No changes",
+    );
+    closeDrawer();
+  };
+
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Block dates"
-      description="Hide yourself from new pitches between these dates. Existing bookings aren't affected."
-      width={520}
-      footer={<StandardFooter onSave={onSave} saveLabel="Block dates" />}
+      title="Availability"
+      description="Where you are, what you're up for, and dates you can't work. Visible to your agencies."
+      width={540}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={handleSave}>Update</PrimaryButton>
+        </>
+      }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <FieldRow label="From">
-          <TextInput placeholder="May 22, 2026" />
-        </FieldRow>
-        <FieldRow label="To">
-          <TextInput placeholder="May 26, 2026" />
-        </FieldRow>
-        <FieldRow label="Reason" optional hint="Visible to your agencies.">
-          <TextInput placeholder="Travel · personal · other" />
-        </FieldRow>
+      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+        {/* ─── 1. Where are you? ──────────────────────────────────── */}
+        <section>
+          <SubsectionLabel>Where are you?</SubsectionLabel>
+          <div style={{ marginTop: 10 }}>
+            <FieldRow
+              label="Current location"
+              hint="Synced with your profile · helps agencies pitch you the right local jobs first."
+            >
+              <TextInput
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="City · Country"
+              />
+            </FieldRow>
+          </div>
+        </section>
+
+        {/* ─── 2. Taking work? ──────────────────────────────────── */}
+        <section>
+          <SubsectionLabel>Taking work</SubsectionLabel>
+          <div
+            style={{
+              marginTop: 10,
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              overflow: "hidden",
+            }}
+          >
+            <AvailabilityToggleRow
+              label="Available for new work"
+              hint="When off, you're hidden from new pitches. Existing bookings aren't affected."
+              on={availableForWork}
+              onChange={setAvailableForWork}
+            />
+            <AvailabilityToggleRow
+              label="Open to travel"
+              hint={
+                availableForWork
+                  ? "When off, you'll only see local jobs in your current location."
+                  : "Pause availability before changing travel preferences."
+              }
+              on={availableToTravel && availableForWork}
+              onChange={setAvailableToTravel}
+              disabled={!availableForWork}
+            />
+          </div>
+        </section>
+
+        {/* ─── 3. Block specific dates ──────────────────────────── */}
+        <section>
+          <SubsectionLabel>Block specific dates</SubsectionLabel>
+          <div
+            style={{
+              marginTop: 6,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: COLORS.inkMuted,
+              marginBottom: 10,
+            }}
+          >
+            One-off windows when you can't work — travel, family, conflict.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <FieldRow label="From">
+              <TextInput placeholder="May 22, 2026" />
+            </FieldRow>
+            <FieldRow label="To">
+              <TextInput placeholder="May 26, 2026" />
+            </FieldRow>
+            <FieldRow
+              label="Reason"
+              optional
+              hint="Visible to your agencies."
+            >
+              <TextInput placeholder="Travel · personal · other" />
+            </FieldRow>
+          </div>
+        </section>
       </div>
     </DrawerShell>
+  );
+}
+
+function SubsectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        fontFamily: FONTS.body,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.5,
+        textTransform: "uppercase",
+        color: COLORS.inkMuted,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Compact toggle row used inside the Availability drawer's grouped panels.
+ * Disabled state collapses the toggle to a no-op + dims the row.
+ */
+function AvailabilityToggleRow({
+  label,
+  hint,
+  on,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  hint?: string;
+  on: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 14,
+        padding: "12px 14px",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        opacity: disabled ? 0.55 : 1,
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 600,
+            color: COLORS.ink,
+          }}
+        >
+          {label}
+        </div>
+        {hint && (
+          <div
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: COLORS.inkMuted,
+              marginTop: 2,
+              lineHeight: 1.5,
+            }}
+          >
+            {hint}
+          </div>
+        )}
+      </div>
+      <Toggle
+        on={on}
+        onChange={() => !disabled && onChange(!on)}
+      />
+    </div>
   );
 }
 

@@ -2365,8 +2365,31 @@ export type MyTalentProfile = {
   initials: string;
   pronouns: "she/her" | "he/him" | "they/them" | "she/they" | "he/they" | "any";
   age: number;            // calculated from DoB; for v1 we hardcode
-  /** "Madrid · willing to travel" — primary location summary string. */
+  /** "Madrid · willing to travel" — primary location summary string.
+   *  Synced with `currentLocation` for the talent's home city + base. */
   city: string;
+  /**
+   * Where the talent IS RIGHT NOW. Often differs from `city` — models
+   * travel constantly (Paris fashion week, NYC market, Mexico for winter).
+   * Drives the Talent Today hero ("Available to work in {currentLocation}")
+   * and helps coordinators pitch the right local jobs first.
+   *
+   * Format: "City · Country" (e.g. "Madrid · Spain", "Playa del Carmen · Mexico").
+   */
+  currentLocation: string;
+  /**
+   * Master availability toggle. When false, hidden from new pitches —
+   * existing bookings keep working. Visible to agencies on roster views.
+   */
+  availableForWork: boolean;
+  /**
+   * Open to travel for work. When false, only sees pitches in the talent's
+   * `currentLocation` region. When true, accepts inquiries from anywhere
+   * (subject to TalentTravel rate-card / costs-covered preferences).
+   * Distinct from `availableForWork` — a talent can be available locally
+   * but not willing to fly for a 2-day shoot.
+   */
+  availableToTravel: boolean;
   // — visual ────────────────────────────────────────────────
   /** Cover photo emoji placeholder (the prototype uses emoji art). */
   coverPhoto: string;
@@ -2793,6 +2816,12 @@ export const MY_TALENT_PROFILE: MyTalentProfile = {
   pronouns: "she/her",
   age: 24,
   city: "Madrid · willing to travel",
+  // Marta is currently on a winter-month base in Mexico — the prototype
+  // surfaces this so we can demonstrate the "current location ≠ home city"
+  // pattern that real models live with.
+  currentLocation: "Playa del Carmen · Mexico",
+  availableForWork: true,
+  availableToTravel: true,
   coverPhoto: "🌅",
   profilePhoto: "🌸",
   showreelThumb: "🎞️",
