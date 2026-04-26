@@ -35,30 +35,23 @@ create index if not exists cms_workspace_templates_visibility_idx
 
 alter table public.cms_workspace_templates enable row level security;
 
+-- Phase B.2.A fix (2026-04-26): the original policy referenced
+-- `p.tenant_id` on `public.profiles`, but the canonical SaaS-Phase-2
+-- contract is that profiles.tenant_id does not exist; tenant memberships
+-- live in a helper function. Rewritten to use the existing
+-- `public.is_staff_of_tenant()` helper and to allow platform-promoted
+-- templates to be read by any authenticated staff regardless of tenant.
 create policy cms_workspace_templates_staff_read on public.cms_workspace_templates
   for select to authenticated
   using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid()
-        and p.role in ('super_admin', 'agency_staff')
-        and (
-          p.role = 'super_admin'
-          or p.tenant_id = cms_workspace_templates.tenant_id
-          or cms_workspace_templates.visibility = 'platform'
-        )
-    )
+    public.is_staff_of_tenant(cms_workspace_templates.tenant_id)
+    or cms_workspace_templates.visibility = 'platform'
   );
 
 create policy cms_workspace_templates_staff_write on public.cms_workspace_templates
   for all to authenticated
   using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid()
-        and p.role in ('super_admin', 'agency_staff')
-        and (p.role = 'super_admin' or p.tenant_id = cms_workspace_templates.tenant_id)
-    )
+    public.is_staff_of_tenant(cms_workspace_templates.tenant_id)
   );
 
 comment on table public.cms_workspace_templates is

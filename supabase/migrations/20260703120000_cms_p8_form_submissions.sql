@@ -49,25 +49,13 @@ alter table public.cms_form_submissions enable row level security;
 create policy cms_form_submissions_staff_read on public.cms_form_submissions
   for select to authenticated
   using (
-    exists (
-      select 1
-      from public.profiles p
-      where p.id = auth.uid()
-        and p.role in ('super_admin', 'agency_staff')
-        and (p.tenant_id = cms_form_submissions.tenant_id or p.role = 'super_admin')
-    )
+    public.is_staff_of_tenant(cms_form_submissions.tenant_id)
   );
 
 create policy cms_form_submissions_staff_update on public.cms_form_submissions
   for update to authenticated
   using (
-    exists (
-      select 1
-      from public.profiles p
-      where p.id = auth.uid()
-        and p.role in ('super_admin', 'agency_staff')
-        and (p.tenant_id = cms_form_submissions.tenant_id or p.role = 'super_admin')
-    )
+    public.is_staff_of_tenant(cms_form_submissions.tenant_id)
   );
 
 comment on table public.cms_form_submissions is

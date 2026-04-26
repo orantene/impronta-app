@@ -48,12 +48,7 @@ alter table public.cms_ai_usage_log enable row level security;
 create policy cms_ai_usage_log_staff_read on public.cms_ai_usage_log
   for select to authenticated
   using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid()
-        and p.role in ('super_admin', 'agency_staff')
-        and (p.role = 'super_admin' or p.tenant_id = cms_ai_usage_log.tenant_id)
-    )
+    public.is_staff_of_tenant(cms_ai_usage_log.tenant_id)
   );
 
 comment on table public.cms_ai_usage_log is

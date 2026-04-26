@@ -24,7 +24,12 @@
 
 CREATE TABLE IF NOT EXISTS public.cms_section_comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID NOT NULL REFERENCES public.tenants (id) ON DELETE CASCADE,
+  -- Phase B.2.A fix (2026-04-26): table was authored with a typo — the
+  -- canonical multi-tenant root table is `public.agencies` (see saas/p1
+  -- migrations); `public.tenants` does not exist and caused this migration
+  -- to fail to apply on prod for weeks. Corrected here so `db push` can
+  -- proceed; behavior identical to what the original migration intended.
+  tenant_id UUID NOT NULL REFERENCES public.agencies (id) ON DELETE CASCADE,
   page_id UUID NOT NULL REFERENCES public.cms_pages (id) ON DELETE CASCADE,
   section_id UUID NOT NULL,
   parent_comment_id UUID REFERENCES public.cms_section_comments (id) ON DELETE CASCADE,
