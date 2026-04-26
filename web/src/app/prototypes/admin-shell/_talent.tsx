@@ -514,7 +514,7 @@ function TalentTopbar() {
           {/* Notifications bell — matches the workspace topbar pattern.
               Numbered badge with the unread count, capped at 9+. */}
           {(() => {
-            const unread = 2; // mock count for talent surface
+            const unread = 4; // mock count: 2 offers + 1 hold expiring + 1 mention
             const iconBtn: React.CSSProperties = {
               width: 34,
               height: 34,
@@ -816,7 +816,7 @@ function TalentTodayPage() {
           background: "#fff",
           border: `1px solid ${COLORS.borderSoft}`,
           borderRadius: 12,
-          padding: "16px 18px 6px",
+          padding: "16px 18px",
         }}
       >
         <SectionHeader
@@ -983,6 +983,10 @@ function ProfileCompletenessBanner({
  */
 function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
   const { openDrawer } = useProto();
+  // Brief lives in the closed-booking detail mock; surfaces what the
+  // booking actually was so the row scans like every other Today row
+  // ("client · brief" on line 1).
+  const brief = MOCK_CLOSED_DETAIL[earning.id]?.brief;
   return (
     <button
       type="button"
@@ -992,7 +996,7 @@ function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
         alignItems: "center",
         gap: 12,
         width: "100%",
-        padding: "10px 0",
+        padding: "12px 0",
         borderTop: `1px solid ${COLORS.borderSoft}`,
         background: "transparent",
         border: "none",
@@ -1022,6 +1026,12 @@ function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
           }}
         >
           <span>{earning.client}</span>
+          {brief && (
+            <>
+              <span style={{ color: COLORS.inkDim }}>·</span>
+              <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{brief}</span>
+            </>
+          )}
         </div>
         <div
           style={{
@@ -1163,6 +1173,8 @@ function KindChip({
 function SectionHeader({
   title,
   subtitle,
+  icon,
+  iconTone = "ink",
   actionLabel,
   onAction,
   secondaryActionLabel,
@@ -1170,6 +1182,12 @@ function SectionHeader({
 }: {
   title: string;
   subtitle?: string;
+  /** Optional 36×36 icon chip on the left — same style as the iCal card.
+   *  Tone-tinted background + foreground per `iconTone`. Carries semantic
+   *  signal: coral for action-needed, sage for confirmed/paid, indigo for
+   *  info/analytics, accent (forest) for brand identity moments. */
+  icon?: "bolt" | "calendar" | "credit" | "team" | "globe" | "user" | "mail" | "sparkle";
+  iconTone?: "ink" | "coral" | "indigo" | "success" | "accent" | "royal";
   actionLabel?: string;
   onAction?: () => void;
   /** Optional secondary action — renders to the LEFT of the primary
@@ -1178,16 +1196,44 @@ function SectionHeader({
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
 }) {
+  const tonePalette = {
+    ink: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink },
+    coral: { bg: COLORS.coralSoft, fg: COLORS.coral },
+    indigo: { bg: COLORS.indigoSoft, fg: COLORS.indigo },
+    success: { bg: "rgba(46,125,91,0.10)", fg: COLORS.green },
+    accent: { bg: COLORS.accentSoft, fg: COLORS.accent },
+    royal: { bg: COLORS.royalSoft, fg: COLORS.royal },
+  } as const;
+  const t = tonePalette[iconTone];
   return (
     <div
       style={{
         display: "flex",
-        alignItems: "baseline",
+        alignItems: icon ? "flex-start" : "baseline",
         justifyContent: "space-between",
         marginBottom: 4,
-        gap: 8,
+        gap: 12,
       }}
     >
+      {icon && (
+        <span
+          aria-hidden
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: t.bg,
+            color: t.fg,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            marginTop: 1,
+          }}
+        >
+          <Icon name={icon} size={16} stroke={1.7} color={t.fg} />
+        </span>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -1811,43 +1857,34 @@ function NeedsReplySection({
   onSeeAll: () => void;
 }) {
   const total = requests.length + inquiries.length;
+  // Single section card — same anatomy as every other Today section.
+  // The action-needed signal is carried by the per-row coral KindChip
+  // (OFFER / HOLD), not by an extra container-level edge marker. One
+  // signal per concept; the page reads as one unified rhythm.
   return (
     <section
       style={{
-        position: "relative",
         background: "#fff",
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 12,
-        padding: "16px 18px 6px",
-        paddingLeft: 22,
+        padding: "16px 18px",
         marginBottom: 12,
       }}
     >
-      {/* Coral edge — action-needed signal */}
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 12,
-          bottom: 12,
-          left: 0,
-          width: 3,
-          borderRadius: "0 3px 3px 0",
-          background: COLORS.coral,
-        }}
-      />
       <SectionHeader
         title="Needs your reply"
         subtitle={`${total} waiting · sorted by urgency`}
         actionLabel="Open inbox →"
         onAction={onSeeAll}
       />
-      {requests.map((r) => (
-        <RequestRow key={r.id} request={r} compact />
-      ))}
-      {inquiries.map((i) => (
-        <InquiryRow key={i.id} inquiry={i} />
-      ))}
+      <div style={{ marginTop: 4 }}>
+        {requests.map((r) => (
+          <RequestRow key={r.id} request={r} compact />
+        ))}
+        {inquiries.map((i) => (
+          <InquiryRow key={i.id} inquiry={i} />
+        ))}
+      </div>
     </section>
   );
 }
@@ -2009,7 +2046,6 @@ function RequestRow({
 function BookingRow({ booking }: { booking: TalentBooking }) {
   const { openDrawer } = useProto();
   // Parse "Tue, May 6" or "May 14" → month "MAY", day "6" / "14".
-  // Previous parser was broken (showed "May / TUE" instead of "6 / MAY").
   const dateMatch = booking.startDate.match(/([A-Za-z]+)\s+(\d{1,2})/);
   const month = dateMatch?.[1]?.toUpperCase() ?? "—";
   const day = dateMatch?.[2] ?? "—";
@@ -2020,7 +2056,7 @@ function BookingRow({ booking }: { booking: TalentBooking }) {
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "10px 0",
+        padding: "12px 0",
         borderTop: `1px solid ${COLORS.borderSoft}`,
         background: "transparent",
         border: "none",
@@ -2035,15 +2071,47 @@ function BookingRow({ booking }: { booking: TalentBooking }) {
     >
       <DateBlock day={day} month={month} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13.5, fontWeight: 500, color: COLORS.ink }}>
-          {booking.client} · {booking.brief}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: COLORS.ink,
+          }}
+        >
+          <span>{booking.client}</span>
+          <span style={{ color: COLORS.inkDim }}>·</span>
+          <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{booking.brief}</span>
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-          {booking.location} · call {booking.call}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 2,
+            fontSize: 11.5,
+          }}
+        >
+          <KindChip label="Booked" tone="success" />
+          <span style={{ color: COLORS.inkMuted }}>
+            {booking.location} · call {booking.call}
+          </span>
         </div>
       </div>
-      <span style={{ fontSize: 12.5, color: COLORS.ink, fontWeight: 600 }}>{booking.amount}</span>
-      <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: COLORS.ink,
+          fontVariantNumeric: "tabular-nums",
+          flexShrink: 0,
+        }}
+      >
+        {booking.amount}
+      </span>
+      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
     </button>
   );
 }

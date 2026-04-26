@@ -771,18 +771,31 @@ type TalentNotif = {
   sticky?: boolean;
   /** Optional progress (e.g. 84% profile complete, 1/4 setup steps). */
   progress?: { done: number; total: number; label?: string };
+  /**
+   * Optional @-mention. When set, the row shows a coral "@ you" pill
+   * after the title — surfaces moments where someone tagged the talent
+   * in a chat thread (coordinator pinging, client asking directly, etc.).
+   * The mention.from field names who tagged them.
+   */
+  mention?: { from: string };
 };
 
 const MOCK_TALENT_NOTIFS: TalentNotif[] = [
   // Action needed — sticky, coral, your move.
   { id: "tn1", category: "action", icon: "mail", tone: "coral", title: "Mango — Spring lookbook · new offer", sub: "€1,800 · awaiting your reply", when: "5h", unread: true, sticky: true },
   { id: "tn2", category: "action", icon: "calendar", tone: "coral", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry · May 18–20", when: "2h", unread: true, sticky: true },
+  // @-mention from coordinator — talent was tagged in a chat thread.
+  // Action-needed because someone asked them directly.
+  { id: "tn-m1", category: "action", icon: "mail", tone: "coral", title: "Ana Vega tagged you on Mango thread", sub: "\"@Marta — confirm wardrobe brief by EOD please\"", when: "1h", unread: true, sticky: true, mention: { from: "Ana Vega" } },
   // System / setup — sticky, indigo, has progress.
   { id: "tn3", category: "system", icon: "sparkle", tone: "indigo", title: "4 steps to get booked", sub: "Complete your profile to enter the inquiry pipeline", unread: true, sticky: true, progress: { done: 0, total: 4, label: "0 of 4 steps" } },
   { id: "tn4", category: "system", icon: "user", tone: "indigo", title: "Profile 84% complete", sub: "3 fields left — polaroids, rate card, showreel", unread: true, sticky: true, progress: { done: 84, total: 100, label: "84%" } },
   // Updates — dismissible × on hover.
   { id: "tn5", category: "update", icon: "check", tone: "success", title: "Vogue Italia booking confirmed", sub: "Tue, May 6 · €1,800", when: "1d" },
   { id: "tn6", category: "update", icon: "team", tone: "indigo", title: "Mango site referred 12 new views", sub: "+8 vs prior week", when: "2d" },
+  // @-mention as informational — Carla thanked Marta in a closed thread.
+  // Not action-needed but the talent should know they were tagged.
+  { id: "tn-m2", category: "update", icon: "mail", tone: "indigo", title: "Carla Vega tagged you on Loewe thread", sub: "\"@Marta — thanks for bringing me on, was a dream day 🙏\"", when: "3d", mention: { from: "Carla Vega" } },
 ];
 
 const NOTIF_CATEGORY_META: Record<NotifCategory, { label: string; hint: string }> = {
@@ -890,6 +903,28 @@ function NotifRow({
             >
               {notif.title}
             </span>
+            {notif.mention && (
+              <span
+                aria-label={`Tagged by ${notif.mention.from}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 2,
+                  padding: "1px 6px",
+                  borderRadius: 999,
+                  background: COLORS.coralSoft,
+                  color: COLORS.coralDeep,
+                  fontFamily: FONTS.body,
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  letterSpacing: 0.4,
+                  textTransform: "uppercase",
+                  flexShrink: 0,
+                }}
+              >
+                @ you
+              </span>
+            )}
             {notif.unread && (
               <span
                 aria-label="Unread"
@@ -1500,7 +1535,7 @@ export function TalentAnalyticsCard() {
         background: "#fff",
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 12,
-        padding: 18,
+        padding: "16px 18px",
         fontFamily: FONTS.body,
       }}
     >
@@ -1591,8 +1626,9 @@ export function TalentFunnelCard() {
         background: "#fff",
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 12,
-        padding: 18,
+        padding: "16px 18px",
         fontFamily: FONTS.body,
+        marginBottom: 12,
       }}
     >
       <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
@@ -1601,7 +1637,7 @@ export function TalentFunnelCard() {
       <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
         How many other talent are also being considered, and where each conversation has reached.
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 12 }}>
         {myInquiries.map((inq, i) => (
           <FunnelRow key={inq.id} inquiry={inq} idx={i} />
         ))}
@@ -1689,18 +1725,21 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
         display: "flex",
         alignItems: "center",
         gap: 12,
-        padding: "10px 12px",
-        background: "rgba(11,11,13,0.02)",
-        borderRadius: 9,
+        padding: "10px 0",
+        borderTop: idx === 0 ? "none" : `1px solid rgba(24,24,27,0.06)`,
+        background: "transparent",
         border: "none",
+        borderTopColor: idx === 0 ? "transparent" : "rgba(24,24,27,0.06)",
+        borderTopStyle: "solid",
+        borderTopWidth: idx === 0 ? 0 : 1,
         width: "100%",
         cursor: "pointer",
         fontFamily: FONTS.body,
         textAlign: "left",
         transition: "background .12s",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.05)")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
       {/* Client identity — avatar with initials + auto-hashed tint per
           brand. In production: real client logo URLs go here via photoUrl. */}
@@ -1729,7 +1768,9 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
               minWidth: 0,
             }}
           >
-            {inquiry.clientName} — {summary}
+            {inquiry.clientName}{" "}
+            <span style={{ color: COLORS.inkDim, fontWeight: 400 }}>·</span>{" "}
+            <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{summary}</span>
           </span>
         </div>
         <div
