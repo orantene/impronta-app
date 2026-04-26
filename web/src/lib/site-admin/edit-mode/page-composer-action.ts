@@ -276,9 +276,10 @@ export async function publishPageSnapshot(input: {
     await admin.from("cms_page_sections").insert(liveInserts);
   }
 
-  // Cache-bust the public reader.
+  // Cache-bust the public reader. Next.js 16 requires the second
+  // freshness arg ("default" matches the rest of the codebase).
   try {
-    revalidateTag(tagFor(scope.tenantId, "pages-all"));
+    revalidateTag(tagFor(scope.tenantId, "pages-all"), "default");
   } catch {
     // tag system not initialised in test contexts; safe to ignore.
   }
