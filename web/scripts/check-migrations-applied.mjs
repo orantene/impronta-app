@@ -4,7 +4,7 @@
  *
  * Runs at build time (Vercel `prebuild` script + `npm run ci`) to fail
  * the deploy if any migration in `supabase/migrations/` has NOT been
- * applied to the linked Supabase project.
+ * applied to the connected Supabase project.
  *
  * Caught a real production-quality gap during B.2.A rollout: 8 migrations
  * had been written but never applied to prod. Several "shipped" features
@@ -13,29 +13,31 @@
  * This script makes the next occurrence impossible — no deploy goes live
  * with pending migrations.
  *
- * Mechanism: shells out to `supabase db push --dry-run --linked` and
- * parses the output. The CLI exits 0 with "Remote database is up to
- * date" when nothing is pending, or "Would push these migrations: ..."
- * with a list when drift exists. We treat anything that looks like a
- * non-empty pending list as a hard fail.
+ * Mechanism: calls `public.list_applied_migrations()` (SECURITY DEFINER
+ * RPC introduced in 20260708120000_phase_b2b_list_applied_migrations_rpc.sql)
+ * via the service-role supabase-js client. Compares the returned
+ * `version` set against the YYYYMMDDHHMMSS prefix of each filename in
+ * `supabase/migrations/`. Exits non-zero if any local file is missing
+ * from the remote table.
  *
- * Auth: the supabase CLI uses the access token in
- * `~/.supabase/access-token` (set by `supabase login` locally) or the
- * `SUPABASE_ACCESS_TOKEN` env var (set in Vercel). The linked project
- * ref lives in `supabase/config.toml`. No service-role key needed.
+ * Auth: NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (both
+ * already set in Vercel for every environment). No supabase CLI auth
+ * required.
  *
  * Skip behavior:
- *   - When `SUPABASE_ACCESS_TOKEN` is missing AND no token file exists
- *     (e.g. forks running `npm run build` without secrets) the check
- *     warns but exits 0.
+ *   - When the URL or service-role key is missing (e.g. forks running
+ *     `npm run build` without secrets) the check warns but exits 0.
  *   - When `SKIP_MIGRATION_DRIFT_CHECK=1` is set (escape hatch for
  *     intentional drift, e.g. shipping a code change a release ahead of
  *     its DB migration). Always logs the override for the audit trail.
  */
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = join(HERE, "..", "..");
+const MIGRATIONS_DIR = join(REPO_ROOT, "supabase", "migrations");
 
 if (process.env.SKIP_MIGRATION_DRIFT_CHECK === "1") {
   console.warn(
@@ -44,70 +46,60 @@ if (process.env.SKIP_MIGRATION_DRIFT_CHECK === "1") {
   process.exit(0);
 }
 
-const hasAccessToken =
-  Boolean(process.env.SUPABASE_ACCESS_TOKEN?.trim()) ||
-  existsSync(join(homedir(), ".supabase", "access-token"));
-
-if (!hasAccessToken) {
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!url || !key) {
   console.warn(
-    "[check-migrations-applied] no SUPABASE_ACCESS_TOKEN and no ~/.supabase/access-token — skipping drift check (build will succeed). To enforce, set SUPABASE_ACCESS_TOKEN.",
+    "[check-migrations-applied] NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing — skipping drift check (build will succeed). To enforce, set both env vars.",
   );
   process.exit(0);
 }
 
-// `supabase db push --dry-run --linked` — exits 0 either way; we parse
-// stdout to decide. Use `npx -y` so the CLI doesn't need to be globally
-// installed (Vercel's image doesn't have it pre-installed).
-const result = spawnSync(
-  "npx",
-  ["-y", "supabase@latest", "db", "push", "--linked", "--include-all", "--dry-run"],
-  {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    timeout: 120_000,
-    // Run from repo root so the CLI finds supabase/config.toml.
-    cwd: join(import.meta.dirname ?? new URL(".", import.meta.url).pathname, "..", ".."),
-  },
+const { createClient } = await import("@supabase/supabase-js");
+const supabase = createClient(url, key, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+// Fetch applied versions via the RPC.
+const { data, error } = await supabase.rpc("list_applied_migrations");
+if (error) {
+  console.error(
+    "[check-migrations-applied] couldn't call list_applied_migrations RPC:",
+    error.message,
+  );
+  console.error(
+    "Has 20260708120000_phase_b2b_list_applied_migrations_rpc.sql been applied to this project?",
+  );
+  process.exit(1);
+}
+const applied = new Set(
+  (data ?? []).map((r) => String(r.version ?? r)).filter(Boolean),
 );
 
-if (result.error) {
-  console.error(
-    "[check-migrations-applied] failed to invoke supabase CLI:",
-    result.error.message,
+// Enumerate local migration files. Filename pattern is
+// `YYYYMMDDHHMMSS_<slug>.sql`; the prefix is what supabase_migrations
+// stores as `version`.
+const localFiles = readdirSync(MIGRATIONS_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .map((f) => ({ filename: f, version: f.split("_", 1)[0] }))
+  .sort((a, b) => a.version.localeCompare(b.version));
+
+const pending = localFiles.filter((m) => !applied.has(m.version));
+if (pending.length === 0) {
+  console.log(
+    `[check-migrations-applied] OK — ${localFiles.length} local migrations all applied`,
   );
-  process.exit(1);
-}
-
-const out = `${result.stdout}\n${result.stderr}`;
-
-// "Remote database is up to date" → no drift.
-if (out.includes("Remote database is up to date")) {
-  console.log("[check-migrations-applied] OK — remote DB is up to date");
   process.exit(0);
 }
 
-// "Would push these migrations: ..." with a list → drift.
-if (out.includes("Would push these migrations:")) {
-  console.error(
-    "\n[check-migrations-applied] FAILED — pending migration(s) not applied to the connected Supabase project:\n",
-  );
-  // Extract bullet-listed migration filenames from the dry-run output.
-  const pending = out
-    .split(/\r?\n/)
-    .filter((l) => /^\s*•\s/.test(l))
-    .map((l) => l.trim());
-  for (const p of pending) console.error(`  ${p}`);
-  console.error(
-    `\nApply with: npx -y supabase@latest db push --linked --include-all --yes`,
-  );
-  console.error(
-    `Override (with caution): SKIP_MIGRATION_DRIFT_CHECK=1 npm run build\n`,
-  );
-  process.exit(1);
-}
-
-// Unrecognised output — log and bail loudly. Don't silently pass.
 console.error(
-  "[check-migrations-applied] couldn't interpret supabase db push output:\n" + out,
+  `\n[check-migrations-applied] FAILED — ${pending.length} migration(s) not applied to the connected Supabase project:\n`,
+);
+for (const m of pending) console.error(`  • ${m.filename}`);
+console.error(
+  `\nApply with: npx -y supabase@latest db push --linked --include-all --yes`,
+);
+console.error(
+  `Override (with caution): SKIP_MIGRATION_DRIFT_CHECK=1 npm run build\n`,
 );
 process.exit(1);
