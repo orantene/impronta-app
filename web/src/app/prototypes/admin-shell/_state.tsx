@@ -3095,6 +3095,10 @@ export const TALENT_REQUESTS: TalentRequest[] = [
   { id: "rq2", kind: "hold", agency: "Acme Models", client: "Bvlgari", clientTrust: "gold", brief: "Editorial · jewelry campaign", date: "May 18–20", amount: "€4,000–6,000", ageHrs: 18, status: "needs-answer" },
   { id: "rq3", kind: "casting", agency: "Praline London", client: "Net-a-Porter", clientTrust: "silver", brief: "Casting call · video lookbook", date: "Apr 30", amount: "TBC", ageHrs: 36, status: "viewed" },
   { id: "rq4", kind: "offer", agency: "Acme Models", client: "Vogue Italia", clientTrust: "gold", brief: "Editorial spread · 2 day shoot", date: "May 14–15", amount: "€3,200", ageHrs: 60, status: "accepted" },
+  // Conflicted hold — overlaps with confirmed bk2 (Vogue Italia · May 14–15).
+  // Surfaces the conflict-resolution UI on the calendar so Marta sees the
+  // collision before either party expects her to commit.
+  { id: "rq5", kind: "hold", agency: "Acme Models", client: "Stella McCartney", clientTrust: "gold", brief: "Lookbook · single day", date: "May 14", amount: "€2,200", ageHrs: 4, status: "needs-answer" },
 ];
 
 export type TalentBooking = {
@@ -3130,6 +3134,24 @@ export const AVAILABILITY_BLOCKS: AvailabilityBlock[] = [
   { id: "av2", startDate: "May 22", endDate: "May 26", reason: "Personal", type: "personal" },
 ];
 
+/**
+ * Where a booking came from. Drives the source chip on closed-booking
+ * drawer + earnings activity reports.
+ *
+ *   agency      — booked via a roster agency. Standard agency-routed flow.
+ *   hub         — Tulala Hub or external aggregator (Models.com, etc.)
+ *   personal    — direct via the talent's premium personal page
+ *                 (Pro / Portfolio tier; tulala.digital/t/{slug} or own domain)
+ *   studio      — booked via a studio / free-book partner
+ *   marketplace — open marketplace inquiry (talent.com etc.)
+ */
+export type EarningSource =
+  | { kind: "agency" }
+  | { kind: "hub"; name: string }
+  | { kind: "personal" }
+  | { kind: "studio"; name: string }
+  | { kind: "marketplace"; name: string };
+
 export type EarningsRow = {
   id: string;
   /** Date of the shoot / booking */
@@ -3140,14 +3162,52 @@ export type EarningsRow = {
   client: string;
   amount: string;
   status: "paid" | "invoiced" | "pending";
+  /** Where the booking originated. Drives the source chip in the
+   *  closed-booking drawer + earnings activity reports. */
+  source: EarningSource;
+  /** Other talent on this booking (excluding self). Empty for solo gigs. */
+  team?: string[];
+  /**
+   * True when the talent acted as the de-facto coordinator and brought
+   * the team. Surfaces a "You brought Carla" chip in the closed-booking
+   * drawer — a real signal of agency on freelance / personal-page work.
+   */
+  broughtTeam?: boolean;
 };
 
 export const EARNINGS_ROWS: EarningsRow[] = [
-  { id: "e1", workDate: "Mar 28, 2026", payoutDate: "Apr 4, 2026", agency: "Acme Models", client: "Zara", amount: "€2,000", status: "paid" },
-  { id: "e2", workDate: "Mar 10, 2026", payoutDate: "Mar 21, 2026", agency: "Praline London", client: "Burberry", amount: "£2,400", status: "paid" },
-  { id: "e3", workDate: "Mar 1, 2026", payoutDate: "Mar 12, 2026", agency: "Acme Models", client: "Vogue Italia", amount: "€2,800", status: "paid" },
-  { id: "e4", workDate: "Feb 14, 2026", payoutDate: "Feb 28, 2026", agency: "Acme Models", client: "Mango", amount: "€1,600", status: "paid" },
-  { id: "e5", workDate: "Jan 30, 2026", payoutDate: "Feb 14, 2026", agency: "Acme Models", client: "Net-a-Porter", amount: "€3,400", status: "paid" },
+  // Most recent two added: a personal-page solo gig, and a personal-page
+  // gig where Marta brought a friend. They demonstrate the freelance /
+  // talent-coordinator path that exists even for an agency-rostered talent
+  // with a Pro+ personal page (page ownership = talent always; routing
+  // depends on representation. See project_talent_subscriptions.md §5.)
+  {
+    id: "e7",
+    workDate: "Apr 12, 2026",
+    payoutDate: "Apr 25, 2026",
+    agency: "Direct (personal page)",
+    client: "Loewe",
+    amount: "€3,600",
+    status: "paid",
+    source: { kind: "personal" },
+    team: ["Carla Vega"],
+    broughtTeam: true,
+  },
+  {
+    id: "e6",
+    workDate: "Apr 5, 2026",
+    payoutDate: "Apr 18, 2026",
+    agency: "Tulala Hub",
+    client: "Bumble",
+    amount: "€1,200",
+    status: "paid",
+    source: { kind: "hub", name: "Tulala Hub" },
+  },
+  { id: "e1", workDate: "Mar 28, 2026", payoutDate: "Apr 4, 2026", agency: "Acme Models", client: "Zara", amount: "€2,000", status: "paid", source: { kind: "agency" } },
+  { id: "e2", workDate: "Mar 10, 2026", payoutDate: "Mar 21, 2026", agency: "Praline London", client: "Burberry", amount: "£2,400", status: "paid", source: { kind: "agency" } },
+  { id: "e3", workDate: "Mar 1, 2026", payoutDate: "Mar 12, 2026", agency: "Acme Models", client: "Vogue Italia", amount: "€2,800", status: "paid", source: { kind: "agency" } },
+  { id: "e4", workDate: "Feb 14, 2026", payoutDate: "Feb 28, 2026", agency: "Acme Models", client: "Mango", amount: "€1,600", status: "paid", source: { kind: "agency" } },
+  { id: "e5", workDate: "Jan 30, 2026", payoutDate: "Feb 14, 2026", agency: "Acme Models", client: "Net-a-Porter", amount: "€3,400", status: "paid", source: { kind: "agency" } },
 ];
 
 // ════════════════════════════════════════════════════════════════════

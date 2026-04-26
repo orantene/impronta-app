@@ -3487,69 +3487,263 @@ function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim"; l
   );
 }
 
+// ─── Calendar event model ─────────────────────────────────────────
+//
+// The calendar shows four kinds of events, all represented uniformly so
+// filter chips can slice them and conflict detection can compare dates.
+//
+//   booked    — confirmed booking. Sage tone. The default view.
+//   pending   — hold or offer awaiting reply. Coral tone (your move).
+//   inquiry   — in-flight inquiry the talent is being considered for. Indigo.
+//   past      — wrapped/paid bookings. Ink-dim.
+
+type CalendarEventKind = "booked" | "pending" | "inquiry" | "past";
+
+type CalendarEvent = {
+  id: string;
+  kind: CalendarEventKind;
+  client: string;
+  brief: string;
+  /** Numeric start day of May 2026 (1–31). null = no date set. */
+  startDay: number | null;
+  /** End day of May 2026; same as start for single-day events. */
+  endDay: number | null;
+  /** Display range "May 14" or "May 14–15". */
+  dateLabel: string;
+  amount?: string;
+  /** Status microcopy — what's the current state of this event. */
+  status: string;
+  /** Click target: drawer ID + payload. */
+  drawer: { id: import("./_state").DrawerId; payload: Record<string, unknown> };
+};
+
 function CalendarPage() {
   const { openDrawer } = useProto();
-  const upcoming = TALENT_BOOKINGS.filter((b) => b.status === "confirmed");
-  const past = TALENT_BOOKINGS.filter((b) => b.status === "wrapped" || b.status === "paid");
+  const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "all">("booked");
+
+  // Build a unified event list from the existing data fixtures.
+  // Days are parsed loosely — May references stay numeric.
+  const confirmedBookings = TALENT_BOOKINGS.filter((b) => b.status === "confirmed");
+  // Set of client names that already have confirmed bookings — used to
+  // dedupe TALENT_REQUESTS entries that are essentially the same gig
+  // already in `confirmed` state. Without this, the calendar shows the
+  // same Vogue Italia job as both "Confirmed booking" AND "Offer" (since
+  // the prototype fixtures keep both representations).
+  const confirmedClients = new Set(confirmedBookings.map((b) => b.client));
+  const confirmedInquiryIds = new Set(
+    RICH_INQUIRIES.filter((i) => i.stage === "approved" || i.stage === "booked").map((i) => i.id),
+  );
+
+  const events: CalendarEvent[] = [
+    // Confirmed bookings
+    ...confirmedBookings.map((b): CalendarEvent => ({
+      id: b.id,
+      kind: "booked",
+      client: b.client,
+      brief: b.brief,
+      startDay: parseMayDay(b.startDate),
+      endDay: parseMayDay(b.endDate ?? b.startDate),
+      dateLabel: b.endDate ? `${b.startDate}–${b.endDate.replace(/^[A-Za-z, ]+/, "")}` : b.startDate,
+      amount: b.amount,
+      status: `Confirmed · ${b.location}`,
+      drawer: { id: "talent-booking-detail", payload: { id: b.id } },
+    })),
+    // Pending: holds + offers awaiting reply. Skip when the same client
+    // is already confirmed (deduplicates the prototype's overlap fixtures).
+    ...TALENT_REQUESTS.filter(
+      (r) =>
+        (r.status === "needs-answer" || r.status === "accepted") &&
+        !confirmedClients.has(r.client),
+    ).map(
+      (r): CalendarEvent => ({
+        id: r.id,
+        kind: "pending",
+        client: r.client,
+        brief: r.brief,
+        startDay: parseMayDay(r.date),
+        endDay: parseMayDay(r.date, true),
+        dateLabel: r.date ?? "Date TBC",
+        amount: r.amount,
+        status:
+          r.kind === "hold"
+            ? "Hold · awaiting your reply"
+            : r.kind === "offer" && r.status === "accepted"
+              ? "Offer with client"
+              : `${r.kind.charAt(0).toUpperCase() + r.kind.slice(1)} · awaiting your reply`,
+        drawer: { id: "talent-offer-detail", payload: { id: r.id } },
+      }),
+    ),
+    // Inquiries — coordination/submitted stages. Skip when already booked.
+    ...RICH_INQUIRIES.filter(
+      (i) =>
+        (i.stage === "coordination" || i.stage === "submitted") &&
+        !confirmedInquiryIds.has(i.id) &&
+        !confirmedClients.has(i.clientName),
+    )
+      .slice(0, 2)
+      .map((i): CalendarEvent => ({
+        id: i.id,
+        kind: "inquiry",
+        client: i.clientName,
+        brief: i.brief,
+        startDay: parseMayDay(i.date),
+        endDay: parseMayDay(i.date, true),
+        dateLabel: i.date ?? "Date TBC",
+        status: "Coordinator picking talent",
+        drawer: { id: "inquiry-workspace", payload: { inquiryId: i.id, pov: "talent" } },
+      })),
+    // Past bookings
+    ...TALENT_BOOKINGS.filter((b) => b.status === "wrapped" || b.status === "paid").map(
+      (b): CalendarEvent => ({
+        id: b.id,
+        kind: "past",
+        client: b.client,
+        brief: b.brief,
+        startDay: parseMayDay(b.startDate),
+        endDay: parseMayDay(b.endDate ?? b.startDate),
+        dateLabel: b.endDate ? `${b.startDate}–${b.endDate}` : b.startDate,
+        amount: b.amount,
+        status: `${b.status === "paid" ? "Paid" : "Wrapped"} · ${b.location}`,
+        drawer: { id: "talent-booking-detail", payload: { id: b.id } },
+      }),
+    ),
+  ];
+
+  // Conflict detection — pairs of events that share at least one day.
+  // Reported as "{a} overlaps with {b}" so the talent can resolve before
+  // either party expects a commitment.
+  const conflicts: { a: CalendarEvent; b: CalendarEvent }[] = [];
+  for (let i = 0; i < events.length; i++) {
+    for (let j = i + 1; j < events.length; j++) {
+      const a = events[i]!;
+      const b = events[j]!;
+      // Past events don't conflict with anything (already happened).
+      if (a.kind === "past" || b.kind === "past") continue;
+      if (a.startDay === null || b.startDay === null) continue;
+      const aEnd = a.endDay ?? a.startDay;
+      const bEnd = b.endDay ?? b.startDay;
+      const overlap = a.startDay <= bEnd && b.startDay <= aEnd;
+      if (overlap) conflicts.push({ a, b });
+    }
+  }
+
+  // Set of event IDs that participate in any conflict — drives the
+  // coral edge marker on the row.
+  const conflictedIds = new Set<string>();
+  for (const { a, b } of conflicts) {
+    conflictedIds.add(a.id);
+    conflictedIds.add(b.id);
+  }
+
+  const filteredEvents = events.filter((e) => filter === "all" || e.kind === filter);
+
+  const counts = {
+    booked: events.filter((e) => e.kind === "booked").length,
+    pending: events.filter((e) => e.kind === "pending").length,
+    inquiry: events.filter((e) => e.kind === "inquiry").length,
+    past: events.filter((e) => e.kind === "past").length,
+    all: events.length,
+  };
 
   return (
     <>
       <PageHeader
         eyebrow="Calendar"
         title="Bookings & availability"
-        subtitle="Confirmed bookings sit alongside your blocks. Block dates so your agencies don't pitch you when you're unavailable."
+        subtitle="Confirmed work, pending replies, inquiries — all in one timeline."
         actions={
-          <>
-            <SecondaryButton onClick={() => openDrawer("talent-availability")}>
-              Edit availability
-            </SecondaryButton>
-            <PrimaryButton onClick={() => openDrawer("talent-block-dates")}>
-              Mark unavailable
-            </PrimaryButton>
-          </>
+          <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
+            Availability
+          </SecondaryButton>
         }
       />
 
-      <Grid cols="3">
-        <StatusCard label="Upcoming" value={upcoming.length} caption="confirmed bookings" tone="green" />
-        <StatusCard label="Blocks set" value={AVAILABILITY_BLOCKS.length} caption="upcoming blocks" tone="ink" />
-        <StatusCard label="Past 90d" value={past.length} caption="wrapped jobs" tone="dim" />
-      </Grid>
+      {/* Conflict alert — coral banner when overlaps exist. Renders ONE
+          line per conflict pair so the resolution is unambiguous. */}
+      {conflicts.length > 0 && (
+        <ConflictBanner conflicts={conflicts} />
+      )}
+
+      {/* Filter chip strip — Booked is default since "calendar" mentally
+          maps to "what's confirmed". Counts visible per chip. */}
+      <FilterChipStrip
+        filter={filter}
+        onChange={setFilter}
+        counts={counts}
+      />
 
       <div style={{ height: 16 }} />
-      <ICalSubscribeCard talentName={MY_TALENT_PROFILE.name} slug="marta-reyes" />
 
-      <div style={{ height: 24 }} />
-
-      {/* Month grid */}
+      {/* Month grid (visual context) */}
       <CalendarMonthGrid />
 
       <div style={{ height: 24 }} />
 
-      {/* Upcoming */}
-      <section style={{ marginBottom: 24 }}>
-        <CapsLabel>Upcoming</CapsLabel>
-        <div style={{ marginTop: 10, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: "0 14px" }}>
-          {upcoming.map((b) => (
-            <BookingRow key={b.id} booking={b} />
-          ))}
-          {upcoming.length === 0 && (
+      {/* Filtered event list — uniform row format across all kinds. */}
+      <section>
+        <CapsLabel>
+          {filter === "all"
+            ? `All events · ${filteredEvents.length}`
+            : filter === "booked"
+              ? `Confirmed · ${filteredEvents.length}`
+              : filter === "pending"
+                ? `Pending replies · ${filteredEvents.length}`
+                : filter === "inquiry"
+                  ? `Open inquiries · ${filteredEvents.length}`
+                  : `Past · ${filteredEvents.length}`}
+        </CapsLabel>
+        <div
+          style={{
+            marginTop: 10,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          {filteredEvents.length === 0 ? (
             <EmptyState
               icon="calendar"
-              title="No confirmed bookings yet"
-              body="Once an offer is approved, the booking will land here. Mark dates unavailable ahead of time so agencies don't book over your trips."
-              primaryLabel="Mark unavailable"
-              onPrimary={() => openDrawer("talent-block-dates")}
+              title={
+                filter === "booked"
+                  ? "No confirmed bookings yet"
+                  : filter === "pending"
+                    ? "Nothing pending — you're caught up"
+                    : filter === "inquiry"
+                      ? "No open inquiries"
+                      : "Nothing in the archive yet"
+              }
+              body="Switch filter above to see other kinds of events."
               compact
             />
+          ) : (
+            filteredEvents.map((e, idx) => (
+              <CalendarEventRow
+                key={e.id}
+                event={e}
+                conflicted={conflictedIds.has(e.id)}
+                onOpen={() => openDrawer(e.drawer.id, e.drawer.payload)}
+                first={idx === 0}
+              />
+            ))
           )}
         </div>
       </section>
 
-      {/* Availability blocks */}
+      <div style={{ height: 16 }} />
+
+      {/* Blocked dates — secondary section, kept compact */}
       <section style={{ marginBottom: 24 }}>
-        <CapsLabel>Blocked dates</CapsLabel>
-        <div style={{ marginTop: 10, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: "0 14px" }}>
+        <CapsLabel>Blocked dates · {AVAILABILITY_BLOCKS.length}</CapsLabel>
+        <div
+          style={{
+            marginTop: 10,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: "0 14px",
+          }}
+        >
           {AVAILABILITY_BLOCKS.map((a) => (
             <div
               key={a.id}
@@ -3594,16 +3788,342 @@ function CalendarPage() {
         </div>
       </section>
 
-      {/* Past */}
-      <section>
-        <CapsLabel>Recent past</CapsLabel>
-        <div style={{ marginTop: 10, background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, padding: "0 14px" }}>
-          {past.map((b) => (
-            <BookingRow key={b.id} booking={b} />
-          ))}
-        </div>
-      </section>
+      <ICalSubscribeCard talentName={MY_TALENT_PROFILE.name} slug="marta-reyes" />
     </>
+  );
+}
+
+// ─── Calendar helpers ────────────────────────────────────────────────
+
+/** Parse "May 14" / "Tue · May 6" / "May 14–15" → numeric day-of-month.
+ *  Returns the START day unless `endOfRange` is true. */
+function parseMayDay(s: string | null | undefined, endOfRange = false): number | null {
+  if (!s) return null;
+  const matches = s.match(/May\s*(\d{1,2})(?:\s*[–-]\s*(\d{1,2}))?/);
+  if (!matches) return null;
+  const start = parseInt(matches[1]!, 10);
+  const end = matches[2] ? parseInt(matches[2], 10) : start;
+  return endOfRange ? end : start;
+}
+
+function FilterChipStrip({
+  filter,
+  onChange,
+  counts,
+}: {
+  filter: "booked" | "pending" | "inquiry" | "past" | "all";
+  onChange: (f: "booked" | "pending" | "inquiry" | "past" | "all") => void;
+  counts: { booked: number; pending: number; inquiry: number; past: number; all: number };
+}) {
+  const chips: { key: typeof filter; label: string; count: number; tone: string }[] = [
+    { key: "booked", label: "Booked", count: counts.booked, tone: COLORS.green },
+    { key: "pending", label: "Pending", count: counts.pending, tone: COLORS.coral },
+    { key: "inquiry", label: "Inquiry", count: counts.inquiry, tone: COLORS.indigo },
+    { key: "past", label: "Past", count: counts.past, tone: COLORS.inkDim },
+    { key: "all", label: "All", count: counts.all, tone: COLORS.ink },
+  ];
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        marginTop: 4,
+        flexWrap: "wrap",
+      }}
+    >
+      {chips.map((c) => {
+        const active = filter === c.key;
+        return (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => onChange(c.key)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 11px",
+              borderRadius: 999,
+              background: active ? COLORS.ink : "#fff",
+              border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: active ? "#fff" : COLORS.ink,
+              transition: "background .12s, border-color .12s",
+            }}
+          >
+            {!active && (
+              <span
+                aria-hidden
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: c.tone,
+                }}
+              />
+            )}
+            <span>{c.label}</span>
+            <span
+              style={{
+                fontVariantNumeric: "tabular-nums",
+                color: active ? "rgba(255,255,255,0.6)" : COLORS.inkDim,
+                fontSize: 11.5,
+              }}
+            >
+              {c.count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ConflictBanner({
+  conflicts,
+}: {
+  conflicts: { a: CalendarEvent; b: CalendarEvent }[];
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        padding: "12px 16px",
+        marginBottom: 16,
+        background: COLORS.coralSoft,
+        border: `1px solid rgba(194,106,69,0.25)`,
+        borderLeft: `3px solid ${COLORS.coral}`,
+        borderRadius: 10,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 13,
+          fontWeight: 600,
+          color: COLORS.coralDeep,
+        }}
+      >
+        <Icon name="bolt" size={13} stroke={1.7} />
+        {conflicts.length === 1
+          ? "1 date conflict needs your attention"
+          : `${conflicts.length} date conflicts need your attention`}
+      </div>
+      {conflicts.map((c, i) => (
+        <div
+          key={`${c.a.id}-${c.b.id}-${i}`}
+          style={{
+            fontSize: 12,
+            color: COLORS.coralDeep,
+            opacity: 0.85,
+            paddingLeft: 22,
+          }}
+        >
+          <strong style={{ color: COLORS.coralDeep, fontWeight: 600 }}>
+            {c.a.client} {c.a.dateLabel}
+          </strong>
+          {" "}({kindToLabel(c.a.kind)}) overlaps with{" "}
+          <strong style={{ color: COLORS.coralDeep, fontWeight: 600 }}>
+            {c.b.client} {c.b.dateLabel}
+          </strong>
+          {" "}({kindToLabel(c.b.kind)}). Resolve before either party expects a commitment.
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function kindToLabel(kind: CalendarEventKind): string {
+  return {
+    booked: "confirmed booking",
+    pending: "pending hold",
+    inquiry: "open inquiry",
+    past: "past",
+  }[kind];
+}
+
+/** Uniform row format across all event kinds. Coral edge when conflicted. */
+function CalendarEventRow({
+  event,
+  conflicted,
+  onOpen,
+  first,
+}: {
+  event: CalendarEvent;
+  conflicted: boolean;
+  onOpen: () => void;
+  first: boolean;
+}) {
+  const tone = {
+    booked: { bg: "rgba(46,125,91,0.10)", fg: COLORS.green },
+    pending: { bg: COLORS.coralSoft, fg: COLORS.coral },
+    inquiry: { bg: COLORS.indigoSoft, fg: COLORS.indigo },
+    past: { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted },
+  }[event.kind];
+  const kindLabel = {
+    booked: "Booked",
+    pending: "Pending",
+    inquiry: "Inquiry",
+    past: event.status.startsWith("Paid") ? "Paid" : "Past",
+  }[event.kind];
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        width: "100%",
+        padding: "14px 18px",
+        paddingLeft: conflicted ? 22 : 18,
+        borderTop: first ? "none" : `1px solid ${COLORS.borderSoft}`,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: FONTS.body,
+        transition: "background .12s",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      {/* Conflict edge marker */}
+      {conflicted && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 12,
+            bottom: 12,
+            left: 0,
+            width: 3,
+            background: COLORS.coral,
+            borderRadius: "0 3px 3px 0",
+          }}
+        />
+      )}
+
+      {/* Date block — visual anchor */}
+      <span
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 8,
+          background: COLORS.surfaceAlt,
+          display: "inline-flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontFamily: FONTS.display,
+        }}
+      >
+        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, lineHeight: 1 }}>
+          {event.startDay ?? "—"}
+        </span>
+        <span
+          style={{
+            fontSize: 9,
+            color: COLORS.inkMuted,
+            letterSpacing: 0.5,
+            textTransform: "uppercase",
+            fontWeight: 600,
+            marginTop: 2,
+          }}
+        >
+          May
+        </span>
+      </span>
+
+      {/* Title + status */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: COLORS.ink,
+          }}
+        >
+          <span>{event.client}</span>
+          <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>· {event.brief}</span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 2,
+            fontSize: 11.5,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "1px 7px",
+              borderRadius: 999,
+              background: tone.bg,
+              color: tone.fg,
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+            }}
+          >
+            {kindLabel}
+          </span>
+          {conflicted && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "1px 7px",
+                borderRadius: 999,
+                background: COLORS.coralSoft,
+                color: COLORS.coralDeep,
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: 0.4,
+                textTransform: "uppercase",
+              }}
+            >
+              Conflict
+            </span>
+          )}
+          <span style={{ color: COLORS.inkMuted }}>{event.status}</span>
+        </div>
+      </div>
+
+      {event.amount && (
+        <span
+          style={{
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: COLORS.ink,
+            fontVariantNumeric: "tabular-nums",
+            flexShrink: 0,
+          }}
+        >
+          {event.amount}
+        </span>
+      )}
+      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+    </button>
   );
 }
 
@@ -4156,7 +4676,7 @@ export function TalentClosedBookingDrawer() {
           background: "rgba(11,11,13,0.04)",
           border: `1px solid ${COLORS.borderSoft}`,
           borderRadius: 8,
-          marginBottom: 16,
+          marginBottom: 12,
           fontFamily: FONTS.body,
           fontSize: 12,
           color: COLORS.inkMuted,
@@ -4167,6 +4687,55 @@ export function TalentClosedBookingDrawer() {
         <span style={{ marginLeft: "auto", color: COLORS.ink, fontWeight: 600 }}>
           {e.amount}
         </span>
+      </div>
+
+      {/* Source attribution — answers "where did this booking come from?"
+          The chip + optional "you brought" pill teach the talent the value
+          of each distribution channel over time. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          marginBottom: 16,
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+        }}
+      >
+        <SourceChip source={e.source} />
+        {e.broughtTeam && e.team && e.team.length > 0 && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "3px 8px",
+              borderRadius: 999,
+              background: COLORS.coralSoft,
+              color: COLORS.coralDeep,
+              fontWeight: 600,
+              fontSize: 11,
+            }}
+          >
+            <Icon name="user" size={10} stroke={1.8} />
+            You brought {e.team.join(", ")}
+          </span>
+        )}
+        {!e.team || e.team.length === 0 ? (
+          <span
+            style={{
+              padding: "3px 8px",
+              borderRadius: 999,
+              background: "rgba(11,11,13,0.05)",
+              color: COLORS.inkMuted,
+              fontWeight: 500,
+              fontSize: 11,
+            }}
+          >
+            Solo
+          </span>
+        ) : null}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -4319,6 +4888,58 @@ export function TalentClosedBookingDrawer() {
   );
 }
 
+/**
+ * Source chip in the closed-booking drawer header. Tone-coded by kind so
+ * the talent learns where each booking came from at a glance:
+ *   agency      slate    standard agency-routed
+ *   hub         indigo   Tulala Hub or external aggregator
+ *   personal    royal    talent's premium personal page (Pro+)
+ *   studio      sage     studio / free-book partner
+ *   marketplace amber    open marketplace
+ */
+function SourceChip({ source }: { source: import("./_state").EarningSource }) {
+  const labelFor = (s: typeof source) => {
+    switch (s.kind) {
+      case "agency":
+        return "Agency-routed";
+      case "hub":
+        return `via ${s.name}`;
+      case "personal":
+        return "Direct · personal page";
+      case "studio":
+        return `via ${s.name}`;
+      case "marketplace":
+        return `via ${s.name}`;
+    }
+  };
+  const palette: Record<typeof source.kind, { bg: string; fg: string }> = {
+    agency: { bg: "rgba(82,96,109,0.10)", fg: "#3A4651" },
+    hub: { bg: COLORS.indigoSoft, fg: COLORS.indigoDeep },
+    personal: { bg: COLORS.royalSoft, fg: COLORS.royalDeep },
+    studio: { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42" },
+    marketplace: { bg: "rgba(82,96,109,0.10)", fg: "#3A4651" },
+  };
+  const c = palette[source.kind];
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "3px 8px",
+        borderRadius: 999,
+        background: c.bg,
+        color: c.fg,
+        fontWeight: 600,
+        fontSize: 11,
+        letterSpacing: -0.05,
+      }}
+    >
+      {labelFor(source)}
+    </span>
+  );
+}
+
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div
@@ -4443,6 +5064,80 @@ const MOCK_CLOSED_DETAIL: Record<
     ],
     delivered: ["8-page editorial spread (May issue)", "Cover try"],
   },
+  // Solo gig sourced via Tulala Hub. Demonstrates a non-agency channel
+  // delivering paid work — the kind of booking that would be invisible
+  // before the Hub became a distribution surface.
+  e6: {
+    brief: "Brand campaign · 1 day",
+    location: "Berlin · Studio Mitte",
+    call: "09:00 — 17:00",
+    team: [
+      { name: "Marta Reyes", role: "Talent · solo", you: true },
+      { name: "Hanna Berg", role: "Producer · Bumble" },
+      { name: "Studio Mitte", role: "Photographer" },
+    ],
+    chat: [
+      {
+        from: "Tulala Hub",
+        when: "Mar 30 · 11:24",
+        body: "Bumble forwarded an inquiry for you via the Tulala Hub. Solo, 1 day in Berlin Apr 5.",
+      },
+      {
+        from: "Marta",
+        when: "Mar 30 · 11:48",
+        body: "Confirmed. I'll travel up Apr 4.",
+      },
+      {
+        from: "Hanna Berg",
+        when: "Apr 5 · 17:32",
+        body: "Wrap. Selects in 10 days, payout via Tulala Hub.",
+      },
+    ],
+    delivered: ["6 final selects · spring brand campaign"],
+  },
+
+  // Personal-page gig where Marta brought her friend Carla as the second
+  // talent. Marta acted as de-facto coordinator. Demonstrates the
+  // talent-as-coordinator path that exists when distribution comes
+  // through her own premium page.
+  e7: {
+    brief: "Capsule editorial · 2 talent · 1 day",
+    location: "Madrid · ESTUDIO ROCA",
+    call: "08:00 — 18:00",
+    team: [
+      { name: "Marta Reyes", role: "Talent · brought the team", you: true },
+      { name: "Carla Vega", role: "Talent · brought by Marta" },
+      { name: "Loewe team", role: "Producer · Loewe" },
+      { name: "Studio Roca", role: "Photographer" },
+    ],
+    chat: [
+      {
+        from: "Loewe",
+        when: "Apr 1 · 09:12",
+        body: "Hi Marta — found you via your page. We need two talent for a capsule day on Apr 12. Can you bring a second?",
+      },
+      {
+        from: "Marta",
+        when: "Apr 1 · 09:34",
+        body: "Yes — Carla Vega works well with me. Sending her details now. Day rate €1,800/talent · €3,600 total.",
+      },
+      {
+        from: "Loewe",
+        when: "Apr 1 · 10:02",
+        body: "Approved. See you both Apr 12.",
+      },
+      {
+        from: "Marta",
+        when: "Apr 12 · 18:47",
+        body: "Wrapped. Carla and I had a great day. Gracias 🙏",
+      },
+    ],
+    delivered: [
+      "8-look capsule editorial · 2 talent",
+      "Hero campaign image · selected by client",
+    ],
+  },
+
   default: {
     brief: "Closed booking",
     location: "—",
