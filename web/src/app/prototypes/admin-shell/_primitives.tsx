@@ -2,12 +2,25 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
+  CLIENT_TRUST_META,
   COLORS,
+  ENTITY_TYPE_META,
   FONTS,
+  Z,
+  useProto,
+  PAYMENT_STATUS_META,
+  PAYOUT_STATUS_META,
   PLAN_META,
+  planPriceCompact,
+  REPRESENTATION_META,
   ROLE_META,
   TALENT_STATE_TONE,
+  type BookingPaymentStatus,
+  type ClientTrustLevel,
+  type EntityType,
+  type PayoutConnectionStatus,
   type Plan,
+  type RepresentationStatus,
   type Role,
   type TalentProfile,
 } from "./_state";
@@ -275,6 +288,66 @@ export function StatDot({
   );
 }
 
+/**
+ * StatusPill — the canonical "tone + label" badge.
+ *
+ * Replaces four ad-hoc variants that diverged across pages and drawers:
+ *   StatusBadge / StageBadge (full-size, with dot)
+ *   StateChipMini / StageBadgeMini (compact, no dot)
+ *
+ * Single primitive, two sizes. Stage-specific wrappers (StageBadge) layer
+ * on top to translate stage → label + tone.
+ */
+export type StatusPillTone = "ink" | "amber" | "green" | "dim" | "red";
+
+export function StatusPill({
+  tone,
+  label,
+  size = "md",
+  withDot,
+  capitalize,
+}: {
+  tone: StatusPillTone;
+  label: string;
+  size?: "sm" | "md";
+  /** Defaults: md → true, sm → false. Override explicitly to force. */
+  withDot?: boolean;
+  /** Capitalize the label client-side (handy for raw status strings). */
+  capitalize?: boolean;
+}) {
+  const palette: Record<StatusPillTone, { bg: string; fg: string }> = {
+    green: { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42" },
+    amber: { bg: "rgba(82,96,109,0.10)", fg: "#3A4651" },
+    red: { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26" },
+    ink: { bg: "rgba(11,11,13,0.06)", fg: COLORS.ink },
+    dim: { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted },
+  };
+  const c = palette[tone];
+  const showDot = withDot ?? size === "md";
+  const padding = size === "md" ? "3px 8px" : "2px 7px";
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: showDot ? 5 : 0,
+        background: c.bg,
+        color: c.fg,
+        padding,
+        borderRadius: 999,
+        fontFamily: FONTS.body,
+        fontSize: 11,
+        fontWeight: 500,
+        textTransform: capitalize ? "capitalize" : undefined,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {showDot && <StatDot tone={tone} size={5} />}
+      {label}
+    </span>
+  );
+}
+
 export function PlanChip({
   plan,
   variant = "soft",
@@ -342,6 +415,419 @@ export function RoleChip({ role }: { role: Role }) {
   );
 }
 
+/**
+ * Subtle indicator of entity model. Sits next to PlanChip in the workspace
+ * topbar and gets a slim icon + outline style so it never competes with plan.
+ * Hubs get a network glyph (·•·) — not gold, not orange. Agencies get a
+ * small mark (▣). Both stay monochrome to honour the calm aesthetic.
+ */
+export function EntityChip({
+  entityType,
+  variant = "outline",
+}: {
+  entityType: EntityType;
+  variant?: "outline" | "soft";
+}) {
+  const meta = ENTITY_TYPE_META[entityType];
+  // Solid 5px dot replaces the previous unicode glyph (▣ / ·•·). The glyph
+  // rendered as a faint × at small sizes — confusing because it sat next
+  // to a plan chip and read like a "remove" affordance.
+  const styles: CSSProperties =
+    variant === "soft"
+      ? {
+          background: "rgba(11,11,13,0.05)",
+          color: COLORS.ink,
+          border: "1px solid transparent",
+        }
+      : {
+          background: "transparent",
+          color: COLORS.inkMuted,
+          border: `1px solid ${COLORS.border}`,
+        };
+  return (
+    <span
+      title={meta.tagline}
+      style={{
+        ...styles,
+        fontFamily: FONTS.body,
+        fontSize: 10.5,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        padding: "3px 8px",
+        borderRadius: 999,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: COLORS.inkMuted,
+          opacity: 0.55,
+          flexShrink: 0,
+        }}
+      />
+      {meta.label}
+    </span>
+  );
+}
+
+/**
+ * Payout-connection chip — surfaces "Bank connected" / "Pending" / "Not
+ * connected" / "Action needed" so the receiver-eligibility model is
+ * visible everywhere a person could be selected as the payout target.
+ */
+export function PayoutStatusChip({
+  status,
+  variant = "soft",
+}: {
+  status: PayoutConnectionStatus;
+  variant?: "soft" | "outline";
+}) {
+  const meta = PAYOUT_STATUS_META[status];
+  const palette: Record<typeof meta.tone, { bg: string; fg: string; dot: string }> = {
+    green: { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42", dot: COLORS.green },
+    amber: { bg: "rgba(82,96,109,0.12)", fg: "#3A4651", dot: COLORS.amber },
+    dim: { bg: "rgba(11,11,13,0.04)", fg: COLORS.inkMuted, dot: COLORS.inkDim },
+    red: { bg: "rgba(176,48,58,0.10)", fg: "#7A2026", dot: COLORS.red },
+  };
+  const c = palette[meta.tone];
+  const styles: CSSProperties =
+    variant === "outline"
+      ? {
+          background: "transparent",
+          color: c.fg,
+          border: `1px solid ${c.fg}33`,
+        }
+      : {
+          background: c.bg,
+          color: c.fg,
+          border: "1px solid transparent",
+        };
+  return (
+    <span
+      title={meta.hint}
+      style={{
+        ...styles,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontFamily: FONTS.body,
+        fontSize: 10.5,
+        fontWeight: 600,
+        letterSpacing: 0.3,
+        padding: "3px 8px 3px 7px",
+        borderRadius: 999,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          width: 5,
+          height: 5,
+          borderRadius: "50%",
+          background: c.dot,
+        }}
+      />
+      {meta.label}
+    </span>
+  );
+}
+
+/**
+ * Booking-level payment lifecycle chip — drives the status pill on the
+ * booking detail and the workspace billing/payments table.
+ */
+export function PaymentStatusChip({
+  status,
+  compact,
+}: {
+  status: BookingPaymentStatus;
+  compact?: boolean;
+}) {
+  const meta = PAYMENT_STATUS_META[status];
+  const palette: Record<typeof meta.tone, { bg: string; fg: string }> = {
+    ink: { bg: "rgba(11,11,13,0.06)", fg: COLORS.ink },
+    amber: { bg: "rgba(82,96,109,0.12)", fg: "#3A4651" },
+    green: { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42" },
+    dim: { bg: "rgba(11,11,13,0.04)", fg: COLORS.inkMuted },
+    red: { bg: "rgba(176,48,58,0.10)", fg: "#7A2026" },
+  };
+  const c = palette[meta.tone];
+  return (
+    <span
+      title={meta.description}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        background: c.bg,
+        color: c.fg,
+        fontFamily: FONTS.body,
+        fontSize: compact ? 10 : 10.5,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        padding: compact ? "2px 7px" : "3px 9px",
+        borderRadius: 999,
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+/**
+ * RepresentationChip — small pill that says how a talent is represented:
+ * `Exclusive`, `Non-exclusive`, or `Freelance`. Hover gives the full
+ * agency name(s). Used on talent profile drawers, agency-side talent
+ * lists, and inquiry-ownership rationale lines.
+ */
+export function RepresentationChip({
+  representation,
+  compact,
+}: {
+  representation: RepresentationStatus;
+  compact?: boolean;
+}) {
+  const meta = REPRESENTATION_META[representation.kind];
+  const palette: Record<typeof meta.tone, { bg: string; fg: string }> = {
+    ink: { bg: "rgba(11,11,13,0.06)", fg: COLORS.ink },
+    amber: { bg: "rgba(82,96,109,0.12)", fg: "#3A4651" },
+    green: { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42" },
+    dim: { bg: "rgba(11,11,13,0.04)", fg: COLORS.inkMuted },
+  };
+  const c = palette[meta.tone];
+  const detail =
+    representation.kind === "exclusive"
+      ? ` · ${representation.agencyName}`
+      : representation.kind === "non-exclusive"
+        ? ` · ${representation.agencyNames.join(", ")}`
+        : "";
+  return (
+    <span
+      title={meta.hint + detail}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        background: c.bg,
+        color: c.fg,
+        fontFamily: FONTS.body,
+        fontSize: compact ? 10 : 10.5,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        padding: compact ? "2px 7px" : "3px 9px",
+        borderRadius: 999,
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {meta.short}
+    </span>
+  );
+}
+
+/**
+ * ClientTrustChip — compact pill that signals the client's trust tier
+ * (Basic / Verified / Silver / Gold). Driven by real verification +
+ * funded-account events on the client identity. NEVER framed as
+ * "pay to message" — see project_client_trust_badges.md §2.
+ *
+ * Visual register is intentionally muted: silver = brushed-metal cool,
+ * gold = aged-brass warm. No glow, no sparkle.
+ *
+ * Surfaces:
+ *  - Talent inbox / today-pulse cards (compact)
+ *  - InquiryWorkspaceDrawer header strip (compact)
+ *  - Client profile drawer (standard)
+ *  - Talent contact-preferences drawer legend (standard)
+ *
+ * Hidden on:
+ *  - Public roster pages or any client-facing list (clients don't see
+ *    other clients' tiers)
+ *  - Booking detail / contracts (past the trust gate by then)
+ */
+export function ClientTrustChip({
+  level,
+  compact,
+  withDot = true,
+}: {
+  level: ClientTrustLevel;
+  compact?: boolean;
+  /** Tiny tier dot. Useful in tight rows; can be hidden in legends. */
+  withDot?: boolean;
+}) {
+  const meta = CLIENT_TRUST_META[level];
+  const palette: Record<typeof meta.tone, { bg: string; fg: string; dot: string; border: string }> = {
+    // Basic — neutral / dim. Says "default", not "bad".
+    dim: {
+      bg: "rgba(11,11,13,0.04)",
+      fg: COLORS.inkMuted,
+      dot: "#A8A8AC",
+      border: "transparent",
+    },
+    // Verified — soft ink with subtle outline. Says "real", not "premium".
+    ink: {
+      bg: "rgba(11,11,13,0.045)",
+      fg: COLORS.ink,
+      dot: COLORS.ink,
+      border: "rgba(11,11,13,0.16)",
+    },
+    // Silver — cool muted. Brushed-metal subtle.
+    silver: {
+      bg: "rgba(110,118,134,0.10)",
+      fg: "#3F4756",
+      dot: "#7F8896",
+      border: "transparent",
+    },
+    // Gold — deep-forest accent. Reads as "trusted / verified ascendant."
+    // Not warm, not bling. Pairs cleanly with the Silver brushed-metal cool.
+    gold: {
+      bg: "rgba(15,79,62,0.10)",
+      fg: "#0F4F3E",
+      dot: "#1F7B5C",
+      border: "transparent",
+    },
+  };
+  const c = palette[meta.tone];
+  return (
+    <Popover content={`${meta.label} client — ${meta.hint}`}>
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: withDot ? 5 : 0,
+          background: c.bg,
+          color: c.fg,
+          border: c.border === "transparent" ? "none" : `1px solid ${c.border}`,
+          fontFamily: FONTS.body,
+          fontSize: compact ? 10 : 10.5,
+          fontWeight: 600,
+          letterSpacing: 0.4,
+          padding: compact ? "2px 7px" : "3px 9px",
+          borderRadius: 999,
+          textTransform: "uppercase",
+          whiteSpace: "nowrap",
+        }}
+      >
+      {withDot ? (
+        <span
+          style={{
+            display: "inline-block",
+            width: 5,
+            height: 5,
+            borderRadius: 999,
+            background: c.dot,
+          }}
+        />
+      ) : null}
+      {meta.short}
+      </span>
+    </Popover>
+  );
+}
+
+/**
+ * Inline upsell banner for the client surface — surfaces "Get Verified"
+ * (or the appropriate next-tier explainer) on the client dashboard.
+ *
+ * At Basic → renders an actionable banner with price + lead-time + CTA.
+ * At Verified/Silver → renders a soft "what unlocks the next tier" note.
+ * At Gold → returns null (nothing to upsell).
+ *
+ * Per project_client_trust_badges.md the framing is "better access
+ * opportunities", never "pay to DM". Copy stays on the access side.
+ */
+export function TrustBoostBanner({
+  level,
+  onUpgrade,
+}: {
+  level: ClientTrustLevel;
+  onUpgrade?: () => void;
+}) {
+  // Inline reference instead of importing TRUST_TIER_UPGRADE here to keep
+  // the primitives file framework-light. Caller passes the next-tier copy
+  // via the wrapper.
+  if (level === "gold") return null;
+
+  const isActionable = level === "basic";
+  const meta = CLIENT_TRUST_META[level];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "12px 16px",
+        background: isActionable ? COLORS.accentSoft : "rgba(11,11,13,0.025)",
+        border: `1px solid ${isActionable ? "rgba(15,79,62,0.22)" : COLORS.borderSoft}`,
+        borderRadius: 12,
+      }}
+    >
+      <ClientTrustChip level={level} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 600,
+            color: isActionable ? COLORS.accentDeep : COLORS.ink,
+            lineHeight: 1.3,
+          }}
+        >
+          {isActionable ? "Get Verified — open more talent inboxes" : `You're at ${meta.label}`}
+        </div>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            color: COLORS.inkMuted,
+            marginTop: 2,
+            lineHeight: 1.45,
+          }}
+        >
+          {isActionable
+            ? "Verification confirms a real, traceable buyer. Talent that filters out anonymous inquiries will see your next message."
+            : level === "verified"
+              ? "Funded-balance activity earns Silver — no extra fee, just a stronger signal of buying readiness."
+              : "Sustained activity + funded balance earns Trusted — the strongest trust signal Tulala issues."}
+        </div>
+      </div>
+      {isActionable && onUpgrade && (
+        <button
+          onClick={onUpgrade}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 14px",
+            background: COLORS.accent,
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          Get Verified · $29
+          <Icon name="arrow-right" size={11} stroke={2} color="#fff" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function ReadOnlyChip() {
   return (
     <span
@@ -377,7 +863,7 @@ export function StateChip({
   const tone = TALENT_STATE_TONE[state];
   const map: Record<typeof tone, { bg: string; fg: string; dot: string }> = {
     ink: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink, dot: COLORS.ink },
-    amber: { bg: "rgba(198,138,30,0.10)", fg: "#7E5612", dot: COLORS.amber },
+    amber: { bg: "rgba(82,96,109,0.10)", fg: "#3A4651", dot: COLORS.amber },
     green: { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42", dot: COLORS.green },
     dim: { bg: "rgba(11,11,13,0.04)", fg: COLORS.inkMuted, dot: COLORS.inkDim },
   };
@@ -423,7 +909,7 @@ export function IconChip({
 }) {
   const map: Record<typeof tone, CSSProperties> = {
     neutral: { background: "rgba(11,11,13,0.04)", color: COLORS.ink },
-    warm: { background: COLORS.cream, color: COLORS.ink },
+    warm: { background: COLORS.surfaceAlt, color: COLORS.ink },
     ink: { background: COLORS.ink, color: "#fff" },
   };
   return (
@@ -485,6 +971,83 @@ type CardBase = {
   fullHeight?: boolean;
 };
 
+/**
+ * Variants:
+ *   primary    — flagship card, subtle resting shadow + lift on hover
+ *   secondary  — softer companion card, no resting shadow
+ *   status     — same chrome as secondary, used for KPI / metric tiles
+ *   locked     — dashed border, dimmed background, never lifts
+ *   starter    — neutral wash + accent-tinted border (formerly cream)
+ *   accent     — NEW. Forest-accent-tinted wash with a left accent strip.
+ *                Use sparingly for "earn this" / spotlight rows.
+ */
+type CardVariant = "primary" | "secondary" | "status" | "locked" | "starter" | "accent";
+
+const CARD_VARIANT_STYLES: Record<CardVariant, { rest: CSSProperties; hoverBorder: string; hoverShadow: string; lifts: boolean }> = {
+  primary: {
+    rest: {
+      background: COLORS.card,
+      border: `1px solid ${COLORS.border}`,
+      boxShadow: COLORS.shadow,
+    },
+    hoverBorder: COLORS.borderStrong,
+    hoverShadow: COLORS.shadowHover,
+    lifts: true,
+  },
+  secondary: {
+    rest: {
+      background: COLORS.card,
+      border: `1px solid ${COLORS.borderSoft}`,
+      boxShadow: "none",
+    },
+    hoverBorder: COLORS.border,
+    hoverShadow: COLORS.shadow,
+    lifts: true,
+  },
+  status: {
+    rest: {
+      background: COLORS.card,
+      border: `1px solid ${COLORS.borderSoft}`,
+      boxShadow: "none",
+    },
+    hoverBorder: COLORS.border,
+    hoverShadow: COLORS.shadow,
+    lifts: false,
+  },
+  locked: {
+    // "Preview / available on upgrade" — not "denied". Soft forest tint
+    // signals "this is reachable" rather than the previous gray-dashed wall.
+    rest: {
+      background: "rgba(15,79,62,0.04)",
+      border: `1px solid rgba(15,79,62,0.18)`,
+      boxShadow: "none",
+    },
+    hoverBorder: "rgba(15,79,62,0.32)",
+    hoverShadow: COLORS.shadow,
+    lifts: true,
+  },
+  starter: {
+    rest: {
+      background: COLORS.surfaceAlt,
+      border: `1px solid rgba(15,79,62,0.18)`,
+      boxShadow: "none",
+    },
+    hoverBorder: "rgba(15,79,62,0.32)",
+    hoverShadow: COLORS.shadow,
+    lifts: true,
+  },
+  accent: {
+    rest: {
+      background: COLORS.accentSoft,
+      border: `1px solid rgba(15,79,62,0.18)`,
+      boxShadow: "none",
+    },
+    hoverBorder: "rgba(15,79,62,0.34)",
+    hoverShadow: COLORS.shadowHover,
+    lifts: true,
+  },
+};
+
 function CardFrame({
   onClick,
   children,
@@ -493,29 +1056,8 @@ function CardFrame({
   ariaLabel,
   fullHeight,
   variant = "primary",
-}: CardBase & { variant?: "primary" | "secondary" | "status" | "locked" | "starter" }) {
-  const variants: Record<typeof variant, CSSProperties> = {
-    primary: {
-      background: COLORS.card,
-      border: `1px solid ${COLORS.border}`,
-    },
-    secondary: {
-      background: COLORS.card,
-      border: `1px solid ${COLORS.borderSoft}`,
-    },
-    status: {
-      background: COLORS.card,
-      border: `1px solid ${COLORS.borderSoft}`,
-    },
-    locked: {
-      background: "rgba(11,11,13,0.015)",
-      border: `1px dashed rgba(11,11,13,0.16)`,
-    },
-    starter: {
-      background: COLORS.cream,
-      border: `1px solid rgba(184,134,11,0.18)`,
-    },
-  };
+}: CardBase & { variant?: CardVariant }) {
+  const v = CARD_VARIANT_STYLES[variant];
   const interactive = Boolean(onClick);
   return (
     <button
@@ -525,43 +1067,54 @@ function CardFrame({
       aria-label={ariaLabel}
       className={className}
       style={{
-        ...variants[variant],
+        ...v.rest,
         textAlign: "left",
         padding: 0,
         margin: 0,
+        position: "relative",
         cursor: interactive ? "pointer" : "default",
         borderRadius: 14,
         width: "100%",
         height: fullHeight ? "100%" : undefined,
         display: "block",
-        transition: "border-color .15s, transform .15s, box-shadow .15s",
+        transition: "border-color .18s ease, transform .18s ease, box-shadow .18s ease",
         outline: "none",
         font: "inherit",
+        willChange: interactive ? "transform" : undefined,
         ...style,
       }}
       onMouseEnter={(e) => {
         if (!interactive) return;
         const t = e.currentTarget;
-        if (variant === "locked") {
-          t.style.borderColor = "rgba(11,11,13,0.30)";
-        } else if (variant === "starter") {
-          t.style.borderColor = "rgba(184,134,11,0.32)";
-        } else {
-          t.style.borderColor = "rgba(11,11,13,0.18)";
-          t.style.boxShadow = "0 6px 20px -10px rgba(11,11,13,0.18)";
-        }
+        const baseBorder = (v.rest.border as string) ?? "";
+        // Replace just the color portion of the existing border declaration.
+        const isDashed = baseBorder.includes("dashed");
+        t.style.border = `1px ${isDashed ? "dashed" : "solid"} ${v.hoverBorder}`;
+        t.style.boxShadow = v.hoverShadow;
+        if (v.lifts) t.style.transform = "translateY(-1px)";
       }}
       onMouseLeave={(e) => {
         const t = e.currentTarget;
-        t.style.borderColor = (variants[variant].border as string).split(" ").slice(2).join(" ").replace("solid ", "").replace("dashed ", "");
-        t.style.boxShadow = "none";
-        // restore by re-setting explicitly
-        if (variant === "primary") t.style.border = `1px solid ${COLORS.border}`;
-        else if (variant === "locked") t.style.border = `1px dashed rgba(11,11,13,0.16)`;
-        else if (variant === "starter") t.style.border = `1px solid rgba(184,134,11,0.18)`;
-        else t.style.border = `1px solid ${COLORS.borderSoft}`;
+        t.style.border = v.rest.border as string;
+        t.style.boxShadow = (v.rest.boxShadow as string) ?? "none";
+        t.style.transform = "translateY(0)";
       }}
     >
+      {/* Accent variant gets a 3px left strip in the deep forest tone. */}
+      {variant === "accent" && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: 12,
+            bottom: 12,
+            left: 0,
+            width: 3,
+            borderRadius: "0 3px 3px 0",
+            background: COLORS.accent,
+          }}
+        />
+      )}
       {children}
     </button>
   );
@@ -578,6 +1131,7 @@ export function PrimaryCard({
   footer,
   badge,
   children,
+  variant = "primary",
 }: {
   title: string;
   description?: string;
@@ -589,10 +1143,21 @@ export function PrimaryCard({
   footer?: ReactNode;
   badge?: ReactNode;
   children?: ReactNode;
+  /** Pass "accent" to switch to the forest-tinted spotlight treatment. */
+  variant?: "primary" | "accent";
 }) {
   return (
-    <CardFrame onClick={onClick} variant="primary" fullHeight={fullHeight}>
-      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
+    <CardFrame onClick={onClick} variant={variant} fullHeight={fullHeight}>
+      <div
+        style={{
+          padding: 20,
+          paddingLeft: variant === "accent" ? 24 : 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          height: "100%",
+        }}
+      >
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
           {icon && <IconChip>{icon}</IconChip>}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -600,12 +1165,12 @@ export function PrimaryCard({
               <h3
                 style={{
                   fontFamily: FONTS.display,
-                  fontSize: 19,
-                  fontWeight: 500,
-                  letterSpacing: -0.2,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: -0.15,
                   color: COLORS.ink,
                   margin: 0,
-                  lineHeight: 1.25,
+                  lineHeight: 1.3,
                 }}
               >
                 {title}
@@ -658,6 +1223,7 @@ export function SecondaryCard({
   onClick,
   children,
   fullHeight,
+  variant = "secondary",
 }: {
   title: string;
   description?: string;
@@ -666,9 +1232,11 @@ export function SecondaryCard({
   onClick?: CardClickHandler;
   children?: ReactNode;
   fullHeight?: boolean;
+  /** Pass "accent" for the forest-tinted spotlight treatment. */
+  variant?: "secondary" | "accent";
 }) {
   return (
-    <CardFrame onClick={onClick} variant="secondary" fullHeight={fullHeight}>
+    <CardFrame onClick={onClick} variant={variant} fullHeight={fullHeight}>
       <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
         <div>
           <h3
@@ -734,39 +1302,97 @@ export function StatusCard({
   onClick?: CardClickHandler;
   tone?: "ink" | "amber" | "green" | "dim";
 }) {
-  const dotTone = tone ?? "dim";
+  // Tone tints the metric value subtly — green for positive signal,
+  // slate for "needs attention", neutral otherwise. Replaces the old
+  // colored leading dot, which carried no information beyond what tone
+  // already says.
+  const valueColor =
+    tone === "green"
+      ? COLORS.green
+      : tone === "amber"
+        ? COLORS.amber
+        : COLORS.ink;
   return (
     <CardFrame onClick={onClick} variant="status">
-      <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <StatDot tone={dotTone} size={6} />
-          <CapsLabel>{label}</CapsLabel>
+      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 500,
+            color: COLORS.inkMuted,
+            letterSpacing: 0.05,
+          }}
+        >
+          {label}
         </div>
         <div
           style={{
             fontFamily: FONTS.display,
             fontSize: 32,
             fontWeight: 500,
-            color: COLORS.ink,
+            color: valueColor,
             letterSpacing: -0.6,
             lineHeight: 1,
+            fontVariantNumeric: "tabular-nums",
           }}
         >
           {value}
         </div>
-        {caption && (
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-            }}
-          >
-            {caption}
-          </div>
-        )}
+        {caption && <StatusCaption text={caption} />}
       </div>
     </CardFrame>
+  );
+}
+
+/**
+ * Caption renderer that detects a trailing trend token like "+18%" or
+ * "−4%" and tints it green/red. Falls back to plain muted ink. Keeps the
+ * surrounding text neutral so the trend reads as a sentiment signal.
+ */
+function StatusCaption({ text }: { text: string }) {
+  // Match a leading + or − (Unicode minus, ASCII -, en-dash) followed by
+  // digits and an optional %, anywhere in the string. We only style the
+  // first match so multi-trend captions don't blow up.
+  const match = text.match(/([+\-−–][\d.,]+%?)/);
+  if (!match) {
+    return (
+      <div
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.inkMuted,
+        }}
+      >
+        {text}
+      </div>
+    );
+  }
+  const before = text.slice(0, match.index ?? 0);
+  const after = text.slice((match.index ?? 0) + match[0].length);
+  const trend = match[0];
+  const isPositive = /^[+]/.test(trend);
+  const trendColor = isPositive ? COLORS.green : COLORS.red;
+  return (
+    <div
+      style={{
+        fontFamily: FONTS.body,
+        fontSize: 12,
+        color: COLORS.inkMuted,
+      }}
+    >
+      {before}
+      <span
+        style={{
+          color: trendColor,
+          fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {trend}
+      </span>
+      {after}
+    </div>
   );
 }
 
@@ -775,7 +1401,7 @@ export function LockedCard({
   description,
   requiredPlan,
   onClick,
-  affordance = "See what's included",
+  affordance = "Unlock",
   fullHeight,
 }: {
   title: string;
@@ -794,39 +1420,37 @@ export function LockedCard({
               width: 32,
               height: 32,
               borderRadius: 9,
-              background: "rgba(11,11,13,0.04)",
-              border: `1px solid ${COLORS.border}`,
+              background: COLORS.accentSoft,
+              border: `1px solid rgba(15,79,62,0.22)`,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              color: COLORS.inkDim,
+              color: COLORS.accent,
               flexShrink: 0,
             }}
           >
-            <Icon name="lock" size={14} stroke={1.6} />
+            <Icon name="sparkle" size={13} stroke={1.7} color={COLORS.accent} />
           </span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-              <h3
-                style={{
-                  fontFamily: FONTS.display,
-                  fontSize: 18,
-                  fontWeight: 500,
-                  color: COLORS.inkMuted,
-                  margin: 0,
-                  lineHeight: 1.25,
-                }}
-              >
-                {title}
-              </h3>
-            </div>
+            <h3
+              style={{
+                fontFamily: FONTS.display,
+                fontSize: 18,
+                fontWeight: 500,
+                color: COLORS.ink,
+                margin: 0,
+                lineHeight: 1.25,
+              }}
+            >
+              {title}
+            </h3>
             {description && (
               <p
                 style={{
                   fontFamily: FONTS.body,
                   fontSize: 12.5,
-                  color: COLORS.inkDim,
-                  margin: 0,
+                  color: COLORS.inkMuted,
+                  margin: "2px 0 0",
                   lineHeight: 1.5,
                 }}
               >
@@ -845,10 +1469,25 @@ export function LockedCard({
             paddingTop: 6,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <CapsLabel color={COLORS.inkDim}>On {PLAN_META[requiredPlan].label}</CapsLabel>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "3px 8px",
+              borderRadius: 999,
+              background: "#fff",
+              border: `1px solid rgba(15,79,62,0.20)`,
+              fontFamily: FONTS.body,
+              fontSize: 11,
+              fontWeight: 600,
+              color: COLORS.accentDeep,
+              letterSpacing: 0.2,
+            }}
+          >
+            {PLAN_META[requiredPlan].label} · {planPriceCompact(requiredPlan)}
           </div>
-          {onClick && <Affordance label={affordance} color={COLORS.inkMuted} />}
+          {onClick && <Affordance label={affordance} color={COLORS.accent} />}
         </div>
       </div>
     </CardFrame>
@@ -867,13 +1506,13 @@ export function CompactLockedCard({
   return (
     <CardFrame onClick={onClick} variant="locked">
       <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
-        <Icon name="lock" size={12} stroke={1.6} color={COLORS.inkDim} />
+        <Icon name="sparkle" size={12} stroke={1.7} color={COLORS.accent} />
         <span
           style={{
             fontFamily: FONTS.body,
             fontSize: 13,
             fontWeight: 500,
-            color: COLORS.inkMuted,
+            color: COLORS.ink,
             flex: 1,
             minWidth: 0,
             whiteSpace: "nowrap",
@@ -883,7 +1522,18 @@ export function CompactLockedCard({
         >
           {title}
         </span>
-        <PlanChip plan={requiredPlan} variant="outline" />
+        <span
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 11,
+            fontWeight: 600,
+            color: COLORS.accentDeep,
+            letterSpacing: 0.2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {PLAN_META[requiredPlan].label} · {planPriceCompact(requiredPlan)}
+        </span>
       </div>
     </CardFrame>
   );
@@ -905,22 +1555,37 @@ export function StarterCard({
   return (
     <div
       style={{
-        background: COLORS.cream,
-        border: `1px solid rgba(184,134,11,0.18)`,
+        background: COLORS.surfaceAlt,
+        border: `1px solid ${COLORS.border}`,
         borderRadius: 16,
-        padding: 22,
+        padding: 24,
         position: "relative",
         overflow: "hidden",
+        boxShadow: COLORS.shadow,
       }}
     >
+      {/* Subtle forest-accent strip — keeps the "spotlight / earn this" semantic
+          the cream + brass used to carry, without the warm aesthetic. */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 0,
+          top: 16,
+          bottom: 16,
+          width: 3,
+          borderRadius: "0 3px 3px 0",
+          background: COLORS.accent,
+        }}
+      />
       <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
         <div
           style={{
             width: 36,
             height: 36,
             borderRadius: 10,
-            background: "rgba(184,134,11,0.14)",
-            color: COLORS.goldDeep,
+            background: COLORS.accentSoft,
+            color: COLORS.accent,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
@@ -947,7 +1612,7 @@ export function StarterCard({
             <p
               style={{
                 fontFamily: FONTS.body,
-                fontSize: 13.5,
+                fontSize: 13,
                 color: COLORS.inkMuted,
                 margin: "4px 0 0",
                 lineHeight: 1.55,
@@ -965,6 +1630,355 @@ export function StarterCard({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Inline "you're approaching/at your cap" nudge bar.
+ * Only renders when usage ≥ `triggerAt` (default 0.8 — 80% of cap).
+ * At/over cap renders in red urgency tone; otherwise forest-accent informational.
+ *
+ * Designed for placement above the list/grid the cap governs — e.g. the
+ * roster grid on the Talent page, the team table on Settings → Team.
+ */
+export function CapNudge({
+  label,
+  current,
+  cap,
+  triggerAt = 0.8,
+  onUpgrade,
+  upgradeLabel = "Upgrade",
+  message,
+}: {
+  /** Short noun for the metric ("talents", "team seats", "saved searches"). */
+  label: string;
+  current: number;
+  cap: number;
+  /** Show the nudge when usage / cap ≥ this. Default 0.8. */
+  triggerAt?: number;
+  onUpgrade?: () => void;
+  upgradeLabel?: string;
+  /** Optional override for the body copy. */
+  message?: string;
+}) {
+  if (cap <= 0) return null;
+  const ratio = current / cap;
+  if (ratio < triggerAt) return null;
+
+  const blocking = current >= cap;
+  const remaining = Math.max(0, cap - current);
+  const defaultMessage = blocking
+    ? `You're at the limit. New ${label} can't be added until you upgrade.`
+    : `${remaining} ${label.replace(/s$/, "") + (remaining === 1 ? "" : "s")} left before you hit the cap.`;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        background: blocking ? "rgba(176,48,58,0.05)" : COLORS.accentSoft,
+        border: `1px solid ${blocking ? "rgba(176,48,58,0.30)" : "rgba(15,79,62,0.22)"}`,
+        borderRadius: 10,
+        marginBottom: 16,
+      }}
+    >
+      <span
+        style={{
+          width: 24,
+          height: 24,
+          borderRadius: 7,
+          background: "#fff",
+          color: blocking ? COLORS.red : COLORS.accent,
+          border: `1px solid ${blocking ? "rgba(176,48,58,0.32)" : "rgba(15,79,62,0.22)"}`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Icon name={blocking ? "info" : "sparkle"} size={11} stroke={1.8} />
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: blocking ? COLORS.red : COLORS.accentDeep,
+            lineHeight: 1.3,
+          }}
+        >
+          {current} of {cap} {label} used
+        </div>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            color: COLORS.inkMuted,
+            marginTop: 1,
+            lineHeight: 1.4,
+          }}
+        >
+          {message ?? defaultMessage}
+        </div>
+      </div>
+      {onUpgrade && (
+        <button
+          onClick={onUpgrade}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "6px 11px",
+            background: blocking ? COLORS.red : COLORS.accent,
+            color: "#fff",
+            border: "none",
+            borderRadius: 7,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          {upgradeLabel}
+          <Icon name="arrow-right" size={10} stroke={2} color="#fff" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Generic empty-state block. Replaces the previous "No X yet" gray-text
+ * dead-ends with a properly framed call to action.
+ *
+ * Goals:
+ *  - Always offer a primary action (or document why none is appropriate).
+ *  - Keep visual weight light — borderless wash, modest icon — so it
+ *    doesn't compete with real content nearby.
+ *  - Title + body + CTA structure so empty surfaces read as "do this next",
+ *    not "nothing here".
+ */
+export function EmptyState({
+  icon = "sparkle",
+  title,
+  body,
+  primaryLabel,
+  onPrimary,
+  secondaryLabel,
+  onSecondary,
+  compact = false,
+  tips,
+}: {
+  icon?:
+    | "sparkle"
+    | "plus"
+    | "search"
+    | "mail"
+    | "calendar"
+    | "user"
+    | "team"
+    | "info";
+  title: string;
+  body?: string;
+  primaryLabel?: string;
+  onPrimary?: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  /** Tighten padding for inline use inside drawers / cards. */
+  compact?: boolean;
+  /**
+   * Optional list of concrete next-actions (3 items max). Each renders
+   * as a clickable row below the body copy — gives empty states a
+   * "here's what to do next" feel rather than a dead-end. Suggested for
+   * any first-run / zero-data surface.
+   */
+  tips?: { label: string; description?: string; onClick?: () => void }[];
+}) {
+  const pad = compact ? "20px 16px" : "32px 20px";
+  return (
+    <div
+      style={{
+        padding: pad,
+        textAlign: "center",
+        fontFamily: FONTS.body,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: COLORS.accentSoft,
+          color: COLORS.accent,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 10,
+        }}
+      >
+        <Icon name={icon} size={16} stroke={1.7} color={COLORS.accent} />
+      </div>
+      <h3
+        style={{
+          fontFamily: FONTS.display,
+          fontSize: 17,
+          fontWeight: 500,
+          color: COLORS.ink,
+          margin: 0,
+          letterSpacing: -0.15,
+          lineHeight: 1.3,
+        }}
+      >
+        {title}
+      </h3>
+      {body && (
+        <p
+          style={{
+            fontSize: 12.5,
+            color: COLORS.inkMuted,
+            margin: "2px 0 0",
+            lineHeight: 1.5,
+            maxWidth: 360,
+          }}
+        >
+          {body}
+        </p>
+      )}
+      {(primaryLabel || secondaryLabel) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14 }}>
+          {secondaryLabel && onSecondary && (
+            <SecondaryButton size="sm" onClick={onSecondary}>
+              {secondaryLabel}
+            </SecondaryButton>
+          )}
+          {primaryLabel && onPrimary && (
+            <PrimaryButton onClick={onPrimary}>{primaryLabel}</PrimaryButton>
+          )}
+        </div>
+      )}
+      {tips && tips.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            marginTop: 18,
+            width: "100%",
+            maxWidth: 380,
+            textAlign: "left",
+          }}
+        >
+          {tips.slice(0, 3).map((tip, idx) => (
+            <EmptyStateTip
+              key={idx}
+              index={idx + 1}
+              label={tip.label}
+              description={tip.description}
+              onClick={tip.onClick}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EmptyStateTip({
+  index,
+  label,
+  description,
+  onClick,
+}: {
+  index: number;
+  label: string;
+  description?: string;
+  onClick?: () => void;
+}) {
+  const numberChip = (
+    <span
+      aria-hidden
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: "50%",
+        background: COLORS.accentSoft,
+        color: COLORS.accentDeep,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 11,
+        fontWeight: 700,
+        flexShrink: 0,
+      }}
+    >
+      {index}
+    </span>
+  );
+  const labels = (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.35 }}>{label}</div>
+      {description && (
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            marginTop: 2,
+            lineHeight: 1.4,
+          }}
+        >
+          {description}
+        </div>
+      )}
+    </div>
+  );
+  const sharedStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: "10px 12px",
+    background: "#fff",
+    border: `1px solid ${COLORS.borderSoft}`,
+    borderRadius: 9,
+    textAlign: "left",
+    fontFamily: FONTS.body,
+    color: COLORS.ink,
+    transition: "border-color .12s, box-shadow .12s",
+  };
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        style={{ ...sharedStyle, cursor: "pointer", width: "100%" }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = COLORS.border;
+          e.currentTarget.style.boxShadow = COLORS.shadowHover;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = COLORS.borderSoft;
+          e.currentTarget.style.boxShadow = "none";
+        }}
+      >
+        {numberChip}
+        {labels}
+        <Icon name="chevron-right" size={12} color={COLORS.inkDim} />
+      </button>
+    );
+  }
+  return (
+    <div style={sharedStyle}>
+      {numberChip}
+      {labels}
     </div>
   );
 }
@@ -999,7 +2013,7 @@ export function MoreWithSection({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 10,
         }}
       >
@@ -1183,6 +2197,11 @@ export function DrawerShell({
   const [customWidth, setCustomWidth] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const panelRef = useRef<HTMLElement | null>(null);
+  // Drawer back-stack: when a previous drawer is below in the chain we
+  // render a small "← Back" anchor so users can pop instead of close-and-
+  // reopen. Pulled directly from context — no per-drawer wiring needed.
+  const proto = useProto();
+  const previousDrawer = proto.drawerStack[proto.drawerStack.length - 1];
 
   // Reset size when drawer reopens (so a fullscreen leftover doesn't bleed in)
   useEffect(() => {
@@ -1238,16 +2257,18 @@ export function DrawerShell({
 
   return (
     <>
-      {/* backdrop */}
+      {/* backdrop — kept light so the surface behind stays legible (helps
+          orient the user) and so the drawer feels like a layered panel
+          rather than a modal takeover. */}
       <div
         onClick={onClose}
         aria-hidden
+        data-tulala-drawer-overlay
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(11,11,13,0.42)",
-          backdropFilter: "blur(2px)",
-          zIndex: 60,
+          background: "rgba(11,11,13,0.28)",
+          zIndex: Z.drawerBackdrop,
           opacity: open ? 1 : 0,
           pointerEvents: open ? "auto" : "none",
           transition: "opacity .2s ease",
@@ -1259,6 +2280,7 @@ export function DrawerShell({
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        data-tulala-drawer-panel
         style={{
           position: "fixed",
           top: 0,
@@ -1268,7 +2290,7 @@ export function DrawerShell({
           maxWidth: "96vw",
           background: COLORS.surface,
           borderLeft: `1px solid ${COLORS.border}`,
-          zIndex: 61,
+          zIndex: Z.drawerPanel,
           display: "flex",
           flexDirection: "column",
           transform: open ? "translateX(0)" : "translateX(100%)",
@@ -1314,6 +2336,31 @@ export function DrawerShell({
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
+            {previousDrawer && (
+              <button
+                type="button"
+                onClick={proto.popDrawer}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  color: COLORS.inkMuted,
+                  marginBottom: 6,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
+              >
+                <span aria-hidden style={{ fontSize: 12 }}>←</span>
+                Back to {drawerIdToLabel(previousDrawer.drawerId)}
+              </button>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <h2
                 style={{
@@ -1347,6 +2394,7 @@ export function DrawerShell({
           <div style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             {resizable && (
               <div
+                data-tulala-drawer-size-toolbar
                 style={{
                   display: "inline-flex",
                   background: "rgba(11,11,13,0.04)",
@@ -1357,37 +2405,37 @@ export function DrawerShell({
               >
                 {(["compact", "half", "full"] as DrawerSize[]).map((s) => {
                   const active = (customWidth === null && size === s);
+                  const tip =
+                    s === "compact"
+                      ? "Side drawer"
+                      : s === "half"
+                        ? "Half-page"
+                        : "Full-page";
                   return (
-                    <button
-                      key={s}
-                      onClick={() => {
-                        setCustomWidth(null);
-                        setSize(s);
-                      }}
-                      title={
-                        s === "compact"
-                          ? "Side drawer"
-                          : s === "half"
-                            ? "Half-page"
-                            : "Full-page"
-                      }
-                      aria-label={`${s} size`}
-                      style={{
-                        background: active ? "#fff" : "transparent",
-                        boxShadow: active
-                          ? "0 1px 3px rgba(11,11,13,0.10)"
-                          : "none",
-                        border: "none",
-                        padding: "5px 8px",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        color: active ? COLORS.ink : COLORS.inkMuted,
-                        display: "inline-flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      <SizeIcon variant={s} />
-                    </button>
+                    <Popover key={s} content={tip}>
+                      <button
+                        onClick={() => {
+                          setCustomWidth(null);
+                          setSize(s);
+                        }}
+                        aria-label={`${s} size`}
+                        style={{
+                          background: active ? "#fff" : "transparent",
+                          boxShadow: active
+                            ? "0 1px 3px rgba(11,11,13,0.10)"
+                            : "none",
+                          border: "none",
+                          padding: "5px 8px",
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          color: active ? COLORS.ink : COLORS.inkMuted,
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        <SizeIcon variant={s} />
+                      </button>
+                    </Popover>
                   );
                 })}
               </div>
@@ -1423,6 +2471,7 @@ export function DrawerShell({
           </div>
         </header>
         <div
+          data-tulala-drawer-body
           style={{
             flex: 1,
             overflowY: "auto",
@@ -1433,6 +2482,7 @@ export function DrawerShell({
         </div>
         {footer && (
           <footer
+            data-tulala-drawer-footer
             style={{
               padding: "14px 22px",
               borderTop: `1px solid ${COLORS.borderSoft}`,
@@ -1452,19 +2502,22 @@ export function DrawerShell({
 }
 
 function SizeIcon({ variant }: { variant: DrawerSize }) {
+  // Each variant fills a different proportion of the right side of the
+  // viewport rectangle — readable at a glance even at 14px. The empty
+  // rectangle is the page; the filled portion is where the drawer lands.
   const common = {
     width: 14,
     height: 14,
     viewBox: "0 0 16 16",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.5,
+    strokeWidth: 1.4,
   } as const;
   if (variant === "compact") {
     return (
       <svg {...common}>
         <rect x="2" y="3" width="12" height="10" rx="1.5" />
-        <line x1="10.5" y1="3" x2="10.5" y2="13" />
+        <rect x="11" y="3.5" width="2.5" height="9" rx="0.5" fill="currentColor" stroke="none" />
       </svg>
     );
   }
@@ -1472,7 +2525,7 @@ function SizeIcon({ variant }: { variant: DrawerSize }) {
     return (
       <svg {...common}>
         <rect x="2" y="3" width="12" height="10" rx="1.5" />
-        <line x1="8" y1="3" x2="8" y2="13" />
+        <rect x="8" y="3.5" width="5.5" height="9" rx="0.5" fill="currentColor" stroke="none" />
       </svg>
     );
   }
@@ -1480,6 +2533,7 @@ function SizeIcon({ variant }: { variant: DrawerSize }) {
   return (
     <svg {...common}>
       <rect x="2" y="3" width="12" height="10" rx="1.5" />
+      <rect x="3.5" y="4" width="9" height="8" rx="1" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -1514,12 +2568,12 @@ export function ModalShell({
   return (
     <div
       onClick={onClose}
+      data-tulala-modal-overlay
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(11,11,13,0.50)",
-        backdropFilter: "blur(3px)",
-        zIndex: 70,
+        background: "rgba(11,11,13,0.36)",
+        zIndex: Z.modalBackdrop,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -1605,16 +2659,25 @@ export function FieldRow({
 
 export function TextInput({
   defaultValue,
+  value,
+  onChange,
   placeholder,
   prefix,
   suffix,
   type = "text",
+  autoFocus,
+  readOnly,
 }: {
   defaultValue?: string;
+  /** Controlled value. If provided, pair with `onChange`. */
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
   prefix?: ReactNode;
   suffix?: ReactNode;
   type?: "text" | "email" | "url";
+  autoFocus?: boolean;
+  readOnly?: boolean;
 }) {
   return (
     <div
@@ -1645,8 +2708,12 @@ export function TextInput({
       )}
       <input
         type={type}
-        defaultValue={defaultValue}
+        defaultValue={value === undefined ? defaultValue : undefined}
+        value={value}
+        onChange={onChange}
         placeholder={placeholder}
+        autoFocus={autoFocus}
+        readOnly={readOnly}
         style={{
           flex: 1,
           padding: "9px 12px",
@@ -1680,16 +2747,23 @@ export function TextInput({
 
 export function TextArea({
   defaultValue,
+  value,
+  onChange,
   placeholder,
   rows = 4,
 }: {
   defaultValue?: string;
+  /** Controlled value. Pair with onChange when supplied. */
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   placeholder?: string;
   rows?: number;
 }) {
   return (
     <textarea
-      defaultValue={defaultValue}
+      defaultValue={value === undefined ? defaultValue : undefined}
+      value={value}
+      onChange={onChange}
       placeholder={placeholder}
       rows={rows}
       style={{
@@ -1783,9 +2857,73 @@ export function Divider({ label }: { label?: string }) {
 
 // ─── Toast host ──────────────────────────────────────────────────────
 
-export function ToastHost({ toasts }: { toasts: { id: number; message: string }[] }) {
+const TOAST_LIFETIME_MS = 4500;
+
+/**
+ * Per-toast row — owns its own auto-dismiss timer. Hover pauses the timer
+ * (so reading a long-ish toast doesn't get interrupted), mouseleave
+ * resumes from a fresh full window. Click dismisses immediately.
+ */
+function ToastRow({ id, message, onDismiss }: { id: number; message: string; onDismiss?: (id: number) => void }) {
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (!onDismiss || paused) return;
+    const handle = window.setTimeout(() => onDismiss(id), TOAST_LIFETIME_MS);
+    return () => window.clearTimeout(handle);
+  }, [id, onDismiss, paused]);
+  return (
+    <button
+      type="button"
+      onClick={() => onDismiss?.(id)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+      aria-label={`Dismiss: ${message}`}
+      style={{
+        background: COLORS.ink,
+        color: "#fff",
+        padding: "10px 14px",
+        borderRadius: 10,
+        fontFamily: FONTS.body,
+        fontSize: 13,
+        boxShadow: "0 12px 30px -10px rgba(11,11,13,0.5)",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        animation: "tulalaToastIn .18s ease",
+        border: "none",
+        cursor: onDismiss ? "pointer" : "default",
+        // Re-enable interactivity on the toast itself.
+        pointerEvents: "auto",
+        // Ensures the multi-line bottom-right alignment stays clean
+        // regardless of length.
+        textAlign: "left",
+      }}
+    >
+      <Icon name="check" size={14} stroke={2} />
+      {message}
+    </button>
+  );
+}
+
+export function ToastHost({
+  toasts,
+  onDismiss,
+}: {
+  toasts: { id: number; message: string }[];
+  onDismiss?: (id: number) => void;
+}) {
   return (
     <div
+      // Status-region announcements: each new toast is read by screen readers
+      // without stealing focus. `polite` defers until the user is idle so we
+      // don't interrupt active typing.
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
+      aria-relevant="additions text"
+      data-tulala-toast-host
       style={{
         position: "fixed",
         bottom: 20,
@@ -1793,30 +2931,14 @@ export function ToastHost({ toasts }: { toasts: { id: number; message: string }[
         display: "flex",
         flexDirection: "column",
         gap: 8,
-        zIndex: 80,
+        zIndex: Z.toast,
+        // Allow clicks on individual toasts; the wrapper itself stays
+        // pass-through so it never blocks UI underneath.
         pointerEvents: "none",
       }}
     >
       {toasts.map((t) => (
-        <div
-          key={t.id}
-          style={{
-            background: COLORS.ink,
-            color: "#fff",
-            padding: "10px 14px",
-            borderRadius: 10,
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            boxShadow: "0 12px 30px -10px rgba(11,11,13,0.5)",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            animation: "tulalaToastIn .18s ease",
-          }}
-        >
-          <Icon name="check" size={14} stroke={2} />
-          {t.message}
-        </div>
+        <ToastRow key={t.id} id={t.id} message={t.message} onDismiss={onDismiss} />
       ))}
       <style>{`
         @keyframes tulalaToastIn {
@@ -1835,21 +2957,57 @@ export function Avatar({
   size = 32,
   emoji,
   tone = "neutral",
+  photoUrl,
 }: {
   initials?: string;
   size?: number;
   emoji?: string;
-  tone?: "neutral" | "ink" | "warm";
+  tone?: "neutral" | "ink" | "warm" | "auto";
+  /** When provided wins over initials/emoji — actual photo. */
+  photoUrl?: string;
 }) {
-  const tones: Record<typeof tone, CSSProperties> = {
+  // Avatar fallback hierarchy:
+  //   1. Photo (when photoUrl given) — for real people
+  //   2. Initials with deterministic tint per name — also for real people
+  //   3. Emoji — only for non-person entities (brand, hub, system)
+  // tone="auto" (default for new code) hashes the initials to pick a quiet
+  // color from the brand-safe set. Forest-leaning, no warm gold/rust.
+  const autoTones: CSSProperties[] = [
+    { background: "rgba(15,79,62,0.10)", color: COLORS.accentDeep },
+    { background: "rgba(11,11,13,0.06)", color: COLORS.ink },
+    { background: "rgba(46,125,91,0.10)", color: "#1F5C42" },
+    { background: "rgba(82,96,109,0.10)", color: "#3A4651" },
+    { background: COLORS.surfaceAlt, color: COLORS.ink },
+  ];
+  const tones: Record<Exclude<typeof tone, "auto">, CSSProperties> = {
     neutral: { background: "rgba(11,11,13,0.06)", color: COLORS.ink },
     ink: { background: COLORS.ink, color: "#fff" },
-    warm: { background: COLORS.cream, color: COLORS.ink },
+    warm: { background: COLORS.surfaceAlt, color: COLORS.ink },
   };
+  const resolved =
+    tone === "auto"
+      ? autoTones[hashString(initials ?? emoji ?? "x") % autoTones.length]!
+      : tones[tone];
+  if (photoUrl) {
+    return (
+      <span
+        aria-hidden
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          backgroundImage: `url(${photoUrl})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
   return (
     <span
       style={{
-        ...tones[tone],
+        ...resolved,
         width: size,
         height: size,
         borderRadius: "50%",
@@ -1865,6 +3023,278 @@ export function Avatar({
       }}
     >
       {emoji ?? initials}
+    </span>
+  );
+}
+
+/**
+ * Map a DrawerId to a human-readable label for the breadcrumb. Exhaustive
+ * lookup is overkill given there are ~150 ids — instead we humanize the
+ * id by replacing dashes with spaces and falling back to the id itself.
+ */
+function drawerIdToLabel(id: string | null): string {
+  if (!id) return "previous";
+  return id
+    .split("-")
+    .map((part, i) => (i === 0 ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+    .join(" ");
+}
+
+// djb2 hash. Tiny + deterministic — fine for choosing a tint.
+function hashString(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h) + s.charCodeAt(i);
+  return Math.abs(h);
+}
+
+// ─── SwipeableRow ────────────────────────────────────────────────────
+/**
+ * Mobile list row with hidden left and/or right action panels that
+ * reveal as the user swipes the row horizontally.
+ *
+ * Implementation notes:
+ *  - Pointer events (touch + mouse) so it works in dev too.
+ *  - Threshold gates: actions latch open at ~50% of action-panel width;
+ *    otherwise the row springs back.
+ *  - On click of an action button, the row is reset.
+ *  - `pointerEvents` are pass-through when not engaged so links inside
+ *    the row keep working on tap-without-drag.
+ */
+export function SwipeableRow({
+  children,
+  leftActions,
+  rightActions,
+}: {
+  children: ReactNode;
+  /** Revealed when user swipes right. Each gets a fixed width tile. */
+  leftActions?: { label: string; onClick: () => void; tone?: "ink" | "red" | "green" }[];
+  rightActions?: { label: string; onClick: () => void; tone?: "ink" | "red" | "green" }[];
+}) {
+  const [dx, setDx] = useState(0);
+  const startX = useRef<number | null>(null);
+  const startDx = useRef(0);
+  const ACTION_WIDTH = 80;
+  const leftMax = (leftActions?.length ?? 0) * ACTION_WIDTH;
+  const rightMax = (rightActions?.length ?? 0) * ACTION_WIDTH;
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    startX.current = e.clientX;
+    startDx.current = dx;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (startX.current === null) return;
+    const delta = e.clientX - startX.current;
+    let next = startDx.current + delta;
+    next = Math.max(-rightMax, Math.min(leftMax, next));
+    setDx(next);
+  };
+  const onPointerUp = () => {
+    startX.current = null;
+    // Snap to fully open (one direction) or closed
+    if (dx > leftMax / 2) setDx(leftMax);
+    else if (dx < -rightMax / 2) setDx(-rightMax);
+    else setDx(0);
+  };
+
+  const toneColor = (tone?: "ink" | "red" | "green") =>
+    tone === "red" ? COLORS.red : tone === "green" ? COLORS.green : COLORS.ink;
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        touchAction: "pan-y",
+      }}
+    >
+      {/* Left action panel — sits behind the row, revealed when dx > 0 */}
+      {leftActions && leftActions.length > 0 && (
+        <div
+          aria-hidden={dx <= 0}
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            justifyContent: "flex-start",
+            pointerEvents: dx > 0 ? "auto" : "none",
+          }}
+        >
+          {leftActions.map((a, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                a.onClick();
+                setDx(0);
+              }}
+              style={{
+                width: ACTION_WIDTH,
+                background: toneColor(a.tone),
+                color: "#fff",
+                border: "none",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Right action panel */}
+      {rightActions && rightActions.length > 0 && (
+        <div
+          aria-hidden={dx >= 0}
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            justifyContent: "flex-end",
+            pointerEvents: dx < 0 ? "auto" : "none",
+          }}
+        >
+          {rightActions.map((a, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                a.onClick();
+                setDx(0);
+              }}
+              style={{
+                width: ACTION_WIDTH,
+                background: toneColor(a.tone),
+                color: "#fff",
+                border: "none",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Row — translates with the drag */}
+      <div
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        style={{
+          background: COLORS.card,
+          transform: `translateX(${dx}px)`,
+          transition: startX.current === null ? "transform .2s ease" : "none",
+          willChange: "transform",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Popover ─────────────────────────────────────────────────────────
+/**
+ * Hover/focus-triggered popover with a 200ms open delay (vs. the 700ms
+ * browser-native title=). Used for richer tooltips on chips, badges,
+ * status icons, drawer toolbar buttons, anywhere we previously relied on
+ * `title=` for explanations.
+ *
+ * Pattern: wrap a single trigger child. Children render normally; a
+ * floating panel appears above (or below if no room) on hover/focus.
+ *
+ * Keyboard: focus opens, blur closes, Escape closes.
+ */
+export function Popover({
+  children,
+  content,
+  placement = "top",
+  delayMs = 200,
+}: {
+  children: ReactNode;
+  content: ReactNode;
+  placement?: "top" | "bottom";
+  delayMs?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  const scheduleOpen = () => {
+    if (timerRef.current !== null) return;
+    timerRef.current = window.setTimeout(() => {
+      setOpen(true);
+      timerRef.current = null;
+    }, delayMs);
+  };
+  const cancelAndClose = () => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setOpen(false);
+  };
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  return (
+    <span
+      style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={scheduleOpen}
+      onMouseLeave={cancelAndClose}
+      onFocus={scheduleOpen}
+      onBlur={cancelAndClose}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") cancelAndClose();
+      }}
+    >
+      {children}
+      {open && (
+        <span
+          role="tooltip"
+          style={{
+            position: "absolute",
+            zIndex: 90,
+            left: "50%",
+            transform: "translateX(-50%)",
+            [placement === "top" ? "bottom" : "top"]: "calc(100% + 8px)",
+            background: COLORS.ink,
+            color: "#fff",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 500,
+            lineHeight: 1.4,
+            padding: "6px 10px",
+            borderRadius: 7,
+            whiteSpace: "nowrap",
+            maxWidth: 280,
+            boxShadow: "0 6px 18px rgba(11,11,13,0.18)",
+            pointerEvents: "none",
+          }}
+        >
+          {content}
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%) rotate(45deg)",
+              [placement === "top" ? "bottom" : "top"]: -3,
+              width: 8,
+              height: 8,
+              background: COLORS.ink,
+            }}
+          />
+        </span>
+      )}
     </span>
   );
 }

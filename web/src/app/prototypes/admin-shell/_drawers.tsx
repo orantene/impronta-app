@@ -2,9 +2,21 @@
 
 import { useState, type ReactNode } from "react";
 import {
+  CLIENT_TRUST_META,
   COLORS,
   FONTS,
+  PLANS,
+  PLAN_LADDER,
+  PLAN_LADDER_HEADER,
   PLAN_META,
+  PLAN_FEE_META,
+  planPrice,
+  PAYOUT_STATUS_META,
+  PAYOUT_RECEIVER_KIND_LABEL,
+  PAYOUT_RECEIVER_CANDIDATES,
+  PAYMENT_STATUS_META,
+  PAYMENT_SUMMARIES,
+  WORKSPACE_PAYMENTS,
   ROLE_META,
   TALENT_STATE_LABEL,
   TALENT_STATE_TONE,
@@ -13,36 +25,55 @@ import {
   getInquiries,
   getRoster,
   getTeam,
+  getWorkspacePayout,
+  getPaymentSummary,
   meetsPlan,
   meetsRole,
   useProto,
   type DrawerId,
   type Plan,
   type Role,
+  type PayoutReceiver,
+  type RepresentationStatus,
 } from "./_state";
 import {
   Affordance,
   Avatar,
   Bullet,
   CapsLabel,
+  ClientTrustChip,
   Divider,
   FieldRow,
   GhostButton,
   Icon,
   IconChip,
   ModalShell,
+  PaymentStatusChip,
+  PayoutStatusChip,
   PlanChip,
   PrimaryButton,
+  RepresentationChip,
   RoleChip,
   SecondaryButton,
   StateChip,
   StatDot,
+  StatusPill,
   TextArea,
   TextInput,
   Toggle,
   DrawerShell,
 } from "./_primitives";
 import { InquiryWorkspaceDrawer } from "./_workspace";
+import {
+  InboxSnippetsDrawer,
+  NotificationsPrefsDrawer,
+  DataExportDrawer,
+  AuditLogDrawer,
+  TenantSwitcherDrawer,
+  TalentShareCardDrawer,
+  InquiryTemplatesPicker,
+  DoubleBookingWarning,
+} from "./_wave2";
 import {
   TalentTodayPulseDrawer,
   TalentOfferDetailDrawer,
@@ -57,7 +88,29 @@ import {
   TalentNotificationsDrawer,
   TalentPrivacyDrawer,
   TalentPayoutsDrawer,
+  TalentContactPreferencesDrawer,
   TalentEarningsDetailDrawer,
+  TalentPhotoEditDrawer,
+  TalentPolaroidsDrawer,
+  TalentCreditsDrawer,
+  TalentSkillsDrawer,
+  TalentLimitsDrawer,
+  TalentRateCardDrawer,
+  TalentTravelDrawer,
+  TalentLinksDrawer,
+  TalentReviewsDrawer,
+  TalentShowreelDrawer,
+  TalentMeasurementsDrawer,
+  TalentDocumentsDrawer,
+  TalentEmergencyContactDrawer,
+  TalentPublicPreviewDrawer,
+  TalentTierCompareDrawer,
+  TalentPersonalPageDrawer,
+  TalentPageTemplateDrawer,
+  TalentMediaEmbedsDrawer,
+  TalentPressDrawer,
+  TalentMediaKitDrawer,
+  TalentCustomDomainDrawer,
 } from "./_talent";
 import {
   ClientTodayPulseDrawer,
@@ -255,8 +308,60 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentPrivacyDrawer />;
     case "talent-payouts":
       return <TalentPayoutsDrawer />;
+    case "talent-contact-preferences":
+      return <TalentContactPreferencesDrawer />;
     case "talent-earnings-detail":
       return <TalentEarningsDetailDrawer />;
+    case "talent-photo-edit":
+      return <TalentPhotoEditDrawer />;
+    case "talent-polaroids":
+      return <TalentPolaroidsDrawer />;
+    case "talent-credits":
+      return <TalentCreditsDrawer />;
+    case "talent-skills":
+      return <TalentSkillsDrawer />;
+    case "talent-limits":
+      return <TalentLimitsDrawer />;
+    case "talent-rate-card":
+      return <TalentRateCardDrawer />;
+    case "talent-travel":
+      return <TalentTravelDrawer />;
+    case "talent-links":
+      return <TalentLinksDrawer />;
+    case "talent-reviews":
+      return <TalentReviewsDrawer />;
+    case "talent-showreel":
+      return <TalentShowreelDrawer />;
+    case "talent-measurements":
+      return <TalentMeasurementsDrawer />;
+    case "talent-documents":
+      return <TalentDocumentsDrawer />;
+    case "talent-emergency-contact":
+      return <TalentEmergencyContactDrawer />;
+    case "talent-public-preview":
+      return <TalentPublicPreviewDrawer />;
+    case "talent-tier-compare":
+      return <TalentTierCompareDrawer />;
+    case "talent-personal-page":
+      return <TalentPersonalPageDrawer />;
+    case "talent-page-template":
+      return <TalentPageTemplateDrawer />;
+    case "talent-media-embeds":
+      return <TalentMediaEmbedsDrawer />;
+    case "talent-press":
+      return <TalentPressDrawer />;
+    case "talent-media-kit":
+      return <TalentMediaKitDrawer />;
+    case "talent-custom-domain":
+      return <TalentCustomDomainDrawer />;
+
+    // ─── Payments / payouts ─────────────────────────────────────────────
+    case "payments-setup":
+      return <PaymentsSetupDrawer />;
+    case "payout-receiver-picker":
+      return <PayoutReceiverPickerDrawer />;
+    case "payment-detail":
+      return <PaymentDetailDrawer />;
 
     // ─── Client surface drawers ─────────────────────────────────────────
     case "client-today-pulse":
@@ -291,6 +396,10 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <ClientSettingsDrawer />;
     case "client-quick-question":
       return <ClientQuickQuestionDrawer />;
+
+    // ─── Cross-cutting upgrade surfaces ─────────────────────────────────
+    case "plan-compare":
+      return <PlanCompareDrawer />;
 
     // ─── Platform / HQ drawers ──────────────────────────────────────────
     case "platform-today-pulse":
@@ -335,6 +444,20 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <PlatformHqTeamDrawer />;
     case "platform-region-config":
       return <PlatformRegionConfigDrawer />;
+
+    // ─── Wave 2 drawers ─────────────────────────────────────────────────
+    case "inbox-snippets":
+      return <InboxSnippetsDrawer />;
+    case "notifications-prefs":
+      return <NotificationsPrefsDrawer />;
+    case "data-export":
+      return <DataExportDrawer />;
+    case "audit-log":
+      return <AuditLogDrawer />;
+    case "tenant-switcher":
+      return <TenantSwitcherDrawer />;
+    case "talent-share-card":
+      return <TalentShareCardDrawer />;
 
     default:
       return <SimpleStubDrawer title="Coming up next" description="This drawer's full design lands in the next iteration." sections={[]} />;
@@ -392,15 +515,26 @@ function Section({
   title,
   description,
   children,
+  framed = false,
+  dense = false,
 }: {
   title?: string;
   description?: string;
   children: ReactNode;
+  /** When true the children sit in a bordered panel that gives the eye an anchor. Use for sections that are pure form-field stacks; leave off for sections whose contents already render their own cards/borders. */
+  framed?: boolean;
+  /** Tightens vertical gap between children for compact list-style sections. */
+  dense?: boolean;
 }) {
+  const inner = (
+    <div style={{ display: "flex", flexDirection: "column", gap: dense ? 10 : 14 }}>
+      {children}
+    </div>
+  );
   return (
     <section style={{ marginBottom: 22 }}>
       {title && (
-        <div style={{ marginBottom: 4 }}>
+        <div style={{ marginBottom: 6 }}>
           <CapsLabel>{title}</CapsLabel>
         </div>
       )}
@@ -417,7 +551,21 @@ function Section({
           {description}
         </p>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>{children}</div>
+      {framed ? (
+        <div
+          style={{
+            background: COLORS.card,
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: 14,
+            boxShadow: COLORS.shadow,
+          }}
+        >
+          {inner}
+        </div>
+      ) : (
+        inner
+      )}
     </section>
   );
 }
@@ -453,11 +601,7 @@ function TenantSummaryDrawer() {
             <PrimaryButton
               onClick={() => {
                 closeDrawer();
-                openUpgrade({
-                  feature: "Compare plans",
-                  why: "See exactly what unlocks at each tier.",
-                  requiredPlan: nextPlan(state.plan) ?? "studio",
-                });
+                openDrawer("plan-compare");
               }}
             >
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -622,9 +766,6 @@ function UsageRow({ label, value }: { label: string; value: number }) {
   );
 }
 
-function planPrice(plan: Plan): string {
-  return plan === "free" ? "Free forever" : plan === "studio" ? "$29 / month" : plan === "agency" ? "$149 / month" : "Custom pricing";
-}
 function teamCap(plan: Plan): number {
   return plan === "free" ? 1 : plan === "studio" ? 3 : plan === "agency" ? 25 : 999;
 }
@@ -675,8 +816,8 @@ function SiteSetupDrawer() {
     >
       <div
         style={{
-          background: COLORS.cream,
-          border: `1px solid rgba(184,134,11,0.18)`,
+          background: COLORS.surfaceAlt,
+          border: `1px solid rgba(15,79,62,0.18)`,
           borderRadius: 12,
           padding: 14,
           display: "flex",
@@ -689,12 +830,12 @@ function SiteSetupDrawer() {
           <div style={{ fontFamily: FONTS.display, fontSize: 16, fontWeight: 500, color: COLORS.ink }}>
             {Math.round((completedCount / steps.length) * 100)}% complete
           </div>
-          <div style={{ height: 6, background: "rgba(184,134,11,0.18)", borderRadius: 999, marginTop: 6, overflow: "hidden" }}>
+          <div style={{ height: 6, background: "rgba(15,79,62,0.18)", borderRadius: 999, marginTop: 6, overflow: "hidden" }}>
             <div
               style={{
                 width: `${(completedCount / steps.length) * 100}%`,
                 height: "100%",
-                background: COLORS.goldDeep,
+                background: COLORS.accentDeep,
                 borderRadius: 999,
                 transition: "width .3s",
               }}
@@ -940,7 +1081,7 @@ function ThemeFoundationsDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function PlanBillingDrawer() {
-  const { state, closeDrawer, openUpgrade } = useProto();
+  const { state, closeDrawer, openUpgrade, toast } = useProto();
   const planMeta = PLAN_META[state.plan];
 
   const invoices = [
@@ -1025,7 +1166,12 @@ function PlanBillingDrawer() {
                 Expires 09 / 2028
               </div>
             </div>
-            <GhostButton size="sm">Update</GhostButton>
+            <GhostButton
+              size="sm"
+              onClick={() => toast("Card update opens in production via Stripe Customer Portal.")}
+            >
+              Update
+            </GhostButton>
           </div>
         </Section>
       )}
@@ -1072,28 +1218,12 @@ function PlanBillingDrawer() {
   );
 }
 
+/**
+ * Compact tone+label pill (no dot). Thin alias over StatusPill — kept for
+ * call-site naming clarity.
+ */
 function StateChipMini({ label, tone }: { label: string; tone: "green" | "amber" | "dim" }) {
-  const c =
-    tone === "green"
-      ? { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42" }
-      : tone === "amber"
-        ? { bg: "rgba(198,138,30,0.10)", fg: "#7E5612" }
-        : { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted };
-  return (
-    <span
-      style={{
-        background: c.bg,
-        color: c.fg,
-        padding: "2px 7px",
-        borderRadius: 999,
-        fontFamily: FONTS.body,
-        fontSize: 11,
-        fontWeight: 500,
-      }}
-    >
-      {label}
-    </span>
-  );
+  return <StatusPill tone={tone} label={label} size="sm" />;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1122,32 +1252,42 @@ function TeamDrawer() {
     >
       <Section title="Members">
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {team.map((m) => (
-            <div
-              key={m.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: 12,
-                background: "#fff",
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 10,
-              }}
-            >
-              <Avatar initials={m.initials} tone={m.role === "owner" ? "ink" : "neutral"} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
-                  {m.name}
+          {team.map((m) => {
+            // Match team member by name to a payout receiver candidate
+            // so the member row can show their payout connection state.
+            const payoutCandidate = PAYOUT_RECEIVER_CANDIDATES.find(
+              (c) => c.displayName === m.name,
+            );
+            return (
+              <div
+                key={m.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 12,
+                  background: "#fff",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 10,
+                }}
+              >
+                <Avatar initials={m.initials} tone={m.role === "owner" ? "ink" : "neutral"} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                    {m.name}
+                  </div>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
+                    {m.email}
+                  </div>
                 </div>
-                <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted }}>
-                  {m.email}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  {payoutCandidate && <PayoutStatusChip status={payoutCandidate.status} />}
+                  <RoleChip role={m.role} />
+                  {m.status === "invited" && <StateChipMini label="Invited" tone="amber" />}
                 </div>
               </div>
-              <RoleChip role={m.role} />
-              {m.status === "invited" && <StateChipMini label="Invited" tone="amber" />}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Section>
 
@@ -1186,7 +1326,7 @@ function TeamDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 function BrandingDrawer() {
-  const { closeDrawer } = useProto();
+  const { closeDrawer, toast } = useProto();
   const onSave = useSaveAndClose("Branding saved");
   return (
     <DrawerShell
@@ -1235,12 +1375,17 @@ function BrandingDrawer() {
                 Uploaded · 312 KB
               </div>
             </div>
-            <SecondaryButton size="sm">Replace</SecondaryButton>
+            <SecondaryButton
+              size="sm"
+              onClick={() => toast("Logo upload opens in production — drag-drop or pick a file.")}
+            >
+              Replace
+            </SecondaryButton>
           </div>
         </FieldRow>
       </Section>
 
-      <Section title="Brand voice">
+      <Section title="Brand voice" framed>
         <FieldRow label="Tagline" optional>
           <TextInput defaultValue="An agency built around our talent." />
         </FieldRow>
@@ -1252,7 +1397,7 @@ function BrandingDrawer() {
         </FieldRow>
       </Section>
 
-      <Section title="Color tokens">
+      <Section title="Color tokens" framed>
         <FieldRow label="Primary">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <input type="color" defaultValue="#0B0B0D" style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
@@ -1261,8 +1406,8 @@ function BrandingDrawer() {
         </FieldRow>
         <FieldRow label="Accent">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input type="color" defaultValue="#B8860B" style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
-            <TextInput defaultValue="#B8860B" />
+            <input type="color" defaultValue="#0F4F3E" style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
+            <TextInput defaultValue="#0F4F3E" />
           </div>
         </FieldRow>
       </Section>
@@ -1352,7 +1497,7 @@ function IdentityDrawer() {
       description="The basics — who you are inside Tulala."
       footer={<StandardFooter onSave={onSave} />}
     >
-      <Section title="Workspace">
+      <Section title="Workspace" framed>
         <FieldRow label="Workspace name" hint="Shown in browser tab, emails, and the public storefront.">
           <TextInput defaultValue={TENANT.name} />
         </FieldRow>
@@ -1385,7 +1530,7 @@ function WorkspaceSettingsDrawer() {
       description="Operational defaults — locale, currency, timezone."
       footer={<StandardFooter onSave={onSave} />}
     >
-      <Section title="Locale & timezone">
+      <Section title="Locale & timezone" framed>
         <FieldRow label="Default locale">
           <SelectInput options={["English (UK)", "English (US)", "Español", "Italiano", "Français"]} defaultValue="English (UK)" />
         </FieldRow>
@@ -1430,7 +1575,7 @@ function SelectInput({ options, defaultValue }: { options: string[]; defaultValu
 // ════════════════════════════════════════════════════════════════════
 
 function TalentProfileDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
   const profile = getRoster(state.plan).find((p) => p.id === id) ?? getRoster(state.plan)[0];
   const canEdit = meetsRole(state.role, "editor");
@@ -1443,6 +1588,16 @@ function TalentProfileDrawer() {
       title={profile.name}
       description={`${profile.height ?? "—"} · ${profile.city ?? "—"}`}
       width={580}
+      toolbar={
+        <GhostButton
+          size="sm"
+          onClick={() =>
+            openDrawer("talent-share-card", { name: profile.name, slug: profile.id })
+          }
+        >
+          Share with client
+        </GhostButton>
+      }
       footer={
         canEdit ? (
           <>
@@ -1484,7 +1639,7 @@ function TalentProfileDrawer() {
             width: 88,
             height: 110,
             borderRadius: 8,
-            background: COLORS.cream,
+            background: COLORS.surfaceAlt,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1495,7 +1650,12 @@ function TalentProfileDrawer() {
           {profile.thumb}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <StateChip state={profile.state} label={TALENT_STATE_LABEL[profile.state]} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <StateChip state={profile.state} label={TALENT_STATE_LABEL[profile.state]} />
+            {profile.representation && (
+              <RepresentationChip representation={profile.representation} />
+            )}
+          </div>
           <div
             style={{
               fontFamily: FONTS.display,
@@ -1518,7 +1678,16 @@ function TalentProfileDrawer() {
         <StateExplainer state={profile.state} />
       </Section>
 
-      <Section title="Basics">
+      {profile.representation && (
+        <Section
+          title="Representation"
+          description="How this talent is represented relates to who owns inquiries that come in via different surfaces."
+        >
+          <RepresentationCard representation={profile.representation} talentName={profile.name} />
+        </Section>
+      )}
+
+      <Section title="Basics" framed>
         <FieldRow label="Stage name">
           <TextInput defaultValue={profile.name} />
         </FieldRow>
@@ -1530,7 +1699,7 @@ function TalentProfileDrawer() {
         </FieldRow>
       </Section>
 
-      <Section title="Visibility">
+      <Section title="Visibility" framed>
         <ToggleRow label="Show in public roster" defaultOn={profile.state === "published"} />
         <ToggleRow label="Allow direct inquiries" defaultOn={profile.state === "published"} />
         <ToggleRow label="Include in Tulala discovery" defaultOn={state.plan === "free"} />
@@ -1582,6 +1751,83 @@ function StateExplainer({ state }: { state: "draft" | "invited" | "published" | 
   );
 }
 
+/**
+ * RepresentationCard — explains the talent's current representation
+ * status and what it implies for inquiry ownership across surfaces
+ * (agency portal, hub page, personal page). Mirrors the rules in
+ * `resolveInquiryOwnership()` so admins see the routing they will get.
+ */
+function RepresentationCard({
+  representation,
+  talentName,
+}: {
+  representation: RepresentationStatus;
+  talentName: string;
+}) {
+  const subtitle =
+    representation.kind === "exclusive"
+      ? `Represented exclusively by ${representation.agencyName}.`
+      : representation.kind === "non-exclusive"
+        ? `Represented non-exclusively by ${representation.agencyNames.join(", ")}.`
+        : `${talentName} is freelance — no active agency representation.`;
+
+  const ownershipBullets =
+    representation.kind === "freelance"
+      ? [
+          { surface: "Agency page", owner: "—" },
+          { surface: "Hub page", owner: `Hub operator · ${talentName} notified` },
+          { surface: "Personal page", owner: `${talentName} (no agency notified)` },
+        ]
+      : representation.kind === "exclusive"
+        ? [
+            { surface: "Agency page", owner: representation.agencyName },
+            { surface: "Hub page", owner: `Hub operator · ${talentName} + ${representation.agencyName} notified` },
+            { surface: "Personal page", owner: `${talentName} · ${representation.agencyName} notified` },
+          ]
+        : [
+            { surface: "Agency page", owner: "Whichever agency the page belongs to" },
+            { surface: "Hub page", owner: `Hub operator · ${talentName} + all representing agencies notified` },
+            { surface: "Personal page", owner: `${talentName} · representing agencies notified` },
+          ];
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        padding: 14,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <RepresentationChip representation={representation} />
+      </div>
+      <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, margin: "0 0 12px", lineHeight: 1.55 }}>
+        {subtitle}
+      </p>
+      <CapsLabel>Inquiry routing by source</CapsLabel>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+        {ownershipBullets.map((row) => (
+          <div
+            key={row.surface}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "120px 1fr",
+              gap: 10,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              alignItems: "baseline",
+            }}
+          >
+            <span style={{ color: COLORS.inkMuted }}>{row.surface}</span>
+            <span style={{ color: COLORS.ink }}>{row.owner}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ToggleRow({ label, defaultOn = false }: { label: string; defaultOn?: boolean }) {
   const [on, setOn] = useState(defaultOn);
   return (
@@ -1603,7 +1849,7 @@ function NewTalentDrawer() {
       description="Create a roster profile. You can publish now or invite the talent to claim later."
       footer={<StandardFooter onSave={onSave} saveLabel="Create profile" />}
     >
-      <Section title="Basics">
+      <Section title="Basics" framed>
         <FieldRow label="Stage name">
           <TextInput placeholder="First Last" />
         </FieldRow>
@@ -1737,7 +1983,7 @@ function MyProfileDrawer() {
         </div>
       </Section>
 
-      <Section title="Personal">
+      <Section title="Personal" framed>
         <FieldRow label="Display name">
           <TextInput defaultValue="Oran Tene" />
         </FieldRow>
@@ -1747,7 +1993,7 @@ function MyProfileDrawer() {
       </Section>
 
       {state.alsoTalent && (
-        <Section title="Your talent profile" description="What clients see when they book you. Edits go through admin approval.">
+        <Section title="Your talent profile" description="What clients see when they book you. Edits go through admin approval." framed>
           <FieldRow label="Stage name">
             <TextInput defaultValue="Oran T." />
           </FieldRow>
@@ -1760,7 +2006,7 @@ function MyProfileDrawer() {
         </Section>
       )}
 
-      <Section title="Notifications">
+      <Section title="Notifications" framed>
         <ToggleRow label="Email me when an inquiry mentions a talent I manage" defaultOn />
         <ToggleRow label="Email me when a client confirms a booking" defaultOn />
         <ToggleRow label="Daily digest at 9am Madrid time" defaultOn={false} />
@@ -1925,6 +2171,27 @@ function NewInquiryDrawer() {
   const { state, closeDrawer } = useProto();
   const onSave = useSaveAndClose("Inquiry created");
   const roster = getRoster(state.plan);
+  // Wave 2 — let the user start from a similar past brief, and warn
+  // immediately if a chosen talent is double-booked.
+  const [client, setClient] = useState("");
+  const [brief, setBrief] = useState("");
+  const [date, setDate] = useState("");
+  const [conflictTalent, setConflictTalent] = useState<string | null>(null);
+
+  const handlePickTemplate = (t: { title: string; brief: string }) => {
+    setBrief(t.brief);
+  };
+
+  const pickTalent = (name: string) => {
+    // Mock conflict detection — Marta Reyes "is already booked" if the
+    // date string contains "May 14" (matching mock booking data).
+    if (name.toLowerCase().includes("marta") && date.toLowerCase().includes("may 14")) {
+      setConflictTalent(name);
+    } else {
+      setConflictTalent(null);
+    }
+  };
+
   return (
     <DrawerShell
       open
@@ -1934,9 +2201,14 @@ function NewInquiryDrawer() {
       width={560}
       footer={<StandardFooter onSave={onSave} saveLabel="Save draft" />}
     >
+      <InquiryTemplatesPicker onPick={handlePickTemplate} />
       <Section title="Client">
         <FieldRow label="Client name">
-          <TextInput placeholder="Vogue Italia" />
+          <TextInput
+            placeholder="Vogue Italia"
+            value={client}
+            onChange={(e) => setClient(e.target.value)}
+          />
         </FieldRow>
         <FieldRow label="Contact" optional>
           <TextInput placeholder="Sara Bianchi · sara@vogue.it" />
@@ -1948,10 +2220,19 @@ function NewInquiryDrawer() {
           <SelectInput options={["Editorial", "Commercial", "Lookbook", "Runway", "Showroom"]} />
         </FieldRow>
         <FieldRow label="Brief">
-          <TextArea rows={3} placeholder="Spring editorial spread. Half-day shoot in Madrid. Digital + print, 6 months EU." />
+          <TextArea
+            rows={3}
+            placeholder="Spring editorial spread. Half-day shoot in Madrid. Digital + print, 6 months EU."
+            value={brief}
+            onChange={(e) => setBrief(e.target.value)}
+          />
         </FieldRow>
         <FieldRow label="Date" optional>
-          <TextInput placeholder="May 14" />
+          <TextInput
+            placeholder="May 14"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </FieldRow>
         <FieldRow label="Budget" optional>
           <TextInput placeholder="€4,200" />
@@ -1959,10 +2240,20 @@ function NewInquiryDrawer() {
       </Section>
 
       <Section title="Talent" description="Suggest the talent that fits.">
+        {conflictTalent && (
+          <div style={{ marginBottom: 10 }}>
+            <DoubleBookingWarning
+              talentName={conflictTalent}
+              conflictTitle="Mango — Spring lookbook"
+              conflictDates="May 14 · all day"
+            />
+          </div>
+        )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {roster.slice(0, 5).map((t) => (
             <button
               key={t.id}
+              onClick={() => pickTalent(t.name)}
               style={{
                 background: "#fff",
                 border: `1px solid ${COLORS.borderSoft}`,
@@ -1994,7 +2285,7 @@ function NewBookingDrawer() {
       description="Skip the inquiry — log a confirmed job."
       footer={<StandardFooter onSave={onSave} saveLabel="Create booking" />}
     >
-      <Section title="Client & talent">
+      <Section title="Client & talent" framed>
         <FieldRow label="Client">
           <TextInput placeholder="Vogue Italia" />
         </FieldRow>
@@ -2002,7 +2293,7 @@ function NewBookingDrawer() {
           <TextInput placeholder="Marta Reyes" />
         </FieldRow>
       </Section>
-      <Section title="When & where">
+      <Section title="When & where" framed>
         <FieldRow label="Date">
           <TextInput placeholder="May 14, 2026" />
         </FieldRow>
@@ -2013,7 +2304,7 @@ function NewBookingDrawer() {
           <TextInput placeholder="Madrid · Studio 5" />
         </FieldRow>
       </Section>
-      <Section title="Money">
+      <Section title="Money" framed>
         <FieldRow label="Total fee">
           <TextInput placeholder="€4,200" />
         </FieldRow>
@@ -2031,12 +2322,14 @@ function ClientProfileDrawer() {
   const isNew = id === "new" || !id;
   const client = isNew ? null : getClients(state.plan).find((c) => c.id === id) ?? null;
   const onSave = useSaveAndClose(isNew ? "Client created" : "Client saved");
+  const trust = client?.trust ?? "basic";
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title={isNew ? "New client" : client?.name ?? "Client"}
       description={isNew ? "Track a relationship." : `${client?.contact ?? ""} · ${client?.bookingsYTD ?? 0} bookings YTD`}
+      toolbar={!isNew ? <ClientTrustChip level={trust} /> : undefined}
       footer={<StandardFooter onSave={onSave} saveLabel={isNew ? "Create" : "Save"} />}
     >
       <Section title="Identity">
@@ -2047,6 +2340,40 @@ function ClientProfileDrawer() {
           <TextInput defaultValue={client?.contact ?? ""} placeholder="Name · email" />
         </FieldRow>
       </Section>
+      {!isNew && (
+        <Section
+          title="Trust level"
+          description="Driven by verification + funded-account events. Not editable by hand."
+        >
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              padding: 14,
+              fontFamily: FONTS.body,
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <ClientTrustChip level={trust} />
+              <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
+                {CLIENT_TRUST_META[trust].hint}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55 }}>
+              {CLIENT_TRUST_META[trust].rationale}
+            </p>
+            <p style={{ margin: 0, fontSize: 11.5, color: COLORS.inkDim, lineHeight: 1.5 }}>
+              Tiers reflect real verification + funded-balance events on the
+              client side. Talent decide which tiers can reach them in their
+              contact preferences.
+            </p>
+          </div>
+        </Section>
+      )}
       {!isNew && (
         <Section title="Recent bookings">
           <div
@@ -2577,7 +2904,7 @@ function MediaDrawer() {
             key={i}
             style={{
               aspectRatio: "1",
-              background: COLORS.cream,
+              background: COLORS.surfaceAlt,
               border: `1px solid ${COLORS.borderSoft}`,
               borderRadius: 8,
               display: "flex",
@@ -2662,7 +2989,7 @@ function SeoDrawer() {
         <div
           style={{
             aspectRatio: "1.91",
-            background: COLORS.cream,
+            background: COLORS.surfaceAlt,
             borderRadius: 10,
             border: `1px solid ${COLORS.borderSoft}`,
             display: "flex",
@@ -3034,16 +3361,16 @@ function FilterConfigDrawer() {
       description="Narrow down what you see."
       footer={<StandardFooter onSave={onSave} saveLabel="Apply filters" />}
     >
-      <Section title="Stage">
+      <Section title="Stage" framed>
         <ToggleRow label="Drafts" defaultOn />
         <ToggleRow label="Awaiting client" defaultOn />
         <ToggleRow label="Confirmed" defaultOn />
         <ToggleRow label="Archived" defaultOn={false} />
       </Section>
-      <Section title="Talent">
+      <Section title="Talent" framed>
         <SelectInput options={["All talent", "Marta Reyes", "Kai Lin", "Tomás Navarro"]} />
       </Section>
-      <Section title="Date range">
+      <Section title="Date range" framed>
         <SelectInput options={["Any time", "This week", "This month", "This quarter"]} />
       </Section>
     </DrawerShell>
@@ -3061,30 +3388,138 @@ function DangerZoneDrawer() {
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
       <Section title="Pause workspace" description="Take your storefront offline temporarily. Data is preserved.">
-        <SecondaryButton onClick={() => { toast("Workspace paused"); }}>Pause workspace</SecondaryButton>
+        <ConfirmTypedAction
+          actionLabel="Pause workspace"
+          confirmPhrase="pause"
+          tone="amber"
+          onConfirm={() => toast("Workspace paused")}
+        />
       </Section>
       <Section title="Transfer ownership" description="Hand the workspace to another owner. You become an admin.">
-        <SecondaryButton onClick={() => { toast("Transfer initiated"); }}>Transfer</SecondaryButton>
+        <ConfirmTypedAction
+          actionLabel="Transfer ownership"
+          confirmPhrase="transfer"
+          tone="amber"
+          onConfirm={() => toast("Transfer initiated")}
+        />
       </Section>
       <Section title="Delete workspace" description="Permanent. Your roster, clients, and history are removed. We email you a final export.">
+        <ConfirmTypedAction
+          actionLabel="Delete workspace"
+          confirmPhrase={TENANT.name}
+          tone="red"
+          onConfirm={() => toast("This is a prototype — nothing was deleted")}
+        />
+      </Section>
+    </DrawerShell>
+  );
+}
+
+/**
+ * Two-step destructive-action confirm. Idle state shows the danger button.
+ * Clicking it reveals an inline typed-name confirm: the user must type the
+ * exact phrase before the action button enables. Cancel always available.
+ *
+ * Tone "amber" for reversible-but-significant actions (pause, transfer);
+ * tone "red" for irreversible ones (delete).
+ */
+function ConfirmTypedAction({
+  actionLabel,
+  confirmPhrase,
+  tone,
+  onConfirm,
+}: {
+  actionLabel: string;
+  confirmPhrase: string;
+  tone: "amber" | "red";
+  onConfirm: () => void;
+}) {
+  const [armed, setArmed] = useState(false);
+  const [typed, setTyped] = useState("");
+  const matches = typed.trim().toLowerCase() === confirmPhrase.toLowerCase();
+  const palette =
+    tone === "red"
+      ? { fg: COLORS.red, bg: "rgba(176,48,58,0.06)", border: "rgba(176,48,58,0.30)", solid: COLORS.red }
+      : { fg: "#3A4651", bg: "rgba(82,96,109,0.08)", border: "rgba(82,96,109,0.30)", solid: "#52606D" };
+
+  if (!armed) {
+    return (
+      <button
+        onClick={() => setArmed(true)}
+        style={{
+          padding: "9px 16px",
+          background: "transparent",
+          color: palette.fg,
+          border: `1px solid ${palette.fg}`,
+          borderRadius: 8,
+          fontFamily: FONTS.body,
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: "pointer",
+        }}
+      >
+        {actionLabel}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        padding: "12px 14px",
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
+        borderRadius: 10,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+        Type{" "}
+        <code
+          style={{
+            background: "#fff",
+            border: `1px solid ${palette.border}`,
+            padding: "1px 6px",
+            borderRadius: 4,
+            fontFamily: "ui-monospace, SF Mono, Menlo, monospace",
+            fontSize: 12,
+            color: palette.fg,
+          }}
+        >
+          {confirmPhrase}
+        </code>{" "}
+        to confirm.
+      </div>
+      <TextInput
+        autoFocus
+        value={typed}
+        onChange={(e) => setTyped(e.target.value)}
+        placeholder={confirmPhrase}
+      />
+      <div style={{ display: "flex", gap: 8 }}>
+        <SecondaryButton onClick={() => { setArmed(false); setTyped(""); }}>Cancel</SecondaryButton>
         <button
-          onClick={() => { toast("This is a prototype — nothing was deleted"); }}
+          disabled={!matches}
+          onClick={() => { onConfirm(); setArmed(false); setTyped(""); }}
           style={{
             padding: "9px 16px",
-            background: "transparent",
-            color: COLORS.red,
-            border: `1px solid ${COLORS.red}`,
+            background: matches ? palette.solid : "transparent",
+            color: matches ? "#fff" : palette.fg,
+            border: `1px solid ${matches ? palette.solid : palette.border}`,
             borderRadius: 8,
             fontFamily: FONTS.body,
             fontSize: 13,
             fontWeight: 500,
-            cursor: "pointer",
+            cursor: matches ? "pointer" : "not-allowed",
+            opacity: matches ? 1 : 0.7,
           }}
         >
-          Delete workspace
+          {actionLabel}
         </button>
-      </Section>
-    </DrawerShell>
+      </div>
+    </div>
   );
 }
 
@@ -3127,22 +3562,31 @@ function SimpleStubDrawer({
 // ════════════════════════════════════════════════════════════════════
 
 export function UpgradeModal() {
-  const { state, closeUpgrade, setPlan, toast } = useProto();
+  const { state, closeUpgrade, setPlan, toast, openDrawer } = useProto();
   const offer = state.upgrade;
   if (!offer.open) return null;
   const requiredPlan = offer.requiredPlan ?? "studio";
   const meta = PLAN_META[requiredPlan];
 
   const unlocks = offer.unlocks ?? defaultUnlocks(requiredPlan);
+  const usage = offer.currentUsage;
+  const usagePct = usage ? Math.min(1, usage.current / Math.max(1, usage.cap)) : 0;
+  const usageBlocking = usage ? usage.current >= usage.cap : false;
+
+  const pricingNote =
+    offer.pricingNote ??
+    (requiredPlan === "network"
+      ? "Tailored to your operation."
+      : "14-day refund · Cancel any time · No card required to preview");
 
   return (
-    <ModalShell open onClose={closeUpgrade} width={580}>
+    <ModalShell open onClose={closeUpgrade} width={600}>
       <header
         style={{
-          padding: "22px 24px 16px",
-          background: COLORS.cream,
+          padding: "22px 24px 18px",
+          background: COLORS.surfaceAlt,
           position: "relative",
-          borderBottom: `1px solid rgba(184,134,11,0.18)`,
+          borderBottom: `1px solid rgba(15,79,62,0.16)`,
         }}
       >
         <button
@@ -3166,9 +3610,10 @@ export function UpgradeModal() {
         >
           <Icon name="x" size={13} stroke={1.8} />
         </button>
-        <div style={{ marginBottom: 6 }}>
-          <CapsLabel color={COLORS.goldDeep} style={{ letterSpacing: 1.6 }}>
-            Available on {meta.label}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <PlanChip plan={requiredPlan} variant="solid" />
+          <CapsLabel color={COLORS.accentDeep} style={{ letterSpacing: 1.6 }}>
+            {planPrice(requiredPlan)}
           </CapsLabel>
         </div>
         <h2
@@ -3184,7 +3629,7 @@ export function UpgradeModal() {
         >
           {offer.feature ?? `Upgrade to ${meta.label}`}
         </h2>
-        {offer.why && (
+        {(offer.outcome || offer.why) && (
           <p
             style={{
               fontFamily: FONTS.body,
@@ -3192,16 +3637,54 @@ export function UpgradeModal() {
               color: COLORS.inkMuted,
               margin: "6px 0 0",
               lineHeight: 1.55,
-              maxWidth: 480,
+              maxWidth: 500,
             }}
           >
-            {offer.why}
+            {offer.outcome ?? offer.why}
           </p>
+        )}
+        {usage && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "10px 12px",
+              background: "#fff",
+              border: `1px solid ${usageBlocking ? "rgba(176,48,58,0.32)" : COLORS.borderSoft}`,
+              borderRadius: 9,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.ink }}>
+                {usage.label}
+              </span>
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  color: usageBlocking ? COLORS.red : COLORS.inkMuted,
+                  fontWeight: usageBlocking ? 600 : 400,
+                }}
+              >
+                {usage.current} / {usage.cap}
+                {usageBlocking && " · at limit"}
+              </span>
+            </div>
+            <div style={{ height: 4, borderRadius: 2, background: "rgba(11,11,13,0.06)", overflow: "hidden" }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${usagePct * 100}%`,
+                  background: usageBlocking ? COLORS.red : COLORS.accent,
+                  transition: "width .3s ease",
+                }}
+              />
+            </div>
+          </div>
         )}
       </header>
 
       <div style={{ padding: "18px 24px", overflowY: "auto" }}>
-        <div style={{ marginBottom: 6 }}>
+        <div style={{ marginBottom: 8 }}>
           <CapsLabel>What you'll unlock</CapsLabel>
         </div>
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -3212,7 +3695,7 @@ export function UpgradeModal() {
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                padding: "9px 12px",
+                padding: "10px 12px",
                 background: "#fff",
                 border: `1px solid ${COLORS.borderSoft}`,
                 borderRadius: 8,
@@ -3226,46 +3709,32 @@ export function UpgradeModal() {
                   width: 18,
                   height: 18,
                   borderRadius: "50%",
-                  background: "rgba(46,125,91,0.10)",
-                  color: COLORS.green,
+                  background: COLORS.accentSoft,
+                  color: COLORS.accent,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
                 }}
               >
-                <Icon name="check" size={11} stroke={2.5} color={COLORS.green} />
+                <Icon name="check" size={11} stroke={2.5} color={COLORS.accent} />
               </span>
               {u}
             </li>
           ))}
         </ul>
 
-        <div style={{ marginTop: 18 }}>
-          <CapsLabel>Pricing</CapsLabel>
-        </div>
-        <div
+        <p
           style={{
-            marginTop: 6,
-            padding: "14px 16px",
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
+            margin: "14px 0 0",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            lineHeight: 1.5,
           }}
         >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, color: COLORS.ink }}>
-              {planPrice(requiredPlan)}
-            </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
-              {requiredPlan === "network" ? "Tailored to your operation." : "Cancel any time. 14-day refund window."}
-            </div>
-          </div>
-          <PlanChip plan={requiredPlan} variant="solid" />
-        </div>
+          {pricingNote}
+        </p>
       </div>
 
       <footer
@@ -3279,6 +3748,14 @@ export function UpgradeModal() {
           gap: 8,
         }}
       >
+        <GhostButton
+          onClick={() => {
+            closeUpgrade();
+            openDrawer("plan-compare");
+          }}
+        >
+          Compare all plans
+        </GhostButton>
         <SecondaryButton onClick={closeUpgrade}>Not now</SecondaryButton>
         {requiredPlan === "network" ? (
           <PrimaryButton
@@ -3319,4 +3796,752 @@ function defaultUnlocks(plan: Plan): string[] {
     default:
       return [];
   }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Plan compare drawer
+// ────────────────────────────────────────────────────────────────────
+// A wide drawer that frames the plan ladder as **operational dimensions**
+// (throughput, control, scale, branding, distribution, multi-entity)
+// rather than a feature checkbox grid. The buyer is making a scaling
+// decision, not buying features — this layout reflects that.
+// ════════════════════════════════════════════════════════════════════
+
+function PlanCompareDrawer() {
+  const { state, closeDrawer, openUpgrade, toast } = useProto();
+  const open = state.drawer.drawerId === "plan-compare";
+  const currentPlan = state.plan;
+  // Shared grid template so headers, rows, and footer line up exactly.
+  const gridTemplate = `minmax(220px, 1.4fr) repeat(${PLANS.length}, minmax(0, 1fr))`;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      width={1040}
+      defaultSize="full"
+      title="Compare plans"
+      description="Find the dimension you're outgrowing — that's your next upgrade. Not a feature you happen to want."
+      footer={
+        <div
+          data-tulala-plan-compare-footer
+          style={{
+            display: "grid",
+            gridTemplateColumns: gridTemplate,
+            gap: 0,
+            width: "100%",
+            alignItems: "center",
+          }}
+        >
+          <div style={{ paddingLeft: 4, fontSize: 12, color: COLORS.inkMuted }}>
+            Prices in USD · taxes excluded
+          </div>
+          {PLANS.map((plan) => {
+            const isCurrent = plan === currentPlan;
+            const isLower = PLAN_META[plan].rank < PLAN_META[currentPlan].rank;
+            return (
+              <div key={plan} style={{ padding: "0 6px" }}>
+                {isCurrent ? (
+                  <SecondaryButton onClick={closeDrawer}>Your plan</SecondaryButton>
+                ) : isLower ? (
+                  <GhostButton
+                    onClick={() =>
+                      toast(
+                        `Downgrade to ${PLAN_META[plan].label} runs through support — we'll review your roster and active inquiries first.`,
+                      )
+                    }
+                  >
+                    Downgrade
+                  </GhostButton>
+                ) : (
+                  <PrimaryButton
+                    onClick={() => {
+                      closeDrawer();
+                      openUpgrade({
+                        feature: `Upgrade to ${PLAN_META[plan].label}`,
+                        why: PLAN_LADDER_HEADER[plan].idealFor,
+                        requiredPlan: plan,
+                      });
+                    }}
+                  >
+                    Upgrade to {PLAN_META[plan].label}
+                  </PrimaryButton>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      }
+    >
+      {/* Sticky plan headers — anchored to the top of the drawer body so
+          column meaning stays visible while the comparison grid scrolls. */}
+      <div
+        data-tulala-plan-compare-header
+        style={{
+          position: "sticky",
+          top: -20,
+          zIndex: 2,
+          margin: "-20px -22px 14px",
+          padding: "20px 22px 0",
+          background: COLORS.surface,
+        }}
+      >
+        <div
+          data-tulala-plan-compare-grid
+          style={{
+            display: "grid",
+            gridTemplateColumns: gridTemplate,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "14px 18px",
+              fontSize: 12,
+              color: COLORS.inkMuted,
+              lineHeight: 1.45,
+              alignSelf: "center",
+              fontFamily: FONTS.body,
+            }}
+          >
+            Each row is a way your agency scales. Scan across to find the floor that fits.
+          </div>
+          {PLANS.map((plan) => {
+            const meta = PLAN_META[plan];
+            const header = PLAN_LADDER_HEADER[plan];
+            const isCurrent = plan === currentPlan;
+            return (
+              <div
+                key={plan}
+                style={{
+                  padding: "14px 16px",
+                  borderLeft: `1px solid ${COLORS.borderSoft}`,
+                  background: isCurrent ? COLORS.accentSoft : "#fff",
+                  position: "relative",
+                }}
+              >
+                {isCurrent && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 3,
+                      background: COLORS.accent,
+                    }}
+                  />
+                )}
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 500,
+                    letterSpacing: 0.2,
+                    color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {isCurrent ? "Current plan" : meta.label}
+                </div>
+                <div
+                  style={{
+                    fontFamily: FONTS.display,
+                    fontSize: 22,
+                    fontWeight: 600,
+                    letterSpacing: -0.4,
+                    color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                    marginTop: 2,
+                    lineHeight: 1.1,
+                  }}
+                >
+                  {header.price}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                    marginTop: 6,
+                    opacity: isCurrent ? 1 : 0.85,
+                  }}
+                >
+                  {!isCurrent ? meta.label : null}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
+                    marginTop: isCurrent ? 6 : 4,
+                    lineHeight: 1.4,
+                    fontFamily: FONTS.body,
+                    opacity: isCurrent ? 0.85 : 1,
+                  }}
+                >
+                  {header.idealFor}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Comparison grid */}
+      <div
+        data-tulala-plan-compare-body
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          overflow: "hidden",
+          fontFamily: FONTS.body,
+        }}
+      >
+        {PLAN_LADDER.map((row, idx) => (
+          <div
+            key={row.dimension}
+            data-tulala-plan-compare-grid
+            style={{
+              display: "grid",
+              gridTemplateColumns: gridTemplate,
+              borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
+            }}
+          >
+            <div
+              style={{
+                padding: "14px 18px",
+                background: "rgba(11,11,13,0.02)",
+                borderRight: `1px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: COLORS.ink,
+                  letterSpacing: -0.05,
+                }}
+              >
+                {row.dimension}
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: COLORS.inkMuted,
+                  marginTop: 2,
+                  lineHeight: 1.4,
+                }}
+              >
+                {row.why}
+              </div>
+            </div>
+            {PLANS.map((plan) => {
+              const isCurrent = plan === currentPlan;
+              return (
+                <div
+                  key={plan}
+                  style={{
+                    padding: "14px 16px",
+                    fontSize: 12.5,
+                    fontWeight: isCurrent ? 500 : 400,
+                    color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                    borderLeft: `1px solid ${COLORS.borderSoft}`,
+                    background: isCurrent ? COLORS.accentSoft : "transparent",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {row.values[plan]}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Payments / payouts
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * PaymentsSetupDrawer
+ *
+ * The workspace's default payout receiver — the agency-level Stripe-
+ * connected account most bookings settle to. Coordinators can override
+ * per-booking via PayoutReceiverPickerDrawer.
+ *
+ * Free plan shows a "no receiver yet" empty state and an upsell to set
+ * up Stripe; paid plans show the connected bank with status + plan-fee
+ * controls hint. Talent self-payout request is mentioned as Agency-tier
+ * only per PLAN_FEE_META.
+ */
+function PaymentsSetupDrawer() {
+  const { state, closeDrawer, openUpgrade } = useProto();
+  const payout = getWorkspacePayout(state.plan);
+  const fee = PLAN_FEE_META[state.plan];
+  const onSave = useSaveAndClose("Default receiver saved");
+  const isFree = state.plan === "free";
+  const receiver = payout.defaultReceiver;
+  const receiverMeta = PAYOUT_STATUS_META[receiver.status];
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title="Payments setup"
+      description="Default payout receiver and platform-fee terms for this workspace."
+      width={580}
+      footer={
+        isFree ? (
+          <>
+            <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+            <PrimaryButton
+              onClick={() =>
+                openUpgrade({
+                  feature: "Connect a payout receiver",
+                  why: "Free can run inquiries but cannot route payments. Studio unlocks card acceptance and direct payouts.",
+                  requiredPlan: "studio",
+                })
+              }
+            >
+              Upgrade to accept payments
+            </PrimaryButton>
+          </>
+        ) : (
+          <StandardFooter onSave={onSave} saveLabel="Save" />
+        )
+      }
+    >
+      <Section
+        title="Platform fee"
+        description="What Tulala charges per booking that settles through the platform."
+      >
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: 14,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+            <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, color: COLORS.ink }}>
+              {fee.label}
+            </span>
+            <PlanChip plan={state.plan} variant="solid" />
+          </div>
+          <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, margin: "8px 0 0", lineHeight: 1.55 }}>
+            {fee.controlsHint}
+          </p>
+        </div>
+      </Section>
+
+      <Section
+        title="Default payout receiver"
+        description="Used when no per-booking override is set. Coordinators can still pick a different receiver on individual bookings."
+      >
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <Avatar initials={receiver.initials} size={40} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+              {receiver.displayName}
+            </div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              {PAYOUT_RECEIVER_KIND_LABEL[receiver.kind]}
+              {receiver.legalName ? ` · ${receiver.legalName}` : ""}
+            </div>
+          </div>
+          <PayoutStatusChip status={receiver.status} />
+        </div>
+        <p style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, margin: 0, lineHeight: 1.5 }}>
+          {receiverMeta.hint}
+        </p>
+      </Section>
+
+      {!isFree && (
+        <Section title="Acceptance" description="What clients see at checkout.">
+          <FieldRow label="Accept card payments">
+            <StubToggle defaultOn={payout.acceptCards} />
+          </FieldRow>
+          <FieldRow label="Send receipts to client">
+            <StubToggle defaultOn={true} />
+          </FieldRow>
+          <FieldRow label="Email payout confirmations">
+            <StubToggle defaultOn={true} />
+          </FieldRow>
+        </Section>
+      )}
+
+      <Section title="30-day activity">
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <MiniMetric label="Volume" value={payout.recentVolume30d} />
+          <MiniMetric label="Pending" value={payout.pendingPayouts} />
+        </div>
+      </Section>
+    </DrawerShell>
+  );
+}
+
+function StubToggle({ defaultOn }: { defaultOn?: boolean }) {
+  const [on, setOn] = useState(!!defaultOn);
+  return <Toggle on={on} onChange={setOn} />;
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+        padding: "12px 14px",
+      }}
+    >
+      <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, letterSpacing: 0.4, textTransform: "uppercase" }}>
+        {label}
+      </div>
+      <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, color: COLORS.ink, marginTop: 4 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * PayoutReceiverPickerDrawer
+ *
+ * Per-booking receiver selector — pick which connected entity legally
+ * receives the net payout. Eligibility = `meta.canReceive`. Non-
+ * eligible candidates are shown but disabled with their hint visible.
+ *
+ * Payload: `{ inquiryId: string }` so the picker can show the booking
+ * and write the selected receiver back. (Picker is read-only mock —
+ * the real write lands when payments are wired into state mutations.)
+ */
+function PayoutReceiverPickerDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const payload = state.drawer.payload ?? {};
+  const inquiryId = (payload as { inquiryId?: string }).inquiryId;
+  const summary = inquiryId ? getPaymentSummary(inquiryId) : undefined;
+  const [selectedKind, setSelectedKind] = useState<string | null>(
+    summary?.receiver ? `${summary.receiver.kind}:${summary.receiver.displayName}` : null,
+  );
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title="Pick payout receiver"
+      description={
+        summary
+          ? `For ${summary.bookingId !== "—" ? summary.bookingId : inquiryId} · net ${summary.netPayout}`
+          : "Select who legally receives this payout."
+      }
+      width={560}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton
+            onClick={() => {
+              toast(selectedKind ? "Receiver updated" : "No change");
+              closeDrawer();
+            }}
+          >
+            Save receiver
+          </PrimaryButton>
+        </>
+      }
+    >
+      <Section
+        title="Eligible candidates"
+        description="Only verified, payout-connected entities can be selected. Pending or restricted accounts must finish setup first."
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {PAYOUT_RECEIVER_CANDIDATES.map((rec) => {
+            const meta = PAYOUT_STATUS_META[rec.status];
+            const key = `${rec.kind}:${rec.displayName}`;
+            const isSelected = selectedKind === key;
+            const eligible = meta.canReceive;
+            return (
+              <button
+                key={key}
+                onClick={() => eligible && setSelectedKind(key)}
+                disabled={!eligible}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 12,
+                  background: isSelected ? "rgba(11,11,13,0.04)" : "#fff",
+                  border: `1px solid ${isSelected ? COLORS.ink : COLORS.borderSoft}`,
+                  borderRadius: 10,
+                  cursor: eligible ? "pointer" : "not-allowed",
+                  opacity: eligible ? 1 : 0.6,
+                  textAlign: "left",
+                  fontFamily: FONTS.body,
+                  transition: "border-color .12s",
+                }}
+              >
+                <Avatar initials={rec.initials} size={36} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+                    {rec.displayName}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                    {PAYOUT_RECEIVER_KIND_LABEL[rec.kind]}
+                    {rec.legalName && rec.legalName !== "—" ? ` · ${rec.legalName}` : ""}
+                  </div>
+                </div>
+                <PayoutStatusChip status={rec.status} />
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+
+      <Section title="Distribution">
+        <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, margin: 0, lineHeight: 1.55 }}>
+          Tulala pays the selected receiver in full. Splitting between
+          agency, talent, and any third parties happens off-platform —
+          handled by whoever you select.
+        </p>
+        {summary?.distributionNote && (
+          <div
+            style={{
+              padding: "10px 12px",
+              background: "rgba(11,11,13,0.03)",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              color: COLORS.ink,
+              lineHeight: 1.55,
+            }}
+          >
+            <CapsLabel>Coordinator note</CapsLabel>
+            <div style={{ marginTop: 4 }}>{summary.distributionNote}</div>
+          </div>
+        )}
+      </Section>
+    </DrawerShell>
+  );
+}
+
+/**
+ * PaymentDetailDrawer
+ *
+ * Per-row drilldown from the workspace billing/payments table. Shows
+ * money breakdown, receiver, status, paid-via card if charged, and
+ * the audit history. Read-only — actions like refund / re-send live in
+ * the full payment console (not part of this prototype).
+ *
+ * Payload: `{ id: string }` where `id` is a `WorkspacePaymentRow.id`.
+ */
+function PaymentDetailDrawer() {
+  const { state, closeDrawer } = useProto();
+  const payload = state.drawer.payload ?? {};
+  const rowId = (payload as { id?: string }).id;
+  const row = WORKSPACE_PAYMENTS.find((r) => r.id === rowId) ?? WORKSPACE_PAYMENTS[0];
+
+  // Try to find a matching rich summary by booking ref, falling back to
+  // a synthesized one constructed from the row.
+  const summary =
+    Object.values(PAYMENT_SUMMARIES).find((s) => s.bookingId === row.ref) ?? null;
+  const statusMeta = PAYMENT_STATUS_META[row.status];
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title={row.ref}
+      description={`${row.client} · ${row.brief}`}
+      width={580}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        </>
+      }
+    >
+      <Section title="Status">
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: 14,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <PaymentStatusChip status={row.status} />
+            <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+              {row.date}
+            </span>
+          </div>
+          <p style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, margin: 0, lineHeight: 1.55 }}>
+            {statusMeta.description}
+          </p>
+        </div>
+      </Section>
+
+      <Section title="Breakdown">
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          <BreakdownRow label="Client total" value={row.total} first />
+          <BreakdownRow label="Platform fee" value={row.fee} muted />
+          <BreakdownRow label="Net payout" value={row.netPayout} emphasis />
+        </div>
+        {summary?.paidVia && (
+          <div
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: COLORS.inkMuted,
+              padding: "0 2px",
+            }}
+          >
+            Paid via {summary.paidVia.brand} •• {summary.paidVia.last4}
+          </div>
+        )}
+      </Section>
+
+      <Section title="Receiver">
+        {summary?.receiver ? (
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+              padding: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <Avatar initials={summary.receiver.initials} size={36} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+                {summary.receiver.displayName}
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                {PAYOUT_RECEIVER_KIND_LABEL[summary.receiver.kind]}
+                {summary.receiver.legalName ? ` · ${summary.receiver.legalName}` : ""}
+              </div>
+            </div>
+            <PayoutStatusChip status={summary.receiver.status} />
+          </div>
+        ) : (
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+              padding: 12,
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              color: COLORS.ink,
+            }}
+          >
+            {row.receiverName}
+          </div>
+        )}
+        {summary?.downstreamNote && (
+          <p style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, margin: 0, lineHeight: 1.5 }}>
+            {summary.downstreamNote}
+          </p>
+        )}
+      </Section>
+
+      {summary?.history && summary.history.length > 0 && (
+        <Section title="History">
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+              overflow: "hidden",
+            }}
+          >
+            {summary.history.map((entry, idx) => (
+              <div
+                key={`${entry.ts}-${idx}`}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "90px 1fr",
+                  gap: 12,
+                  padding: "10px 14px",
+                  borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                }}
+              >
+                <span style={{ color: COLORS.inkMuted }}>{entry.ts}</span>
+                <span style={{ color: COLORS.ink }}>{entry.label}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+    </DrawerShell>
+  );
+}
+
+function BreakdownRow({
+  label,
+  value,
+  muted,
+  emphasis,
+  first,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+  emphasis?: boolean;
+  first?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "11px 14px",
+        borderTop: first ? "none" : `1px solid ${COLORS.borderSoft}`,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <span style={{ fontSize: 12.5, color: muted ? COLORS.inkMuted : COLORS.ink }}>{label}</span>
+      <span
+        style={{
+          fontSize: emphasis ? 14 : 13,
+          fontWeight: emphasis ? 600 : 500,
+          color: muted ? COLORS.inkMuted : COLORS.ink,
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
 }

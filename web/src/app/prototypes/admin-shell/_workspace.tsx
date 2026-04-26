@@ -28,8 +28,12 @@ import {
   COLORS,
   FONTS,
   INQUIRY_STAGE_META,
+  PAYOUT_RECEIVER_KIND_LABEL,
+  PAYOUT_STATUS_META,
   REQUIREMENT_ROLE_META,
   RICH_INQUIRIES,
+  describeSource,
+  getPaymentSummary,
   getRichInquiry,
   useProto,
   type AgencyReliability,
@@ -42,9 +46,12 @@ import {
   Avatar,
   Bullet,
   CapsLabel,
+  ClientTrustChip,
   Divider,
   GhostButton,
   Icon,
+  PaymentStatusChip,
+  PayoutStatusChip,
   PrimaryButton,
   SecondaryButton,
   StatDot,
@@ -70,8 +77,15 @@ export function InquiryWorkspaceDrawer() {
       defaultSize="half"
       width={760}
       title={`${inquiry.clientName} · ${inquiry.brief}`}
-      description={`${inquiry.id} · with ${inquiry.agencyName}${inquiry.date ? ` · ${inquiry.date}` : ""}`}
-      toolbar={<InquiryStatusChip inquiry={inquiry} />}
+      description={`${inquiry.id} · with ${inquiry.agencyName}${inquiry.date ? ` · ${inquiry.date}` : ""} · ${describeSource(inquiry.source).short}`}
+      toolbar={
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {pov !== "client" ? (
+            <ClientTrustChip level={inquiry.clientTrust} compact />
+          ) : null}
+          <InquiryStatusChip inquiry={inquiry} />
+        </span>
+      }
     >
       <WorkspaceBody inquiry={inquiry} pov={pov} />
     </DrawerShell>
@@ -165,14 +179,14 @@ function InquiryStatusChip({ inquiry }: { inquiry: RichInquiry }) {
   const meta = INQUIRY_STAGE_META[inquiry.stage];
   const bgMap: Record<string, string> = {
     ink: "rgba(11,11,13,0.06)",
-    amber: "rgba(198,138,30,0.12)",
+    amber: "rgba(82,96,109,0.12)",
     green: "rgba(46,125,91,0.10)",
     dim: "rgba(11,11,13,0.04)",
     red: "rgba(176,48,58,0.10)",
   };
   const fgMap: Record<string, string> = {
     ink: COLORS.ink,
-    amber: "#7E5612",
+    amber: "#3A4651",
     green: "#1F5C42",
     dim: COLORS.inkMuted,
     red: "#7A2026",
@@ -460,11 +474,11 @@ function MessageBubble({ message, pov }: { message: ThreadMessage; pov: InquiryW
   // Coordinator bubbles: cream tint + COORDINATOR chip when not the viewer's own message
   const bubbleBg =
     isYou ? COLORS.ink
-    : isCoordinator && !isYou ? "rgba(198,138,30,0.06)"
+    : isCoordinator && !isYou ? "rgba(82,96,109,0.06)"
     : "#fff";
   const bubbleBorder =
     isYou ? "none"
-    : isCoordinator ? `1px solid rgba(198,138,30,0.20)`
+    : isCoordinator ? `1px solid rgba(82,96,109,0.20)`
     : `1px solid ${COLORS.borderSoft}`;
 
   return (
@@ -498,8 +512,8 @@ function MessageBubble({ message, pov }: { message: ThreadMessage; pov: InquiryW
               fontWeight: 600,
               letterSpacing: 0.4,
               textTransform: "uppercase",
-              color: "#7E5612",
-              background: "rgba(198,138,30,0.12)",
+              color: "#3A4651",
+              background: "rgba(82,96,109,0.12)",
               padding: "2px 6px",
               borderRadius: 4,
             }}>
@@ -551,6 +565,7 @@ function Rail({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov
       {(inquiry.bookingId || inquiry.stage === "approved") && (
         <BookingPanel inquiry={inquiry} pov={pov} />
       )}
+      <PaymentPanel inquiry={inquiry} pov={pov} />
       <ActivityPanel inquiry={inquiry} />
     </aside>
   );
@@ -680,7 +695,24 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
         </div>
       ) : (
         <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted }}>
-          No coordinator assigned. <a style={{ color: COLORS.ink, fontWeight: 500 }}>Assign one →</a>
+          No coordinator assigned.{" "}
+          <button
+            type="button"
+            onClick={() => toast("Coordinator picker opens in production")}
+            style={{
+              color: COLORS.ink,
+              fontWeight: 500,
+              background: "transparent",
+              border: 0,
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              fontSize: "inherit",
+              textDecoration: "underline",
+            }}
+          >
+            Assign one →
+          </button>
         </div>
       )}
 
@@ -1102,7 +1134,7 @@ function ApprovalChip({
         : status === "superseded"
           ? "dim"
           : "amber";
-  const color = tone === "green" ? "#1F5C42" : tone === "red" ? "#7A2026" : tone === "dim" ? COLORS.inkMuted : "#7E5612";
+  const color = tone === "green" ? "#1F5C42" : tone === "red" ? "#7A2026" : tone === "dim" ? COLORS.inkMuted : "#3A4651";
   const bg =
     tone === "green"
       ? "rgba(46,125,91,0.10)"
@@ -1110,7 +1142,7 @@ function ApprovalChip({
         ? "rgba(176,48,58,0.10)"
         : tone === "dim"
           ? "rgba(11,11,13,0.04)"
-          : "rgba(198,138,30,0.12)";
+          : "rgba(82,96,109,0.12)";
   const label =
     status === "accepted"
       ? "Approved"
@@ -1167,6 +1199,139 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
       )}
     </RailCard>
   );
+}
+
+/**
+ * PaymentPanel — surfaces the per-booking payment summary inside the
+ * Rail. Becomes visible once an inquiry has a payment summary fixture
+ * (i.e. once an offer is being settled). Three states:
+ *
+ *  · No summary → silent (return null) so the panel doesn't flicker
+ *    in for early-stage inquiries.
+ *  · Summary, no receiver → "Pick a receiver" CTA → opens
+ *    `payout-receiver-picker` drawer.
+ *  · Summary with receiver → totals + receiver chip + "View detail"
+ *    button → opens `payment-detail` drawer.
+ */
+function PaymentPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
+  const { openDrawer } = useProto();
+  const summary = getPaymentSummary(inquiry.id);
+  if (!summary) return null;
+
+  const receiver = summary.receiver;
+  const receiverMeta = receiver ? PAYOUT_STATUS_META[receiver.status] : null;
+  const canPick = pov === "admin";
+
+  return (
+    <RailCard
+      title="Payment"
+      action={
+        <button
+          onClick={() => openDrawer("payment-detail", { id: paymentRowIdFor(inquiry.id) })}
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: 0,
+            color: COLORS.inkMuted,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
+        >
+          View detail
+        </button>
+      }
+    >
+      <div style={{ marginBottom: 10 }}>
+        <PaymentStatusChip status={summary.status} />
+      </div>
+      <KvCompact label="Total" value={summary.total} />
+      <KvCompact label="Fee" value={`${summary.platformFee} on ${summary.pricedOnPlan}`} />
+      <KvCompact label="Net" value={summary.netPayout} />
+      <Divider />
+      <div style={{ marginTop: 10 }}>
+        <CapsLabel>Receiver</CapsLabel>
+        {receiver && receiverMeta ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 0 4px",
+            }}
+          >
+            <Avatar initials={receiver.initials} size={28} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+                {receiver.displayName}
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                {PAYOUT_RECEIVER_KIND_LABEL[receiver.kind]}
+              </div>
+            </div>
+            <PayoutStatusChip status={receiver.status} />
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: "10px 0 4px",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: COLORS.inkMuted,
+              lineHeight: 1.5,
+            }}
+          >
+            No receiver set yet. Payment cannot be requested until one is selected.
+          </div>
+        )}
+        {canPick && (
+          <div style={{ marginTop: 8 }}>
+            <SecondaryButton
+              size="sm"
+              onClick={() => openDrawer("payout-receiver-picker", { inquiryId: inquiry.id })}
+            >
+              {receiver ? "Change receiver" : "Pick receiver"}
+            </SecondaryButton>
+          </div>
+        )}
+      </div>
+      {summary.downstreamNote && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: "8px 10px",
+            background: "rgba(11,11,13,0.03)",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 8,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            lineHeight: 1.5,
+          }}
+        >
+          {summary.downstreamNote}
+        </div>
+      )}
+    </RailCard>
+  );
+}
+
+/**
+ * Map an inquiry id back to its workspace-payments row id. The fixtures
+ * use BK-205 ↔ wp1, BK-203 ↔ wp2, RI-202 ↔ wp3 — keep the picker honest
+ * by routing to the right row id when available; otherwise fall back to
+ * the inquiry id (the detail drawer will safely default to the first
+ * row if the lookup misses).
+ */
+function paymentRowIdFor(inquiryId: string): string {
+  // BK ids are derived from inquiry ids in the fixtures (RI-XYZ → BK-XYZ)
+  const refByInquiry: Record<string, string> = {
+    "RI-205": "wp1", // BK-205 (Net-a-Porter)
+    "RI-203": "wp2", // BK-203 (Bvlgari)
+    "RI-202": "wp3", // RI-202 (Vogue Italia)
+  };
+  return refByInquiry[inquiryId] ?? inquiryId;
 }
 
 function ActivityPanel({ inquiry }: { inquiry: RichInquiry }) {

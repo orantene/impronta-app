@@ -20,6 +20,7 @@
 import { type ReactNode } from "react";
 import {
   COLORS,
+  ENTITY_TYPE_META,
   FEATURE_FLAGS,
   FONTS,
   HQ_ROLES,
@@ -37,6 +38,7 @@ import {
   SUPPORT_TICKETS,
   SYSTEM_JOBS,
   useProto,
+  type EntityType,
   type FeatureFlag,
   type HubSubmission,
   type ModerationItem,
@@ -78,7 +80,10 @@ const HQ = {
   ink: "#F5F2EB",
   inkMuted: "rgba(245,242,235,0.62)",
   inkDim: "rgba(245,242,235,0.38)",
-  amber: "#E8B559",
+  // Dark-theme cautionary tone — was warm gold (#E8B559); shifted to a
+  // muted steel that reads as "attention" on dark surfaces without the
+  // gold/rust connotation banned by feedback_admin_aesthetics.md.
+  amber: "#9BA8B7",
   green: "#5DD3A0",
   red: "#F36772",
 };
@@ -89,6 +94,7 @@ export function PlatformSurface() {
       <PlatformTopbar />
       <ImpersonationStrip />
       <main
+        data-tulala-surface-main
         style={{
           padding: "28px 28px 60px",
           maxWidth: 1280,
@@ -108,6 +114,7 @@ function PlatformTopbar() {
   const meta = HQ_ROLE_META[state.hqRole];
   return (
     <header
+      data-tulala-app-topbar
       style={{
         background: HQ.card,
         borderBottom: `1px solid ${HQ.border}`,
@@ -117,7 +124,7 @@ function PlatformTopbar() {
         zIndex: 40,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 16, height: 56 }}>
+      <div data-tulala-app-topbar-row style={{ display: "flex", alignItems: "center", gap: 16, height: 56 }}>
         {/* Tulala HQ identity */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span
@@ -125,7 +132,7 @@ function PlatformTopbar() {
               width: 28,
               height: 28,
               borderRadius: 8,
-              background: COLORS.cream,
+              background: COLORS.surfaceAlt,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -184,10 +191,10 @@ function PlatformTopbar() {
           })}
         </div>
 
-        <div style={{ width: 1, height: 22, background: HQ.borderSoft, margin: "0 8px" }} />
+        <div data-tulala-topbar-divider style={{ width: 1, height: 22, background: HQ.borderSoft, margin: "0 8px" }} />
 
         {/* Page nav */}
-        <nav style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
+        <nav data-tulala-app-topbar-nav aria-label="Platform sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {PLATFORM_PAGES.map((p) => {
             const active = state.platformPage === p;
             return (
@@ -324,8 +331,8 @@ function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
-      <div style={{ flex: 1 }}>
+    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         {eyebrow && (
           <div style={{ marginBottom: 6 }}>
             <span
@@ -343,6 +350,7 @@ function PageHeader({
           </div>
         )}
         <h1
+          data-tulala-h1
           style={{
             fontFamily: FONTS.display,
             fontSize: 30,
@@ -370,7 +378,11 @@ function PageHeader({
           </p>
         )}
       </div>
-      {actions && <div style={{ display: "flex", gap: 8, alignItems: "center" }}>{actions}</div>}
+      {actions && (
+        <div data-tulala-page-header-actions style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
@@ -476,7 +488,7 @@ function HqGrid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto
     "3": "repeat(3, 1fr)",
     "4": "repeat(4, 1fr)",
   };
-  return <div style={{ display: "grid", gridTemplateColumns: colMap[cols], gap: 12 }}>{children}</div>;
+  return <div data-tulala-grid={cols} style={{ display: "grid", gridTemplateColumns: colMap[cols], gap: 12 }}>{children}</div>;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -585,11 +597,18 @@ function PlatformTenantsPage() {
     <>
       <PageHeader
         eyebrow="Tenants"
-        title="Every agency on Tulala"
-        subtitle="Health, plan, MRR, and quick-jump impersonation. Sortable / filterable list."
+        title="Every tenant on Tulala"
+        subtitle="Agencies and hubs. Health, plan, entity model, MRR, and quick-jump impersonation."
       />
 
-      <HqCard title="Active tenants" subtitle={`${PLATFORM_TENANTS.length} total`}>
+      <HqCard
+        title="Active tenants"
+        subtitle={(() => {
+          const agencies = PLATFORM_TENANTS.filter((t) => t.entityType === "agency").length;
+          const hubs = PLATFORM_TENANTS.filter((t) => t.entityType === "hub").length;
+          return `${PLATFORM_TENANTS.length} total · ${agencies} agencies · ${hubs} hubs`;
+        })()}
+      >
         <table
           style={{
             width: "100%",
@@ -601,11 +620,11 @@ function PlatformTenantsPage() {
         >
           <thead>
             <tr style={{ borderBottom: `1px solid ${HQ.borderSoft}` }}>
-              {["Tenant", "Plan", "Seats", "Talent", "MRR", "Health", "Last active", ""].map((h) => (
+              {["Tenant", "Entity", "Plan", "Seats", "Roster", "MRR", "Health", "Last active", ""].map((h) => (
                 <th
                   key={h}
                   style={{
-                    textAlign: h === "Seats" || h === "Talent" || h === "MRR" ? "right" : "left",
+                    textAlign: h === "Seats" || h === "Roster" || h === "MRR" ? "right" : "left",
                     padding: "10px 8px",
                     fontSize: 10.5,
                     fontWeight: 600,
@@ -646,6 +665,29 @@ function TenantRow({ tenant }: { tenant: PlatformTenant }) {
           <span style={{ fontWeight: 500, color: HQ.ink }}>{tenant.name}</span>
           <span style={{ color: HQ.inkDim, fontFamily: FONTS.mono, fontSize: 11 }}>{tenant.slug}</span>
         </div>
+      </td>
+      <td style={{ padding: "12px 8px" }}>
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "2px 8px",
+            background: tenant.entityType === "hub" ? "rgba(11,11,13,0.04)" : "transparent",
+            color: HQ.inkMuted,
+            border: `1px solid ${HQ.borderSoft}`,
+            fontSize: 10.5,
+            fontWeight: 600,
+            letterSpacing: 0.4,
+            textTransform: "uppercase",
+            borderRadius: 999,
+          }}
+        >
+          <span style={{ fontSize: 9, opacity: 0.7, letterSpacing: 0 }}>
+            {tenant.entityType === "hub" ? "·•·" : "▣"}
+          </span>
+          {ENTITY_TYPE_META[tenant.entityType].label}
+        </span>
       </td>
       <td style={{ padding: "12px 8px" }}>
         <span
@@ -838,7 +880,7 @@ function HubSubmissionRow({ sub }: { sub: HubSubmission }) {
       <span
         style={{
           padding: "2px 8px",
-          background: tone === "green" ? "rgba(93,211,160,0.15)" : tone === "amber" ? "rgba(232,181,89,0.15)" : HQ.cardSoft,
+          background: tone === "green" ? "rgba(93,211,160,0.15)" : tone === "amber" ? "rgba(155,168,183,0.15)" : HQ.cardSoft,
           color: tone === "green" ? HQ.green : tone === "amber" ? HQ.amber : HQ.inkMuted,
           fontSize: 10.5,
           fontWeight: 600,
@@ -1339,7 +1381,9 @@ export function PlatformTenantDetailDrawer() {
       open={open}
       onClose={closeDrawer}
       title={t.name}
-      description={`${PLAN_META[t.plan].label} · ${t.seats} seats · ${t.talentCount} talent · MRR ${t.mrr}`}
+      description={`${ENTITY_TYPE_META[t.entityType].label} · ${PLAN_META[t.plan].label} · ${t.seats} seats · ${t.talentCount} ${
+        t.entityType === "hub" ? "members" : "talent"
+      } · MRR ${t.mrr}`}
       footer={
         <>
           <SecondaryButton onClick={() => openDrawer("platform-tenant-suspend", { id: t.id })}>Suspend</SecondaryButton>
@@ -1351,8 +1395,49 @@ export function PlatformTenantDetailDrawer() {
         </>
       }
     >
+      <div
+        style={{
+          padding: 12,
+          background: "rgba(11,11,13,0.03)",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 10,
+          marginBottom: 10,
+          fontFamily: FONTS.body,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 6,
+          }}
+        >
+          <span style={{ fontSize: 11, opacity: 0.7 }}>
+            {t.entityType === "hub" ? "·•·" : "▣"}
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              color: COLORS.ink,
+            }}
+          >
+            {ENTITY_TYPE_META[t.entityType].label} · {ENTITY_TYPE_META[t.entityType].tagline}
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          {ENTITY_TYPE_META[t.entityType].inquiryModel}
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.inkDim, marginTop: 4 }}>
+          Revenue: {ENTITY_TYPE_META[t.entityType].revenueModel}
+        </div>
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <DrawerKv label="Slug" value={t.slug} />
+        <DrawerKv label="Entity" value={ENTITY_TYPE_META[t.entityType].label} />
         <DrawerKv label="Plan" value={PLAN_META[t.plan].label} />
         <DrawerKv label="Health" value={t.health} />
         <DrawerKv label="Signed up" value={t.signupAt} />
@@ -1447,6 +1532,7 @@ export function PlatformTenantImpersonateDrawer() {
                 tenantName: t.name,
                 asPlan: t.plan,
                 asRole: "owner",
+                asEntityType: t.entityType,
                 readOnly: true,
               });
               toast(`Impersonating ${t.name} (read-only)`);
@@ -1667,7 +1753,7 @@ export function PlatformHubSubmissionDrawer() {
       <div
         style={{
           aspectRatio: "16 / 9",
-          background: COLORS.cream,
+          background: COLORS.surfaceAlt,
           borderRadius: 12,
           display: "flex",
           alignItems: "center",

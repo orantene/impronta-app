@@ -5,7 +5,11 @@ import {
   CLIENT_PAGES,
   CLIENT_PAGE_META,
   COLORS,
+  ENTITY_TYPE_META,
+  ENTITY_TYPES,
   FONTS,
+  describeSource,
+  INQUIRY_STAGE_META,
   PAGE_META,
   PLAN_META,
   PLANS,
@@ -27,10 +31,20 @@ import {
   getTeam,
   meetsPlan,
   meetsRole,
+  pluralize,
   useProto,
+  Z,
   ACTIVATION_TASKS,
+  FREE_PLAN_VALUE,
   SITE_PAGES,
+  WORKSPACE_PAYMENTS,
+  PAYMENT_STATUS_META,
+  PAYOUT_STATUS_META,
+  PLAN_FEE_META,
+  getWorkspacePayout,
   type ClientPage,
+  type EntityType,
+  type InquirySource,
   type Plan,
   type PlatformPage,
   type Role,
@@ -42,9 +56,13 @@ import {
   Affordance,
   Avatar,
   Bullet,
+  CapNudge,
   CapsLabel,
+  ClientTrustChip,
   CompactLockedCard,
+  EmptyState,
   Divider,
+  EntityChip,
   GhostButton,
   Icon,
   IconChip,
@@ -60,8 +78,13 @@ import {
   StateChip,
   StatDot,
   StatusCard,
+  StatusPill,
   PlanChip,
+  PayoutStatusChip,
+  PaymentStatusChip,
+  SwipeableRow,
 } from "./_primitives";
+import { SavedViewsBar } from "./_wave2";
 import { TalentSurface } from "./_talent";
 import { ClientSurface } from "./_client";
 import { PlatformSurface } from "./_platform";
@@ -76,6 +99,7 @@ export function ControlBar() {
     setSurface,
     setPlan,
     setRole,
+    setEntityType,
     setAlsoTalent,
     setPage,
     setTalentPage,
@@ -84,19 +108,22 @@ export function ControlBar() {
   } = useProto();
 
   return (
-    <div
+    <header
+      role="banner"
+      aria-label="Prototype control bar"
       style={{
         background: "#0F0F11",
         color: "#fff",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
-        padding: "10px 18px",
+        padding: "6px 14px",
         display: "flex",
         alignItems: "center",
-        gap: 18,
+        gap: 12,
         flexWrap: "wrap",
+        rowGap: 6,
         position: "sticky",
         top: 0,
-        zIndex: 50,
+        zIndex: Z.controlBar,
         fontFamily: FONTS.body,
       }}
     >
@@ -148,6 +175,12 @@ export function ControlBar() {
             value={state.plan}
             options={PLANS.map((p) => ({ value: p, label: PLAN_META[p].label }))}
             onChange={(v) => setPlan(v as Plan)}
+          />
+          <SegmentedControl
+            label="Entity"
+            value={state.entityType}
+            options={ENTITY_TYPES.map((e) => ({ value: e, label: ENTITY_TYPE_META[e].label }))}
+            onChange={(v) => setEntityType(v as EntityType)}
           />
           <SegmentedControl
             label="Role"
@@ -206,7 +239,7 @@ export function ControlBar() {
       >
         Tulala admin · v0.3 prototype
       </span>
-    </div>
+    </header>
   );
 }
 
@@ -222,12 +255,12 @@ function SegmentedControl({
   onChange: (v: string) => void;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <span
         style={{
-          fontSize: 10.5,
-          color: "rgba(255,255,255,0.52)",
-          letterSpacing: 1,
+          fontSize: 9.5,
+          color: "rgba(255,255,255,0.45)",
+          letterSpacing: 0.8,
           textTransform: "uppercase",
           fontWeight: 600,
         }}
@@ -238,8 +271,8 @@ function SegmentedControl({
         style={{
           display: "inline-flex",
           background: "rgba(255,255,255,0.06)",
-          borderRadius: 7,
-          padding: 2,
+          borderRadius: 6,
+          padding: 1.5,
           gap: 0,
         }}
       >
@@ -253,13 +286,13 @@ function SegmentedControl({
                 background: active ? "rgba(255,255,255,0.94)" : "transparent",
                 color: active ? "#0F0F11" : "rgba(255,255,255,0.78)",
                 border: "none",
-                padding: "5px 10px",
-                fontSize: 11.5,
+                padding: "3px 8px",
+                fontSize: 11,
                 fontWeight: 500,
-                letterSpacing: 0.1,
+                letterSpacing: 0.05,
                 fontFamily: FONTS.body,
                 cursor: "pointer",
-                borderRadius: 5,
+                borderRadius: 4,
                 whiteSpace: "nowrap",
                 transition: "background .12s, color .12s",
               }}
@@ -293,16 +326,16 @@ function ToggleControl({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 7,
+        gap: 6,
         background: on ? "rgba(255,255,255,0.94)" : "rgba(255,255,255,0.06)",
         color: on ? "#0F0F11" : "rgba(255,255,255,0.78)",
         border: "none",
-        padding: "5px 10px",
-        fontSize: 11.5,
+        padding: "4px 9px",
+        fontSize: 11,
         fontWeight: 500,
         fontFamily: FONTS.body,
         cursor: "pointer",
-        borderRadius: 7,
+        borderRadius: 6,
         transition: "background .12s, color .12s",
       }}
     >
@@ -330,16 +363,18 @@ export function WorkspaceTopbar() {
 
   return (
     <header
+      data-tulala-app-topbar
       style={{
         background: "#fff",
         borderBottom: `1px solid ${COLORS.borderSoft}`,
         padding: "0 28px",
         position: "sticky",
         top: 50,
-        zIndex: 40,
+        zIndex: Z.topbar,
       }}
     >
       <div
+        data-tulala-app-topbar-row
         style={{
           display: "flex",
           alignItems: "center",
@@ -348,7 +383,7 @@ export function WorkspaceTopbar() {
         }}
       >
         {/* Tenant identity — clicking the chip opens summary; clicking the name goes home */}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+        <div data-tulala-tenant-chip style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={() => setPage("overview")}
             style={{
@@ -393,8 +428,10 @@ export function WorkspaceTopbar() {
             </span>
           </button>
           <button
-            onClick={() => openDrawer("tenant-summary")}
-            aria-label="Workspace summary"
+            data-tulala-tenant-meta
+            onClick={() => openDrawer("tenant-switcher")}
+            aria-label="Switch workspace"
+            title="Switch workspace"
             style={{
               background: "transparent",
               border: "none",
@@ -406,14 +443,15 @@ export function WorkspaceTopbar() {
             }}
           >
             <PlanChip plan={state.plan} variant="outline" />
+            <EntityChip entityType={state.entityType} variant="outline" />
             <Icon name="chevron-down" size={11} color={COLORS.inkDim} />
           </button>
         </div>
 
-        <div style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 8px" }} />
+        <div data-tulala-topbar-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 8px" }} />
 
         {/* Nav */}
-        <nav style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
+        <nav data-tulala-app-topbar-nav aria-label="Workspace sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {WORKSPACE_PAGES.map((p) => {
             const active = state.page === p;
             return (
@@ -441,7 +479,7 @@ export function WorkspaceTopbar() {
                   if (!active) e.currentTarget.style.color = COLORS.inkMuted;
                 }}
               >
-                {PAGE_META[p].label}
+                {p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
                 {active && (
                   <span
                     style={{
@@ -461,7 +499,7 @@ export function WorkspaceTopbar() {
         </nav>
 
         {/* Right side */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div data-tulala-app-topbar-right style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {canCreate && <QuickCreateMenu />}
 
           {/* Bell */}
@@ -766,6 +804,7 @@ export function WorkspaceShell() {
     <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 56px - 50px)" }}>
       <WorkspaceTopbar />
       <main
+        data-tulala-surface-main
         style={{
           padding: "28px 28px 60px",
           maxWidth: 1320,
@@ -782,6 +821,10 @@ function PageRouter({ page }: { page: WorkspacePage }) {
   switch (page) {
     case "overview":
       return <OverviewPage />;
+    case "inbox":
+      return <UnifiedInboxPage />;
+    case "calendar":
+      return <CalendarPage />;
     case "work":
       return <WorkPage />;
     case "talent":
@@ -790,6 +833,8 @@ function PageRouter({ page }: { page: WorkspacePage }) {
       return <ClientsPage />;
     case "site":
       return <SitePage />;
+    case "billing":
+      return <BillingPage />;
     case "workspace":
       return <WorkspacePageView />;
   }
@@ -812,6 +857,7 @@ function PageHeader({
 }) {
   return (
     <div
+      data-tulala-page-header
       style={{
         display: "flex",
         alignItems: "flex-start",
@@ -819,13 +865,14 @@ function PageHeader({
         marginBottom: 24,
       }}
     >
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         {eyebrow && (
           <div style={{ marginBottom: 6 }}>
             <CapsLabel>{eyebrow}</CapsLabel>
           </div>
         )}
         <h1
+          data-tulala-h1
           style={{
             fontFamily: FONTS.display,
             fontSize: 30,
@@ -853,7 +900,14 @@ function PageHeader({
           </p>
         )}
       </div>
-      {actions && <div style={{ display: "flex", gap: 8, alignItems: "center" }}>{actions}</div>}
+      {actions && (
+        <div
+          data-tulala-page-header-actions
+          style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}
+        >
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
@@ -873,6 +927,7 @@ function Grid({
   };
   return (
     <div
+      data-tulala-grid={cols}
       style={{
         display: "grid",
         gridTemplateColumns: colMap[cols],
@@ -905,9 +960,9 @@ function OverviewPage() {
   return (
     <>
       <PageHeader
-        eyebrow={`Good morning, Oran`}
-        title={`Today across ${TENANT.name}`}
-        subtitle="A live snapshot of what needs attention right now — the people, work and signals moving through your agency."
+        eyebrow={`Good morning, Oran · ${TENANT.name}`}
+        title="Today"
+        subtitle="What needs your attention today."
         actions={
           canEdit && (
             <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
@@ -955,10 +1010,10 @@ function OverviewPage() {
       <Grid cols="2">
         <PrimaryCard
           title="What needs you today"
-          description={`${awaiting.length} inquiries are waiting on the client and ${draftCount} drafts haven't been sent.`}
+          description={`${pluralize(awaiting.length, "inquiry", "inquiries")} ${awaiting.length === 1 ? "is" : "are"} waiting on the client and ${pluralize(draftCount, "draft", "drafts")} ${draftCount === 1 ? "hasn't" : "haven't"} been sent.`}
           icon={<Icon name="bolt" size={14} stroke={1.7} />}
           affordance="Open today's pulse"
-          meta={<><StatDot tone="amber" /> {awaiting.length + draftCount} items</>}
+          meta={<>{pluralize(awaiting.length + draftCount, "item", "items", true)}</>}
           onClick={() => openDrawer("today-pulse")}
         />
         <PrimaryCard
@@ -968,7 +1023,7 @@ function OverviewPage() {
           affordance="Open pipeline"
           meta={
             <>
-              <StatDot tone="ink" /> {inquiries.length} active
+              {pluralize(inquiries.length, "active", "active", true)}
               <Bullet />
               {confirmedThisWeek.length} confirmed
             </>
@@ -984,14 +1039,14 @@ function OverviewPage() {
         <SecondaryCard
           title="Drafts & holds"
           description="Inquiries you started but haven't sent."
-          meta={`${draftCount} items`}
+          meta={pluralize(draftCount, "item", "items")}
           affordance="Review"
           onClick={() => openDrawer("drafts-holds")}
         />
         <SecondaryCard
           title="Awaiting client"
           description="Offers sent — waiting on confirmation."
-          meta={`${awaiting.length} items`}
+          meta={pluralize(awaiting.length, "item", "items")}
           affordance="Review"
           onClick={() => openDrawer("awaiting-client")}
         />
@@ -1078,15 +1133,35 @@ function OverviewPage() {
 
 function OverviewFree() {
   const { state, setPage, openDrawer, openUpgrade, completeTask, toast } = useProto();
-  const completedCount = state.completedTasks.size;
+
+  // Live signals that prove a step is "really done" — overrides the
+  // user-confirmed Set. Order: real state first, manual confirmation
+  // second. This way a returning user with 3 talents already on roster
+  // sees "Add your first talent" pre-checked, even if they never clicked
+  // the row in this prototype session.
+  const liveRoster = getRoster(state.plan);
+  const livePublished = liveRoster.filter((t) => t.state === "published").length;
+  const liveInquiries = getInquiries(state.plan);
+  const liveTeam = getTeam(state.plan);
+  const autoComplete: Record<string, boolean> = {
+    "add-talent": liveRoster.length > 0,
+    publish: livePublished > 0,
+    "share-url": false, // genuinely manual — no upstream signal
+    "try-inquiry": liveInquiries.length > 0,
+    "invite-team": liveTeam.length > 1,
+  };
+  const isDone = (taskId: string) =>
+    state.completedTasks.has(taskId) || !!autoComplete[taskId];
+  const completedCount = ACTIVATION_TASKS.filter((t) => isDone(t.id)).length;
   const totalTasks = ACTIVATION_TASKS.length;
+  const progressPct = Math.round((completedCount / totalTasks) * 100);
 
   return (
     <>
       <PageHeader
-        eyebrow={`Welcome to Tulala`}
-        title="Let's get you live."
-        subtitle="You're on the Free plan — your agency joins our open ecosystem. Five short steps and your roster is searchable to anyone in our network."
+        eyebrow="Welcome to Tulala"
+        title="You're already live."
+        subtitle="Walk the activation steps below — first inbound usually lands within the day."
         actions={
           <span
             style={{
@@ -1095,27 +1170,78 @@ function OverviewFree() {
               color: COLORS.inkMuted,
             }}
           >
-            {completedCount} of {totalTasks} steps complete
+            {completedCount} of {totalTasks} steps · ~10 min total
           </span>
         }
       />
 
+      {/* Progress strip — gives the user a sense of momentum */}
+      <div
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          padding: "12px 16px",
+          marginBottom: 16,
+          fontFamily: FONTS.body,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            marginBottom: 8,
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink, letterSpacing: 0.3, textTransform: "uppercase" }}>
+            First 10 minutes
+          </span>
+          <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+            {progressPct}% complete
+          </span>
+        </div>
+        <div
+          style={{
+            height: 6,
+            background: "rgba(11,11,13,0.06)",
+            borderRadius: 999,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${progressPct}%`,
+              height: "100%",
+              background: COLORS.ink,
+              transition: "width .25s ease",
+            }}
+          />
+        </div>
+      </div>
+
       <StarterCard
-        title="Set up your agency"
-        subtitle="A short guided path to a published storefront. Most agencies finish this in under 10 minutes."
+        title="Your activation arc"
+        subtitle="Five steps that turn a fresh signup into a real inbound. Skip steps you don't need — every one is reversible."
       >
         <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
           {ACTIVATION_TASKS.map((task, idx) => {
-            const done = state.completedTasks.has(task.id);
+            const done = isDone(task.id);
             return (
               <li key={task.id}>
                 <button
                   onClick={() => {
                     if (task.drawer) {
-                      openDrawer(task.drawer, { fromTask: task.id });
+                      // Demo-inquiry step — open the prototype's rich inquiry workspace
+                      if (task.id === "try-inquiry") {
+                        openDrawer("inquiry-workspace", { inquiryId: "RI-201", pov: "admin" });
+                        completeTask(task.id);
+                      } else {
+                        openDrawer(task.drawer, { fromTask: task.id });
+                      }
                     } else {
                       completeTask(task.id);
-                      toast(`Marked “${task.label}” as done`);
+                      toast(`Marked "${task.label}" as done`);
                     }
                   }}
                   style={{
@@ -1162,18 +1288,43 @@ function OverviewFree() {
                       </span>
                     )}
                   </span>
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 13.5,
-                      color: COLORS.ink,
-                      fontWeight: 500,
-                      textDecoration: done ? "line-through" : "none",
-                      opacity: done ? 0.55 : 1,
-                    }}
-                  >
-                    {task.label}
-                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        color: COLORS.ink,
+                        fontWeight: 500,
+                        textDecoration: done ? "line-through" : "none",
+                        opacity: done ? 0.55 : 1,
+                      }}
+                    >
+                      {task.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: COLORS.inkMuted,
+                        marginTop: 1,
+                        opacity: done ? 0.55 : 1,
+                      }}
+                    >
+                      {done && autoComplete[task.id] && !state.completedTasks.has(task.id)
+                        ? "Auto-detected — already done."
+                        : task.hint}
+                    </div>
+                  </div>
+                  {!done && (
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        color: COLORS.inkDim,
+                        fontFamily: FONTS.body,
+                        letterSpacing: 0.3,
+                      }}
+                    >
+                      {task.est}
+                    </span>
+                  )}
                   <Affordance label={done ? "Done" : "Open"} />
                 </button>
               </li>
@@ -1181,6 +1332,11 @@ function OverviewFree() {
           })}
         </ol>
       </StarterCard>
+
+      <div style={{ height: 24 }} />
+
+      {/* What you can do TODAY — the value-not-walls panel */}
+      <FreeValuePanel />
 
       <div style={{ height: 24 }} />
 
@@ -1282,6 +1438,401 @@ function OverviewFree() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// INBOX (#8 — unified)
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Single-pane view that joins inquiry threads + 1:1 messages +
+ * notifications, grouped by entity. Replaces the fragmented
+ * inquiry/messages/notifications drawers as the default mental model.
+ *
+ * Mock implementation: builds rows from RICH_INQUIRIES with their unread
+ * counts and last-activity timestamps. In production this would read from
+ * a unified `events` view.
+ */
+function UnifiedInboxPage() {
+  const { openDrawer, toast } = useProto();
+  // Use RICH_INQUIRIES so we have nextActionBy / unread / lastActivityHrs.
+  const inquiries = RICH_INQUIRIES;
+  const [filter, setFilter] = useState<"needs-me" | "all" | "mentions">("needs-me");
+
+  const isOpen = (s: typeof inquiries[number]["stage"]) =>
+    s !== "rejected" && s !== "expired";
+  const rows = inquiries
+    .filter((i) => isOpen(i.stage))
+    .filter((i) => {
+      if (filter === "needs-me") return i.nextActionBy === "coordinator";
+      if (filter === "mentions") return i.unreadGroup > 0;
+      return true;
+    })
+    .sort((a, b) => a.lastActivityHrs - b.lastActivityHrs);
+
+  // Saved-views payload — capture the active filter; restore on click.
+  type InboxView = { filter: typeof filter };
+  const onApplyView = (v: InboxView) => setFilter(v.filter);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Inbox"
+        title="Unified inbox"
+        subtitle="Inquiry threads, mentions, and notifications in one place — sorted by what needs you next."
+      />
+      <SavedViewsBar viewKey="inbox" current={{ filter }} onApply={onApplyView} />
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          marginBottom: 14,
+          flexWrap: "wrap",
+        }}
+      >
+        {(
+          [
+            { id: "needs-me", label: `Needs me · ${inquiries.filter((i) => i.nextActionBy === "coordinator").length}` },
+            { id: "all", label: `All · ${inquiries.filter((i) => isOpen(i.stage)).length}` },
+            { id: "mentions", label: `Mentions · ${inquiries.filter((i) => i.unreadGroup > 0).length}` },
+          ] as const
+        ).map((f) => {
+          const active = filter === f.id;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              style={{
+                padding: "6px 12px",
+                background: active ? COLORS.ink : "rgba(11,11,13,0.04)",
+                color: active ? "#fff" : COLORS.ink,
+                border: "none",
+                borderRadius: 999,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              {f.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState
+          icon="mail"
+          title="Inbox zero"
+          body="Nothing waiting on you in this filter. Switch to All to see everything moving."
+          primaryLabel="Show all threads"
+          onPrimary={() => setFilter("all")}
+        />
+      ) : (
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          {rows.map((inq, idx) => (
+            <SwipeableRow
+              key={inq.id}
+              leftActions={[
+                {
+                  label: "Pin",
+                  tone: "ink",
+                  onClick: () => toast(`Pinned ${inq.clientName}`),
+                },
+              ]}
+              rightActions={[
+                {
+                  label: "Snooze",
+                  tone: "ink",
+                  onClick: () => toast(`Snoozed ${inq.clientName} 4h`),
+                },
+                {
+                  label: "Archive",
+                  tone: "red",
+                  onClick: () => toast(`Archived ${inq.clientName}`),
+                },
+              ]}
+            >
+            <button
+              type="button"
+              data-tulala-row
+              onClick={() => openDrawer("inquiry-workspace", { inquiryId: inq.id })}
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 12,
+                width: "100%",
+                padding: "14px 16px",
+                background: "#fff",
+                border: "none",
+                borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: FONTS.body,
+              }}
+            >
+              <Avatar initials={inq.clientName.slice(0, 2).toUpperCase()} size={32} tone="auto" />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                    {inq.clientName}
+                  </span>
+                  <ClientTrustChip level={inq.clientTrust} compact />
+                  {inq.unreadGroup > 0 && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        background: COLORS.accent,
+                        color: "#fff",
+                        padding: "1px 6px",
+                        borderRadius: 999,
+                      }}
+                    >
+                      {inq.unreadGroup}
+                    </span>
+                  )}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: COLORS.inkMuted,
+                    marginTop: 2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {inq.brief}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: COLORS.inkDim,
+                  }}
+                >
+                  <span>
+                    {INQUIRY_STAGE_META[inq.stage].label}
+                  </span>
+                  <Bullet />
+                  <span>
+                    {inq.lastActivityHrs < 1
+                      ? "just now"
+                      : inq.lastActivityHrs < 24
+                        ? `${Math.round(inq.lastActivityHrs)}h ago`
+                        : `${Math.round(inq.lastActivityHrs / 24)}d ago`}
+                  </span>
+                  {inq.nextActionBy && (
+                    <>
+                      <Bullet />
+                      <span>Waiting on {inq.nextActionBy}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+            </button>
+            </SwipeableRow>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CALENDAR (#12 — month grid)
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Roster-wide calendar. Lays out a 6×7 month grid; each cell hints at
+ * any bookings/holds on that day. Mock — real version reads from a
+ * unified events feed.
+ */
+function CalendarPage() {
+  const { openDrawer } = useProto();
+  const inquiries = RICH_INQUIRIES;
+  // Build a map of "YYYY-MM-DD" → events for the current month. Use
+  // today's month as the focus; navigation buttons are non-functional
+  // shells in the prototype.
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstWeekday = new Date(year, month, 1).getDay(); // 0 = Sun
+
+  // Synthesize a few "events" by hashing inquiry ids onto days.
+  const events: Record<number, { title: string; tone: "ink" | "green" | "amber" | "red" }[]> = {};
+  inquiries.slice(0, 8).forEach((inq, i) => {
+    const day = ((i * 5) % daysInMonth) + 1;
+    const tone = inq.stage === "booked" || inq.stage === "approved" ? "green" : inq.stage === "draft" ? "amber" : "ink";
+    events[day] = events[day] ?? [];
+    events[day].push({ title: `${inq.clientName} — ${inq.brief.slice(0, 18)}…`, tone });
+  });
+
+  const monthLabel = today.toLocaleString("en-US", { month: "long", year: "numeric" });
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Calendar"
+        title="Roster calendar"
+        subtitle="Confirmed bookings, holds, and blocked dates across all your talent. Click a day to drill in."
+        actions={
+          <SecondaryButton onClick={() => openDrawer("new-booking")}>
+            New booking
+          </SecondaryButton>
+        }
+      />
+      <div
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          overflow: "hidden",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 14px",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{monthLabel}</div>
+          <div style={{ display: "flex", gap: 4 }}>
+            <CalendarNavBtn label="←" />
+            <CalendarNavBtn label="Today" />
+            <CalendarNavBtn label="→" />
+          </div>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            background: "rgba(11,11,13,0.02)",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+          }}
+        >
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+            <div
+              key={d}
+              style={{
+                padding: "8px 10px",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: COLORS.inkMuted,
+              }}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(7, 1fr)",
+            gridAutoRows: "minmax(96px, auto)",
+          }}
+        >
+          {Array.from({ length: firstWeekday }).map((_, i) => (
+            <div key={`pad-${i}`} style={{ background: "rgba(11,11,13,0.015)" }} />
+          ))}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dayEvents = events[day] ?? [];
+            const isToday = day === today.getDate();
+            return (
+              <div
+                key={day}
+                style={{
+                  padding: "8px 10px",
+                  borderTop: `1px solid ${COLORS.borderSoft}`,
+                  borderLeft: i % 7 === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: isToday ? 700 : 500,
+                    color: isToday ? COLORS.accent : COLORS.ink,
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {day}
+                </div>
+                {dayEvents.slice(0, 2).map((e, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      fontSize: 10.5,
+                      color: e.tone === "green" ? COLORS.green : e.tone === "amber" ? COLORS.amber : e.tone === "red" ? COLORS.red : COLORS.ink,
+                      background:
+                        e.tone === "green"
+                          ? "rgba(46,125,91,0.08)"
+                          : e.tone === "amber"
+                            ? "rgba(82,96,109,0.08)"
+                            : "rgba(11,11,13,0.04)",
+                      padding: "2px 6px",
+                      borderRadius: 5,
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {e.title}
+                  </span>
+                ))}
+                {dayEvents.length > 2 && (
+                  <span style={{ fontSize: 10, color: COLORS.inkDim }}>
+                    +{dayEvents.length - 2} more
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function CalendarNavBtn({ label }: { label: string }) {
+  return (
+    <button
+      type="button"
+      style={{
+        padding: "5px 10px",
+        background: "transparent",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 6,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        fontSize: 12,
+        color: COLORS.inkMuted,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
 // WORK
 // ════════════════════════════════════════════════════════════════════
 
@@ -1291,6 +1842,26 @@ function WorkPage() {
   const canEdit = meetsRole(state.role, "coordinator");
   const isFree = state.plan === "free";
 
+  /**
+   * Pipeline list source filter. Mirrors RichInquiry.source.kind — "all"
+   * passes through, anything else narrows to that origin kind.
+   */
+  type SourceKind = "all" | "direct" | "hub" | "manual" | "marketplace";
+  const [sourceFilter, setSourceFilter] = useState<SourceKind>("all");
+  /**
+   * Pulls a RichInquiry that matches the legacy Inquiry row, so we can
+   * surface its source chip. Falls back to client-name match if the brief
+   * differs (legacy data sometimes does).
+   */
+  const matchRich = (iq: { client: string; brief: string }) =>
+    RICH_INQUIRIES.find(
+      (r) => r.clientName === iq.client && r.brief === iq.brief,
+    ) ?? RICH_INQUIRIES.find((r) => r.clientName === iq.client);
+  const filteredInquiries =
+    sourceFilter === "all"
+      ? inquiries
+      : inquiries.filter((iq) => matchRich(iq)?.source.kind === sourceFilter);
+
   const drafts = inquiries.filter((i) => i.stage === "draft" || i.stage === "hold");
   const awaiting = inquiries.filter((i) => i.stage === "awaiting-client");
   const confirmed = inquiries.filter((i) => i.stage === "confirmed");
@@ -1298,7 +1869,7 @@ function WorkPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Work"
+        eyebrow="Pipeline"
         title="Inquiries → confirmed bookings"
         subtitle="Every conversation that could become a booking. Coordinators move work forward; admins track the whole flow."
         actions={
@@ -1361,12 +1932,15 @@ function WorkPage() {
           >
             Active pipeline
           </h2>
-          <GhostButton onClick={() => openDrawer("filter-config")}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-              <Icon name="filter" size={12} stroke={1.7} />
-              Filter
-            </span>
-          </GhostButton>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <SourceFilterChips value={sourceFilter} onChange={setSourceFilter} />
+            <GhostButton onClick={() => openDrawer("filter-config")}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <Icon name="filter" size={12} stroke={1.7} />
+                Filter
+              </span>
+            </GhostButton>
+          </div>
         </div>
         <div
           style={{
@@ -1376,15 +1950,45 @@ function WorkPage() {
             overflow: "hidden",
           }}
         >
-          {inquiries.map((iq, idx) => (
+          {filteredInquiries.length === 0 && (
+            <EmptyState
+              icon="mail"
+              title="No inquiries from this source yet"
+              body="When a brief comes in via this channel, it'll show up here. You can also log one manually."
+              primaryLabel="New inquiry"
+              onPrimary={() => openDrawer("new-inquiry")}
+            />
+          )}
+          {filteredInquiries.length > 0 && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0,1.4fr) minmax(0,2fr) 110px 110px 70px",
+                gap: 14,
+                padding: "9px 18px",
+                background: "rgba(11,11,13,0.02)",
+                borderBottom: `1px solid ${COLORS.borderSoft}`,
+                fontFamily: FONTS.body,
+                fontSize: 10.5,
+                fontWeight: 600,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                color: COLORS.inkMuted,
+              }}
+            >
+              <span>Client · brief</span>
+              <span>Talent</span>
+              <span>Stage</span>
+              <span>Amount</span>
+              <span />
+            </div>
+          )}
+          {filteredInquiries.map((iq, idx) => {
+            const rich = matchRich(iq);
+            return (
             <button
               key={iq.id}
               onClick={() => {
-                // Prefer messaging-first workspace; fall back to legacy peek
-                const rich =
-                  RICH_INQUIRIES.find(
-                    (r) => r.clientName === iq.client && r.brief === iq.brief,
-                  ) ?? RICH_INQUIRIES.find((r) => r.clientName === iq.client);
                 if (rich) {
                   openDrawer("inquiry-workspace", { inquiryId: rich.id, pov: "admin" });
                 } else {
@@ -1410,8 +2014,26 @@ function WorkPage() {
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.05 }}>
-                  {iq.client}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 13.5,
+                      fontWeight: 600,
+                      color: COLORS.ink,
+                      letterSpacing: -0.05,
+                    }}
+                  >
+                    {iq.client}
+                  </span>
+                  {rich && <ClientTrustChip level={rich.clientTrust} compact />}
+                  {rich && <SourceChip source={rich.source} />}
                 </div>
                 <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
                   {iq.brief}
@@ -1430,7 +2052,8 @@ function WorkPage() {
                 <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
               </div>
             </button>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -1464,6 +2087,100 @@ function WorkPage() {
   );
 }
 
+/**
+ * Origin chip rendered next to the client name on a pipeline row. Uses
+ * `describeSource` so the visible text always reflects what's in state —
+ * e.g. "via acme-models.com", "via Tulala Hub", "added by email".
+ * Kept tiny and outline-styled so it never competes with stage colour.
+ */
+function SourceChip({ source }: { source: InquirySource }) {
+  const d = describeSource(source);
+  return (
+    <span
+      title={d.long}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "1px 7px",
+        background: "transparent",
+        color: COLORS.inkMuted,
+        border: `1px solid ${COLORS.borderSoft}`,
+        fontFamily: FONTS.body,
+        fontSize: 10.5,
+        fontWeight: 500,
+        letterSpacing: 0.2,
+        borderRadius: 999,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {d.short}
+    </span>
+  );
+}
+
+/**
+ * Compact source-filter row above the pipeline. Lives inline rather than
+ * in a drawer because filtering by origin is a primary slicing axis for
+ * the coordinator (a hub-forwarded inquiry behaves differently).
+ */
+function SourceFilterChips({
+  value,
+  onChange,
+}: {
+  value: "all" | "direct" | "hub" | "manual" | "marketplace";
+  onChange: (v: "all" | "direct" | "hub" | "manual" | "marketplace") => void;
+}) {
+  const opts: { v: typeof value; label: string }[] = [
+    { v: "all", label: "All sources" },
+    { v: "direct", label: "Direct" },
+    { v: "hub", label: "Hub" },
+    { v: "manual", label: "Manual" },
+    { v: "marketplace", label: "Marketplace" },
+  ];
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        background: "rgba(11,11,13,0.04)",
+        borderRadius: 999,
+        padding: 2,
+        gap: 0,
+      }}
+    >
+      {opts.map((o) => {
+        const active = value === o.v;
+        return (
+          <button
+            key={o.v}
+            onClick={() => onChange(o.v)}
+            style={{
+              border: "none",
+              background: active ? "#fff" : "transparent",
+              color: active ? COLORS.ink : COLORS.inkMuted,
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: active ? 600 : 500,
+              padding: "4px 10px",
+              borderRadius: 999,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
+              transition: "background .12s, color .12s",
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Pipeline-stage badge. Translates stage id → label + tone, then delegates
+ * to the StatusPill primitive.
+ */
 function StageBadge({ stage }: { stage: string }) {
   const map: Record<string, { label: string; tone: "ink" | "amber" | "green" | "dim" | "red" }> = {
     draft: { label: "Draft", tone: "dim" },
@@ -1473,41 +2190,172 @@ function StageBadge({ stage }: { stage: string }) {
     archived: { label: "Archived", tone: "dim" },
   };
   const m = map[stage] ?? { label: stage, tone: "dim" as const };
+  return <StatusPill tone={m.tone} label={m.label} />;
+}
+
+/**
+ * "Today on Free" — the value-not-walls panel. Replaces the old "here's
+ * what's locked" framing with an honest list of what works on Free, plus
+ * concrete usage caps shown as soft progress bars (not blockers). When a
+ * cap nears 80% we surface a one-line upgrade nudge inline.
+ *
+ * Why: the prior architecture made Free feel like a sandbox with all the
+ * doors locked. The actual model is "your agency is live, with caps." We
+ * now lead with that.
+ */
+function FreeValuePanel() {
+  const { setPage, openDrawer } = useProto();
   return (
-    <span
+    <div
       style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "3px 8px",
-        borderRadius: 999,
-        fontSize: 11,
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        padding: "18px 20px",
         fontFamily: FONTS.body,
-        fontWeight: 500,
-        background:
-          m.tone === "green"
-            ? "rgba(46,125,91,0.10)"
-            : m.tone === "amber"
-              ? "rgba(198,138,30,0.10)"
-              : "rgba(11,11,13,0.05)",
-        color:
-          m.tone === "green"
-            ? "#1F5C42"
-            : m.tone === "amber"
-              ? "#7E5612"
-              : COLORS.inkMuted,
-        whiteSpace: "nowrap",
       }}
     >
-      <StatDot tone={m.tone} size={5} />
-      {m.label}
-    </span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          marginBottom: 14,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted,
+              marginBottom: 4,
+            }}
+          >
+            Today on Free
+          </div>
+          <div
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 18,
+              fontWeight: 500,
+              letterSpacing: -0.1,
+              color: COLORS.ink,
+            }}
+          >
+            What works right now
+          </div>
+        </div>
+        <GhostButton onClick={() => openDrawer("plan-compare")}>
+          Compare plans →
+        </GhostButton>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {FREE_PLAN_VALUE.map((v, idx) => {
+          const pct = v.used ? Math.min(100, Math.round((v.used.current / v.used.cap) * 100)) : 0;
+          const near = v.used ? pct >= 80 : false;
+          return (
+            <div
+              key={v.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "12px 0",
+                borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <span
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: 999,
+                  background: COLORS.green,
+                  color: "#fff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Icon name="check" size={11} stroke={2.5} color="#fff" />
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                  {v.label}
+                </div>
+                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                  {v.detail}
+                </div>
+              </div>
+              {v.used && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                  <span
+                    style={{
+                      fontFamily: FONTS.mono,
+                      fontSize: 11,
+                      color: near ? "#3A4651" : COLORS.inkMuted,
+                      letterSpacing: 0.2,
+                    }}
+                  >
+                    {v.used.current} / {v.used.cap} {v.used.unit}
+                  </span>
+                  <div
+                    style={{
+                      width: 60,
+                      height: 4,
+                      background: "rgba(11,11,13,0.06)",
+                      borderRadius: 999,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        height: "100%",
+                        background: near ? "#52606D" : COLORS.ink,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginTop: 14,
+          paddingTop: 14,
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+        }}
+      >
+        <span style={{ fontSize: 12, color: COLORS.inkMuted, flex: 1 }}>
+          Caps are soft. We'll nudge before you run out — never block mid-conversation.
+        </span>
+        <SecondaryButton onClick={() => setPage("talent")}>Open roster</SecondaryButton>
+        <PrimaryButton onClick={() => setPage("work")}>See pipeline</PrimaryButton>
+      </div>
+    </div>
   );
 }
 
 // ════════════════════════════════════════════════════════════════════
 // TALENT
 // ════════════════════════════════════════════════════════════════════
+
+/** Next plan up that lifts the roster cap. Network has no further upgrade. */
+function nextPlanForRoster(plan: Plan): Plan | null {
+  if (plan === "free") return "studio";
+  if (plan === "studio") return "agency";
+  if (plan === "agency") return "network";
+  return null;
+}
 
 function TalentPage() {
   const { state, openDrawer, openUpgrade } = useProto();
@@ -1522,18 +2370,35 @@ function TalentPage() {
     awaiting: roster.filter((r) => r.state === "awaiting-approval").length,
   };
 
+  // Roster cap is per-plan; only relevant for non-network tenants on the agency surface.
+  const rosterCap =
+    state.entityType === "agency"
+      ? state.plan === "free"
+        ? 5
+        : state.plan === "studio"
+          ? 50
+          : state.plan === "agency"
+            ? 200
+            : null
+      : null;
+
+  const entityMeta = ENTITY_TYPE_META[state.entityType];
   return (
     <>
       <PageHeader
-        eyebrow="Talent"
-        title="Roster"
-        subtitle="Profiles you represent. Each one moves through draft → invited → published → claimed."
+        eyebrow={state.entityType === "hub" ? "Network" : "Talent"}
+        title={entityMeta.rosterLabel}
+        subtitle={
+          state.entityType === "hub"
+            ? "Independent members listed in your network. Each one moves through invited → onboarded → live → featured."
+            : "Profiles you represent. Each one moves through draft → invited → published → claimed."
+        }
         actions={
           <>
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <PrimaryButton onClick={() => openDrawer("new-talent")}>
-                Add talent
+                {state.entityType === "hub" ? "Invite member" : "Add talent"}
               </PrimaryButton>
             )}
           </>
@@ -1576,6 +2441,32 @@ function TalentPage() {
       </Grid>
 
       <div style={{ height: 24 }} />
+
+      {rosterCap !== null && nextPlanForRoster(state.plan) && (
+        <CapNudge
+          label="talents"
+          current={roster.length}
+          cap={rosterCap}
+          onUpgrade={() => {
+            const next = nextPlanForRoster(state.plan)!;
+            openUpgrade({
+              feature: `${PLAN_META[next].label} — room to grow`,
+              outcome:
+                roster.length >= rosterCap
+                  ? "You're at the limit. Upgrade and add the next talent immediately."
+                  : "Stay ahead of the cap so you never have to turn talent away.",
+              requiredPlan: next,
+              currentUsage: { label: "Talents on your roster", current: roster.length, cap: rosterCap },
+              unlocks:
+                next === "studio"
+                  ? ["Up to 50 talents", "Custom domain", "Owned client list", "Private inquiries"]
+                  : next === "agency"
+                    ? ["Up to 200 talents", "Branded site design", "Custom fields", "Team & roles up to 25"]
+                    : ["Unlimited talents", "Multi-brand workspaces", "Cross-roster pool", "Hub-level analytics"],
+            });
+          }}
+        />
+      )}
 
       {/* Roster grid */}
       <section>
@@ -1652,7 +2543,7 @@ function TalentPage() {
               <div
                 style={{
                   aspectRatio: "3 / 4",
-                  background: COLORS.cream,
+                  background: COLORS.surfaceAlt,
                   borderRadius: 8,
                   display: "flex",
                   alignItems: "center",
@@ -1838,6 +2729,28 @@ function ClientsPage() {
           overflow: "hidden",
         }}
       >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1.2fr) 80px 100px 60px",
+            gap: 14,
+            padding: "9px 18px",
+            background: "rgba(11,11,13,0.02)",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body,
+            fontSize: 10.5,
+            fontWeight: 600,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+          }}
+        >
+          <span>Client</span>
+          <span>Bookings</span>
+          <span>Status</span>
+          <span>Trust</span>
+          <span />
+        </div>
         {clients.map((client, idx) => (
           <button
             key={client.id}
@@ -1873,8 +2786,12 @@ function ClientsPage() {
             <div>
               <StatusBadge tone={client.status === "active" ? "green" : "dim"} label={client.status} />
             </div>
-            <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
-              {client.bookingsYTD > 3 ? "Frequent" : client.bookingsYTD > 0 ? "Active" : "Dormant"}
+            <div>
+              {client.trust ? (
+                <ClientTrustChip level={client.trust} compact />
+              ) : (
+                <span style={{ fontSize: 11, color: COLORS.inkDim }}>—</span>
+              )}
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
               <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
@@ -1913,6 +2830,10 @@ function ClientsPage() {
   );
 }
 
+/**
+ * Thin wrapper kept for call-site clarity. Delegates to the primitive
+ * StatusPill — capitalize=true matches the prior raw-status display.
+ */
 function StatusBadge({
   tone,
   label,
@@ -1920,32 +2841,7 @@ function StatusBadge({
   tone: "ink" | "amber" | "green" | "dim";
   label: string;
 }) {
-  const c =
-    tone === "green"
-      ? { bg: "rgba(46,125,91,0.10)", fg: "#1F5C42" }
-      : tone === "amber"
-        ? { bg: "rgba(198,138,30,0.10)", fg: "#7E5612" }
-        : { bg: "rgba(11,11,13,0.05)", fg: COLORS.inkMuted };
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        background: c.bg,
-        color: c.fg,
-        padding: "3px 8px",
-        borderRadius: 999,
-        fontFamily: FONTS.body,
-        fontSize: 11,
-        fontWeight: 500,
-        textTransform: "capitalize",
-      }}
-    >
-      <StatDot tone={tone} size={5} />
-      {label}
-    </span>
-  );
+  return <StatusPill tone={tone} label={label} capitalize />;
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1959,7 +2855,7 @@ function SitePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Site"
+        eyebrow="Storefront"
         title="Your public storefront"
         subtitle="Roster, site, and embeds — in one place."
         actions={
@@ -1988,10 +2884,14 @@ function SitePage() {
         subtitle="Free, Studio, Agency, Network — all plans share this."
       >
         <PrimaryCard
-          title="Roster"
-          description="Talents · drafts · approvals."
+          title={ENTITY_TYPE_META[state.entityType].rosterLabel}
+          description={
+            state.entityType === "hub"
+              ? "Members · listings · features."
+              : "Talents · drafts · approvals."
+          }
           icon={<Icon name="team" size={14} stroke={1.7} />}
-          affordance="Open roster"
+          affordance={state.entityType === "hub" ? "Open network" : "Open roster"}
           onClick={() => setPage("talent")}
         />
         <PrimaryCard
@@ -2255,8 +3155,8 @@ function SiteSetupBanner() {
   return (
     <div
       style={{
-        background: COLORS.cream,
-        border: `1px solid rgba(184,134,11,0.22)`,
+        background: COLORS.surfaceAlt,
+        border: `1px solid rgba(15,79,62,0.22)`,
         borderRadius: 14,
         padding: 22,
         display: "flex",
@@ -2269,8 +3169,8 @@ function SiteSetupBanner() {
           width: 44,
           height: 44,
           borderRadius: 11,
-          background: "rgba(184,134,11,0.16)",
-          color: COLORS.goldDeep,
+          background: "rgba(15,79,62,0.16)",
+          color: COLORS.accentDeep,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
@@ -2281,7 +3181,7 @@ function SiteSetupBanner() {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ marginBottom: 4 }}>
-          <CapsLabel color={COLORS.goldDeep} style={{ letterSpacing: 1.6 }}>
+          <CapsLabel color={COLORS.accentDeep} style={{ letterSpacing: 1.6 }}>
             Site setup · the unified walkthrough
           </CapsLabel>
         </div>
@@ -2340,7 +3240,7 @@ function TierSection({
   const palette: Record<typeof tone, { bg: string; fg: string; dot: string }> = {
     ink: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink, dot: COLORS.ink },
     indigo: { bg: "rgba(78,90,180,0.10)", fg: "#3D478A", dot: "#5C6BD0" },
-    amber: { bg: "rgba(198,138,30,0.12)", fg: "#7E5612", dot: COLORS.amber },
+    amber: { bg: "rgba(82,96,109,0.12)", fg: "#3A4651", dot: COLORS.amber },
     green: { bg: "rgba(46,125,91,0.12)", fg: "#1F5C42", dot: COLORS.green },
   };
   const p = palette[tone];
@@ -2557,6 +3457,224 @@ function PlanLadderStrip() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// BILLING / PAYMENTS
+// ════════════════════════════════════════════════════════════════════
+//
+// Workspace-level billing surface. Surfaces:
+//   1. Current plan + platform fee economics (from PLAN_FEE_META)
+//   2. Default payout receiver (workspace-level connection state)
+//   3. Recent payment activity (WORKSPACE_PAYMENTS rows)
+//   4. (Free plan) upgrade nudge — payments require Studio+ to operate
+//
+// The data layer lives in _state.tsx. This page is presentation only.
+
+function BillingPage() {
+  const { state, openDrawer, openUpgrade } = useProto();
+  const isOwner = state.role === "owner";
+  const isAdmin = meetsRole(state.role, "admin");
+  const isFree = state.plan === "free";
+  const payout = getWorkspacePayout(state.plan);
+  const fee = PLAN_FEE_META[state.plan];
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Billing"
+        title="Payments & payouts"
+        subtitle="Where money flows in this workspace — platform fee, payout receiver, recent activity."
+        actions={
+          isOwner ? (
+            <PrimaryButton onClick={() => openDrawer("plan-billing")}>
+              Manage plan
+            </PrimaryButton>
+          ) : null
+        }
+      />
+
+      {/* Top row — fee economics + default receiver */}
+      <Grid cols="2">
+        <PrimaryCard
+          title={`Platform fee · ${fee.label}`}
+          description={fee.controlsHint}
+          icon={<Icon name="credit" size={14} stroke={1.7} />}
+          badge={<PlanChip plan={state.plan} variant="solid" />}
+          affordance={isOwner ? "Compare plan fees" : "View"}
+          onClick={() => openDrawer("plan-billing")}
+        />
+
+        {!isFree && isAdmin ? (
+          <PrimaryCard
+            title="Default payout receiver"
+            description={`${payout.defaultReceiver.displayName}${payout.defaultReceiver.legalName ? ` · ${payout.defaultReceiver.legalName}` : ""}`}
+            icon={<Icon name="team" size={14} stroke={1.7} />}
+            badge={<PayoutStatusChip status={payout.defaultReceiver.status} />}
+            affordance="Manage receiver"
+            onClick={() => openDrawer("payments-setup")}
+          />
+        ) : isFree ? (
+          <LockedCard
+            title="Default payout receiver"
+            description="Free workspaces don't run payments through Tulala. Studio unlocks card acceptance + payout routing."
+            requiredPlan="studio"
+            onClick={() =>
+              openUpgrade({
+                feature: "Payments",
+                why: "Accept client card payments and route net payout to one verified receiver per booking.",
+                requiredPlan: "studio",
+                unlocks: [
+                  "Card acceptance (Visa / Mastercard / Amex)",
+                  "Connected payout receiver",
+                  "Lower platform fee",
+                  "Per-booking receipts",
+                ],
+              })
+            }
+          />
+        ) : (
+          <SecondaryCard
+            title="Default payout receiver"
+            description={`${payout.defaultReceiver.displayName} · ${PAYOUT_STATUS_META[payout.defaultReceiver.status].label}`}
+            meta={<ReadOnlyChip />}
+            affordance="View"
+            onClick={() => openDrawer("payments-setup")}
+          />
+        )}
+      </Grid>
+
+      {/* Volume + pending */}
+      {!isFree && (
+        <Grid cols="3">
+          <SecondaryCard
+            title="30-day volume"
+            description={payout.recentVolume30d}
+            affordance="See activity"
+            onClick={() => {
+              /* anchored below */
+            }}
+          />
+          <SecondaryCard
+            title="Pending payouts"
+            description={payout.pendingPayouts}
+            affordance="See activity"
+            onClick={() => {
+              /* anchored below */
+            }}
+          />
+          <SecondaryCard
+            title="Card acceptance"
+            description={payout.acceptCards ? "Visa · Mastercard · Amex enabled" : "Not enabled"}
+            affordance="Configure"
+            onClick={() => openDrawer("payments-setup")}
+          />
+        </Grid>
+      )}
+
+      <Divider label="Recent activity" />
+
+      {isFree ? (
+        <SecondaryCard
+          title="No payment activity yet"
+          description="Payments turn on at Studio. Free workspaces can still take inquiries — they just settle off-platform."
+          affordance="See plans"
+          onClick={() =>
+            openUpgrade({
+              feature: "Payments",
+              why: "Studio adds card acceptance + connected payout receiver.",
+              requiredPlan: "studio",
+            })
+          }
+        />
+      ) : (
+        <BillingActivityTable />
+      )}
+    </>
+  );
+}
+
+/**
+ * Recent workspace payment activity — one row per booking. Mirrors
+ * WORKSPACE_PAYMENTS but renders an interactive list with a chip per
+ * row and a click-to-open-drawer affordance.
+ */
+function BillingActivityTable() {
+  const { openDrawer } = useProto();
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        overflow: "hidden",
+      }}
+    >
+      {/* Header row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr",
+          padding: "10px 16px",
+          background: COLORS.surfaceAlt,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          fontFamily: FONTS.body,
+          fontSize: 11,
+          letterSpacing: 0.4,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+          fontWeight: 600,
+        }}
+      >
+        <span>Booking</span>
+        <span>Client · brief</span>
+        <span style={{ textAlign: "right" }}>Total</span>
+        <span style={{ textAlign: "right" }}>Net payout</span>
+        <span>Receiver</span>
+        <span>Status</span>
+        <span style={{ textAlign: "right" }}>Date</span>
+      </div>
+      {WORKSPACE_PAYMENTS.map((row) => (
+        <button
+          key={row.id}
+          type="button"
+          onClick={() => openDrawer("payment-detail", { id: row.id })}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr",
+            alignItems: "center",
+            gap: 0,
+            padding: "12px 16px",
+            background: "transparent",
+            border: "none",
+            borderTop: `1px solid ${COLORS.borderSoft}`,
+            width: "100%",
+            textAlign: "left",
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+          }}
+        >
+          <span style={{ fontWeight: 600 }}>{row.ref}</span>
+          <span>
+            <div style={{ color: COLORS.ink }}>{row.client}</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{row.brief}</div>
+          </span>
+          <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.total}</span>
+          <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", color: COLORS.inkMuted }}>
+            {row.netPayout}
+            <div style={{ fontSize: 11, color: COLORS.inkDim }}>fee {row.fee}</div>
+          </span>
+          <span style={{ color: COLORS.inkMuted }}>{row.receiverName}</span>
+          <span>
+            <PaymentStatusChip status={row.status} />
+          </span>
+          <span style={{ textAlign: "right", color: COLORS.inkMuted, fontSize: 12 }}>{row.date}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
 // WORKSPACE (settings)
 // ════════════════════════════════════════════════════════════════════
 
@@ -2569,7 +3687,7 @@ function WorkspacePageView() {
   return (
     <>
       <PageHeader
-        eyebrow="Workspace"
+        eyebrow="Settings"
         title="Workspace settings"
         subtitle="Plan, team, branding, identity — the controls that shape who you are inside Tulala."
       />
@@ -2762,14 +3880,264 @@ function WorkspacePageView() {
 
 export function SurfaceRouter() {
   const { state } = useProto();
-  switch (state.surface) {
-    case "workspace":
-      return <WorkspaceShell />;
-    case "talent":
-      return <TalentSurface />;
-    case "client":
-      return <ClientSurface />;
-    case "platform":
-      return <PlatformSurface />;
-  }
+  // Wrap each surface in a <main> landmark so screen readers can jump
+  // directly past the dark prototype ControlBar (which is treated as a
+  // toolbar/header in the page composition). Each surface has only one
+  // <main> at a time — surfaces are mutually exclusive.
+  const inner = (() => {
+    switch (state.surface) {
+      case "workspace":
+        return <WorkspaceShell />;
+      case "talent":
+        return <TalentSurface />;
+      case "client":
+        return <ClientSurface />;
+      case "platform":
+        return <PlatformSurface />;
+    }
+  })();
+  return (
+    <main id="tulala-main" aria-label={`${state.surface} surface`} style={{ display: "contents" }}>
+      {inner}
+    </main>
+  );
 }
+
+// ════════════════════════════════════════════════════════════════════
+// Mobile bottom tab bar
+// ════════════════════════════════════════════════════════════════════
+/**
+ * Native-app-style bottom tab bar — only visible at mobile widths via
+ * page.tsx CSS. Mirrors a curated 5-tab subset of the active surface's
+ * pages. The "More" tab opens a sheet listing remaining pages.
+ *
+ * On wider viewports the bar is `display: none` so desktop UX is
+ * untouched (page nav still lives in the topbar there).
+ */
+const MOBILE_TAB_LIMIT = 5;
+
+export function MobileBottomNav() {
+  const {
+    state,
+    setPage,
+    setTalentPage,
+    setClientPage,
+    setPlatformPage,
+  } = useProto();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const tabs = (() => {
+    if (state.surface === "workspace") {
+      return WORKSPACE_PAGES.map((p) => ({
+        id: p,
+        label: p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label,
+        active: state.page === p,
+        run: () => setPage(p as WorkspacePage),
+        icon: WORKSPACE_TAB_ICON[p as WorkspacePage] ?? "info",
+      }));
+    }
+    if (state.surface === "talent") {
+      return TALENT_PAGES.map((p) => ({
+        id: p,
+        label: TALENT_PAGE_META[p].label,
+        active: state.talentPage === p,
+        run: () => setTalentPage(p as TalentPage),
+        icon: TALENT_TAB_ICON[p as TalentPage] ?? "info",
+      }));
+    }
+    if (state.surface === "client") {
+      return CLIENT_PAGES.map((p) => ({
+        id: p,
+        label: CLIENT_PAGE_META[p].label,
+        active: state.clientPage === p,
+        run: () => setClientPage(p as ClientPage),
+        icon: CLIENT_TAB_ICON[p as ClientPage] ?? "info",
+      }));
+    }
+    return PLATFORM_PAGES.map((p) => ({
+      id: p,
+      label: PLATFORM_PAGE_META[p].label,
+      active: state.platformPage === p,
+      run: () => setPlatformPage(p as PlatformPage),
+      icon: "info" as const,
+    }));
+  })();
+
+  const visible = tabs.slice(0, MOBILE_TAB_LIMIT - 1);
+  const overflow = tabs.slice(MOBILE_TAB_LIMIT - 1);
+  const hasOverflow = overflow.length > 0;
+  const moreActive = overflow.some((t) => t.active);
+
+  return (
+    <>
+      <nav
+        data-tulala-mobile-bottom-nav
+        aria-label={`${state.surface} sections`}
+        style={{
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "#fff",
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          zIndex: Z.topbar,
+          display: "none",
+          paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "stretch", height: 56 }}>
+          {visible.map((t) => (
+            <BottomTab key={t.id} {...t} />
+          ))}
+          {hasOverflow && (
+            <BottomTab
+              id="more"
+              label="More"
+              icon="info"
+              active={moreActive}
+              run={() => setMoreOpen(true)}
+            />
+          )}
+        </div>
+      </nav>
+      {moreOpen && (
+        <div
+          onClick={() => setMoreOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(11,11,13,0.36)",
+            zIndex: Z.modalBackdrop,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="More sections"
+            style={{
+              width: "100%",
+              background: "#fff",
+              borderRadius: "16px 16px 0 0",
+              padding: "8px 0 max(env(safe-area-inset-bottom, 0px), 12px)",
+              boxShadow: "0 -10px 30px rgba(11,11,13,0.18)",
+              fontFamily: FONTS.body,
+            }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 999,
+                background: "rgba(11,11,13,0.18)",
+                margin: "8px auto 12px",
+              }}
+            />
+            {overflow.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  t.run();
+                  setMoreOpen(false);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  width: "100%",
+                  padding: "14px 18px",
+                  background: t.active ? COLORS.accentSoft : "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: t.active ? COLORS.accentDeep : COLORS.ink,
+                  textAlign: "left",
+                }}
+              >
+                <Icon name={t.icon} size={16} stroke={1.7} color={t.active ? COLORS.accent : COLORS.inkMuted} />
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function BottomTab({
+  label,
+  icon,
+  active,
+  run,
+}: {
+  id: string;
+  label: string;
+  icon: "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "x" | "chevron-right" | "chevron-down";
+  active: boolean;
+  run: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={run}
+      style={{
+        flex: 1,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 3,
+        padding: "6px 4px",
+        color: active ? COLORS.accentDeep : COLORS.inkMuted,
+        fontFamily: FONTS.body,
+        fontSize: 10.5,
+        fontWeight: 500,
+      }}
+    >
+      <Icon name={icon} size={18} stroke={active ? 2 : 1.7} color={active ? COLORS.accent : COLORS.inkMuted} />
+      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 70 }}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
+  overview: "bolt",
+  inbox: "mail",
+  calendar: "calendar",
+  work: "info",
+  talent: "team",
+  clients: "user",
+  site: "sparkle",
+  billing: "credit",
+  workspace: "info",
+};
+
+const TALENT_TAB_ICON: Partial<Record<TalentPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
+  today: "bolt",
+  profile: "user",
+  inbox: "mail",
+  calendar: "calendar",
+  activity: "sparkle",
+  settings: "info",
+};
+
+const CLIENT_TAB_ICON: Partial<Record<ClientPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
+  today: "bolt",
+  discover: "search",
+  shortlists: "team",
+  inquiries: "mail",
+  bookings: "calendar",
+  settings: "info",
+};

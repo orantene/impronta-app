@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
 const STORAGE_KEY = "impronta_analytics_consent";
@@ -35,6 +36,11 @@ function updateGtagConsent(next: "granted" | "denied") {
 export function AnalyticsConsentBanner() {
   const [consent, setConsent] = useState<Consent>(null);
   const [mounted, setMounted] = useState(false);
+  // Prototype routes (e.g. /prototypes/admin-shell) are designer/dev
+  // sandboxes, not customer-facing — the consent banner overlaps drawers
+  // and clutters screenshots. Suppress on those paths.
+  const pathname = usePathname();
+  const isPrototypeRoute = pathname?.startsWith("/prototypes") ?? false;
 
   useEffect(() => {
     setMounted(true);
@@ -61,7 +67,7 @@ export function AnalyticsConsentBanner() {
     setConsent("denied");
   }, []);
 
-  if (!mounted || consent !== null) return null;
+  if (!mounted || consent !== null || isPrototypeRoute) return null;
 
   return (
     <div

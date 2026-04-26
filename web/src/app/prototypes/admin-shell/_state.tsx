@@ -16,12 +16,25 @@ import {
 export type Surface = "workspace" | "talent" | "client" | "platform";
 export type Plan = "free" | "studio" | "agency" | "network";
 export type Role = "viewer" | "editor" | "coordinator" | "admin" | "owner";
+/**
+ * Tenant entity model. Orthogonal to Plan tier — both shapes can exist on
+ * any plan, though hubs lean to higher tiers. Drives roster vocabulary,
+ * coordinator visibility, and inquiry routing semantics:
+ *  - agency: direct representation. Curated roster. Coordinator owns inquiry,
+ *    negotiates on behalf of talent. Branded portal.
+ *  - hub: open network. Independent talent. Hub provides distribution + tools;
+ *    inquiries route to talent (or talent's agency) directly. Listing-fee model.
+ */
+export type EntityType = "agency" | "hub";
 export type WorkspacePage =
   | "overview"
+  | "inbox"
+  | "calendar"
   | "work"
   | "talent"
   | "clients"
   | "site"
+  | "billing"
   | "workspace";
 
 // Talent surface — relationship-based (no separate plan ladder; talent inherits
@@ -62,14 +75,18 @@ export type PlatformPage =
 export const SURFACES: Surface[] = ["workspace", "talent", "client", "platform"];
 export const PLANS: Plan[] = ["free", "studio", "agency", "network"];
 export const ROLES: Role[] = ["viewer", "editor", "coordinator", "admin", "owner"];
+export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
 export const HQ_ROLES: HqRole[] = ["support", "ops", "billing", "exec"];
 export const WORKSPACE_PAGES: WorkspacePage[] = [
   "overview",
+  "inbox",
+  "calendar",
   "work",
   "talent",
   "clients",
   "site",
+  "billing",
   "workspace",
 ];
 export const TALENT_PAGES: TalentPage[] = [
@@ -107,6 +124,89 @@ export const PLAN_META: Record<Plan, { label: string; theme: string; rank: numbe
   network: { label: "Network", theme: "Multi-brand · hub", rank: 3 },
 };
 
+/** Canonical plan price string. Used in upgrade modal, locked cards, billing. */
+export function planPrice(plan: Plan): string {
+  return plan === "free"
+    ? "Free forever"
+    : plan === "studio"
+      ? "$29 / month"
+      : plan === "agency"
+        ? "$149 / month"
+        : "Custom pricing";
+}
+
+/** Compact price (no "/ month" suffix, used inside chips). */
+export function planPriceCompact(plan: Plan): string {
+  return plan === "free"
+    ? "Free"
+    : plan === "studio"
+      ? "$29/mo"
+      : plan === "agency"
+        ? "$149/mo"
+        : "Custom";
+}
+
+/**
+ * Pluralization helper. `pluralize(2, "draft", "drafts")` → "2 drafts",
+ * `pluralize(1, "draft", "drafts")` → "1 draft". With `withNumber=false`,
+ * returns just the noun. Used wherever a number-driven string previously
+ * hardcoded the plural form, leading to "1 messages" / "1 items" bugs.
+ */
+export function pluralize(
+  n: number,
+  singular: string,
+  plural: string,
+  withNumber: boolean = true,
+): string {
+  const word = n === 1 ? singular : plural;
+  return withNumber ? `${n} ${word}` : word;
+}
+
+/**
+ * Entity-type semantics. The vocabulary differences are intentional and
+ * surface across the app: agency talks about its "roster" of "talent" it
+ * "represents"; a hub talks about its "network" of "members" it "lists".
+ * The substance is also different: agencies operate on inquiries, hubs
+ * forward them.
+ */
+export const ENTITY_TYPE_META: Record<
+  EntityType,
+  {
+    label: string;
+    /** Short tagline for cards & detail panels. */
+    tagline: string;
+    /** What the workspace's roster page is called. */
+    rosterLabel: string;
+    /** Singular noun for a roster entry. */
+    rosterMemberLabel: string;
+    /** Verb describing the relationship from tenant → talent. */
+    relationVerb: string;
+    /** Inquiry routing model. */
+    inquiryModel: string;
+    /** Revenue model. */
+    revenueModel: string;
+  }
+> = {
+  agency: {
+    label: "Agency",
+    tagline: "Direct representation · curated roster",
+    rosterLabel: "Roster",
+    rosterMemberLabel: "talent",
+    relationVerb: "represents",
+    inquiryModel: "Coordinator-owned. Inquiries land with the agency, who negotiates on behalf of talent.",
+    revenueModel: "Booking commission · subscription",
+  },
+  hub: {
+    label: "Hub",
+    tagline: "Open network · distribution-first",
+    rosterLabel: "Network",
+    rosterMemberLabel: "member",
+    relationVerb: "lists",
+    inquiryModel: "Forwarded. Inquiries route to the talent (or their agency) directly; hub provides tools + reach.",
+    revenueModel: "Listing fees · platform subscription",
+  },
+};
+
 export const ROLE_META: Record<Role, { label: string; rank: number }> = {
   viewer: { label: "Viewer", rank: 0 },
   editor: { label: "Editor", rank: 1 },
@@ -127,11 +227,14 @@ export const SURFACE_META: Record<
 
 export const PAGE_META: Record<WorkspacePage, { label: string }> = {
   overview: { label: "Overview" },
-  work: { label: "Work" },
+  inbox: { label: "Inbox" },
+  calendar: { label: "Calendar" },
+  work: { label: "Pipeline" },
   talent: { label: "Talent" },
   clients: { label: "Clients" },
-  site: { label: "Site" },
-  workspace: { label: "Workspace" },
+  site: { label: "Storefront" },
+  billing: { label: "Billing" },
+  workspace: { label: "Settings" },
 };
 
 export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
@@ -284,11 +387,34 @@ export type DrawerId =
   | "talent-availability"
   | "talent-block-dates"
   | "talent-portfolio"
+  | "talent-polaroids"
+  | "talent-photo-edit"
+  | "talent-credits"
+  | "talent-skills"
+  | "talent-limits"
+  | "talent-rate-card"
+  | "talent-travel"
+  | "talent-links"
+  | "talent-reviews"
+  | "talent-showreel"
+  | "talent-measurements"
+  | "talent-documents"
+  | "talent-emergency-contact"
+  | "talent-public-preview"
+  // — Talent personal-page (premium) drawers ————————————————————
+  | "talent-tier-compare"
+  | "talent-personal-page"
+  | "talent-page-template"
+  | "talent-media-embeds"
+  | "talent-press"
+  | "talent-media-kit"
+  | "talent-custom-domain"
   | "talent-agency-relationship"
   | "talent-leave-agency"
   | "talent-notifications"
   | "talent-privacy"
   | "talent-payouts"
+  | "talent-contact-preferences"
   | "talent-earnings-detail"
   // — Client surface drawers ————————————————————————————————————
   | "client-today-pulse"
@@ -307,6 +433,12 @@ export type DrawerId =
   | "client-brand-switcher"
   | "client-settings"
   | "client-quick-question"
+  // — Cross-cutting upgrade surfaces ————————————————————————————————
+  | "plan-compare"
+  // — Payments / payouts ——————————————————————————————————
+  | "payments-setup"
+  | "payout-receiver-picker"
+  | "payment-detail"
   // — Platform / HQ drawers ————————————————————————————————————
   | "platform-today-pulse"
   | "platform-tenant-detail"
@@ -330,7 +462,14 @@ export type DrawerId =
   | "platform-hq-team"
   | "platform-region-config"
   // — Shared messaging-first workspace ——————————————————————————————————
-  | "inquiry-workspace";
+  | "inquiry-workspace"
+  // — Wave-2 additions ——————————————————————————————————
+  | "inbox-snippets"
+  | "notifications-prefs"
+  | "data-export"
+  | "audit-log"
+  | "tenant-switcher"
+  | "talent-share-card";
 
 export type DrawerContext = {
   drawerId: DrawerId | null;
@@ -345,6 +484,12 @@ export type UpgradeOffer = {
   why?: string;
   requiredPlan?: Plan;
   unlocks?: string[];
+  /** Outcome-framed one-liner shown under the headline ("Stop turning away clients at 5 talents"). */
+  outcome?: string;
+  /** Hard-limit context to show a "you are at X of Y" stripe above the upgrade CTA. */
+  currentUsage?: { label: string; current: number; cap: number };
+  /** Override the trial / refund line in the pricing block. */
+  pricingNote?: string;
 };
 
 // ════════════════════════════════════════════════════════════════════
@@ -385,7 +530,7 @@ export const INQUIRY_STAGE_META: Record<
 > = {
   draft: { label: "Draft", tone: "dim", description: "Started — not yet sent." },
   submitted: { label: "Submitted", tone: "amber", description: "Client request received. Needs a coordinator." },
-  coordination: { label: "Coordination", tone: "amber", description: "Coordinator working with client + selecting talent." },
+  coordination: { label: "With coordinator", tone: "amber", description: "Coordinator working with client + selecting talent." },
   offer_pending: { label: "Offer pending", tone: "amber", description: "Offer sent — waiting on client + talent approvals." },
   approved: { label: "Approved", tone: "green", description: "All parties approved. Ready to book." },
   booked: { label: "Booked", tone: "green", description: "Converted to a booking. Inquiry is read-only." },
@@ -481,15 +626,139 @@ export type Offer = {
  * Carries the full conversation, coordinator, requirement groups, and live
  * offer so the same record can render the workspace from any role's POV.
  */
+/**
+ * Where an inquiry originated. The pipeline cares about this because:
+ *  - direct: inquiry came in via the agency's branded portal (acme-models.com).
+ *    Highest-intent. Coordinator fully owns it.
+ *  - hub: inquiry was forwarded by a hub (Tulala Hub or a partner network).
+ *    Coordinator owns it but hub may take a slice; keeps origin visible.
+ *  - manual: coordinator created it from a phone call / email / WhatsApp.
+ *    No traceable URL.
+ *  - marketplace: open-network inquiry routed by the platform itself.
+ */
+export type InquirySource =
+  | { kind: "direct"; domain: string }
+  | { kind: "hub"; hubName: string; domain: string }
+  | { kind: "manual"; channel: "phone" | "email" | "whatsapp" | "in-person" }
+  | { kind: "marketplace"; platform: string }
+  /**
+   * Inquiry originated on the talent's own premium personal page (Tulala-direct
+   * subscription product). Per project_talent_subscriptions.md §5: talent owns
+   * the inquiry; representing agency is notified per representation status.
+   * URL is canonical `tulala.digital/t/<slug>` regardless of tier; Portfolio-
+   * tier talents may also receive inquiries via their custom domain.
+   */
+  | { kind: "talent-page"; talentSlug: string; customDomain?: string };
+
+// ─── Client trust ladder (project_client_trust_badges.md) ────────────
+//
+// Four-tier ladder describing how trustworthy a client is. Driven by
+// real verification + funded-account events, NOT by subscription. Talent
+// gate inbound contact per their `TalentContactPolicy`. Agencies surface
+// the chip on inboxes / inquiry workspaces / client profiles so a
+// coordinator knows the tier at triage time. Never appears on public
+// roster pages or booking detail.
+
+export type ClientTrustLevel = "basic" | "verified" | "silver" | "gold";
+
+export const CLIENT_TRUST_LEVELS: ClientTrustLevel[] = ["basic", "verified", "silver", "gold"];
+
+export const CLIENT_TRUST_META: Record<
+  ClientTrustLevel,
+  {
+    /** Full name shown in legends and detail panels. */
+    label: string;
+    /** Compact name used inside chips. */
+    short: string;
+    /** Palette tone — see ClientTrustChip palette. Stays subtle. */
+    tone: "dim" | "ink" | "silver" | "gold";
+    /** One-line hint shown on hover — explains what gets you here. */
+    hint: string;
+    /** Plain-English explainer for the talent contact-preferences card. */
+    rationale: string;
+  }
+> = {
+  basic: {
+    label: "Basic",
+    short: "Basic",
+    tone: "dim",
+    hint: "Free signup, no verification yet. Default trust level.",
+    rationale:
+      "Anyone with a Tulala client account. No verification yet, so identity isn't confirmed.",
+  },
+  verified: {
+    label: "Verified",
+    short: "Verified",
+    tone: "ink",
+    hint: "Identity verified — card on file or completed account verification.",
+    rationale:
+      "Has verified their identity (card on file or account verification). A real, traceable client — not anonymous.",
+  },
+  silver: {
+    label: "Silver",
+    short: "Silver",
+    tone: "silver",
+    hint: "Funded account above the standard threshold. Serious buying intent.",
+    rationale:
+      "Has funded their account above the Silver threshold. Real budget already on the platform — meaningful financial readiness.",
+  },
+  gold: {
+    // Visible label deliberately "Trusted" rather than "Gold" — the
+    // internal type stays `gold` for back-compat (palette key, data shape,
+    // existing references in copy / unlock prose), but customer-facing
+    // surfaces don't carry the gold metaphor (per the no-gold/rust palette
+    // direction in feedback_admin_aesthetics.md).
+    label: "Trusted",
+    short: "Trusted",
+    tone: "gold",
+    hint: "High funded balance + sustained activity. Highest trust signal.",
+    rationale:
+      "High funded balance plus sustained booking activity. The strongest trust signal Tulala issues.",
+  },
+};
+
+/**
+ * Per-talent contact policy — which client trust tiers may send
+ * inquiries to this talent. Default opens all tiers. Talent can flip
+ * any tier off in the contact-preferences drawer.
+ */
+export type TalentContactPolicy = Record<ClientTrustLevel, boolean>;
+
+export const DEFAULT_CONTACT_POLICY: TalentContactPolicy = {
+  basic: true,
+  verified: true,
+  silver: true,
+  gold: true,
+};
+
+/**
+ * "Most selective" preset — only Verified+ allowed. Useful for the
+ * preferences drawer to offer a one-click suggestion.
+ */
+export const SELECTIVE_CONTACT_POLICY: TalentContactPolicy = {
+  basic: false,
+  verified: true,
+  silver: true,
+  gold: true,
+};
+
 export type RichInquiry = {
   id: string;
   // identity
   agencyName: string;
   clientName: string;
+  /**
+   * Client trust tier at the time the inquiry was sent. Drives the
+   * ClientTrustChip in the inbox / workspace header. See
+   * project_client_trust_badges.md.
+   */
+  clientTrust: ClientTrustLevel;
   brief: string;
   // shoot
   date: string | null;
   location: string | null;
+  // origin
+  source: InquirySource;
   // lifecycle
   stage: InquiryStage;
   ageDays: number;
@@ -511,6 +780,54 @@ export type RichInquiry = {
   shortlistName?: string;
 };
 
+/**
+ * Helper for rendering the source chip. Returns the short "via …" label
+ * the pipeline shows next to the agency name, plus a longer descriptor
+ * for tooltips and detail panels.
+ */
+export function describeSource(s: InquirySource): { short: string; long: string; chip: string } {
+  if (s.kind === "direct") {
+    return {
+      short: `via ${s.domain}`,
+      long: `Direct inquiry via the agency's portal at ${s.domain}.`,
+      chip: s.domain,
+    };
+  }
+  if (s.kind === "hub") {
+    return {
+      short: `via ${s.hubName}`,
+      long: `Forwarded from ${s.hubName} (${s.domain}). Hub takes a referral fee.`,
+      chip: s.hubName,
+    };
+  }
+  if (s.kind === "marketplace") {
+    return {
+      short: `via ${s.platform}`,
+      long: `Open-network inquiry routed by ${s.platform}.`,
+      chip: s.platform,
+    };
+  }
+  if (s.kind === "talent-page") {
+    const host = s.customDomain ?? `tulala.digital/t/${s.talentSlug}`;
+    return {
+      short: `via personal page`,
+      long: `Direct inquiry from the talent's premium personal page (${host}). Talent owns the inquiry; representing agency is notified per representation status.`,
+      chip: host,
+    };
+  }
+  const channelLabel = {
+    phone: "phone",
+    email: "email",
+    whatsapp: "WhatsApp",
+    "in-person": "in person",
+  }[s.channel];
+  return {
+    short: `added by ${channelLabel}`,
+    long: `Manually entered by the coordinator (originally ${channelLabel}).`,
+    chip: channelLabel,
+  };
+}
+
 // ─── Rich inquiry mock dataset ────────────────────────────────────────
 // Five inquiries that each show a different point in the lifecycle, so the
 // prototype can demonstrate every state. Stage hand-picked to surface
@@ -522,9 +839,11 @@ export const RICH_INQUIRIES: RichInquiry[] = [
     id: "RI-201",
     agencyName: "Acme Models",
     clientName: "Mango",
+    clientTrust: "gold",
     brief: "Spring lookbook · 3 talent · 1 day",
     date: "Tue, May 6",
     location: "Madrid · Estudio Roca",
+    source: { kind: "direct", domain: "acme-models.com" },
     stage: "coordination",
     ageDays: 1,
     lastActivityHrs: 3,
@@ -609,9 +928,11 @@ export const RICH_INQUIRIES: RichInquiry[] = [
     id: "RI-202",
     agencyName: "Acme Models",
     clientName: "Vogue Italia",
+    clientTrust: "gold",
     brief: "Editorial spread · 2 talent · 2 days",
     date: "May 14–15",
     location: "Milan · Studio 5",
+    source: { kind: "hub", hubName: "Tulala Hub", domain: "tulala.app/discover" },
     stage: "offer_pending",
     ageDays: 2,
     lastActivityHrs: 22,
@@ -676,15 +997,26 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         ts: "Yesterday 18:02",
         isYou: true,
       },
+      {
+        id: "m23",
+        threadType: "group",
+        senderName: "System",
+        senderInitials: "—",
+        senderRole: "system",
+        body: "Payment receiver set to Acme Models · €7,141 net after platform fee.",
+        ts: "Yesterday 18:04",
+      },
     ],
   },
   {
     id: "RI-203",
     agencyName: "Acme Models",
     clientName: "Bvlgari",
+    clientTrust: "gold",
     brief: "Jewelry campaign · 1 talent · multi-day",
     date: "May 18–20",
     location: "Rome · Cinecittà 7",
+    source: { kind: "manual", channel: "email" },
     stage: "approved",
     ageDays: 4,
     lastActivityHrs: 48,
@@ -745,15 +1077,35 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         ts: "Today 12:00",
         isYou: true,
       },
+      {
+        id: "m33",
+        threadType: "group",
+        senderName: "System",
+        senderInitials: "—",
+        senderRole: "system",
+        body: "Payment receiver set to Kai Lin. Kai will distribute the agency commission off-platform.",
+        ts: "Today 12:01",
+      },
+      {
+        id: "m34",
+        threadType: "private",
+        senderName: "System",
+        senderInitials: "—",
+        senderRole: "system",
+        body: "Payment requested — €8,200 to Bvlgari. Card link sent.",
+        ts: "Today 12:02",
+      },
     ],
   },
   {
     id: "RI-204",
     agencyName: "Acme Models",
     clientName: "Estudio Roca",
+    clientTrust: "verified",
     brief: "Brand gala · 6 hosts + 4 models + 2 promoters",
     date: "Sat, May 24",
     location: "Madrid · Palacio Vistalegre",
+    source: { kind: "direct", domain: "acme-models.com" },
     stage: "coordination",
     ageDays: 0,
     lastActivityHrs: 1,
@@ -835,9 +1187,11 @@ export const RICH_INQUIRIES: RichInquiry[] = [
     id: "RI-205",
     agencyName: "Acme Models",
     clientName: "Net-a-Porter",
+    clientTrust: "silver",
     brief: "Editorial · 1 talent · 1 day",
     date: "Apr 10",
     location: "London · Hackney",
+    source: { kind: "marketplace", platform: "Tulala marketplace" },
     stage: "booked",
     ageDays: 18,
     lastActivityHrs: 120,
@@ -884,6 +1238,24 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         body: "Wrapped beautifully. Invoice received, payment going out today.",
         ts: "Apr 11",
       },
+      {
+        id: "m52",
+        threadType: "private",
+        senderName: "System",
+        senderInitials: "—",
+        senderRole: "system",
+        body: "Client paid €3,400 · Visa •• 4411. Payout queued to Acme Models.",
+        ts: "Apr 11",
+      },
+      {
+        id: "m53",
+        threadType: "group",
+        senderName: "System",
+        senderInitials: "—",
+        senderRole: "system",
+        body: "Payout sent — €3,281 to Acme Models. Distribution handled off-platform.",
+        ts: "Apr 11",
+      },
     ],
   },
 ];
@@ -902,6 +1274,13 @@ export type TalentProfile = {
   city?: string;
   thumb?: string;
   isYou?: boolean;
+  /**
+   * Representation status for this roster entry. Most agency-managed
+   * talent is `exclusive` to that agency. Kept optional so the basic
+   * roster fixtures can stay terse — drawers should default to
+   * `exclusive` with the current tenant when missing.
+   */
+  representation?: RepresentationStatus;
 };
 
 export const TALENT_STATE_LABEL: Record<TalentProfile["state"], string> = {
@@ -927,16 +1306,77 @@ export const ROSTER_FREE: TalentProfile[] = [
   { id: "t1", name: "Marta Reyes", state: "published", height: "5'9\"", city: "Madrid", thumb: "🌸" },
   { id: "t2", name: "Kai Lin", state: "awaiting-approval", height: "5'11\"", city: "Berlin", thumb: "🌊" },
   { id: "t3", name: "Amelia Dorsey", state: "invited", height: "5'8\"", city: "Lisbon", thumb: "🌿" },
+  // Seeded close to the Free cap (5) so the cap-nudge surfaces in the prototype.
+  { id: "t4", name: "Tomás Navarro", state: "draft", height: "6'0\"", city: "Barcelona", thumb: "🌾" },
 ];
 
 export const ROSTER_AGENCY: TalentProfile[] = [
-  { id: "t1", name: "Marta Reyes", state: "published", height: "5'9\"", city: "Madrid", thumb: "🌸" },
-  { id: "t2", name: "Kai Lin", state: "published", height: "5'11\"", city: "Berlin", thumb: "🌊" },
-  { id: "t3", name: "Tomás Navarro", state: "published", height: "6'1\"", city: "Lisbon", thumb: "🍃" },
-  { id: "t4", name: "Lina Park", state: "awaiting-approval", height: "5'7\"", city: "Paris", thumb: "🌷" },
-  { id: "t5", name: "Amelia Dorsey", state: "invited", height: "5'8\"", city: "Lisbon", thumb: "🌿" },
-  { id: "t6", name: "Sven Olafsson", state: "draft", height: "6'0\"", city: "Oslo", thumb: "🌲" },
-  { id: "t7", name: "Zara Habib", state: "published", height: "5'10\"", city: "London", thumb: "🌹" },
+  {
+    id: "t1",
+    name: "Marta Reyes",
+    state: "published",
+    height: "5'9\"",
+    city: "Madrid",
+    thumb: "🌸",
+    representation: { kind: "exclusive", agencyName: "Acme Models" },
+  },
+  {
+    id: "t2",
+    name: "Kai Lin",
+    state: "published",
+    height: "5'11\"",
+    city: "Berlin",
+    thumb: "🌊",
+    representation: { kind: "exclusive", agencyName: "Acme Models" },
+  },
+  {
+    id: "t3",
+    name: "Tomás Navarro",
+    state: "published",
+    height: "6'1\"",
+    city: "Lisbon",
+    thumb: "🍃",
+    representation: {
+      kind: "non-exclusive",
+      agencyNames: ["Acme Models", "Studio Iberia"],
+    },
+  },
+  {
+    id: "t4",
+    name: "Lina Park",
+    state: "awaiting-approval",
+    height: "5'7\"",
+    city: "Paris",
+    thumb: "🌷",
+    representation: { kind: "exclusive", agencyName: "Acme Models" },
+  },
+  {
+    id: "t5",
+    name: "Amelia Dorsey",
+    state: "invited",
+    height: "5'8\"",
+    city: "Lisbon",
+    thumb: "🌿",
+    representation: { kind: "freelance" },
+  },
+  {
+    id: "t6",
+    name: "Sven Olafsson",
+    state: "draft",
+    height: "6'0\"",
+    city: "Oslo",
+    thumb: "🌲",
+    representation: { kind: "exclusive", agencyName: "Acme Models" },
+  },
+  {
+    id: "t7",
+    name: "Zara Habib",
+    state: "published",
+    height: "5'10\"",
+    city: "London",
+    thumb: "🌹",
+    representation: { kind: "exclusive", agencyName: "Acme Models" },
+  },
 ];
 
 export type Inquiry = {
@@ -970,18 +1410,25 @@ export type Client = {
   contact: string;
   bookingsYTD: number;
   status: "active" | "dormant";
+  /**
+   * Tulala-issued trust level. Drives the ClientTrustChip on inboxes /
+   * inquiry workspaces / client profile drawers. Optional on free-plan
+   * fixtures since the trust system is gated on having a real client
+   * identity. See project_client_trust_badges.md.
+   */
+  trust?: ClientTrustLevel;
 };
 
 export const CLIENTS_AGENCY: Client[] = [
-  { id: "c1", name: "Vogue Italia", contact: "Sara Bianchi", bookingsYTD: 6, status: "active" },
-  { id: "c2", name: "Mango", contact: "Joana Rivera", bookingsYTD: 4, status: "active" },
-  { id: "c3", name: "Zara", contact: "Lucas Vidal", bookingsYTD: 3, status: "active" },
-  { id: "c4", name: "Bvlgari", contact: "Marco Conti", bookingsYTD: 2, status: "active" },
-  { id: "c5", name: "Net-a-Porter", contact: "Helena Ross", bookingsYTD: 1, status: "dormant" },
+  { id: "c1", name: "Vogue Italia", contact: "Sara Bianchi", bookingsYTD: 6, status: "active", trust: "gold" },
+  { id: "c2", name: "Mango", contact: "Joana Rivera", bookingsYTD: 4, status: "active", trust: "gold" },
+  { id: "c3", name: "Zara", contact: "Lucas Vidal", bookingsYTD: 3, status: "active", trust: "silver" },
+  { id: "c4", name: "Bvlgari", contact: "Marco Conti", bookingsYTD: 2, status: "active", trust: "gold" },
+  { id: "c5", name: "Net-a-Porter", contact: "Helena Ross", bookingsYTD: 1, status: "dormant", trust: "silver" },
 ];
 
 export const CLIENTS_FREE: Client[] = [
-  { id: "c1", name: "Friend referral", contact: "—", bookingsYTD: 0, status: "active" },
+  { id: "c1", name: "Friend referral", contact: "—", bookingsYTD: 0, status: "active", trust: "basic" },
 ];
 
 export type TeamMember = {
@@ -1020,54 +1467,1525 @@ export const SITE_PAGES: SitePage[] = [
   { id: "p5", title: "Press kit", status: "draft", updatedAgo: "1d" },
 ];
 
-export const ACTIVATION_TASKS = [
-  { id: "add-talent", label: "Add your first talent", drawer: "new-talent" as DrawerId },
-  { id: "publish", label: "Publish a profile", drawer: "talent-profile" as DrawerId },
-  { id: "share-url", label: "Share your workspace URL", drawer: null },
-  { id: "invite-team", label: "Invite a teammate (optional)", drawer: "team" as DrawerId },
+/**
+ * First-10-minutes activation arc. The order is intentional — each step
+ * produces something tangible (a profile, a live URL, a real inquiry) so
+ * the user feels real value before they hit any quota. This is the
+ * conversion lever, not a setup wizard.
+ */
+export const ACTIVATION_TASKS: Array<{
+  id: string;
+  label: string;
+  hint: string;
+  drawer: DrawerId | null;
+  est: string;
+}> = [
+  { id: "add-talent", label: "Add your first talent", hint: "Name + 3 photos. You can edit later.", drawer: "new-talent", est: "2 min" },
+  { id: "publish", label: "Publish a profile", hint: "Once published, the public link works.", drawer: "talent-profile", est: "30 sec" },
+  { id: "share-url", label: "Copy your storefront link", hint: "Share with a client — it's live now.", drawer: null, est: "15 sec" },
+  { id: "try-inquiry", label: "Walk through a demo inquiry", hint: "See how a coordinator works a brief.", drawer: "inquiry-workspace", est: "3 min" },
+  { id: "invite-team", label: "Invite a teammate (optional)", hint: "Up to 1 collaborator on Free.", drawer: "team", est: "1 min" },
+];
+
+// ─── Plan ladder (operational compare, not a checkbox list) ──────────
+/**
+ * The plan-compare table. Shape is intentional — each row is an
+ * **operational dimension** (what your agency can DO), not a feature
+ * checkbox. This frames upgrade decisions as scaling decisions, which is
+ * the correct mental model for the buyer.
+ *
+ * Cells are short phrases the buyer can compare at a glance. The headline
+ * for each plan is shown as the plan name (Free → Network), the price,
+ * and an "ideal for" subtitle.
+ */
+export type PlanLadderRow = {
+  /** What axis we're comparing on. */
+  dimension: string;
+  /** One-line explanation of WHY this matters for an agency. */
+  why: string;
+  /** Per-plan cell content — short phrase, comparable side-by-side. */
+  values: Record<Plan, string>;
+};
+
+export const PLAN_LADDER_HEADER: Record<Plan, { price: string; idealFor: string }> = {
+  free: { price: "$0", idealFor: "First roster · solo coordinator · open ecosystem" },
+  studio: { price: "$79/mo", idealFor: "Private inbox · own client list · early team" },
+  agency: { price: "$149/mo", idealFor: "Branded portal · scaled coordination · negotiation" },
+  network: { price: "$899/mo", idealFor: "Multi-brand hubs · network distribution · partner API" },
+};
+
+export const PLAN_LADDER: PlanLadderRow[] = [
+  {
+    dimension: "Active roster",
+    why: "How much talent your agency can list at once.",
+    values: {
+      free: "Up to 5 talent",
+      studio: "Up to 25 talent",
+      agency: "Up to 200 talent",
+      network: "Unlimited",
+    },
+  },
+  {
+    dimension: "Inquiry throughput",
+    why: "Concurrent live inquiries before workflow hand-offs strain.",
+    values: {
+      free: "5 / month",
+      studio: "50 / month",
+      agency: "Unlimited · queue priority",
+      network: "Unlimited · multi-tenant queue",
+    },
+  },
+  {
+    dimension: "Distribution",
+    why: "Where clients can find you and which doorways stay open.",
+    values: {
+      free: "Tulala Discover · public listing",
+      studio: "Tulala Discover + private domain",
+      agency: "Branded domain · embedded widgets · API",
+      network: "Multi-domain · partner network · sub-tenants",
+    },
+  },
+  {
+    dimension: "Coordinator scale",
+    why: "How many people on your side can run the pipeline together.",
+    values: {
+      free: "1 seat",
+      studio: "3 seats",
+      agency: "12 seats · roles & ownership",
+      network: "Unlimited seats · cross-brand",
+    },
+  },
+  {
+    dimension: "Branding",
+    why: "How much of your visual identity carries through.",
+    values: {
+      free: "Tulala-branded storefront",
+      studio: "Custom domain + your logo",
+      agency: "Full design system · typography · layout",
+      network: "Per-brand design systems · multi-identity",
+    },
+  },
+  {
+    dimension: "Inquiry ownership",
+    why: "Who owns the client relationship and the inbox.",
+    values: {
+      free: "Shared (forwarded via Tulala)",
+      studio: "Private — your own inbox",
+      agency: "Private + coordinator handoffs",
+      network: "Per-brand isolated, hub-aggregated",
+    },
+  },
+  {
+    dimension: "Multi-entity control",
+    why: "Ability to operate as multiple agencies / a hub.",
+    values: {
+      free: "—",
+      studio: "—",
+      agency: "Single entity · agency or hub",
+      network: "Multiple entities · hubs of agencies",
+    },
+  },
+  {
+    dimension: "Platform fee",
+    why: "Tulala's cut of every payment processed through the platform.",
+    values: {
+      free: "6.5% + $0.50 per booking",
+      studio: "4.5% + $0.50 · faster payout",
+      agency: "3.5% + $0.50 · custom receipts",
+      network: "Negotiated · per-brand schedule",
+    },
+  },
+  {
+    dimension: "Payment controls",
+    why: "How much flexibility coordinators get over who receives the payout.",
+    values: {
+      free: "Single receiver · standard schedule",
+      studio: "Receiver presets · faster payouts",
+      agency: "Coordinator-assigned receivers · talent self-payout",
+      network: "Multi-entity payouts · reseller economics",
+    },
+  },
+  {
+    dimension: "Insights",
+    why: "What you can measure across roster, clients, throughput.",
+    values: {
+      free: "Profile views · basic counts",
+      studio: "Inquiry funnel · reply times",
+      agency: "Booking velocity · agency reliability",
+      network: "Hub-level aggregates · cohort analytics",
+    },
+  },
+];
+
+// ─── Free-plan value surface ─────────────────────────────────────────
+/**
+ * What the Free plan actually gives you. Surfaced in the Free overview as
+ * "Today on Free" so users see real abilities rather than just locks. The
+ * caps are soft — when a user is at 80%+ we nudge an upgrade, but never
+ * hard-block until they exceed.
+ */
+export const FREE_PLAN_VALUE: Array<{
+  id: string;
+  label: string;
+  detail: string;
+  used?: { current: number; cap: number; unit: string };
+}> = [
+  {
+    id: "roster",
+    label: "Public roster",
+    detail: "Searchable across the Tulala network.",
+    used: { current: 3, cap: 5, unit: "talent" },
+  },
+  {
+    id: "inquiries",
+    label: "Inbound inquiries",
+    detail: "Clients message you through your storefront.",
+    used: { current: 1, cap: 5, unit: "this month" },
+  },
+  {
+    id: "storefront",
+    label: "Storefront page",
+    detail: "Lives at acme-models.tulala.app.",
+  },
+  {
+    id: "messaging",
+    label: "Talent + client messaging",
+    detail: "Two-thread conversations on every inquiry.",
+  },
+  {
+    id: "discovery",
+    label: "Listed in Tulala Discover",
+    detail: "Brands looking for talent can find you.",
+  },
+];
+
+// ─── Payments / Payout receiver / Platform fee ───────────────────────
+/**
+ * v1 payment model — one booking = one payment = one payout receiver.
+ * The client pays via card, Tulala takes a platform fee, and the net
+ * payout goes to ONE selected receiver (agency owner, agency admin,
+ * coordinator, or one of the booked talent — whoever is set up to
+ * receive). Any further split (talent share, agent commission, etc.) is
+ * the receiver's responsibility offline. The platform does NOT route
+ * money to multiple destinations in v1.
+ */
+export type PayoutConnectionStatus =
+  | "connected-bank"
+  | "connected-transfer"
+  | "not-connected"
+  | "pending-verification"
+  | "restricted";
+
+export const PAYOUT_STATUS_META: Record<
+  PayoutConnectionStatus,
+  { label: string; short: string; tone: "green" | "amber" | "dim" | "red"; canReceive: boolean; hint: string }
+> = {
+  "connected-bank": {
+    label: "Bank connected",
+    short: "Bank",
+    tone: "green",
+    canReceive: true,
+    hint: "Direct deposit. Lowest fee, 1–2 business days.",
+  },
+  "connected-transfer": {
+    label: "Transfer connected",
+    short: "Transfer",
+    tone: "green",
+    canReceive: true,
+    hint: "Card / wallet payout. Same day, slightly higher fee.",
+  },
+  "not-connected": {
+    label: "Not connected",
+    short: "Not set up",
+    tone: "dim",
+    canReceive: false,
+    hint: "Cannot be selected as payout receiver yet.",
+  },
+  "pending-verification": {
+    label: "Pending verification",
+    short: "Pending",
+    tone: "amber",
+    canReceive: false,
+    hint: "Stripe is reviewing the submitted documents. Usually < 24h.",
+  },
+  restricted: {
+    label: "Action needed",
+    short: "Restricted",
+    tone: "red",
+    canReceive: false,
+    hint: "Stripe paused the payout. Re-submit ID or address to unlock.",
+  },
+};
+
+/** Who is the legal recipient of this payment in the platform's eyes. */
+export type PayoutReceiverKind =
+  | "agency-owner"
+  | "agency-admin"
+  | "coordinator"
+  | "talent";
+
+export const PAYOUT_RECEIVER_KIND_LABEL: Record<PayoutReceiverKind, string> = {
+  "agency-owner": "Agency owner",
+  "agency-admin": "Agency admin",
+  coordinator: "Coordinator",
+  talent: "Talent",
+};
+
+export type PayoutReceiver = {
+  kind: PayoutReceiverKind;
+  /** Display name — agency name when kind is agency-*, person name for coordinator/talent. */
+  displayName: string;
+  /** Optional sub-line, e.g. legal entity, account holder. */
+  legalName?: string;
+  initials: string;
+  status: PayoutConnectionStatus;
+};
+
+/**
+ * Lifecycle of money for a booking. Drives chips in the booking detail
+ * and system messages in the thread.
+ *  - "not-set"       — no receiver picked yet. Booking can still be
+ *                       created; payment cannot yet be requested.
+ *  - "ready"         — receiver picked + verified. Coordinator can send
+ *                       the payment request to the client.
+ *  - "requested"     — payment link sent to the client. Awaiting card.
+ *  - "paid"          — client charged successfully. Funds held by
+ *                       Tulala until payout clears.
+ *  - "payout-sent"   — Tulala paid out to the receiver. Anything beyond
+ *                       this is offline.
+ *  - "external"      — booking exists but client paid offline. Tulala
+ *                       isn't holding funds; we just record the receipt.
+ *  - "refunded"      — client refunded after charge. Receiver clawed back.
+ *  - "dispute"       — client filed a chargeback. On hold pending review.
+ */
+export type BookingPaymentStatus =
+  | "not-set"
+  | "ready"
+  | "requested"
+  | "paid"
+  | "payout-sent"
+  | "external"
+  | "refunded"
+  | "dispute";
+
+export const PAYMENT_STATUS_META: Record<
+  BookingPaymentStatus,
+  { label: string; tone: "ink" | "amber" | "green" | "dim" | "red"; description: string }
+> = {
+  "not-set": { label: "No receiver", tone: "dim", description: "Pick a payout receiver before requesting payment." },
+  ready: { label: "Ready to request", tone: "ink", description: "Receiver verified. Send the payment request to the client." },
+  requested: { label: "Payment requested", tone: "amber", description: "Awaiting client card payment." },
+  paid: { label: "Paid", tone: "amber", description: "Client paid. Tulala holding funds — payout queued." },
+  "payout-sent": { label: "Payout sent", tone: "green", description: "Net payout delivered to receiver. Distribution is their responsibility." },
+  external: { label: "External", tone: "dim", description: "Tracked offline. Tulala is not holding or routing funds." },
+  refunded: { label: "Refunded", tone: "red", description: "Client refunded. Funds returned." },
+  dispute: { label: "In dispute", tone: "red", description: "Client filed a chargeback. Payout on hold." },
+};
+
+/**
+ * Platform-fee economics by plan. Free pays the most because they get
+ * no subscription floor. Network is "Contact" — usually < 2.5%.
+ * Fee = pct of gross + flat per transaction.
+ */
+export const PLAN_FEE_META: Record<
+  Plan,
+  { pct: number; flat: string; label: string; controlsHint: string }
+> = {
+  free: {
+    pct: 6.5,
+    flat: "$0.50",
+    label: "6.5% + $0.50",
+    controlsHint: "Single payout receiver. Standard payout schedule.",
+  },
+  studio: {
+    pct: 4.5,
+    flat: "$0.50",
+    label: "4.5% + $0.50",
+    controlsHint: "Receiver presets per client. Faster payout schedule.",
+  },
+  agency: {
+    pct: 3.5,
+    flat: "$0.50",
+    label: "3.5% + $0.50",
+    controlsHint: "Coordinator-assigned receivers. Custom receipts. Talent self-payout request.",
+  },
+  network: {
+    pct: 0,
+    flat: "Custom",
+    label: "Negotiated",
+    controlsHint: "Per-brand fee schedule. Reseller economics. Multi-entity payout.",
+  },
+};
+
+export type PaymentSummary = {
+  bookingId: string;
+  /** Total client charge, formatted with currency symbol. */
+  total: string;
+  /** Numeric total in minor units of the currency (cents) — for math. */
+  totalMinor: number;
+  /** ISO currency code, e.g. EUR, GBP, USD. */
+  currency: "EUR" | "GBP" | "USD";
+  /** Display string for the platform fee line. */
+  platformFee: string;
+  platformFeeMinor: number;
+  /** Display string for the net payout. */
+  netPayout: string;
+  netPayoutMinor: number;
+  /** Plan that produced the fee — used for "X % on Studio" annotation. */
+  pricedOnPlan: Plan;
+  /** The selected receiver. Null until coordinator picks. */
+  receiver: PayoutReceiver | null;
+  status: BookingPaymentStatus;
+  /** Card details for the "Paid via" line, if charged. */
+  paidVia?: { brand: "Visa" | "Mastercard" | "Amex"; last4: string };
+  /** The default downstream-distribution note shown to all parties. */
+  downstreamNote: string;
+  /** Free-form note from coordinator about how the receiver intends to split. */
+  distributionNote?: string;
+  /** Audit trail entries for the payment (system-message backing). */
+  history: Array<{ ts: string; label: string }>;
+};
+
+/**
+ * Mock workspace-level payout connection. The active tenant's own
+ * default receiver — agency owner Oran's Stripe-connected bank account.
+ * Coordinators can override per-booking.
+ */
+export type WorkspacePayout = {
+  defaultReceiver: PayoutReceiver;
+  acceptCards: boolean;
+  recentVolume30d: string;
+  pendingPayouts: string;
+  setupComplete: boolean;
+};
+
+export const WORKSPACE_PAYOUT: WorkspacePayout = {
+  defaultReceiver: {
+    kind: "agency-owner",
+    displayName: "Acme Models",
+    legalName: "Acme Models S.L.",
+    initials: "A",
+    status: "connected-bank",
+  },
+  acceptCards: true,
+  recentVolume30d: "€18,400",
+  pendingPayouts: "€7,400",
+  setupComplete: true,
+};
+
+/** Free-plan equivalent — used when state.plan === "free". */
+export const WORKSPACE_PAYOUT_FREE: WorkspacePayout = {
+  defaultReceiver: {
+    kind: "agency-owner",
+    displayName: "You (Acme Models)",
+    legalName: undefined,
+    initials: "A",
+    status: "not-connected",
+  },
+  acceptCards: false,
+  recentVolume30d: "€0",
+  pendingPayouts: "€0",
+  setupComplete: false,
+};
+
+export function getWorkspacePayout(plan: Plan): WorkspacePayout {
+  return plan === "free" ? WORKSPACE_PAYOUT_FREE : WORKSPACE_PAYOUT;
+}
+
+/**
+ * Eligible payout-receiver candidates for a booking. In production this
+ * is derived from the team + booked talent; here we hardcode plausible
+ * options with realistic connection states.
+ */
+export const PAYOUT_RECEIVER_CANDIDATES: PayoutReceiver[] = [
+  {
+    kind: "agency-owner",
+    displayName: "Acme Models",
+    legalName: "Acme Models S.L.",
+    initials: "A",
+    status: "connected-bank",
+  },
+  {
+    kind: "agency-admin",
+    displayName: "Sara Bianchi",
+    legalName: "Sara Bianchi (sole trader)",
+    initials: "SB",
+    status: "connected-bank",
+  },
+  {
+    kind: "coordinator",
+    displayName: "Daniel Ferrer",
+    legalName: "Daniel Ferrer",
+    initials: "DF",
+    status: "connected-transfer",
+  },
+  {
+    kind: "talent",
+    displayName: "Marta Reyes",
+    legalName: "Marta Reyes Studio",
+    initials: "MR",
+    status: "connected-bank",
+  },
+  {
+    kind: "talent",
+    displayName: "Kai Lin",
+    legalName: "Kai Lin",
+    initials: "KL",
+    status: "pending-verification",
+  },
+  {
+    kind: "talent",
+    displayName: "Tomás Navarro",
+    legalName: "—",
+    initials: "TN",
+    status: "not-connected",
+  },
+];
+
+/** Per-booking payment summary fixtures, keyed by inquiry id (RI-…). */
+export const PAYMENT_SUMMARIES: Record<string, PaymentSummary> = {
+  "RI-202": {
+    bookingId: "—",
+    total: "€7,400",
+    totalMinor: 740000,
+    currency: "EUR",
+    platformFee: "€259",
+    platformFeeMinor: 25900,
+    netPayout: "€7,141",
+    netPayoutMinor: 714100,
+    pricedOnPlan: "agency",
+    receiver: {
+      kind: "agency-owner",
+      displayName: "Acme Models",
+      legalName: "Acme Models S.L.",
+      initials: "A",
+      status: "connected-bank",
+    },
+    status: "ready",
+    downstreamNote: "Receiver handles distribution to talent off-platform.",
+    distributionNote: "Standard split: 60/40 talent / agency, paid out by Acme.",
+    history: [
+      { ts: "Yesterday", label: "Payout receiver set to Acme Models" },
+    ],
+  },
+  "RI-203": {
+    bookingId: "BK-203",
+    total: "€8,200",
+    totalMinor: 820000,
+    currency: "EUR",
+    platformFee: "€287",
+    platformFeeMinor: 28700,
+    netPayout: "€7,913",
+    netPayoutMinor: 791300,
+    pricedOnPlan: "agency",
+    receiver: {
+      kind: "talent",
+      displayName: "Kai Lin",
+      legalName: "Kai Lin",
+      initials: "KL",
+      status: "pending-verification",
+    },
+    status: "requested",
+    downstreamNote: "Receiver handles distribution to agency off-platform.",
+    distributionNote: "Talent will Wise the agency commission once paid.",
+    history: [
+      { ts: "2d ago", label: "Payout receiver set to Kai Lin" },
+      { ts: "Today", label: "Payment requested — €8,200" },
+    ],
+  },
+  "RI-205": {
+    bookingId: "BK-205",
+    total: "€3,400",
+    totalMinor: 340000,
+    currency: "EUR",
+    platformFee: "€119",
+    platformFeeMinor: 11900,
+    netPayout: "€3,281",
+    netPayoutMinor: 328100,
+    pricedOnPlan: "agency",
+    receiver: {
+      kind: "agency-owner",
+      displayName: "Acme Models",
+      legalName: "Acme Models S.L.",
+      initials: "A",
+      status: "connected-bank",
+    },
+    status: "payout-sent",
+    paidVia: { brand: "Visa", last4: "4411" },
+    downstreamNote: "Acme distributed to Marta Reyes off-platform.",
+    history: [
+      { ts: "Apr 8", label: "Payout receiver set to Acme Models" },
+      { ts: "Apr 9", label: "Payment requested — €3,400" },
+      { ts: "Apr 10", label: "Client paid · Visa •• 4411" },
+      { ts: "Apr 11", label: "Payout sent to Acme — €3,281" },
+    ],
+  },
+};
+
+export function getPaymentSummary(inquiryId: string): PaymentSummary | undefined {
+  return PAYMENT_SUMMARIES[inquiryId];
+}
+
+/**
+ * Recent payment activity for the workspace billing page. Mirrors the
+ * status enum so the page can show a real lifecycle. Uses BOOKING_…
+ * IDs that loosely match the rich inquiries.
+ */
+export type WorkspacePaymentRow = {
+  id: string;
+  ref: string;
+  client: string;
+  brief: string;
+  total: string;
+  fee: string;
+  netPayout: string;
+  receiverName: string;
+  status: BookingPaymentStatus;
+  date: string;
+};
+
+export const WORKSPACE_PAYMENTS: WorkspacePaymentRow[] = [
+  {
+    id: "wp1",
+    ref: "BK-205",
+    client: "Net-a-Porter",
+    brief: "Editorial · 1 day",
+    total: "€3,400",
+    fee: "€119",
+    netPayout: "€3,281",
+    receiverName: "Acme Models",
+    status: "payout-sent",
+    date: "Apr 11",
+  },
+  {
+    id: "wp2",
+    ref: "BK-203",
+    client: "Bvlgari",
+    brief: "Jewelry campaign",
+    total: "€8,200",
+    fee: "€287",
+    netPayout: "€7,913",
+    receiverName: "Kai Lin",
+    status: "requested",
+    date: "Today",
+  },
+  {
+    id: "wp3",
+    ref: "RI-202",
+    client: "Vogue Italia",
+    brief: "Editorial · 2 day",
+    total: "€7,400",
+    fee: "€259",
+    netPayout: "€7,141",
+    receiverName: "Acme Models",
+    status: "ready",
+    date: "Yesterday",
+  },
+  {
+    id: "wp4",
+    ref: "BK-128",
+    client: "Zara",
+    brief: "Capsule lookbook",
+    total: "€2,000",
+    fee: "€70",
+    netPayout: "€1,930",
+    receiverName: "Acme Models",
+    status: "payout-sent",
+    date: "Apr 4",
+  },
+  {
+    id: "wp5",
+    ref: "BK-117",
+    client: "Editorial Studio",
+    brief: "Test shoot · single",
+    total: "€600",
+    fee: "—",
+    netPayout: "€600",
+    receiverName: "Off-platform",
+    status: "external",
+    date: "Mar 22",
+  },
 ];
 
 // ─── Workspace info ──────────────────────────────────────────────────
 
-export const TENANT = {
+export const TENANT: {
+  slug: string;
+  name: string;
+  domain: string;
+  customDomain: string;
+  initials: string;
+  entityType: EntityType;
+} = {
   slug: "acme-models",
   name: "Acme Models",
   domain: "acme-models.tulala.app",
   customDomain: "acme-models.com",
   initials: "A",
+  entityType: "agency",
 };
 
 // ════════════════════════════════════════════════════════════════════
 // Talent surface mock data
 // ════════════════════════════════════════════════════════════════════
 
+/**
+ * Talent profile — everything a model surface needs to look like a real
+ * comp card / agency book entry. Fields are grouped by what an agency
+ * actually books off:
+ *  · identity & visual (photos, pronouns)
+ *  · physicality (measurements + features)
+ *  · capability (skills · languages · specialties · wardrobe limits)
+ *  · history (credits · runway · stats · reviews)
+ *  · trust (verification badges · union · documents)
+ *  · commercial (rates · travel · usage)
+ */
+
+/** Detailed measurement card — separate from `physical features` so we
+ *  can show units cleanly (Imperial / Metric toggle in production). */
+export type TalentMeasurements = {
+  heightImperial: string; // 5'9"
+  heightMetric: string;   // 175 cm
+  weight?: string;        // 60 kg (optional — many agencies drop it)
+  bust: string;           // 86 cm
+  waist: string;          // 62 cm
+  hips: string;           // 91 cm
+  inseam?: string;        // 81 cm
+  shoeEU: string;
+  shoeUS: string;
+  shoeUK: string;
+  dress: string;          // EU 36
+  suit?: string;
+  hairColor: string;
+  hairLength: "short" | "medium" | "long";
+  eyeColor: string;
+  skinTone: string;
+  hasTattoos: boolean;
+  tattoosNote?: string;
+  hasPiercings: boolean;
+  piercingsNote?: string;
+  scarsNote?: string;
+};
+
+export type TalentSpecialty =
+  | "fashion"
+  | "editorial"
+  | "commercial"
+  | "fitness"
+  | "lifestyle"
+  | "runway"
+  | "parts"     // hands, feet, hair
+  | "plus"
+  | "petite"
+  | "kid"
+  | "teen"
+  | "mature"    // 50+
+  | "classic"
+  | "alt"
+  | "voice"
+  | "host"
+  | "actor"
+  | "dancer";
+
+export const TALENT_SPECIALTY_LABEL: Record<TalentSpecialty, string> = {
+  fashion: "Fashion",
+  editorial: "Editorial",
+  commercial: "Commercial",
+  fitness: "Fitness",
+  lifestyle: "Lifestyle",
+  runway: "Runway",
+  parts: "Parts (hands/feet)",
+  plus: "Plus",
+  petite: "Petite",
+  kid: "Kid",
+  teen: "Teen",
+  mature: "Mature 50+",
+  classic: "Classic",
+  alt: "Alt / Tattoos",
+  voice: "Voiceover",
+  host: "Host / Presenter",
+  actor: "Actor",
+  dancer: "Dancer",
+};
+
+export type TalentCredit = {
+  id: string;
+  /** Year (string for messy "Spring 2026" entries). */
+  year: string;
+  /** Top line — Vogue Italia, Mango SS27, Burberry F/W… */
+  brand: string;
+  /** What kind of work — "Editorial cover", "Campaign", "Runway", "Lookbook". */
+  type:
+    | "Cover"
+    | "Editorial"
+    | "Campaign"
+    | "Lookbook"
+    | "Runway"
+    | "Music video"
+    | "Film"
+    | "TVC";
+  /** Photographer / director / stylist credit (single string). */
+  credit?: string;
+  /** Featured / starring / supporting / part of. */
+  role?: string;
+  /** True if this is a tear-sheet (cover / spread) — gets a star marker. */
+  pinned?: boolean;
+};
+
+export type TalentLanguage = {
+  language: string;
+  level: "native" | "fluent" | "intermediate" | "basic";
+};
+
+export type TalentSkill = {
+  category: "movement" | "voice" | "instrument" | "sport" | "performance" | "other";
+  label: string;
+  /** Optional level/qualifier — "Advanced", "Trained 8y", "Intermediate". */
+  level?: string;
+};
+
+export type TalentLink = {
+  kind: "instagram" | "tiktok" | "imdb" | "site" | "linkedin" | "youtube" | "spotify" | "other";
+  label: string;
+  url: string;
+  followers?: string; // "142K" — rendered if present
+};
+
+/** Wardrobe / limits that a coordinator MUST honour when pitching. */
+export type TalentLimit = {
+  id: string;
+  category: "nudity" | "wardrobe" | "lifestyle" | "religious" | "ethical" | "other";
+  label: string;
+  /** Hard = blocks pitch. Soft = needs explicit confirmation. */
+  enforcement: "hard" | "soft";
+};
+
+export type TalentBadge = {
+  kind:
+    | "id-verified"
+    | "age-verified"
+    | "union"
+    | "top-rated"
+    | "tulala-featured"
+    | "agency-verified"
+    | "background-check";
+  label: string;
+  hint: string;
+  earnedAt: string;
+};
+
+export type TalentReview = {
+  id: string;
+  reviewerName: string;
+  reviewerRole: string;       // "Producer · Vogue Italia"
+  brand: string;
+  rating: number;             // 1-5
+  body: string;
+  shootDate: string;
+};
+
+/** Public day-rate card — what shows on the profile. The actual offer
+ *  fee is per-booking, but a baseline gives clients a reference. */
+export type TalentRateCard = {
+  visibility: "public" | "agency-only" | "on-request";
+  /** Each line is a usage tier (commercial vs. editorial vs. e-com). */
+  lines: Array<{
+    label: string;
+    range: string;
+    note?: string;
+  }>;
+  /** Buyout / usage philosophy in one sentence. */
+  usagePolicy: string;
+};
+
+/** Travel + work-authorization band — what countries / regions can
+ *  book the talent without visa drama. */
+export type TalentTravel = {
+  basedIn: string;
+  willingTravel: "city" | "country" | "region" | "global";
+  homeRadius?: string; // "Within 200 km of Madrid"
+  passports: string[];
+  workAuth: string[];   // "Schengen", "United States (B1/B2 + ESTA)"
+  lastTrip?: string;
+  preferredClass?: "economy" | "premium-economy" | "business";
+};
+
+export type TalentDocument = {
+  id: string;
+  label: string;
+  state: "uploaded" | "missing" | "expired";
+  expiresOn?: string;
+};
+
 export type MyTalentProfile = {
+  // — identity ─────────────────────────────────────────────
   name: string;
+  legalName?: string;
   initials: string;
-  primaryAgency: string;
-  measurements: string;
+  pronouns: "she/her" | "he/him" | "they/them" | "she/they" | "he/they" | "any";
+  age: number;            // calculated from DoB; for v1 we hardcode
+  /** "Madrid · willing to travel" — primary location summary string. */
   city: string;
-  publishedAt: string; // "Apr 12, 2026"
+  // — visual ────────────────────────────────────────────────
+  /** Cover photo emoji placeholder (the prototype uses emoji art). */
+  coverPhoto: string;
+  /** Profile/headshot emoji placeholder. */
+  profilePhoto: string;
+  /** Optional 30-sec showreel — emoji placeholder for the thumbnail. */
+  showreelThumb?: string;
+  showreelDuration?: string;
+  // — physical ──────────────────────────────────────────────
+  measurements: TalentMeasurements;
+  /** "5'9\" · 86-62-91" — short summary string for headers. */
+  measurementsSummary: string;
+  // — capability ────────────────────────────────────────────
+  specialties: TalentSpecialty[];
+  languages: TalentLanguage[];
+  skills: TalentSkill[];
+  limits: TalentLimit[];
+  // — history ──────────────────────────────────────────────
+  credits: TalentCredit[];
+  reviews: TalentReview[];
+  /** Booking stats — surfaced on the public profile + on the My profile dashboard. */
+  bookingStats: {
+    completedBookings: number;
+    onTimeRate: number;       // 0–100
+    repeatClients: number;
+    yearsActive: number;
+  };
+  // — trust ────────────────────────────────────────────────
+  badges: TalentBadge[];
+  documents: TalentDocument[];
+  // — commercial ───────────────────────────────────────────
+  rateCard: TalentRateCard;
+  travel: TalentTravel;
+  // — connectivity ─────────────────────────────────────────
+  links: TalentLink[];
+  emergencyContact: {
+    name: string;
+    relation: string;
+    phone: string; // masked in public; visible during active booking only
+  };
+  // — agency ───────────────────────────────────────────────
+  primaryAgency: string;
+  /**
+   * Representation status — the binding rule for source-aware inquiry
+   * ownership (Architecture #5). Page ownership is always the talent;
+   * this controls distribution + visibility + agency notification.
+   * See project_talent_subscriptions.md §5.
+   */
+  representation: RepresentationStatus;
+  /**
+   * Per-tier contact gate. Talent decides which client trust tiers may
+   * send inquiries. Default is all-on. See project_client_trust_badges.md.
+   * Enforced server-side at inquiry-create time so embed widgets and
+   * the API can't bypass it.
+   */
+  contactPolicy: TalentContactPolicy;
+  // — engagement ───────────────────────────────────────────
+  publishedAt: string;        // "Apr 12, 2026"
   profileViews7d: number;
   inquiries7d: number;
-  completeness: number; // 0–100
+  /** Search-result rank on the Tulala discover surface — 1 = top. */
+  discoverRank: number;
+  /** Trend vs. last week, +/- pct. */
+  viewsTrend: number;
+  completeness: number;       // 0–100
   missing: string[];
   publicUrl: string;
+  // — personal page (premium) ──────────────────────────────
+  /** The Tulala-direct subscription on top of the standard ecosystem
+   *  profile. Affects template choice, embed availability, custom
+   *  domain, EPK / media-kit, SEO control. Crucially: orthogonal to
+   *  agency / hub relationships — those keep working regardless. */
+  subscription: TalentSubscription;
 };
+
+// ────────────────────────────────────────────────────────────────────
+// Talent subscriptions (premium personal pages)
+// ────────────────────────────────────────────────────────────────────
+//
+// Talent can choose to upgrade their *own* personal Tulala page on top
+// of whatever rosters / hubs they live in. Three tiers:
+//
+//   basic      — included with any free workspace. Simple template,
+//                no embeds, no custom domain, basic discovery only.
+//   pro        — richer template options, social embeds (Spotify /
+//                IG / TikTok / YouTube), press band, media-kit PDF,
+//                SEO controls. ~ $12 / mo.
+//   portfolio  — page-builder-lite with multiple sections, video hero,
+//                custom domain (yourname.com), press kit, EPK download,
+//                priority discovery placement. ~ $29 / mo. Custom domain
+//                is RESERVED FOR PORTFOLIO ONLY — Pro stays on the
+//                canonical tulala.digital/t/<slug> route.
+//
+// Tiers are ADDITIVE, not exclusive. A talent on Portfolio still
+// appears on agency rosters and hubs the same way — the personal
+// page is a parallel surface, not a replacement.
+
+export type TalentSubscriptionTier = "basic" | "pro" | "portfolio";
+
+export const TALENT_TIER_META: Record<
+  TalentSubscriptionTier,
+  {
+    label: string;
+    tagline: string;
+    monthlyPrice: string;
+    /** Subset of features unlocked at this tier. Each feature lists
+     *  its first-available tier — used to render lock badges. */
+    blurb: string;
+    accent: "ink" | "gold" | "deep";
+  }
+> = {
+  basic: {
+    label: "Basic",
+    tagline: "Standard public profile",
+    monthlyPrice: "Free",
+    blurb: "Roster-style profile. Good for agency-led talent who don't need a personal destination.",
+    accent: "ink",
+  },
+  pro: {
+    label: "Pro",
+    tagline: "Richer personal page",
+    monthlyPrice: "$12 / mo",
+    blurb: "Template choices, larger gallery, social + video embeds, press band, downloadable media kit.",
+    accent: "gold",
+  },
+  portfolio: {
+    label: "Portfolio",
+    tagline: "Mini personal site",
+    monthlyPrice: "$29 / mo",
+    blurb: "Multi-section page-builder, custom domain, EPK kit, SEO controls, priority discover placement.",
+    accent: "deep",
+  },
+};
+
+/** Atomic feature flag — used to render lock badges on premium modules. */
+export type TalentTierFeature =
+  | "template-picker"
+  | "media-embeds"
+  | "press-band"
+  | "media-kit"
+  | "video-hero"
+  | "custom-domain"
+  | "extra-sections"
+  | "seo-controls"
+  | "priority-discovery";
+
+/** Lookup: which feature is first available at which tier. */
+export const TALENT_TIER_FEATURE_AT: Record<TalentTierFeature, TalentSubscriptionTier> = {
+  "template-picker": "pro",
+  "media-embeds": "pro",
+  "press-band": "pro",
+  "media-kit": "pro",
+  "video-hero": "portfolio",
+  "custom-domain": "portfolio",
+  "extra-sections": "portfolio",
+  "seo-controls": "portfolio",
+  "priority-discovery": "portfolio",
+};
+
+/** Returns true if the talent's current tier unlocks the given feature. */
+export function tierAllows(current: TalentSubscriptionTier, feature: TalentTierFeature): boolean {
+  const order: TalentSubscriptionTier[] = ["basic", "pro", "portfolio"];
+  const required = TALENT_TIER_FEATURE_AT[feature];
+  return order.indexOf(current) >= order.indexOf(required);
+}
+
+/** Page-builder template — only the "Roster" template ships at Basic. */
+export type TalentPageTemplate = {
+  id: string;
+  label: string;
+  blurb: string;
+  thumb: string;          // emoji preview
+  /** First tier this template is available on. */
+  availableAt: TalentSubscriptionTier;
+};
+
+export const TALENT_PAGE_TEMPLATES: TalentPageTemplate[] = [
+  { id: "roster", label: "Roster", blurb: "Classic comp-card layout — what agencies use.", thumb: "🎴", availableAt: "basic" },
+  { id: "editorial", label: "Editorial", blurb: "Magazine spread feel — large hero, generous white space.", thumb: "📰", availableAt: "pro" },
+  { id: "studio", label: "Studio", blurb: "Tight grid, big imagery — for fashion + lifestyle.", thumb: "🖼️", availableAt: "pro" },
+  { id: "stage", label: "Stage", blurb: "Video-first hero with show / tour / gig dates.", thumb: "🎤", availableAt: "portfolio" },
+  { id: "creator", label: "Creator", blurb: "Social-first — TikTok / IG / YouTube embeds drive the page.", thumb: "📱", availableAt: "portfolio" },
+  { id: "epk", label: "EPK", blurb: "Press-kit feel — bio, credits, downloads, contact CTA.", thumb: "📄", availableAt: "portfolio" },
+];
+
+/** A media embed shown on the personal page. Pro+. */
+export type TalentMediaEmbed = {
+  id: string;
+  kind: "spotify" | "youtube" | "tiktok" | "instagram" | "soundcloud" | "vimeo";
+  label: string;
+  url: string;
+  /** Emoji thumbnail for the prototype. */
+  thumb: string;
+};
+
+/** Press / clippings — agency-blog mentions, magazine features. Pro+. */
+export type TalentPressClip = {
+  id: string;
+  outlet: string;       // "Vogue Italia"
+  headline: string;
+  date: string;
+  url: string;
+  /** Quote pull from the article. */
+  quote?: string;
+};
+
+/** EPK / media-kit downloadable PDF. Pro+. */
+export type TalentMediaKit = {
+  filename: string;
+  size: string;
+  updatedAt: string;
+  /** Preview emoji. */
+  thumb: string;
+};
+
+export type TalentSubscription = {
+  tier: TalentSubscriptionTier;
+  /** Active personal page template. */
+  template: string;
+  /** Personal page enabled? Even on Basic the page exists, just simpler. */
+  personalPageEnabled: boolean;
+  /** Custom domain (Portfolio only). */
+  customDomain?: string;
+  /** Custom-domain verification state. */
+  customDomainStatus?: "verified" | "pending" | "failed" | "not-set";
+  /** Personal page URL — what the talent can share. Falls back to
+   *  the canonical Tulala /t/<slug> path when no custom domain is set.
+   *  All tiers (Basic / Pro / Portfolio) use the same canonical route;
+   *  custom domain is reserved for Portfolio only. */
+  personalPageUrl: string;
+  /** Embedded media. */
+  embeds: TalentMediaEmbed[];
+  /** Press clippings. */
+  press: TalentPressClip[];
+  /** Downloadable media kit. */
+  mediaKit?: TalentMediaKit;
+  /** Renewal / billing date for paid tiers. */
+  renewsOn?: string;
+  /** True while in trial (Pro/Portfolio) — affects badge styling. */
+  inTrial?: boolean;
+};
+
+// ────────────────────────────────────────────────────────────────────
+// Architecture #5 — Representation status + source-aware inquiry ownership
+// ────────────────────────────────────────────────────────────────────
+//
+// THE BINDING RULE (per project_talent_subscriptions.md §5):
+//   Page ownership = talent ALWAYS.
+//   Distribution / visibility / contact-routing = relationship-dependent.
+//
+// A talent can simultaneously appear on:
+//   • an agency roster page  (source kind = "direct" with agency domain)
+//   • a hub page             (source kind = "hub")
+//   • their own personal page (source kind = "talent-page")
+//
+// Each public surface generates its own inquiry source. The source +
+// the talent's representation status together determine who *owns* the
+// inquiry and who else gets *notified*. Ownership is not a contradiction
+// of representation — it's the platform's value: multiple surfaces, one
+// identity, source-attributed routing.
+
+export type RepresentationStatus =
+  | { kind: "exclusive"; agencyName: string }
+  | { kind: "non-exclusive"; agencyNames: string[] }
+  | { kind: "freelance" };
+
+export const REPRESENTATION_META: Record<
+  RepresentationStatus["kind"],
+  { label: string; short: string; tone: "ink" | "amber" | "green" | "dim"; hint: string }
+> = {
+  exclusive: {
+    label: "Exclusive representation",
+    short: "Exclusive",
+    tone: "ink",
+    hint: "One agency holds primary representation. They control distribution + visibility while the relationship is active.",
+  },
+  "non-exclusive": {
+    label: "Non-exclusive representation",
+    short: "Non-exclusive",
+    tone: "amber",
+    hint: "Multiple agencies represent this talent. Each agency is notified on direct-page inquiries; none has a blocking claim.",
+  },
+  freelance: {
+    label: "Freelance",
+    short: "Freelance",
+    tone: "dim",
+    hint: "No active agency representation. The talent has full direct control of their personal page and inquiry routing.",
+  },
+};
+
+/**
+ * The party that takes primary ownership of an inquiry — i.e. the one
+ * whose workspace the inquiry lands in by default and who has the
+ * authority to accept / decline / coordinate.
+ */
+export type InquiryOwner = "talent" | "agency" | "hub-operator";
+
+export type InquiryOwnershipResolution = {
+  primaryOwner: InquiryOwner;
+  /** Display name of the primary owner (agency name, hub name, or talent name). */
+  primaryOwnerLabel: string;
+  /** Other parties notified per representation rules. */
+  notify: InquiryOwner[];
+  /** Plain-language explanation suitable for tooltips / detail panels. */
+  rationale: string;
+};
+
+/**
+ * Source-aware inquiry ownership resolver.
+ *
+ * Given the public surface that originated the inquiry, the talent's
+ * current representation status, and (for context) the talent's
+ * subscription tier, returns who owns the inquiry and who gets
+ * notified.
+ *
+ * Tier is passed through but does NOT change ownership in v1 — it's
+ * available for future rules (e.g., Portfolio talent on freelance status
+ * may eventually opt into an "agency-blind" mode, but that is not
+ * specified yet).
+ */
+export function resolveInquiryOwnership(
+  source: InquirySource,
+  representation: RepresentationStatus,
+  tier: TalentSubscriptionTier,
+  talentName: string,
+): InquiryOwnershipResolution {
+  // Suppress unused-warning while the parameter is reserved for future rules.
+  void tier;
+
+  // 1. Talent personal page — talent always owns. Agency is notified
+  //    per representation status while the relationship is active.
+  if (source.kind === "talent-page") {
+    if (representation.kind === "exclusive") {
+      return {
+        primaryOwner: "talent",
+        primaryOwnerLabel: talentName,
+        notify: ["agency"],
+        rationale: `Inquiry came in via ${talentName}'s personal page. Talent owns the inquiry. ${representation.agencyName} is notified per exclusive representation.`,
+      };
+    }
+    if (representation.kind === "non-exclusive") {
+      return {
+        primaryOwner: "talent",
+        primaryOwnerLabel: talentName,
+        notify: ["agency"],
+        rationale: `Inquiry came in via ${talentName}'s personal page. Talent owns the inquiry. Representing agencies (${representation.agencyNames.join(", ")}) are notified.`,
+      };
+    }
+    return {
+      primaryOwner: "talent",
+      primaryOwnerLabel: talentName,
+      notify: [],
+      rationale: `Inquiry came in via ${talentName}'s personal page. Freelance — no agency notified.`,
+    };
+  }
+
+  // 2. Hub page — hub operator owns. Agency notified if represented.
+  if (source.kind === "hub") {
+    return {
+      primaryOwner: "hub-operator",
+      primaryOwnerLabel: source.hubName,
+      notify: representation.kind === "freelance" ? ["talent"] : ["talent", "agency"],
+      rationale: `Inquiry came in via ${source.hubName}. Hub operator owns the inquiry. ${representation.kind === "freelance" ? "Talent is notified." : "Talent and representing agency are notified."}`,
+    };
+  }
+
+  // 3. Direct (agency portal) — agency owns. Talent notified.
+  if (source.kind === "direct") {
+    const agencyName =
+      representation.kind === "exclusive"
+        ? representation.agencyName
+        : representation.kind === "non-exclusive"
+          ? representation.agencyNames[0] ?? source.domain
+          : source.domain;
+    return {
+      primaryOwner: "agency",
+      primaryOwnerLabel: agencyName,
+      notify: ["talent"],
+      rationale: `Inquiry came in via the agency portal at ${source.domain}. Agency owns the inquiry; talent is notified.`,
+    };
+  }
+
+  // 4. Marketplace — platform-routed. Default to agency-owned if
+  //    represented, talent-owned if freelance.
+  if (source.kind === "marketplace") {
+    if (representation.kind === "freelance") {
+      return {
+        primaryOwner: "talent",
+        primaryOwnerLabel: talentName,
+        notify: [],
+        rationale: `Marketplace inquiry routed to freelance talent ${talentName}.`,
+      };
+    }
+    const agencyName =
+      representation.kind === "exclusive"
+        ? representation.agencyName
+        : representation.agencyNames[0];
+    return {
+      primaryOwner: "agency",
+      primaryOwnerLabel: agencyName,
+      notify: ["talent"],
+      rationale: `Marketplace inquiry on ${source.platform}. Routed to representing agency ${agencyName}; talent is notified.`,
+    };
+  }
+
+  // 5. Manual (coordinator-entered) — assumed agency-side action.
+  return {
+    primaryOwner: representation.kind === "freelance" ? "talent" : "agency",
+    primaryOwnerLabel:
+      representation.kind === "exclusive"
+        ? representation.agencyName
+        : representation.kind === "non-exclusive"
+          ? representation.agencyNames[0]
+          : talentName,
+    notify: representation.kind === "freelance" ? [] : ["talent"],
+    rationale: `Coordinator-entered inquiry (${source.channel}). ${representation.kind === "freelance" ? "Routed to talent directly." : "Routed via the representing agency."}`,
+  };
+}
 
 export const MY_TALENT_PROFILE: MyTalentProfile = {
   name: "Marta Reyes",
+  legalName: "Marta Reyes Sánchez",
   initials: "MR",
-  primaryAgency: "Acme Models",
-  measurements: "5'9\" · 86-62-91",
+  pronouns: "she/her",
+  age: 24,
   city: "Madrid · willing to travel",
+  coverPhoto: "🌅",
+  profilePhoto: "🌸",
+  showreelThumb: "🎞️",
+  showreelDuration: "0:42",
+  measurements: {
+    heightImperial: "5'9\"",
+    heightMetric: "175 cm",
+    weight: "58 kg",
+    bust: "86 cm",
+    waist: "62 cm",
+    hips: "91 cm",
+    inseam: "81 cm",
+    shoeEU: "39",
+    shoeUS: "8.5",
+    shoeUK: "6",
+    dress: "EU 36 · US 4",
+    suit: "—",
+    hairColor: "Dark brown",
+    hairLength: "long",
+    eyeColor: "Brown",
+    skinTone: "Olive",
+    hasTattoos: true,
+    tattoosNote: "Small wrist tattoo (right) · easily covered",
+    hasPiercings: true,
+    piercingsNote: "Lobes only",
+    scarsNote: "—",
+  },
+  measurementsSummary: '5\'9" · 86-62-91 · EU 39',
+  specialties: ["fashion", "editorial", "commercial", "lifestyle"],
+  languages: [
+    { language: "Spanish", level: "native" },
+    { language: "English", level: "fluent" },
+    { language: "Italian", level: "fluent" },
+    { language: "French", level: "intermediate" },
+  ],
+  skills: [
+    { category: "movement", label: "Yoga", level: "Advanced · 8y" },
+    { category: "movement", label: "Contemporary dance", level: "Intermediate · trained" },
+    { category: "sport", label: "Horseback riding", level: "Intermediate" },
+    { category: "sport", label: "Swimming", level: "Strong" },
+    { category: "voice", label: "Castilian + neutral Spanish accent" },
+    { category: "instrument", label: "Piano", level: "Intermediate" },
+    { category: "performance", label: "On-camera dialogue (ES · EN · IT)" },
+  ],
+  limits: [
+    { id: "lim1", category: "nudity", label: "No nudity", enforcement: "hard" },
+    { id: "lim2", category: "wardrobe", label: "No fur", enforcement: "hard" },
+    { id: "lim3", category: "wardrobe", label: "Lingerie · case-by-case", enforcement: "soft" },
+    { id: "lim4", category: "lifestyle", label: "No tobacco / vape product shots", enforcement: "hard" },
+    { id: "lim5", category: "ethical", label: "No fast-fashion campaign exclusives", enforcement: "soft" },
+  ],
+  credits: [
+    { id: "cr1", year: "Spring 2026", brand: "Vogue Italia", type: "Editorial", credit: "Photo · Lina Park", role: "Featured", pinned: true },
+    { id: "cr2", year: "2026", brand: "Mango", type: "Campaign", credit: "Photo · Joana Rivera", role: "Lead", pinned: true },
+    { id: "cr3", year: "F/W 25", brand: "Bvlgari", type: "Cover", credit: "Cover · Italian edition", role: "Cover", pinned: true },
+    { id: "cr4", year: "2025", brand: "Net-a-Porter", type: "Editorial", credit: "Photo · Helena Ross", role: "Featured" },
+    { id: "cr5", year: "S/S 25", brand: "Estudio Roca", type: "Lookbook" },
+    { id: "cr6", year: "2024", brand: "Zara", type: "Lookbook", credit: "Capsule SS24" },
+    { id: "cr7", year: "MFW '24", brand: "Maison Sud", type: "Runway", role: "Walk · 4 looks" },
+    { id: "cr8", year: "2024", brand: "Praline London", type: "Editorial" },
+  ],
+  reviews: [
+    {
+      id: "rv1",
+      reviewerName: "Joana Rivera",
+      reviewerRole: "Producer · Mango",
+      brand: "Mango SS25 capsule",
+      rating: 5,
+      body: "Calm on a chaotic set. Held the look through 11 hours of changes without losing energy. Would book again tomorrow.",
+      shootDate: "Feb 2026",
+    },
+    {
+      id: "rv2",
+      reviewerName: "Lina Park",
+      reviewerRole: "Photographer",
+      brand: "Vogue Italia spring spread",
+      rating: 5,
+      body: "Direction-light shoot — Marta brought the editorial. Strong instincts, fast iterations.",
+      shootDate: "Mar 2026",
+    },
+    {
+      id: "rv3",
+      reviewerName: "Marco Conti",
+      reviewerRole: "Creative director · Bvlgari",
+      brand: "Bvlgari jewelry cover",
+      rating: 5,
+      body: "Hand and gesture control of someone twice her experience. Repeat for SS27.",
+      shootDate: "Jan 2026",
+    },
+  ],
+  bookingStats: {
+    completedBookings: 38,
+    onTimeRate: 100,
+    repeatClients: 9,
+    yearsActive: 4,
+  },
+  badges: [
+    { kind: "id-verified", label: "ID verified", hint: "Government ID checked Mar 2026.", earnedAt: "Mar 2026" },
+    { kind: "age-verified", label: "Age verified", hint: "Birth date confirmed by passport.", earnedAt: "Mar 2026" },
+    { kind: "agency-verified", label: "Agency-verified", hint: "Acme Models confirms exclusive rep.", earnedAt: "Mar 2024" },
+    { kind: "top-rated", label: "Top-rated", hint: "100% on-time across 38 bookings.", earnedAt: "Apr 2026" },
+    { kind: "tulala-featured", label: "Featured on Tulala", hint: "Curated pick on the Tulala hub.", earnedAt: "Apr 2026" },
+    { kind: "background-check", label: "Background check", hint: "Standard work-history check passed.", earnedAt: "Mar 2026" },
+  ],
+  documents: [
+    { id: "doc1", label: "Government ID (passport)", state: "uploaded", expiresOn: "May 2032" },
+    { id: "doc2", label: "Comp card PDF", state: "uploaded" },
+    { id: "doc3", label: "W-8BEN (US tax)", state: "missing" },
+    { id: "doc4", label: "Health & safety form", state: "uploaded", expiresOn: "Apr 2027" },
+    { id: "doc5", label: "VAT certificate (ES)", state: "uploaded" },
+  ],
+  rateCard: {
+    visibility: "agency-only",
+    lines: [
+      { label: "Editorial · day", range: "€1,800 – €3,200", note: "Print + 6mo digital usage" },
+      { label: "Commercial · day", range: "€3,500 – €6,500", note: "Region + duration sets buyout" },
+      { label: "E-commerce · day", range: "€1,200 – €2,400" },
+      { label: "Runway", range: "€800 – €1,500", note: "Per show + fittings" },
+      { label: "Hand / parts", range: "€600 – €1,200" },
+    ],
+    usagePolicy: "Standard 12-month, single-region buyout included. Global / extended via offer.",
+  },
+  travel: {
+    basedIn: "Madrid",
+    willingTravel: "global",
+    homeRadius: "Same-day across Iberian peninsula · global with 2 wk lead",
+    passports: ["Spain"],
+    workAuth: ["Schengen", "United Kingdom (Tier 5)", "United States (B1/B2 + ESTA)"],
+    lastTrip: "Milan · 2 wks ago",
+    preferredClass: "economy",
+  },
+  links: [
+    { kind: "instagram", label: "@marta.reyes", url: "instagram.com/marta.reyes", followers: "142K" },
+    { kind: "tiktok", label: "@marta.reyes", url: "tiktok.com/@marta.reyes", followers: "38K" },
+    { kind: "site", label: "marta-reyes.com", url: "marta-reyes.com" },
+    { kind: "imdb", label: "IMDb", url: "imdb.com/name/nm9999999" },
+  ],
+  emergencyContact: {
+    name: "Pilar Reyes",
+    relation: "Mother",
+    phone: "+34 ••• ••• 412",
+  },
+  primaryAgency: "Acme Models",
+  representation: { kind: "exclusive", agencyName: "Acme Models" },
+  contactPolicy: { ...DEFAULT_CONTACT_POLICY },
   publishedAt: "Apr 12, 2026",
   profileViews7d: 142,
   inquiries7d: 4,
+  discoverRank: 12,
+  viewsTrend: 18,
   completeness: 84,
-  missing: ["3 portfolio shots from 2026", "Tax form (W-8BEN)"],
+  missing: [
+    "Add 3 portfolio shots from 2026",
+    "W-8BEN tax form",
+    "Set polaroids set (5 naturals)",
+  ],
   publicUrl: "acme-models.com/talent/marta-reyes",
+  subscription: {
+    // Marta is currently on Pro — she trialled it after agency-side
+    // told her "your IG following deserves a real page." Pro gives
+    // her embeds + a press band. Portfolio would unlock a custom
+    // domain (marta-reyes.com) + EPK + extra layout sections.
+    tier: "pro",
+    template: "editorial",
+    personalPageEnabled: true,
+    customDomain: undefined,
+    customDomainStatus: "not-set",
+    personalPageUrl: "tulala.digital/t/marta-reyes",
+    embeds: [
+      { id: "em1", kind: "instagram", label: "@marta.reyes", url: "instagram.com/marta.reyes", thumb: "📷" },
+      { id: "em2", kind: "tiktok", label: "@marta.reyes", url: "tiktok.com/@marta.reyes", thumb: "🎵" },
+      { id: "em3", kind: "youtube", label: "Marta · 'Behind the Bvlgari cover'", url: "youtu.be/abc123", thumb: "▶️" },
+    ],
+    press: [
+      {
+        id: "pr1",
+        outlet: "Vogue Italia",
+        headline: "Three to watch — Spring 2026",
+        date: "Mar 2026",
+        url: "vogue.it/three-to-watch",
+        quote: "An instinctive editorial presence with a runway calmness rare for her generation.",
+      },
+      {
+        id: "pr2",
+        outlet: "El País · Moda",
+        headline: "Madrid's quiet new face",
+        date: "Feb 2026",
+        url: "elpais.com/moda/marta-reyes",
+      },
+    ],
+    mediaKit: {
+      filename: "Marta Reyes · 2026 media kit.pdf",
+      size: "4.2 MB",
+      updatedAt: "Apr 4, 2026",
+      thumb: "📄",
+    },
+    renewsOn: "May 12, 2026",
+    inTrial: false,
+  },
 };
+
+/** Polaroid set — separate from the styled portfolio. Industry standard
+ *  is 5: front, side, back, smile, no-makeup. The set proves what the
+ *  talent looks like without lighting / styling.
+ */
+export type Polaroid = { id: string; angle: string; thumb: string; updatedAgo: string };
+
+export const POLAROID_SET: Polaroid[] = [
+  { id: "p1", angle: "Front", thumb: "👤", updatedAgo: "2 wks" },
+  { id: "p2", angle: "Side", thumb: "👤", updatedAgo: "2 wks" },
+  { id: "p3", angle: "Back", thumb: "👤", updatedAgo: "2 wks" },
+  { id: "p4", angle: "Smile", thumb: "👤", updatedAgo: "2 wks" },
+  { id: "p5", angle: "No makeup", thumb: "—", updatedAgo: "missing" },
+];
+
+/** Languages helper — returns "Native ES · Fluent EN · IT · Int FR" style string. */
+export function summarizeLanguages(langs: TalentLanguage[]): string {
+  const groups: Record<TalentLanguage["level"], string[]> = {
+    native: [],
+    fluent: [],
+    intermediate: [],
+    basic: [],
+  };
+  langs.forEach((l) => {
+    const code = l.language.slice(0, 2).toUpperCase();
+    groups[l.level].push(code);
+  });
+  const parts: string[] = [];
+  if (groups.native.length) parts.push(`Native ${groups.native.join(" · ")}`);
+  if (groups.fluent.length) parts.push(`Fluent ${groups.fluent.join(" · ")}`);
+  if (groups.intermediate.length) parts.push(`Int. ${groups.intermediate.join(" · ")}`);
+  if (groups.basic.length) parts.push(`Basic ${groups.basic.join(" · ")}`);
+  return parts.join(" · ");
+}
 
 export type TalentAgency = {
   id: string;
@@ -1089,6 +3007,12 @@ export type TalentRequest = {
   kind: "offer" | "hold" | "casting" | "request";
   agency: string;
   client: string;
+  /**
+   * Trust tier of the requesting client at the time the request landed.
+   * See project_client_trust_badges.md — surfaces in talent inbox cards
+   * so the talent can triage tier alongside agency / fee / date.
+   */
+  clientTrust: ClientTrustLevel;
   brief: string;
   date?: string;
   amount?: string;
@@ -1097,10 +3021,10 @@ export type TalentRequest = {
 };
 
 export const TALENT_REQUESTS: TalentRequest[] = [
-  { id: "rq1", kind: "offer", agency: "Acme Models", client: "Mango", brief: "Lookbook · spring capsule · 1 day", date: "Tue · May 6", amount: "€1,800", ageHrs: 5, status: "needs-answer" },
-  { id: "rq2", kind: "hold", agency: "Acme Models", client: "Bvlgari", brief: "Editorial · jewelry campaign", date: "May 18–20", amount: "€4,000–6,000", ageHrs: 18, status: "needs-answer" },
-  { id: "rq3", kind: "casting", agency: "Praline London", client: "Net-a-Porter", brief: "Casting call · video lookbook", date: "Apr 30", amount: "TBC", ageHrs: 36, status: "viewed" },
-  { id: "rq4", kind: "offer", agency: "Acme Models", client: "Vogue Italia", brief: "Editorial spread · 2 day shoot", date: "May 14–15", amount: "€3,200", ageHrs: 60, status: "accepted" },
+  { id: "rq1", kind: "offer", agency: "Acme Models", client: "Mango", clientTrust: "gold", brief: "Lookbook · spring capsule · 1 day", date: "Tue · May 6", amount: "€1,800", ageHrs: 5, status: "needs-answer" },
+  { id: "rq2", kind: "hold", agency: "Acme Models", client: "Bvlgari", clientTrust: "gold", brief: "Editorial · jewelry campaign", date: "May 18–20", amount: "€4,000–6,000", ageHrs: 18, status: "needs-answer" },
+  { id: "rq3", kind: "casting", agency: "Praline London", client: "Net-a-Porter", clientTrust: "silver", brief: "Casting call · video lookbook", date: "Apr 30", amount: "TBC", ageHrs: 36, status: "viewed" },
+  { id: "rq4", kind: "offer", agency: "Acme Models", client: "Vogue Italia", clientTrust: "gold", brief: "Editorial spread · 2 day shoot", date: "May 14–15", amount: "€3,200", ageHrs: 60, status: "accepted" },
 ];
 
 export type TalentBooking = {
@@ -1165,6 +3089,12 @@ export type ClientBrand = {
   name: string;
   initials: string;
   industry: string;
+  /**
+   * Tulala-issued trust tier the brand has earned. Drives the trust-badge
+   * upsell on the client dashboard, plus how talent contact-policy filters
+   * surface this brand's inquiries. See project_client_trust_badges.md.
+   */
+  trustLevel: ClientTrustLevel;
 };
 
 export const MY_CLIENT_BRAND: ClientBrand = {
@@ -1172,6 +3102,45 @@ export const MY_CLIENT_BRAND: ClientBrand = {
   name: "Estudio Solé",
   initials: "ES",
   industry: "Fashion · creative studio",
+  trustLevel: "basic",
+};
+
+/**
+ * Pricing & lead time per trust tier. Verification (Basic → Verified) is the
+ * only conversion-priced step; Silver/Gold are earned via funded balance and
+ * activity, not paid for. See project_client_trust_badges.md.
+ */
+export const TRUST_TIER_UPGRADE: Record<
+  ClientTrustLevel,
+  { nextLabel: string | null; price: string | null; leadTime: string | null; pitch: string }
+> = {
+  basic: {
+    nextLabel: "Verified",
+    price: "$29 · one-time",
+    leadTime: "Instant — most ID checks complete in under a minute",
+    pitch:
+      "Talent that filters out anonymous inquiries will see your next message. Verification confirms a real, traceable buyer.",
+  },
+  verified: {
+    nextLabel: "Silver",
+    price: null,
+    leadTime: "Earned",
+    pitch:
+      "Earned automatically once your funded balance crosses the Silver threshold — no extra fee, just a signal of buying readiness.",
+  },
+  silver: {
+    nextLabel: "Trusted",
+    price: null,
+    leadTime: "Earned",
+    pitch:
+      "Earned through sustained activity + a high funded balance. The strongest trust signal Tulala issues.",
+  },
+  gold: {
+    nextLabel: null,
+    price: null,
+    leadTime: null,
+    pitch: "You're at the highest trust tier Tulala issues. Talent inboxes treat your inquiries as priority.",
+  },
 };
 
 export type DiscoverTalent = {
@@ -1286,6 +3255,8 @@ export type PlatformTenant = {
   name: string;
   slug: string;
   plan: Plan;
+  /** Entity model — orthogonal to plan. Hubs lean to higher tiers but are not tier-locked. */
+  entityType: EntityType;
   seats: number;
   talentCount: number;
   mrr: string;
@@ -1295,13 +3266,13 @@ export type PlatformTenant = {
 };
 
 export const PLATFORM_TENANTS: PlatformTenant[] = [
-  { id: "tn1", name: "Acme Models", slug: "acme-models", plan: "agency", seats: 8, talentCount: 47, mrr: "$149", health: "healthy", signupAt: "Jan 2025", lastActivity: "2m ago" },
-  { id: "tn2", name: "Praline London", slug: "praline-london", plan: "agency", seats: 12, talentCount: 84, mrr: "$149", health: "healthy", signupAt: "Sep 2024", lastActivity: "12m ago" },
-  { id: "tn3", name: "Maison Sud", slug: "maison-sud", plan: "studio", seats: 3, talentCount: 18, mrr: "$79", health: "healthy", signupAt: "Mar 2026", lastActivity: "1h ago" },
-  { id: "tn4", name: "Nord Talent", slug: "nord-talent", plan: "studio", seats: 5, talentCount: 22, mrr: "$79", health: "at-risk", signupAt: "Nov 2025", lastActivity: "11d ago" },
-  { id: "tn5", name: "Bottega Roma", slug: "bottega-roma", plan: "free", seats: 1, talentCount: 4, mrr: "$0", health: "at-risk", signupAt: "Apr 2026", lastActivity: "2d ago" },
-  { id: "tn6", name: "Coast & Co", slug: "coast-co", plan: "free", seats: 1, talentCount: 1, mrr: "$0", health: "churning", signupAt: "Feb 2026", lastActivity: "21d ago" },
-  { id: "tn7", name: "Tokyo Faces", slug: "tokyo-faces", plan: "network", seats: 22, talentCount: 312, mrr: "$899", health: "healthy", signupAt: "Aug 2024", lastActivity: "4m ago" },
+  { id: "tn1", name: "Acme Models", slug: "acme-models", plan: "agency", entityType: "agency", seats: 8, talentCount: 47, mrr: "$149", health: "healthy", signupAt: "Jan 2025", lastActivity: "2m ago" },
+  { id: "tn2", name: "Praline London", slug: "praline-london", plan: "agency", entityType: "agency", seats: 12, talentCount: 84, mrr: "$149", health: "healthy", signupAt: "Sep 2024", lastActivity: "12m ago" },
+  { id: "tn3", name: "Maison Sud", slug: "maison-sud", plan: "studio", entityType: "agency", seats: 3, talentCount: 18, mrr: "$79", health: "healthy", signupAt: "Mar 2026", lastActivity: "1h ago" },
+  { id: "tn4", name: "Nord Talent", slug: "nord-talent", plan: "studio", entityType: "agency", seats: 5, talentCount: 22, mrr: "$79", health: "at-risk", signupAt: "Nov 2025", lastActivity: "11d ago" },
+  { id: "tn5", name: "Bottega Roma", slug: "bottega-roma", plan: "free", entityType: "agency", seats: 1, talentCount: 4, mrr: "$0", health: "at-risk", signupAt: "Apr 2026", lastActivity: "2d ago" },
+  { id: "tn6", name: "Coast & Co", slug: "coast-co", plan: "free", entityType: "hub", seats: 1, talentCount: 1, mrr: "$0", health: "churning", signupAt: "Feb 2026", lastActivity: "21d ago" },
+  { id: "tn7", name: "Tokyo Faces", slug: "tokyo-faces", plan: "network", entityType: "hub", seats: 22, talentCount: 312, mrr: "$899", health: "healthy", signupAt: "Aug 2024", lastActivity: "4m ago" },
 ];
 
 export type PlatformUser = {
@@ -1450,6 +3421,7 @@ export type Impersonation = {
   tenantName: string;
   asPlan: Plan;
   asRole: Role;
+  asEntityType: EntityType;
   readOnly: boolean;
 } | null;
 
@@ -1458,6 +3430,13 @@ export type ProtoState = {
   // workspace dimensions
   plan: Plan;
   role: Role;
+  /**
+   * Workspace entity model. Drives copy ("Roster" vs "Network"), inquiry
+   * routing on the pipeline page, and a few coordinator behaviours. The
+   * default mock TENANT is an agency, but the ControlBar can flip this to
+   * preview the hub experience without seeding a different tenant.
+   */
+  entityType: EntityType;
   alsoTalent: boolean;
   page: WorkspacePage;
   // talent dimensions
@@ -1474,14 +3453,20 @@ export type ProtoState = {
   upgrade: UpgradeOffer;
   toasts: Toast[];
   completedTasks: Set<string>;
+  /** Comfortable (default) vs compact list density. Persisted to localStorage. */
+  density: Density;
 };
+
+export type Density = "comfortable" | "compact";
 
 type Ctx = {
   state: ProtoState;
   setSurface: (s: Surface) => void;
   setPlan: (p: Plan) => void;
   setRole: (r: Role) => void;
+  setEntityType: (e: EntityType) => void;
   setAlsoTalent: (b: boolean) => void;
+  setDensity: (d: Density) => void;
   setPage: (p: WorkspacePage) => void;
   setTalentPage: (p: TalentPage) => void;
   setClientPlan: (p: ClientPlan) => void;
@@ -1492,9 +3477,14 @@ type Ctx = {
   stopImpersonation: () => void;
   openDrawer: (id: DrawerId, payload?: Record<string, unknown>) => void;
   closeDrawer: () => void;
+  /** Pop the drawer back-stack — reopens the previous drawer. */
+  popDrawer: () => void;
+  /** The chain of drawers the user opened to get here (excluding current). */
+  drawerStack: DrawerContext[];
   openUpgrade: (offer: Omit<UpgradeOffer, "open">) => void;
   closeUpgrade: () => void;
   toast: (message: string) => void;
+  dismissToast: (id: number) => void;
   completeTask: (id: string) => void;
 };
 
@@ -1505,6 +3495,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
   // workspace
   const [plan, setPlan] = useState<Plan>("free");
   const [role, setRole] = useState<Role>("owner");
+  const [entityType, setEntityType] = useState<EntityType>(TENANT.entityType);
   const [alsoTalent, setAlsoTalent] = useState<boolean>(true);
   const [page, setPage] = useState<WorkspacePage>("overview");
   // talent
@@ -1521,7 +3512,34 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
   const [upgrade, setUpgrade] = useState<UpgradeOffer>({ open: false });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+  const [density, setDensityState] = useState<Density>("comfortable");
   const toastIdRef = useRef(0);
+
+  // Hydrate density from localStorage on mount.
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem("tulala_density");
+      if (v === "comfortable" || v === "compact") setDensityState(v);
+    } catch {
+      /* ignore — quota / private mode */
+    }
+  }, []);
+  const setDensity = useCallback((d: Density) => {
+    setDensityState(d);
+    try {
+      window.localStorage.setItem("tulala_density", d);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  // Mirror density onto <html> so global CSS can target it without
+  // touching every component. Cleared on unmount.
+  useEffect(() => {
+    document.documentElement.dataset.tulalaDensity = density;
+    return () => {
+      delete document.documentElement.dataset.tulalaDensity;
+    };
+  }, [density]);
 
   // Read initial state from URL on mount
   useEffect(() => {
@@ -1529,6 +3547,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     const s = params.get("surface");
     const pl = params.get("plan");
     const r = params.get("role");
+    const et = params.get("entityType");
     const at = params.get("alsoTalent");
     const pg = params.get("page");
     const tpg = params.get("talentPage");
@@ -1536,9 +3555,12 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     const cpg = params.get("clientPage");
     const hr = params.get("hqRole");
     const ppg = params.get("platformPage");
+    const dr = params.get("drawer");
+    const drp = params.get("drawerPayload");
     if (s && SURFACES.includes(s as Surface)) setSurface(s as Surface);
     if (pl && PLANS.includes(pl as Plan)) setPlan(pl as Plan);
     if (r && ROLES.includes(r as Role)) setRole(r as Role);
+    if (et && ENTITY_TYPES.includes(et as EntityType)) setEntityType(et as EntityType);
     if (at === "true" || at === "false") setAlsoTalent(at === "true");
     if (pg && WORKSPACE_PAGES.includes(pg as WorkspacePage)) setPage(pg as WorkspacePage);
     if (tpg && TALENT_PAGES.includes(tpg as TalentPage)) setTalentPage(tpg as TalentPage);
@@ -1546,6 +3568,23 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     if (cpg && CLIENT_PAGES.includes(cpg as ClientPage)) setClientPage(cpg as ClientPage);
     if (hr && HQ_ROLES.includes(hr as HqRole)) setHqRole(hr as HqRole);
     if (ppg && PLATFORM_PAGES.includes(ppg as PlatformPage)) setPlatformPage(ppg as PlatformPage);
+    // Drawer is a wide string-literal union (~150 ids); we trust the URL
+    // rather than enumerating a runtime list. If the id is unknown,
+    // DrawerRoot's switch falls through and renders nothing — same as a
+    // closed drawer. Payload survives only if it's JSON-serializable
+    // primitives (the common case: string ids, numbers, booleans).
+    if (dr) {
+      let payload: Record<string, unknown> | undefined;
+      if (drp) {
+        try {
+          const parsed = JSON.parse(drp);
+          if (parsed && typeof parsed === "object") payload = parsed as Record<string, unknown>;
+        } catch {
+          // ignore malformed payload — open the drawer empty
+        }
+      }
+      setDrawer({ drawerId: dr as DrawerId, payload });
+    }
   }, []);
 
   // Persist to URL (replace, not push). Only sync the dimensions relevant to
@@ -1556,6 +3595,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     if (surface === "workspace") {
       params.set("plan", plan);
       params.set("role", role);
+      params.set("entityType", entityType);
       params.set("alsoTalent", String(alsoTalent));
       params.set("page", page);
     } else if (surface === "talent") {
@@ -1567,12 +3607,29 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       params.set("hqRole", hqRole);
       params.set("platformPage", platformPage);
     }
+    // Drawer (cross-surface): persist the open drawer + JSON-encoded
+    // payload of primitives. Skipped if no drawer is open so closed-state
+    // URLs stay clean.
+    if (drawer.drawerId) {
+      params.set("drawer", drawer.drawerId);
+      if (drawer.payload && Object.keys(drawer.payload).length > 0) {
+        try {
+          // Strip non-serializable values (functions, undefined). JSON.stringify
+          // already drops them, so we only need to guard against circular
+          // references — rare in this prototype but cheap to handle.
+          params.set("drawerPayload", JSON.stringify(drawer.payload));
+        } catch {
+          // omit payload silently
+        }
+      }
+    }
     const next = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", next);
   }, [
     surface,
     plan,
     role,
+    entityType,
     alsoTalent,
     page,
     talentPage,
@@ -1580,16 +3637,43 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     clientPage,
     hqRole,
     platformPage,
+    drawer,
   ]);
 
+  // Drawer history stack — supports a "back" affordance in nested
+  // drawer flows. Push the *current* drawer onto the stack whenever a
+  // new drawer is opened on top of it; pop on close. Reset whenever a
+  // drawer is opened from a closed state.
+  const [drawerStack, setDrawerStack] = useState<DrawerContext[]>([]);
   const openDrawer = useCallback(
     (id: DrawerId, payload?: Record<string, unknown>) => {
-      setDrawer({ drawerId: id, payload });
+      setDrawer((current) => {
+        // If a drawer is already open and we're switching to a different
+        // one, push the current one onto the back-stack.
+        if (current.drawerId && current.drawerId !== id) {
+          setDrawerStack((s) => [...s, current]);
+        }
+        return { drawerId: id, payload };
+      });
     },
     [],
   );
   const closeDrawer = useCallback(() => {
     setDrawer({ drawerId: null });
+    setDrawerStack([]);
+  }, []);
+  /**
+   * Pop the back-stack and reopen the previous drawer. If the stack is
+   * empty this is a no-op; the consumer should hide the back affordance
+   * in that case.
+   */
+  const popDrawer = useCallback(() => {
+    setDrawerStack((s) => {
+      if (s.length === 0) return s;
+      const prev = s[s.length - 1]!;
+      setDrawer(prev);
+      return s.slice(0, -1);
+    });
   }, []);
 
   const openUpgrade = useCallback((offer: Omit<UpgradeOffer, "open">) => {
@@ -1605,6 +3689,10 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 2400);
+  }, []);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const completeTask = useCallback((id: string) => {
@@ -1634,6 +3722,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       setSurface("workspace");
       setPlan(i.asPlan);
       setRole(i.asRole);
+      setEntityType(i.asEntityType);
       setPage("overview");
       setDrawer({ drawerId: null });
     },
@@ -1652,6 +3741,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
         surface,
         plan,
         role,
+        entityType,
         alsoTalent,
         page,
         talentPage,
@@ -1664,11 +3754,14 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
         upgrade,
         toasts,
         completedTasks,
+        density,
       },
       setSurface: handleSetSurface,
       setPlan,
       setRole,
+      setEntityType,
       setAlsoTalent,
+      setDensity,
       setPage,
       setTalentPage,
       setClientPlan,
@@ -1679,15 +3772,19 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       stopImpersonation,
       openDrawer,
       closeDrawer,
+      popDrawer,
+      drawerStack,
       openUpgrade,
       closeUpgrade,
       toast,
+      dismissToast,
       completeTask,
     }),
     [
       surface,
       plan,
       role,
+      entityType,
       alsoTalent,
       page,
       talentPage,
@@ -1697,17 +3794,22 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       platformPage,
       impersonating,
       drawer,
+      drawerStack,
       upgrade,
       toasts,
       completedTasks,
+      density,
+      setDensity,
       handleSetSurface,
       startImpersonation,
       stopImpersonation,
       openDrawer,
       closeDrawer,
+      popDrawer,
       openUpgrade,
       closeUpgrade,
       toast,
+      dismissToast,
       completeTask,
     ],
   );
@@ -1741,22 +3843,61 @@ export function getTeam(plan: Plan): TeamMember[] {
 
 // Visual tokens used by both _primitives and _pages and _drawers
 export const COLORS = {
+  // Surfaces
   surface: "#FAFAF7",
+  /** Neutral warm-gray wash. Replaces the old cream. Used by hero / starter cards. */
+  surfaceAlt: "#F2F2EE",
   card: "#FFFFFF",
+
+  // Ink
   ink: "#0B0B0D",
   inkMuted: "rgba(11,11,13,0.62)",
   inkDim: "rgba(11,11,13,0.38)",
+
+  // Borders — borderStrong is for hover/active card states
   border: "rgba(24,24,27,0.10)",
   borderSoft: "rgba(24,24,27,0.06)",
-  cream: "#F5F2EB",
-  goldDeep: "#8B6308",
-  gold: "#B8860B",
-  goldSoft: "rgba(184,134,11,0.10)",
+  borderStrong: "rgba(24,24,27,0.20)",
+
+  // Accent — deep forest. Replaces the old brass-gold. Used for primary CTAs,
+  // the "Gold" trust tier (still called Gold internally; the metaphor is
+  // "trusted / verified ascendant," not bling), and any "premium / trusted"
+  // accent moment. See feedback_admin_aesthetics.md — gold/rust accents were
+  // explicitly flagged as a recurring problem.
+  accent: "#0F4F3E",
+  accentDeep: "#093328",
+  accentSoft: "rgba(15,79,62,0.10)",
+
+  // Status
   green: "#2E7D5B",
-  amber: "#C68A1E",
+  // Cautionary/in-progress. Was a warm gold (#C68A1E) — flagged repeatedly
+  // as gold/rust drift. Shifted to a muted slate so soft warnings read as
+  // "attention" without competing with the forest accent or carrying any
+  // luxury connotation. See feedback_admin_aesthetics.md.
+  amber: "#52606D",
   red: "#B0303A",
+
+  // Elevation
+  shadow: "0 1px 2px rgba(11,11,13,0.04)",
+  shadowHover: "0 6px 18px rgba(11,11,13,0.08)",
+
   navyBg: "#0B0B0D",
 };
+
+/**
+ * Z-index ladder. Tight bands (40-80) collide easily as new layers get
+ * added — this scale leaves 100-unit gaps between purposes so future
+ * components can slot in without renumbering. Order is bottom → top.
+ */
+export const Z = {
+  topbar: 40,
+  controlBar: 100,
+  drawerBackdrop: 200,
+  drawerPanel: 210,
+  modalBackdrop: 300,
+  modalPanel: 310,
+  toast: 400,
+} as const;
 
 export const FONTS = {
   // Display = clean modern sans (Geist), loaded globally via next/font in src/app/layout.tsx.

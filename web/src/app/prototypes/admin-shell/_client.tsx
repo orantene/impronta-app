@@ -17,6 +17,7 @@
  */
 
 import { useState, type ReactNode } from "react";
+import { ClientOnboardingArc } from "./_wave2";
 import {
   AGENCY_RELIABILITY,
   CLIENT_BOOKINGS,
@@ -49,6 +50,7 @@ import {
   Bullet,
   CapsLabel,
   Divider,
+  EmptyState,
   GhostButton,
   Icon,
   IconChip,
@@ -58,6 +60,7 @@ import {
   SecondaryCard,
   StatDot,
   StatusCard,
+  TrustBoostBanner,
 } from "./_primitives";
 
 // ════════════════════════════════════════════════════════════════════
@@ -69,6 +72,7 @@ export function ClientSurface() {
     <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 50px)" }}>
       <ClientTopbar />
       <main
+        data-tulala-surface-main
         style={{
           padding: "28px 28px 60px",
           maxWidth: 1240,
@@ -90,6 +94,7 @@ function ClientTopbar() {
 
   return (
     <header
+      data-tulala-app-topbar
       style={{
         background: "#fff",
         borderBottom: `1px solid ${COLORS.borderSoft}`,
@@ -100,6 +105,7 @@ function ClientTopbar() {
       }}
     >
       <div
+        data-tulala-app-topbar-row
         style={{
           display: "flex",
           alignItems: "center",
@@ -156,10 +162,10 @@ function ClientTopbar() {
           {planMeta.label}
         </span>
 
-        <div style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 8px" }} />
+        <div data-tulala-topbar-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 8px" }} />
 
         {/* Page nav */}
-        <nav style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
+        <nav data-tulala-app-topbar-nav aria-label="Client sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {CLIENT_PAGES.map((p) => {
             const active = state.clientPage === p;
             return (
@@ -279,14 +285,15 @@ function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
-      <div style={{ flex: 1 }}>
+    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         {eyebrow && (
           <div style={{ marginBottom: 6 }}>
             <CapsLabel>{eyebrow}</CapsLabel>
           </div>
         )}
         <h1
+          data-tulala-h1
           style={{
             fontFamily: FONTS.display,
             fontSize: 30,
@@ -314,7 +321,11 @@ function PageHeader({
           </p>
         )}
       </div>
-      {actions && <div style={{ display: "flex", gap: 8, alignItems: "center" }}>{actions}</div>}
+      {actions && (
+        <div data-tulala-page-header-actions style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
@@ -327,7 +338,7 @@ function Grid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto" 
     "4": "repeat(4, 1fr)",
   };
   return (
-    <div style={{ display: "grid", gridTemplateColumns: colMap[cols], gap: 12 }}>{children}</div>
+    <div data-tulala-grid={cols} style={{ display: "grid", gridTemplateColumns: colMap[cols], gap: 12 }}>{children}</div>
   );
 }
 
@@ -423,7 +434,7 @@ function BudgetStrip() {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientTodayPage() {
-  const { openDrawer, setClientPage } = useProto();
+  const { openDrawer, setClientPage, toast } = useProto();
   const pendingDecisions = RICH_INQUIRIES.filter(
     (i) => i.stage === "offer_pending" && i.offer?.clientApproval === "pending",
   );
@@ -446,6 +457,7 @@ function ClientTodayPage() {
           </>
         }
       />
+      <ClientOnboardingArc />
 
       <Grid cols="4">
         <StatusCard
@@ -479,6 +491,16 @@ function ClientTodayPage() {
       </Grid>
 
       <BudgetStrip />
+
+      {MY_CLIENT_BRAND.trustLevel !== "gold" && (
+        <>
+          <div style={{ height: 16 }} />
+          <TrustBoostBanner
+            level={MY_CLIENT_BRAND.trustLevel}
+            onUpgrade={() => toast("Verification flow opens in production")}
+          />
+        </>
+      )}
 
       <div style={{ height: 20 }} />
 
@@ -617,13 +639,13 @@ function ClientInquiriesPage() {
   const groups: { id: string; label: string; description: string; filter: (i: RichInquiry) => boolean }[] = [
     {
       id: "decide",
-      label: "Decide",
+      label: "Needs your decision",
       description: "Offers your agency sent — approve or counter.",
       filter: (i) => i.stage === "offer_pending",
     },
     {
       id: "in-flight",
-      label: "In flight",
+      label: "With your coordinator",
       description: "Agency is putting together your shortlist or working on logistics.",
       filter: (i) => i.stage === "submitted" || i.stage === "coordination",
     },
@@ -821,7 +843,7 @@ function ClientInquiryRow({ inquiry, bordered }: { inquiry: RichInquiry; bordere
             meta.tone === "green"
               ? "rgba(46,125,91,0.10)"
               : meta.tone === "amber"
-                ? "rgba(198,138,30,0.12)"
+                ? "rgba(82,96,109,0.12)"
                 : meta.tone === "red"
                   ? "rgba(176,48,58,0.10)"
                   : "rgba(11,11,13,0.04)",
@@ -829,7 +851,7 @@ function ClientInquiryRow({ inquiry, bordered }: { inquiry: RichInquiry; bordere
             meta.tone === "green"
               ? "#1F5C42"
               : meta.tone === "amber"
-                ? "#7E5612"
+                ? "#3A4651"
                 : meta.tone === "red"
                   ? "#7A2026"
                   : COLORS.inkMuted,
@@ -986,7 +1008,7 @@ function DiscoverCard({ talent }: { talent: DiscoverTalent }) {
       <div
         style={{
           aspectRatio: "4 / 5",
-          background: COLORS.cream,
+          background: COLORS.surfaceAlt,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -1093,7 +1115,7 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
               width: 30,
               height: 30,
               borderRadius: 8,
-              background: COLORS.cream,
+              background: COLORS.surfaceAlt,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -1121,9 +1143,9 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
               m.tone === "green"
                 ? "rgba(46,125,91,0.10)"
                 : m.tone === "amber"
-                  ? "rgba(198,138,30,0.12)"
+                  ? "rgba(82,96,109,0.12)"
                   : "rgba(11,11,13,0.04)",
-            color: m.tone === "green" ? "#1F5C42" : m.tone === "amber" ? "#7E5612" : COLORS.inkMuted,
+            color: m.tone === "green" ? "#1F5C42" : m.tone === "amber" ? "#3A4651" : COLORS.inkMuted,
           }}
         >
           {m.label}
@@ -1214,7 +1236,7 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
           width: 40,
           height: 40,
           borderRadius: 8,
-          background: COLORS.cream,
+          background: COLORS.surfaceAlt,
           flexShrink: 0,
           display: "inline-flex",
           flexDirection: "column",
@@ -1247,9 +1269,9 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
             m.tone === "green"
               ? "rgba(46,125,91,0.10)"
               : m.tone === "amber"
-                ? "rgba(198,138,30,0.12)"
+                ? "rgba(82,96,109,0.12)"
                 : "rgba(11,11,13,0.04)",
-          color: m.tone === "green" ? "#1F5C42" : m.tone === "amber" ? "#7E5612" : COLORS.inkMuted,
+          color: m.tone === "green" ? "#1F5C42" : m.tone === "amber" ? "#3A4651" : COLORS.inkMuted,
           flexShrink: 0,
         }}
       >
@@ -1268,13 +1290,13 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
               pm.tone === "green"
                 ? "rgba(46,125,91,0.10)"
                 : pm.tone === "amber"
-                  ? "rgba(198,138,30,0.12)"
+                  ? "rgba(82,96,109,0.12)"
                   : "rgba(11,11,13,0.04)",
             color:
               pm.tone === "green"
                 ? "#1F5C42"
                 : pm.tone === "amber"
-                  ? "#7E5612"
+                  ? "#3A4651"
                   : COLORS.inkMuted,
             flexShrink: 0,
           }}
@@ -1365,7 +1387,7 @@ function StandardFooter({ onSave, saveLabel = "Save changes" }: { onSave?: () =>
 }
 
 export function ClientTodayPulseDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer, setClientPage } = useProto();
   const open = state.drawer.drawerId === "client-today-pulse";
   const pendingDecisions = RICH_INQUIRIES.filter(
     (i) => i.stage === "offer_pending" && i.offer?.clientApproval === "pending",
@@ -1378,9 +1400,16 @@ export function ClientTodayPulseDrawer() {
       description={`${pendingDecisions.length} offers waiting on you · ${MY_CLIENT_BRAND.name}`}
     >
       {pendingDecisions.length === 0 ? (
-        <div style={{ padding: 30, textAlign: "center", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
-          You're caught up.
-        </div>
+        <EmptyState
+          icon="info"
+          title="You're caught up"
+          body="No offers waiting on your decision right now. We'll ping you the moment something needs you."
+          primaryLabel="Browse talent"
+          onPrimary={() => {
+            closeDrawer();
+            setClientPage("discover");
+          }}
+        />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {pendingDecisions.map((i) => (
@@ -1454,7 +1483,7 @@ export function ClientTalentCardDrawer() {
       <div
         style={{
           aspectRatio: "4 / 5",
-          background: COLORS.cream,
+          background: COLORS.surfaceAlt,
           borderRadius: 12,
           display: "flex",
           alignItems: "center",
@@ -1521,7 +1550,7 @@ export function ClientShortlistDetailDrawer() {
               width: 60,
               height: 60,
               borderRadius: 10,
-              background: COLORS.cream,
+              background: COLORS.surfaceAlt,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -1854,8 +1883,8 @@ export function ClientBookingDetailDrawer() {
           style={{
             marginTop: 16,
             padding: 14,
-            background: COLORS.cream,
-            border: `1px solid rgba(184,134,11,0.18)`,
+            background: COLORS.surfaceAlt,
+            border: `1px solid rgba(15,79,62,0.18)`,
             borderRadius: 10,
             fontFamily: FONTS.body,
           }}
@@ -1891,7 +1920,7 @@ export function ClientBookingDetailDrawer() {
 }
 
 export function ClientContractsDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "client-contracts";
   return (
     <DrawerShell
@@ -1925,7 +1954,23 @@ export function ClientContractsDrawer() {
               {b.talent} · {b.shortlistName}
             </span>
             <span style={{ color: COLORS.inkMuted, fontSize: 11.5 }}>{b.date}</span>
-            <a style={{ fontSize: 11.5, color: COLORS.ink, fontWeight: 500, textDecoration: "underline" }}>PDF</a>
+            <button
+              type="button"
+              onClick={() => toast(`Contract PDF for ${b.talent} downloads in production.`)}
+              style={{
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                color: COLORS.ink,
+                fontWeight: 500,
+                textDecoration: "underline",
+                background: "transparent",
+                border: 0,
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
+              PDF
+            </button>
           </div>
         ))}
       </div>
@@ -2071,8 +2116,8 @@ export function ClientBrandSwitcherDrawer() {
               alignItems: "center",
               gap: 12,
               padding: "12px 14px",
-              background: b.id === MY_CLIENT_BRAND.id ? COLORS.cream : "#fff",
-              border: `1px solid ${b.id === MY_CLIENT_BRAND.id ? "rgba(184,134,11,0.18)" : COLORS.borderSoft}`,
+              background: b.id === MY_CLIENT_BRAND.id ? COLORS.surfaceAlt : "#fff",
+              border: `1px solid ${b.id === MY_CLIENT_BRAND.id ? "rgba(15,79,62,0.18)" : COLORS.borderSoft}`,
               borderRadius: 10,
               cursor: "pointer",
               textAlign: "left",
