@@ -5773,15 +5773,30 @@ export function TalentBookingDetailDrawer() {
 // design: this isn't a booking workflow, it's a portfolio entry.
 
 export function TalentClosedBookingDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, openDrawer } = useProto();
   const open = state.drawer.drawerId === "talent-closed-booking";
   const earningId = (state.drawer.payload?.earningId as string) ?? "e1";
   const e = EARNINGS_ROWS.find((x) => x.id === earningId) ?? EARNINGS_ROWS[0]!;
+  const idx = EARNINGS_ROWS.findIndex((x) => x.id === earningId);
+  const prev = idx > 0 ? EARNINGS_ROWS[idx - 1] : null;
+  const next = idx < EARNINGS_ROWS.length - 1 ? EARNINGS_ROWS[idx + 1] : null;
 
   // Mock per-booking detail (in production, derived from the booking +
   // archived inquiry thread). Different shape per client to demonstrate
   // variety.
   const detail = MOCK_CLOSED_DETAIL[e.id] ?? MOCK_CLOSED_DETAIL.default!;
+
+  // Repeat-client signal — count of bookings + lifetime earnings with
+  // this client across all completed bookings. Surfaces "this is your
+  // 5th gig with Vogue Italia" as a relationship signal.
+  const sameClient = EARNINGS_ROWS.filter((x) => x.client === e.client);
+  const lifetimeAmount = sameClient.reduce((sum, x) => {
+    const num = parseFloat(x.amount.replace(/[^0-9.]/g, ""));
+    return sum + (isNaN(num) ? 0 : num);
+  }, 0);
+  const currency = e.amount.match(/[€£$]/)?.[0] ?? "€";
+  const lifetimeLabel = `${currency}${lifetimeAmount.toLocaleString()}`;
+  const isRepeat = sameClient.length > 1;
 
   return (
     <DrawerShell
@@ -5792,6 +5807,41 @@ export function TalentClosedBookingDrawer() {
       width={580}
       footer={
         <>
+          <button
+            type="button"
+            onClick={() => prev && openDrawer("talent-closed-booking", { earningId: prev.id })}
+            disabled={!prev}
+            style={{
+              background: "transparent",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 7,
+              padding: "7px 11px",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: prev ? COLORS.ink : COLORS.inkDim,
+              cursor: prev ? "pointer" : "not-allowed",
+            }}
+          >
+            ← Newer
+          </button>
+          <button
+            type="button"
+            onClick={() => next && openDrawer("talent-closed-booking", { earningId: next.id })}
+            disabled={!next}
+            style={{
+              background: "transparent",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 7,
+              padding: "7px 11px",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: next ? COLORS.ink : COLORS.inkDim,
+              cursor: next ? "pointer" : "not-allowed",
+            }}
+          >
+            Older →
+          </button>
+          <div style={{ flex: 1 }} />
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
@@ -5867,6 +5917,31 @@ export function TalentClosedBookingDrawer() {
           </span>
         ) : null}
       </div>
+
+      {/* Repeat-client signal — only shows for clients with > 1 booking.
+          Sage tone to mark a relationship; meaningful info for a talent
+          looking back at career history. */}
+      {isRepeat && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            background: "rgba(46,125,91,0.08)",
+            border: `1px solid rgba(46,125,91,0.18)`,
+            borderRadius: 8,
+            marginBottom: 16,
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+          }}
+        >
+          <Icon name="check" size={12} stroke={1.7} color={COLORS.green} />
+          <span style={{ color: COLORS.successDeep, fontWeight: 500 }}>
+            Booking #{sameClient.length} with {e.client} · {lifetimeLabel} lifetime
+          </span>
+        </div>
+      )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {/* Booking facts */}
@@ -6013,6 +6088,65 @@ export function TalentClosedBookingDrawer() {
             </ul>
           </section>
         )}
+
+        {/* Client review — when present. Sage soft surface + 5-star rating
+            + quoted feedback. Builds the talent's portfolio of validation
+            over time. */}
+        {detail.review && (
+          <section>
+            <SectionLabel>Client review</SectionLabel>
+            <div
+              style={{
+                marginTop: 8,
+                padding: "12px 14px",
+                background: "rgba(46,125,91,0.06)",
+                border: `1px solid rgba(46,125,91,0.16)`,
+                borderRadius: 10,
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 6,
+                }}
+              >
+                <span
+                  style={{
+                    color: COLORS.green,
+                    fontSize: 13,
+                    letterSpacing: 1,
+                  }}
+                >
+                  {"★".repeat(detail.review.rating)}
+                  <span style={{ color: COLORS.inkDim, opacity: 0.6 }}>
+                    {"★".repeat(5 - detail.review.rating)}
+                  </span>
+                </span>
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    color: COLORS.inkMuted,
+                  }}
+                >
+                  {detail.review.author}
+                </span>
+              </div>
+              <div
+                style={{
+                  color: COLORS.ink,
+                  lineHeight: 1.6,
+                  fontStyle: "italic",
+                }}
+              >
+                "{detail.review.body}"
+              </div>
+            </div>
+          </section>
+        )}
       </div>
     </DrawerShell>
   );
@@ -6098,6 +6232,7 @@ const MOCK_CLOSED_DETAIL: Record<
     team: { name: string; role: string; you?: boolean }[];
     chat: { from: string; when: string; body: string }[];
     delivered?: string[];
+    review?: { author: string; rating: number; body: string };
   }
 > = {
   e1: {
@@ -6135,6 +6270,11 @@ const MOCK_CLOSED_DETAIL: Record<
       },
     ],
     delivered: ["12 looks · Zara spring campaign", "Hero image (selected by client)"],
+    review: {
+      author: "Inés López · Producer · Zara",
+      rating: 5,
+      body: "Marta is a complete pro — on time, prepared, and sets the tone for the whole crew. We'll book her again for the autumn campaign.",
+    },
   },
   e2: {
     brief: "Editorial · spring/summer campaign",
@@ -6193,6 +6333,11 @@ const MOCK_CLOSED_DETAIL: Record<
       },
     ],
     delivered: ["8-page editorial spread (May issue)", "Cover try"],
+    review: {
+      author: "Paolo Bianchi · Photographer",
+      rating: 5,
+      body: "Una pleasure assoluta. Marta brought presence and patience to a difficult two-day shoot. Highly recommended.",
+    },
   },
   // Solo gig sourced via Tulala Hub. Demonstrates a non-agency channel
   // delivering paid work — the kind of booking that would be invisible
