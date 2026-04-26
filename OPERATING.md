@@ -203,16 +203,17 @@ These documents are binding product logic. Code, schema, or copy that conflicts 
   - 10 capability keys reserved in `lib/access/capabilities.ts`.
   - Reserved tables (deferred migrations): `booking_transactions`, `payout_accounts`. Reserved column on future `plans` table: `platform_fee_basis_points`.
 
-- [`docs/talent-monetization.md`](docs/talent-monetization.md) — Tulala's third commercial lane. Establishes:
+- [`docs/talent-monetization.md`](docs/talent-monetization.md) — Tulala's third commercial lane. Establishes (with founder-ratified decisions 2026-04-25):
   - **Three commercial lanes:** workspace subscriptions, transaction fees, talent subscriptions.
-  - **Talent product ladder:** Basic (default, free) / Pro / Portfolio. Names TBD; plan keys locked.
-  - **Architectural direction: solo-workspace approach.** A talent's premium page is hosted on a `kind='talent_solo'` workspace they own. Reuses every existing piece of multi-tenant infrastructure (domains, RLS, plans, payouts). No new tables required.
+  - **Talent product ladder:** Basic (default, free) / Pro ($12/mo placeholder) / Portfolio ($29/mo placeholder). Names final-TBD; plan keys locked.
+  - **Architectural direction: solo-workspace approach with path-based public URL.** A talent's premium page is backed by a `kind='talent_solo'` workspace (invisible-to-user backend abstraction) and exposed publicly via the canonical platform URL `tulala.digital/t/<slug>` at all tiers. **No subdomain-per-talent pattern.** Reuses every existing piece of multi-tenant infrastructure.
   - Plan catalog gains `audience` field: `'workspace' | 'talent'`. UIs filter by audience.
-  - Custom-domain support reuses `agency_domains` (Portfolio tier only).
-  - Source-ownership rules extend unchanged: talent-page inquiries belong to the talent's solo workspace.
-  - Coexistence with agency/hub representation: same talent, multiple workspaces, independent inquiry sources.
-  - 8 capability keys reserved in `lib/access/capabilities.ts`.
-  - **Open questions for explicit founder ratification** (§14): does exclusivity extend to personal page? final pricing? auto-provisioning timing? — flagged before any UI implies a position.
+  - **Custom domain only at Portfolio tier**, via existing `agency_domains` mechanism. Coexists with the canonical URL (both surfaces resolve to the same content).
+  - **Solo workspace provisioned at claim, not at create.** Pre-claim talent-page inquiries flow to the creating workspace.
+  - **Source-ownership extension:** path-based URL `/t/<slug>` requires slug-driven tenant resolution at inquiry-creation time (distinct from the host-driven resolution that handles agency / hub / custom-domain pages).
+  - **Page ownership ≠ distribution control.** Talent always owns their page (content, subscription, custom domain). Under an exclusive agency relationship, the agency can control visibility / inquiry-routing / distribution — but cannot revoke ownership. Distribution flags reset when the relationship ends.
+  - 9 capability keys reserved in `lib/access/capabilities.ts`.
+  - 5 founder-resolved decisions documented in §14; 5 smaller open questions deferred in §14a.
 
 When working on the dashboard restructure (Track B.5), the talent surface (`/talent/*`), or any inquiry / roster / visibility / payment / pricing surface — read these docs first.
 

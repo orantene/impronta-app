@@ -115,6 +115,10 @@ test("registry contains all expected capability sets", () => {
     "talent.page.enable_module",
     "talent.page.connect_custom_domain",
     "platform.talent_plans.configure",
+    // Added with founder's exclusivity-distribution refinement
+    // (page ownership stays with talent; distribution control becomes
+    // relationship-dependent under exclusive). See talent-monetization.md §7a.
+    "agency.roster.set_personal_page_distribution",
   ];
   for (const key of [
     ...TALENT_RELATIONSHIP_KEYS,

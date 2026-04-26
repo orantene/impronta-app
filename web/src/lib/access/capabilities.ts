@@ -743,6 +743,21 @@ export const CAPABILITIES = {
     gating: "platform_role",
     deprecated: false,
   }),
+
+  // Exclusivity-distribution refinement (founder, 2026-04-25):
+  // Page ownership stays with the talent always; distribution control
+  // becomes relationship-dependent under exclusive agency relationships.
+  // See docs/talent-monetization.md §7a.
+  "agency.roster.set_personal_page_distribution": define({
+    key: "agency.roster.set_personal_page_distribution",
+    displayName: "Control talent's personal-page distribution",
+    description:
+      "While an exclusive relationship is active, set whether the talent's personal page is publicly visible, where its inquiries route, and whether contact CTAs are surfaced. Cannot edit page content (talent owns that).",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
 } as const;
 
 export type CapabilityKey = keyof typeof CAPABILITIES;

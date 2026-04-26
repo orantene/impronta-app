@@ -1,6 +1,6 @@
 # Talent Subscriptions & Premium Talent Pages — Architecture Direction
 
-**Status:** Architecture direction (not yet locked at the implementation level). Author: founder (product direction); architecture written 2026-04-25.
+**Status:** Architecture direction. Author: founder (product direction); architecture written 2026-04-25, **revised 2026-04-25** with founder's resolved decisions.
 
 This document is **directional** — it picks an architectural lane and reserves the right shapes so future implementation isn't blocked. It is not a fully locked spec; specific column names and migration shapes can shift during build. What's locked is the *direction*: how the third commercial lane integrates with the existing model without forking the data architecture.
 
@@ -8,7 +8,7 @@ This doc is part of the locked-product-logic set referenced from `OPERATING.md` 
 - [`docs/talent-relationship-model.md`](talent-relationship-model.md) (talent / agency / hub / inquiry-ownership rules)
 - [`docs/transaction-architecture.md`](transaction-architecture.md) (v1 payment model)
 
-The user's directive: *"This is not a build-now request. It is an architecture-awareness request. I want this included in the execution plan thinking early."* This doc is the response.
+The founder's full directive (architecture-awareness, not build-now) was issued 2026-04-25 with the explicit framing: **"Same identity, stronger presentation."** That phrase is the architectural test for every decision in this doc.
 
 ---
 
@@ -42,38 +42,52 @@ Public naming may change. The plan keys (`talent_basic`, `talent_pro`, `talent_p
 
 ---
 
-## 3. Architectural option chosen — solo workspace approach
+## 3. Architectural direction — solo workspace, path-based public URL
 
-**The directional decision: a talent's premium page is hosted on a "solo workspace" — an `agencies` row with `kind='talent_solo'` that the talent owns.** The talent subscription is just that workspace's `plan_tier` set to one of the talent-audience plan keys.
+**The directional decision: a talent's premium page is backed by a "solo workspace" — an `agencies` row with `kind='talent_solo'` that the talent owns — but exposed publicly via a single canonical platform URL: `tulala.digital/t/<slug>`.** The solo workspace is a backend abstraction (for plans, billing, transactions); it is **not** a user-facing tenant. Talents never navigate to a workspace admin shell.
 
-### What this means
+### Two URL exposures, by tier
 
-- **Every talent automatically has a solo workspace.** Created at `talent_profiles` creation time (or on first claim). Default plan: `talent_basic`. Default URL: `<slug>.tulala.digital`.
-- **Upgrading is a plan change on that workspace.** `talent_basic → talent_pro → talent_portfolio`. Same `agency_subscriptions` mechanism (when Stripe lands) handles billing.
-- **Premium-only features are gated by `plan_capabilities` on the solo workspace.** Custom domain, advanced templates, video embeds — all keyed to the plan.
-- **Custom domain is just an `agency_domains` row** with `tenant_id` = the talent's solo workspace, `kind='custom'`. Reuses every existing piece of domain infrastructure (DNS verification, SSL, middleware host resolution, RLS).
-- **Inquiries on the talent page are owned by the solo workspace.** Source-ownership rule applies as-is. The talent IS the operator of that source.
-- **Transactions on the talent page flow through the standard transaction architecture.** Receiver-selection on a solo-workspace booking has fewer candidates (the talent themselves, since there are no other staff), but the same code path.
+| Tier | Public URL |
+|---|---|
+| Talent Basic | `tulala.digital/t/<slug>` (path-based, on the platform domain) |
+| Talent Pro | `tulala.digital/t/<slug>` — same canonical URL, richer page render |
+| Talent Portfolio | `tulala.digital/t/<slug>` **and optionally** the talent's own custom domain (`sofiamendez.com`) — both surfaces resolve to the same content |
 
-### Why this lane (and not a separate `talent_pages` entity)
+**There is no `<slug>.tulala.digital` or `<slug>.talents.tulala.digital` subdomain for talent pages.** The path-based URL is the canonical exposure. Custom domains are the **only** alternate public hostname, and only at Portfolio tier.
 
-Three reasons:
+This locks an important product principle: **same identity, stronger presentation.** Upgrading doesn't move the URL; it just renders a richer page at the same address. Marketing/SEO continuity is preserved across tier changes.
 
-1. **Reuse over invention.** We already have `agencies` + `agency_domains` + `agency_memberships` + `agency_branding` + `cms_pages` + the access module + the transaction model. A separate `talent_pages` table forks the architecture: two of every concept (two domain registries, two plan systems, two RLS surfaces). Painful, error-prone, no clear win.
-2. **AlsoTalent already handles dual-presence.** Today's "Free workspace owner who is also a talent" pattern (see `talent-relationship-model.md` §5) is *exactly* this shape. We're generalizing the always-on case: every claimed talent has a solo workspace; some upgrade.
-3. **Source ownership stays clean.** If the talent page were its own entity outside the workspace model, source-ownership rules would need a parallel implementation. With the solo-workspace approach, every URL belongs to a tenant; every inquiry belongs to a workspace; the rules already in `talent-relationship-model.md` §6 apply unchanged.
+### What this means architecturally
+
+- **The `/t/[slug]` route already exists in the codebase** (`web/src/app/t/[profileCode]/page.tsx` — public route on the platform host). Premium tiers extend the same route's render path; they don't introduce new routes.
+- **The solo workspace is invisible to end users.** It exists in the data model so that:
+  - The talent's plan tier (`agencies.plan_tier`) has somewhere to live
+  - Billing / subscription lifecycle reuses `agency_subscriptions` (when Stripe lands)
+  - Booking transactions reuse `booking_transactions.source_tenant_id` cleanly
+  - Capability checks via the access module work uniformly
+- **Inquiries created on `/t/<slug>` resolve to the solo workspace.** Middleware doesn't carry the tenant context (the host is `tulala.digital` = marketing). The tenant is resolved at action-time by looking up `talent_profiles` from the slug → solo workspace from `talent_profiles.user_id` → setting `inquiries.tenant_id` accordingly.
+- **Custom domain (Portfolio only) is an `agency_domains` row** with `tenant_id` = the talent's solo workspace, `kind='custom'`. Middleware host resolution sets the tenant header on requests to that hostname — same code path as agency custom domains.
+- **Premium-only features are gated by `plan_capabilities` on the solo workspace.** Custom domain, advanced templates, video embeds — all keyed to the plan tier.
+
+### Why this approach (not separate entities, not subdomain-per-talent)
+
+- **Reuse over invention.** Existing tenant infrastructure (`agencies`, `agency_domains`, `agency_subscriptions`, `agency_branding`, `agency_talent_roster`, the access module, the transaction model) covers every requirement. A separate `talent_pages` + `talent_subscriptions` system would fork all of those. Rejected.
+- **No subdomain proliferation.** The founder explicitly said "do not create lots of different talent subdomain models." A path-based canonical URL is one route, infinite slugs. Subdomain-per-talent would create N domains and N middleware-resolution paths. Rejected.
+- **Marketing-host hosting is correct.** `tulala.digital` is the brand's home. Talent profiles being there reinforces that they're part of the platform discovery surface, not separate islands. Hubs and the discovery directory live there too.
+- **AlsoTalent generalizes naturally.** Today's "Free workspace owner who is also a talent" pattern (see `talent-relationship-model.md` §5) becomes the default at talent-claim. Same shape, just always-on for claimed talents.
 
 ### What this doesn't mean
 
-- The talent's surface (`/talent/*`) is **not** the same UI as the workspace admin (`/(workspace)/[slug]/admin`). Talents don't navigate to `/admin` to upgrade their page — the talent surface adds page-management routes (`/talent/page`, `/talent/page/preview`, etc.). Behind the scenes those routes operate on the talent's solo workspace.
-- A solo workspace **cannot have other members**. The talent is the sole owner. `agency_memberships` for a `kind='talent_solo'` workspace has at most one row, role=`owner`. Trigger-enforced.
+- The talent's UI surface is `/talent/*` (talent-self admin). Talents do **not** navigate to `/(workspace)/[slug]/admin/*` — that's for multi-member workspaces. Page management goes at `/talent/page`, `/talent/page/preview`, `/talent/account/billing`, etc. Behind the scenes those routes operate on the talent's solo workspace.
+- A solo workspace **cannot have other members**. Trigger-enforced: at most one active `agency_memberships` row per `kind='talent_solo'` tenant, role=`owner`.
 - A solo workspace **cannot host other talents**. The roster has at most one talent: the owner. Trigger-enforced.
 
-### Alternatives I considered and rejected
+### Alternatives considered and rejected
 
-- **Separate `talent_pages` table + `talent_subscriptions` table.** Two parallel systems for what is structurally the same thing (a tenant with a public surface and a plan). Increases code surface 2×. Rejected.
-- **Hosting premium-page features inside `talent_profiles` as JSONB columns.** Can't host a custom domain there. Forks domain logic. Plan-gating becomes a per-column concern. Rejected.
-- **Premium talent page as an extension of an agency.** Couples the talent's monetization to the agency relationship. The user explicitly said the talent owns this. Rejected.
+- **Subdomain per talent (`<slug>.talents.tulala.digital`).** Creates N hostnames in `agency_domains`, complicates middleware host-resolution, and contradicts the founder's "do not build multiple talent subdomain structures" directive. **Rejected.**
+- **No solo workspace; talent identity entirely on `talent_profiles` plus a parallel `talent_subscriptions` table.** Forks plans, billing, transactions, RLS, and source-ownership. 2× code surface, 0× benefit. **Rejected.**
+- **Premium page as an extension of an agency the talent is rostered with.** Couples talent monetization to agency relationship state. Founder explicitly said talent owns the page. **Rejected.**
 
 ---
 
@@ -117,27 +131,57 @@ This is the strongest signal that the architectural choice is right. The premium
 
 Just data: new plan rows, new `kind` value, a few invariant triggers, and the auto-creation of a solo workspace at talent claim time.
 
-### 4.4 Auto-provisioning solo workspaces
+### 4.4 Provisioning timing — at claim, not at create
 
-When a `talent_profiles` row is created and claimed (`talent_profiles.user_id` set), a solo workspace is auto-provisioned:
+**Founder-locked rule:** the basic profile exists at `talent_profiles` create time. **The solo workspace is provisioned at claim, not at create.**
 
-```
+| Lifecycle stage | What exists | Public page render |
+|---|---|---|
+| **Created (unclaimed)** | `talent_profiles` row only. No solo workspace. | `tulala.digital/t/<slug>` renders a basic auto-generated profile from `talent_profiles` data alone. |
+| **Claimed** | `talent_profiles.user_id` set + `claimed_at`. **Solo workspace provisioned** with `plan_tier='talent_basic'`. | Same URL. Page now configurable by talent via `/talent/page`. Defaults are inherited from the basic auto-render. |
+| **Upgraded to Pro** | Solo workspace `plan_tier='talent_pro'`. Premium-page modules unlock. | Same URL. Richer modules, layout, embeds rendered. |
+| **Upgraded to Portfolio** | Solo workspace `plan_tier='talent_portfolio'`. Custom domain attachment unlocks. | `tulala.digital/t/<slug>` continues to work; **and** optionally the custom domain (`sofiamendez.com`) is attached via `agency_domains`. Both surfaces resolve to the same content. |
+
+**Why provisioning at claim, not at create:**
+- An unclaimed profile has no clear owner. Provisioning a solo workspace before that point creates a ghost tenant with no admin user, no subscription owner, no actor for capability checks.
+- Pre-claim, the talent has no platform identity to receive subscriptions, transactions, or capability grants.
+- Inquiries on `/t/<slug>` for unclaimed talent flow to the **creating workspace** (`talent_profiles.created_by_agency_id`) — that workspace vouched for the talent and can coordinate the inquiry until the talent claims.
+
+**Provisioning at claim:**
+
+```sql
+-- Triggered when talent_profiles.user_id transitions from null → set
+-- (i.e., on claim).
+
 INSERT INTO agencies (slug, display_name, kind, plan_tier, status)
-  VALUES (<derived-from-talent-name>, <talent-display-name>, 'talent_solo', 'talent_basic', 'active');
+  VALUES (<derived-from-talent-slug>, <talent-display-name>,
+          'talent_solo', 'talent_basic', 'active');
 
 INSERT INTO agency_memberships (tenant_id, profile_id, role, status)
   VALUES (<new-workspace-id>, <talent-user-id>, 'owner', 'active');
 
 INSERT INTO agency_talent_roster (tenant_id, talent_profile_id, source_type, status, agency_visibility, is_primary)
-  VALUES (<new-workspace-id>, <talent-profile-id>, 'platform_assigned', 'active', 'site_visible', true);
+  VALUES (<new-workspace-id>, <talent-profile-id>,
+          'platform_assigned', 'active', 'site_visible', true);
 
-INSERT INTO agency_domains (tenant_id, hostname, kind, status, is_primary)
-  VALUES (<new-workspace-id>, '<slug>.tulala.digital', 'subdomain', 'active', true);
+-- NO agency_domains insert at this stage. The canonical public URL is
+-- tulala.digital/t/<slug>, which lives on the marketing host and is
+-- handled by the existing /t/[profileCode] route. agency_domains rows
+-- are created only when:
+--   - The talent upgrades to Portfolio AND attaches a custom domain
 ```
 
-Slug collisions: append a numeric suffix (`maria-2`, `maria-3`).
+Slug collisions on the workspace slug: derive from `talent_profiles.slug` with a numeric suffix as needed (`sofia-mendez`, `sofia-mendez-2`). The workspace slug is internal-only; users don't see it.
 
-For an unclaimed talent profile (created by someone else), auto-provisioning runs at claim time, not at create time. Pre-claim, the talent has no public personal page on Tulala — they appear only in the creating workspace's roster.
+### 4.5 Pre-claim inquiry routing
+
+When `tulala.digital/t/<slug>` is hit for an unclaimed talent and an inquiry is submitted:
+
+- The inquiry's `tenant_id` is set to `talent_profiles.created_by_agency_id` (the workspace that created the profile).
+- The inquiry shows a "from talent's auto-generated page" source badge in the workspace's admin so the operator knows the entry surface.
+- If `created_by_agency_id` is null (e.g., platform-seeded talent), the inquiry is routed to the platform support tenant (super_admin's tenant — TBD; an open data question).
+
+When the talent claims, future inquiries on the same URL are routed to the talent's solo workspace. **In-flight pre-claim inquiries stay with the creating workspace** — they're already in motion and reassigning ownership mid-conversation breaks the source-ownership invariant.
 
 ### 4.5 Existing talent-monetization-related capabilities (already in the registry)
 
@@ -168,47 +212,97 @@ Special plans (e.g., `legacy`) keep their existing `audience='workspace'` (legac
 
 ## 6. Source-ownership extension
 
-The most important rule from `talent-relationship-model.md` §6 remains unchanged: **the workspace whose URL received the inquiry owns it.** With talent-solo workspaces in play, the rule extends naturally:
+The most important rule from `talent-relationship-model.md` §6 remains unchanged: **the surface that received the inquiry owns it.** With talent-solo workspaces in play, "surface" extends from "host" to "host + path-based talent route":
 
-- Inquiry on `acme.tulala.digital` → owned by Acme Agency
-- Inquiry on `hub-models.tulala.digital` → owned by the Models Hub
-- Inquiry on `maria-dance.tulala.digital` → owned by Maria's solo workspace
-- Inquiry on `mariadance.com` (Maria's custom domain) → owned by Maria's solo workspace (same tenant; resolved via `agency_domains`)
+| Surface | Inquiry tenant_id |
+|---|---|
+| `acme.tulala.digital` (any path) | Acme Agency |
+| `hub-models.tulala.digital` (any path) | Models Hub |
+| `tulala.digital/t/<slug>` for **claimed** talent | The talent's solo workspace |
+| `tulala.digital/t/<slug>` for **unclaimed** talent | The creating workspace (`talent_profiles.created_by_agency_id`) — see §4.5 |
+| `sofiamendez.com` (custom domain on Portfolio tier) | The talent's solo workspace |
+| `tulala.digital/<other-marketing-paths>` | No tenant (marketing surfaces; no inquiry creation here) |
 
-The same talent can have all four inquiry sources active simultaneously. Each is independent. Each transaction belongs to its source.
+### Path-based tenant resolution
 
-When Maria upgrades to `talent_portfolio` and connects `mariadance.com`, that's one new `agency_domains` row pointing to her solo workspace. Middleware host resolution handles it identically to any other custom domain. No new code.
+`tulala.digital/t/<slug>` lives on the marketing host. The middleware's host-resolution returns `kind='marketing'` with `tenant_id=null` for the request. That's correct for the page render (marketing host serves public pages).
+
+But when an inquiry is **submitted** from that page (POST to inquiry creation), the tenant_id must be derived from the slug, not the host. The flow:
+
+1. Server action receives the POST with `slug` from the URL params.
+2. Look up `talent_profiles` by slug.
+3. If `talent_profiles.user_id` is set (claimed): the tenant_id is the talent's solo workspace.
+4. Else (unclaimed): the tenant_id is `talent_profiles.created_by_agency_id`, or fallback to platform tenant if null.
+5. Insert the inquiry with that tenant_id.
+
+This is a **slug-driven tenant lookup**, distinct from the host-driven lookup that handles agency / hub / custom-domain pages. Both paths exist; they serve different surfaces.
+
+### Multi-source talent — same identity, multiple sources
+
+Per `talent-relationship-model.md` §7, the same talent can have inquiries flowing in from many surfaces. With this model, they're:
+
+- Each agency they're rostered at — inquiries on agency URLs
+- Each hub they appear in — inquiries on hub URLs
+- Their own personal page — inquiries on `tulala.digital/t/<slug>` (their solo workspace)
+- Their custom domain (Portfolio) — same solo workspace as the canonical URL
+
+All independent. Each transaction belongs to its source. The talent sees the unified inbox at `/talent/inquiries` with source badges per the existing rules.
 
 ---
 
-## 7. Custom domain integration
+## 7. Custom domain integration (Portfolio tier only)
 
 A talent's custom domain is **just an `agency_domains` row** where `tenant_id` is the talent's solo workspace.
 
 ```
 agency_domains:
-  hostname: 'mariadance.com'
+  hostname: 'sofiamendez.com'
   kind: 'custom'
-  tenant_id: <maria's solo workspace id>
+  tenant_id: <sofia's solo workspace id>
   status: 'pending' → 'dns_verification_sent' → 'verified' → 'ssl_provisioned' → 'active'
 ```
 
-The DNS / SSL / verification machinery is the same as for an agency's custom domain. The only difference is plan-gating: `talent_portfolio` plan grants the `agency.site_admin.identity.edit` (or a new `talent.page.connect_custom_domain` capability — see §11) that allows custom-domain attachment. Lower talent tiers can't add a custom domain.
+The DNS / SSL / verification machinery is the same as for an agency's custom domain. The only difference is plan-gating: `talent_portfolio` plan grants the `talent.page.connect_custom_domain` capability (see §11) that allows custom-domain attachment.
 
-`max_custom_domains` plan-limit: `talent_basic`=0, `talent_pro`=0, `talent_portfolio`=1.
+| Plan | Can attach custom domain? | `max_custom_domains` |
+|---|---|---|
+| Talent Basic | No | 0 |
+| Talent Pro | No | 0 |
+| Talent Portfolio | Yes (1) | 1 |
 
-### What about an agency's exclusive talent who also has a Portfolio page?
+The custom domain coexists with the canonical `tulala.digital/t/<slug>` URL — both resolve to the same content. The custom domain is the marketing surface; the canonical URL preserves SEO continuity and platform discoverability.
 
-This is the interesting one. Per `talent-relationship-model.md` §4, an exclusive agency controls the talent's hub/distribution visibility. But the talent's solo workspace and personal premium page are owned by the talent, not the agency.
+## 7a. Exclusivity vs personal page — page ownership ≠ distribution control
 
-**Architectural answer: exclusivity does not extend to the talent's solo workspace.** A talent on `roster_join_mode='exclusive'` at Acme Agency:
-- Cannot freely add themselves to other agencies (per existing rules)
-- Cannot freely add themselves to other hubs (per existing rules)
-- **Can** continue to operate their solo workspace and premium page, including connecting their own custom domain
+**Founder-locked rule:** the talent always owns their personal page. **But ownership is separate from distribution control.**
 
-Exclusivity is about **agency representation**, not about talent identity ownership. Tulala does not let an agency contract revoke a talent's right to host their own page. (Agencies can negotiate that off-platform; the platform doesn't enforce it.)
+### Page ownership (always with the talent)
 
-This is a meaningful product position. The user can override during prototype review if a different stance is preferred — but the directional default is: **talent always owns their solo workspace, regardless of agency relationship.**
+- The talent's solo workspace, the page content, the custom domain (if Portfolio): always belong to the talent. Agency relationships do not affect ownership.
+- If an agency relationship ends (talent exits, contract terminates, agency goes inactive), the talent keeps the page. No data is taken from them.
+- The talent retains `talent.page.edit`, `talent.page.publish`, `talent.subscription.upgrade/downgrade` capabilities at all times.
+
+### Distribution / visibility control (relationship-dependent under exclusivity)
+
+When a talent is in an active **exclusive** agency relationship (`agency_talent_roster.is_exclusive = true`), the agency may control:
+
+- **Public visibility of the personal page.** The agency can require the page to be hidden from public view during the contract.
+- **Inquiry routing from the personal page.** Inquiries created from `tulala.digital/t/<slug>` may be routed to the agency's inbox instead of the talent's solo workspace.
+- **Contact CTA presence.** Whether the public page surfaces "Contact" / "Book" buttons.
+- **Distribution surfaces.** Whether the page can be linked from other platform discovery (hubs, search results).
+
+These controls live on the `agency_talent_roster` relationship (deferred fields, see §12). When the exclusive relationship ends, the controls revert to the talent automatically.
+
+The agency-side capability for managing these is `agency.roster.set_personal_page_distribution` (see §11). The talent's `talent.page.publish` capability remains, but in the active exclusive period the publish action may have a "subject to agency visibility settings" notice — the page can be edited and saved, but its public render obeys the agency's distribution flags.
+
+### What this does NOT mean
+
+- An agency cannot **take** the talent's page. Ownership stays with the talent always.
+- An agency cannot edit the talent's page content. Editing remains a talent capability.
+- An agency cannot delete the talent's solo workspace.
+- An agency cannot revoke the talent's subscription. The talent pays for their own plan; the agency doesn't manage talent billing.
+
+Exclusivity is about **distribution alignment** during the contract. The platform mediates that alignment via the deferred distribution-control fields on the relationship row, not by reassigning ownership.
 
 ---
 
@@ -295,11 +389,14 @@ Reserved now as locked product contracts. Most have no callers in v1 — the pro
 | `talent.page.set_template` | site | relationship | Same (when plan permits, i.e. `talent_portfolio`) |
 | `talent.page.enable_module` | site | relationship | Same (when plan permits) |
 | `talent.page.connect_custom_domain` | site | relationship | Same (when plan permits, i.e. `talent_portfolio`) |
+| `agency.roster.set_personal_page_distribution` | talent | role + relationship | admin+ on an agency with an active exclusive relationship to the talent (see §7a) |
 | `platform.talent_plans.configure` | platform | platform_role | super_admin |
 
-8 new capability keys. Registry: 67 → 75.
+9 capability keys for talent monetization. Registry: 67 → 75 (initial 8) → 76 (added `agency.roster.set_personal_page_distribution` per the exclusivity-distribution refinement).
 
-The relationship gate for these is: caller has an active `agency_memberships(role='owner')` row in the talent's solo workspace, and the solo workspace's `plan_tier` permits the action. The plan-gate piece is part of normal `plan_capabilities` checking once plan-capability enforcement turns on (Track C).
+The relationship gate for the talent-self capabilities is: caller has an active `agency_memberships(role='owner')` row in the talent's solo workspace, and the solo workspace's `plan_tier` permits the action. The plan-gate piece is part of normal `plan_capabilities` checking once plan-capability enforcement turns on (Track C).
+
+The relationship gate for `agency.roster.set_personal_page_distribution` is: caller has admin+ in the agency, AND there's an active `agency_talent_roster` row linking the agency to the talent with `is_exclusive = true`.
 
 ---
 
@@ -320,64 +417,96 @@ Same simplification logic as the transaction architecture: ship narrow, grow wit
 
 ## 13. Reference scenarios
 
-### Scenario 1 — Free-tier dancer with a personal Tulala page
+### Scenario 1 — Talent Basic, claimed, no upgrades
 
-A dancer signs up. She has a `talent_profiles` row (claimed; `user_id` set). A solo workspace is auto-provisioned at `marial.tulala.digital` with `plan_tier='talent_basic'`. Her personal page is the basic-template render of her profile.
+Sofia signs up, claims her profile. A solo workspace is provisioned with `plan_tier='talent_basic'`. Her personal page is at `tulala.digital/t/sofia-mendez`.
 
-She isn't rostered in any agency. She's auto-included in the default model hub (per Free distribution rules, see talent-relationship-model.md §8b). Inquiries on her personal page → her solo workspace. Inquiries on the model hub's URL → owned by the hub.
+She isn't rostered in any agency. She's auto-included in the default model hub (per Free-equivalent distribution rules, see `talent-relationship-model.md` §8b — talent-tier auto-distribution mirrors workspace-Free behavior).
 
-She doesn't pay anything. She's the entire customer of `talent_basic`.
+Inquiries on `tulala.digital/t/sofia-mendez` → her solo workspace owns them. Inquiries on the model hub's URL → owned by the hub.
 
-### Scenario 2 — Studio-tier band with a Pro page
+She pays nothing. She's the customer of `talent_basic`.
 
-A band on `talent_pro`. They have a Tulala-hosted page at `chordgrid.tulala.digital` with rich layout — Spotify embeds, YouTube videos, upcoming shows, social links. They're not rostered anywhere else.
+### Scenario 2 — Talent Pro upgrade
 
-They pay $9/mo (placeholder). The premium-page features are unlocked because their solo workspace's `plan_tier='talent_pro'` includes the relevant capabilities.
+Sofia upgrades to `talent_pro` ($12/mo placeholder). Her URL stays `tulala.digital/t/sofia-mendez` — **same identity, stronger presentation**. The page now renders with:
+- Richer layout
+- Bigger gallery
+- Video embeds
+- Social-link surfacing
+- Stronger portfolio module
 
-Booking inquiries arrive through their page. Source-ownership rules → their solo workspace owns each inquiry. Receiver = themselves (the workspace owner). Standard transaction flow.
+No URL change. No SEO discontinuity. No inquiry-routing change. Just a richer render at the canonical URL.
 
-### Scenario 3 — Agency-rostered model with a Portfolio page
+### Scenario 3 — Talent Portfolio upgrade with custom domain
 
-A model is rostered (non-exclusive) at Acme Agency. She's also a `talent_portfolio` subscriber on her own. Her solo workspace has a custom domain `vivianrose.com`.
+Sofia upgrades to `talent_portfolio` ($29/mo placeholder). She attaches `sofiamendez.com` via DNS verification + SSL provisioning. Both URLs work:
+- `tulala.digital/t/sofia-mendez` (canonical, preserves platform discoverability)
+- `sofiamendez.com` (her own brand surface)
+
+Both render the same content. Inquiries from either go to the same solo workspace. The custom domain is the only host-based exposure for talent pages — no subdomains.
+
+### Scenario 4 — Agency-rostered model with a Portfolio page (non-exclusive)
+
+Vivian is rostered (non-exclusive) at Acme Agency. She's also a `talent_portfolio` subscriber. Her solo workspace has the custom domain `vivianrose.com`.
 
 She has THREE active surfaces:
-- `acme.tulala.digital/t/vivian-rose` (Acme's roster card linking to a profile view scoped to Acme)
-- `vivianrose.com` (her solo workspace, custom-domain, rich premium page)
-- (any hub she also appears in)
+- `acme.tulala.digital/t/vivian-rose-acme-slug` (Acme's roster surface — Acme owns this inquiry source)
+- `tulala.digital/t/vivian-rose` (her canonical personal page — her solo workspace owns this source)
+- `vivianrose.com` (custom domain pointing to the same solo workspace as `/t/vivian-rose`)
+- Plus any hub she's also in
 
-Three independent inquiry surfaces. Three independent source-ownership contexts. Acme can see "Also at: Vivian's personal page" in their roster view per the non-exclusive transparency rules. Vivian's own talent surface aggregates inquiries from all sources.
+Each surface is an independent inquiry source. Acme sees "Also at: Vivian's personal page" in their roster view (non-exclusive transparency, see `talent-relationship-model.md` §4). Vivian's `/talent/inquiries` aggregates inquiries from all sources with source badges.
 
-### Scenario 4 — Exclusive talent with a personal page
+### Scenario 5 — Exclusive talent with a personal page
 
-A dancer on an exclusive relationship at Acme Agency. Her hub presence is fully agency-controlled. But she also subscribes to `talent_pro` for her personal page at `eladance.tulala.digital`.
+Ela is on an exclusive relationship at Acme Agency. Her hub presence is agency-controlled. She also subscribes to `talent_pro` for her personal page at `tulala.digital/t/ela-dance`.
 
-Per §7's directional answer: **the personal page is hers**. Acme Agency controls hub distribution but does not control her solo workspace. Inquiries on her personal page belong to her solo workspace; she manages them; she is the receiver. Acme is unaffected by this surface.
+**Page ownership stays with Ela.** Acme cannot edit her page, cannot revoke her subscription, cannot delete her solo workspace.
 
-If Acme's contract with the talent prohibits running a personal page, that's an off-platform enforcement matter. Tulala doesn't model it.
+**Distribution control under exclusivity:** Acme can set `agency_talent_roster.personal_page_visible = false` to hide the page during the contract, OR set `personal_page_inquiry_routing = 'to_agency'` so inquiries from `/t/ela-dance` route to Acme's workspace instead of Ela's solo workspace. These are managed via `agency.roster.set_personal_page_distribution`.
 
-This is the **scenario most likely to draw founder feedback** — please confirm or override the directional default before any UI starts implying it.
+Ela can edit her page anytime (her own capability). The publish UI shows a "subject to agency distribution settings" banner so she understands why her edits may not be publicly visible.
+
+When Ela exits the exclusive relationship, the distribution flags reset to defaults (visible, route to talent). Her edits remain. The page resumes normal operation under her sole control.
+
+### Scenario 6 — Pre-claim inquiry on auto-generated page
+
+Acme Agency creates a talent profile for a friend, Maria, who hasn't joined Tulala yet. `talent_profiles` row exists, `user_id` is null, `created_by_agency_id` = Acme.
+
+Tulala renders `tulala.digital/t/maria-friend` from the basic auto-generated profile. A client visits that URL and submits an inquiry.
+
+The inquiry's `tenant_id` = Acme (the creating workspace, per §4.5). Acme's coordinators see the inquiry in their inbox; they handle it on Maria's behalf until Maria claims.
+
+When Maria claims, future inquiries on the same URL route to her solo workspace. The Acme-owned inquiry stays with Acme — already in motion.
 
 ---
 
-## 14. Open questions for product
+## 14. Resolved decisions (founder, 2026-04-25)
 
-These are decisions I'm flagging for explicit founder ratification before implementation. The architecture works either way — the chosen direction influences UX copy and minor capability gating but not the underlying schema.
+These were the open questions in the prior version of this doc. Founder has now resolved them. Captured here as the binding answers; see the session transcript for the full rationale.
 
-1. **Confirm: exclusively-represented talent retain solo-workspace ownership.** §7's directional default. If you want exclusivity to optionally extend to the personal page (i.e., the agency can lock it), say so — that adds a `agency_talent_roster.controls_personal_page` flag and gating on `talent.page.*` capabilities for affected talents.
+| # | Question | Answer |
+|---|---|---|
+| 1 | Exclusivity vs personal page ownership | **Talent always owns the page.** Ownership ≠ distribution control. Under exclusive relationship, agency controls visibility / inquiry-routing / distribution; talent always retains content edit + subscription + page-keep-on-exit. See §7a. |
+| 2 | Talent-plan pricing | **Talent Pro = $12/mo. Talent Portfolio = $29/mo.** Placeholder values pending billing-launch decision. Encoded in `plan-catalog.ts`. |
+| 3 | Custom-domain availability | **Only Talent Portfolio.** Talent Pro is upgraded profile only. Creates a clear product jump. |
+| 4 | Default talent-page URL pattern | **`tulala.digital/t/<slug>`** (path-based, on the platform domain). Same URL across all tiers. Custom domain (Portfolio) is the only host-based exposure. **No subdomains.** |
+| 5 | Auto-provisioning trigger | **Solo workspace at claim, not at create.** Basic profile exists at create (`talent_profiles` row + auto-rendered page). Premium personal-page layer activates at claim/upgrade. Pre-claim inquiries flow to the creating workspace. |
 
-2. **Talent-plan pricing.** Placeholder values used here ($9/mo, $29/mo). Final pricing TBD before billing wiring.
+## 14a. Remaining open questions
 
-3. **Custom-domain availability tier.** Today: only `talent_portfolio`. Alternatives: `talent_pro` also gets one (matching workspace `agency` plan). Pricing decision.
+Smaller decisions still pending; not blockers for any current work.
 
-4. **Default talent-page URL pattern.** Today: `<slug>.tulala.digital`. Alternative: `<slug>.talents.tulala.digital` (sub-subdomain) to visually distinguish solo-workspace pages from agency pages. Architecturally identical — middleware doesn't care; just a routing convention.
+1. **What happens to the solo workspace if the talent's profile is soft-deleted?** Direction: archive the workspace (`agencies.status='archived'`); preserve data; allow recovery on re-claim. Alternative (cleaner): hard-cascade delete. Pending decision before the deletion flow is built.
 
-5. **Auto-provisioning trigger.** When does the solo workspace get created — at `talent_profiles` creation, or only at claim? Current direction: at claim (unclaimed talents have no public solo page). Alternative: at creation (the workspace exists immediately, just without a claimer; only claimed talents get login). Decision affects the claim flow's complexity.
+2. **Transaction fee for talent-tier bookings.** `platform_fee_basis_points` lives per-plan. Talent tiers can have different fees than workspace tiers. Final values TBD; affects pricing strategy more than architecture.
 
-6. **What happens to the solo workspace if the talent's profile is removed?** Current direction: archived (`agencies.status='archived'`). Recovery on re-claim is possible but manual. Alternative: hard-deleted with the talent profile.
+3. **AlsoTalent bundle flow.** A user with both a workspace subscription and a talent subscription — separate purchases (default, cleaner) or bundle? Decision deferred until billing wiring.
 
-7. **Transaction fee for talent-tier bookings.** Per-plan field `platform_fee_basis_points` supports it; pricing decision.
+4. **Pre-claim inquiry routing fallback** when `talent_profiles.created_by_agency_id` is null (e.g., platform-seeded talent). Direction: route to a platform support tenant. Tenant identity TBD.
 
-8. **Combined upgrade flow when AlsoTalent.** A user who is both a Free workspace owner AND a talent — can their `talent_pro` upgrade also bump their workspace to `studio` in one purchase? Or are they always separate purchases? Default: separate (cleaner). Alternative: bundle deals (later).
+5. **Source badge specificity.** When an inquiry is from `tulala.digital/t/<slug>`, the talent's inbox shows "from your personal page." When the same talent has a custom domain attached (Portfolio), do inquiries from the canonical URL vs the custom domain show different badges? Probably yes (it's useful UX), but not architecturally required.
 
 ---
 
