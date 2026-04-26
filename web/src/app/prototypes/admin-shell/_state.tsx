@@ -3930,6 +3930,48 @@ export const COLORS = {
   indigoSoft: "rgba(91,107,160,0.10)",
   indigoDeep: "#3F4870",
 
+  // ─── Semantic system (additive — see docs/admin-redesign/color-system.md) ──
+  // The product's color language has 9 roles. Hue = identity, intensity = volume.
+  // Default to soft fills + medium text. Step up only when consequence demands.
+  //
+  //   brand     forest   identity / wayfinding / primary CTA / focus rings
+  //                     → ≤5 hits per screen. NOT a "good" signal.
+  //   success   sage     completed / paid / confirmed / approved
+  //                     → distinct from brand so forest stops doing double duty.
+  //   caution   slate    needs attention, no risk (drafts, missing fields)
+  //   coral     coral    soft urgency, "your move" (awaiting reply, expiring)
+  //   critical  red      destructive / broken / irreversible
+  //                     → 0–1 hits per WEEK for typical user. Rarity = meaning.
+  //   info      indigo   analytics / in-flight / system messaging
+  //   royal     violet   paid tier / AI assist / unlock — premium without bling.
+  //                     Replaces the gold instinct that doesn't fit the brand.
+  //   locked    NO HUE   tier-gated / archived → muted ink + lock icon.
+  //                     Locked is opportunity, not error. Hover reveals royal.
+  //   focus     brand    keyboard ring — always brand, regardless of element.
+
+  // Brand alias — same value as `accent`, semantic name. Migrate at use site.
+  brand: "#0F4F3E",
+  brandSoft: "rgba(15,79,62,0.10)",
+  brandDeep: "#093328",
+
+  // Success — sage, currently same hex as `green`. Aliased so callers can
+  // express semantic intent. The role: completed/paid/confirmed/approved.
+  success: "#2E7D5B",
+  successSoft: "rgba(46,125,91,0.10)",
+  successDeep: "#1F5D43",
+
+  // Critical — same hex as `red`, semantic name. Aliased.
+  critical: "#B0303A",
+  criticalSoft: "rgba(176,48,58,0.10)",
+  criticalDeep: "#7E1F26",
+
+  // Royal — premium / elevated / paid tier / AI assist / unlock moments.
+  // Deep cool violet. Distinct from indigo (info) — quality, not data.
+  // Always paired with crown / sparkle iconography. Rare: 0–2 per screen.
+  royal: "#5F4B8B",
+  royalSoft: "rgba(95,75,139,0.10)",
+  royalDeep: "#3D2F61",
+
   // Elevation
   shadow: "0 1px 2px rgba(11,11,13,0.04)",
   shadowHover: "0 6px 18px rgba(11,11,13,0.08)",

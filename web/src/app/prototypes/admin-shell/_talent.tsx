@@ -797,7 +797,10 @@ function TalentTodayPage() {
           affordance="Open inbox"
           meta={<>{pluralize(needsAnswer.length, "pending", "pending", true)}</>}
           onClick={() => openDrawer("talent-today-pulse")}
-          variant={needsAnswer.length > 0 ? "accent" : "primary"}
+          // Action-needed surface: coral edge on ink-led white, not forest fill.
+          // Forest is reserved for brand identity moments (top-nav, primary CTAs,
+          // focus rings) — using it here as a "do this" cue dilutes both signals.
+          variant={needsAnswer.length > 0 ? "action" : "primary"}
         />
         <PrimaryCard
           title="Profile completeness"

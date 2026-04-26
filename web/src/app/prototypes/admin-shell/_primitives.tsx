@@ -994,7 +994,7 @@ type CardBase = {
  *   accent     — NEW. Forest-accent-tinted wash with a left accent strip.
  *                Use sparingly for "earn this" / spotlight rows.
  */
-type CardVariant = "primary" | "secondary" | "status" | "locked" | "starter" | "accent";
+type CardVariant = "primary" | "secondary" | "status" | "locked" | "starter" | "accent" | "action" | "premium";
 
 const CARD_VARIANT_STYLES: Record<CardVariant, { rest: CSSProperties; hoverBorder: string; hoverShadow: string; lifts: boolean }> = {
   primary: {
@@ -1059,6 +1059,32 @@ const CARD_VARIANT_STYLES: Record<CardVariant, { rest: CSSProperties; hoverBorde
     hoverShadow: COLORS.shadowHover,
     lifts: true,
   },
+  // "action" — for cards that need a do-this-now signal without using the
+  // brand. Ink-led white surface with a coral left rule. Coral = "your move."
+  // Replaces variant="accent" anywhere a card was forest-tinted purely to
+  // signal urgency rather than identity. See docs/admin-redesign/color-system.md.
+  action: {
+    rest: {
+      background: COLORS.card,
+      border: `1px solid ${COLORS.borderSoft}`,
+      boxShadow: "none",
+    },
+    hoverBorder: COLORS.coral,
+    hoverShadow: COLORS.shadow,
+    lifts: true,
+  },
+  // "premium" — paid tier / AI assist / unlock prompts. Royal soft wash with
+  // a violet edge. Always paired with a crown or sparkle icon at use site.
+  premium: {
+    rest: {
+      background: COLORS.royalSoft,
+      border: `1px solid rgba(95,75,139,0.18)`,
+      boxShadow: "none",
+    },
+    hoverBorder: "rgba(95,75,139,0.34)",
+    hoverShadow: COLORS.shadowHover,
+    lifts: true,
+  },
 };
 
 function CardFrame({
@@ -1113,8 +1139,11 @@ function CardFrame({
         t.style.transform = "translateY(0)";
       }}
     >
-      {/* Accent variant gets a 3px left strip in the deep forest tone. */}
-      {variant === "accent" && (
+      {/* Variants with a 3px left strip — hue carries the semantic.
+          accent  = forest (brand identity moment)
+          action  = coral  (your move / action-needed)
+          premium = royal  (paid tier / AI / unlock) */}
+      {(variant === "accent" || variant === "action" || variant === "premium") && (
         <span
           aria-hidden
           style={{
@@ -1124,7 +1153,12 @@ function CardFrame({
             left: 0,
             width: 3,
             borderRadius: "0 3px 3px 0",
-            background: COLORS.accent,
+            background:
+              variant === "action"
+                ? COLORS.coral
+                : variant === "premium"
+                  ? COLORS.royal
+                  : COLORS.accent,
           }}
         />
       )}
@@ -1156,15 +1190,21 @@ export function PrimaryCard({
   footer?: ReactNode;
   badge?: ReactNode;
   children?: ReactNode;
-  /** Pass "accent" to switch to the forest-tinted spotlight treatment. */
-  variant?: "primary" | "accent";
+  /** Card-treatment lane:
+   *  - "primary"  default white card
+   *  - "accent"   forest-tinted spotlight (brand identity moment)
+   *  - "action"   coral left rule on white (your-move / action-needed)
+   *  - "premium"  royal-tinted (paid tier / AI / unlock prompt)
+   *  See docs/admin-redesign/color-system.md for when to use each. */
+  variant?: "primary" | "accent" | "action" | "premium";
 }) {
+  const hasLeftRule = variant === "accent" || variant === "action" || variant === "premium";
   return (
     <CardFrame onClick={onClick} variant={variant} fullHeight={fullHeight}>
       <div
         style={{
           padding: 20,
-          paddingLeft: variant === "accent" ? 24 : 20,
+          paddingLeft: hasLeftRule ? 24 : 20,
           display: "flex",
           flexDirection: "column",
           gap: 12,
