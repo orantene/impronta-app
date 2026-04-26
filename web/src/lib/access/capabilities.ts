@@ -758,6 +758,87 @@ export const CAPABILITIES = {
     gating: "relationship",
     deprecated: false,
   }),
+
+  // ─── Client trust + talent contact controls ──────────────────────────
+  // See docs/client-trust-and-contact-controls.md for the four-tier
+  // ladder (Basic / Verified / Silver / Gold), talent contact-preferences
+  // model, and the inquiry-send gating evaluator.
+  // Capability keys are locked; most have no callers in v1 — Track B.5
+  // wires them when trust badges + contact-controls surfaces are built.
+
+  "client.account.verify": define({
+    key: "client.account.verify",
+    displayName: "Verify your client account",
+    description: "Complete account verification (card and/or identity) to graduate from Basic to Verified.",
+    category: "client",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "client.account.fund": define({
+    key: "client.account.fund",
+    displayName: "Fund your client account",
+    description: "Add funds to your account balance. Reaching configured thresholds promotes you to Silver / Gold.",
+    category: "client",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.contact_prefs.set": define({
+    key: "talent.contact_prefs.set",
+    displayName: "Set contact preferences",
+    description: "Choose which client trust tiers (Basic, Verified, Silver, Gold) are allowed to contact you.",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "talent.inquiries.filter_by_trust": define({
+    key: "talent.inquiries.filter_by_trust",
+    displayName: "Filter inbox by client trust",
+    description: "Filter your inquiry inbox by sender trust level (Verified+, Silver+, Gold only, etc.).",
+    category: "talent",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "inquiry.send_to_talent": define({
+    key: "inquiry.send_to_talent",
+    displayName: "Send an inquiry to a talent",
+    description:
+      "Open an inquiry directed at a specific talent. Gated by both the sender's trust level and the talent's contact preferences (and any active agency-level distribution overrides).",
+    category: "inquiry",
+    scope: "tenant",
+    gating: "relationship",
+    deprecated: false,
+  }),
+  "agency.client_trust.view": define({
+    key: "agency.client_trust.view",
+    displayName: "View client trust badges on inquiries",
+    description: "See client trust badges (Basic / Verified / Silver / Gold) on inquiry rows in workspace admin.",
+    category: "client",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "platform.client_trust.configure_thresholds": define({
+    key: "platform.client_trust.configure_thresholds",
+    displayName: "Configure client trust thresholds",
+    description: "Set the funded-balance thresholds that promote clients from Verified → Silver → Gold.",
+    category: "platform",
+    scope: "platform",
+    gating: "platform_role",
+    deprecated: false,
+  }),
+  "platform.client_trust.override": define({
+    key: "platform.client_trust.override",
+    displayName: "Manually override client trust level",
+    description:
+      "Set a client's trust level explicitly (e.g., for known partners), bypassing auto-evaluation. Audited; reason required.",
+    category: "platform",
+    scope: "platform",
+    gating: "platform_role",
+    deprecated: false,
+  }),
 } as const;
 
 export type CapabilityKey = keyof typeof CAPABILITIES;

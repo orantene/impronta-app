@@ -203,6 +203,17 @@ These documents are binding product logic. Code, schema, or copy that conflicts 
   - 10 capability keys reserved in `lib/access/capabilities.ts`.
   - Reserved tables (deferred migrations): `booking_transactions`, `payout_accounts`. Reserved column on future `plans` table: `platform_fee_basis_points`.
 
+- [`docs/client-trust-and-contact-controls.md`](docs/client-trust-and-contact-controls.md) — Client trust ladder + talent contact preferences + inquiry-send gating. Establishes:
+  - **Four-tier trust ladder:** Basic (default) / Verified (verification + small fee) / Silver (verified + funded balance) / Gold (highest trust signal).
+  - **Trust = derived field** from underlying signals (`verified_at`, `funded_balance_cents`, super_admin override). Evaluator runs in code so rules can evolve without migrations.
+  - **Talent contact preferences:** four per-tier booleans (`allow_basic` / `allow_verified` / `allow_silver` / `allow_gold`). Default all-allowed at claim. Talent decides who can contact them.
+  - **Inquiry gate:** new capability `inquiry.send_to_talent` runs a two-way relationship-state check (sender's trust × target talent's preferences). Server-side enforced; UI gating is a UX optimization.
+  - **Trust signal carried on inquiry**: `inquiries.client_trust_level_at_send` snapshot for fast inbox filtering / sorting / future prioritization.
+  - **Surface-aware:** same talent → same prefs across all surfaces. Workspace-level client policies and exclusivity-driven agency overrides reserved as deferred extensions (latter via existing `agency.roster.set_personal_page_distribution` capability).
+  - 8 capability keys reserved in `lib/access/capabilities.ts`.
+  - Reserved tables (deferred migrations): `client_trust_state`, `talent_contact_preferences`. Reserved column on `inquiries`: `client_trust_level_at_send`.
+  - **Framing:** trust + spam reduction + lead quality, NOT "pay to DM."
+
 - [`docs/talent-monetization.md`](docs/talent-monetization.md) — Tulala's third commercial lane. Establishes (with founder-ratified decisions 2026-04-25):
   - **Three commercial lanes:** workspace subscriptions, transaction fees, talent subscriptions.
   - **Talent product ladder:** Basic (default, free) / Pro ($12/mo placeholder) / Portfolio ($29/mo placeholder). Names final-TBD; plan keys locked.

@@ -76,8 +76,10 @@ test("registry contains all expected capability sets", () => {
   // Legacy: 29 keys. Phase 5: 14 keys.
   // Talent-relationship model (docs/talent-relationship-model.md): 14 keys.
   // Transaction architecture (docs/transaction-architecture.md): 10 keys.
-  // Talent monetization (docs/talent-monetization.md): 8 keys.
-  // Total: 75.
+  // Talent monetization (docs/talent-monetization.md): 9 keys (8 + 1
+  //   added with the founder's exclusivity-distribution refinement).
+  // Client trust + contact controls (docs/client-trust-and-contact-controls.md): 8 keys.
+  // Total: 84.
   const TALENT_RELATIONSHIP_KEYS: readonly CapabilityKey[] = [
     "agency.settings.edit_join_mode",
     "agency.talent.create",
@@ -120,10 +122,21 @@ test("registry contains all expected capability sets", () => {
     // relationship-dependent under exclusive). See talent-monetization.md §7a.
     "agency.roster.set_personal_page_distribution",
   ];
+  const CLIENT_TRUST_KEYS: readonly CapabilityKey[] = [
+    "client.account.verify",
+    "client.account.fund",
+    "talent.contact_prefs.set",
+    "talent.inquiries.filter_by_trust",
+    "inquiry.send_to_talent",
+    "agency.client_trust.view",
+    "platform.client_trust.configure_thresholds",
+    "platform.client_trust.override",
+  ];
   for (const key of [
     ...TALENT_RELATIONSHIP_KEYS,
     ...TRANSACTION_KEYS,
     ...TALENT_MONETIZATION_KEYS,
+    ...CLIENT_TRUST_KEYS,
   ]) {
     assert.ok(isKnownCapability(key), `capability "${key}" missing`);
   }
@@ -132,7 +145,8 @@ test("registry contains all expected capability sets", () => {
     PHASE_5_CAPABILITIES.length +
     TALENT_RELATIONSHIP_KEYS.length +
     TRANSACTION_KEYS.length +
-    TALENT_MONETIZATION_KEYS.length;
+    TALENT_MONETIZATION_KEYS.length +
+    CLIENT_TRUST_KEYS.length;
   assert.equal(CAPABILITY_KEYS.length, expected, `expected ${expected} capability keys`);
 });
 
