@@ -39,7 +39,7 @@ export function MarqueeEditor({
           onChange({ ...value, ...(next as Partial<MarqueeV1>) })
         }
         tenantId={tenantId}
-        excludeKeys={["presentation"]}
+        sectionTypeKey="marquee" excludeKeys={["presentation"]}
       />
       <PresentationPanel
         value={value.presentation}

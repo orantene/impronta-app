@@ -87,6 +87,33 @@ const TILES: RecipeTile[] = [
     sections: 8,
     Wire: WireClassic,
   },
+  {
+    slug: "talent-agency",
+    label: "Talent Agency",
+    summary:
+      "7-section roster-led kit — hero, press marquee, featured talent, disciplines grid, booking process, stats, CTA.",
+    info: "Editorial preset, roster-forward. Best for boutique agencies, talent collectives, and casting houses.",
+    sections: 7,
+    Wire: WireEditorial,
+  },
+  {
+    slug: "wellness-spa",
+    label: "Wellness / Spa",
+    summary:
+      "6-section service-and-pricing kit — hero, stats, treatments, pricing grid, FAQ, CTA.",
+    info: "Studio Minimal preset. Treatment menus + transparent pricing + FAQ-led objection handling. Ideal for facials, massage, sauna, and wellness studios.",
+    sections: 6,
+    Wire: WireStudioMinimal,
+  },
+  {
+    slug: "restaurant",
+    label: "Restaurant",
+    summary:
+      "6-section restaurant kit — hero, sticky anchor nav, signature dishes, hours, press, reserve CTA.",
+    info: "Studio Minimal preset. Anchor nav stays pinned so guests jump between Menu / Hours / Reserve. Ideal for small dining rooms, cafes, and wine bars.",
+    sections: 6,
+    Wire: WireStudioMinimal,
+  },
 ];
 
 export function EmptyCanvasStarter() {

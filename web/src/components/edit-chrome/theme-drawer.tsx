@@ -73,6 +73,7 @@ import {
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
 import { GoogleFontPicker } from "./GoogleFontPicker";
+import { ContrastChecker } from "./ContrastChecker";
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 
@@ -218,6 +219,10 @@ const LAYOUT_PRESETS: ReadonlyArray<PresetSpec> = [
       { value: "editorial-noir", label: "Noir" },
       { value: "champagne-gradient", label: "Champagne" },
       { value: "noise-texture", label: "Noise" },
+      { value: "mesh-blush", label: "Mesh blush" },
+      { value: "mesh-sage", label: "Mesh sage" },
+      { value: "mesh-noir", label: "Mesh noir" },
+      { value: "mesh-aurora", label: "Mesh aurora" },
     ],
   },
 ];
@@ -819,6 +824,13 @@ function ColorsTab({
               />
             </Field>
           ))}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHead icon={<PaletteIcon />} title="A11y · contrast" />
+        <CardBody>
+          <ContrastChecker draft={draft} />
         </CardBody>
       </Card>
     </>

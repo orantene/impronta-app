@@ -84,6 +84,9 @@ const HEADING_MAP: Record<
   content_tabs: { level: 2, propKey: "headline" },
   code_embed: { level: 2, propKey: "headline" },
   anchor_nav: { level: 0, propKey: "headline" }, // emits no heading
+  // M11
+  blog_index: { level: 2, propKey: "headline" },
+  comparison_table: { level: 2, propKey: "headline" },
 };
 
 export function buildHeadingOutline(

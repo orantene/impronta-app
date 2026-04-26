@@ -206,6 +206,47 @@ html[data-token-background-mode="noise-texture"] body {
   background-position: 0 0, 2px 2px;
 }
 
+/* Phase 5 — mesh-gradient presets. Layered radial gradients on a
+ * fixed-size attachment so the mesh stays still while the page
+ * scrolls. Pure CSS, no JS, no images. */
+html[data-token-background-mode="mesh-blush"] body {
+  background-color: #faf3ee;
+  background-image:
+    radial-gradient(at 20% 18%, rgba(245, 200, 200, 0.55) 0, transparent 45%),
+    radial-gradient(at 78% 28%, rgba(255, 220, 195, 0.6) 0, transparent 50%),
+    radial-gradient(at 70% 80%, rgba(220, 195, 220, 0.45) 0, transparent 50%),
+    radial-gradient(at 18% 88%, rgba(250, 230, 215, 0.5) 0, transparent 45%);
+  background-attachment: fixed;
+}
+html[data-token-background-mode="mesh-sage"] body {
+  background-color: #f3f5f0;
+  background-image:
+    radial-gradient(at 22% 20%, rgba(195, 220, 195, 0.55) 0, transparent 45%),
+    radial-gradient(at 78% 26%, rgba(220, 230, 200, 0.5) 0, transparent 50%),
+    radial-gradient(at 72% 82%, rgba(180, 210, 200, 0.45) 0, transparent 50%),
+    radial-gradient(at 18% 86%, rgba(225, 235, 220, 0.5) 0, transparent 45%);
+  background-attachment: fixed;
+}
+html[data-token-background-mode="mesh-noir"] body {
+  background-color: #0c0c0e;
+  background-image:
+    radial-gradient(at 20% 18%, rgba(80, 60, 50, 0.5) 0, transparent 45%),
+    radial-gradient(at 80% 26%, rgba(60, 40, 70, 0.45) 0, transparent 50%),
+    radial-gradient(at 72% 80%, rgba(40, 60, 80, 0.5) 0, transparent 50%),
+    radial-gradient(at 18% 88%, rgba(50, 40, 50, 0.5) 0, transparent 45%);
+  background-attachment: fixed;
+  color: #f8f5ef;
+}
+html[data-token-background-mode="mesh-aurora"] body {
+  background-color: #f8f7f4;
+  background-image:
+    radial-gradient(at 12% 12%, rgba(180, 215, 240, 0.55) 0, transparent 45%),
+    radial-gradient(at 88% 22%, rgba(220, 200, 240, 0.55) 0, transparent 50%),
+    radial-gradient(at 80% 82%, rgba(255, 215, 200, 0.5) 0, transparent 50%),
+    radial-gradient(at 12% 88%, rgba(220, 240, 215, 0.5) 0, transparent 45%);
+  background-attachment: fixed;
+}
+
 /* ---------------------------------------------------------------------------
  * Radius scale.
  * ------------------------------------------------------------------------- */
@@ -3005,3 +3046,53 @@ body { font-size: var(--token-typography-body-size, revert); }
     }
   }
 }
+
+/* =========================================================================
+ * M11 archetype expansion — blog index, comparison table
+ * ========================================================================= */
+.site-blog { padding-block: var(--site-section-y); }
+.site-blog__inner {
+  width: var(--site-container-max);
+  margin-inline: auto;
+  padding-inline: clamp(20px, 3vw, 44px);
+}
+.site-blog__head { text-align: center; margin-bottom: 48px; display: flex; flex-direction: column; gap: 12px; }
+.site-blog__headline { font-family: var(--site-heading-font); font-size: clamp(28px, 4vw, 44px); color: var(--token-color-ink); }
+.site-blog__grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 28px; grid-template-columns: repeat(var(--blog-cols, 3), minmax(0, 1fr)); }
+@media (max-width: 880px) { .site-blog__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .site-blog__grid { grid-template-columns: 1fr; } }
+.site-blog[data-variant="list"] .site-blog__grid { grid-template-columns: 1fr !important; gap: 0; }
+.site-blog[data-variant="list"] .site-blog__item { border-block-end: 1px solid color-mix(in srgb, var(--token-color-ink, #111) 10%, transparent); }
+.site-blog[data-variant="list"] .site-blog__link { display: grid; grid-template-columns: 200px 1fr; gap: 20px; padding-block: 18px; }
+.site-blog[data-variant="magazine"] .site-blog__item:first-child { grid-column: 1 / -1; }
+.site-blog[data-variant="magazine"] .site-blog__item:first-child .site-blog__media { aspect-ratio: 21 / 9; }
+.site-blog__item { display: flex; flex-direction: column; }
+.site-blog__link { display: flex; flex-direction: column; gap: 12px; text-decoration: none; color: inherit; height: 100%; }
+.site-blog__media { width: 100%; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 6px; background: color-mix(in srgb, var(--token-color-ink, #111) 5%, transparent); }
+.site-blog[data-variant="list"] .site-blog__media { aspect-ratio: 4 / 3; border-radius: 4px; }
+.site-blog__media img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 400ms ease; }
+.site-blog__link:hover .site-blog__media img { transform: scale(1.03); }
+.site-blog__media--placeholder { background: color-mix(in srgb, var(--token-color-ink, #111) 8%, transparent); }
+.site-blog__copy { display: flex; flex-direction: column; gap: 6px; }
+.site-blog__meta { display: flex; gap: 8px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--token-color-muted); }
+.site-blog__category { padding: 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--token-color-ink, #111) 6%, transparent); }
+.site-blog__title { font-family: var(--site-heading-font); font-size: 18px; color: var(--token-color-ink); line-height: 1.3; }
+.site-blog__excerpt { font-size: 14px; color: var(--token-color-muted); line-height: 1.5; }
+
+.site-compare { padding-block: var(--site-section-y); }
+.site-compare__inner { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
+.site-compare__head { text-align: center; margin-bottom: 32px; max-width: 720px; margin-inline: auto; display: flex; flex-direction: column; gap: 10px; }
+.site-compare__headline { font-family: var(--site-heading-font); font-size: clamp(28px, 4vw, 44px); color: var(--token-color-ink); }
+.site-compare__intro { color: var(--token-color-muted); }
+.site-compare__scroll { overflow-x: auto; }
+.site-compare__table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; color: var(--token-color-ink); }
+.site-compare__table th, .site-compare__table td { padding: 14px 16px; text-align: center; border-block-end: 1px solid color-mix(in srgb, var(--token-color-ink, #111) 8%, transparent); }
+.site-compare__table thead th { font-family: var(--site-heading-font); font-size: 16px; font-weight: 600; color: var(--token-color-ink); border-block-end: 2px solid var(--token-color-ink); }
+.site-compare__table thead th:first-child { width: 35%; text-align: left; }
+.site-compare__table tbody th { text-align: left; font-weight: 500; color: var(--token-color-ink); }
+.site-compare__table td[data-truthy="true"] { color: #2e7d4f; font-weight: 600; font-size: 16px; }
+.site-compare[data-variant="striped"] .site-compare__table tbody tr:nth-child(odd) td,
+.site-compare[data-variant="striped"] .site-compare__table tbody tr:nth-child(odd) th { background: color-mix(in srgb, var(--token-color-ink, #111) 3%, transparent); }
+.site-compare__table th[data-highlighted="true"], .site-compare__table td[data-highlighted="true"] { background: color-mix(in srgb, var(--token-color-ink, #111) 5%, transparent); }
+.site-compare[data-variant="bordered"] .site-compare__table th, .site-compare[data-variant="bordered"] .site-compare__table td { border-inline-start: 1px solid color-mix(in srgb, var(--token-color-ink, #111) 8%, transparent); }
+.site-compare[data-variant="bordered"] .site-compare__table th:first-child, .site-compare[data-variant="bordered"] .site-compare__table td:first-child { border-inline-start: none; }

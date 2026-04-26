@@ -477,11 +477,40 @@ export function InlineEditor() {
           <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.18)" }} />
           <ToolbarButton
             label="Link"
-            title="Wrap selection as a Markdown link"
+            title="Wrap selection as a link, or edit an existing one"
             onClick={() => {
-              const url = window.prompt("Link URL (https://…)") ?? "";
-              if (!url.trim()) return;
-              wrapSelection("[", `](${url.trim()})`);
+              const sel = window.getSelection();
+              const selectedText = sel?.toString() ?? "";
+              // If the operator's selection is INSIDE an existing
+              // [text](url) marker, parse it and prefill the prompt
+              // with the current URL — so this becomes "edit link"
+              // instead of "wrap as link".
+              const existing = findEnclosingLinkMarker();
+              const initial = existing?.url ?? "";
+              const url = window.prompt(
+                existing
+                  ? `Edit link URL (or empty to remove)`
+                  : `Link URL (https://…)`,
+                initial,
+              );
+              if (url == null) return;
+              const trimmed = url.trim();
+              if (existing) {
+                // Replace the whole [text](url) marker.
+                if (!trimmed) {
+                  // Empty URL → unwrap, keep the visible text.
+                  replaceEnclosingLinkMarker(existing, existing.text);
+                } else {
+                  replaceEnclosingLinkMarker(
+                    existing,
+                    `[${existing.text}](${trimmed})`,
+                  );
+                }
+                return;
+              }
+              if (!trimmed) return;
+              if (!selectedText) return;
+              wrapSelection("[", `](${trimmed})`);
             }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -602,6 +631,72 @@ function stripLinkMarkers() {
   const after = before.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
   if (before === after) return;
   el.textContent = after;
+}
+
+/**
+ * Phase 2 polish — find the `[text](url)` marker enclosing the current
+ * caret/selection. Returns the span + parsed text/url so the toolbar
+ * can offer "edit existing link" instead of "wrap as new link".
+ */
+interface EnclosingLinkMarker {
+  text: string;
+  url: string;
+  /** Absolute character offsets within the editable element's textContent. */
+  start: number;
+  end: number;
+}
+
+function findEnclosingLinkMarker(): EnclosingLinkMarker | null {
+  const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
+  if (!el) return null;
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return null;
+  const full = el.textContent ?? "";
+  const range = sel.getRangeAt(0);
+  // Compute the caret's character offset within the editable element
+  // by measuring the textContent length up to range.startContainer +
+  // startOffset.
+  const caretOffset = caretCharOffset(el, range.startContainer, range.startOffset);
+  const re = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(full)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (caretOffset >= start && caretOffset <= end) {
+      return { text: match[1], url: match[2], start, end };
+    }
+  }
+  return null;
+}
+
+function caretCharOffset(
+  root: HTMLElement,
+  container: Node,
+  offset: number,
+): number {
+  let chars = 0;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let n: Node | null = walker.nextNode();
+  while (n) {
+    if (n === container) {
+      return chars + offset;
+    }
+    chars += (n.nodeValue ?? "").length;
+    n = walker.nextNode();
+  }
+  return chars;
+}
+
+function replaceEnclosingLinkMarker(
+  marker: EnclosingLinkMarker,
+  replacement: string,
+) {
+  const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
+  if (!el) return;
+  const full = el.textContent ?? "";
+  const next = full.slice(0, marker.start) + replacement + full.slice(marker.end);
+  if (next === full) return;
+  el.textContent = next;
 }
 
 /**

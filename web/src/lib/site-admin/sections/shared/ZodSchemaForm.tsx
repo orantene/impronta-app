@@ -31,6 +31,7 @@ import { introspectSectionSchema } from "./zod-introspect";
 import { LinkPicker } from "./LinkPicker";
 import { MediaPicker } from "./MediaPicker";
 import { AltTextField } from "./AltTextField";
+import { AiRewriteButton } from "@/components/edit-chrome/inspectors/AiRewriteButton";
 
 import type { z } from "zod";
 
@@ -47,6 +48,8 @@ interface ZodSchemaFormProps<T> {
   tenantId?: string;
   /** Optional: skip these top-level keys (extend the section's manual UI). */
   excludeKeys?: ReadonlyArray<string>;
+  /** Required to enable the per-field AI rewrite affordance. */
+  sectionTypeKey?: string;
 }
 
 export function ZodSchemaForm<T>({
@@ -55,6 +58,7 @@ export function ZodSchemaForm<T>({
   onChange,
   tenantId,
   excludeKeys,
+  sectionTypeKey,
 }: ZodSchemaFormProps<T>) {
   const fields = introspectSectionSchema(schema);
   const props = (value ?? {}) as Record<string, unknown>;
@@ -73,6 +77,7 @@ export function ZodSchemaForm<T>({
             siblings={props}
             onChange={(v) => set({ [f.name]: v })}
             tenantId={tenantId}
+            sectionTypeKey={sectionTypeKey}
           />
         ))}
     </div>
@@ -85,9 +90,17 @@ interface FieldNodeProps {
   siblings: Record<string, unknown>;
   onChange: (next: unknown) => void;
   tenantId?: string;
+  sectionTypeKey?: string;
 }
 
-function FieldNode({ field, value, siblings, onChange, tenantId }: FieldNodeProps) {
+function FieldNode({
+  field,
+  value,
+  siblings,
+  onChange,
+  tenantId,
+  sectionTypeKey,
+}: FieldNodeProps) {
   // ---- Hint-based primitive swaps -------------------------------------
   if (field.hint === "href") {
     return (
@@ -144,16 +157,35 @@ function FieldNode({ field, value, siblings, onChange, tenantId }: FieldNodeProp
   }
 
   // ---- Kind-based renderers -------------------------------------------
+  // Show the AI rewrite button on text/textarea fields when we have a
+  // sectionTypeKey AND the field name is in the rewrite allow-list
+  // (server action enforces this; we hide the button when it'd error).
+  const aiEligible =
+    !!sectionTypeKey &&
+    (field.kind === "text" || field.kind === "textarea") &&
+    !field.hint && // skip hinted fields (image/href/etc.)
+    AI_REWRITABLE_FIELD_NAMES.has(field.name);
+
   switch (field.kind) {
     case "text":
     case "url":
     case "email":
       return (
         <label className={FIELD}>
-          <span className={LABEL}>
-            {field.label}
-            {field.optional ? "" : " *"}
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className={LABEL}>
+              {field.label}
+              {field.optional ? "" : " *"}
+            </span>
+            {aiEligible && sectionTypeKey ? (
+              <AiRewriteButton
+                sectionTypeKey={sectionTypeKey}
+                fieldName={field.name}
+                currentValue={(value as string) ?? ""}
+                onApply={(next) => onChange(next)}
+              />
+            ) : null}
+          </div>
           <input
             type={field.kind === "text" ? "text" : field.kind}
             className={INPUT}
@@ -174,10 +206,20 @@ function FieldNode({ field, value, siblings, onChange, tenantId }: FieldNodeProp
     case "textarea":
       return (
         <label className={FIELD}>
-          <span className={LABEL}>
-            {field.label}
-            {field.optional ? "" : " *"}
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className={LABEL}>
+              {field.label}
+              {field.optional ? "" : " *"}
+            </span>
+            {aiEligible && sectionTypeKey ? (
+              <AiRewriteButton
+                sectionTypeKey={sectionTypeKey}
+                fieldName={field.name}
+                currentValue={(value as string) ?? ""}
+                onApply={(next) => onChange(next)}
+              />
+            ) : null}
+          </div>
           <textarea
             className={INPUT}
             rows={field.hint === "rich_text" ? 4 : 3}
@@ -231,7 +273,41 @@ function FieldNode({ field, value, siblings, onChange, tenantId }: FieldNodeProp
         </label>
       );
 
-    case "enum":
+    case "enum": {
+      // Small enums (<= 5 options) render as a chip row — matches the
+      // visual feel of VariantPicker without per-section configuration.
+      // Larger enums fall back to a plain select.
+      const optCount = field.options?.length ?? 0;
+      const current = (value as string) ?? (field.defaultValue as string) ?? "";
+      if (optCount > 0 && optCount <= 5) {
+        return (
+          <div className={FIELD}>
+            <span className={LABEL}>
+              {field.label}
+              {field.optional ? "" : " *"}
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {field.options?.map((o) => {
+                const active = o === current;
+                return (
+                  <button
+                    key={o}
+                    type="button"
+                    onClick={() => onChange(o)}
+                    className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${
+                      active
+                        ? "border-zinc-900 bg-zinc-900 text-white"
+                        : "border-border/60 bg-background text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    {humanizeEnumValue(o)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
       return (
         <label className={FIELD}>
           <span className={LABEL}>
@@ -240,18 +316,19 @@ function FieldNode({ field, value, siblings, onChange, tenantId }: FieldNodeProp
           </span>
           <select
             className={INPUT}
-            value={(value as string) ?? (field.defaultValue as string) ?? ""}
+            value={current}
             onChange={(e) => onChange(e.target.value)}
           >
             {field.optional ? <option value="">—</option> : null}
             {field.options?.map((o) => (
               <option key={o} value={o}>
-                {o}
+                {humanizeEnumValue(o)}
               </option>
             ))}
           </select>
         </label>
       );
+    }
 
     case "array_of_strings":
       return (
@@ -321,6 +398,31 @@ function FieldNode({ field, value, siblings, onChange, tenantId }: FieldNodeProp
         </div>
       );
   }
+}
+
+/**
+ * Mirrors the server-side rewrite allow-list (see ai-rewrite-action.ts).
+ * Kept inlined to avoid a server-only import in this client file.
+ */
+const AI_REWRITABLE_FIELD_NAMES = new Set([
+  "headline",
+  "subheadline",
+  "eyebrow",
+  "copy",
+  "body",
+  "intro",
+  "caption",
+  "footnote",
+  "reassurance",
+  "successMessage",
+  "title",
+]);
+
+function humanizeEnumValue(value: string): string {
+  // "fade-up" → "Fade up"; "5/6" → "5/6"; "edge-to-edge" → "Edge to edge"
+  return value
+    .replace(/[-_]/g, " ")
+    .replace(/^(.)/, (c) => c.toUpperCase());
 }
 
 interface ArrayOfObjectsFieldProps {

@@ -264,6 +264,277 @@ const RECIPES: Record<string, Recipe> = {
       },
     ],
   },
+  "talent-agency": {
+    slug: "talent-agency",
+    label: "Talent Agency",
+    presetSlug: "editorial-bridal",
+    entries: [
+      {
+        slotKey: "hero",
+        sectionTypeKey: "hero",
+        propsOverride: {
+          headline: "A {accent}quiet{/accent} bench of working talent.",
+          subheadline:
+            "Boutique representation for makeup, hair, and styling. Editorial + commercial.",
+          primaryCta: { label: "Browse the roster", href: "/directory" },
+          secondaryCta: { label: "Submit a request", href: "/contact" },
+          mood: "editorial",
+        },
+      },
+      {
+        slotKey: "trust_band",
+        sectionTypeKey: "marquee",
+        propsOverride: {
+          items: [
+            { text: "Vogue" },
+            { text: "Net-a-Porter" },
+            { text: "Brides" },
+            { text: "WSJ Magazine" },
+            { text: "Harper's Bazaar" },
+            { text: "Condé Nast Traveler" },
+          ],
+          speed: "slow",
+          direction: "left",
+          separator: "diamond",
+          variant: "text",
+        },
+      },
+      {
+        slotKey: "featured",
+        sectionTypeKey: "featured_talent",
+        propsOverride: {
+          eyebrow: "On the roster",
+          headline: "A short list, always on call.",
+          sourceMode: "auto_featured_flag",
+          limit: 6,
+          columnsDesktop: 3,
+          variant: "grid",
+        },
+      },
+      {
+        slotKey: "services",
+        sectionTypeKey: "category_grid",
+        propsOverride: {
+          eyebrow: "Disciplines",
+          headline: "What the bench covers.",
+          items: [
+            { label: "Makeup", tagline: "Editorial · bridal · commercial" },
+            { label: "Hair", tagline: "Cut · color · session styling" },
+            { label: "Styling", tagline: "Wardrobe · prop · set" },
+            { label: "Photography", tagline: "Portrait · documentary" },
+          ],
+          variant: "portrait-masonry",
+          columnsDesktop: 4,
+        },
+      },
+      {
+        slotKey: "process",
+        sectionTypeKey: "process_steps",
+        propsOverride: {
+          eyebrow: "Booking",
+          headline: "Three steps from request to crew.",
+          steps: [
+            { label: "Send a brief", detail: "Date, location, references." },
+            { label: "Get a curated short list", detail: "Two to four artists who fit." },
+            { label: "Lock the booking", detail: "One contract, one invoice." },
+          ],
+        },
+      },
+      {
+        slotKey: "secondary",
+        sectionTypeKey: "stats",
+        propsOverride: {
+          eyebrow: "The bench",
+          headline: "Numbers that matter.",
+          items: [
+            { value: "32", label: "Artists on the roster" },
+            { value: "12", label: "Cities" },
+            { value: "180+", label: "Bookings last year" },
+          ],
+          variant: "row",
+          align: "center",
+        },
+      },
+      {
+        slotKey: "final_cta",
+        sectionTypeKey: "cta_banner",
+        propsOverride: {
+          eyebrow: "Open for new clients",
+          headline: "Tell us about the brief.",
+          copy: "Date, location, mood, budget. We come back with a curated short list.",
+          primaryCta: { label: "Send a brief", href: "/contact" },
+          variant: "centered-overlay",
+        },
+      },
+    ],
+  },
+  "wellness-spa": {
+    slug: "wellness-spa",
+    label: "Wellness / Spa",
+    presetSlug: "studio-minimal",
+    entries: [
+      {
+        slotKey: "hero",
+        sectionTypeKey: "hero",
+        propsOverride: {
+          headline: "Slow down. {accent}Stay a while{/accent}.",
+          subheadline:
+            "A small wellness studio — facials, lymphatic drainage, infrared sauna, massage. By appointment.",
+          primaryCta: { label: "Book a session", href: "/contact" },
+          mood: "clean",
+          overlay: "soft-vignette",
+        },
+      },
+      {
+        slotKey: "trust_band",
+        sectionTypeKey: "stats",
+        propsOverride: {
+          eyebrow: "Open since 2019",
+          items: [
+            { value: "8", label: "Treatment rooms" },
+            { value: "4.9", label: "Avg rating" },
+            { value: "60min", label: "Default session" },
+          ],
+          variant: "row",
+          align: "center",
+        },
+      },
+      {
+        slotKey: "services",
+        sectionTypeKey: "image_copy_alternating",
+        propsOverride: {
+          eyebrow: "Treatments",
+          headline: "What we offer.",
+          items: [
+            { title: "Signature facial", italicTagline: "60-90 min.", body: "Cleanse, exfoliate, mask, massage. Plant-based products throughout.", side: "image-right" },
+            { title: "Lymphatic drainage", italicTagline: "Whole-body or targeted.", body: "Manual technique to reduce puffiness and improve circulation. Often booked before events.", side: "image-left" },
+            { title: "Infrared sauna", italicTagline: "Solo or paired.", body: "30-45 minute private sessions. Towels and water provided.", side: "image-right" },
+          ],
+          variant: "editorial-alternating",
+        },
+      },
+      {
+        slotKey: "primary",
+        sectionTypeKey: "pricing_grid",
+        propsOverride: {
+          eyebrow: "Pricing",
+          headline: "What sessions cost.",
+          plans: [
+            { name: "Sauna", price: "$45", cadence: "30 min", features: ["Solo or shared", "Towels + water", "Same-day booking"], ctaLabel: "Book", ctaHref: "/contact", highlighted: false },
+            { name: "Facial", price: "$160", cadence: "starting at", description: "Most-booked.", features: ["Cleanse + exfoliate", "Mask + massage", "60 min"], ctaLabel: "Book", ctaHref: "/contact", highlighted: true, badge: "Most popular" },
+            { name: "Lymphatic drainage", price: "$220", cadence: "60 min", features: ["Whole-body technique", "Pre-event prep", "Optional sauna add-on"], ctaLabel: "Book", ctaHref: "/contact", highlighted: false },
+          ],
+          variant: "minimal",
+        },
+      },
+      {
+        slotKey: "secondary",
+        sectionTypeKey: "faq_accordion",
+        propsOverride: {
+          eyebrow: "Common questions",
+          headline: "Things people ask before they book.",
+          items: [
+            { question: "Do you take walk-ins?", answer: "Sauna walk-ins yes. Facials and treatments require a booking." },
+            { question: "Are your products clean / sustainable?", answer: "Yes — plant-based, fragrance-free options available, no parabens or sulfates." },
+            { question: "Cancellation policy?", answer: "24-hour notice. Same-day cancellations are charged 50%." },
+          ],
+          variant: "minimal",
+        },
+      },
+      {
+        slotKey: "final_cta",
+        sectionTypeKey: "cta_banner",
+        propsOverride: {
+          eyebrow: "We answer same-day",
+          headline: "Send a request.",
+          copy: "Tell us what you'd like and your timing. We'll fit you in.",
+          primaryCta: { label: "Request a session", href: "/contact" },
+          variant: "minimal-band",
+          bandTone: "blush",
+        },
+      },
+    ],
+  },
+  restaurant: {
+    slug: "restaurant",
+    label: "Restaurant / Cafe",
+    presetSlug: "studio-minimal",
+    entries: [
+      {
+        slotKey: "hero",
+        sectionTypeKey: "hero",
+        propsOverride: {
+          headline: "Pasta, wine, and {accent}a long table{/accent}.",
+          subheadline: "Open for dinner Wed-Sun. Walk-ins until 9pm.",
+          primaryCta: { label: "See the menu", href: "#menu" },
+          secondaryCta: { label: "Reserve", href: "/contact" },
+          mood: "editorial",
+        },
+      },
+      {
+        slotKey: "trust_band",
+        sectionTypeKey: "anchor_nav",
+        propsOverride: {
+          links: [
+            { label: "Menu", href: "#menu" },
+            { label: "Wine list", href: "#wine" },
+            { label: "Hours", href: "#hours" },
+            { label: "Reservations", href: "#reserve" },
+          ],
+          variant: "underline",
+          sticky: true,
+          align: "center",
+        },
+      },
+      {
+        slotKey: "services",
+        sectionTypeKey: "image_copy_alternating",
+        propsOverride: {
+          eyebrow: "On the menu",
+          headline: "Three plates we're known for.",
+          items: [
+            { title: "Cacio e pepe", italicTagline: "Hand-cut tonnarelli.", body: "Pecorino, black pepper, pasta water. Nothing else.", side: "image-right" },
+            { title: "Salt-baked branzino", italicTagline: "For two.", body: "Crust broken at the table, fileted, dressed in lemon and olive oil.", side: "image-left" },
+            { title: "Tiramisu", italicTagline: "House recipe.", body: "Mascarpone, espresso, no liqueur. Made daily.", side: "image-right" },
+          ],
+          variant: "editorial-alternating",
+        },
+      },
+      {
+        slotKey: "secondary",
+        sectionTypeKey: "stats",
+        propsOverride: {
+          eyebrow: "Hours",
+          items: [
+            { value: "Wed-Sat", label: "5pm - 10pm" },
+            { value: "Sun", label: "5pm - 9pm" },
+            { value: "Mon-Tue", label: "Closed" },
+          ],
+          variant: "row",
+          align: "center",
+        },
+      },
+      {
+        slotKey: "testimonials",
+        sectionTypeKey: "testimonials_trio",
+        propsOverride: {
+          eyebrow: "Press + guests",
+        },
+      },
+      {
+        slotKey: "final_cta",
+        sectionTypeKey: "cta_banner",
+        propsOverride: {
+          eyebrow: "Reservations",
+          headline: "Book a table.",
+          copy: "Six guests or fewer — book online. Larger parties, ring us.",
+          primaryCta: { label: "Reserve", href: "/contact" },
+          variant: "minimal-band",
+          bandTone: "ivory",
+        },
+      },
+    ],
+  },
   "hair-salon": {
     slug: "hair-salon",
     label: "Hair Salon / Studio",

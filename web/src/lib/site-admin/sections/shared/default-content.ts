@@ -396,6 +396,41 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       title: "Studio reel",
     },
   },
+  blog_index: {
+    name: "Blog — new",
+    props: {
+      eyebrow: "Field notes",
+      headline: "From the studio.",
+      posts: [
+        { title: "Behind the camera at three weddings", excerpt: "What the bride sees, and what we see.", date: "Apr 2026", category: "Field notes", href: "#" },
+        { title: "How we color-match across cameras", excerpt: "A short guide to consistent skin tones.", date: "Mar 2026", category: "Craft", href: "#" },
+        { title: "Why we don't release RAWs", excerpt: "Edits are the product.", date: "Feb 2026", category: "Workflow", href: "#" },
+      ],
+      variant: "cards",
+      columnsDesktop: 3,
+    },
+  },
+  comparison_table: {
+    name: "Compare — new",
+    props: {
+      eyebrow: "Compare plans",
+      headline: "What's in each tier.",
+      intro: "Same product, different scope.",
+      columns: [
+        { label: "Half-day", highlighted: false },
+        { label: "Full-day", highlighted: true },
+        { label: "Destination", highlighted: false },
+      ],
+      rows: [
+        { feature: "Hours of coverage", values: ["4", "8", "Multi-day"] },
+        { feature: "Pre-day session", values: ["no", "yes", "yes"] },
+        { feature: "Edited images", values: ["70+", "200+", "Custom"] },
+        { feature: "Travel included", values: ["no", "no", "yes"] },
+        { feature: "Revision rounds", values: ["1", "2", "3"] },
+      ],
+      variant: "striped",
+    },
+  },
 };
 
 export function getLibraryDefault(

@@ -47,7 +47,7 @@ export function AnchorNavEditor({
           onChange({ ...value, ...(next as Partial<AnchorNavV1>) })
         }
         tenantId={tenantId}
-        excludeKeys={["presentation"]}
+        sectionTypeKey="anchor_nav" excludeKeys={["presentation"]}
       />
       <PresentationPanel
         value={value.presentation}

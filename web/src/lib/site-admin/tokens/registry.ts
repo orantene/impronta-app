@@ -616,6 +616,12 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
       "editorial-noir",
       "champagne-gradient",
       "noise-texture",
+      // Phase 5 — mesh-gradient presets (CSS conic + multiple radial
+      // gradients layered; performant, no JS, no images).
+      "mesh-blush",
+      "mesh-sage",
+      "mesh-noir",
+      "mesh-aurora",
     ]),
     defaultValue: "plain",
     group: "Site shell",

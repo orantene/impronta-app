@@ -214,6 +214,25 @@ import {
 import { CodeEmbedComponent } from "./code_embed/Component";
 import { CodeEmbedEditor } from "./code_embed/Editor";
 
+// ── M11 archetype expansion ──────────────────────────────────────────────
+import { blogIndexMeta } from "./blog_index/meta";
+import { blogIndexMigrations } from "./blog_index/migrations";
+import {
+  blogIndexSchemasByVersion,
+  type BlogIndexV1,
+} from "./blog_index/schema";
+import { BlogIndexComponent } from "./blog_index/Component";
+import { BlogIndexEditor } from "./blog_index/Editor";
+
+import { comparisonTableMeta } from "./comparison_table/meta";
+import { comparisonTableMigrations } from "./comparison_table/migrations";
+import {
+  comparisonTableSchemasByVersion,
+  type ComparisonTableV1,
+} from "./comparison_table/schema";
+import { ComparisonTableComponent } from "./comparison_table/Component";
+import { ComparisonTableEditor } from "./comparison_table/Editor";
+
 // ── entries ──────────────────────────────────────────────────────────────
 
 export const heroSection: SectionRegistryEntry<HeroV1> = {
@@ -432,6 +451,24 @@ export const codeEmbedSection: SectionRegistryEntry<CodeEmbedV1> = {
   Editor: CodeEmbedEditor,
 };
 
+export const blogIndexSection: SectionRegistryEntry<BlogIndexV1> = {
+  meta: blogIndexMeta,
+  currentVersion: 1,
+  schemasByVersion: blogIndexSchemasByVersion,
+  migrations: blogIndexMigrations,
+  Component: BlogIndexComponent,
+  Editor: BlogIndexEditor,
+};
+
+export const comparisonTableSection: SectionRegistryEntry<ComparisonTableV1> = {
+  meta: comparisonTableMeta,
+  currentVersion: 1,
+  schemasByVersion: comparisonTableSchemasByVersion,
+  migrations: comparisonTableMigrations,
+  Component: ComparisonTableComponent,
+  Editor: ComparisonTableEditor,
+};
+
 export const SECTION_REGISTRY = {
   hero: heroSection,
   trust_strip: trustStripSection,
@@ -460,6 +497,9 @@ export const SECTION_REGISTRY = {
   before_after: beforeAfterSection,
   content_tabs: contentTabsSection,
   code_embed: codeEmbedSection,
+  // ── M11 archetype expansion ─────────────────────────────────────────
+  blog_index: blogIndexSection,
+  comparison_table: comparisonTableSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;

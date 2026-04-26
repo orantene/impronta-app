@@ -92,6 +92,12 @@ import { ContentTabsEditor } from "./content_tabs/Editor";
 import { codeEmbedMeta } from "./code_embed/meta";
 import { CodeEmbedEditor } from "./code_embed/Editor";
 
+import { blogIndexMeta } from "./blog_index/meta";
+import { BlogIndexEditor } from "./blog_index/Editor";
+
+import { comparisonTableMeta } from "./comparison_table/meta";
+import { ComparisonTableEditor } from "./comparison_table/Editor";
+
 import type { SectionEditorProps, SectionMeta } from "./types";
 
 export interface SectionEditorRegistryEntry {
@@ -269,6 +275,20 @@ export const SECTION_EDITOR_REGISTRY: Record<
     meta: codeEmbedMeta,
     currentVersion: 1,
     Editor: CodeEmbedEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  blog_index: {
+    meta: blogIndexMeta,
+    currentVersion: 1,
+    Editor: BlogIndexEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  comparison_table: {
+    meta: comparisonTableMeta,
+    currentVersion: 1,
+    Editor: ComparisonTableEditor as unknown as ComponentType<
       SectionEditorProps<Record<string, unknown>>
     >,
   },
