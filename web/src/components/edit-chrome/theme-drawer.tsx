@@ -72,6 +72,7 @@ import {
   type DesignSnapshot,
 } from "@/lib/site-admin/edit-mode/design-actions";
 import { tokenDefaults } from "@/lib/site-admin/tokens/registry";
+import { GoogleFontPicker } from "./GoogleFontPicker";
 
 // ── tabs ─────────────────────────────────────────────────────────────────
 
@@ -580,13 +581,48 @@ export function ThemeDrawer(): ReactElement | null {
               <ColorsTab draft={draft} onChange={set} />
             ) : null}
             {tab === "typography" ? (
-              <PresetsTab
-                cardTitle="Typography"
-                icon={<TypeIcon />}
-                presets={TYPOGRAPHY_PRESETS}
-                draft={draft}
-                onChange={set}
-              />
+              <>
+                <PresetsTab
+                  cardTitle="Typography"
+                  icon={<TypeIcon />}
+                  presets={TYPOGRAPHY_PRESETS}
+                  draft={draft}
+                  onChange={set}
+                />
+                <Card>
+                  <CardHead icon={<TypeIcon />} title="Google Fonts" />
+                  <CardBody>
+                    <Field>
+                      <FieldLabel htmlFor="theme-typography.heading-font-family">
+                        Heading family
+                      </FieldLabel>
+                      <GoogleFontPicker
+                        slot="heading"
+                        value={draft["typography.heading-font-family"] ?? ""}
+                        onChange={(v) =>
+                          set("typography.heading-font-family", v)
+                        }
+                      />
+                      <Helper>
+                        Overrides the heading-preset above. Loads on save +
+                        publish.
+                      </Helper>
+                    </Field>
+                    <Field flush>
+                      <FieldLabel htmlFor="theme-typography.body-font-family">
+                        Body family
+                      </FieldLabel>
+                      <GoogleFontPicker
+                        slot="body"
+                        value={draft["typography.body-font-family"] ?? ""}
+                        onChange={(v) =>
+                          set("typography.body-font-family", v)
+                        }
+                      />
+                    </Field>
+                  </CardBody>
+                </Card>
+              </>
             ) : null}
             {tab === "layout" ? (
               <PresetsTab

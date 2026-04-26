@@ -56,6 +56,18 @@ import { PressStripEditor } from "./press_strip/Editor";
 import { valuesTrioMeta } from "./values_trio/meta";
 import { ValuesTrioEditor } from "./values_trio/Editor";
 
+import { marqueeMeta } from "./marquee/meta";
+import { MarqueeEditor } from "./marquee/Editor";
+
+import { statsMeta } from "./stats/meta";
+import { StatsEditor } from "./stats/Editor";
+
+import { faqAccordionMeta } from "./faq_accordion/meta";
+import { FaqAccordionEditor } from "./faq_accordion/Editor";
+
+import { splitScreenMeta } from "./split_screen/meta";
+import { SplitScreenEditor } from "./split_screen/Editor";
+
 import type { SectionEditorProps, SectionMeta } from "./types";
 
 export interface SectionEditorRegistryEntry {
@@ -149,6 +161,34 @@ export const SECTION_EDITOR_REGISTRY: Record<
     meta: valuesTrioMeta,
     currentVersion: 1,
     Editor: ValuesTrioEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  marquee: {
+    meta: marqueeMeta,
+    currentVersion: 1,
+    Editor: MarqueeEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  stats: {
+    meta: statsMeta,
+    currentVersion: 1,
+    Editor: StatsEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  faq_accordion: {
+    meta: faqAccordionMeta,
+    currentVersion: 1,
+    Editor: FaqAccordionEditor as unknown as ComponentType<
+      SectionEditorProps<Record<string, unknown>>
+    >,
+  },
+  split_screen: {
+    meta: splitScreenMeta,
+    currentVersion: 1,
+    Editor: SplitScreenEditor as unknown as ComponentType<
       SectionEditorProps<Record<string, unknown>>
     >,
   },

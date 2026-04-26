@@ -29,7 +29,7 @@ import {
   migrateSectionPayload,
   type SectionRegistryEntry,
 } from "@/lib/site-admin/sections/types";
-import { presentationScopedCss } from "@/lib/site-admin/sections/shared/presentation";
+import { presentationScopedCss, presentationVideoBackground } from "@/lib/site-admin/sections/shared/presentation";
 
 interface HomepageCmsSectionsProps {
   snapshot: HomepageSnapshot;
@@ -143,13 +143,17 @@ export async function HomepageCmsSections({
         // operator wrote any custom CSS. Scoped to the wrapper's
         // `data-section-id` attribute so it can't leak across sections.
         const payload = migrated.payload as { presentation?: unknown };
-        const scopedCss = presentationScopedCss(
-          entry.sectionId,
-          (payload?.presentation ?? undefined) as Parameters<typeof presentationScopedCss>[1],
-        );
+        const presentation = (payload?.presentation ?? undefined) as Parameters<typeof presentationScopedCss>[1];
+        const scopedCss = presentationScopedCss(entry.sectionId, presentation);
+        const videoBg = presentationVideoBackground(presentation);
         // Wrap unconditionally (visitor + edit mode). Visitor mode needs the
         // wrapper for scoped CSS targeting; edit mode adds chrome attrs the
-        // selection layer reads. Wrapping is layout-neutral (display: contents).
+        // selection layer reads.
+        //
+        // When a section has a video background, the wrapper becomes a
+        // positioned container (relative + overflow:hidden) and a <video>
+        // is injected as the first child, behind the section content via
+        // z-index. The actual section markup is unchanged.
         return (
           <div
             key={`wrap:${key}`}
@@ -158,9 +162,49 @@ export async function HomepageCmsSections({
             data-section-type-key={entry.sectionTypeKey}
             data-slot-key={entry.slotKey}
             data-sort-order={entry.sortOrder}
+            style={
+              videoBg
+                ? { position: "relative", overflow: "hidden", isolation: "isolate" }
+                : undefined
+            }
           >
             {scopedCss ? (
               <style dangerouslySetInnerHTML={{ __html: scopedCss }} />
+            ) : null}
+            {videoBg ? (
+              <>
+                <video
+                  src={videoBg.src}
+                  poster={videoBg.poster}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    zIndex: -2,
+                    pointerEvents: "none",
+                  }}
+                />
+                {typeof videoBg.overlay === "number" && videoBg.overlay > 0 ? (
+                  <div
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: `rgba(0,0,0,${videoBg.overlay})`,
+                      zIndex: -1,
+                      pointerEvents: "none",
+                    }}
+                  />
+                ) : null}
+              </>
             ) : null}
             {rendered}
           </div>

@@ -214,6 +214,78 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       variant: "grid",
     },
   },
+  marquee: {
+    name: "Marquee — new",
+    props: {
+      items: [
+        { text: "Featured in Vogue" },
+        { text: "Editorial-trained" },
+        { text: "Destination ready" },
+        { text: "Booked through 2026" },
+      ],
+      speed: "medium",
+      direction: "left",
+      separator: "diamond",
+      variant: "text",
+    },
+  },
+  stats: {
+    name: "Stats — new",
+    props: {
+      eyebrow: "By the numbers",
+      headline: "A decade of quiet, considered work.",
+      items: [
+        { value: "12", label: "Years" },
+        { value: "180+", label: "Cities served" },
+        { value: "72", label: "NPS" },
+      ],
+      variant: "row",
+      align: "center",
+    },
+  },
+  faq_accordion: {
+    name: "FAQ — new",
+    props: {
+      eyebrow: "Common questions",
+      headline: "Things people ask before they book.",
+      intro: "Answers to the most common questions. Anything else? Reach out.",
+      items: [
+        {
+          question: "What's included in a booking?",
+          answer:
+            "All sessions include scouting, scheduling, and a single revision round.",
+        },
+        {
+          question: "How quickly can you respond?",
+          answer:
+            "Inquiries are answered within 24 business hours.",
+        },
+        {
+          question: "Do you travel?",
+          answer:
+            "Yes — domestic and international. Travel costs are billed at cost.",
+        },
+      ],
+      variant: "bordered",
+      defaultOpen: -1,
+    },
+  },
+  split_screen: {
+    name: "Split — new",
+    props: {
+      eyebrow: "Our approach",
+      headline: "Quiet, unhurried, in the same key.",
+      body:
+        "We build short, deliberate teams around your story — never overstaffed, never anonymous. Each booking is led by a single concierge from inquiry to wrap.",
+      primaryCta: { label: "See our work", href: "/work" },
+      imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552",
+      imageAlt: "Editorial portrait",
+      side: "image-left",
+      variant: "50-50",
+      verticalAlign: "center",
+      stickyMedia: false,
+    },
+  },
 };
 
 export function getLibraryDefault(

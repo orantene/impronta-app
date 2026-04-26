@@ -4,6 +4,7 @@ import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
+import { LinkPicker } from "../shared/LinkPicker";
 import type { CtaBannerV1 } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -102,16 +103,14 @@ export function CtaBannerEditor({
               })
             }
           />
-          <input
-            className={INPUT}
-            placeholder="Link (e.g. /contact)"
+          <LinkPicker
             value={value.primaryCta?.href ?? ""}
-            onChange={(e) =>
+            onChange={(next) =>
               patch({
                 primaryCta: value.primaryCta
-                  ? { ...value.primaryCta, href: e.target.value }
-                  : e.target.value
-                    ? { label: "CTA", href: e.target.value }
+                  ? { ...value.primaryCta, href: next }
+                  : next
+                    ? { label: "CTA", href: next }
                     : undefined,
               })
             }
@@ -134,14 +133,12 @@ export function CtaBannerEditor({
               })
             }
           />
-          <input
-            className={INPUT}
-            placeholder="Link"
+          <LinkPicker
             value={value.secondaryCta?.href ?? ""}
-            onChange={(e) =>
+            onChange={(next) =>
               patch({
                 secondaryCta: value.secondaryCta
-                  ? { ...value.secondaryCta, href: e.target.value }
+                  ? { ...value.secondaryCta, href: next }
                   : undefined,
               })
             }

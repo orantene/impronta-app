@@ -56,6 +56,18 @@ export function InlineEditor() {
     rect: DOMRect;
   } | null>(null);
   const [banner, setBanner] = useState<Banner>({ kind: "none" });
+  // Phase 2 — floating toolbar shown above the active text selection while
+  // an inline edit is in progress. Three actions:
+  //   - Accent: wrap selection in `{accent}...{/accent}` (renderInlineRich
+  //     turns it into <em class="accent">). Output stays plain text in the
+  //     schema, so no schema change is needed.
+  //   - Plain: strip surrounding `{accent}...{/accent}` from selection.
+  //   - Link: prompt for URL, wrap in `[text](url)` — sections that opt
+  //     into Markdown links can render them; others ignore the syntax.
+  const [toolbar, setToolbar] = useState<{
+    rect: DOMRect;
+    el: HTMLElement;
+  } | null>(null);
 
   // Auto-dismiss info/error banners after 4s.
   useEffect(() => {
@@ -169,6 +181,21 @@ export function InlineEditor() {
       if (!original) return;
       el.setAttribute("data-inline-editing", "1");
       el.setAttribute("contenteditable", "true");
+      // Toolbar tracks the active edit element. It positions itself above
+      // the current selection range; we update on selectionchange.
+      setToolbar({ rect: el.getBoundingClientRect(), el });
+      const onSelChange = () => {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        if (!el.contains(range.commonAncestorContainer)) return;
+        const r = range.getBoundingClientRect();
+        // Empty (caret) selection collapses to a 0-width rect; fall back
+        // to the whole element so the toolbar stays anchored.
+        const useRect = r.width === 0 && r.height === 0 ? el.getBoundingClientRect() : r;
+        setToolbar({ rect: useRect, el });
+      };
+      document.addEventListener("selectionchange", onSelChange);
       // Match the selection ring's ink palette so the active text edit reads
       // as the SAME editor chrome the operator just clicked into, not a
       // secondary indicator in a different color family.
@@ -226,6 +253,8 @@ export function InlineEditor() {
         el.style.removeProperty("cursor");
         el.removeEventListener("keydown", onKey);
         el.removeEventListener("blur", onBlur);
+        document.removeEventListener("selectionchange", onSelChange);
+        setToolbar(null);
       };
       el.addEventListener("keydown", onKey);
       el.addEventListener("blur", onBlur);
@@ -387,6 +416,61 @@ export function InlineEditor() {
         </div>
       ) : null}
 
+      {toolbar ? (
+        <div
+          data-edit-overlay="inline-toolbar"
+          // Prevent the toolbar's own mousedown from blurring the
+          // contentEditable element (which would commit + tear down).
+          onMouseDown={(e) => e.preventDefault()}
+          style={{
+            position: "fixed",
+            top: Math.max(toolbar.rect.top - 40, 60),
+            left: Math.min(
+              Math.max(toolbar.rect.left + toolbar.rect.width / 2 - 110, 8),
+              window.innerWidth - 228,
+            ),
+            zIndex: 120,
+          }}
+          className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-zinc-900/95 px-1.5 py-1 text-white shadow-xl backdrop-blur"
+        >
+          <ToolbarButton
+            label="Accent"
+            title="Wrap selection in accent style"
+            onClick={() => wrapSelection("{accent}", "{/accent}")}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M19 4 L8 19" />
+              <path d="M5 19 L8 19" />
+              <path d="M16 4 L19 4" />
+            </svg>
+          </ToolbarButton>
+          <ToolbarButton
+            label="Plain"
+            title="Strip accent markers from selection"
+            onClick={() => stripAccentMarkers()}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M5 12 L19 12" />
+            </svg>
+          </ToolbarButton>
+          <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.18)" }} />
+          <ToolbarButton
+            label="Link"
+            title="Wrap selection as a Markdown link"
+            onClick={() => {
+              const url = window.prompt("Link URL (https://…)") ?? "";
+              if (!url.trim()) return;
+              wrapSelection("[", `](${url.trim()})`);
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          </ToolbarButton>
+        </div>
+      ) : null}
+
       <MediaPickerDialog
         tenantId={tenantId}
         open={mediaOpen}
@@ -398,6 +482,73 @@ export function InlineEditor() {
       />
     </>
   );
+}
+
+function ToolbarButton({
+  children,
+  label,
+  title,
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={label}
+      onClick={onClick}
+      className="inline-flex h-7 cursor-pointer items-center justify-center rounded-full px-2 text-[10.5px] font-semibold uppercase tracking-[0.06em] transition hover:bg-white/10"
+      style={{ background: "transparent", border: "none", color: "white" }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Wrap the current selection inside the active contentEditable element with
+ * `before` and `after` strings. Falls back to inserting at the caret if the
+ * selection is collapsed.
+ */
+function wrapSelection(before: string, after: string) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+  const text = sel.toString();
+  if (text.length === 0) {
+    // Insert markers at caret so the operator can type inside.
+    const node = document.createTextNode(`${before}${after}`);
+    range.insertNode(node);
+    return;
+  }
+  const replacement = document.createTextNode(`${before}${text}${after}`);
+  range.deleteContents();
+  range.insertNode(replacement);
+  // Re-select the inserted text so the toolbar stays anchored.
+  const newRange = document.createRange();
+  newRange.setStartAfter(replacement);
+  newRange.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(newRange);
+}
+
+/**
+ * Strip `{accent}` / `{/accent}` markers from the active editable element's
+ * text content. We rewrite the whole element rather than try to surgically
+ * unwrap a selection range because the markers are paired and unbalanced
+ * surgery would corrupt the doc.
+ */
+function stripAccentMarkers() {
+  const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
+  if (!el) return;
+  const before = el.textContent ?? "";
+  const after = before.replace(/\{accent\}/g, "").replace(/\{\/accent\}/g, "");
+  if (before === after) return;
+  el.textContent = after;
 }
 
 /**

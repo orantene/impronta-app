@@ -196,6 +196,43 @@ export const sectionPresentationSchema = z
 
     /** Per-section custom CSS, scoped to the section root via `.cms-section[data-section-id="..."] { ... }`. */
     customCss: z.string().optional(),
+
+    /**
+     * ── Phase 4 (compositional freedom) ──────────────────────────────
+     *
+     * fullBleed: the section's content escapes its parent container width
+     *   (max-width: none, padding: 0). Useful for hero strips that need to
+     *   touch the viewport edge regardless of the page's container token.
+     *
+     * overlapTop / overlapBottom: pull the section UP (negative margin-top)
+     *   or push the next section UP (negative margin-bottom). Pixel value
+     *   in CustomLength so the operator picks units. Used to overlap a
+     *   hero with the section below it, magazine-style.
+     *
+     * stickyTop: the section sticks to the top of the viewport while the
+     *   user scrolls past it (within its parent stacking context). Number
+     *   value in pixels = the offset from the top.
+     */
+    fullBleed: z.boolean().optional(),
+    overlapTop: customLengthSchema.optional(),
+    overlapBottom: customLengthSchema.optional(),
+    stickyTop: z.number().int().nonnegative().optional(),
+
+    /**
+     * ── Phase 5 (motion + backgrounds) ───────────────────────────────
+     *
+     * videoBackground: render a muted, looped, autoplaying <video> behind
+     *   the section content. The src is a full URL (operator picks via
+     *   asset library or pastes a CDN URL). When set, the section gets
+     *   a `position: relative` wrapper with the video absolutely
+     *   positioned below the content layer.
+     * videoPoster: optional poster image shown while video loads.
+     * videoOverlay: optional dark overlay opacity (0-1) for legibility
+     *   when text sits over a busy video.
+     */
+    videoBackground: z.string().url().optional(),
+    videoPoster: z.string().url().optional(),
+    videoOverlay: z.number().min(0).max(1).optional(),
   })
   .optional();
 
@@ -303,7 +340,55 @@ export function presentationInlineStyles(
   if (p.containerWidthCustom) {
     out["--cms-section-container-width"] = fmt(p.containerWidthCustom);
   }
+  // Phase 4 — composition.
+  if (p.fullBleed) {
+    out.maxWidth = "none";
+    out.width = "100%";
+  }
+  if (p.overlapTop) out.marginTop = `-${fmt(p.overlapTop)}`;
+  if (p.overlapBottom) out.marginBottom = `-${fmt(p.overlapBottom)}`;
+  if (typeof p.stickyTop === "number") {
+    out.position = "sticky";
+    out.top = `${p.stickyTop}px`;
+    out.zIndex = "1";
+  }
+  // Phase 5 — video background marker. The actual <video> element is
+  // emitted by the wrapper renderer; here we just ensure the section root
+  // is a positioned ancestor so the video can absolutely-position itself
+  // behind the content.
+  if (p.videoBackground) {
+    out.position = out.position ?? "relative";
+    out.overflow = "hidden";
+  }
   return out;
+}
+
+/**
+ * Phase 5 — render the optional video background, dark overlay, and poster
+ * for a section. Returns the JSX to inject INSIDE the section wrapper,
+ * before the content. The wrapper must be `position: relative` (set
+ * automatically by `presentationInlineStyles` when videoBackground is set).
+ *
+ * The video is muted + autoplay + loop + playsInline so it works under
+ * Safari's autoplay policy. We feature-detect prefers-reduced-motion at
+ * runtime; when the user prefers reduced motion, we fall back to the
+ * poster image and skip the <video> entirely.
+ */
+export interface VideoBackgroundProps {
+  src: string;
+  poster?: string;
+  overlay?: number;
+}
+
+export function presentationVideoBackground(
+  p?: SectionPresentation,
+): VideoBackgroundProps | null {
+  if (!p?.videoBackground) return null;
+  return {
+    src: p.videoBackground,
+    poster: p.videoPoster,
+    overlay: p.videoOverlay,
+  };
 }
 
 /**

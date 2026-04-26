@@ -580,6 +580,93 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
         </div>
       </section>
 
+      {/* ── Composition (Phase 4) ────────────────────────────────────── */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Composition</div>
+        </div>
+        <label
+          className="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-2"
+          style={{
+            background: CHROME.paper,
+            border: `1px solid ${CHROME.line}`,
+          }}
+        >
+          <span className="flex flex-col">
+            <span className="text-[11.5px] font-semibold text-zinc-700">
+              Full bleed
+            </span>
+            <span className="text-[10.5px] text-zinc-500">
+              Escape the page container — touch viewport edges.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={Boolean(presentation.fullBleed)}
+            onChange={(e) => onPatch({ fullBleed: e.target.checked || undefined })}
+            className="h-4 w-4 cursor-pointer"
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Overlap top</span>
+            <NumberUnit
+              value={customVal("overlapTop")}
+              onChange={(next) => onPatch({ overlapTop: next ?? undefined })}
+              units={SPACING_UNITS}
+              defaultUnit="px"
+              step={4}
+              min={0}
+              placeholder="—"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Overlap bottom</span>
+            <NumberUnit
+              value={customVal("overlapBottom")}
+              onChange={(next) => onPatch({ overlapBottom: next ?? undefined })}
+              units={SPACING_UNITS}
+              defaultUnit="px"
+              step={4}
+              min={0}
+              placeholder="—"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Sticky offset (px)</span>
+          <input
+            type="number"
+            min={0}
+            value={(presentation.stickyTop as number | undefined) ?? ""}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "") {
+                onPatch({ stickyTop: undefined });
+                return;
+              }
+              const n = Number(raw);
+              if (Number.isFinite(n) && n >= 0) onPatch({ stickyTop: n });
+            }}
+            placeholder="—"
+            className="w-full px-2"
+            style={{
+              height: 30,
+              fontSize: 12.5,
+              fontVariantNumeric: "tabular-nums",
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.lineMid}`,
+              borderRadius: 6,
+              color: CHROME.ink,
+              outline: "none",
+            }}
+          />
+          <span className="text-[10.5px] text-zinc-400">
+            Section sticks at this offset while you scroll past it.
+          </span>
+        </div>
+      </section>
+
       {/* ── Alignment ────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

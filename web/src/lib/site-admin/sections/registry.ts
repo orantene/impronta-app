@@ -110,6 +110,43 @@ import {
 import { FeaturedTalentComponent } from "./featured_talent/Component";
 import { FeaturedTalentEditor } from "./featured_talent/Editor";
 
+// ── M9 archetype expansion ───────────────────────────────────────────────
+import { marqueeMeta } from "./marquee/meta";
+import { marqueeMigrations } from "./marquee/migrations";
+import {
+  marqueeSchemasByVersion,
+  type MarqueeV1,
+} from "./marquee/schema";
+import { MarqueeComponent } from "./marquee/Component";
+import { MarqueeEditor } from "./marquee/Editor";
+
+import { statsMeta } from "./stats/meta";
+import { statsMigrations } from "./stats/migrations";
+import {
+  statsSchemasByVersion,
+  type StatsV1,
+} from "./stats/schema";
+import { StatsComponent } from "./stats/Component";
+import { StatsEditor } from "./stats/Editor";
+
+import { faqAccordionMeta } from "./faq_accordion/meta";
+import { faqAccordionMigrations } from "./faq_accordion/migrations";
+import {
+  faqAccordionSchemasByVersion,
+  type FaqAccordionV1,
+} from "./faq_accordion/schema";
+import { FaqAccordionComponent } from "./faq_accordion/Component";
+import { FaqAccordionEditor } from "./faq_accordion/Editor";
+
+import { splitScreenMeta } from "./split_screen/meta";
+import { splitScreenMigrations } from "./split_screen/migrations";
+import {
+  splitScreenSchemasByVersion,
+  type SplitScreenV1,
+} from "./split_screen/schema";
+import { SplitScreenComponent } from "./split_screen/Component";
+import { SplitScreenEditor } from "./split_screen/Editor";
+
 // ── entries ──────────────────────────────────────────────────────────────
 
 export const heroSection: SectionRegistryEntry<HeroV1> = {
@@ -220,6 +257,42 @@ export const featuredTalentSection: SectionRegistryEntry<FeaturedTalentV1> = {
   Editor: FeaturedTalentEditor,
 };
 
+export const marqueeSection: SectionRegistryEntry<MarqueeV1> = {
+  meta: marqueeMeta,
+  currentVersion: 1,
+  schemasByVersion: marqueeSchemasByVersion,
+  migrations: marqueeMigrations,
+  Component: MarqueeComponent,
+  Editor: MarqueeEditor,
+};
+
+export const statsSection: SectionRegistryEntry<StatsV1> = {
+  meta: statsMeta,
+  currentVersion: 1,
+  schemasByVersion: statsSchemasByVersion,
+  migrations: statsMigrations,
+  Component: StatsComponent,
+  Editor: StatsEditor,
+};
+
+export const faqAccordionSection: SectionRegistryEntry<FaqAccordionV1> = {
+  meta: faqAccordionMeta,
+  currentVersion: 1,
+  schemasByVersion: faqAccordionSchemasByVersion,
+  migrations: faqAccordionMigrations,
+  Component: FaqAccordionComponent,
+  Editor: FaqAccordionEditor,
+};
+
+export const splitScreenSection: SectionRegistryEntry<SplitScreenV1> = {
+  meta: splitScreenMeta,
+  currentVersion: 1,
+  schemasByVersion: splitScreenSchemasByVersion,
+  migrations: splitScreenMigrations,
+  Component: SplitScreenComponent,
+  Editor: SplitScreenEditor,
+};
+
 export const SECTION_REGISTRY = {
   hero: heroSection,
   trust_strip: trustStripSection,
@@ -234,6 +307,11 @@ export const SECTION_REGISTRY = {
   press_strip: pressStripSection,
   gallery_strip: galleryStripSection,
   featured_talent: featuredTalentSection,
+  // ── M9 archetype expansion ───────────────────────────────────────────
+  marquee: marqueeSection,
+  stats: statsSection,
+  faq_accordion: faqAccordionSection,
+  split_screen: splitScreenSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;

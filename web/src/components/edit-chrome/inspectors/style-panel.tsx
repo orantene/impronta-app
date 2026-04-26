@@ -171,6 +171,10 @@ export function StylePanel({
   const dividerValue = present("dividerTop");
   const moodValue = root("mood");
   const overlayValue = root("overlay");
+  const videoBackground = present("videoBackground");
+  const videoPoster = present("videoPoster");
+  const videoOverlayRaw = (presentation as Record<string, unknown>).videoOverlay;
+  const videoOverlay = typeof videoOverlayRaw === "number" ? videoOverlayRaw : 0;
 
   const [colorAnchor, setColorAnchor] = useState<HTMLButtonElement | null>(null);
   const [colorOpen, setColorOpen] = useState(false);
@@ -396,6 +400,104 @@ export function StylePanel({
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* ── Video background (Phase 5 — motion + backgrounds) ────────── */}
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Video background</div>
+          {videoBackground ? (
+            <button
+              type="button"
+              onClick={() =>
+                onPatch({
+                  __presentation: {
+                    videoBackground: undefined,
+                    videoPoster: undefined,
+                    videoOverlay: undefined,
+                  },
+                })
+              }
+              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: CHROME.muted,
+                padding: 0,
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Video URL</span>
+          <input
+            type="url"
+            value={videoBackground}
+            onChange={(e) =>
+              onPatch({
+                __presentation: { videoBackground: e.target.value || undefined },
+              })
+            }
+            placeholder="https://… (mp4 / webm)"
+            className="w-full px-2"
+            style={{
+              height: 30,
+              fontSize: 12,
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.lineMid}`,
+              borderRadius: 6,
+              color: CHROME.ink,
+              outline: "none",
+            }}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Poster image (fallback)</span>
+          <input
+            type="url"
+            value={videoPoster}
+            onChange={(e) =>
+              onPatch({
+                __presentation: { videoPoster: e.target.value || undefined },
+              })
+            }
+            placeholder="https://…"
+            className="w-full px-2"
+            style={{
+              height: 30,
+              fontSize: 12,
+              fontFamily: "ui-monospace, SFMono-Regular, monospace",
+              background: CHROME.surface2,
+              border: `1px solid ${CHROME.lineMid}`,
+              borderRadius: 6,
+              color: CHROME.ink,
+              outline: "none",
+            }}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>Dark overlay ({Math.round(videoOverlay * 100)}%)</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={Math.round(videoOverlay * 100)}
+            onChange={(e) => {
+              const v = Number(e.target.value) / 100;
+              onPatch({
+                __presentation: { videoOverlay: v > 0 ? v : undefined },
+              });
+            }}
+            className="w-full cursor-pointer"
+          />
+          <span className="text-[10.5px] text-zinc-400">
+            For text legibility over busy footage.
+          </span>
         </div>
       </section>
 
