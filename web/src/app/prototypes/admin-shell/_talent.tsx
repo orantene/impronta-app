@@ -718,7 +718,6 @@ function TalentTodayPage() {
   const profile = MY_TALENT_PROFILE;
   const needsAnswer = TALENT_REQUESTS.filter((r) => r.status === "needs-answer");
   const upcoming = TALENT_BOOKINGS.filter((b) => b.status === "confirmed").slice(0, 3);
-  // T3: derive paid-this-month from payoutDate field
   const paidThisMonth = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
   const paidThisMonthTotal = paidThisMonth.reduce((sum, e) => {
     const num = parseFloat(e.amount.replace(/[^0-9.]/g, ""));
@@ -727,218 +726,45 @@ function TalentTodayPage() {
   const paidThisMonthCurrency = paidThisMonth[0]?.amount.match(/[€£$]/)?.[0] ?? "€";
   const mine = myInquiries();
   const mineNeedsMe = mine.filter((i) => myStatusOn(i) === "pending");
-  const mineUnread = mine.reduce((sum, i) => sum + unreadOnInquiry(i), 0);
+  const mineInProgress = mine.filter((i) => myStatusOn(i) !== "pending");
+  const pendingCount = mineNeedsMe.length + needsAnswer.length;
+  // Top 2 pending names for context-aware hero copy.
+  const pendingNames: string[] = [
+    ...needsAnswer.map((r) => r.client),
+    ...mineNeedsMe.map((i) => i.clientName),
+  ].slice(0, 2);
 
   return (
     <>
-      <PageHeader
-        eyebrow={`Hi ${profile.name.split(" ")[0]}`}
-        title="Today"
-        subtitle="Offers, holds and upcoming bookings — the things your agencies need an answer on right now."
-        actions={
-          <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
-            Mark unavailable
-          </SecondaryButton>
-        }
+      <TalentTodayHero
+        firstName={profile.name.split(" ")[0]}
+        pendingCount={pendingCount}
+        pendingNames={pendingNames}
+        upcomingCount={upcoming.length}
+        nextBookingDate={upcoming[0]?.startDate}
+        paidThisMonth={paidThisMonthTotal}
+        paidCurrency={paidThisMonthCurrency}
+        profileCompleteness={profile.completeness}
+        onReplyNow={() => setTalentPage("inbox")}
+        onMarkUnavailable={() => openDrawer("talent-block-dates")}
       />
 
-      <TalentOnboardingArc />
-      <TalentFunnelCard />
-      <div style={{ height: 12 }} />
-      <TalentAnalyticsCard />
-      <div style={{ height: 12 }} />
-      <Grid cols="4">
-        <StatusCard
-          label="Awaiting your answer"
-          value={mineNeedsMe.length + needsAnswer.length}
-          caption="offers + holds"
-          tone="coral"
-          icon="bolt"
-          onClick={() => setTalentPage("inbox")}
+      {/* Needs reply — the ONLY action-needed feed on the page.
+          Coral edge container, mixed offers/holds/inquiry-pending in one
+          single-grain list. Replaces the prior Needs-your-answer card +
+          Needs-your-attention feed (which mixed action with in-progress
+          and triple-counted the same offers in three places). */}
+      {pendingCount > 0 && (
+        <NeedsReplySection
+          requests={needsAnswer}
+          inquiries={mineNeedsMe}
+          onSeeAll={() => setTalentPage("inbox")}
         />
-        <StatusCard
-          label="Active conversations"
-          value={mineUnread}
-          caption={pluralize(mineUnread, "unread message", "unread messages", false)}
-          tone={mineUnread > 0 ? "indigo" : "dim"}
-          icon="mail"
-          onClick={() => setTalentPage("inbox")}
-        />
-        <StatusCard
-          label="Upcoming"
-          value={upcoming.length}
-          caption={pluralize(upcoming.length, "confirmed booking", "confirmed bookings", false)}
-          tone="green"
-          icon="calendar"
-          onClick={() => setTalentPage("calendar")}
-        />
-        <StatusCard
-          label="Paid this month"
-          value={`${paidThisMonthCurrency}${paidThisMonthTotal.toLocaleString()}`}
-          caption={`${pluralize(paidThisMonth.length, "payout", "payouts")} received`}
-          tone="green"
-          icon="credit"
-          onClick={() => setTalentPage("activity")}
-        />
-      </Grid>
-
-      <div style={{ height: 24 }} />
-
-      {/* What needs answer */}
-      <Grid cols="2">
-        <PrimaryCard
-          title="Needs your answer"
-          description={
-            needsAnswer.length === 0
-              ? "Nothing waiting on you."
-              : `${pluralize(needsAnswer.length, "request", "requests")} ${needsAnswer.length === 1 ? "is" : "are"} waiting on you.`
-          }
-          icon={<Icon name="bolt" size={14} stroke={1.7} />}
-          affordance="Open inbox"
-          meta={<>{pluralize(needsAnswer.length, "pending", "pending", true)}</>}
-          onClick={() => openDrawer("talent-today-pulse")}
-          // Action-needed surface: coral edge on ink-led white, not forest fill.
-          // Forest is reserved for brand identity moments (top-nav, primary CTAs,
-          // focus rings) — using it here as a "do this" cue dilutes both signals.
-          variant={needsAnswer.length > 0 ? "action" : "primary"}
-        />
-        <PrimaryCard
-          title="Profile completeness"
-          description={
-            profile.completeness >= 100
-              ? "Your profile is fully filled out."
-              : "Agencies favour complete profiles."
-          }
-          icon={<Icon name="user" size={14} stroke={1.7} />}
-          affordance="Finish my profile"
-          meta={<>{profile.completeness}% complete</>}
-          onClick={() => openDrawer("talent-profile-edit")}
-        >
-          {profile.completeness < 100 && (
-            <ul
-              style={{
-                listStyle: "none",
-                margin: "8px 0 0",
-                padding: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-              }}
-            >
-              {/* Mock "what's missing" list — in production read from the
-                  profile shape itself. Surfaces the next-action so users
-                  don't have to guess what 16% means. */}
-              {[
-                { id: "polaroids", label: "5 polaroids (you have 3)" },
-                { id: "rate-card", label: "Rate card" },
-                { id: "showreel", label: "Showreel link" },
-              ].map((m) => (
-                <li
-                  key={m.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 12,
-                    color: COLORS.inkMuted,
-                    fontFamily: FONTS.body,
-                  }}
-                >
-                  <span
-                    aria-hidden
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: "50%",
-                      background: "rgba(11,11,13,0.18)",
-                      flexShrink: 0,
-                    }}
-                  />
-                  {m.label}
-                </li>
-              ))}
-            </ul>
-          )}
-        </PrimaryCard>
-      </Grid>
-
-      <div style={{ height: 12 }} />
-
-      {/* T4: Merged priority list — inquiries + holds/castings in one ranked section */}
-      {(mine.length > 0 || needsAnswer.length > 0) && (
-        <section
-          style={{
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            padding: "16px 18px 4px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 6,
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: COLORS.ink,
-                  letterSpacing: -0.05,
-                }}
-              >
-                Needs your attention
-              </div>
-              <div
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 12.5,
-                  color: COLORS.inkMuted,
-                  marginTop: 2,
-                }}
-              >
-                Inquiries, offers, holds and castings — all in one place, sorted by urgency.
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setTalentPage("inbox")}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: COLORS.ink,
-                fontFamily: FONTS.body,
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-                padding: 0,
-                flexShrink: 0,
-              }}
-            >
-              See all →
-            </button>
-          </div>
-          {/* Pending inquiries first (need the talent's answer) */}
-          {mineNeedsMe.slice(0, 3).map((i) => (
-            <InquiryRow key={i.id} inquiry={i} />
-          ))}
-          {/* Quick-decision holds/castings */}
-          {needsAnswer.map((r) => <RequestRow key={r.id} request={r} />)}
-          {/* Remaining active inquiries (no pending action needed from talent) */}
-          {mine.filter((i) => myStatusOn(i) !== "pending").slice(0, 2).map((i) => (
-            <InquiryRow key={i.id} inquiry={i} />
-          ))}
-        </section>
       )}
 
       <div style={{ height: 12 }} />
 
-      {/* Upcoming bookings preview */}
+      {/* Upcoming + earnings — money & calendar pulse in one row */}
       <Grid cols="2">
         <section
           style={{
@@ -948,56 +774,16 @@ function TalentTodayPage() {
             padding: "16px 18px 6px",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              marginBottom: 4,
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: COLORS.ink,
-                  letterSpacing: -0.05,
-                }}
-              >
-                Next on the calendar
-              </div>
-              <div
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 12.5,
-                  color: COLORS.inkMuted,
-                  marginTop: 2,
-                }}
-              >
-                {upcoming.length === 0
-                  ? "No confirmed bookings yet."
-                  : `${upcoming.length} upcoming · ${upcoming[0]?.startDate}`}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setTalentPage("calendar")}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: COLORS.ink,
-                fontFamily: FONTS.body,
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-                padding: 0,
-              }}
-            >
-              See calendar →
-            </button>
-          </div>
+          <SectionHeader
+            title="Next on the calendar"
+            subtitle={
+              upcoming.length === 0
+                ? "No confirmed bookings yet."
+                : `${upcoming.length} upcoming · ${upcoming[0]?.startDate}`
+            }
+            actionLabel="See calendar →"
+            onAction={() => setTalentPage("calendar")}
+          />
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             {upcoming.map((b) => (
               <BookingRow key={b.id} booking={b} />
@@ -1006,11 +792,10 @@ function TalentTodayPage() {
         </section>
         <SecondaryCard
           title="Recent earnings"
-          description={`${paidThisMonth.length} payout${paidThisMonth.length !== 1 ? "s" : ""} landed this month.`}
+          description={`${paidCurrencyAndTotal(paidThisMonthCurrency, paidThisMonthTotal)} this month · ${paidThisMonth.length} payout${paidThisMonth.length !== 1 ? "s" : ""}.`}
           affordance="See activity"
           onClick={() => setTalentPage("activity")}
         >
-          {/* T8: Show payout date (when money landed), not just work date */}
           <div style={{ marginTop: 4 }}>
             {EARNINGS_ROWS.slice(0, 3).map((e) => (
               <div
@@ -1037,7 +822,397 @@ function TalentTodayPage() {
           </div>
         </SecondaryCard>
       </Grid>
+
+      <div style={{ height: 12 }} />
+
+      {/* Pipeline status — what's being considered (no action needed from
+          you on these; that's why they're below "Needs reply"). */}
+      {mineInProgress.length > 0 && <TalentFunnelCard />}
+
+      <div style={{ height: 12 }} />
+
+      {/* Profile views — analytics last (informational, not actionable). */}
+      <TalentAnalyticsCard />
     </>
+  );
+}
+
+// ─── Talent Today helpers ──────────────────────────────────────────
+
+function paidCurrencyAndTotal(currency: string, total: number) {
+  return `${currency}${total.toLocaleString()}`;
+}
+
+/**
+ * Compact section header used across Talent Today blocks.
+ * Title + subtitle on the left, optional action link on the right.
+ */
+function SectionHeader({
+  title,
+  subtitle,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  subtitle?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "baseline",
+        justifyContent: "space-between",
+        marginBottom: 4,
+      }}
+    >
+      <div>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 14,
+            fontWeight: 600,
+            color: COLORS.ink,
+            letterSpacing: -0.05,
+          }}
+        >
+          {title}
+        </div>
+        {subtitle && (
+          <div
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+              marginTop: 2,
+            }}
+          >
+            {subtitle}
+          </div>
+        )}
+      </div>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: COLORS.ink,
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+            padding: 0,
+            flexShrink: 0,
+          }}
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Talent Today hero — context-aware single-line headline + entry actions
+ * + a slim micro-stat strip. Replaces the PageHeader + 4-tile metric grid
+ * + Needs-your-answer card. The hero TELLS the user the headline reality
+ * ("Mango and Bvlgari are waiting on you") rather than making them piece
+ * it together from numbers.
+ *
+ * The headline is the single most important pixel on the page. It changes
+ * meaning based on state, which is what makes the page feel intelligent.
+ */
+function TalentTodayHero({
+  firstName,
+  pendingCount,
+  pendingNames,
+  upcomingCount,
+  nextBookingDate,
+  paidThisMonth,
+  paidCurrency,
+  profileCompleteness,
+  onReplyNow,
+  onMarkUnavailable,
+}: {
+  firstName: string;
+  pendingCount: number;
+  pendingNames: string[];
+  upcomingCount: number;
+  nextBookingDate?: string;
+  paidThisMonth: number;
+  paidCurrency: string;
+  profileCompleteness: number;
+  onReplyNow: () => void;
+  onMarkUnavailable: () => void;
+}) {
+  // Context-aware copy. The page reads differently based on state — that's
+  // the whole point. A flat "Today" title every visit is wallpaper.
+  let headline: string;
+  let subline: string;
+  if (pendingCount === 0) {
+    headline = "You're all caught up.";
+    subline =
+      upcomingCount > 0
+        ? `Next up: ${nextBookingDate ?? "no bookings yet"}.`
+        : "Nothing on the calendar yet.";
+  } else if (pendingCount === 1) {
+    headline = `${pendingNames[0]} is waiting on you.`;
+    subline = "Reply to keep the inquiry alive.";
+  } else if (pendingCount === 2) {
+    headline = `${pendingNames[0]} and ${pendingNames[1]} are waiting on you.`;
+    subline = `${pendingCount} replies needed today.`;
+  } else {
+    headline = `${pendingCount} things need your reply.`;
+    subline = "Top of inbox first.";
+  }
+
+  return (
+    <section
+      style={{
+        marginBottom: 16,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 24,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 600,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted,
+              marginBottom: 4,
+            }}
+          >
+            Hi {firstName}
+          </div>
+          <h1
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 30,
+              fontWeight: 500,
+              letterSpacing: -0.6,
+              color: COLORS.ink,
+              margin: 0,
+              lineHeight: 1.15,
+            }}
+          >
+            {headline}
+          </h1>
+          <div
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 13.5,
+              color: COLORS.inkMuted,
+              marginTop: 6,
+              lineHeight: 1.5,
+            }}
+          >
+            {subline}
+          </div>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}
+        >
+          {pendingCount > 0 && (
+            <PrimaryButton onClick={onReplyNow}>Reply now →</PrimaryButton>
+          )}
+          <SecondaryButton onClick={onMarkUnavailable}>
+            Mark unavailable
+          </SecondaryButton>
+        </div>
+      </div>
+
+      {/* Micro-stat strip — slim row of secondary numbers. Replaces the
+          old 4-tile grid; lighter, scannable in one glance. Each chip is
+          monochrome with a micro-tone hue carrying the semantic. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0,
+          padding: "10px 14px",
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 10,
+        }}
+      >
+        <HeroStat
+          label="Confirmed"
+          value={String(upcomingCount)}
+          caption={
+            nextBookingDate ? `next ${nextBookingDate}` : "none yet"
+          }
+          tone="success"
+        />
+        <HeroStatDivider />
+        <HeroStat
+          label="Paid this month"
+          value={`${paidCurrency}${paidThisMonth.toLocaleString()}`}
+          caption=""
+          tone="success"
+        />
+        <HeroStatDivider />
+        <HeroStat
+          label="Profile"
+          value={`${profileCompleteness}%`}
+          caption={profileCompleteness < 100 ? "complete it" : "complete"}
+          tone={profileCompleteness < 100 ? "indigo" : "success"}
+        />
+      </div>
+    </section>
+  );
+}
+
+function HeroStat({
+  label,
+  value,
+  caption,
+  tone,
+}: {
+  label: string;
+  value: string;
+  caption: string;
+  tone: "success" | "indigo" | "ink";
+}) {
+  const fg =
+    tone === "success" ? COLORS.green : tone === "indigo" ? COLORS.indigo : COLORS.ink;
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        minWidth: 0,
+      }}
+    >
+      <div
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 10.5,
+          fontWeight: 600,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+        }}
+      >
+        {label}
+      </div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <span
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 18,
+            fontWeight: 500,
+            color: fg,
+            letterSpacing: -0.2,
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {value}
+        </span>
+        {caption && (
+          <span
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              color: COLORS.inkDim,
+            }}
+          >
+            {caption}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function HeroStatDivider() {
+  return (
+    <span
+      aria-hidden
+      style={{
+        width: 1,
+        height: 28,
+        background: COLORS.borderSoft,
+        margin: "0 14px",
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+/**
+ * Single-grain "Needs reply" list. Coral edge to mark action-needed.
+ * All rows here require the talent's reply — no in-progress pipeline,
+ * no completed updates, no analytics. One section, one job.
+ */
+function NeedsReplySection({
+  requests,
+  inquiries,
+  onSeeAll,
+}: {
+  requests: TalentRequest[];
+  inquiries: RichInquiry[];
+  onSeeAll: () => void;
+}) {
+  const total = requests.length + inquiries.length;
+  return (
+    <section
+      style={{
+        position: "relative",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        padding: "16px 18px 6px",
+        paddingLeft: 22,
+        marginBottom: 12,
+      }}
+    >
+      {/* Coral edge — action-needed signal */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 12,
+          bottom: 12,
+          left: 0,
+          width: 3,
+          borderRadius: "0 3px 3px 0",
+          background: COLORS.coral,
+        }}
+      />
+      <SectionHeader
+        title="Needs your reply"
+        subtitle={`${total} ${total === 1 ? "thing" : "things"} waiting on you · sorted by urgency`}
+        actionLabel="Open inbox →"
+        onAction={onSeeAll}
+      />
+      {requests.map((r) => (
+        <RequestRow key={r.id} request={r} />
+      ))}
+      {inquiries.map((i) => (
+        <InquiryRow key={i.id} inquiry={i} />
+      ))}
+    </section>
   );
 }
 
