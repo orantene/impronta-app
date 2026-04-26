@@ -1325,8 +1325,11 @@ export function StatusCard({
       : tone === "amber"
         ? COLORS.amber
         : COLORS.ink;
+  // Combined a11y label so screen readers hear the metric in plain
+  // language (Wave 0 audit fix).
+  const ariaLabel = `${label}: ${value}${caption ? `, ${caption}` : ""}`;
   return (
-    <CardFrame onClick={onClick} variant="status">
+    <CardFrame onClick={onClick} variant="status" ariaLabel={onClick ? ariaLabel : undefined}>
       <div
         style={{
           padding: 20,

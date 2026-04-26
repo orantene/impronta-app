@@ -406,25 +406,34 @@ function HqStatCard({
   tone?: "ink" | "amber" | "green" | "red" | "dim";
   onClick?: () => void;
 }) {
+  // Wave 0 audit fixes:
+  // - label: uppercase + 1.2 letter-spacing → sentence-case + 0.05 to
+  //   match StatusCard's quiet-eyebrow pattern
+  // - hover: was missing; now mirrors StatusCard via CardFrame (border
+  //   + shadow lift on interactive variants)
+  // - element: was always <button>, even when onClick was undefined;
+  //   now switches to <div> so screen readers don't announce a no-op
+  //   button
+  // - aria-label: combined label + value + caption for screen-reader
+  //   parity with StatusCard
   const accent =
     tone === "amber" ? HQ.amber : tone === "green" ? HQ.green : tone === "red" ? HQ.red : tone === "dim" ? HQ.inkDim : HQ.ink;
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: HQ.card,
-        border: `1px solid ${HQ.borderSoft}`,
-        borderRadius: 12,
-        padding: 16,
-        textAlign: "left",
-        cursor: onClick ? "pointer" : "default",
-        fontFamily: FONTS.body,
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-      }}
-    >
-      <span style={{ fontSize: 10.5, color: HQ.inkMuted, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase" }}>
+  const shared: React.CSSProperties = {
+    background: HQ.card,
+    border: `1px solid ${HQ.borderSoft}`,
+    borderRadius: 12,
+    padding: 16,
+    textAlign: "left",
+    fontFamily: FONTS.body,
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+    minHeight: 116,
+    transition: "border-color .12s, box-shadow .12s",
+  };
+  const inner = (
+    <>
+      <span style={{ fontSize: 11.5, color: HQ.inkMuted, fontWeight: 500, letterSpacing: 0.05 }}>
         {label}
       </span>
       <span
@@ -435,6 +444,7 @@ function HqStatCard({
           letterSpacing: -0.6,
           color: accent,
           lineHeight: 1,
+          fontVariantNumeric: "tabular-nums",
         }}
       >
         {value}
@@ -442,8 +452,29 @@ function HqStatCard({
       {caption && (
         <span style={{ fontSize: 11.5, color: HQ.inkMuted }}>{caption}</span>
       )}
-    </button>
+    </>
   );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`${label}: ${typeof value === "string" || typeof value === "number" ? value : ""}${caption ? `, ${caption}` : ""}`}
+        style={{ ...shared, cursor: "pointer" }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = HQ.border;
+          e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.18)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = HQ.borderSoft;
+          e.currentTarget.style.boxShadow = "none";
+        }}
+      >
+        {inner}
+      </button>
+    );
+  }
+  return <div style={shared}>{inner}</div>;
 }
 
 // ─── Dark cards used across pages ────────────────────────────────
