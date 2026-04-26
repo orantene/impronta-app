@@ -229,10 +229,17 @@ export const PAGE_META: Record<WorkspacePage, { label: string }> = {
   overview: { label: "Overview" },
   inbox: { label: "Inbox" },
   calendar: { label: "Calendar" },
-  work: { label: "Pipeline" },
+  // "Pipeline" was confusing to non-sales users (sales jargon for
+  // "work-in-progress organized by stage"). "Workflow" reads naturally:
+  // it's the set of inquiries currently flowing through the agency,
+  // grouped by where they're stuck. Inbox is the personal "needs me"
+  // filter; Workflow is the team-wide view.
+  work: { label: "Workflow" },
   talent: { label: "Talent" },
   clients: { label: "Clients" },
-  site: { label: "Storefront" },
+  // "Storefront" is industry jargon — the public site that clients land
+  // on. "Public site" is plain English and matches what the user sees.
+  site: { label: "Public site" },
   billing: { label: "Billing" },
   workspace: { label: "Settings" },
 };
@@ -1508,10 +1515,10 @@ export type PlanLadderRow = {
 };
 
 export const PLAN_LADDER_HEADER: Record<Plan, { price: string; idealFor: string }> = {
-  free: { price: "$0", idealFor: "First roster · solo coordinator · open ecosystem" },
-  studio: { price: "$79/mo", idealFor: "Private inbox · own client list · early team" },
-  agency: { price: "$149/mo", idealFor: "Branded portal · scaled coordination · negotiation" },
-  network: { price: "$899/mo", idealFor: "Multi-brand hubs · network distribution · partner API" },
+  free: { price: "$0", idealFor: "Your first roster, a single coordinator, listed on the public directory." },
+  studio: { price: "$79/mo", idealFor: "Private inbox, your own client list, room for a couple of teammates." },
+  agency: { price: "$149/mo", idealFor: "Branded site, team workflows, and negotiation tools." },
+  network: { price: "$899/mo", idealFor: "Multi-brand hubs, network distribution, and partner API access." },
 };
 
 export const PLAN_LADDER: PlanLadderRow[] = [
@@ -1539,8 +1546,8 @@ export const PLAN_LADDER: PlanLadderRow[] = [
     dimension: "Distribution",
     why: "Where clients can find you and which doorways stay open.",
     values: {
-      free: "Tulala Discover · public listing",
-      studio: "Tulala Discover + private domain",
+      free: "Public directory listing",
+      studio: "Public directory + custom domain",
       agency: "Branded domain · embedded widgets · API",
       network: "Multi-domain · partner network · sub-tenants",
     },
@@ -1654,7 +1661,7 @@ export const FREE_PLAN_VALUE: Array<{
   },
   {
     id: "discovery",
-    label: "Listed in Tulala Discover",
+    label: "Listed in the public directory",
     detail: "Brands looking for talent can find you.",
   },
 ];

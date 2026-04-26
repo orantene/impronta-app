@@ -478,7 +478,7 @@ function useSaveAndClose(message = "Saved") {
 
 function StandardFooter({
   onSave,
-  saveLabel = "Save changes",
+  saveLabel = "Save",
   destructive,
 }: {
   onSave?: () => void;
@@ -882,7 +882,7 @@ function SiteSetupDrawer() {
                   flexShrink: 0,
                   cursor: "pointer",
                 }}
-                aria-label={isDone ? "Mark not done" : "Mark done"}
+                aria-label={isDone ? "Mark incomplete" : "Mark complete"}
               >
                 {isDone ? (
                   <Icon name="check" size={14} stroke={2.5} color="#fff" />
@@ -1168,7 +1168,7 @@ function PlanBillingDrawer() {
             </div>
             <GhostButton
               size="sm"
-              onClick={() => toast("Card update opens in production via Stripe Customer Portal.")}
+              onClick={() => toast("Card update opens in your billing portal.")}
             >
               Update
             </GhostButton>
@@ -1377,7 +1377,7 @@ function BrandingDrawer() {
             </div>
             <SecondaryButton
               size="sm"
-              onClick={() => toast("Logo upload opens in production — drag-drop or pick a file.")}
+              onClick={() => toast("Drag a file or click to upload.")}
             >
               Replace
             </SecondaryButton>
@@ -2399,7 +2399,7 @@ function ClientProfileDrawer() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// Today's pulse, pipeline, filtered work views
+// "Needs attention", workflow, filtered work views
 // ════════════════════════════════════════════════════════════════════
 
 function TodayPulseDrawer() {
@@ -2430,7 +2430,7 @@ function TodayPulseDrawer() {
     <DrawerShell
       open
       onClose={closeDrawer}
-      title="Today's pulse"
+      title="Needs attention"
       description="What needs you, ranked by what's been waiting longest."
       width={560}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
@@ -3754,7 +3754,7 @@ export function UpgradeModal() {
             openDrawer("plan-compare");
           }}
         >
-          Compare all plans
+          Compare plans
         </GhostButton>
         <SecondaryButton onClick={closeUpgrade}>Not now</SecondaryButton>
         {requiredPlan === "network" ? (
@@ -3811,17 +3811,18 @@ function PlanCompareDrawer() {
   const { state, closeDrawer, openUpgrade, toast } = useProto();
   const open = state.drawer.drawerId === "plan-compare";
   const currentPlan = state.plan;
-  // Shared grid template so headers, rows, and footer line up exactly.
-  const gridTemplate = `minmax(220px, 1.4fr) repeat(${PLANS.length}, minmax(0, 1fr))`;
+  // Tight grid: dimension column is fixed-narrow, plans share equally.
+  // Capped table width keeps cells readable at any viewport.
+  const gridTemplate = `180px repeat(${PLANS.length}, minmax(0, 1fr))`;
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      width={1040}
-      defaultSize="full"
+      width={920}
+      defaultSize="half"
       title="Compare plans"
-      description="Find the dimension you're outgrowing — that's your next upgrade. Not a feature you happen to want."
+      description="Find the dimension you're outgrowing — that's your next upgrade."
       footer={
         <div
           data-tulala-plan-compare-footer
@@ -3831,20 +3832,21 @@ function PlanCompareDrawer() {
             gap: 0,
             width: "100%",
             alignItems: "center",
+            maxWidth: 1040,
+            margin: "0 auto",
           }}
         >
-          <div style={{ paddingLeft: 4, fontSize: 12, color: COLORS.inkMuted }}>
-            Prices in USD · taxes excluded
-          </div>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted }}>USD · ex tax</div>
           {PLANS.map((plan) => {
             const isCurrent = plan === currentPlan;
             const isLower = PLAN_META[plan].rank < PLAN_META[currentPlan].rank;
             return (
-              <div key={plan} style={{ padding: "0 6px" }}>
+              <div key={plan} style={{ padding: "0 4px" }}>
                 {isCurrent ? (
-                  <SecondaryButton onClick={closeDrawer}>Your plan</SecondaryButton>
+                  <SecondaryButton size="sm" onClick={closeDrawer}>Your plan</SecondaryButton>
                 ) : isLower ? (
                   <GhostButton
+                    size="sm"
                     onClick={() =>
                       toast(
                         `Downgrade to ${PLAN_META[plan].label} runs through support — we'll review your roster and active inquiries first.`,
@@ -3855,6 +3857,7 @@ function PlanCompareDrawer() {
                   </GhostButton>
                 ) : (
                   <PrimaryButton
+                    size="sm"
                     onClick={() => {
                       closeDrawer();
                       openUpgrade({
@@ -3864,7 +3867,7 @@ function PlanCompareDrawer() {
                       });
                     }}
                   >
-                    Upgrade to {PLAN_META[plan].label}
+                    Upgrade
                   </PrimaryButton>
                 )}
               </div>
@@ -3873,191 +3876,222 @@ function PlanCompareDrawer() {
         </div>
       }
     >
-      {/* Sticky plan headers — anchored to the top of the drawer body so
-          column meaning stays visible while the comparison grid scrolls. */}
-      <div
-        data-tulala-plan-compare-header
-        style={{
-          position: "sticky",
-          top: -20,
-          zIndex: 2,
-          margin: "-20px -22px 14px",
-          padding: "20px 22px 0",
-          background: COLORS.surface,
-        }}
-      >
+      {/* Cap the table width so cells stay readable on full-screen drawers
+          (was sprawling across 1700px+ viewports). */}
+      <div style={{ maxWidth: 1040, margin: "0 auto" }}>
+        {/* Sticky header row — drops the verbose intro and "ideal for"
+            subtitle. Each plan column is just price + label. The whole
+            "ideal for" / current-plan affordance moves into a hover tip
+            on the plan label itself. */}
         <div
-          data-tulala-plan-compare-grid
+          data-tulala-plan-compare-header
           style={{
-            display: "grid",
-            gridTemplateColumns: gridTemplate,
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            overflow: "hidden",
+            position: "sticky",
+            top: -20,
+            zIndex: 2,
+            margin: "-20px -22px 10px",
+            padding: "20px 22px 0",
+            background: COLORS.surface,
           }}
         >
           <div
-            style={{
-              padding: "14px 18px",
-              fontSize: 12,
-              color: COLORS.inkMuted,
-              lineHeight: 1.45,
-              alignSelf: "center",
-              fontFamily: FONTS.body,
-            }}
-          >
-            Each row is a way your agency scales. Scan across to find the floor that fits.
-          </div>
-          {PLANS.map((plan) => {
-            const meta = PLAN_META[plan];
-            const header = PLAN_LADDER_HEADER[plan];
-            const isCurrent = plan === currentPlan;
-            return (
-              <div
-                key={plan}
-                style={{
-                  padding: "14px 16px",
-                  borderLeft: `1px solid ${COLORS.borderSoft}`,
-                  background: isCurrent ? COLORS.accentSoft : "#fff",
-                  position: "relative",
-                }}
-              >
-                {isCurrent && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: 3,
-                      background: COLORS.accent,
-                    }}
-                  />
-                )}
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    fontWeight: 500,
-                    letterSpacing: 0.2,
-                    color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {isCurrent ? "Current plan" : meta.label}
-                </div>
-                <div
-                  style={{
-                    fontFamily: FONTS.display,
-                    fontSize: 22,
-                    fontWeight: 600,
-                    letterSpacing: -0.4,
-                    color: isCurrent ? COLORS.accentDeep : COLORS.ink,
-                    marginTop: 2,
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {header.price}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: isCurrent ? COLORS.accentDeep : COLORS.ink,
-                    marginTop: 6,
-                    opacity: isCurrent ? 1 : 0.85,
-                  }}
-                >
-                  {!isCurrent ? meta.label : null}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11.5,
-                    color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
-                    marginTop: isCurrent ? 6 : 4,
-                    lineHeight: 1.4,
-                    fontFamily: FONTS.body,
-                    opacity: isCurrent ? 0.85 : 1,
-                  }}
-                >
-                  {header.idealFor}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Comparison grid */}
-      <div
-        data-tulala-plan-compare-body
-        style={{
-          background: "#fff",
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: 12,
-          overflow: "hidden",
-          fontFamily: FONTS.body,
-        }}
-      >
-        {PLAN_LADDER.map((row, idx) => (
-          <div
-            key={row.dimension}
             data-tulala-plan-compare-grid
             style={{
               display: "grid",
               gridTemplateColumns: gridTemplate,
-              borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              overflow: "hidden",
+              maxWidth: 1040,
+              margin: "0 auto",
             }}
           >
-            <div
-              style={{
-                padding: "14px 18px",
-                background: "rgba(11,11,13,0.02)",
-                borderRight: `1px solid ${COLORS.borderSoft}`,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: COLORS.ink,
-                  letterSpacing: -0.05,
-                }}
-              >
-                {row.dimension}
-              </div>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: COLORS.inkMuted,
-                  marginTop: 2,
-                  lineHeight: 1.4,
-                }}
-              >
-                {row.why}
-              </div>
-            </div>
+            <div /> {/* leftmost empty cell — title goes nowhere; rows speak for themselves */}
             {PLANS.map((plan) => {
+              const meta = PLAN_META[plan];
+              const header = PLAN_LADDER_HEADER[plan];
               const isCurrent = plan === currentPlan;
               return (
                 <div
                   key={plan}
                   style={{
-                    padding: "14px 16px",
-                    fontSize: 12.5,
-                    fontWeight: isCurrent ? 500 : 400,
-                    color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                    padding: "12px 14px",
                     borderLeft: `1px solid ${COLORS.borderSoft}`,
-                    background: isCurrent ? COLORS.accentSoft : "transparent",
-                    lineHeight: 1.45,
+                    background: isCurrent ? COLORS.accentSoft : "#fff",
+                    position: "relative",
                   }}
                 >
-                  {row.values[plan]}
+                  {isCurrent && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: 3,
+                        background: COLORS.accent,
+                      }}
+                    />
+                  )}
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      letterSpacing: 0.4,
+                      color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {isCurrent ? "Current" : meta.label}
+                    {/* Info icon → "ideal for" tooltip */}
+                    <Popover content={header.idealFor}>
+                      <span
+                        aria-hidden
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 13,
+                          height: 13,
+                          borderRadius: "50%",
+                          background: isCurrent ? "rgba(15,79,62,0.15)" : "rgba(11,11,13,0.06)",
+                          color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
+                          fontSize: 9,
+                          fontWeight: 700,
+                          fontStyle: "italic",
+                          fontFamily: "Georgia, serif",
+                          cursor: "help",
+                        }}
+                      >
+                        i
+                      </span>
+                    </Popover>
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: FONTS.display,
+                      fontSize: 20,
+                      fontWeight: 600,
+                      letterSpacing: -0.4,
+                      color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                      marginTop: 2,
+                      lineHeight: 1.1,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {header.price}
+                  </div>
+                  {!isCurrent && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: COLORS.inkMuted,
+                        marginTop: 2,
+                      }}
+                    >
+                      {meta.label}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-        ))}
+        </div>
+
+        {/* Comparison grid — dimension column is JUST the name + info icon.
+            The "why" explainer (was inline 2-line subtitle) is now a hover
+            tooltip on the icon. Cells are tight: 10px vertical padding. */}
+        <div
+          data-tulala-plan-compare-body
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            overflow: "hidden",
+            fontFamily: FONTS.body,
+          }}
+        >
+          {PLAN_LADDER.map((row, idx) => (
+            <div
+              key={row.dimension}
+              data-tulala-plan-compare-grid
+              style={{
+                display: "grid",
+                gridTemplateColumns: gridTemplate,
+                borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
+                alignItems: "stretch",
+              }}
+            >
+              <div
+                style={{
+                  padding: "10px 14px",
+                  background: "rgba(11,11,13,0.02)",
+                  borderRight: `1px solid ${COLORS.borderSoft}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: COLORS.ink,
+                    letterSpacing: -0.05,
+                  }}
+                >
+                  {row.dimension}
+                </span>
+                <Popover content={row.why}>
+                  <span
+                    aria-hidden
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 13,
+                      height: 13,
+                      borderRadius: "50%",
+                      background: "rgba(11,11,13,0.06)",
+                      color: COLORS.inkMuted,
+                      fontSize: 9,
+                      fontWeight: 700,
+                      fontStyle: "italic",
+                      fontFamily: "Georgia, serif",
+                      cursor: "help",
+                    }}
+                  >
+                    i
+                  </span>
+                </Popover>
+              </div>
+              {PLANS.map((plan) => {
+                const isCurrent = plan === currentPlan;
+                return (
+                  <div
+                    key={plan}
+                    style={{
+                      padding: "10px 14px",
+                      fontSize: 12.5,
+                      fontWeight: isCurrent ? 500 : 400,
+                      color: isCurrent ? COLORS.accentDeep : COLORS.ink,
+                      borderLeft: `1px solid ${COLORS.borderSoft}`,
+                      background: isCurrent ? COLORS.accentSoft : "transparent",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {row.values[plan]}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </DrawerShell>
   );

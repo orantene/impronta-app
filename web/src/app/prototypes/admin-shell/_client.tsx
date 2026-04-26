@@ -451,8 +451,8 @@ function ClientTodayPage() {
         subtitle="Inquiries you sent, offers waiting on you, and bookings on the calendar."
         actions={
           <>
-            <GhostButton onClick={() => setClientPage("discover")}>Browse talent</GhostButton>
-            <SecondaryButton onClick={() => openDrawer("client-quick-question")}>Quick question</SecondaryButton>
+            <GhostButton onClick={() => setClientPage("discover")}>Browse the directory</GhostButton>
+            <SecondaryButton onClick={() => openDrawer("client-quick-question")}>Ask a question</SecondaryButton>
             <PrimaryButton onClick={() => openDrawer("client-send-inquiry")}>New inquiry</PrimaryButton>
           </>
         }
@@ -497,7 +497,7 @@ function ClientTodayPage() {
           <div style={{ height: 16 }} />
           <TrustBoostBanner
             level={MY_CLIENT_BRAND.trustLevel}
-            onUpgrade={() => toast("Verification flow opens in production")}
+            onUpgrade={() => toast("Verification flow — coming soon")}
           />
         </>
       )}
@@ -1375,7 +1375,7 @@ function useSaveAndClose(message = "Saved") {
   };
 }
 
-function StandardFooter({ onSave, saveLabel = "Save changes" }: { onSave?: () => void; saveLabel?: string }) {
+function StandardFooter({ onSave, saveLabel = "Save" }: { onSave?: () => void; saveLabel?: string }) {
   const save = useSaveAndClose();
   const { closeDrawer } = useProto();
   return (
@@ -1691,7 +1691,7 @@ export function ClientSendInquiryDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Send inquiry"
+      title="New inquiry"
       description="Your coordinator will reply within hours. They'll set up a private thread with you and a separate group thread with the booked talent."
       footer={
         <>
@@ -2193,7 +2193,7 @@ export function ClientQuickQuestionDrawer() {
     <DrawerShell
       open={open}
       onClose={closeDrawer}
-      title="Quick question"
+      title="Ask a question"
       description="Send a message directly to an agency without starting a full inquiry pipeline."
       footer={
         <>

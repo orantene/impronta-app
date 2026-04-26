@@ -975,7 +975,7 @@ function OverviewPage() {
       {/* Stat row */}
       <Grid cols="4">
         <StatusCard
-          label="Today's pulse"
+          label="Needs attention"
           value={awaiting.length + draftCount}
           caption="items needing your attention"
           tone="amber"
@@ -996,7 +996,7 @@ function OverviewPage() {
           onClick={() => openDrawer("confirmed-bookings")}
         />
         <StatusCard
-          label="Storefront visits"
+          label="Profile views"
           value="284"
           caption="last 7 days · +18%"
           tone="dim"
@@ -1012,15 +1012,15 @@ function OverviewPage() {
           title="What needs you today"
           description={`${pluralize(awaiting.length, "inquiry", "inquiries")} ${awaiting.length === 1 ? "is" : "are"} waiting on the client and ${pluralize(draftCount, "draft", "drafts")} ${draftCount === 1 ? "hasn't" : "haven't"} been sent.`}
           icon={<Icon name="bolt" size={14} stroke={1.7} />}
-          affordance="Open today's pulse"
+          affordance="See what needs you"
           meta={<>{pluralize(awaiting.length + draftCount, "item", "items", true)}</>}
           onClick={() => openDrawer("today-pulse")}
         />
         <PrimaryCard
-          title="Inquiries pipeline"
-          description="From first request to confirmed booking. See where each conversation is and who is waiting on whom."
+          title="Workflow"
+          description="Every inquiry, grouped by where it's stuck. See who's waiting on whom from first request to confirmed booking."
           icon={<Icon name="bolt" size={14} stroke={1.7} />}
-          affordance="Open pipeline"
+          affordance="Open workflow"
           meta={
             <>
               {pluralize(inquiries.length, "active", "active", true)}
@@ -1037,15 +1037,15 @@ function OverviewPage() {
       {/* Secondary row */}
       <Grid cols="3">
         <SecondaryCard
-          title="Drafts & holds"
+          title="Drafts"
           description="Inquiries you started but haven't sent."
           meta={pluralize(draftCount, "item", "items")}
           affordance="Review"
           onClick={() => openDrawer("drafts-holds")}
         />
         <SecondaryCard
-          title="Awaiting client"
-          description="Offers sent — waiting on confirmation."
+          title="Sent — waiting"
+          description="Offers sent. Waiting on the client to confirm."
           meta={pluralize(awaiting.length, "item", "items")}
           affordance="Review"
           onClick={() => openDrawer("awaiting-client")}
@@ -1159,9 +1159,9 @@ function OverviewFree() {
   return (
     <>
       <PageHeader
-        eyebrow="Welcome to Tulala"
+        eyebrow="Setup"
         title="You're already live."
-        subtitle="Walk the activation steps below — first inbound usually lands within the day."
+        subtitle="Five steps to your first booking. About 10 minutes total."
         actions={
           <span
             style={{
@@ -1222,7 +1222,7 @@ function OverviewFree() {
 
       <StarterCard
         title="Your activation arc"
-        subtitle="Five steps that turn a fresh signup into a real inbound. Skip steps you don't need — every one is reversible."
+        subtitle="All five are reversible — skip what you don't need."
       >
         <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
           {ACTIVATION_TASKS.map((task, idx) => {
@@ -2855,9 +2855,9 @@ function SitePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Storefront"
-        title="Your public storefront"
-        subtitle="Roster, site, and embeds — in one place."
+        eyebrow="Public site"
+        title="Your public site"
+        subtitle="Roster, site pages, and embeds — in one place."
         actions={
           <>
             {!canEdit && <ReadOnlyChip />}

@@ -313,7 +313,7 @@ function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
         <button
           onClick={(e) => {
             e.stopPropagation();
-            toast("Reminder set — we'll ping you in 4 hours");
+            toast("Reminder set for 4h.");
           }}
           title="Set a reminder"
           style={{
@@ -550,7 +550,7 @@ function TalentTopbar() {
             }}
           >
             <Icon name="external" size={11} />
-            View public profile
+            Preview public profile
           </a>
         </div>
       </div>
@@ -677,7 +677,7 @@ function TalentTodayPage() {
         subtitle="Offers, holds and upcoming bookings — the things your agencies need an answer on right now."
         actions={
           <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
-            Block dates
+            Mark unavailable
           </SecondaryButton>
         }
       />
@@ -696,7 +696,7 @@ function TalentTodayPage() {
           onClick={() => setTalentPage("inbox")}
         />
         <StatusCard
-          label="Group threads"
+          label="Active conversations"
           value={mineUnread}
           caption={pluralize(mineUnread, "unread message", "unread messages", false)}
           tone={mineUnread > 0 ? "amber" : "dim"}
@@ -725,7 +725,7 @@ function TalentTodayPage() {
           title="Needs your answer"
           description={
             needsAnswer.length === 0
-              ? "Inbox zero. Take a breath."
+              ? "Nothing waiting on you."
               : `${pluralize(needsAnswer.length, "request", "requests")} ${needsAnswer.length === 1 ? "is" : "are"} waiting on you.`
           }
           icon={<Icon name="bolt" size={14} stroke={1.7} />}
@@ -2936,10 +2936,10 @@ function CalendarPage() {
         actions={
           <>
             <SecondaryButton onClick={() => openDrawer("talent-availability")}>
-              Manage blocks
+              Edit availability
             </SecondaryButton>
             <PrimaryButton onClick={() => openDrawer("talent-block-dates")}>
-              Block dates
+              Mark unavailable
             </PrimaryButton>
           </>
         }
@@ -2972,8 +2972,8 @@ function CalendarPage() {
             <EmptyState
               icon="calendar"
               title="No confirmed bookings yet"
-              body="Once an offer is approved, the booking will land here. Block dates ahead of time so agencies don't book over your trips."
-              primaryLabel="Block dates"
+              body="Once an offer is approved, the booking will land here. Mark dates unavailable ahead of time so agencies don't book over your trips."
+              primaryLabel="Mark unavailable"
               onPrimary={() => openDrawer("talent-block-dates")}
               compact
             />
@@ -4342,7 +4342,7 @@ export function TalentPhotoEditDrawer() {
         </div>
         <FieldRow label="Upload" hint="JPG / PNG / HEIC up to 12 MB. We'll auto-crop and generate retina sizes.">
           <button
-            onClick={() => toast("Upload picker opens in production")}
+            onClick={() => toast("Upload picker — coming soon")}
             style={{
               padding: "16px 14px",
               background: "rgba(11,11,13,0.02)",
@@ -4480,7 +4480,7 @@ export function TalentPolaroidsDrawer() {
         ))}
       </div>
       <button
-        onClick={() => toast("Bulk uploader opens in production")}
+        onClick={() => toast("Bulk uploader — coming soon")}
         style={{
           marginTop: 14,
           padding: "12px 14px",
@@ -4517,7 +4517,7 @@ export function TalentCreditsDrawer() {
       width={620}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("New credit form opens in production")}>+ Add credit</SecondaryButton>
+          <SecondaryButton onClick={() => toast("New credit form — coming soon")}>+ Add credit</SecondaryButton>
           <StandardFooter onSave={onSave} saveLabel="Save order" />
         </>
       }
@@ -4611,7 +4611,7 @@ export function TalentSkillsDrawer() {
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Add-skill picker opens in production")}>+ Add skill</SecondaryButton>
+          <SecondaryButton onClick={() => toast("Add-skill picker — coming soon")}>+ Add skill</SecondaryButton>
           <StandardFooter onSave={onSave} />
         </>
       }
@@ -4669,7 +4669,7 @@ export function TalentLimitsDrawer() {
       width={560}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Add-limit form opens in production")}>+ Add limit</SecondaryButton>
+          <SecondaryButton onClick={() => toast("Add-limit form — coming soon")}>+ Add limit</SecondaryButton>
           <StandardFooter onSave={onSave} />
         </>
       }
@@ -5549,7 +5549,7 @@ export function TalentPublicPreviewDrawer() {
             </div>
           </div>
           <button
-            onClick={() => toast("Inquiry form opens in production")}
+            onClick={() => toast("Inquiry form — coming soon")}
             style={{
               background: COLORS.ink,
               color: "#fff",
@@ -5948,7 +5948,7 @@ export function TalentPersonalPageDrawer() {
       width={620}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Page preview opens in production")}>Preview page</SecondaryButton>
+          <SecondaryButton onClick={() => toast("Page preview — coming soon")}>Preview page</SecondaryButton>
           <PrimaryButton onClick={() => toast("Page saved · changes live in 30 sec")}>Publish</PrimaryButton>
         </>
       }
@@ -5987,7 +5987,7 @@ export function TalentPersonalPageDrawer() {
       </div>
       <div style={{ marginTop: 12 }}>
         <button
-          onClick={() => toast("Section catalog opens in production")}
+          onClick={() => toast("Section catalog — coming soon")}
           style={{
             padding: "12px 14px",
             width: "100%",

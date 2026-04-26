@@ -90,7 +90,7 @@ export function InboxSnippetsDrawer() {
     ]);
     setDraftTitle("");
     setDraftBody("");
-    toast("Snippet saved — type / in any composer to insert");
+    toast("Snippet saved. Use / in any reply to insert.");
   };
   const removeSnippet = (id: string) => {
     setSnippets((s) => s.filter((x) => x.id !== id));
@@ -705,7 +705,7 @@ export function TenantSwitcherDrawer() {
         <button
           type="button"
           onClick={() => {
-            toast("Create-workspace flow opens in production");
+            toast("Create-workspace flow — coming soon");
             closeDrawer();
           }}
           style={{
@@ -870,7 +870,7 @@ export function TalentAnalyticsCard() {
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
-            Public profile — last 7 days
+            Profile views · last 7 days
           </div>
           <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
             Where your link is being viewed and what it converts to.
@@ -944,10 +944,10 @@ export function TalentFunnelCard() {
       }}
     >
       <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
-        Where you stand
+        Inquiries you're in
       </div>
       <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-        For each pending inquiry — how many other talent are in the running, and where the conversation is.
+        How many other talent are also being considered, and where each conversation has reached.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
         {myInquiries.map((inq, i) => (
@@ -1290,7 +1290,7 @@ export function ICalSubscribeCard({ talentName, slug }: { talentName: string; sl
               Copy URL
             </SecondaryButton>
             <GhostButton
-              onClick={() => toast("Webcal handler opens in production")}
+              onClick={() => toast("Webcal handler — coming soon")}
             >
               Open in Calendar app
             </GhostButton>
@@ -1520,7 +1520,7 @@ export function OnboardingArc({
                     toast(`Marked "${step.label}" complete`);
                   }}
                 >
-                  Mark done
+                  Mark complete
                 </GhostButton>
               )}
             </div>
@@ -1569,7 +1569,7 @@ export function TalentOnboardingArc() {
   return (
     <OnboardingArc
       storageKey="tulala_onboard_talent"
-      title="Get bookable in 4 steps"
+      title="4 steps to get booked"
       subtitle="Agencies only see complete profiles in the inquiry pipeline. Each step adds another booking signal."
       steps={[
         {

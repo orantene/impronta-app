@@ -646,7 +646,7 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
       title="Coordinator"
       action={
         <button
-          onClick={() => toast("Coordinator picker opens in production")}
+          onClick={() => toast("Coordinator picker — coming soon")}
           style={{
             background: "transparent",
             border: "none",
@@ -698,7 +698,7 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
           No coordinator assigned.{" "}
           <button
             type="button"
-            onClick={() => toast("Coordinator picker opens in production")}
+            onClick={() => toast("Coordinator picker — coming soon")}
             style={{
               color: COLORS.ink,
               fontWeight: 500,
@@ -855,7 +855,7 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
       ))}
       {pov === "admin" && (
         <div style={{ marginTop: 12 }}>
-          <GhostButton onClick={() => toast("Add talent picker opens in production")} size="sm">
+          <GhostButton onClick={() => toast("Add talent picker — coming soon")} size="sm">
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
               <Icon name="plus" size={11} stroke={2} /> Add talent
             </span>
@@ -875,7 +875,7 @@ function OfferPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorksp
         action={
           pov === "admin" ? (
             <button
-              onClick={() => toast("Offer composer opens in production")}
+              onClick={() => toast("Offer composer — coming soon")}
               style={{
                 background: "transparent",
                 border: "none",
@@ -1104,7 +1104,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
       )}
       {pov === "admin" && (
         <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
-          <SecondaryButton size="sm" onClick={() => toast("Offer revision composer opens in production — note: revising resets all approvals")}>Revise</SecondaryButton>
+          <SecondaryButton size="sm" onClick={() => toast("Offer revision composer — coming soon — note: revising resets all approvals")}>Revise</SecondaryButton>
           <SecondaryButton
             size="sm"
             onClick={() => openDrawer("inquiry-workspace", { inquiryId: currentInquiryId, pov: "client" })}
@@ -1180,7 +1180,7 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
         <KvCompact label="Date" value={inquiry.date ?? "TBC"} />
         <KvCompact label="Location" value={inquiry.location ?? "TBC"} />
         <div style={{ marginTop: 10 }}>
-          <SecondaryButton size="sm" onClick={() => toast("Booking detail opens in production")}>Open booking →</SecondaryButton>
+          <SecondaryButton size="sm" onClick={() => toast("Booking detail — coming soon")}>Open booking →</SecondaryButton>
         </div>
       </RailCard>
     );
