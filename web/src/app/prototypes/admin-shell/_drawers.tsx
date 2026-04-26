@@ -76,6 +76,7 @@ import {
   DoubleBookingWarning,
   WhatsNewDrawer,
   HelpDrawer,
+  TalentNotificationsDrawer,
 } from "./_wave2";
 import {
   TalentTodayPulseDrawer,
@@ -88,7 +89,6 @@ import {
   TalentPortfolioDrawer,
   TalentAgencyRelationshipDrawer,
   TalentLeaveAgencyDrawer,
-  TalentNotificationsDrawer,
   TalentPrivacyDrawer,
   TalentPayoutsDrawer,
   TalentContactPreferencesDrawer,

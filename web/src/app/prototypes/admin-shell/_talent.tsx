@@ -752,14 +752,16 @@ function TalentTodayPage() {
           label="Awaiting your answer"
           value={mineNeedsMe.length + needsAnswer.length}
           caption="offers + holds"
-          tone="amber"
+          tone="coral"
+          icon="bolt"
           onClick={() => setTalentPage("inbox")}
         />
         <StatusCard
           label="Active conversations"
           value={mineUnread}
           caption={pluralize(mineUnread, "unread message", "unread messages", false)}
-          tone={mineUnread > 0 ? "amber" : "dim"}
+          tone={mineUnread > 0 ? "indigo" : "dim"}
+          icon="mail"
           onClick={() => setTalentPage("inbox")}
         />
         <StatusCard
@@ -767,12 +769,15 @@ function TalentTodayPage() {
           value={upcoming.length}
           caption={pluralize(upcoming.length, "confirmed booking", "confirmed bookings", false)}
           tone="green"
+          icon="calendar"
+          onClick={() => setTalentPage("calendar")}
         />
         <StatusCard
           label="Paid this month"
           value={`${paidThisMonthCurrency}${paidThisMonthTotal.toLocaleString()}`}
           caption={`${pluralize(paidThisMonth.length, "payout", "payouts")} received`}
           tone="green"
+          icon="credit"
           onClick={() => setTalentPage("activity")}
         />
       </Grid>
@@ -4011,31 +4016,9 @@ export function TalentLeaveAgencyDrawer() {
 }
 
 // ─── Notifications ──────────────────────────────────────────────
-
-export function TalentNotificationsDrawer() {
-  const { state, closeDrawer } = useProto();
-  const open = state.drawer.drawerId === "talent-notifications";
-  const onSave = useSaveAndClose("Notification settings saved");
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title="Notifications"
-      description="Pick when we email or push notify you. Inbox always shows new requests."
-      width={520}
-      footer={<StandardFooter onSave={onSave} />}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <ToggleRow label="New offer · email" hint="When an agency sends you an offer." defaultOn={true} />
-        <ToggleRow label="New offer · push" hint="Mobile push notifications." defaultOn={true} />
-        <ToggleRow label="Hold expiring soon" hint="When a hold is about to release." defaultOn={true} />
-        <ToggleRow label="Booking reminders" hint="24h and 2h before a confirmed booking." defaultOn={true} />
-        <ToggleRow label="Payouts" hint="When a booking is paid." defaultOn={false} />
-        <ToggleRow label="Weekly summary" hint="Monday digest of last week's activity." defaultOn={false} />
-      </div>
-    </DrawerShell>
-  );
-}
+// TalentNotificationsDrawer is now defined in _wave2.tsx (richer version
+// with notification list + collapsible settings). Removed the simpler
+// settings-only version that lived here.
 
 // ─── Privacy ────────────────────────────────────────────────────
 

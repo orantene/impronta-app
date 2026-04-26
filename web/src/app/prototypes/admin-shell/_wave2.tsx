@@ -732,6 +732,241 @@ export function TenantSwitcherDrawer() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// TalentNotificationsDrawer — list of actual events, then collapsible
+// "Notification settings" section underneath. Bell-icon click target.
+// ════════════════════════════════════════════════════════════════════
+
+const MOCK_TALENT_NOTIFS: {
+  id: string;
+  icon: "mail" | "user" | "calendar" | "team" | "bolt";
+  title: string;
+  sub: string;
+  when: string;
+  unread?: boolean;
+  tone?: "ink" | "amber" | "green";
+}[] = [
+  { id: "tn1", icon: "mail", title: "Mango — Spring lookbook · new offer", sub: "€1,800 · awaiting your reply.", when: "5h ago", unread: true, tone: "amber" },
+  { id: "tn2", icon: "calendar", title: "Bvlgari hold expires in 2h", sub: "Editorial · jewelry campaign · May 18–20.", when: "2h", unread: true, tone: "amber" },
+  { id: "tn3", icon: "user", title: "Profile 84% complete", sub: "3 fields left — polaroids, rate card, showreel.", when: "today", unread: true },
+  { id: "tn4", icon: "bolt", title: "Vogue Italia booking confirmed", sub: "Tue, May 6 · €1,800.", when: "1d ago", tone: "green" },
+  { id: "tn5", icon: "team", title: "Mango site referred 12 new views", sub: "+8 vs prior week.", when: "2d ago" },
+];
+
+export function TalentNotificationsDrawer() {
+  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-notifications";
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Same prefs as the workspace notifications-prefs drawer — mirrored
+  // here so the talent surface owns its own copy. Real implementation
+  // shares storage by user_id.
+  const [prefs, setPrefs] = useState<Record<string, { email: boolean; push: boolean }>>({
+    "new-offer": { email: true, push: true },
+    "hold-expiring": { email: true, push: false },
+    "booking-reminder": { email: true, push: true },
+    payouts: { email: false, push: false },
+    "weekly-summary": { email: false, push: false },
+  });
+  const NOTIF_ROWS: { id: string; label: string; description: string }[] = [
+    { id: "new-offer", label: "New offer", description: "When an agency sends you an offer." },
+    { id: "hold-expiring", label: "Hold expiring soon", description: "When a hold is about to release." },
+    { id: "booking-reminder", label: "Booking reminders", description: "24h and 2h before a confirmed booking." },
+    { id: "payouts", label: "Payouts", description: "When a booking is paid." },
+    { id: "weekly-summary", label: "Weekly summary", description: "Monday digest of last week's activity." },
+  ];
+  const togglePref = (id: string, ch: "email" | "push") => {
+    setPrefs((p) => ({ ...p, [id]: { ...p[id]!, [ch]: !p[id]![ch] } }));
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Notifications"
+      description="What's waiting on you, and what's running through email + push."
+    >
+      {/* Real notifications first */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {MOCK_TALENT_NOTIFS.map((n) => (
+          <button
+            key={n.id}
+            type="button"
+            onClick={() => {
+              toast(`Opening ${n.title}`);
+            }}
+            data-tulala-row
+            style={{
+              background: n.unread ? "#fff" : "rgba(11,11,13,0.015)",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              padding: 12,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              textAlign: "left",
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+            }}
+          >
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 8,
+                background: n.tone === "green"
+                  ? "rgba(46,125,91,0.10)"
+                  : n.tone === "amber"
+                    ? "rgba(82,96,109,0.10)"
+                    : "rgba(11,11,13,0.04)",
+                color: n.tone === "green"
+                  ? COLORS.green
+                  : n.tone === "amber"
+                    ? COLORS.amber
+                    : COLORS.ink,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Icon name={n.icon} size={13} stroke={1.7} />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{n.title}</span>
+                {n.unread && (
+                  <span
+                    aria-label="Unread"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: COLORS.accent,
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
+                {n.sub}
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 4 }}>{n.when}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Divider */}
+      <div
+        style={{
+          height: 1,
+          background: COLORS.borderSoft,
+          margin: "20px 0 14px",
+        }}
+      />
+
+      {/* Collapsible settings section */}
+      <button
+        type="button"
+        onClick={() => setSettingsOpen((o) => !o)}
+        aria-expanded={settingsOpen}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "100%",
+          padding: "10px 0",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          textAlign: "left",
+        }}
+      >
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <Icon name="settings" size={13} stroke={1.7} color={COLORS.inkMuted} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+            Notification settings
+          </span>
+          <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+            Email + push per event
+          </span>
+        </span>
+        <span
+          aria-hidden
+          style={{
+            color: COLORS.inkMuted,
+            fontSize: 14,
+            transition: "transform .2s",
+            transform: settingsOpen ? "rotate(180deg)" : "rotate(0)",
+            display: "inline-flex",
+          }}
+        >
+          <Icon name="chevron-down" size={13} stroke={1.7} />
+        </span>
+      </button>
+      {settingsOpen && (
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            overflow: "hidden",
+            marginTop: 6,
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 70px 70px",
+              padding: "8px 14px",
+              borderBottom: `1px solid ${COLORS.borderSoft}`,
+              background: "rgba(11,11,13,0.02)",
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted,
+            }}
+          >
+            <span>Event</span>
+            <span style={{ textAlign: "center" }}>Email</span>
+            <span style={{ textAlign: "center" }}>Push</span>
+          </div>
+          {NOTIF_ROWS.map((row) => (
+            <div
+              key={row.id}
+              data-tulala-row
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 70px 70px",
+                alignItems: "center",
+                padding: "10px 14px",
+                borderTop: `1px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+                  {row.label}
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                  {row.description}
+                </div>
+              </div>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <Toggle on={prefs[row.id]!.email} onChange={() => togglePref(row.id, "email")} />
+              </div>
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <Toggle on={prefs[row.id]!.push} onChange={() => togglePref(row.id, "push")} />
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
 // #25 — TalentShareCardDrawer
 // ════════════════════════════════════════════════════════════════════
 
@@ -976,21 +1211,55 @@ export function TalentFunnelCard() {
 function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
   // Anonymized peer count + stage. Mock — in production read from the
   // inquiry's lineup.
+  const { openDrawer } = useProto();
   const peers = idx === 0 ? 3 : idx === 1 ? 2 : 4;
   const acceptedPeers = idx === 0 ? 1 : idx === 1 ? 0 : 2;
   const summary = inquiry.brief.length > 40 ? `${inquiry.brief.slice(0, 38)}…` : inquiry.brief;
+  // Click → open the inquiry workspace from the talent POV (read-only
+  // for inquiries the talent isn't yet booked on; full thread view if
+  // they are).
   return (
-    <div
+    <button
+      type="button"
       data-tulala-row
+      onClick={() =>
+        openDrawer("inquiry-workspace", { inquiryId: inquiry.id, pov: "talent" })
+      }
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 12,
+        gap: 10,
         padding: "10px 12px",
         background: "rgba(11,11,13,0.02)",
         borderRadius: 9,
+        border: "none",
+        width: "100%",
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        textAlign: "left",
+        transition: "background .12s",
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.05)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
     >
+      {/* Indigo "insight"-tinted icon chip — distinguishes the funnel
+          rows from action-rows (which use coral/forest). */}
+      <span
+        aria-hidden
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 8,
+          background: COLORS.indigoSoft,
+          color: COLORS.indigo,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Icon name="team" size={13} stroke={1.7} />
+      </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -1015,14 +1284,15 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
           letterSpacing: 0.4,
           textTransform: "uppercase",
           padding: "3px 7px",
-          background: COLORS.accentSoft,
-          color: COLORS.accentDeep,
+          background: COLORS.indigoSoft,
+          color: COLORS.indigoDeep,
           borderRadius: 999,
         }}
       >
         Pending
       </span>
-    </div>
+      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+    </button>
   );
 }
 

@@ -1308,23 +1308,37 @@ export function StatusCard({
   caption,
   onClick,
   tone,
+  icon,
 }: {
   value: string | number;
   label: string;
   caption?: string;
   onClick?: CardClickHandler;
-  tone?: "ink" | "amber" | "green" | "dim";
+  tone?: "ink" | "amber" | "green" | "dim" | "coral" | "indigo";
+  /**
+   * Optional icon — sits next to the label in a small color-tinted
+   * chip. Picks tint from `tone`. Use to make hero metrics scannable
+   * at a glance (e.g. credit icon next to "Paid this month").
+   */
+  icon?:
+    | "calendar"
+    | "credit"
+    | "mail"
+    | "bolt"
+    | "user"
+    | "team"
+    | "sparkle";
 }) {
-  // Tone tints the metric value subtly — green for positive signal,
-  // slate for "needs attention", neutral otherwise. Replaces the old
-  // colored leading dot, which carried no information beyond what tone
-  // already says.
-  const valueColor =
-    tone === "green"
-      ? COLORS.green
-      : tone === "amber"
-        ? COLORS.amber
-        : COLORS.ink;
+  // Tone tints the metric value AND optional icon chip.
+  const tonePalette = {
+    green: { value: COLORS.green, chipBg: "rgba(46,125,91,0.10)", chipFg: COLORS.green },
+    amber: { value: COLORS.amber, chipBg: "rgba(82,96,109,0.10)", chipFg: COLORS.amber },
+    coral: { value: COLORS.coral, chipBg: COLORS.coralSoft, chipFg: COLORS.coral },
+    indigo: { value: COLORS.indigo, chipBg: COLORS.indigoSoft, chipFg: COLORS.indigo },
+    ink: { value: COLORS.ink, chipBg: "rgba(11,11,13,0.06)", chipFg: COLORS.ink },
+    dim: { value: COLORS.ink, chipBg: "rgba(11,11,13,0.06)", chipFg: COLORS.inkMuted },
+  } as const;
+  const palette = tone ? tonePalette[tone] : tonePalette.ink;
   // Combined a11y label so screen readers hear the metric in plain
   // language (Wave 0 audit fix).
   const ariaLabel = `${label}: ${value}${caption ? `, ${caption}` : ""}`;
@@ -1336,29 +1350,46 @@ export function StatusCard({
           display: "flex",
           flexDirection: "column",
           gap: 6,
-          // Lock a min-height so a 1-line caption tile doesn't shrink
-          // shorter than a 2-line caption tile in the same row. Without
-          // this, hero strips bounce in height across surfaces.
           minHeight: 116,
         }}
       >
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            fontWeight: 500,
-            color: COLORS.inkMuted,
-            letterSpacing: 0.05,
-          }}
-        >
-          {label}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {icon && (
+            <span
+              aria-hidden
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 6,
+                background: palette.chipBg,
+                color: palette.chipFg,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Icon name={icon} size={12} stroke={1.7} />
+            </span>
+          )}
+          <div
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 500,
+              color: COLORS.inkMuted,
+              letterSpacing: 0.05,
+            }}
+          >
+            {label}
+          </div>
         </div>
         <div
           style={{
             fontFamily: FONTS.display,
             fontSize: 32,
             fontWeight: 500,
-            color: valueColor,
+            color: palette.value,
             letterSpacing: -0.6,
             lineHeight: 1,
             fontVariantNumeric: "tabular-nums",

@@ -3916,6 +3916,19 @@ export const COLORS = {
   // luxury connotation. See feedback_admin_aesthetics.md.
   amber: "#52606D",
   red: "#B0303A",
+  // Coral — needs-action / soft warning, warmer than slate. Different
+  // from gold/rust per the design memo; reads as "incomplete, touch
+  // me" without luxury connotations. Use for: incomplete profile,
+  // pending offers, awaiting action.
+  coral: "#C26A45",
+  coralSoft: "rgba(194,106,69,0.10)",
+  coralDeep: "#7A4128",
+  // Indigo — insights / analytics / metrics. Cool counterpoint to
+  // forest. Use for: profile views, conversion stats, anything
+  // "informational" not "actionable".
+  indigo: "#5B6BA0",
+  indigoSoft: "rgba(91,107,160,0.10)",
+  indigoDeep: "#3F4870",
 
   // Elevation
   shadow: "0 1px 2px rgba(11,11,13,0.04)",
