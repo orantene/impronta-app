@@ -51,6 +51,11 @@ import type {
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
+import { HeadingLintBadge } from "./inspectors/HeadingLintBadge";
+import {
+  buildStructuralHeadingOutline,
+  lintHeadingOutline,
+} from "@/lib/site-admin/a11y/heading-hierarchy";
 
 const PANEL_WIDTH = 280;
 
@@ -107,6 +112,19 @@ export function NavigatorPanel() {
         r.ref.sectionTypeKey.toLowerCase().includes(q),
     );
   }, [flat, search]);
+
+  // Phase 10 — heading hierarchy lint, structural mode (we only have
+  // section types here, not loaded props). Catches missing-H1, multi-H1,
+  // skipped-level issues from the section composition alone.
+  const headingIssues = useMemo(() => {
+    const outline = buildStructuralHeadingOutline(
+      flat.map((r) => ({
+        sectionId: r.ref.sectionId,
+        sectionTypeKey: r.ref.sectionTypeKey,
+      })),
+    );
+    return lintHeadingOutline(outline);
+  }, [flat]);
 
   const onDragStart = useCallback(
     (e: DragEvent<HTMLDivElement>, sectionId: string) => {
@@ -418,6 +436,18 @@ export function NavigatorPanel() {
             · {flat.length} section{flat.length === 1 ? "" : "s"}
           </span>
         </div>
+
+        {/* Phase 10 — heading hierarchy lint badge. */}
+        {flat.length > 0 ? (
+          <div style={{ padding: "4px 8px 8px" }}>
+            <HeadingLintBadge
+              issues={headingIssues}
+              onFocusSection={(sectionId) =>
+                setSelectedSectionId(sectionId)
+              }
+            />
+          </div>
+        ) : null}
 
         <div
           style={{

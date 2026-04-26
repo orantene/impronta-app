@@ -45,6 +45,11 @@ interface SectionLike {
   props: unknown;
 }
 
+interface StructureOnlySection {
+  sectionId: string;
+  sectionTypeKey: string;
+}
+
 // Map of section_type_key → heading level the renderer produces (and the
 // prop-key its headline lives under). Keep aligned with each section's
 // Component.tsx — when a section starts emitting an additional heading,
@@ -85,6 +90,34 @@ export function buildHeadingOutline(
     out.push({
       level: cfg.level,
       text,
+      sectionId: s.sectionId,
+      sectionTypeKey: s.sectionTypeKey,
+    });
+  }
+  return out;
+}
+
+/**
+ * Structure-only outline: builds the heading chain from section types
+ * alone, assuming each section emits the heading its mapping declares.
+ * Useful in surfaces (like the inspector navigator) that have the
+ * section list but haven't loaded each section's props.
+ *
+ * Trade-off: a section with an empty headline still appears in the
+ * outline, so the warnings here are upper-bound (worst-case structure).
+ * Pair with `buildHeadingOutline` once props are available for the
+ * accurate outline.
+ */
+export function buildStructuralHeadingOutline(
+  sections: ReadonlyArray<StructureOnlySection>,
+): HeadingNode[] {
+  const out: HeadingNode[] = [];
+  for (const s of sections) {
+    const cfg = HEADING_MAP[s.sectionTypeKey];
+    if (!cfg || cfg.level === 0) continue;
+    out.push({
+      level: cfg.level,
+      text: s.sectionTypeKey,
       sectionId: s.sectionId,
       sectionTypeKey: s.sectionTypeKey,
     });

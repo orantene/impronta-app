@@ -16,6 +16,7 @@ export function CtaBannerComponent({ props }: SectionComponentProps<CtaBannerV1>
     primaryCta,
     secondaryCta,
     backgroundImageUrl,
+    backgroundImageAlt,
     overlayOpacity,
     variant,
     imageSide,
@@ -45,8 +46,8 @@ export function CtaBannerComponent({ props }: SectionComponentProps<CtaBannerV1>
             <img
               className="site-cta-banner__image"
               src={backgroundImageUrl}
-              alt=""
-              aria-hidden
+              alt={backgroundImageAlt ?? ""}
+              aria-hidden={backgroundImageAlt ? undefined : true}
             />
             <span
               className="site-cta-banner__overlay"

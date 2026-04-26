@@ -2,6 +2,7 @@
 
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
+import { LinkPicker } from "../shared/LinkPicker";
 import type { SectionEditorProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
 
@@ -201,22 +202,21 @@ export function FeaturedTalentEditor({
             }
           />
         </label>
-        <label className={FIELD}>
+        <div className={FIELD}>
           <span className={LABEL}>Footer CTA href</span>
-          <input
-            className={INPUT}
+          <LinkPicker
             value={value.footerCta?.href ?? ""}
-            onChange={(e) =>
+            onChange={(next) =>
               patch({
                 footerCta: value.footerCta
-                  ? { ...value.footerCta, href: e.target.value }
-                  : e.target.value
-                    ? { label: "Explore the collective", href: e.target.value }
+                  ? { ...value.footerCta, href: next }
+                  : next
+                    ? { label: "Explore the collective", href: next }
                     : undefined,
               })
             }
           />
-        </label>
+        </div>
       </div>
 
       <PresentationPanel

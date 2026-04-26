@@ -175,7 +175,7 @@ function PrototypeNavSections({
     if (stored && stored.size > 0) {
       setExpandedGroupIds(stored);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {

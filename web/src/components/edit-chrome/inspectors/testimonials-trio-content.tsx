@@ -372,7 +372,7 @@ export function TestimonialsTrioContentInspector({
       return;
     }
     setSlots(initSlots(draftProps));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [draftProps]);
 
   const patchSlot = useCallback(
@@ -395,7 +395,7 @@ export function TestimonialsTrioContentInspector({
         onChange({ ...draftProps, items: newItems });
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [slots, draftProps, onChange],
   );
 

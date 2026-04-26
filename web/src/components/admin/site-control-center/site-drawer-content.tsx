@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { ArrowUpRight, Edit3, MoreHorizontal } from "lucide-react";
 
 import {
@@ -124,13 +125,13 @@ export function RosterDrawerBody() {
       </DrawerSection>
 
       <DrawerQActions>
-        <a
+        <Link
           href="/admin/talent"
           className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-foreground underline-offset-2 hover:underline"
         >
           Open full roster
           <ArrowUpRight className="size-3.5" aria-hidden />
-        </a>
+        </Link>
       </DrawerQActions>
     </div>
   );
@@ -173,13 +174,13 @@ export function DirectoryDrawerBody() {
       </DrawerSection>
 
       <DrawerQActions>
-        <a
+        <Link
           href="/admin/directory/filters"
           className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-foreground underline-offset-2 hover:underline"
         >
           Advanced directory settings
           <ArrowUpRight className="size-3.5" aria-hidden />
-        </a>
+        </Link>
         <DrawerPrimaryButton>Save</DrawerPrimaryButton>
       </DrawerQActions>
     </div>
@@ -203,13 +204,13 @@ export function InquiriesDrawerBody() {
       </DrawerSection>
 
       <DrawerQActions>
-        <a
+        <Link
           href="/admin/inquiries"
           className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-foreground underline-offset-2 hover:underline"
         >
           Open inquiry inbox
           <ArrowUpRight className="size-3.5" aria-hidden />
-        </a>
+        </Link>
       </DrawerQActions>
     </div>
   );
@@ -459,7 +460,7 @@ export function LockedDrawerBody({
       <DrawerLockNote tier={tierLabel}>{copy}</DrawerLockNote>
       <DrawerCallout>
         Every plan runs on the same product — higher tiers unlock more cards.
-        You're on <strong>{activePlan === "free" ? "Free" : activePlan === "studio" ? "Studio" : activePlan === "agency" ? "Agency" : "Network"}</strong>.
+        You&rsquo;re on <strong>{activePlan === "free" ? "Free" : activePlan === "studio" ? "Studio" : activePlan === "agency" ? "Agency" : "Network"}</strong>.
       </DrawerCallout>
       <DrawerQActions>
         <button

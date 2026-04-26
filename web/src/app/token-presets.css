@@ -316,35 +316,60 @@ html[data-token-density-container-width="editorial"] {
 /* ---------------------------------------------------------------------------
  * Typography presets.
  * ------------------------------------------------------------------------- */
+/* Phase 13 — free-string font-family overrides win over presets.
+ *
+ * Each preset selector now writes a `--site-{slot}-font-preset` var; the
+ * actual `--site-{slot}-font` consumed by all downstream rules is set on
+ * `:root` and resolves to the tenant's custom override
+ * (`--token-typography-{slot}-font-family`, emitted by
+ * `designTokensToCssVars()` only when non-empty) when present, else
+ * falls through to the preset var. This way preset and override share
+ * the same downstream consumer without specificity gymnastics. */
+:root {
+  --site-heading-font: var(
+    --token-typography-heading-font-family,
+    var(
+      --site-heading-font-preset,
+      "Geist", ui-sans-serif, system-ui, sans-serif
+    )
+  );
+  --site-body-font: var(
+    --token-typography-body-font-family,
+    var(
+      --site-body-font-preset,
+      "Raleway", ui-sans-serif, system-ui, sans-serif
+    )
+  );
+}
 html[data-token-typography-heading-preset="sans"] {
-  --site-heading-font: var(--font-geist-sans, "Geist"), ui-sans-serif, system-ui, sans-serif;
+  --site-heading-font-preset: var(--font-geist-sans, "Geist"), ui-sans-serif, system-ui, sans-serif;
   --site-heading-weight: 600;
 }
 html[data-token-typography-heading-preset="serif"] {
-  --site-heading-font: var(--font-playfair-display, "Playfair Display"), ui-serif, Georgia, serif;
+  --site-heading-font-preset: var(--font-playfair-display, "Playfair Display"), ui-serif, Georgia, serif;
   --site-heading-weight: 500;
 }
 html[data-token-typography-heading-preset="display"] {
-  --site-heading-font: var(--font-cinzel, "Cinzel"), ui-serif, serif;
+  --site-heading-font-preset: var(--font-cinzel, "Cinzel"), ui-serif, serif;
   --site-heading-weight: 500;
   --site-heading-tracking: 0.04em;
   --site-heading-case: uppercase;
 }
 html[data-token-typography-heading-preset="editorial-serif"] {
-  --site-heading-font: var(--font-fraunces, "Fraunces"), var(--font-playfair-display, "Playfair Display"), ui-serif, Georgia, serif;
+  --site-heading-font-preset: var(--font-fraunces, "Fraunces"), var(--font-playfair-display, "Playfair Display"), ui-serif, Georgia, serif;
   --site-heading-weight: 400;
   --site-heading-tracking: -0.012em;
   --site-heading-case: none;
 }
 
 html[data-token-typography-body-preset="sans"] {
-  --site-body-font: var(--font-body-sans, "Raleway"), ui-sans-serif, system-ui, sans-serif;
+  --site-body-font-preset: var(--font-body-sans, "Raleway"), ui-sans-serif, system-ui, sans-serif;
 }
 html[data-token-typography-body-preset="serif"] {
-  --site-body-font: var(--font-inter-body, "Inter"), ui-serif, Georgia, serif;
+  --site-body-font-preset: var(--font-inter-body, "Inter"), ui-serif, Georgia, serif;
 }
 html[data-token-typography-body-preset="refined-sans"] {
-  --site-body-font: var(--font-inter-body, "Inter"), ui-sans-serif, system-ui, sans-serif;
+  --site-body-font-preset: var(--font-inter-body, "Inter"), ui-sans-serif, system-ui, sans-serif;
 }
 
 html[data-token-typography-label-preset="uppercase-tracked"] {

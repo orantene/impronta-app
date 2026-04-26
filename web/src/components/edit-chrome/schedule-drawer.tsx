@@ -118,6 +118,12 @@ export function ScheduleDrawer() {
 
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const [pickerValue, setPickerValue] = useState<string>("");
+  // React 19 strict purity: compute "earliest valid datetime" once at
+  // mount via a lazy useState initializer. The lock-at-mount value is
+  // refreshed each time the drawer opens (see useEffect below).
+  const [minPublishIso, setMinPublishIso] = useState<string>(() =>
+    new Date(Date.now() + 60_000).toISOString(),
+  );
   const [currentSchedule, setCurrentSchedule] = useState<{
     iso: string | null;
     byName: string | null;
@@ -134,6 +140,10 @@ export function ScheduleDrawer() {
     }
     if (lastOpenRef.current) return;
     lastOpenRef.current = true;
+    // Refresh the earliest-valid datetime when the drawer opens so a
+    // long-lived session doesn't carry a stale "min" from the original
+    // mount.
+    setMinPublishIso(new Date(Date.now() + 60_000).toISOString());
     let cancelled = false;
     setState({ kind: "loading" });
     loadScheduledPublishAction({ locale })
@@ -246,7 +256,7 @@ export function ScheduleDrawer() {
             id="schedule-publish-at"
             type="datetime-local"
             value={pickerValue}
-            min={isoToLocalInputValue(new Date(Date.now() + 60_000).toISOString())}
+            min={isoToLocalInputValue(minPublishIso)}
             onChange={(e) => setPickerValue(e.target.value)}
             disabled={isSaving}
             style={{

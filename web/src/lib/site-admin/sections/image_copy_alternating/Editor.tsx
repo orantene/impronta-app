@@ -3,6 +3,7 @@
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
+import { AltTextField } from "../shared/AltTextField";
 import type { SectionEditorProps } from "../types";
 import type {
   ImageCopyAlternatingV1,
@@ -142,22 +143,31 @@ export function ImageCopyAlternatingEditor({
                 value={item.italicTagline ?? ""}
                 onChange={(e) => patchItem(i, { italicTagline: e.target.value })}
               />
-              <div className="flex items-center gap-2">
-                <input
-                  className={`${INPUT} flex-1`}
-                  placeholder="Image URL"
-                  value={item.imageUrl ?? ""}
-                  onChange={(e) =>
-                    patchItem(i, { imageUrl: e.target.value || undefined })
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    className={`${INPUT} flex-1`}
+                    placeholder="Image URL"
+                    value={item.imageUrl ?? ""}
+                    onChange={(e) =>
+                      patchItem(i, { imageUrl: e.target.value || undefined })
+                    }
+                  />
+                  {tenantId ? (
+                    <MediaPicker
+                      tenantId={tenantId}
+                      onPick={(url) => patchItem(i, { imageUrl: url })}
+                      label=""
+                    />
+                  ) : null}
+                </div>
+                <AltTextField
+                  imageUrl={item.imageUrl}
+                  value={item.imageAlt ?? ""}
+                  onChange={(next) =>
+                    patchItem(i, { imageAlt: next || undefined })
                   }
                 />
-                {tenantId ? (
-                  <MediaPicker
-                    tenantId={tenantId}
-                    onPick={(url) => patchItem(i, { imageUrl: url })}
-                    label=""
-                  />
-                ) : null}
               </div>
               <textarea
                 className={`${INPUT} md:col-span-2 min-h-[68px]`}
@@ -180,7 +190,7 @@ export function ImageCopyAlternatingEditor({
                 </select>
               </label>
               <label className={FIELD}>
-                <span className={LABEL}>"Ideal for" items (comma-separated)</span>
+                <span className={LABEL}>&ldquo;Ideal for&rdquo; items (comma-separated)</span>
                 <input
                   className={INPUT}
                   placeholder="Ceremonies, Editorial previews, Getting-ready"

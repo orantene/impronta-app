@@ -1100,7 +1100,7 @@ export async function createManualBooking(formData: FormData): Promise<void> {
   const redirectAfter = trimmedString(formData, "redirect_after_create") || "detail";
 
   const clientUserRaw = trimmedString(formData, "client_user_id");
-  let client_user_id: string | null = clientUserRaw.length > 0 ? clientUserRaw : null;
+  const client_user_id: string | null = clientUserRaw.length > 0 ? clientUserRaw : null;
   if (client_user_id) {
     const { data: prof, error: profErr } = await supabase
       .from("profiles")

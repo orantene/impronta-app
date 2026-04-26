@@ -63,7 +63,7 @@ export function PlanTierToggle({ activePlan }: { activePlan: Plan }) {
         );
       })}
       <span className="ml-auto hidden text-[11px] text-muted-foreground sm:inline">
-        Showing what's unlocked at this tier.
+        Showing what&rsquo;s unlocked at this tier.
       </span>
     </div>
   );

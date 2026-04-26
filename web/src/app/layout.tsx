@@ -27,6 +27,7 @@ import {
   resolveDesignTokens,
 } from "@/lib/site-admin";
 import { loadPublicBranding } from "@/lib/site-admin/server/reads";
+import { GoogleFontsLink } from "./google-fonts-link";
 
 import "./globals.css";
 
@@ -150,6 +151,8 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`site-theme-${siteTheme}${publicScope ? " site-theme-tenant-override" : ""} flex min-h-full flex-col text-foreground`}
       >
+        {/* Phase 13 — load tenant Google Fonts when picker tokens set. */}
+        <GoogleFontsLink tokens={designTokens} />
         <AnalyticsScripts />
         <WebVitalsReporter />
         <CspViolationReporter />

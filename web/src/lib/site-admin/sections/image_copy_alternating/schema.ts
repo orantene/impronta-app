@@ -20,6 +20,8 @@ const itemSchema = z.object({
   italicTagline: z.string().max(180).optional(),
   body: z.string().max(640).optional(),
   imageUrl: z.string().url().max(2048).optional(),
+  /** Phase 10 — alt text for screen-readers. */
+  imageAlt: z.string().max(200).optional(),
   iconKey: iconKeySchema.optional(),
   /** Optional "ideal for" bullet list. */
   listItems: z.array(z.string().max(120)).max(8).optional(),

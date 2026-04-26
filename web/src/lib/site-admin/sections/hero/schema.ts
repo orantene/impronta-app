@@ -19,6 +19,8 @@ const heroSlideSchema = z.object({
   backgroundMediaAssetId: pgUuidSchema().optional(),
   /** Absolute URL (for seeded hosts, unsplash, etc.). Used when no asset id. */
   backgroundImageUrl: z.string().url().max(2048).optional(),
+  /** Phase 10 — alt text for screen-readers. Optional; empty = decorative. */
+  backgroundImageAlt: z.string().max(200).optional(),
   /** 0–100; how dark the photographic scrim renders over the image. */
   overlayOpacity: z.number().int().min(0).max(100).optional(),
 });

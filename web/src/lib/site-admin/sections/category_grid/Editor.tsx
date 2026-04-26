@@ -4,6 +4,7 @@ import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
+import { LinkPicker } from "../shared/LinkPicker";
 import type { CategoryGridV1, CategoryGridItem } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -149,16 +150,14 @@ export function CategoryGridEditor({
               })
             }
           />
-          <input
-            className={INPUT}
-            placeholder="Link"
+          <LinkPicker
             value={value.footerCta?.href ?? ""}
-            onChange={(e) =>
+            onChange={(next) =>
               patch({
                 footerCta: value.footerCta
-                  ? { ...value.footerCta, href: e.target.value }
-                  : e.target.value
-                    ? { label: "See all", href: e.target.value }
+                  ? { ...value.footerCta, href: next }
+                  : next
+                    ? { label: "See all", href: next }
                     : undefined,
               })
             }
@@ -240,12 +239,14 @@ export function CategoryGridEditor({
             >
               ×
             </button>
-            <input
-              className={`${INPUT} md:col-span-5`}
-              placeholder="Link href (optional)"
-              value={item.href ?? ""}
-              onChange={(e) => patchItem(i, { href: e.target.value || undefined })}
-            />
+            <div className="md:col-span-5">
+              <LinkPicker
+                value={item.href ?? ""}
+                onChange={(next) =>
+                  patchItem(i, { href: next || undefined })
+                }
+              />
+            </div>
           </div>
         ))}
       </div>

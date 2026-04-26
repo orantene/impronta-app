@@ -96,7 +96,7 @@ export async function recordAiUsageEstimate(
     p_spend_delta_cents: cents,
   });
   if (error) {
-    // eslint-disable-next-line no-console
+     
     console.warn("increment_ai_usage_monthly failed", error.message);
   }
 }

@@ -229,6 +229,42 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     defaultValue: "normal",
     group: "Typography",
   },
+  /**
+   * Phase 13 — free-string font-family overrides. When set, these win over
+   * the heading-/body-preset (the storefront stylesheet uses
+   * `--token-typography-heading-font-family` if present, else falls back
+   * to the preset's `--site-heading-font` chain). The validator accepts
+   * any reasonable CSS font-family value (quoted family + comma-separated
+   * fallbacks); empty string is allowed and means "use the preset".
+   */
+  "typography.heading-font-family": {
+    key: "typography.heading-font-family",
+    label: "Heading font family (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(200).regex(
+      /^$|^[\w\s",\-+()]+$/,
+      "Invalid font-family value",
+    ),
+    defaultValue: "",
+    group: "Typography",
+    description:
+      "Free CSS font-family value. Wins over heading preset when non-empty.",
+  },
+  "typography.body-font-family": {
+    key: "typography.body-font-family",
+    label: "Body font family (custom)",
+    scope: "typography",
+    agencyConfigurable: true,
+    validator: z.string().max(200).regex(
+      /^$|^[\w\s",\-+()]+$/,
+      "Invalid font-family value",
+    ),
+    defaultValue: "",
+    group: "Typography",
+    description:
+      "Free CSS font-family value. Wins over body preset when non-empty.",
+  },
 
   // ── Shape & feel ────────────────────────────────────────────────────
   "radius.base": {

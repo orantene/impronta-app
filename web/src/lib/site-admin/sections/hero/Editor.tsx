@@ -4,6 +4,7 @@ import { useState, type ChangeEvent } from "react";
 import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { MediaPicker } from "../shared/MediaPicker";
+import { AltTextField } from "../shared/AltTextField";
 import type { HeroSlide, HeroV1 } from "./schema";
 
 type OverlayFlavor = NonNullable<HeroV1["overlay"]>;
@@ -217,7 +218,7 @@ export function HeroEditor({
         {slides.length === 0 ? (
           <p className="rounded-md bg-muted/30 px-3 py-4 text-xs text-muted-foreground">
             No slides yet — the hero will fall back to CMS copy with the
-            tenant's default visual treatment.
+            tenant&rsquo;s default visual treatment.
           </p>
         ) : (
           <ol className="flex flex-col gap-4">
@@ -286,6 +287,15 @@ export function HeroEditor({
                       Paste an absolute URL or pick from the workspace media
                       library.
                     </span>
+                    <div className="mt-2">
+                      <AltTextField
+                        imageUrl={slide.backgroundImageUrl}
+                        value={slide.backgroundImageAlt ?? ""}
+                        onChange={(next) =>
+                          patchSlide(i, { backgroundImageAlt: next })
+                        }
+                      />
+                    </div>
                   </label>
                   <label className={FIELD}>
                     <span className={LABEL}>Overlay opacity</span>

@@ -5,6 +5,7 @@ import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
 import { LinkPicker } from "../shared/LinkPicker";
+import { AltTextField } from "../shared/AltTextField";
 import type { CtaBannerV1 } from "./schema";
 
 const FIELD = "flex flex-col gap-1.5 text-sm";
@@ -27,6 +28,7 @@ export function CtaBannerEditor({
     secondaryCta: initial.secondaryCta,
     backgroundMediaAssetId: initial.backgroundMediaAssetId,
     backgroundImageUrl: initial.backgroundImageUrl ?? "",
+    backgroundImageAlt: initial.backgroundImageAlt ?? "",
     overlayOpacity: initial.overlayOpacity ?? 45,
     variant: initial.variant ?? "centered-overlay",
     imageSide: initial.imageSide ?? "right",
@@ -229,6 +231,13 @@ export function CtaBannerEditor({
                 label="Library"
               />
             ) : null}
+          </div>
+          <div className="mt-2">
+            <AltTextField
+              imageUrl={value.backgroundImageUrl}
+              value={value.backgroundImageAlt ?? ""}
+              onChange={(next) => patch({ backgroundImageAlt: next })}
+            />
           </div>
         </label>
         <label className={FIELD}>

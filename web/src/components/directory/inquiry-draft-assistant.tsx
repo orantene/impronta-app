@@ -66,7 +66,7 @@ function InquiryDraftAssistantInner({
         return;
       }
       const ctx = readFormContext(form, talentNames, locale);
-      let currentMessage = ctx.currentMessage;
+      const currentMessage = ctx.currentMessage;
       if (action === "polish") {
         if (!currentMessage.trim()) {
           setError(formCopy.draftPolishNeedText);

@@ -29,6 +29,8 @@ export const ctaBannerSchemaV1 = z.object({
   /** Background image — asset id or absolute URL. */
   backgroundMediaAssetId: pgUuidSchema().optional(),
   backgroundImageUrl: z.string().url().max(2048).optional(),
+  /** Phase 10 — alt text for screen-readers. */
+  backgroundImageAlt: z.string().max(200).optional(),
   /** 0..100 — overlay darkness over the image. */
   overlayOpacity: z.number().int().min(0).max(100).optional(),
 

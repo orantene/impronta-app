@@ -132,6 +132,15 @@ export function DraggableList<T>({
 
   return (
     <ol ref={listRef} className="flex flex-col gap-2">
+      {/*
+        react-hooks/refs flags this map because `makeHandleProps(i)` —
+        invoked during render — returns a closure that touches `startRef`
+        (only inside the onPointerDown handler, never during render).
+        The runtime behavior is pure; the rule is conservative about
+        render-prop closures it can't inspect into. Suppression is
+        scoped to this one return.
+      */}
+      {/* eslint-disable-next-line react-hooks/refs */}
       {items.map((item, i) => {
         const active = dragIndex === i;
         const showIndicator = dragIndex !== null && dropIndex === i;

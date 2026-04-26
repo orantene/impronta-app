@@ -136,7 +136,7 @@ export const talentBioAdapter: TranslationCenterAdapter = {
       workflow_status: string | null;
     }>;
 
-    let workRows =
+    const workRows =
       st === "needs_attention"
         ? rows.filter((row) => {
             const h = healthAsymmetricBioEsTarget({

@@ -15,7 +15,7 @@
  * carries an inset top highlight so it reads as physical, not flat.
  */
 
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { CHROME, CHROME_SHADOWS } from "./tokens";
 import { ColorPickerPopover } from "./color-picker";
@@ -87,15 +87,18 @@ export function ColorRow({
   onOpacityChange,
   trailing,
 }: ColorRowProps) {
-  const swatchRef = useRef<HTMLButtonElement | null>(null);
+  const [swatchAnchor, setSwatchAnchor] = useState<HTMLButtonElement | null>(
+    null,
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
 
   return (
     <div className="flex items-center gap-2">
-      {/* Use a custom button wrapper so we can capture the ref + open the
-          popover without having to plumb a ref through <Swatch>. */}
+      {/* Use a custom button wrapper so we can capture the anchor + open
+          the popover without having to plumb a ref through <Swatch>. The
+          callback-ref pattern keeps render pure (no `.current` access). */}
       <button
-        ref={swatchRef}
+        ref={setSwatchAnchor}
         type="button"
         onClick={() => setPickerOpen((v) => !v)}
         title="Open color picker"
@@ -115,7 +118,7 @@ export function ColorRow({
       />
       <ColorPickerPopover
         open={pickerOpen}
-        anchor={swatchRef.current}
+        anchor={swatchAnchor}
         value={value}
         onChange={onChange}
         onClose={() => setPickerOpen(false)}

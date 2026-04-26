@@ -111,7 +111,7 @@ function GalleryTileRow({
         {/* Alt text — click to edit inline */}
         {editingAlt ? (
           <input
-            // eslint-disable-next-line jsx-a11y/no-autofocus
+             
             autoFocus
             type="text"
             className="w-full rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] focus:border-zinc-400 focus:outline-none"

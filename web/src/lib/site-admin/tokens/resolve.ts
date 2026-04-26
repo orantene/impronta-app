@@ -94,6 +94,11 @@ const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   "color.muted": "--token-color-muted",
   "color.line": "--token-color-line",
   "color.surface-raised": "--token-color-surface-raised",
+  // Phase 13 — free font-family overrides (CSS vars consumed by the
+  // storefront stylesheet's `--site-heading-font` / `--site-body-font`
+  // resolver chain).
+  "typography.heading-font-family": "--token-typography-heading-font-family",
+  "typography.body-font-family": "--token-typography-body-font-family",
 };
 
 /**

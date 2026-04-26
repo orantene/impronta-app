@@ -49,7 +49,11 @@ export function ImageCopyAlternatingComponent({
                 {item.imageUrl ? (
                   <div className="site-image-copy__media">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.imageUrl} alt="" aria-hidden />
+                    <img
+                      src={item.imageUrl}
+                      alt={item.imageAlt ?? ""}
+                      aria-hidden={item.imageAlt ? undefined : true}
+                    />
                   </div>
                 ) : (
                   <div className="site-image-copy__media" aria-hidden />

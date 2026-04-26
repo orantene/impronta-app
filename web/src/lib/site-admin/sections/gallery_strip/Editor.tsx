@@ -3,6 +3,7 @@
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
+import { AltTextField } from "../shared/AltTextField";
 import type { SectionEditorProps } from "../types";
 import type { GalleryStripV1, GalleryStripItem } from "./schema";
 
@@ -112,11 +113,10 @@ export function GalleryStripEditor({
                 />
               ) : null}
             </div>
-            <input
-              className={INPUT}
-              placeholder="Alt text"
+            <AltTextField
+              imageUrl={item.src}
               value={item.alt ?? ""}
-              onChange={(e) => patchItem(i, { alt: e.target.value })}
+              onChange={(next) => patchItem(i, { alt: next })}
             />
             <select
               className={INPUT}

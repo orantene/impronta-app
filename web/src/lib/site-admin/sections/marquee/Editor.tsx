@@ -1,6 +1,7 @@
 "use client";
 
 import { PresentationPanel } from "../shared/PresentationPanel";
+import { LinkPicker } from "../shared/LinkPicker";
 import type { SectionEditorProps } from "../types";
 import type { MarqueeV1, MarqueeItem } from "./schema";
 
@@ -119,11 +120,9 @@ export function MarqueeEditor({
               value={item.text}
               onChange={(e) => patchItem(i, { text: e.target.value })}
             />
-            <input
-              className={INPUT}
-              placeholder="Link URL (optional)"
+            <LinkPicker
               value={item.href ?? ""}
-              onChange={(e) => patchItem(i, { href: e.target.value })}
+              onChange={(next) => patchItem(i, { href: next || undefined })}
             />
             <button
               type="button"

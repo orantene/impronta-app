@@ -4,6 +4,7 @@ import type { SectionEditorProps } from "../types";
 import { PresentationPanel } from "../shared/PresentationPanel";
 import { VariantPicker } from "../shared/VariantPicker";
 import { MediaPicker } from "../shared/MediaPicker";
+import { LinkPicker } from "../shared/LinkPicker";
 import type {
   DestinationsMosaicV1,
   DestinationsMosaicItem,
@@ -105,7 +106,12 @@ export function DestinationsMosaicEditor({
                 />
               ) : null}
             </div>
-            <input className={`${INPUT} md:col-span-4`} placeholder="Link href (optional)" value={item.href ?? ""} onChange={(e) => patchItem(i, { href: e.target.value || undefined })} />
+            <div className="md:col-span-4">
+              <LinkPicker
+                value={item.href ?? ""}
+                onChange={(next) => patchItem(i, { href: next || undefined })}
+              />
+            </div>
           </div>
         ))}
       </div>

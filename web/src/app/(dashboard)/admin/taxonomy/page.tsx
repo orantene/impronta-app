@@ -111,7 +111,7 @@ export default async function AdminTaxonomyPage({
     "id, kind, slug, name_en, name_es, sort_order, archived_at, promo_image_storage_path, promo_placements";
   const selectLegacy = "id, kind, slug, name_en, name_es, sort_order, archived_at";
 
-  let res = await runList(selectWithPromo);
+  const res = await runList(selectWithPromo);
   let terms: Term[];
 
   if (!res.error) {

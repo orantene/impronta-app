@@ -332,7 +332,7 @@ export function AdminTalentEditorialForm({ talentId, initial }: Props) {
             {packages.length === 0 ? (
               <p className="text-xs text-muted-foreground">
                 No packages yet. Each package shows as a small card on the
-                editorial profile (e.g. "Essential — Trial + day-of").
+                editorial profile (e.g. &ldquo;Essential — Trial + day-of&rdquo;).
               </p>
             ) : (
               <ul className="space-y-2">
