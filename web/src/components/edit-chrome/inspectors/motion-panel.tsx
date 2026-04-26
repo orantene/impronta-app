@@ -1,7 +1,10 @@
 "use client";
 
 /**
- * MotionPanel — Phase 6 inspector tab for section-level animation.
+ * MotionPanel — section-level animation controls.
+ *
+ * Implements builder-experience.html surface §5 (Inspector Motion tab).
+ * Last reconciled: 2026-04-25.
  *
  * Reads / writes `presentation.animation`:
  *   - entry          runs once when the section enters the viewport
@@ -11,11 +14,21 @@
  *                    'always' forces animation regardless. Surfaced with
  *                    a clear accessibility warning.
  *
+ * The previous select-only build (Phase B.4 inspector pass — "1995 website"
+ * operator feedback, 2026-04-25) collapsed the entire motion vocabulary
+ * into a dropdown. Here we use Segmented chip rows with iconographic glyphs
+ * so the operator can see all entry directions at once and pick by sight.
+ *
+ * Toggle-to-clear: clicking the active chip clears it back to undefined
+ * (= no animation). The reducedMotion field is the exception — its base
+ * state has explicit copy ("Respect") rather than an unset chip, because
+ * accessibility defaults should be visible, not implicit.
+ *
  * Storefront CSS gates the animation rules behind
  * `@media (prefers-reduced-motion: no-preference)` by default; the
- * "always" mode re-applies the rules in a wider scope so they fire even
- * for users who've asked the OS for reduced motion. Operators should
- * opt into "always" rarely.
+ * "always" mode re-applies them in a wider scope so they fire even for
+ * users who've asked the OS for reduced motion. Operators should opt in
+ * rarely.
  */
 
 import {
@@ -23,15 +36,162 @@ import {
   ANIMATION_OPTIONS,
 } from "@/lib/site-admin/sections/shared/presentation";
 
-const FIELD_GROUP = "flex flex-col gap-1";
-const LABEL = "text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500";
-const SELECT =
-  "w-full rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none";
-const SECTION = "flex flex-col gap-3";
+import type { ReactElement } from "react";
+
+import { Segmented, type SegmentedOption } from "../kit/segmented";
+import { CHROME } from "../kit/tokens";
+
 const SECTION_TITLE =
-  "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400";
+  "text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500";
+const FIELD_LABEL =
+  "text-[10px] font-semibold uppercase tracking-[0.10em] text-zinc-500";
+const HINT = "text-[10.5px] leading-snug text-zinc-500";
+const INHERIT_HINT = "text-[10.5px] text-zinc-400";
 
 type AnimationKey = "entry" | "scroll" | "hover" | "reducedMotion";
+
+// Iconographic glyphs for entry directions. Each is a small box + an arrow
+// indicating the trajectory. Reads faster than copy.
+const FadeIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <rect
+      x="5"
+      y="5"
+      width="14"
+      height="14"
+      rx="2"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      opacity="0.45"
+    />
+  </svg>
+);
+const FadeUpIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <rect x="5" y="3" width="14" height="14" rx="2" opacity="0.45" />
+    <path d="M12 22 V 18" />
+    <path d="M9 21 L 12 18 L 15 21" />
+  </svg>
+);
+const FadeDownIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <rect x="5" y="7" width="14" height="14" rx="2" opacity="0.45" />
+    <path d="M12 2 V 6" />
+    <path d="M9 3 L 12 6 L 15 3" />
+  </svg>
+);
+const SlideLeftIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <rect x="3" y="5" width="14" height="14" rx="2" opacity="0.45" />
+    <path d="M22 12 H 18" />
+    <path d="M21 9 L 18 12 L 21 15" />
+  </svg>
+);
+const SlideRightIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <rect x="7" y="5" width="14" height="14" rx="2" opacity="0.45" />
+    <path d="M2 12 H 6" />
+    <path d="M3 9 L 6 12 L 3 15" />
+  </svg>
+);
+const ScaleInIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <rect x="9" y="9" width="6" height="6" rx="1" />
+    <rect x="3" y="3" width="18" height="18" rx="2" opacity="0.35" />
+  </svg>
+);
+const NoneIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" opacity="0.45" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const ParallaxIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <path d="M3 9 L 21 7" opacity="0.35" />
+    <path d="M3 14 L 21 12" />
+    <path d="M3 19 L 21 17" opacity="0.6" />
+  </svg>
+);
+const StaggerIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <rect x="3" y="4" width="6" height="6" rx="1" opacity="0.35" />
+    <rect x="11" y="4" width="6" height="6" rx="1" opacity="0.6" />
+    <rect x="3" y="14" width="6" height="6" rx="1" opacity="0.85" />
+    <rect x="11" y="14" width="6" height="6" rx="1" />
+  </svg>
+);
+
+const LiftIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <rect x="5" y="6" width="14" height="10" rx="2" />
+    <path d="M5 20 H 19" opacity="0.5" />
+  </svg>
+);
+const GlowIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 3 V 5" />
+    <path d="M12 19 V 21" />
+    <path d="M3 12 H 5" />
+    <path d="M19 12 H 21" />
+    <path d="M5.5 5.5 L 7 7" />
+    <path d="M17 17 L 18.5 18.5" />
+    <path d="M5.5 18.5 L 7 17" />
+    <path d="M17 7 L 18.5 5.5" />
+  </svg>
+);
+const TiltIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden
+    stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"
+    strokeLinejoin="round">
+    <path d="M5 7 L 19 5 L 19 17 L 5 19 Z" />
+  </svg>
+);
+
+const ENTRY_ICONS: Record<string, () => ReactElement> = {
+  none: NoneIcon,
+  fade: FadeIcon,
+  "fade-up": FadeUpIcon,
+  "fade-down": FadeDownIcon,
+  "slide-left": SlideLeftIcon,
+  "slide-right": SlideRightIcon,
+  "scale-in": ScaleInIcon,
+};
+
+const SCROLL_ICONS: Record<string, () => ReactElement> = {
+  none: NoneIcon,
+  "parallax-soft": ParallaxIcon,
+  "reveal-stagger": StaggerIcon,
+};
+
+const HOVER_ICONS: Record<string, () => ReactElement> = {
+  none: NoneIcon,
+  lift: LiftIcon,
+  glow: GlowIcon,
+  tilt: TiltIcon,
+};
 
 interface MotionPanelProps {
   presentation: Record<string, unknown>;
@@ -45,122 +205,176 @@ export function MotionPanel({ presentation, onDeepPatch }: MotionPanelProps) {
   const val = (k: AnimationKey): string =>
     (animation[k] as string | undefined) ?? "";
 
-  function patch(k: AnimationKey, value: string) {
-    onDeepPatch({ animation: { [k]: value || undefined } });
+  /**
+   * Toggle pattern: clicking the active chip clears the field. "none" is
+   * a real schema value (explicit "no animation, even if theme suggests
+   * one") so we keep it selectable separately from the inherit/unset state.
+   */
+  function setOrToggle(k: AnimationKey, next: string) {
+    const current = val(k);
+    onDeepPatch({
+      animation: { [k]: current === next ? undefined : next },
+    });
   }
 
+  const entryValue = val("entry");
+  const scrollValue = val("scroll");
+  const hoverValue = val("hover");
   const reducedMotion = val("reducedMotion");
+
+  function buildIconOptions(
+    options: ReadonlyArray<{ value: string; label: string }>,
+    icons: Record<string, () => ReactElement>,
+  ): ReadonlyArray<SegmentedOption<string>> {
+    return options.map((o) => {
+      const Icon = icons[o.value];
+      return {
+        value: o.value,
+        label: Icon ? <Icon /> : o.label,
+      };
+    });
+  }
+
+  function describe(
+    options: ReadonlyArray<{ value: string; label: string }>,
+    value: string,
+  ): string | null {
+    if (!value) return null;
+    return options.find((o) => o.value === value)?.label ?? value;
+  }
 
   return (
     <div className="flex flex-col gap-6">
-      <section className={SECTION}>
-        <div className={SECTION_TITLE}>Entry</div>
-        <div className={FIELD_GROUP}>
-          <label className={LABEL}>{ANIMATION_FIELD_LABELS.entry}</label>
-          <select
-            className={SELECT}
-            value={val("entry")}
-            onChange={(e) => patch("entry", e.target.value)}
-          >
-            <option value="">None</option>
-            {ANIMATION_OPTIONS.entry
-              .filter((o) => o.value !== "none")
-              .map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-          </select>
-          <div className="text-[10px] leading-relaxed text-zinc-400">
-            Runs once when the section first scrolls into view.
-          </div>
+      {/* ── Entry ───────────────────────────────────────────────────── */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Entry</div>
+          {!entryValue ? (
+            <span className={INHERIT_HINT}>Theme default</span>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className={FIELD_LABEL}>{ANIMATION_FIELD_LABELS.entry}</span>
+          <Segmented
+            fullWidth
+            compact
+            value={entryValue}
+            onChange={(next) => setOrToggle("entry", next)}
+            options={buildIconOptions(ANIMATION_OPTIONS.entry, ENTRY_ICONS)}
+          />
+          <span className={HINT}>
+            {describe(ANIMATION_OPTIONS.entry, entryValue) ??
+              "Runs once when the section first scrolls into view."}
+          </span>
         </div>
       </section>
 
-      <section className={SECTION}>
-        <div className={SECTION_TITLE}>Scroll</div>
-        <div className={FIELD_GROUP}>
-          <label className={LABEL}>{ANIMATION_FIELD_LABELS.scroll}</label>
-          <select
-            className={SELECT}
-            value={val("scroll")}
-            onChange={(e) => patch("scroll", e.target.value)}
-          >
-            <option value="">None</option>
-            {ANIMATION_OPTIONS.scroll
-              .filter((o) => o.value !== "none")
-              .map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-          </select>
-          <div className="text-[10px] leading-relaxed text-zinc-400">
-            Continuous behavior. Soft parallax slows the background image as
-            the visitor scrolls; stagger reveal fades child items in sequence.
-          </div>
+      {/* ── Scroll ──────────────────────────────────────────────────── */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Scroll</div>
+          {!scrollValue ? (
+            <span className={INHERIT_HINT}>None</span>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className={FIELD_LABEL}>{ANIMATION_FIELD_LABELS.scroll}</span>
+          <Segmented
+            fullWidth
+            compact
+            value={scrollValue}
+            onChange={(next) => setOrToggle("scroll", next)}
+            options={buildIconOptions(
+              ANIMATION_OPTIONS.scroll,
+              SCROLL_ICONS,
+            )}
+          />
+          <span className={HINT}>
+            {scrollValue === "parallax-soft"
+              ? "Soft parallax slows the background image as the visitor scrolls."
+              : scrollValue === "reveal-stagger"
+                ? "Stagger reveal fades child items in sequence as they enter view."
+                : "Continuous behavior bound to scroll position. Off by default."}
+          </span>
         </div>
       </section>
 
-      <section className={SECTION}>
-        <div className={SECTION_TITLE}>Hover</div>
-        <div className={FIELD_GROUP}>
-          <label className={LABEL}>{ANIMATION_FIELD_LABELS.hover}</label>
-          <select
-            className={SELECT}
-            value={val("hover")}
-            onChange={(e) => patch("hover", e.target.value)}
-          >
-            <option value="">None</option>
-            {ANIMATION_OPTIONS.hover
-              .filter((o) => o.value !== "none")
-              .map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-          </select>
-          <div className="text-[10px] leading-relaxed text-zinc-400">
-            Applied on cursor-over the section card. Lift = subtle translate;
-            glow = accent-color shadow; tilt = perspective rotate.
-          </div>
+      {/* ── Hover ───────────────────────────────────────────────────── */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Hover</div>
+          {!hoverValue ? (
+            <span className={INHERIT_HINT}>None</span>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className={FIELD_LABEL}>{ANIMATION_FIELD_LABELS.hover}</span>
+          <Segmented
+            fullWidth
+            compact
+            value={hoverValue}
+            onChange={(next) => setOrToggle("hover", next)}
+            options={buildIconOptions(ANIMATION_OPTIONS.hover, HOVER_ICONS)}
+          />
+          <span className={HINT}>
+            {hoverValue === "lift"
+              ? "Subtle translate upward on cursor-over."
+              : hoverValue === "glow"
+                ? "Accent-color shadow blooms outward."
+                : hoverValue === "tilt"
+                  ? "Perspective rotate following the cursor."
+                  : "Applied on cursor-over the section card. Off by default."}
+          </span>
         </div>
       </section>
 
-      <section className={SECTION}>
+      {/* ── Accessibility ───────────────────────────────────────────── */}
+      <section className="flex flex-col gap-3">
         <div className={SECTION_TITLE}>Accessibility</div>
-        <div className={FIELD_GROUP}>
-          <label className={LABEL}>
+        <div className="flex flex-col gap-2">
+          <span className={FIELD_LABEL}>
             {ANIMATION_FIELD_LABELS.reducedMotion}
-          </label>
-          <select
-            className={SELECT}
-            value={val("reducedMotion")}
-            onChange={(e) => patch("reducedMotion", e.target.value)}
-          >
-            <option value="">Respect (default)</option>
-            {ANIMATION_OPTIONS.reducedMotion
-              .filter((o) => o.value !== "respect")
-              .map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-          </select>
+          </span>
+          {/* Two-state Segmented: explicit "Respect" rather than an unset
+              chip, because accessibility defaults should be visible. The
+              unset state and "respect" map to identical behavior — we
+              normalize to undefined when the operator picks Respect so we
+              don't bloat the saved JSON. */}
+          <Segmented
+            fullWidth
+            compact
+            value={reducedMotion || "respect"}
+            onChange={(next) => {
+              onDeepPatch({
+                animation: {
+                  reducedMotion: next === "respect" ? undefined : next,
+                },
+              });
+            }}
+            options={[
+              { value: "respect", label: "Respect" },
+              { value: "always", label: "Force animate" },
+            ]}
+          />
           {reducedMotion === "always" ? (
             <div
-              className="mt-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-amber-900"
+              className="rounded-md px-2.5 py-1.5 text-[11px] leading-relaxed"
+              style={{
+                background: CHROME.amberBg,
+                border: `1px solid ${CHROME.amberLine}`,
+                color: CHROME.amber,
+              }}
             >
               <strong className="font-semibold">Heads up:</strong> visitors
               who set <em>prefers-reduced-motion: reduce</em> at the OS level
-              are asking you not to animate. Use this only for animations
-              that are truly content-critical.
+              are asking you not to animate. Use this only for animation
+              that is truly content-critical.
             </div>
           ) : (
-            <div className="text-[10px] leading-relaxed text-zinc-400">
-              Animations run for visitors who haven&apos;t requested reduced
-              motion at the OS level.
-            </div>
+            <span className={HINT}>
+              Animations run for visitors who haven&apos;t asked the OS for
+              reduced motion. Recommended.
+            </span>
           )}
         </div>
       </section>
