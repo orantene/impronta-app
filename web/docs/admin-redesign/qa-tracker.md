@@ -8,6 +8,139 @@ checklist, and the wave sequence.
 
 ---
 
+## Wave 0 · templates / components
+
+Layer 1 — the reusable building blocks. Fixing one cascades to every
+page that uses it. **Run before Wave A** so per-page audits don't
+re-log the same component issues.
+
+### 0.1 · Hero strip components ⬜
+- `<StatusCard>` — used on Workspace · Overview, Talent · Today,
+  Client · Today, Platform · Today (every "Today")
+- `<StatusCaption>` (trend tinting)
+- 4-up Grid pattern
+
+### 0.2 · Card primitives ⬜
+- `<PrimaryCard>` — main hero card (icon, title, description, meta, affordance)
+- `<SecondaryCard>` — quieter sibling
+- `<LockedCard>` / `<CompactLockedCard>` — upsell cards
+- `<StarterCard>` — first-run spotlight
+- `<EmptyState>` — text + actions + numbered tip rows
+- `<MoreWithSection>` — locked-feature row wrapper
+
+### 0.3 · Drawer system ⬜
+- `<DrawerShell>` — header, toolbar slot (auto copy-link, size buttons,
+  close), body, footer
+- Drawer breadcrumb (back-stack)
+- Drawer overlay + backdrop opacity
+- Drawer footer pinning
+- Plan-compare drawer (special wide layout)
+- Modal shell (separate from drawer)
+
+### 0.4 · Topbars (4 surfaces) ⬜
+- Workspace topbar (tenant chip, page nav, right cluster: + New /
+  Help / Settings / Bell / Role / Avatar)
+- Talent topbar (identity, agency switcher, page nav, view-public)
+- Client topbar (brand, plan chip, page nav)
+- Platform topbar (HQ identity, role lens, page nav)
+- Active-page underline animation
+
+### 0.5 · Page header pattern ⬜
+- `<PageHeader>` — eyebrow / title / subtitle / actions slot
+- `eyebrowCase`: upper vs sentence
+- Action slot wrap behavior on mobile
+
+### 0.6 · Chip primitives ⬜
+- `<PlanChip>` — Free / Studio / Agency / Network
+- `<EntityChip>` — Agency / Hub
+- `<RoleChip>` — viewer / editor / coordinator / admin / owner
+- `<ClientTrustChip>` — basic / verified / silver / trusted
+- `<StateChip>` — talent state (draft / invited / published / etc.)
+- `<StatusPill>` — generic status
+- `<StatDot>` — small color dot
+- `<Bullet>` — separator
+- `<CapsLabel>` — uppercase eyebrow (sentence-case variant)
+- `<Affordance>` — "Open →" trailing arrow
+- `<ReadOnlyChip>` — viewer/audit indicator
+
+### 0.7 · Buttons ⬜
+- `<PrimaryButton>` (ink), `<SecondaryButton>` (white), `<GhostButton>` (transparent)
+- Sizes (sm / md), disabled state, hover states
+- Icon-only buttons in topbar right cluster (Help, Settings, Bell)
+
+### 0.8 · Inputs + forms ⬜
+- `<TextInput>` — controlled, readOnly, prefix/suffix
+- `<TextArea>` — controlled
+- `<Toggle>` — switch
+- `<FieldRow>` — required asterisk, optional chip, error message, hint
+- Native `<select>` with `selectStyle` shared helper
+- Search input pattern (Inbox / Workflow / Roster / Clients)
+
+### 0.9 · List patterns ⬜
+- Search input + sort dropdown + filter chips combination
+- "Export CSV" placement in PageHeader actions
+- Row data-tulala-row marker (density toggle)
+- Table-style list (Workflow, Clients) vs card-grid (Roster) vs
+  composite list (Inbox)
+- `<BulkSelectBar>` + `<BulkRowCheckbox>`
+- `<LoadMore>` pagination
+- `<SwipeableRow>` mobile + kebab fallback
+- `useKeyboardListNav` j/k
+
+### 0.10 · Feedback + overlays ⬜
+- `<Popover>` — themed tooltip with portal rendering
+- `<ToastHost>` + auto-dismiss + hover pause
+- `<UpgradeModal>` — separate from drawer
+- `<BackToTop>` — floating pill
+
+### 0.11 · Avatars ⬜
+- `<Avatar>` photo / initials / emoji hierarchy
+- `tone="auto"` deterministic tint via `hashSeed`
+- Ringed gradient variant (Oran Tene topbar)
+- Sizes: 18 / 22 / 28 / 30 / 32 / 36
+
+### 0.12 · Mobile tab bar ⬜
+- `<MobileBottomNav>` — 4 tabs + More sheet
+- Per-surface icon mapping
+- Safe-area-inset
+- Bottom-positioning above toast stack
+
+### 0.13 · Recurring sub-patterns ⬜
+- "Today" page template (greeting eyebrow → Today → subtitle → metric
+  strip → primary cards → cross-promo)
+- "Settings" page template (sections in canonical order)
+- "More with X plan" cross-promo grid
+- Activation arc (Free overview + onboarding drawer pattern)
+- "Where you stand" / "Inquiries you're in" funnel cards
+- Calendar grid template (Workspace · Calendar + Talent · Calendar)
+- Hero card pair (2-up below the hero strip)
+
+### 0.14 · Wave-2 helpers ⬜
+- `<TalentAnalyticsCard>`, `<TalentFunnelCard>`,
+  `<InquiryTemplatesPicker>`, `<DoubleBookingWarning>`,
+  `<ReadReceipt>`, `<TypingIndicator>`,
+  `<ICalSubscribeCard>`, `<OnboardingArc>`,
+  `<SavedViewsBar>`, `<DraggableList>`,
+  `<MentionTypeahead>`, `<QuickReplyButtons>`,
+  `<WhatsNewDrawer>`, `<HelpDrawer>`
+
+### How to run a Wave 0 session
+
+For each component group above:
+
+1. **Find every place it's used** — quick grep across the codebase
+2. **Audit the component itself** — apply the 9-question checklist
+   to the component as a unit (visual hierarchy, copy patterns, edge
+   cases, all variants, mobile, a11y)
+3. **Diff its instances** — does it look identical on every surface?
+   Or does someone override it inconsistently?
+4. **Ship the component fix** — one change cascades to every page
+
+Output per component: tracker checkbox flips, commit ref, list of
+pages that benefit downstream.
+
+---
+
 ## Wave A · admin core (high traffic)
 
 ### A1 · Workspace · Overview ⬜

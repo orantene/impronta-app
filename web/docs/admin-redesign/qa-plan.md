@@ -41,12 +41,33 @@ Apply to every page. Each question gets one of three answers:
 For pages with deeper issues (a redesign, not a polish), scope a
 separate ticket and move on — don't get stuck.
 
+## Two parallel tracks
+
+The audit runs on **two layers**:
+
+**Layer 1 — Templates / components.** The reusable building blocks
+that appear across many pages: `<StatusCard>`, `<PrimaryCard>`,
+`<DrawerShell>`, `<PageHeader>`, the topbars, the search/sort/filter
+pattern, the chip primitives, etc. Fixing one of these fixes every
+page that uses it. This is where leverage is highest.
+
+**Layer 2 — Pages.** The per-page audit catches:
+- Page-specific copy
+- Information architecture
+- Hero metric content
+- Empty / edge state messaging
+- Anything specific to that route
+
+Run **Layer 1 first** so component fixes cascade. Then Layer 2 per
+page just catches the integration + per-page issues.
+
 ## Wave order
 
 See [`./qa-tracker.md`](./qa-tracker.md) for the live status of each.
 
-| Wave | Surfaces | ~Sessions | ~Time |
+| Wave | What | ~Sessions | ~Time |
 |---|---|---|---|
+| **0** | Template / component QA — primitives + recurring patterns | 4 | 2.5h |
 | **A** | Workspace · Overview / Inbox / Workflow / Talent | 4 | 2h |
 | **B** | Workspace · Clients / Calendar / Public site | 3 | 1.5h |
 | **C** | Workspace · Billing / Settings | 2 | 1h |
