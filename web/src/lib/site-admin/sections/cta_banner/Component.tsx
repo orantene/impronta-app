@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { CtaBannerV1 } from "./schema";
@@ -36,6 +36,7 @@ export function CtaBannerComponent({ props }: SectionComponentProps<CtaBannerV1>
       data-band-tone={bandTone}
       data-inset-card={insetCard ? "true" : undefined}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       <div className="site-cta-banner__shell">
         {hasBackground ? (

@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { TrustStripV1 } from "./schema";
@@ -27,6 +27,7 @@ export function TrustStripComponent({ props }: SectionComponentProps<TrustStripV
       data-background={bg}
       data-density={den}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       <div className="site-trust-strip__inner">
         {(eyebrow || headline) && (

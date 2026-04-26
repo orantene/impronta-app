@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { CategoryGridV1 } from "./schema";
@@ -22,6 +22,7 @@ export function CategoryGridComponent({
       style={{
         // Expose desktop column count to CSS — `repeat(var(--cols), 1fr)`.
         ["--cat-grid-cols" as string]: String(columnsDesktop),
+        ...presentationInlineStyles(presentation),
       }}
     >
       <div className="site-category-grid__inner">

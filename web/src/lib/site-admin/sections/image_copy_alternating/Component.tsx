@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { ImageCopyAlternatingV1 } from "./schema";
@@ -13,7 +13,10 @@ export function ImageCopyAlternatingComponent({
       data-variant={variant}
       data-gap={gap}
       {...presentationDataAttrs(presentation)}
-      style={{ ["--ic-ratio" as string]: imageRatio.replace("/", " / ") }}
+      style={{
+        ["--ic-ratio" as string]: imageRatio.replace("/", " / "),
+        ...presentationInlineStyles(presentation),
+      }}
     >
       <div className="site-image-copy__inner">
         {(eyebrow || headline) && (

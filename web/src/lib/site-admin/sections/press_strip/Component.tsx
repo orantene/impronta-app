@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import type { SectionComponentProps } from "../types";
 import type { PressStripV1 } from "./schema";
 
@@ -11,6 +11,7 @@ export function PressStripComponent({
       className="site-press-strip"
       data-variant={variant}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       <div className="site-press-strip__inner">
         <div className="site-press-strip__row">

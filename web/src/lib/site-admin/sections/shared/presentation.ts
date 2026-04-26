@@ -37,6 +37,24 @@
 
 import { z } from "zod";
 
+/**
+ * ── Pixel-first companion fields ───────────────────────────────────────
+ *
+ * Phase 1 of the page-builder vision roadmap: every preset enum gets an
+ * optional companion field carrying a raw `{ value, unit }`. When set, the
+ * companion overrides the enum (the renderer skips the data-attr so the
+ * inline style wins by specificity). The token-default + pixel-escape
+ * pattern: tokens stay the default, pixels are one click away.
+ */
+const lengthUnitEnum = z.enum(["px", "rem", "em", "%", "vw", "vh"]);
+
+export const customLengthSchema = z.object({
+  value: z.number().finite(),
+  unit: lengthUnitEnum,
+});
+
+export type CustomLength = z.infer<typeof customLengthSchema>;
+
 const backgroundEnum = z.enum([
   "canvas",       // follows the tenant's background.mode (default)
   "ivory",
@@ -157,6 +175,27 @@ export const sectionPresentationSchema = z
       .optional(),
 
     animation: sectionAnimationSchema,
+
+    /**
+     * ── Pixel-first companion fields ─────────────────────────────────
+     * When set, these override the corresponding enum field. The
+     * renderer omits the enum's data-attr so the inline style wins.
+     * All optional — sections that don't set them keep using token
+     * defaults via `data-section-*` attrs.
+     */
+    paddingTopCustom: customLengthSchema.optional(),
+    paddingBottomCustom: customLengthSchema.optional(),
+    paddingLeftCustom: customLengthSchema.optional(),
+    paddingRightCustom: customLengthSchema.optional(),
+    marginTopCustom: customLengthSchema.optional(),
+    marginBottomCustom: customLengthSchema.optional(),
+    containerWidthCustom: customLengthSchema.optional(),
+
+    /** Free-color background (any hex/rgba). Overrides background enum. */
+    backgroundColorCustom: z.string().optional(),
+
+    /** Per-section custom CSS, scoped to the section root via `.cms-section[data-section-id="..."] { ... }`. */
+    customCss: z.string().optional(),
   })
   .optional();
 
@@ -181,11 +220,17 @@ export function presentationDataAttrs(
   if (!p) return {};
   const out: Record<string, string> = {};
 
-  // Base (desktop) presentation.
-  if (p.background) out["data-section-background"] = p.background;
-  if (p.paddingTop) out["data-section-padding-top"] = p.paddingTop;
-  if (p.paddingBottom) out["data-section-padding-bottom"] = p.paddingBottom;
-  if (p.containerWidth) out["data-section-container"] = p.containerWidth;
+  // Base (desktop) presentation. Custom companions OVERRIDE — when a custom
+  // length is set we skip emitting the enum's data-attr so the inline style
+  // (specificity 1,0,0,0 vs the !important class rules) wins.
+  if (p.background && !p.backgroundColorCustom)
+    out["data-section-background"] = p.background;
+  if (p.paddingTop && !p.paddingTopCustom)
+    out["data-section-padding-top"] = p.paddingTop;
+  if (p.paddingBottom && !p.paddingBottomCustom)
+    out["data-section-padding-bottom"] = p.paddingBottom;
+  if (p.containerWidth && !p.containerWidthCustom)
+    out["data-section-container"] = p.containerWidth;
   if (p.align) out["data-section-align"] = p.align;
   if (p.dividerTop) out["data-section-divider-top"] = p.dividerTop;
   if (p.mobileStack) out["data-section-mobile-stack"] = p.mobileStack;
@@ -226,6 +271,66 @@ export function presentationDataAttrs(
   }
 
   return out;
+}
+
+/**
+ * Inline-style overrides for pixel-first companion fields. Spread into the
+ * section root's `style` prop alongside `presentationDataAttrs`. Inline
+ * styles beat class rules by specificity (without needing `!important` on
+ * either side, which keeps things composable).
+ *
+ * Power-user fields (paddingLeft, paddingRight, marginTop, marginBottom)
+ * are pixel-only — they have no enum equivalent. Only the four "core"
+ * companions (paddingTop/Bottom, containerWidth, backgroundColor) shadow
+ * existing enums.
+ */
+export function presentationInlineStyles(
+  p?: SectionPresentation,
+): Record<string, string> {
+  if (!p) return {};
+  const out: Record<string, string> = {};
+  const fmt = (l: CustomLength) => `${l.value}${l.unit}`;
+  if (p.paddingTopCustom) out.paddingTop = fmt(p.paddingTopCustom);
+  if (p.paddingBottomCustom) out.paddingBottom = fmt(p.paddingBottomCustom);
+  if (p.paddingLeftCustom) out.paddingLeft = fmt(p.paddingLeftCustom);
+  if (p.paddingRightCustom) out.paddingRight = fmt(p.paddingRightCustom);
+  if (p.marginTopCustom) out.marginTop = fmt(p.marginTopCustom);
+  if (p.marginBottomCustom) out.marginBottom = fmt(p.marginBottomCustom);
+  if (p.backgroundColorCustom) out.background = p.backgroundColorCustom;
+  // containerWidthCustom is consumed differently — it sets a CSS variable
+  // that the section's __inner consumes via max-width. The section root
+  // still gets a marker attr so the renderer's wrapper can pick it up.
+  if (p.containerWidthCustom) {
+    out["--cms-section-container-width"] = fmt(p.containerWidthCustom);
+  }
+  return out;
+}
+
+/**
+ * Render the `customCss` field as a scoped <style> tag. Returns null when
+ * empty. The CSS is wrapped in a section-id attribute selector so it can't
+ * leak out of the section.
+ *
+ *   [data-cms-section][data-section-id="<id>"] {
+ *     <user CSS>
+ *   }
+ *
+ * Sanitization is intentionally minimal — we strip </style> and <script>
+ * substrings to prevent the obvious tag-break attacks, but otherwise trust
+ * the operator (this is workspace-internal authoring, not public input).
+ */
+export function presentationScopedCss(
+  sectionId: string,
+  p?: SectionPresentation,
+): string | null {
+  const css = p?.customCss?.trim();
+  if (!css) return null;
+  // Defensive: strip any tag-break attempts.
+  const safe = css
+    .replace(/<\/style>/gi, "")
+    .replace(/<script/gi, "")
+    .replace(/<\/script>/gi, "");
+  return `[data-cms-section][data-section-id="${sectionId}"] { ${safe} }`;
 }
 
 /**

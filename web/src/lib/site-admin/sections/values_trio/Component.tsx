@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { ValuesTrioV1 } from "./schema";
@@ -19,6 +19,7 @@ export function ValuesTrioComponent({
       data-variant={variant}
       data-number-style={numberStyle}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       <div className="site-values-trio__inner">
         {(eyebrow || headline) && (

@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { ProcessStepsV1 } from "./schema";
@@ -23,6 +23,7 @@ export function ProcessStepsComponent({
       data-variant={variant}
       data-number-style={numberStyle}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       <div className="site-process-steps__inner">
         {(eyebrow || headline || copy) && (

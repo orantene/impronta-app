@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { GalleryStripV1, GalleryStripItem } from "./schema";
@@ -17,6 +17,7 @@ export function GalleryStripComponent({
       className="site-gallery"
       data-variant={variant}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       <div className="site-gallery__inner">
         {(eyebrow || headline) && (

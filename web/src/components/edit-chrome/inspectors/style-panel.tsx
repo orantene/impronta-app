@@ -26,6 +26,9 @@ import {
   PRESENTATION_OPTIONS,
 } from "@/lib/site-admin/sections/shared/presentation";
 
+import { useState } from "react";
+
+import { ColorPickerPopover } from "../kit/color-picker";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { Swatch } from "../kit/swatch";
 import { CHROME } from "../kit/tokens";
@@ -163,9 +166,14 @@ export function StylePanel({
   }
 
   const backgroundValue = present("background");
+  const backgroundColorCustom = present("backgroundColorCustom");
+  const customCss = present("customCss");
   const dividerValue = present("dividerTop");
   const moodValue = root("mood");
   const overlayValue = root("overlay");
+
+  const [colorAnchor, setColorAnchor] = useState<HTMLButtonElement | null>(null);
+  const [colorOpen, setColorOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
@@ -202,13 +210,146 @@ export function StylePanel({
             })}
           </div>
           <span className={HINT}>
-            {backgroundValue
-              ? (PRESENTATION_OPTIONS.background.find(
-                  (o) => o.value === backgroundValue,
-                )?.label ?? backgroundValue)
-              : "Match canvas — follows the tenant theme."}
+            {backgroundColorCustom
+              ? `Custom color overrides the palette token.`
+              : backgroundValue
+                ? (PRESENTATION_OPTIONS.background.find(
+                    (o) => o.value === backgroundValue,
+                  )?.label ?? backgroundValue)
+                : "Match canvas — follows the tenant theme."}
           </span>
         </div>
+        {/* Free-color override — Phase 1 (pixel-first) escape from the
+            tenant palette. Sets backgroundColorCustom which the renderer
+            applies as inline `background:` and skips the data-attr so
+            the swatch token is overridden. */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className={FIELD_LABEL}>Custom color</span>
+            {backgroundColorCustom ? (
+              <button
+                type="button"
+                onClick={() =>
+                  onPatch({ __presentation: { backgroundColorCustom: undefined } })
+                }
+                className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: CHROME.muted,
+                  padding: 0,
+                }}
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              ref={setColorAnchor}
+              type="button"
+              onClick={() => setColorOpen((v) => !v)}
+              aria-label="Pick custom background color"
+              className="cursor-pointer"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 6,
+                border: `1px solid ${CHROME.lineMid}`,
+                background: backgroundColorCustom || "transparent",
+                backgroundImage: backgroundColorCustom
+                  ? undefined
+                  : "repeating-conic-gradient(#e5e0d8 0% 25%, #ffffff 0% 50%) 50% / 8px 8px",
+              }}
+            />
+            <input
+              type="text"
+              value={backgroundColorCustom}
+              onChange={(e) =>
+                onPatch({
+                  __presentation: {
+                    backgroundColorCustom: e.target.value || undefined,
+                  },
+                })
+              }
+              placeholder="#— or rgba()"
+              className="flex-1 px-2"
+              style={{
+                height: 30,
+                fontSize: 12,
+                fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                background: CHROME.surface2,
+                border: `1px solid ${CHROME.lineMid}`,
+                borderRadius: 6,
+                color: CHROME.ink,
+                outline: "none",
+              }}
+            />
+          </div>
+          <ColorPickerPopover
+            open={colorOpen}
+            anchor={colorAnchor}
+            value={backgroundColorCustom || "#ffffff"}
+            onChange={(next) =>
+              onPatch({ __presentation: { backgroundColorCustom: next } })
+            }
+            onClose={() => setColorOpen(false)}
+          />
+        </div>
+      </section>
+
+      {/* ── Custom CSS (per-section escape hatch, scoped to this section) ─ */}
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Custom CSS</div>
+          {customCss ? (
+            <button
+              type="button"
+              onClick={() =>
+                onPatch({ __presentation: { customCss: undefined } })
+              }
+              className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: CHROME.muted,
+                padding: 0,
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <textarea
+          value={customCss}
+          onChange={(e) =>
+            onPatch({
+              __presentation: { customCss: e.target.value || undefined },
+            })
+          }
+          placeholder={
+            "/* Scoped to this section. Modern CSS supported. */\n.site-section-headline {\n  letter-spacing: -0.02em;\n}"
+          }
+          spellCheck={false}
+          rows={6}
+          className="w-full px-2 py-2"
+          style={{
+            fontSize: 11.5,
+            lineHeight: 1.45,
+            fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            background: CHROME.surface2,
+            border: `1px solid ${CHROME.lineMid}`,
+            borderRadius: 6,
+            color: CHROME.ink,
+            outline: "none",
+            resize: "vertical",
+            minHeight: 110,
+          }}
+        />
+        <span className={HINT}>
+          Wrapped in <code>[data-section-id]</code> so it can&apos;t leak
+          across sections. Use <code>&amp;</code> to nest.
+        </span>
       </section>
 
       {/* ── Divider ──────────────────────────────────────────────────── */}

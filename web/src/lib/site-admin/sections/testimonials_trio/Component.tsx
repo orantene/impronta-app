@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { TestimonialsTrioV1, TestimonialsTrioItem } from "./schema";
@@ -24,6 +24,7 @@ export function TestimonialsTrioComponent({
       className="site-testimonials-trio"
       data-variant={variant}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       <div className="site-testimonials-trio__inner">
         {(eyebrow || headline) && (

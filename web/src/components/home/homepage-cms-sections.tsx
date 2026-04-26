@@ -29,6 +29,7 @@ import {
   migrateSectionPayload,
   type SectionRegistryEntry,
 } from "@/lib/site-admin/sections/types";
+import { presentationScopedCss } from "@/lib/site-admin/sections/shared/presentation";
 
 interface HomepageCmsSectionsProps {
   snapshot: HomepageSnapshot;
@@ -138,7 +139,17 @@ export async function HomepageCmsSections({
             preview={false}
           />
         );
-        if (!editMode) return rendered;
+        // Pixel-first companion: emit per-section scoped CSS when the
+        // operator wrote any custom CSS. Scoped to the wrapper's
+        // `data-section-id` attribute so it can't leak across sections.
+        const payload = migrated.payload as { presentation?: unknown };
+        const scopedCss = presentationScopedCss(
+          entry.sectionId,
+          (payload?.presentation ?? undefined) as Parameters<typeof presentationScopedCss>[1],
+        );
+        // Wrap unconditionally (visitor + edit mode). Visitor mode needs the
+        // wrapper for scoped CSS targeting; edit mode adds chrome attrs the
+        // selection layer reads. Wrapping is layout-neutral (display: contents).
         return (
           <div
             key={`wrap:${key}`}
@@ -148,6 +159,9 @@ export async function HomepageCmsSections({
             data-slot-key={entry.slotKey}
             data-sort-order={entry.sortOrder}
           >
+            {scopedCss ? (
+              <style dangerouslySetInnerHTML={{ __html: scopedCss }} />
+            ) : null}
             {rendered}
           </div>
         );

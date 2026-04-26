@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { DestinationsMosaicV1 } from "./schema";
@@ -14,6 +14,7 @@ export function DestinationsMosaicComponent({
       className="site-destinations-mosaic"
       data-variant={variant}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       <div className="site-destinations-mosaic__inner">
         {(eyebrow || headline || copy) && (

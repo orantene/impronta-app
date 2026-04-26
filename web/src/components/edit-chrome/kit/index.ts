@@ -30,6 +30,13 @@ export {
 export { Card, CardHead, CardBody, CardAction } from "./card";
 export { Field, FieldLabel, Helper, HelperCounter } from "./field";
 export { Stepper } from "./stepper";
+export {
+  NumberUnit,
+  ALL_UNITS,
+  formatLength,
+  type LengthUnit,
+  type LengthValue,
+} from "./number-unit";
 export { Segmented, type SegmentedOption } from "./segmented";
 export { Toggle } from "./toggle";
 export { Swatch, ColorRow } from "./swatch";

@@ -1,4 +1,4 @@
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
 import type { FeaturedTalentV1 } from "./schema";
@@ -47,7 +47,10 @@ export async function FeaturedTalentComponent({
       data-source-mode={sourceMode}
       data-card-count={cards.length}
       {...presentationDataAttrs(presentation)}
-      style={{ ["--ft-cols" as string]: String(columns) }}
+      style={{
+        ["--ft-cols" as string]: String(columns),
+        ...presentationInlineStyles(presentation),
+      }}
     >
       <div className="site-featured-talent__inner">
         {(eyebrow || headline || copy || footerCta) && (

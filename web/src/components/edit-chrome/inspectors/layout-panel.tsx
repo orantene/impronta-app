@@ -29,10 +29,12 @@
 import {
   PRESENTATION_FIELD_LABELS,
   PRESENTATION_OPTIONS,
+  type CustomLength,
 } from "@/lib/site-admin/sections/shared/presentation";
 
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 
+import { NumberUnit, type LengthUnit } from "../kit/number-unit";
 import { Segmented, type SegmentedOption } from "../kit/segmented";
 import { CHROME } from "../kit/tokens";
 
@@ -272,9 +274,104 @@ const ALIGN_ICONS: Record<string, () => ReactElement> = {
   right: AlignRightIcon,
 };
 
+/**
+ * LengthRow — token chip group with a "Custom" disclosure that swaps in
+ * a NumberUnit. Implements the token-default + pixel-escape pattern from
+ * Phase 1 of the page-builder vision: tokens stay the default, raw pixels
+ * are one click away. When a custom value is set, the chip row hides
+ * (the renderer omits the data-attr so inline style wins).
+ */
+interface LengthRowProps {
+  label: string;
+  /** Token enum value ("standard", "airy", etc.). */
+  tokenValue: string;
+  /** Custom length value, or null/undefined when unset. */
+  customValue: CustomLength | null | undefined;
+  /** Token chip options. */
+  tokenOptions: ReadonlyArray<SegmentedOption<string>>;
+  /** Allowed units for the custom picker. */
+  units?: readonly LengthUnit[];
+  defaultUnit?: LengthUnit;
+  onTokenChange: (next: string) => void;
+  onCustomChange: (next: CustomLength | null) => void;
+}
+
+function LengthRow({
+  label,
+  tokenValue,
+  customValue,
+  tokenOptions,
+  units,
+  defaultUnit,
+  onTokenChange,
+  onCustomChange,
+}: LengthRowProps) {
+  // Auto-open custom mode if a custom value is already set.
+  const [customOpen, setCustomOpen] = useState<boolean>(
+    Boolean(customValue),
+  );
+  const isCustom = customOpen || Boolean(customValue);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <span className={FIELD_LABEL}>{label}</span>
+        <button
+          type="button"
+          onClick={() => {
+            if (isCustom) {
+              // Switch back to tokens — clear the custom override.
+              onCustomChange(null);
+              setCustomOpen(false);
+            } else {
+              setCustomOpen(true);
+            }
+          }}
+          className="cursor-pointer text-[10px] font-semibold uppercase tracking-[0.10em]"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: isCustom ? CHROME.blue : CHROME.muted,
+            padding: 0,
+          }}
+        >
+          {isCustom ? "Use tokens" : "Custom"}
+        </button>
+      </div>
+      {isCustom ? (
+        <NumberUnit
+          value={customValue ?? null}
+          onChange={onCustomChange}
+          units={units}
+          defaultUnit={defaultUnit ?? units?.[0]}
+          step={4}
+          min={0}
+          placeholder="0"
+        />
+      ) : (
+        <Segmented
+          fullWidth
+          compact
+          value={tokenValue}
+          onChange={onTokenChange}
+          options={tokenOptions}
+        />
+      )}
+    </div>
+  );
+}
+
+const SPACING_UNITS: readonly LengthUnit[] = ["px", "rem", "em"];
+const CONTAINER_UNITS: readonly LengthUnit[] = ["px", "rem", "%", "vw"];
+
 export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
   const val = (key: string): string =>
     (presentation[key] as string | undefined) ?? "";
+
+  const customVal = (key: string): CustomLength | null => {
+    const v = presentation[key] as CustomLength | undefined;
+    return v ?? null;
+  };
 
   /**
    * Toggle pattern: clicking the active chip clears the field back to
@@ -336,36 +433,37 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className={SECTION_TITLE}>Container</div>
-          {!containerValue ? (
+          {!containerValue && !customVal("containerWidthCustom") ? (
             <span className={INHERIT_HINT}>Theme default</span>
           ) : null}
         </div>
-        <div className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL}>
-            {PRESENTATION_FIELD_LABELS.containerWidth}
-          </span>
-          <Segmented
-            fullWidth
-            compact
-            value={containerValue}
-            onChange={(next) => setOrToggle("containerWidth", next)}
-            options={chipOptions("containerWidth")}
-          />
-        </div>
+        <LengthRow
+          label={PRESENTATION_FIELD_LABELS.containerWidth}
+          tokenValue={containerValue}
+          customValue={customVal("containerWidthCustom")}
+          tokenOptions={chipOptions("containerWidth")}
+          units={CONTAINER_UNITS}
+          defaultUnit="px"
+          onTokenChange={(next) => setOrToggle("containerWidth", next)}
+          onCustomChange={(next) =>
+            onPatch({ containerWidthCustom: next ?? undefined })
+          }
+        />
       </section>
 
       {/* ── Spacing ──────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <div className={SECTION_TITLE}>Spacing</div>
-          {!padTopValue && !padBottomValue ? (
+          <div className={SECTION_TITLE}>Padding</div>
+          {!padTopValue &&
+          !padBottomValue &&
+          !customVal("paddingTopCustom") &&
+          !customVal("paddingBottomCustom") &&
+          !customVal("paddingLeftCustom") &&
+          !customVal("paddingRightCustom") ? (
             <span className={INHERIT_HINT}>Theme default</span>
           ) : null}
         </div>
-        {/* Visual diagram: a labelled rectangle showing where the padding
-            sits, with chip rows for the two editable sides. Top/bottom is
-            all the schema supports today (paddingLeft/Right are container
-            concerns, not section). */}
         <div
           className="rounded-md p-3"
           style={{
@@ -373,23 +471,19 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
             border: `1px solid ${CHROME.line}`,
           }}
         >
-          <div className="flex flex-col gap-2.5">
-            <div className="flex items-center gap-2">
-              <span
-                className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.10em]"
-                style={{ color: CHROME.muted, width: 56 }}
-              >
-                Top
-              </span>
-              <Segmented
-                fullWidth
-                compact
-                value={padTopValue}
-                onChange={(next) => setOrToggle("paddingTop", next)}
-                options={chipOptions("paddingTop")}
-                style={{ flex: 1 }}
-              />
-            </div>
+          <div className="flex flex-col gap-3">
+            <LengthRow
+              label="Top"
+              tokenValue={padTopValue}
+              customValue={customVal("paddingTopCustom")}
+              tokenOptions={chipOptions("paddingTop")}
+              units={SPACING_UNITS}
+              defaultUnit="px"
+              onTokenChange={(next) => setOrToggle("paddingTop", next)}
+              onCustomChange={(next) =>
+                onPatch({ paddingTopCustom: next ?? undefined })
+              }
+            />
             <div
               className="rounded border-2 border-dashed py-3 text-center text-[10px] uppercase tracking-[0.12em]"
               style={{
@@ -401,22 +495,87 @@ export function LayoutPanel({ presentation, onPatch }: LayoutPanelProps) {
             >
               Section content
             </div>
-            <div className="flex items-center gap-2">
-              <span
-                className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.10em]"
-                style={{ color: CHROME.muted, width: 56 }}
-              >
-                Bottom
-              </span>
-              <Segmented
-                fullWidth
-                compact
-                value={padBottomValue}
-                onChange={(next) => setOrToggle("paddingBottom", next)}
-                options={chipOptions("paddingBottom")}
-                style={{ flex: 1 }}
-              />
+            <LengthRow
+              label="Bottom"
+              tokenValue={padBottomValue}
+              customValue={customVal("paddingBottomCustom")}
+              tokenOptions={chipOptions("paddingBottom")}
+              units={SPACING_UNITS}
+              defaultUnit="px"
+              onTokenChange={(next) => setOrToggle("paddingBottom", next)}
+              onCustomChange={(next) =>
+                onPatch({ paddingBottomCustom: next ?? undefined })
+              }
+            />
+            {/* Pixel-only L/R — no token equivalent; advanced control. */}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>Left</span>
+                <NumberUnit
+                  value={customVal("paddingLeftCustom")}
+                  onChange={(next) =>
+                    onPatch({ paddingLeftCustom: next ?? undefined })
+                  }
+                  units={SPACING_UNITS}
+                  defaultUnit="px"
+                  step={4}
+                  min={0}
+                  placeholder="—"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className={FIELD_LABEL}>Right</span>
+                <NumberUnit
+                  value={customVal("paddingRightCustom")}
+                  onChange={(next) =>
+                    onPatch({ paddingRightCustom: next ?? undefined })
+                  }
+                  units={SPACING_UNITS}
+                  defaultUnit="px"
+                  step={4}
+                  min={0}
+                  placeholder="—"
+                />
+              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Margin (pixel-only — no token equivalent) ────────────────── */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className={SECTION_TITLE}>Margin</div>
+          {!customVal("marginTopCustom") && !customVal("marginBottomCustom") ? (
+            <span className={INHERIT_HINT}>None</span>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Top</span>
+            <NumberUnit
+              value={customVal("marginTopCustom")}
+              onChange={(next) =>
+                onPatch({ marginTopCustom: next ?? undefined })
+              }
+              units={SPACING_UNITS}
+              defaultUnit="px"
+              step={4}
+              placeholder="—"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className={FIELD_LABEL}>Bottom</span>
+            <NumberUnit
+              value={customVal("marginBottomCustom")}
+              onChange={(next) =>
+                onPatch({ marginBottomCustom: next ?? undefined })
+              }
+              units={SPACING_UNITS}
+              defaultUnit="px"
+              step={4}
+              placeholder="—"
+            />
           </div>
         </div>
       </section>

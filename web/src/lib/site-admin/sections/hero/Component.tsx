@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 import type { SectionComponentProps } from "../types";
-import { presentationDataAttrs } from "../shared/presentation";
+import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import type { HeroV1, HeroSlide } from "./schema";
 
 /**
@@ -48,6 +48,7 @@ export function HeroComponent({ props }: SectionComponentProps<HeroV1>) {
       data-hero-overlay={effectiveOverlay}
       data-hero-variant={isSlider ? "slider" : hasSlides ? "image" : "clean"}
       {...presentationDataAttrs(presentation)}
+      style={presentationInlineStyles(presentation)}
     >
       {hasSlides ? (
         <HeroBackground slides={slides!} perSlideMs={perSlideMs} isSlider={isSlider} />
