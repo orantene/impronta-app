@@ -35,6 +35,7 @@ import {
 } from "./_state";
 import {
   Avatar,
+  ClientTrustChip,
   DrawerShell,
   EmptyState,
   GhostButton,
@@ -1463,6 +1464,60 @@ export function TalentFunnelCard() {
   );
 }
 
+/**
+ * Derive a descriptive pipeline status from real inquiry state. Replaces
+ * the prior "IN PLAY / YOUR SHOT / BEHIND" cryptic chips with copy that
+ * actually tells the talent what's happening:
+ *   - Coordinator picking talent      (stage=coordination)
+ *   - Awaiting other talents          (offer_pending, peers haven't accepted)
+ *   - Offer with client               (offer_pending, client deciding)
+ *   - Approved · awaiting booking     (stage=approved)
+ *   - Booked                          (stage=booked)
+ *
+ * The talent reads the row and immediately knows where the inquiry is
+ * in the pipeline AND who is currently blocking it. This is information
+ * about the inquiry's STATE, not about competitive heat.
+ */
+function deriveInquiryStatus(
+  inquiry: RichInquiry,
+  peers: number,
+  acceptedPeers: number,
+): { copy: string; tone: "indigo" | "amber" | "success" | "coral" } {
+  switch (inquiry.stage) {
+    case "submitted":
+      return { copy: "Submitted · awaiting coordinator", tone: "amber" };
+    case "coordination":
+      return { copy: "Coordinator picking talent", tone: "amber" };
+    case "offer_pending":
+      if (inquiry.nextActionBy === "client") {
+        return { copy: "Offer with client", tone: "indigo" };
+      }
+      if (acceptedPeers < peers) {
+        return { copy: "Awaiting other talents", tone: "indigo" };
+      }
+      return { copy: "Offer pending", tone: "indigo" };
+    case "approved":
+      return { copy: "Approved · awaiting booking", tone: "success" };
+    case "booked":
+      return { copy: "Booked", tone: "success" };
+    case "draft":
+      return { copy: "Draft", tone: "amber" };
+    case "rejected":
+      return { copy: "Closed", tone: "amber" };
+    case "expired":
+      return { copy: "Expired · response window passed", tone: "amber" };
+  }
+}
+
+/** Brand initials — "Mango" → "M", "Vogue Italia" → "VI", "Bvlgari" → "B". */
+function clientInitials(name: string): string {
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0]!.charAt(0) + words[1]!.charAt(0)).toUpperCase();
+  }
+  return name.charAt(0).toUpperCase();
+}
+
 function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
   // Anonymized peer count + stage. Mock — in production read from the
   // inquiry's lineup.
@@ -1470,19 +1525,13 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
   const peers = idx === 0 ? 3 : idx === 1 ? 2 : 4;
   const acceptedPeers = idx === 0 ? 1 : idx === 1 ? 0 : 2;
   const summary = inquiry.brief.length > 40 ? `${inquiry.brief.slice(0, 38)}…` : inquiry.brief;
-  // Competition heat — Tier 2 audit fix:
-  //   hot   → 0 others accepted yet, your shot is best (coral signal)
-  //   warm  → 1 other accepted (still in play, neutral)
-  //   cold  → 2+ others accepted, you're losing the race (slate)
-  // Visually nudges the eye toward the inquiry that most rewards attention.
-  const heat: "hot" | "warm" | "cold" =
-    acceptedPeers === 0 ? "hot" : acceptedPeers === 1 ? "warm" : "cold";
-  const chipPalette = {
-    hot: { bg: COLORS.coralSoft, fg: COLORS.coral, deep: COLORS.coralDeep },
-    warm: { bg: COLORS.indigoSoft, fg: COLORS.indigo, deep: COLORS.indigoDeep },
-    cold: { bg: "rgba(82,96,109,0.10)", fg: COLORS.amber, deep: "#3A444E" },
-  } as const;
-  const palette = chipPalette[heat];
+  const status = deriveInquiryStatus(inquiry, peers, acceptedPeers);
+  const statusFg = {
+    success: COLORS.green,
+    indigo: COLORS.indigo,
+    amber: COLORS.amber,
+    coral: COLORS.coral,
+  }[status.tone];
   return (
     <button
       type="button"
@@ -1493,7 +1542,7 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 10,
+        gap: 12,
         padding: "10px 12px",
         background: "rgba(11,11,13,0.02)",
         borderRadius: 9,
@@ -1507,56 +1556,76 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.05)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
     >
-      {/* Icon chip color tracks competition heat — coral when nobody's
-          accepted yet (your shot is best). The user's eye learns to scan
-          for the coral chips first. */}
-      <span
-        aria-hidden
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          background: palette.bg,
-          color: palette.fg,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        <Icon name="team" size={13} stroke={1.7} />
-      </span>
+      {/* Client identity — avatar with initials + auto-hashed tint per
+          brand. In production: real client logo URLs go here via photoUrl. */}
+      <Avatar
+        size={36}
+        tone="auto"
+        hashSeed={inquiry.clientName}
+        initials={clientInitials(inquiry.clientName)}
+      />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13.5,
             fontWeight: 500,
             color: COLORS.ink,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
           }}
         >
-          {inquiry.clientName} — {summary}
+          <span
+            style={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+            }}
+          >
+            {inquiry.clientName} — {summary}
+          </span>
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-          You + {peers} other talent · {acceptedPeers} accepted so far
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 2,
+            fontSize: 11.5,
+          }}
+        >
+          {/* Status — descriptive pipeline state, color-tinted by tone.
+              Tiny dot in the same color carries the state visually for
+              scanning at a glance. */}
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              color: statusFg,
+              fontWeight: 500,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: "50%",
+                background: statusFg,
+                flexShrink: 0,
+              }}
+            />
+            {status.copy}
+          </span>
+          <span style={{ color: COLORS.inkDim }}>·</span>
+          <span style={{ color: COLORS.inkMuted }}>
+            You + {peers} invited · {acceptedPeers} accepted
+          </span>
         </div>
       </div>
-      <span
-        style={{
-          fontSize: 10.5,
-          fontWeight: 600,
-          letterSpacing: 0.4,
-          textTransform: "uppercase",
-          padding: "3px 7px",
-          background: palette.bg,
-          color: palette.deep,
-          borderRadius: 999,
-        }}
-      >
-        {heat === "hot" ? "Your shot" : heat === "warm" ? "In play" : "Behind"}
-      </span>
+      <ClientTrustChip level={inquiry.clientTrust} compact />
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
     </button>
   );

@@ -820,37 +820,29 @@ function TalentTodayPage() {
             Both are reflective surfaces (what already happened / how it's
             performing), so they share a row at the bottom of the page. */}
       <Grid cols="2">
-        <SecondaryCard
-          title="Recent earnings"
-          description={`${paidCurrencyAndTotal(paidThisMonthCurrency, paidThisMonthTotal)} this month · ${paidThisMonth.length} payout${paidThisMonth.length !== 1 ? "s" : ""}.`}
-          affordance="See activity"
-          onClick={() => setTalentPage("activity")}
+        {/* Recent earnings — plain section, NOT a SecondaryCard, so the
+            EarningRow buttons inside aren't nested in a parent button.
+            The "See activity" affordance lives in the section header. */}
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: "16px 18px",
+          }}
         >
+          <SectionHeader
+            title="Recent earnings"
+            subtitle={`${paidCurrencyAndTotal(paidThisMonthCurrency, paidThisMonthTotal)} this month · ${paidThisMonth.length} payout${paidThisMonth.length !== 1 ? "s" : ""}`}
+            actionLabel="See activity →"
+            onAction={() => setTalentPage("activity")}
+          />
           <div style={{ marginTop: 4 }}>
             {EARNINGS_ROWS.slice(0, 3).map((e) => (
-              <div
-                key={e.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "8px 0",
-                  borderTop: `1px solid ${COLORS.borderSoft}`,
-                  fontFamily: FONTS.body,
-                  fontSize: 12.5,
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ color: COLORS.ink }}>{e.client}</div>
-                  <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>
-                    Worked {e.workDate} · Paid {e.payoutDate}
-                  </div>
-                </div>
-                <span style={{ color: COLORS.ink, fontWeight: 600 }}>{e.amount}</span>
-              </div>
+              <EarningRow key={e.id} earning={e} />
             ))}
           </div>
-        </SecondaryCard>
+        </section>
         <TalentAnalyticsCard />
       </Grid>
     </>
@@ -861,6 +853,63 @@ function TalentTodayPage() {
 
 function paidCurrencyAndTotal(currency: string, total: number) {
   return `${currency}${total.toLocaleString()}`;
+}
+
+/**
+ * Clickable past-earning row → opens TalentClosedBookingDrawer with the
+ * archived team, chat, and booking facts. Each completed booking becomes
+ * a portfolio entry the talent can revisit.
+ */
+function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
+  const { openDrawer } = useProto();
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => openDrawer("talent-closed-booking", { earningId: earning.id })}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 0",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        fontFamily: FONTS.body,
+        fontSize: 12.5,
+        background: "transparent",
+        border: "none",
+        borderTopColor: COLORS.borderSoft,
+        borderTopStyle: "solid",
+        borderTopWidth: 1,
+        width: "100%",
+        cursor: "pointer",
+        textAlign: "left",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            color: COLORS.ink,
+            textDecoration: hover ? "underline" : "none",
+            textDecorationColor: COLORS.inkDim,
+            textUnderlineOffset: 3,
+          }}
+        >
+          {earning.client}
+        </div>
+        <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>
+          Worked {earning.workDate} · Paid {earning.payoutDate}
+        </div>
+      </div>
+      <span style={{ color: COLORS.ink, fontWeight: 600 }}>{earning.amount}</span>
+      <Icon
+        name="chevron-right"
+        size={12}
+        color={hover ? COLORS.ink : COLORS.inkDim}
+      />
+    </button>
+  );
 }
 
 /**
@@ -4008,6 +4057,342 @@ export function TalentBookingDetailDrawer() {
     </DrawerShell>
   );
 }
+
+// ─── Closed booking (read-only past-work archive) ────────────────────
+// Opens when a talent clicks a row in "Recent earnings" on Today.
+// Shows what the booking WAS — team, key facts, archived chat — so a
+// talent can look back at past work without leaving Today. Read-only by
+// design: this isn't a booking workflow, it's a portfolio entry.
+
+export function TalentClosedBookingDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "talent-closed-booking";
+  const earningId = (state.drawer.payload?.earningId as string) ?? "e1";
+  const e = EARNINGS_ROWS.find((x) => x.id === earningId) ?? EARNINGS_ROWS[0]!;
+
+  // Mock per-booking detail (in production, derived from the booking +
+  // archived inquiry thread). Different shape per client to demonstrate
+  // variety.
+  const detail = MOCK_CLOSED_DETAIL[e.id] ?? MOCK_CLOSED_DETAIL.default!;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={`${e.client} · ${detail.brief}`}
+      description={`Closed booking · worked ${e.workDate} · paid ${e.payoutDate}`}
+      width={580}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        </>
+      }
+    >
+      {/* Closed/archived banner — visual cue that this is read-only. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 12px",
+          background: "rgba(11,11,13,0.04)",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 8,
+          marginBottom: 16,
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.inkMuted,
+        }}
+      >
+        <Icon name="lock" size={12} stroke={1.7} />
+        <span>Archived · paid {e.payoutDate}. Read-only.</span>
+        <span style={{ marginLeft: "auto", color: COLORS.ink, fontWeight: 600 }}>
+          {e.amount}
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Booking facts */}
+        <section>
+          <SectionLabel>Booking</SectionLabel>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+            <KvRow label="Date worked" value={e.workDate} />
+            <KvRow label="Location" value={detail.location} />
+            <KvRow label="Call time" value={detail.call} />
+            <KvRow label="Agency" value={e.agency} />
+            <KvRow label="Fee paid" value={e.amount} />
+          </div>
+        </section>
+
+        {/* Team — who else was on the booking */}
+        <section>
+          <SectionLabel>Who was there</SectionLabel>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 0,
+              marginTop: 8,
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              overflow: "hidden",
+            }}
+          >
+            {detail.team.map((p, i) => (
+              <div
+                key={p.name}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 12px",
+                  borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                }}
+              >
+                <Avatar
+                  size={28}
+                  tone="auto"
+                  hashSeed={p.name}
+                  initials={p.name
+                    .split(/\s+/)
+                    .map((w) => w.charAt(0))
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase()}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: COLORS.ink, fontWeight: 500 }}>{p.name}</div>
+                  <div style={{ color: COLORS.inkMuted, fontSize: 11 }}>{p.role}</div>
+                </div>
+                {p.you && (
+                  <span
+                    style={{
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      letterSpacing: 0.4,
+                      textTransform: "uppercase",
+                      padding: "2px 7px",
+                      background: COLORS.coralSoft,
+                      color: COLORS.coralDeep,
+                      borderRadius: 999,
+                    }}
+                  >
+                    You
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Chat archive — read-only snapshot */}
+        <section>
+          <SectionLabel>Archived chat</SectionLabel>
+          <div
+            style={{
+              marginTop: 8,
+              padding: "12px 14px",
+              background: COLORS.surfaceAlt,
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+            }}
+          >
+            {detail.chat.map((m, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 6,
+                    color: COLORS.inkMuted,
+                    fontSize: 11,
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: COLORS.ink }}>{m.from}</span>
+                  <span style={{ color: COLORS.inkDim }}>· {m.when}</span>
+                </div>
+                <div style={{ color: COLORS.ink, lineHeight: 1.5 }}>{m.body}</div>
+              </div>
+            ))}
+            <div
+              style={{
+                marginTop: 4,
+                paddingTop: 10,
+                borderTop: `1px solid ${COLORS.borderSoft}`,
+                fontSize: 11,
+                color: COLORS.inkDim,
+                textAlign: "center",
+              }}
+            >
+              Thread closed when payout landed. {detail.chat.length} messages archived.
+            </div>
+          </div>
+        </section>
+
+        {/* What was delivered */}
+        {detail.delivered && (
+          <section>
+            <SectionLabel>Delivered</SectionLabel>
+            <ul
+              style={{
+                margin: "8px 0 0",
+                paddingLeft: 18,
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                color: COLORS.ink,
+                lineHeight: 1.7,
+              }}
+            >
+              {detail.delivered.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        fontFamily: FONTS.body,
+        fontSize: 10.5,
+        fontWeight: 600,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        color: COLORS.inkMuted,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// Mock chat + team per closed booking. Three distinct shapes to show the
+// drawer renders differently based on what actually happened on each job.
+const MOCK_CLOSED_DETAIL: Record<
+  string,
+  {
+    brief: string;
+    location: string;
+    call: string;
+    team: { name: string; role: string; you?: boolean }[];
+    chat: { from: string; when: string; body: string }[];
+    delivered?: string[];
+  }
+> = {
+  e1: {
+    brief: "Spring campaign · 1 day",
+    location: "Madrid · ESTUDIO ROCA",
+    call: "08:30 — 18:00",
+    team: [
+      { name: "Marta Reyes", role: "Talent · lead", you: true },
+      { name: "Tomás Navarro", role: "Talent" },
+      { name: "Inés López", role: "Producer · Zara" },
+      { name: "Lia Roca", role: "Stylist" },
+      { name: "Studio Roca", role: "Photographer" },
+      { name: "Ana Vega", role: "Coordinator · Acme Models" },
+    ],
+    chat: [
+      {
+        from: "Ana Vega",
+        when: "Mar 22 · 10:14",
+        body: "Zara spring campaign confirmed for Mar 28. Marta + Tomás on lead, Studio Roca shooting.",
+      },
+      {
+        from: "Marta",
+        when: "Mar 22 · 10:31",
+        body: "Confirmed. Will bring nude underwear + neutrals as briefed.",
+      },
+      {
+        from: "Inés López",
+        when: "Mar 27 · 17:02",
+        body: "Reminder — call time 08:30 sharp. Coffee from 08:15. Forecast says light rain so we're going indoors only.",
+      },
+      {
+        from: "Marta",
+        when: "Mar 28 · 19:48",
+        body: "Wrapped. Great energy on set, thanks all 🙏",
+      },
+    ],
+    delivered: ["12 looks · Zara spring campaign", "Hero image (selected by client)"],
+  },
+  e2: {
+    brief: "Editorial · spring/summer campaign",
+    location: "London · Studio 2C",
+    call: "07:00 — 16:30",
+    team: [
+      { name: "Marta Reyes", role: "Talent · solo", you: true },
+      { name: "James Hart", role: "Producer · Burberry" },
+      { name: "Olive Carter", role: "Stylist" },
+      { name: "Praline London", role: "Coordinator" },
+    ],
+    chat: [
+      {
+        from: "Praline London",
+        when: "Mar 5 · 09:20",
+        body: "Burberry editorial confirmed for Mar 10. Solo booking, you're carrying the campaign.",
+      },
+      {
+        from: "Marta",
+        when: "Mar 5 · 09:42",
+        body: "Confirmed. Travel to London Mar 9, Studio 2C call at 07:00.",
+      },
+      {
+        from: "James Hart",
+        when: "Mar 10 · 18:11",
+        body: "Brilliant work today, Marta. We'll send selects within two weeks.",
+      },
+    ],
+    delivered: ["8 final selects · Burberry SS editorial", "Behind-the-scenes carousel"],
+  },
+  e3: {
+    brief: "Editorial spread · 2 day shoot",
+    location: "Milan · Studio 5",
+    call: "07:00 — 19:00",
+    team: [
+      { name: "Marta Reyes", role: "Talent", you: true },
+      { name: "Lina Park", role: "Talent" },
+      { name: "Paolo Bianchi", role: "Photographer · Vogue Italia" },
+      { name: "Ana Vega", role: "Coordinator · Acme Models" },
+    ],
+    chat: [
+      {
+        from: "Ana Vega",
+        when: "Feb 24 · 14:30",
+        body: "Vogue Italia editorial confirmed Mar 1–2 in Milan. You + Lina Park.",
+      },
+      {
+        from: "Marta",
+        when: "Feb 24 · 14:51",
+        body: "Confirmed. Booking flights for Feb 29.",
+      },
+      {
+        from: "Paolo Bianchi",
+        when: "Mar 2 · 21:15",
+        body: "Grazie a tutte. Pages will run in the May issue.",
+      },
+    ],
+    delivered: ["8-page editorial spread (May issue)", "Cover try"],
+  },
+  default: {
+    brief: "Closed booking",
+    location: "—",
+    call: "—",
+    team: [{ name: "Marta Reyes", role: "Talent", you: true }],
+    chat: [],
+  },
+};
 
 // ─── Profile edit ─────────────────────────────────────────────────
 

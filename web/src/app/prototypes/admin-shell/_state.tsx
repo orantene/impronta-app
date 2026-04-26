@@ -418,6 +418,7 @@ export type DrawerId =
   | "talent-offer-detail"
   | "talent-request-detail"
   | "talent-booking-detail"
+  | "talent-closed-booking"
   | "talent-profile-edit"
   | "talent-profile-section"
   | "talent-availability"
