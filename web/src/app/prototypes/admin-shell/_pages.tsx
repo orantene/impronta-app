@@ -728,6 +728,18 @@ export function WorkspaceTopbar() {
   );
 }
 
+// Shared compact <select> style for list-page sort/filter controls.
+const selectStyle: React.CSSProperties = {
+  padding: "7px 10px",
+  fontFamily: FONTS.body,
+  fontSize: 12.5,
+  color: COLORS.ink,
+  background: "#fff",
+  border: `1px solid ${COLORS.border}`,
+  borderRadius: 7,
+  cursor: "pointer",
+};
+
 // Shared icon-button shape for the workspace topbar right cluster.
 const iconButtonStyle: React.CSSProperties = {
   width: 34,
@@ -2221,7 +2233,7 @@ function CalendarNavBtn({ label }: { label: string }) {
 // ════════════════════════════════════════════════════════════════════
 
 function WorkPage() {
-  const { state, openDrawer, openUpgrade } = useProto();
+  const { state, openDrawer, openUpgrade, toast } = useProto();
   const inquiries = getInquiries(state.plan);
   const canEdit = meetsRole(state.role, "coordinator");
   const isFree = state.plan === "free";
@@ -2232,19 +2244,46 @@ function WorkPage() {
    */
   type SourceKind = "all" | "direct" | "hub" | "manual" | "marketplace";
   const [sourceFilter, setSourceFilter] = useState<SourceKind>("all");
-  /**
-   * Pulls a RichInquiry that matches the legacy Inquiry row, so we can
-   * surface its source chip. Falls back to client-name match if the brief
-   * differs (legacy data sometimes does).
-   */
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest" | "client" | "amount">("newest");
+
   const matchRich = (iq: { client: string; brief: string }) =>
     RICH_INQUIRIES.find(
       (r) => r.clientName === iq.client && r.brief === iq.brief,
     ) ?? RICH_INQUIRIES.find((r) => r.clientName === iq.client);
-  const filteredInquiries =
-    sourceFilter === "all"
-      ? inquiries
-      : inquiries.filter((iq) => matchRich(iq)?.source.kind === sourceFilter);
+
+  const filteredInquiries = inquiries
+    .filter((iq) => sourceFilter === "all" || matchRich(iq)?.source.kind === sourceFilter)
+    .filter((iq) => {
+      if (!search.trim()) return true;
+      const q = search.trim().toLowerCase();
+      return iq.client.toLowerCase().includes(q) || iq.brief.toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sort === "client") return a.client.localeCompare(b.client);
+      if (sort === "amount") {
+        const an = parseInt((a.amount ?? "0").replace(/[^\d]/g, "")) || 0;
+        const bn = parseInt((b.amount ?? "0").replace(/[^\d]/g, "")) || 0;
+        return bn - an;
+      }
+      // mock: stable order; "oldest" reverses
+      return sort === "oldest" ? -1 : 1;
+    });
+
+  const exportCsv = () => {
+    downloadCsv(
+      `pipeline-${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredInquiries.map((iq) => ({
+        client: iq.client,
+        brief: iq.brief,
+        talent: iq.talent ?? "",
+        stage: iq.stage,
+        amount: iq.amount ?? "",
+        source: matchRich(iq)?.source.kind ?? "",
+      })),
+    );
+    toast(`Exported ${filteredInquiries.length} rows`);
+  };
 
   const drafts = inquiries.filter((i) => i.stage === "draft" || i.stage === "hold");
   const awaiting = inquiries.filter((i) => i.stage === "awaiting-client");
@@ -2258,6 +2297,7 @@ function WorkPage() {
         subtitle="Every inquiry that hasn't closed yet, grouped by where it's stuck. Coordinators move things forward; admins watch the flow."
         actions={
           <>
+            <GhostButton size="sm" onClick={exportCsv}>Export CSV</GhostButton>
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
@@ -2316,7 +2356,44 @@ function WorkPage() {
           >
             Active pipeline
           </h2>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search…"
+              style={{
+                padding: "7px 10px",
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                color: COLORS.ink,
+                background: "#fff",
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 7,
+                outline: "none",
+                width: 180,
+              }}
+            />
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              aria-label="Sort"
+              style={{
+                padding: "7px 10px",
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                color: COLORS.ink,
+                background: "#fff",
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 7,
+                cursor: "pointer",
+              }}
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="client">Client</option>
+              <option value="amount">Amount</option>
+            </select>
             <SourceFilterChips value={sourceFilter} onChange={setSourceFilter} />
             <GhostButton onClick={() => openDrawer("filter-config")}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -2742,16 +2819,51 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 }
 
 function TalentPage() {
-  const { state, openDrawer, openUpgrade } = useProto();
+  const { state, openDrawer, openUpgrade, toast } = useProto();
   const roster = getRoster(state.plan);
   const canEdit = meetsRole(state.role, "editor");
   const isFree = state.plan === "free";
+
+  const [search, setSearch] = useState("");
+  const [stateFilter, setStateFilter] = useState<"all" | "published" | "draft" | "invited" | "awaiting-approval">("all");
+  const [sort, setSort] = useState<"name" | "newest" | "state">("name");
+
+  const filteredRoster = roster
+    .filter((p) => stateFilter === "all" || p.state === stateFilter)
+    .filter((p) => {
+      if (!search.trim()) return true;
+      const q = search.trim().toLowerCase();
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.city ?? "").toLowerCase().includes(q) ||
+        (p.height ?? "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "state") return a.state.localeCompare(b.state);
+      return 0; // newest = source order
+    });
 
   const counts = {
     published: roster.filter((r) => r.state === "published").length,
     draft: roster.filter((r) => r.state === "draft").length,
     invited: roster.filter((r) => r.state === "invited").length,
     awaiting: roster.filter((r) => r.state === "awaiting-approval").length,
+  };
+
+  const exportCsv = () => {
+    downloadCsv(
+      `roster-${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredRoster.map((p) => ({
+        name: p.name,
+        state: p.state,
+        height: p.height ?? "",
+        city: p.city ?? "",
+        representation: p.representation ?? "",
+      })),
+    );
+    toast(`Exported ${filteredRoster.length} rows`);
   };
 
   // Roster cap is per-plan; only relevant for non-network tenants on the agency surface.
@@ -2779,6 +2891,7 @@ function TalentPage() {
         }
         actions={
           <>
+            <GhostButton size="sm" onClick={exportCsv}>Export CSV</GhostButton>
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <PrimaryButton onClick={() => openDrawer("new-talent")}>
@@ -2874,13 +2987,46 @@ function TalentPage() {
           >
             All talent
           </h2>
-          <div style={{ display: "flex", gap: 6 }}>
-            <GhostButton onClick={() => openDrawer("filter-config")}>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <Icon name="filter" size={12} stroke={1.7} />
-                Filter
-              </span>
-            </GhostButton>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name / city…"
+              style={{
+                padding: "7px 10px",
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                color: COLORS.ink,
+                background: "#fff",
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 7,
+                outline: "none",
+                width: 180,
+              }}
+            />
+            <select
+              value={stateFilter}
+              onChange={(e) => setStateFilter(e.target.value as typeof stateFilter)}
+              aria-label="Filter by state"
+              style={selectStyle}
+            >
+              <option value="all">All states</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+              <option value="invited">Invited</option>
+              <option value="awaiting-approval">Awaiting approval</option>
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              aria-label="Sort"
+              style={selectStyle}
+            >
+              <option value="name">Name</option>
+              <option value="newest">Newest</option>
+              <option value="state">State</option>
+            </select>
             {state.plan === "agency" && (
               <GhostButton onClick={() => openDrawer("taxonomy")}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -2891,6 +3037,18 @@ function TalentPage() {
             )}
           </div>
         </div>
+        {filteredRoster.length === 0 ? (
+          <EmptyState
+            icon="user"
+            title="No talent matches"
+            body="Try a different search or clear the state filter."
+            primaryLabel="Clear filters"
+            onPrimary={() => {
+              setSearch("");
+              setStateFilter("all");
+            }}
+          />
+        ) : (
         <div
           style={{
             display: "grid",
@@ -2898,7 +3056,7 @@ function TalentPage() {
             gap: 12,
           }}
         >
-          {roster.map((profile) => (
+          {filteredRoster.map((profile) => (
             <button
               key={profile.id}
               onClick={() => openDrawer("talent-profile", { id: profile.id })}
@@ -2960,6 +3118,7 @@ function TalentPage() {
             </button>
           ))}
         </div>
+        )}
       </section>
 
       {isFree && (
@@ -3025,10 +3184,44 @@ function TalentPage() {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientsPage() {
-  const { state, openDrawer, openUpgrade } = useProto();
+  const { state, openDrawer, openUpgrade, toast } = useProto();
   const clients = getClients(state.plan);
   const canEdit = meetsRole(state.role, "coordinator");
   const isFree = state.plan === "free";
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant">("all");
+  const [sort, setSort] = useState<"name" | "bookings" | "status">("name");
+
+  const filteredClients = clients
+    .filter((c) => statusFilter === "all" || c.status === statusFilter)
+    .filter((c) => {
+      if (!search.trim()) return true;
+      const q = search.trim().toLowerCase();
+      return (
+        c.name.toLowerCase().includes(q) ||
+        (c.contact ?? "").toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      if (sort === "name") return a.name.localeCompare(b.name);
+      if (sort === "bookings") return b.bookingsYTD - a.bookingsYTD;
+      if (sort === "status") return a.status.localeCompare(b.status);
+      return 0;
+    });
+
+  const exportClientsCsv = () => {
+    downloadCsv(
+      `clients-${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredClients.map((c) => ({
+        name: c.name,
+        contact: c.contact ?? "",
+        bookingsYTD: c.bookingsYTD,
+        status: c.status,
+        trust: c.trust ?? "",
+      })),
+    );
+    toast(`Exported ${filteredClients.length} rows`);
+  };
 
   if (isFree) {
     return (
@@ -3095,15 +3288,66 @@ function ClientsPage() {
         title="Client relationships"
         subtitle={`${clients.length} clients you've worked with. Each one carries booking history and notes.`}
         actions={
-          canEdit ? (
-            <PrimaryButton onClick={() => openDrawer("client-profile", { id: "new" })}>
-              Add client
-            </PrimaryButton>
-          ) : (
-            <ReadOnlyChip />
-          )
+          <>
+            <GhostButton size="sm" onClick={exportClientsCsv}>Export CSV</GhostButton>
+            {canEdit ? (
+              <PrimaryButton onClick={() => openDrawer("client-profile", { id: "new" })}>
+                Add client
+              </PrimaryButton>
+            ) : (
+              <ReadOnlyChip />
+            )}
+          </>
         }
       />
+
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by name or contact…"
+          style={{
+            flex: 1,
+            minWidth: 200,
+            padding: "9px 12px",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+            background: "#fff",
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 8,
+            outline: "none",
+          }}
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          aria-label="Status"
+          style={selectStyle}
+        >
+          <option value="all">All statuses</option>
+          <option value="active">Active</option>
+          <option value="dormant">Dormant</option>
+        </select>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as typeof sort)}
+          aria-label="Sort"
+          style={selectStyle}
+        >
+          <option value="name">Name</option>
+          <option value="bookings">Bookings</option>
+          <option value="status">Status</option>
+        </select>
+      </div>
 
       <div
         style={{
@@ -3135,7 +3379,20 @@ function ClientsPage() {
           <span>Trust</span>
           <span />
         </div>
-        {clients.map((client, idx) => (
+        {filteredClients.length === 0 && (
+          <EmptyState
+            icon="user"
+            title="No clients match"
+            body="Try a different search or clear the status filter."
+            primaryLabel="Clear filters"
+            onPrimary={() => {
+              setSearch("");
+              setStatusFilter("all");
+            }}
+            compact
+          />
+        )}
+        {filteredClients.map((client, idx) => (
           <button
             key={client.id}
             onClick={() => openDrawer("client-profile", { id: client.id })}
