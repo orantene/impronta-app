@@ -191,6 +191,11 @@ export default function AdminShellPrototypePage() {
             .tulala-shell [data-tulala-mobile-bottom-nav] {
               display: block !important;
             }
+            /* Lift the toast stack above the bottom tab bar — at mobile,
+               default bottom: 20 lands directly on the 56px tabs. */
+            .tulala-shell [data-tulala-toast-host] {
+              bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+            }
             /* Pad surface main so its last item isn't hidden under the bar */
             .tulala-shell [data-tulala-surface-main] {
               padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;

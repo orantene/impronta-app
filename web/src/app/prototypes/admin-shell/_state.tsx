@@ -147,6 +147,35 @@ export function planPriceCompact(plan: Plan): string {
 }
 
 /**
+ * Format a date relative to "now" for short-list display.
+ *   < 1m   → "just now"
+ *   < 60m  → "Xm ago"
+ *   < 24h  → "Xh ago"
+ *   < 7d   → "Xd ago"
+ *   else   → "Mon DD" / "Mon DD, YYYY" if not current year
+ *
+ * Use this everywhere a timestamp shows in a list. Spec inconsistency
+ * across surfaces was a 5-format mess before this lived.
+ */
+export function relativeTime(date: Date | string | number, now: Date = new Date()): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  const diffMs = now.getTime() - d.getTime();
+  const minutes = Math.round(diffMs / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: sameYear ? undefined : "numeric",
+  });
+}
+
+/**
  * Pluralization helper. `pluralize(2, "draft", "drafts")` → "2 drafts",
  * `pluralize(1, "draft", "drafts")` → "1 draft". With `withNumber=false`,
  * returns just the noun. Used wherever a number-driven string previously
@@ -2124,10 +2153,12 @@ export const TENANT: {
   initials: string;
   entityType: EntityType;
 } = {
-  slug: "acme-models",
-  name: "Acme Models",
-  domain: "acme-models.tulala.app",
-  customDomain: "acme-models.com",
+  // "Atelier Roma" reads as a real boutique agency. Was "Acme Models" —
+  // generic placeholder triggered "this is a demo" pattern-match.
+  slug: "atelier-roma",
+  name: "Atelier Roma",
+  domain: "atelier-roma.tulala.app",
+  customDomain: "atelier-roma.com",
   initials: "A",
   entityType: "agency",
 };
@@ -3890,6 +3921,31 @@ export const COLORS = {
 
   navyBg: "#0B0B0D",
 };
+
+/**
+ * Border-radius scale. Was scattered across 8/9/10/12/14/16 in the
+ * prototype before this lived. Pick one tier per use case:
+ *   sm  — chips, inline pills, small inputs
+ *   md  — buttons, dense cards
+ *   lg  — cards, modals
+ *   xl  — hero / spotlight cards
+ */
+export const RADIUS = { sm: 7, md: 10, lg: 12, xl: 16 } as const;
+
+/**
+ * Vertical-rhythm spacing scale. Replace magic-number `<div height: N>`
+ * spacers with `SPACE.section` and friends.
+ */
+export const SPACE = {
+  /** Between dense sibling cards in a tight strip. */
+  tight: 8,
+  /** Default gap between siblings. */
+  block: 12,
+  /** Between a hero metric strip and the rich panels below. */
+  group: 24,
+  /** Between top-level page sections. */
+  section: 32,
+} as const;
 
 /**
  * Z-index ladder. Tight bands (40-80) collide easily as new layers get

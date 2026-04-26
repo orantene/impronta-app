@@ -227,19 +227,26 @@ export function CapsLabel({
   children,
   color,
   style,
+  case: caseStyle = "upper",
 }: {
   children: ReactNode;
   color?: string;
   style?: CSSProperties;
+  /**
+   * "upper" (default) gives the historical loud-eyebrow look. "sentence"
+   * keeps the same size/weight/color but drops the uppercase + tight
+   * letter-spacing — feels less like a system notification.
+   */
+  case?: "upper" | "sentence";
 }) {
   return (
     <span
       style={{
         fontFamily: FONTS.body,
-        fontSize: 10.5,
-        fontWeight: 600,
-        letterSpacing: 1.4,
-        textTransform: "uppercase",
+        fontSize: caseStyle === "sentence" ? 12 : 10.5,
+        fontWeight: caseStyle === "sentence" ? 500 : 600,
+        letterSpacing: caseStyle === "sentence" ? 0.05 : 1.4,
+        textTransform: caseStyle === "sentence" ? "none" : "uppercase",
         color: color ?? COLORS.inkMuted,
         ...style,
       }}
@@ -665,19 +672,22 @@ export function ClientTrustChip({
 }) {
   const meta = CLIENT_TRUST_META[level];
   const palette: Record<typeof meta.tone, { bg: string; fg: string; dot: string; border: string }> = {
-    // Basic — neutral / dim. Says "default", not "bad".
+    // Basic — neutral / dim. Says "default", not "bad". Foreground bumped
+    // darker to clear WCAG AA contrast on white at 12.5px.
     dim: {
-      bg: "rgba(11,11,13,0.04)",
-      fg: COLORS.inkMuted,
-      dot: "#A8A8AC",
+      bg: "rgba(11,11,13,0.06)",
+      fg: "#4A4A52",
+      dot: "#7A7A80",
       border: "transparent",
     },
-    // Verified — soft ink with subtle outline. Says "real", not "premium".
+    // Verified — quiet teal-blue. Differentiates from "Basic" (which is
+    // also dim ink) so the badge actually signals "this client checked
+    // out". Cool tone keeps it grown-up; not a green "success" badge.
     ink: {
-      bg: "rgba(11,11,13,0.045)",
-      fg: COLORS.ink,
-      dot: COLORS.ink,
-      border: "rgba(11,11,13,0.16)",
+      bg: "rgba(60,90,108,0.10)",
+      fg: "#3F5C70",
+      dot: "#5B7A8E",
+      border: "transparent",
     },
     // Silver — cool muted. Brushed-metal subtle.
     silver: {
@@ -707,12 +717,15 @@ export function ClientTrustChip({
           color: c.fg,
           border: c.border === "transparent" ? "none" : `1px solid ${c.border}`,
           fontFamily: FONTS.body,
-          fontSize: compact ? 10 : 10.5,
+          // Sentence-case + tighter tracking — was uppercase + wide
+          // tracking, which read like a system status notification
+          // every time it appeared in a row.
+          fontSize: compact ? 10.5 : 11,
           fontWeight: 600,
-          letterSpacing: 0.4,
+          letterSpacing: 0.05,
           padding: compact ? "2px 7px" : "3px 9px",
           borderRadius: 999,
-          textTransform: "uppercase",
+          textTransform: "none",
           whiteSpace: "nowrap",
         }}
       >
@@ -1314,7 +1327,18 @@ export function StatusCard({
         : COLORS.ink;
   return (
     <CardFrame onClick={onClick} variant="status">
-      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div
+        style={{
+          padding: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          // Lock a min-height so a 1-line caption tile doesn't shrink
+          // shorter than a 2-line caption tile in the same row. Without
+          // this, hero strips bounce in height across surfaces.
+          minHeight: 116,
+        }}
+      >
         <div
           style={{
             fontFamily: FONTS.body,
@@ -2215,6 +2239,24 @@ export function DrawerShell({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      // Tab focus trap — keep keyboard focus inside the drawer panel so
+      // users don't tab into the surface behind the backdrop.
+      if (e.key === "Tab" && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0]!;
+        const last = focusable[focusable.length - 1]!;
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -2609,11 +2651,17 @@ export function FieldRow({
   children,
   hint,
   optional,
+  required,
+  error,
 }: {
   label: string;
   children: ReactNode;
   hint?: string;
   optional?: boolean;
+  /** Marks the field as required with a small red asterisk after the label. */
+  required?: boolean;
+  /** Inline error message — replaces hint and tints the row red. */
+  error?: string;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -2628,6 +2676,18 @@ export function FieldRow({
           }}
         >
           {label}
+          {required && (
+            <span
+              aria-label="required"
+              style={{
+                color: COLORS.red,
+                marginLeft: 3,
+                fontWeight: 600,
+              }}
+            >
+              *
+            </span>
+          )}
         </label>
         {optional && (
           <span
@@ -2642,7 +2702,19 @@ export function FieldRow({
         )}
       </div>
       {children}
-      {hint && (
+      {error ? (
+        <span
+          role="alert"
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.red,
+            fontWeight: 500,
+          }}
+        >
+          {error}
+        </span>
+      ) : hint ? (
         <span
           style={{
             fontFamily: FONTS.body,
@@ -2652,7 +2724,7 @@ export function FieldRow({
         >
           {hint}
         </span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -2958,6 +3030,7 @@ export function Avatar({
   emoji,
   tone = "neutral",
   photoUrl,
+  hashSeed,
 }: {
   initials?: string;
   size?: number;
@@ -2965,19 +3038,27 @@ export function Avatar({
   tone?: "neutral" | "ink" | "warm" | "auto";
   /** When provided wins over initials/emoji — actual photo. */
   photoUrl?: string;
+  /**
+   * String to hash for `tone="auto"`. Pass the full name (not just
+   * initials) — initials collide far too often (TM vs TM is the same;
+   * "Tom Marsh" vs "Talia Mendez" should pick different tints).
+   */
+  hashSeed?: string;
 }) {
   // Avatar fallback hierarchy:
   //   1. Photo (when photoUrl given) — for real people
   //   2. Initials with deterministic tint per name — also for real people
   //   3. Emoji — only for non-person entities (brand, hub, system)
-  // tone="auto" (default for new code) hashes the initials to pick a quiet
-  // color from the brand-safe set. Forest-leaning, no warm gold/rust.
+  // tone="auto" hashes the seed (full name, ideally) to pick a quiet
+  // color. Forest-leaning, no warm gold/rust. Six tones to spread
+  // collisions wider than the previous five.
   const autoTones: CSSProperties[] = [
     { background: "rgba(15,79,62,0.10)", color: COLORS.accentDeep },
     { background: "rgba(11,11,13,0.06)", color: COLORS.ink },
     { background: "rgba(46,125,91,0.10)", color: "#1F5C42" },
     { background: "rgba(82,96,109,0.10)", color: "#3A4651" },
     { background: COLORS.surfaceAlt, color: COLORS.ink },
+    { background: "rgba(124,108,160,0.10)", color: "#4B3F66" },
   ];
   const tones: Record<Exclude<typeof tone, "auto">, CSSProperties> = {
     neutral: { background: "rgba(11,11,13,0.06)", color: COLORS.ink },
@@ -2986,7 +3067,7 @@ export function Avatar({
   };
   const resolved =
     tone === "auto"
-      ? autoTones[hashString(initials ?? emoji ?? "x") % autoTones.length]!
+      ? autoTones[hashString(hashSeed ?? initials ?? emoji ?? "x") % autoTones.length]!
       : tones[tone];
   if (photoUrl) {
     return (
@@ -3223,12 +3304,23 @@ export function Popover({
   delayMs?: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
+  const triggerRef = useRef<HTMLSpanElement | null>(null);
   const timerRef = useRef<number | null>(null);
 
+  const measureAndOpen = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setCoords({
+      x: rect.left + rect.width / 2,
+      y: placement === "top" ? rect.top : rect.bottom,
+    });
+    setOpen(true);
+  };
   const scheduleOpen = () => {
     if (timerRef.current !== null) return;
     timerRef.current = window.setTimeout(() => {
-      setOpen(true);
+      measureAndOpen();
       timerRef.current = null;
     }, delayMs);
   };
@@ -3247,7 +3339,8 @@ export function Popover({
 
   return (
     <span
-      style={{ position: "relative", display: "inline-flex" }}
+      ref={triggerRef}
+      style={{ display: "inline-flex" }}
       onMouseEnter={scheduleOpen}
       onMouseLeave={cancelAndClose}
       onFocus={scheduleOpen}
@@ -3257,15 +3350,22 @@ export function Popover({
       }}
     >
       {children}
-      {open && (
+      {/* Render the tooltip in `position: fixed` from the document root so
+          it escapes any `overflow: hidden` ancestor (drawer body,
+          horizontal-scroll containers, etc). Without this it gets
+          clipped on plan-compare's mobile horizontal scroller. */}
+      {open && coords && (
         <span
           role="tooltip"
           style={{
-            position: "absolute",
-            zIndex: 90,
-            left: "50%",
-            transform: "translateX(-50%)",
-            [placement === "top" ? "bottom" : "top"]: "calc(100% + 8px)",
+            position: "fixed",
+            zIndex: 1000,
+            left: coords.x,
+            top: coords.y,
+            transform:
+              placement === "top"
+                ? "translate(-50%, calc(-100% - 8px))"
+                : "translate(-50%, 8px)",
             background: COLORS.ink,
             color: "#fff",
             fontFamily: FONTS.body,

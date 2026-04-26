@@ -75,13 +75,30 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement | null>(null);
 
   // Global ⌘K / Ctrl+K opener. Closes on Escape inside.
+  // Also: "?" without modifiers opens with the query pre-populated to
+  // "shortcuts" — surfaces the help/hotkeys list immediately.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const isOpenKey = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k";
+      const isHelpKey =
+        e.key === "?" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        // Don't intercept when the user is typing in an input/textarea
+        !(e.target instanceof HTMLElement &&
+          (e.target.tagName === "INPUT" ||
+            e.target.tagName === "TEXTAREA" ||
+            e.target.isContentEditable));
       if (isOpenKey) {
         e.preventDefault();
         setOpen((v) => !v);
         setQuery("");
+        setActiveIdx(0);
+      } else if (isHelpKey) {
+        e.preventDefault();
+        setOpen(true);
+        setQuery("shortcut");
         setActiveIdx(0);
       }
     };
@@ -227,6 +244,44 @@ export function CommandPalette() {
       { id: "talent-block-dates", label: "Block dates", surface: "talent", keywords: "talent block unavailable dates" },
       { id: "talent-profile-edit", label: "Edit profile", surface: "talent", keywords: "talent edit profile" },
     ];
+    // Help / shortcuts — surfaces the gestures + keybindings in a toast
+    // so users have a discoverable cheat-sheet from inside the palette.
+    items.push({
+      id: "help-shortcuts",
+      label: "Keyboard shortcuts & gestures",
+      group: "Help",
+      keywords: "shortcut shortcuts keyboard hotkeys gesture swipe help cheatsheet",
+      run: () => {
+        proto.toast(
+          "⌘K palette · ? shortcuts · Esc closes drawers · swipe rows on mobile · drag drawer edge to resize",
+        );
+        close();
+      },
+    });
+
+    // Restore onboarding arcs — wipes the dismissal flags so the
+     // "4 steps to get booked" / "Welcome — let's get you booking" /
+     // free overview activation arc reappear. Useful for demos and for
+     // users who dismissed by mistake.
+    items.push({
+      id: "onboarding-restore",
+      label: "Restore setup checklists",
+      group: "View",
+      keywords: "restore reset onboarding setup checklist arc help getting started",
+      run: () => {
+        try {
+          window.localStorage.removeItem("tulala_onboard_client");
+          window.localStorage.removeItem("tulala_onboard_talent");
+          window.localStorage.removeItem("tulala_onboard_client_completed");
+          window.localStorage.removeItem("tulala_onboard_talent_completed");
+        } catch {
+          /* ignore */
+        }
+        proto.toast("Setup checklists restored — refresh to see them.");
+        close();
+      },
+    });
+
     // Density toggle — persists to localStorage via setDensity.
     items.push({
       id: "density-toggle",

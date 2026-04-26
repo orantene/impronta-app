@@ -107,6 +107,26 @@ export function ControlBar() {
     setPlatformPage,
   } = useProto();
 
+  // Dev controls are only useful while building/demoing the prototype.
+  // Hide them in non-dev environments unless the URL opts in via ?dev=1.
+  // This lets us share the prototype with non-developers without the
+  // dark debug strip dominating the screen.
+  const [devVisible, setDevVisible] = useState(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const stored = window.localStorage.getItem("tulala_dev_controls");
+    if (params.get("dev") === "0") {
+      setDevVisible(false);
+    } else if (params.get("dev") === "1") {
+      setDevVisible(true);
+      try { window.localStorage.setItem("tulala_dev_controls", "1"); } catch {}
+    } else if (stored === "0") {
+      setDevVisible(false);
+    }
+  }, []);
+  if (!devVisible) return null;
+
   return (
     <header
       role="banner"
@@ -230,15 +250,28 @@ export function ControlBar() {
       )}
 
       <div style={{ flex: 1 }} />
-      <span
+      {/* Hide-controls toggle — sets localStorage so future visits stay
+          hidden. Re-enable by appending ?dev=1 to the URL. */}
+      <button
+        type="button"
+        onClick={() => {
+          try { window.localStorage.setItem("tulala_dev_controls", "0"); } catch {}
+          setDevVisible(false);
+        }}
+        title="Hide dev controls (re-enable with ?dev=1)"
         style={{
-          fontSize: 11,
+          background: "transparent",
+          border: "none",
           color: "rgba(255,255,255,0.45)",
+          fontFamily: FONTS.body,
+          fontSize: 10,
           letterSpacing: 0.2,
+          cursor: "pointer",
+          padding: "4px 6px",
         }}
       >
-        Tulala admin · v0.3 prototype
-      </span>
+        Hide
+      </button>
     </header>
   );
 }
@@ -480,19 +513,28 @@ export function WorkspaceTopbar() {
                 }}
               >
                 {p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
-                {active && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      bottom: -16,
-                      left: 12,
-                      right: 12,
-                      height: 2,
-                      background: COLORS.ink,
-                      borderRadius: 2,
-                    }}
-                  />
-                )}
+                {/* Active-page indicator: 3px black bar that scales in
+                    from the center on activation. Always-rendered with
+                    opacity/scale transitions so we get a smooth glide
+                    when the active item changes. Bold-only wasn't enough
+                    of a visual signal. */}
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    bottom: -16,
+                    left: 8,
+                    right: 8,
+                    height: 3,
+                    background: COLORS.ink,
+                    borderRadius: 2,
+                    opacity: active ? 1 : 0,
+                    transform: active ? "scaleX(1)" : "scaleX(0.4)",
+                    transformOrigin: "center",
+                    transition: "opacity .18s ease, transform .25s cubic-bezier(.4,.0,.2,1)",
+                    pointerEvents: "none",
+                  }}
+                />
               </button>
             );
           })}
@@ -1575,7 +1617,12 @@ function UnifiedInboxPage() {
                 fontFamily: FONTS.body,
               }}
             >
-              <Avatar initials={inq.clientName.slice(0, 2).toUpperCase()} size={32} tone="auto" />
+              <Avatar
+                initials={inq.clientName.slice(0, 2).toUpperCase()}
+                hashSeed={inq.clientName}
+                size={32}
+                tone="auto"
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
@@ -1667,10 +1714,14 @@ function CalendarPage() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstWeekday = new Date(year, month, 1).getDay(); // 0 = Sun
 
-  // Synthesize a few "events" by hashing inquiry ids onto days.
+  // Synthesize a few "events" by hashing inquiry ids onto days. Real
+  // hash (not `i * 5`) so events spread naturally across the month
+  // instead of clustering on days 1, 6, 11, 16, 21, 26.
   const events: Record<number, { title: string; tone: "ink" | "green" | "amber" | "red" }[]> = {};
-  inquiries.slice(0, 8).forEach((inq, i) => {
-    const day = ((i * 5) % daysInMonth) + 1;
+  inquiries.slice(0, 12).forEach((inq) => {
+    let h = 5381;
+    for (let k = 0; k < inq.id.length; k++) h = ((h << 5) + h) + inq.id.charCodeAt(k);
+    const day = (Math.abs(h) % daysInMonth) + 1;
     const tone = inq.stage === "booked" || inq.stage === "approved" ? "green" : inq.stage === "draft" ? "amber" : "ink";
     events[day] = events[day] ?? [];
     events[day].push({ title: `${inq.clientName} — ${inq.brief.slice(0, 18)}…`, tone });
@@ -1753,9 +1804,12 @@ function CalendarPage() {
             const day = i + 1;
             const dayEvents = events[day] ?? [];
             const isToday = day === today.getDate();
+            const ariaLabel = `${monthLabel.split(" ")[0]} ${day}${dayEvents.length > 0 ? `, ${dayEvents.length} ${dayEvents.length === 1 ? "event" : "events"}` : ""}${isToday ? " (today)" : ""}`;
             return (
               <div
                 key={day}
+                role="gridcell"
+                aria-label={ariaLabel}
                 style={{
                   padding: "8px 10px",
                   borderTop: `1px solid ${COLORS.borderSoft}`,

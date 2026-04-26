@@ -2204,7 +2204,7 @@ function NewInquiryDrawer() {
     >
       <InquiryTemplatesPicker onPick={handlePickTemplate} />
       <Section title="Client">
-        <FieldRow label="Client name">
+        <FieldRow label="Client name" required>
           <TextInput
             placeholder="Vogue Italia"
             value={client}
@@ -2217,10 +2217,10 @@ function NewInquiryDrawer() {
       </Section>
 
       <Section title="Brief">
-        <FieldRow label="Project type">
+        <FieldRow label="Project type" required>
           <SelectInput options={["Editorial", "Commercial", "Lookbook", "Runway", "Showroom"]} />
         </FieldRow>
-        <FieldRow label="Brief">
+        <FieldRow label="Brief" required>
           <TextArea
             rows={3}
             placeholder="Spring editorial spread. Half-day shoot in Madrid. Digital + print, 6 months EU."
@@ -3950,14 +3950,15 @@ function PlanCompareDrawer() {
                     {isCurrent ? "Current" : meta.label}
                     {/* Info icon → "ideal for" tooltip */}
                     <Popover content={header.idealFor}>
-                      <span
-                        aria-hidden
+                      <button
+                        type="button"
+                        aria-label={`What ${meta.label} is for`}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          width: 13,
-                          height: 13,
+                          width: 14,
+                          height: 14,
                           borderRadius: "50%",
                           background: isCurrent ? "rgba(15,79,62,0.15)" : "rgba(11,11,13,0.06)",
                           color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
@@ -3966,10 +3967,12 @@ function PlanCompareDrawer() {
                           fontStyle: "italic",
                           fontFamily: "Georgia, serif",
                           cursor: "help",
+                          border: "none",
+                          padding: 0,
                         }}
                       >
                         i
-                      </span>
+                      </button>
                     </Popover>
                   </div>
                   <div
@@ -4049,14 +4052,15 @@ function PlanCompareDrawer() {
                   {row.dimension}
                 </span>
                 <Popover content={row.why}>
-                  <span
-                    aria-hidden
+                  <button
+                    type="button"
+                    aria-label={`Why ${row.dimension} matters`}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      width: 13,
-                      height: 13,
+                      width: 14,
+                      height: 14,
                       borderRadius: "50%",
                       background: "rgba(11,11,13,0.06)",
                       color: COLORS.inkMuted,
@@ -4065,10 +4069,12 @@ function PlanCompareDrawer() {
                       fontStyle: "italic",
                       fontFamily: "Georgia, serif",
                       cursor: "help",
+                      border: "none",
+                      padding: 0,
                     }}
                   >
                     i
-                  </span>
+                  </button>
                 </Popover>
               </div>
               {PLANS.map((plan) => {

@@ -586,7 +586,7 @@ export function AuditLogDrawer() {
               borderTop: idx === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
             }}
           >
-            <Avatar initials={e.actorInitials} size={28} tone="auto" />
+            <Avatar initials={e.actorInitials} hashSeed={e.actor} size={28} tone="auto" />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.45 }}>
                 <strong style={{ fontWeight: 600 }}>{e.actor}</strong>
@@ -1179,7 +1179,7 @@ export function ReadReceipt({
       <div style={{ display: "inline-flex", gap: -8 }}>
         {seenBy.slice(0, 3).map((s, i) => (
           <span key={i} style={{ marginLeft: i === 0 ? 0 : -6 }}>
-            <Avatar initials={s.initials} size={18} tone="auto" />
+            <Avatar initials={s.initials} hashSeed={s.name} size={18} tone="auto" />
           </span>
         ))}
       </div>
@@ -1501,16 +1501,26 @@ export function OnboardingArc({
                   {step.description}
                 </div>
               </div>
+              {/* "Open →" navigates to the relevant drawer/page WITHOUT
+                  marking the step complete — completion only fires once
+                  the underlying action lands (talent saved, link copied,
+                  etc.). A separate "Mark done" button lets the user
+                  explicitly check off a step that's done elsewhere. */}
               {!done && step.onOpen && (
-                <GhostButton
-                  size="sm"
-                  onClick={() => {
-                    markComplete(step.id);
-                    step.onOpen?.();
-                  }}
-                >
-                  Open →
-                </GhostButton>
+                <div style={{ display: "inline-flex", gap: 6 }}>
+                  <GhostButton
+                    size="sm"
+                    onClick={() => {
+                      markComplete(step.id);
+                      toast(`Marked "${step.label}" complete`);
+                    }}
+                  >
+                    Mark done
+                  </GhostButton>
+                  <GhostButton size="sm" onClick={step.onOpen}>
+                    Open →
+                  </GhostButton>
+                </div>
               )}
               {!done && !step.onOpen && (
                 <GhostButton
@@ -1520,7 +1530,7 @@ export function OnboardingArc({
                     toast(`Marked "${step.label}" complete`);
                   }}
                 >
-                  Mark complete
+                  Mark done
                 </GhostButton>
               )}
             </div>

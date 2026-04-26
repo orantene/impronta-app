@@ -223,19 +223,23 @@ function PlatformTopbar() {
                 }}
               >
                 {PLATFORM_PAGE_META[p].label}
-                {active && (
-                  <span
-                    style={{
-                      position: "absolute",
-                      bottom: -16,
-                      left: 12,
-                      right: 12,
-                      height: 2,
-                      background: HQ.ink,
-                      borderRadius: 2,
-                    }}
-                  />
-                )}
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    bottom: -16,
+                    left: 8,
+                    right: 8,
+                    height: 3,
+                    background: HQ.ink,
+                    borderRadius: 2,
+                    opacity: active ? 1 : 0,
+                    transform: active ? "scaleX(1)" : "scaleX(0.4)",
+                    transformOrigin: "center",
+                    transition: "opacity .18s ease, transform .25s cubic-bezier(.4,.0,.2,1)",
+                    pointerEvents: "none",
+                  }}
+                />
               </button>
             );
           })}
