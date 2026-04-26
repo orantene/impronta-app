@@ -103,6 +103,283 @@ const RECIPES: Record<string, Recipe> = {
       { slotKey: "final_cta", sectionTypeKey: "cta_banner" },
     ],
   },
+  // ── Phase 11 (M11) starter kits — vertical-specific compositions that
+  // showcase the M9/M10 section types with rich, real-feeling copy
+  // overrides. The result should read as a near-publishable site even
+  // before the operator changes anything. ──────────────────────────────
+  "wedding-photographer": {
+    slug: "wedding-photographer",
+    label: "Wedding Photographer",
+    presetSlug: "editorial-bridal",
+    entries: [
+      {
+        slotKey: "hero",
+        sectionTypeKey: "hero",
+        propsOverride: {
+          headline: "Quiet, unhurried, in {accent}the same key{/accent}.",
+          subheadline:
+            "Editorial wedding photography for couples who value presence over performance.",
+          primaryCta: { label: "Inquire", href: "/contact" },
+          secondaryCta: { label: "See recent work", href: "#work" },
+          mood: "editorial",
+          overlay: "soft-vignette",
+        },
+      },
+      {
+        slotKey: "trust_band",
+        sectionTypeKey: "stats",
+        propsOverride: {
+          eyebrow: "By the numbers",
+          headline: "A decade of considered work.",
+          items: [
+            { value: "12", label: "Years shooting" },
+            { value: "180+", label: "Cities" },
+            { value: "72", label: "NPS score" },
+            { value: "100%", label: "On-time delivery" },
+          ],
+          variant: "row",
+          align: "center",
+        },
+      },
+      {
+        slotKey: "services",
+        sectionTypeKey: "image_copy_alternating",
+        propsOverride: {
+          eyebrow: "Signature services",
+          headline: "What a booking includes.",
+          items: [
+            {
+              title: "Full-day coverage",
+              italicTagline: "From first look to last dance.",
+              body: "8 hours of photography, scouting included, delivered as a private gallery within four weeks.",
+              side: "image-right",
+            },
+            {
+              title: "Pre-day session",
+              italicTagline: "Get used to the camera.",
+              body: "60-minute session before the wedding. Often the moment couples relax into being photographed.",
+              side: "image-left",
+            },
+          ],
+          variant: "editorial-alternating",
+        },
+      },
+      {
+        slotKey: "gallery",
+        sectionTypeKey: "gallery_strip",
+        propsOverride: {
+          eyebrow: "Recent",
+          headline: "From the last six months.",
+          variant: "mosaic",
+        },
+      },
+      {
+        slotKey: "process",
+        sectionTypeKey: "process_steps",
+        propsOverride: {
+          eyebrow: "How it works",
+          headline: "Three quiet steps to your gallery.",
+          steps: [
+            { label: "Inquire", detail: "Tell us your date, location, and mood." },
+            { label: "Pre-day session", detail: "Meet, scout, and rehearse the camera." },
+            { label: "The day", detail: "We arrive an hour early. You barely notice us." },
+          ],
+        },
+      },
+      {
+        slotKey: "testimonials",
+        sectionTypeKey: "testimonials_trio",
+        propsOverride: {
+          eyebrow: "Couples + planners",
+          headline: "Words from people we worked for.",
+        },
+      },
+      {
+        slotKey: "primary",
+        sectionTypeKey: "pricing_grid",
+        propsOverride: {
+          eyebrow: "Investment",
+          headline: "Three ways to book.",
+          plans: [
+            {
+              name: "Half-day",
+              price: "$2,400",
+              cadence: "starting at",
+              description: "4 hours of coverage.",
+              features: ["Online gallery", "70+ edited images", "Single revision round"],
+              ctaLabel: "Inquire",
+              ctaHref: "/contact",
+              highlighted: false,
+            },
+            {
+              name: "Full-day",
+              price: "$4,800",
+              cadence: "starting at",
+              description: "Most-booked. 8 hours, second photographer optional.",
+              features: ["Pre-day session", "8 hours coverage", "200+ edited images", "Two revision rounds"],
+              ctaLabel: "Inquire",
+              ctaHref: "/contact",
+              highlighted: true,
+              badge: "Most popular",
+            },
+            {
+              name: "Destination",
+              price: "Custom",
+              cadence: "scoped per trip",
+              description: "Multi-day with travel built in.",
+              features: ["Pre-day call", "Full multi-day coverage", "Travel + lodging included", "Three revisions"],
+              ctaLabel: "Talk to us",
+              ctaHref: "/contact",
+              highlighted: false,
+            },
+          ],
+          variant: "cards",
+        },
+      },
+      {
+        slotKey: "secondary",
+        sectionTypeKey: "faq_accordion",
+        propsOverride: {
+          eyebrow: "Common questions",
+          headline: "Things people ask before they book.",
+          items: [
+            { question: "How quickly do you respond?", answer: "Within 24 business hours, always." },
+            { question: "Do you travel?", answer: "Yes — domestic and international. Travel is billed at cost." },
+            { question: "When do we get the photos?", answer: "Private online gallery within four weeks. Sneak-peek within 72 hours." },
+            { question: "Can we get the RAW files?", answer: "We don't release RAWs — they're working files, not the finished work. The edit IS the product." },
+          ],
+          variant: "bordered",
+        },
+      },
+      {
+        slotKey: "final_cta",
+        sectionTypeKey: "cta_banner",
+        propsOverride: {
+          eyebrow: "Ready when you are",
+          headline: "Tell us about your wedding.",
+          copy: "Date, location, and a sentence about you. We'll come back with availability and a starting quote.",
+          primaryCta: { label: "Start an inquiry", href: "/contact" },
+          variant: "centered-overlay",
+        },
+      },
+    ],
+  },
+  "hair-salon": {
+    slug: "hair-salon",
+    label: "Hair Salon / Studio",
+    presetSlug: "classic",
+    entries: [
+      {
+        slotKey: "hero",
+        sectionTypeKey: "hero",
+        propsOverride: {
+          headline: "Color, cut, {accent}cared for{/accent}.",
+          subheadline:
+            "A small team of senior stylists. By appointment only.",
+          primaryCta: { label: "Book a chair", href: "/contact" },
+          mood: "clean",
+        },
+      },
+      {
+        slotKey: "trust_band",
+        sectionTypeKey: "marquee",
+        propsOverride: {
+          items: [
+            { text: "Featured in Allure" },
+            { text: "Davines Sustainable Salon" },
+            { text: "Wella Master Stylist" },
+            { text: "Olaplex Certified" },
+            { text: "Open since 2014" },
+          ],
+          speed: "medium",
+          direction: "left",
+          separator: "diamond",
+          variant: "text",
+        },
+      },
+      {
+        slotKey: "services",
+        sectionTypeKey: "category_grid",
+        propsOverride: {
+          eyebrow: "Services",
+          headline: "What we do at the chair.",
+          items: [
+            { label: "Color", tagline: "Balayage, single-process, gloss" },
+            { label: "Cut", tagline: "Long, lob, pixie, layered" },
+            { label: "Treatment", tagline: "Olaplex, K18, gloss refresh" },
+            { label: "Bridal", tagline: "Trial + day-of" },
+          ],
+          variant: "portrait-masonry",
+          columnsDesktop: 4,
+        },
+      },
+      {
+        slotKey: "featured",
+        sectionTypeKey: "team_grid",
+        propsOverride: {
+          eyebrow: "The team",
+          headline: "Stylists you'll meet.",
+          members: [
+            { name: "Rae Park", role: "Founder + master colorist" },
+            { name: "Cleo Marin", role: "Senior stylist · cut specialist" },
+            { name: "Alex Joon", role: "Color + treatment" },
+          ],
+          variant: "portrait",
+          columnsDesktop: 3,
+        },
+      },
+      {
+        slotKey: "primary",
+        sectionTypeKey: "before_after",
+        propsOverride: {
+          eyebrow: "Recent transformation",
+          headline: "Six hours, one balayage.",
+          beforeUrl: "https://images.unsplash.com/photo-1519740019937-d4d18d2ad8e9",
+          afterUrl: "https://images.unsplash.com/photo-1521577352947-9bb58764b69a",
+          beforeAlt: "Hair before color treatment",
+          afterAlt: "Hair after balayage",
+          beforeLabel: "Before",
+          afterLabel: "After",
+          initialPosition: 50,
+          ratio: "16/9",
+        },
+      },
+      {
+        slotKey: "testimonials",
+        sectionTypeKey: "testimonials_trio",
+        propsOverride: {
+          eyebrow: "Clients",
+          headline: "What people leave with.",
+        },
+      },
+      {
+        slotKey: "secondary",
+        sectionTypeKey: "pricing_grid",
+        propsOverride: {
+          eyebrow: "Pricing",
+          headline: "Honest starting prices.",
+          plans: [
+            { name: "Cut", price: "$95", cadence: "starting at", features: ["Consult", "Wash + style", "Senior stylist"], ctaLabel: "Book", ctaHref: "/contact", highlighted: false },
+            { name: "Color", price: "$220", cadence: "starting at", description: "Most-booked.", features: ["Consult + bowl", "Single-process or balayage", "Gloss + style"], ctaLabel: "Book", ctaHref: "/contact", highlighted: true, badge: "Most popular" },
+            { name: "Bridal trial", price: "$180", cadence: "per session", features: ["60-minute trial", "Photo reference review", "Day-of plan"], ctaLabel: "Book", ctaHref: "/contact", highlighted: false },
+          ],
+          variant: "minimal",
+        },
+      },
+      {
+        slotKey: "final_cta",
+        sectionTypeKey: "cta_banner",
+        propsOverride: {
+          eyebrow: "Booking now",
+          headline: "Find a chair.",
+          copy: "We book by phone or through the form. Same-day requests handled if a stylist has space.",
+          primaryCta: { label: "Request a slot", href: "/contact" },
+          variant: "minimal-band",
+          bandTone: "blush",
+        },
+      },
+    ],
+  },
 };
 
 function shortToken(): string {

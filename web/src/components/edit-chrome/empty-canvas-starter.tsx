@@ -69,6 +69,24 @@ const TILES: RecipeTile[] = [
     sections: 4,
     Wire: WireStudioMinimal,
   },
+  {
+    slug: "wedding-photographer",
+    label: "Wedding Photographer",
+    summary:
+      "9-section vertical kit — hero, stats, services, gallery, process, testimonials, pricing grid, FAQ, CTA. Real-feeling copy out of the box.",
+    info: "Editorial preset. Showcases the new pricing grid + FAQ + stats sections with copy you can sit on while you edit. Ideal for solo photographers and small studios.",
+    sections: 9,
+    Wire: WireEditorial,
+  },
+  {
+    slug: "hair-salon",
+    label: "Hair Salon",
+    summary:
+      "8-section vertical kit — hero, marquee, services, team grid, before/after, testimonials, pricing, CTA.",
+    info: "Classic preset. Showcases marquee + team grid + before/after slider with salon-tuned copy and pricing. Ideal for hair, brow, nail, and aesthetics studios.",
+    sections: 8,
+    Wire: WireClassic,
+  },
 ];
 
 export function EmptyCanvasStarter() {
