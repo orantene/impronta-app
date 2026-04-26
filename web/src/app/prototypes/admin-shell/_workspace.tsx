@@ -22,7 +22,8 @@
  *   - talent  → sees ONLY the group thread + their own line item + booking
  */
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { MentionTypeahead } from "./_wave2";
 import {
   AGENCY_RELIABILITY,
   COLORS,
@@ -227,6 +228,7 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
     visible.includes("private") ? "private" : "group",
   );
   const [draft, setDraft] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useProto();
 
   const messages = inquiry.messages.filter((m) => m.threadType === active);
@@ -400,9 +402,15 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
             display: "flex",
             gap: 8,
             alignItems: "flex-end",
+            position: "relative",
           }}
         >
+          {/* @-mention typeahead overlay — measures the textarea cursor
+              and floats above it. Picks insert the username at the
+              caret. Mock teammate list inside the primitive. */}
+          <MentionTypeahead value={draft} onChange={setDraft} textareaRef={textareaRef} />
           <textarea
+            ref={textareaRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder={
