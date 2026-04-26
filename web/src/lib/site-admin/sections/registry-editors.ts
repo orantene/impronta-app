@@ -131,6 +131,11 @@ import { lookbookMeta } from "./lookbook/meta";
 import { LookbookEditor } from "./lookbook/Editor";
 import { bookingWidgetMeta } from "./booking_widget/meta";
 import { BookingWidgetEditor } from "./booking_widget/Editor";
+// Phase B.1 — site shell sections (registry-only; not in agency picker).
+import { siteHeaderMeta } from "./site_header/meta";
+import { SiteHeaderEditor } from "./site_header/Editor";
+import { siteFooterMeta } from "./site_footer/meta";
+import { SiteFooterEditor } from "./site_footer/Editor";
 
 import type { SectionEditorProps, SectionMeta } from "./types";
 
@@ -384,6 +389,9 @@ export const SECTION_EDITOR_REGISTRY: Record<
   event_listing: { meta: eventListingMeta, currentVersion: 1, Editor: EventListingEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
   lookbook: { meta: lookbookMeta, currentVersion: 1, Editor: LookbookEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
   booking_widget: { meta: bookingWidgetMeta, currentVersion: 1, Editor: BookingWidgetEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  // Phase B.1 — shell sections.
+  site_header: { meta: siteHeaderMeta, currentVersion: 1, Editor: SiteHeaderEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
+  site_footer: { meta: siteFooterMeta, currentVersion: 1, Editor: SiteFooterEditor as unknown as ComponentType<SectionEditorProps<Record<string, unknown>>> },
 };
 
 export function getSectionEditorEntry(

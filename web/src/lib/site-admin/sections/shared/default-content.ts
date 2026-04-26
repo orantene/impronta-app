@@ -641,6 +641,51 @@ const defaults: Record<SectionTypeKey, LibraryDefault> = {
       ratio: "4/3",
     },
   },
+  // Phase B.1 — shell defaults. Used by the B.2 backfill to seed each
+  // tenant's shell row with conservative starting content the operator
+  // edits afterward. Brand label is intentionally generic; tenants will
+  // overwrite via the Theme drawer + identity record on first edit.
+  site_header: {
+    name: "Site header",
+    props: {
+      brand: { label: "Brand", href: "/" },
+      navItems: [
+        { label: "Roster", href: "/talent" },
+        { label: "About", href: "/p/about" },
+        { label: "Contact", href: "/p/contact" },
+      ],
+      primaryCta: undefined,
+      sticky: true,
+      tone: "surface",
+      variant: "standard",
+    },
+  },
+  site_footer: {
+    name: "Site footer",
+    props: {
+      brand: {
+        label: "Brand",
+        tagline: undefined,
+      },
+      columns: [
+        {
+          heading: "Site",
+          links: [
+            { label: "Roster", href: "/talent" },
+            { label: "About", href: "/p/about" },
+            { label: "Contact", href: "/p/contact" },
+          ],
+        },
+      ],
+      social: [],
+      legal: {
+        copyright: `© ${new Date().getFullYear()} Brand. All rights reserved.`,
+        links: [],
+      },
+      variant: "standard",
+      tone: "follow",
+    },
+  },
 };
 
 export function getLibraryDefault(

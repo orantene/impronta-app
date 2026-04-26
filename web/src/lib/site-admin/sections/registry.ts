@@ -332,6 +332,22 @@ import { bookingWidgetSchemasByVersion, type BookingWidgetV1 } from "./booking_w
 import { BookingWidgetComponent } from "./booking_widget/Component";
 import { BookingWidgetEditor } from "./booking_widget/Editor";
 
+// ── Phase B.1 site shell sections (header + footer) ─────────────────────
+// Registry-only registration. visibleToAgency=false on both meta files
+// keeps them out of the section-add picker; they're managed exclusively
+// via the site_shell row's header/footer slots in B.2.
+import { siteHeaderMeta } from "./site_header/meta";
+import { siteHeaderMigrations } from "./site_header/migrations";
+import { siteHeaderSchemasByVersion, type SiteHeaderV1 } from "./site_header/schema";
+import { SiteHeaderComponent } from "./site_header/Component";
+import { SiteHeaderEditor } from "./site_header/Editor";
+
+import { siteFooterMeta } from "./site_footer/meta";
+import { siteFooterMigrations } from "./site_footer/migrations";
+import { siteFooterSchemasByVersion, type SiteFooterV1 } from "./site_footer/schema";
+import { SiteFooterComponent } from "./site_footer/Component";
+import { SiteFooterEditor } from "./site_footer/Editor";
+
 // ── entries ──────────────────────────────────────────────────────────────
 
 export const heroSection: SectionRegistryEntry<HeroV1> = {
@@ -652,6 +668,14 @@ export const lookbookSection: SectionRegistryEntry<LookbookV1> = {
 export const bookingWidgetSection: SectionRegistryEntry<BookingWidgetV1> = {
   meta: bookingWidgetMeta, currentVersion: 1, schemasByVersion: bookingWidgetSchemasByVersion, migrations: bookingWidgetMigrations, Component: BookingWidgetComponent, Editor: BookingWidgetEditor,
 };
+// Phase B.1 — site shell section types. Not in the agency-visible add picker
+// (meta.visibleToAgency=false); only ever placed in the site_shell row.
+export const siteHeaderSection: SectionRegistryEntry<SiteHeaderV1> = {
+  meta: siteHeaderMeta, currentVersion: 1, schemasByVersion: siteHeaderSchemasByVersion, migrations: siteHeaderMigrations, Component: SiteHeaderComponent, Editor: SiteHeaderEditor,
+};
+export const siteFooterSection: SectionRegistryEntry<SiteFooterV1> = {
+  meta: siteFooterMeta, currentVersion: 1, schemasByVersion: siteFooterSchemasByVersion, migrations: siteFooterMigrations, Component: SiteFooterComponent, Editor: SiteFooterEditor,
+};
 
 export const SECTION_REGISTRY = {
   hero: heroSection,
@@ -702,6 +726,9 @@ export const SECTION_REGISTRY = {
   event_listing: eventListingSection,
   lookbook: lookbookSection,
   booking_widget: bookingWidgetSection,
+  // Phase B.1 — shell-only section types.
+  site_header: siteHeaderSection,
+  site_footer: siteFooterSection,
 } as const;
 
 export type SectionTypeKey = keyof typeof SECTION_REGISTRY;
