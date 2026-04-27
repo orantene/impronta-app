@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { BeforeAfterV1 } from "./schema";
 
@@ -9,6 +10,12 @@ import type { BeforeAfterV1 } from "./schema";
  * CSS custom property that controls the clip-path of the "after" image.
  *
  * No JS required — works with prefers-reduced-motion, no hydration cost.
+ *
+ * Phase E (Batch 3 halfway) — head-only migration. The bespoke `__inner`
+ * width (min(960px, 100%)) is INTENTIONALLY preserved (narrower than the
+ * standard Container). The frame, range-input, clip-path overlays, labels,
+ * and enhancement script all stay bespoke. Only the head typography rhythm
+ * is unified.
  */
 export function BeforeAfterComponent({ props }: SectionComponentProps<BeforeAfterV1>) {
   const {
@@ -33,12 +40,11 @@ export function BeforeAfterComponent({ props }: SectionComponentProps<BeforeAfte
     >
       <div className="site-ba__inner">
         {(eyebrow || headline) && (
-          <header className="site-ba__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-ba__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div
           className="site-ba__frame"

@@ -1,7 +1,14 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { VideoReelV1 } from "./schema";
+
+/**
+ * Phase E (Batch 3 halfway) — head-only migration. The video frame, chapter
+ * list typography, time-formatting helper, and chapter-jump enhancement
+ * script all stay bespoke. Only eyebrow + headline rhythm is unified.
+ */
 
 function fmt(t: number): string {
   const h = Math.floor(t / 3600);
@@ -20,12 +27,13 @@ export function VideoReelComponent({ props }: SectionComponentProps<VideoReelV1>
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-reel__inner">
+      <Container width="standard">
         {(eyebrow || headline) && (
-          <header className="site-reel__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? <h2 className="site-reel__headline">{renderInlineRich(headline)}</h2> : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div className="site-reel__frame" style={{ aspectRatio: ratio }}>
           <video
@@ -56,7 +64,7 @@ export function VideoReelComponent({ props }: SectionComponentProps<VideoReelV1>
             ))}
           </ol>
         ) : null}
-      </div>
+      </Container>
       {chapters.length > 0 ? (
         <script
           dangerouslySetInnerHTML={{

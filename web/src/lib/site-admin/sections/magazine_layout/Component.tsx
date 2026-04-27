@@ -1,7 +1,14 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { MagazineLayoutV1, MagazineCard } from "./schema";
+
+/**
+ * Phase E (Batch 3 halfway) — head-only migration. The 1-hero +
+ * N-secondary asymmetric grid, the hero card's larger title scale, the
+ * per-card category labels, and h3/h4 hierarchy by role all stay bespoke.
+ */
 
 function CardCell({ card, isHero }: { card: MagazineCard; isHero?: boolean }) {
   const inner = (
@@ -44,14 +51,13 @@ export function MagazineLayoutComponent({ props }: SectionComponentProps<Magazin
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-mag__inner">
+      <Container width="standard">
         {(eyebrow || headline) && (
-          <header className="site-mag__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-mag__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div className="site-mag__grid">
           <CardCell card={hero} isHero />
@@ -59,7 +65,7 @@ export function MagazineLayoutComponent({ props }: SectionComponentProps<Magazin
             <CardCell key={`${c.title}-${i}`} card={c} />
           ))}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

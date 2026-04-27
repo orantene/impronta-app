@@ -1,8 +1,14 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { DestinationsMosaicV1 } from "./schema";
 
+/**
+ * Phase E (Batch 3 halfway) — head-only migration. The 1-hero +
+ * N-rest asymmetric tile grid, image overlay treatment, region label
+ * typography, and `data-featured` hero-tile styling all stay bespoke.
+ */
 export function DestinationsMosaicComponent({
   props,
 }: SectionComponentProps<DestinationsMosaicV1>) {
@@ -16,17 +22,14 @@ export function DestinationsMosaicComponent({
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-destinations-mosaic__inner">
+      <Container width="standard">
         {(eyebrow || headline || copy) && (
-          <header className="site-destinations-mosaic__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-destinations-mosaic__headline">
-                {renderInlineRich(headline)}
-              </h2>
-            ) : null}
-            {copy ? <p className="site-destinations-mosaic__copy">{copy}</p> : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+            intro={copy}
+          />
         )}
         <div className="site-destinations-mosaic__grid">
           <Tile item={hero} featured />
@@ -39,7 +42,7 @@ export function DestinationsMosaicComponent({
         {footnote ? (
           <p className="site-destinations-mosaic__footnote">{footnote}</p>
         ) : null}
-      </div>
+      </Container>
     </section>
   );
 }

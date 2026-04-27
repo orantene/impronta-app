@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { TestimonialsTrioV1, TestimonialsTrioItem } from "./schema";
 
@@ -10,6 +11,11 @@ const AUTO_CYCLE: ReadonlyArray<NonNullable<TestimonialsTrioItem["accent"]>> = [
   "ivory",
 ];
 
+/**
+ * Phase E (Batch 3 halfway) — head-only migration. The 4-color accent
+ * rotation, quote SVG, italic quote text, and footer-meta typography
+ * remain bespoke. Only the eyebrow + headline rhythm is unified.
+ */
 export function TestimonialsTrioComponent({
   props,
 }: SectionComponentProps<TestimonialsTrioV1>) {
@@ -26,16 +32,13 @@ export function TestimonialsTrioComponent({
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-testimonials-trio__inner">
+      <Container width="standard">
         {(eyebrow || headline) && (
-          <header className="site-testimonials-trio__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-testimonials-trio__headline">
-                {renderInlineRich(headline)}
-              </h2>
-            ) : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div className="site-testimonials-trio__grid">
           {items.map((item, i) => (
@@ -79,7 +82,7 @@ export function TestimonialsTrioComponent({
             </article>
           ))}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

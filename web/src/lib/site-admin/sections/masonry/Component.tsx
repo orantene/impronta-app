@@ -1,8 +1,14 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { MasonryV1 } from "./schema";
 
+/**
+ * Phase E (Batch 3 halfway) — head-only migration. The CSS-columns masonry
+ * (column-count, variable-height tiles, caption typography) stays bespoke.
+ * Only eyebrow + headline rhythm is unified.
+ */
 export function MasonryComponent({ props }: SectionComponentProps<MasonryV1>) {
   const { eyebrow, headline, items, columnsDesktop, gap, presentation } = props;
   return (
@@ -15,14 +21,13 @@ export function MasonryComponent({ props }: SectionComponentProps<MasonryV1>) {
       }}
       {...presentationDataAttrs(presentation)}
     >
-      <div className="site-masonry__inner">
+      <Container width="standard">
         {(eyebrow || headline) && (
-          <header className="site-masonry__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-masonry__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div className="site-masonry__cols">
           {items.map((item, i) => {
@@ -47,7 +52,7 @@ export function MasonryComponent({ props }: SectionComponentProps<MasonryV1>) {
             );
           })}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }
