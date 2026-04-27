@@ -1,7 +1,14 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { ProcessStepsV1 } from "./schema";
+
+/**
+ * Phase E (Batch 2) — Container + SectionHead. Distinctive interior:
+ * the numbered-step rhythm (Arabic / Roman / none), per-step card
+ * layout, and number-style data-attr-driven styling stay.
+ */
 
 function formatNumber(i: number, style: ProcessStepsV1["numberStyle"]): string {
   const n = i + 1;
@@ -25,18 +32,13 @@ export function ProcessStepsComponent({
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-process-steps__inner">
-        {(eyebrow || headline || copy) && (
-          <header className="site-process-steps__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-process-steps__headline">
-                {renderInlineRich(headline)}
-              </h2>
-            ) : null}
-            {copy ? <p className="site-process-steps__copy">{copy}</p> : null}
-          </header>
-        )}
+      <Container width="standard">
+        <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+          intro={copy}
+        />
         <div className="site-process-steps__grid">
           {steps.map((step, i) => (
             <article
@@ -56,7 +58,7 @@ export function ProcessStepsComponent({
             </article>
           ))}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

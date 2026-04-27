@@ -1120,30 +1120,12 @@ html[data-token-typography-scale-preset="editorial"] {
 .site-category-grid {
   padding-block: var(--site-section-y);
 }
-.site-category-grid__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-category-grid__head {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 48px;
-  align-items: end;
-  margin-bottom: 56px;
-}
+/* Phase E (Batch 2) — site-category-grid {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-category-grid {__inner / __head / __headline} collapsed into primitives. */
 @media (max-width: 768px) {
-  .site-category-grid__head {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
+/* Phase E (Batch 2) — site-category-grid {__inner / __head / __headline} collapsed into primitives. */
 }
-.site-category-grid__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(32px, 4.6vw, 54px);
-  margin-top: 14px;
-  max-width: 640px;
-}
+/* Phase E (Batch 2) — site-category-grid {__inner / __head / __headline} collapsed into primitives. */
 .site-category-grid__copy {
   max-width: 460px;
   color: var(--token-color-muted);
@@ -1480,13 +1462,9 @@ html[data-token-typography-scale-preset="editorial"] {
  * M8 — Process steps section.
  * ------------------------------------------------------------------------- */
 .site-process-steps { padding-block: var(--site-section-y); }
-.site-process-steps__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-process-steps__head { text-align: center; max-width: 720px; margin: 0 auto 56px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
-.site-process-steps__headline { font-family: var(--site-heading-font); font-size: clamp(32px, 4.6vw, 56px); }
+/* Phase E (Batch 2) — site-process-steps {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-process-steps {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-process-steps {__inner / __head / __headline} collapsed into primitives. */
 .site-process-steps__copy { color: var(--token-color-muted); max-width: 560px; }
 .site-process-steps__grid { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .site-process-steps__card {
@@ -1528,13 +1506,9 @@ html[data-token-typography-scale-preset="editorial"] {
  * M8 — Image + copy alternating section.
  * ------------------------------------------------------------------------- */
 .site-image-copy { padding-block: var(--site-section-y); }
-.site-image-copy__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-image-copy__head { text-align: center; margin-bottom: 56px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
-.site-image-copy__headline { font-family: var(--site-heading-font); font-size: clamp(32px, 4.6vw, 54px); }
+/* Phase E (Batch 2) — site-image-copy {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-image-copy {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-image-copy {__inner / __head / __headline} collapsed into primitives. */
 .site-image-copy__rows { display: flex; flex-direction: column; gap: 96px; }
 .site-image-copy[data-gap="tight"] .site-image-copy__rows { gap: 48px; }
 .site-image-copy[data-gap="standard"] .site-image-copy__rows { gap: 72px; }
@@ -1614,9 +1588,9 @@ html[data-token-typography-scale-preset="editorial"] {
  * M8 — Gallery strip.
  * ------------------------------------------------------------------------- */
 .site-gallery { padding-block: var(--site-section-y); }
-.site-gallery__inner { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
-.site-gallery__head { margin-bottom: 40px; display: flex; flex-direction: column; gap: 14px; }
-.site-gallery__headline { font-family: var(--site-heading-font); font-size: clamp(30px, 4vw, 48px); max-width: 720px; }
+/* Phase E (Batch 2) — site-gallery {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-gallery {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-gallery {__inner / __head / __headline} collapsed into primitives. */
 .site-gallery__grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
 .site-gallery__tile { margin: 0; background: var(--token-color-secondary); overflow: hidden; border-radius: var(--site-radius-sm); }
 .site-gallery__tile[data-aspect="wide"]   { grid-column: span 6; aspect-ratio: 5 / 3; }
@@ -2088,23 +2062,9 @@ html[data-token-icon-family="geometric"] {
 
 /* ---- FAQ accordion --------------------------------------------------- */
 .site-faq { padding-block: var(--site-section-y); }
-.site-faq__inner {
-  width: min(820px, 100%);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-faq__head {
-  text-align: center;
-  margin-bottom: 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.site-faq__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(28px, 4vw, 46px);
-  color: var(--token-color-ink);
-}
+/* Phase E (Batch 2) — site-faq {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-faq {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-faq {__inner / __head / __headline} collapsed into primitives. */
 .site-faq__intro {
   color: var(--token-color-muted);
   max-width: 56ch;
@@ -2257,23 +2217,9 @@ html[data-token-icon-family="geometric"] {
 
 /* ---- Timeline -------------------------------------------------------- */
 .site-timeline { padding-block: var(--site-section-y); }
-.site-timeline__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-timeline__head {
-  text-align: center;
-  margin-bottom: 56px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.site-timeline__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(28px, 4vw, 48px);
-  color: var(--token-color-ink);
-}
+/* Phase E (Batch 2) — site-timeline {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-timeline {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-timeline {__inner / __head / __headline} collapsed into primitives. */
 .site-timeline__list {
   list-style: none;
   margin: 0;
@@ -2366,25 +2312,9 @@ html[data-token-icon-family="geometric"] {
 
 /* ---- Pricing grid ---------------------------------------------------- */
 .site-pricing { padding-block: var(--site-section-y); }
-.site-pricing__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-pricing__head {
-  text-align: center;
-  margin-bottom: 48px;
-  max-width: 720px;
-  margin-inline: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.site-pricing__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(28px, 4vw, 48px);
-  color: var(--token-color-ink);
-}
+/* Phase E (Batch 2) — site-pricing {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-pricing {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-pricing {__inner / __head / __headline} collapsed into primitives. */
 .site-pricing__intro { color: var(--token-color-muted); }
 .site-pricing__grid {
   display: grid;
@@ -2494,25 +2424,9 @@ html[data-token-icon-family="geometric"] {
 
 /* ---- Team grid ------------------------------------------------------- */
 .site-team { padding-block: var(--site-section-y); }
-.site-team__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-team__head {
-  text-align: center;
-  margin-bottom: 56px;
-  max-width: 720px;
-  margin-inline: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.site-team__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(28px, 4vw, 48px);
-  color: var(--token-color-ink);
-}
+/* Phase E (Batch 2) — site-team {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-team {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-team {__inner / __head / __headline} collapsed into primitives. */
 .site-team__intro { color: var(--token-color-muted); }
 .site-team__grid {
   list-style: none;
@@ -2596,23 +2510,9 @@ html[data-token-icon-family="geometric"] {
 
 /* ---- Contact form ---------------------------------------------------- */
 .site-form { padding-block: var(--site-section-y); }
-.site-form__inner {
-  width: min(640px, 100%);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-form__head {
-  text-align: center;
-  margin-bottom: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.site-form__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(28px, 4vw, 44px);
-  color: var(--token-color-ink);
-}
+/* Phase E (Batch 2) — site-form {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-form {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-form {__inner / __head / __headline} collapsed into primitives. */
 .site-form__intro { color: var(--token-color-muted); }
 .site-form__form {
   position: relative;
@@ -2816,23 +2716,9 @@ html[data-token-icon-family="geometric"] {
 
 /* ---- Content tabs (CSS-only via :has + :checked) --------------------- */
 .site-tabs { padding-block: var(--site-section-y); }
-.site-tabs__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-tabs__head {
-  text-align: center;
-  margin-bottom: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.site-tabs__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(28px, 4vw, 44px);
-  color: var(--token-color-ink);
-}
+/* Phase E (Batch 2) — site-tabs {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-tabs {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-tabs {__inner / __head / __headline} collapsed into primitives. */
 .site-tabs__group {
   display: flex;
   flex-direction: column;
@@ -2993,25 +2879,19 @@ html[data-token-icon-family="geometric"] {
 .site-headline,
 .site-hero__headline,
 .site-cta-banner__headline,
-.site-category-grid__headline,
 .site-destinations-mosaic__headline,
 .site-testimonials-trio__headline,
-.site-process-steps__headline,
-.site-image-copy__headline,
-.site-gallery-strip__headline,
 .site-featured-talent__headline,
-.site-faq__headline,
 .site-split__headline,
-.site-timeline__headline,
-.site-pricing__headline,
-.site-team__headline,
-.site-form__headline,
 .site-ba__headline,
-.site-tabs__headline,
 /* Phase E — primitive headline picks up the same H2 token + clamp so
  * sections migrated to SectionHead inherit the same typographic ramp.
- * Batch-1 selectors (trust-strip, stats, values-trio, embed) removed
- * from this list as their __headline class is no longer rendered. */
+ * Batch-1 selectors (trust-strip, stats, values-trio, embed) and
+ * Batch-2 selectors (category-grid, process-steps, image-copy, gallery,
+ * faq, timeline, pricing, team, form, tabs, blog) removed as their
+ * __headline class is no longer rendered. cta_banner kept (its
+ * __headline still renders — section preserved its `__inner`/`__headline`
+ * shape because variant CSS depends on it). */
 .site-prim-head__headline {
   /* H2-class headlines across sections. */
   font-size: var(--token-typography-h2-size, clamp(28px, 4vw, 48px));
@@ -3081,13 +2961,9 @@ body { font-size: var(--token-typography-body-size, revert); }
  * M11 archetype expansion — blog index, comparison table
  * ========================================================================= */
 .site-blog { padding-block: var(--site-section-y); }
-.site-blog__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-blog__head { text-align: center; margin-bottom: 48px; display: flex; flex-direction: column; gap: 12px; }
-.site-blog__headline { font-family: var(--site-heading-font); font-size: clamp(28px, 4vw, 44px); color: var(--token-color-ink); }
+/* Phase E (Batch 2) — site-blog {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-blog {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-blog {__inner / __head / __headline} collapsed into primitives. */
 .site-blog__grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 28px; grid-template-columns: repeat(var(--blog-cols, 3), minmax(0, 1fr)); }
 @media (max-width: 880px) { .site-blog__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 540px) { .site-blog__grid { grid-template-columns: 1fr; } }
@@ -3110,9 +2986,9 @@ body { font-size: var(--token-typography-body-size, revert); }
 .site-blog__excerpt { font-size: 14px; color: var(--token-color-muted); line-height: 1.5; }
 
 .site-compare { padding-block: var(--site-section-y); }
-.site-compare__inner { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
-.site-compare__head { text-align: center; margin-bottom: 32px; max-width: 720px; margin-inline: auto; display: flex; flex-direction: column; gap: 10px; }
-.site-compare__headline { font-family: var(--site-heading-font); font-size: clamp(28px, 4vw, 44px); color: var(--token-color-ink); }
+/* Phase E (Batch 2) — site-compare {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-compare {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-compare {__inner / __head / __headline} collapsed into primitives. */
 .site-compare__intro { color: var(--token-color-muted); }
 .site-compare__scroll { overflow-x: auto; }
 .site-compare__table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; color: var(--token-color-ink); }
@@ -3298,9 +3174,9 @@ body { font-size: var(--token-typography-body-size, revert); }
 }
 
 .site-donate { padding-block: var(--site-section-y); }
-.site-donate__inner { width: min(620px, 100%); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
-.site-donate__head { text-align: center; display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-.site-donate__headline { font-family: var(--site-heading-font); font-size: clamp(28px, 4vw, 44px); color: var(--token-color-ink); }
+/* Phase E (Batch 2) — site-donate {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-donate {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-donate {__inner / __head / __headline} collapsed into primitives. */
 .site-donate__intro { color: var(--token-color-muted); }
 .site-donate__form { display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 12px; background: var(--token-color-surface-raised, #fafafa); }
 .site-donate__chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -3335,9 +3211,9 @@ body { font-size: var(--token-typography-body-size, revert); }
 .site-snippet__lineno { display: inline-block; width: 30px; opacity: 0.4; user-select: none; padding-inline-end: 8px; text-align: right; }
 
 .site-events { padding-block: var(--site-section-y); }
-.site-events__inner { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
-.site-events__head { text-align: center; margin-bottom: 32px; display: flex; flex-direction: column; gap: 10px; }
-.site-events__headline { font-family: var(--site-heading-font); font-size: clamp(24px, 3vw, 36px); color: var(--token-color-ink); }
+/* Phase E (Batch 2) — site-events {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-events {__inner / __head / __headline} collapsed into primitives. */
+/* Phase E (Batch 2) — site-events {__inner / __head / __headline} collapsed into primitives. */
 .site-events__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
 .site-events__item { display: grid; grid-template-columns: 120px 1fr; gap: 28px; padding-block: 20px; border-block-end: 1px solid color-mix(in srgb, var(--token-color-ink, #111) 8%, transparent); }
 .site-events__item:first-child { border-block-start: 1px solid color-mix(in srgb, var(--token-color-ink, #111) 8%, transparent); }
@@ -3398,6 +3274,98 @@ body { font-size: var(--token-typography-body-size, revert); }
 .site-prim-head--center { text-align: center; margin-inline: auto; align-items: center; }
 .site-prim-head__headline { font-family: var(--site-heading-font); font-size: clamp(28px, 4vw, 48px); color: var(--token-color-ink); line-height: 1.1; }
 .site-prim-head__intro { font-size: 16px; color: var(--token-color-muted); line-height: 1.55; }
+
+/* ─── Phase E (Batch 2) — shared Cta primitive ────────────────────────
+ * Three variants: primary (filled), secondary (outline), ghost (text-only
+ * with chevron rhythm). All three honor the same shape (rounded pill),
+ * the same focus ring, and the same brand-accent token. No per-section
+ * CTA CSS after Batch 2. Editorial enough for the prototype's premium
+ * tone — not generic SaaS-button. */
+.site-prim-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  font-family: var(--site-body-font);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  text-decoration: none;
+  border-radius: 999px;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.site-prim-cta:focus-visible {
+  outline: 2px solid var(--token-color-primary, #111);
+  outline-offset: 3px;
+}
+.site-prim-cta:active { transform: translateY(1px); }
+.site-prim-cta--primary {
+  background: var(--token-color-ink, #111);
+  color: var(--token-color-paper, #fff);
+}
+.site-prim-cta--primary:hover { background: var(--token-color-primary, #1f1f1f); }
+.site-prim-cta--secondary {
+  background: transparent;
+  color: var(--token-color-ink, #111);
+  border-color: color-mix(in srgb, var(--token-color-ink, #111) 28%, transparent);
+}
+.site-prim-cta--secondary:hover {
+  background: color-mix(in srgb, var(--token-color-ink, #111) 6%, transparent);
+  border-color: var(--token-color-ink, #111);
+}
+.site-prim-cta--ghost {
+  background: transparent;
+  color: var(--token-color-ink, #111);
+  padding: 10px 4px;
+  border-radius: 0;
+}
+.site-prim-cta--ghost:hover {
+  color: var(--token-color-primary, #1f1f1f);
+}
+.site-prim-cta--ghost::after {
+  content: "→";
+  margin-left: 4px;
+  transition: transform 160ms ease;
+}
+.site-prim-cta--ghost:hover::after { transform: translateX(2px); }
+/* Dark-section polarity flip: when a section uses an espresso/dark
+ * background, primary CTAs invert so they remain legible. */
+[data-section-background="espresso"] .site-prim-cta--primary,
+[data-section-mobile-background="espresso"] .site-prim-cta--primary,
+[data-section-tablet-background="espresso"] .site-prim-cta--primary {
+  background: #f6f1ea;
+  color: #2d2623;
+}
+[data-section-background="espresso"] .site-prim-cta--primary:hover,
+[data-section-mobile-background="espresso"] .site-prim-cta--primary:hover,
+[data-section-tablet-background="espresso"] .site-prim-cta--primary:hover {
+  background: #ffffff;
+}
+[data-section-background="espresso"] .site-prim-cta--secondary,
+[data-section-mobile-background="espresso"] .site-prim-cta--secondary,
+[data-section-tablet-background="espresso"] .site-prim-cta--secondary {
+  color: #f6f1ea;
+  border-color: rgba(246, 241, 234, 0.36);
+}
+[data-section-background="espresso"] .site-prim-cta--secondary:hover,
+[data-section-mobile-background="espresso"] .site-prim-cta--secondary:hover,
+[data-section-tablet-background="espresso"] .site-prim-cta--secondary:hover {
+  background: rgba(246, 241, 234, 0.08);
+  border-color: #f6f1ea;
+}
+/* Two-CTA row layout helper used by sections composing primary+secondary. */
+.site-prim-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
 
 /* =========================================================================
  * Phase 9 (XS-9) — booking_widget

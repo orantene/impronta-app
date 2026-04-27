@@ -155,3 +155,53 @@ export function SectionHead({ eyebrow, headline, intro, align = "center", classN
     </header>
   );
 }
+
+// ── Cta (button-like link) ──────────────────────────────────────────────
+
+/**
+ * Phase E (Batch 2) — public-side CTA primitive.
+ *
+ * Three variants only — primary / secondary / ghost — per the ratified
+ * scope cap. No fourth `text-link` variant in this phase. The visual
+ * design is brand-token aware (uses `--token-color-primary`,
+ * `--token-color-ink`, `--site-radius`, etc.) so each tenant's theme
+ * propagates without per-section CSS overrides.
+ *
+ * The primitive is a single anchor — sections that want two CTAs
+ * compose two `<Cta>` instances inside a `<div className="site-prim-ctas">`
+ * (or any wrapper), keeping layout choices at the section level.
+ *
+ * Why a primitive: every section that has a CTA today rolls its own
+ * `<a className="site-X__cta">` with subtly different focus rings, hover
+ * states, padding, and typography. Phase E unifies all of these into a
+ * single anchor shape with three deliberate variants.
+ */
+
+export type CtaVariant = "primary" | "secondary" | "ghost";
+
+export interface CtaProps {
+  href: string;
+  /** Visible label. */
+  children: ReactNodeType;
+  /** Defaults to "primary". */
+  variant?: CtaVariant;
+  /** External-link target. Auto-set to "_blank" when href is an absolute URL. */
+  newTab?: boolean;
+  /** Optional class additions for section-level layout (e.g. width-full on mobile). */
+  className?: string;
+}
+
+export function Cta({ href, children, variant = "primary", newTab, className }: CtaProps) {
+  const isExternal = /^https?:\/\//i.test(href) || newTab === true;
+  return (
+    <a
+      href={href}
+      data-cta-variant={variant}
+      className={`site-prim-cta site-prim-cta--${variant}${className ? ` ${className}` : ""}`}
+      target={isExternal ? "_blank" : undefined}
+      rel={isExternal ? "noopener noreferrer" : undefined}
+    >
+      {children}
+    </a>
+  );
+}

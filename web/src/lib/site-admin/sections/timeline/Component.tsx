@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { TimelineV1 } from "./schema";
 
@@ -13,14 +14,13 @@ export function TimelineComponent({ props }: SectionComponentProps<TimelineV1>) 
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-timeline__inner">
+      <Container width="standard">
         {(eyebrow || headline) && (
-          <header className="site-timeline__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-timeline__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-          </header>
+          <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+        />
         )}
         <ol className="site-timeline__list">
           {items.map((item, i) => (
@@ -42,7 +42,7 @@ export function TimelineComponent({ props }: SectionComponentProps<TimelineV1>) 
             </li>
           ))}
         </ol>
-      </div>
+      </Container>
     </section>
   );
 }

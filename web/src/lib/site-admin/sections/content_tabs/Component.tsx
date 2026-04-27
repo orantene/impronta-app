@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { ContentTabsV1 } from "./schema";
 
@@ -18,14 +19,13 @@ export function ContentTabsComponent({ props }: SectionComponentProps<ContentTab
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-tabs__inner">
+      <Container width="standard">
         {(eyebrow || headline) && (
-          <header className="site-tabs__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-tabs__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-          </header>
+          <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+        />
         )}
         <div className="site-tabs__group" role="tablist">
           {tabs.map((tab, i) => (
@@ -61,7 +61,7 @@ export function ContentTabsComponent({ props }: SectionComponentProps<ContentTab
             ))}
           </div>
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

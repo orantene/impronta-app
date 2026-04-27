@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, Cta, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { ImageCopyAlternatingV1 } from "./schema";
 
@@ -18,16 +19,13 @@ export function ImageCopyAlternatingComponent({
         ...presentationInlineStyles(presentation),
       }}
     >
-      <div className="site-image-copy__inner">
+      <Container width="standard">
         {(eyebrow || headline) && (
-          <header className="site-image-copy__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-image-copy__headline">
-                {renderInlineRich(headline)}
-              </h2>
-            ) : null}
-          </header>
+          <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+        />
         )}
 
         <div className="site-image-copy__rows">
@@ -85,22 +83,16 @@ export function ImageCopyAlternatingComponent({
                     </ul>
                   ) : null}
                   {(item.primaryCta || item.secondaryCta) && (
-                    <div className="site-image-copy__ctas">
+                    <div className="site-prim-ctas site-image-copy__ctas">
                       {item.primaryCta ? (
-                        <a
-                          href={item.primaryCta.href}
-                          className="site-btn site-btn--primary"
-                        >
+                        <Cta href={item.primaryCta.href} variant="primary">
                           {item.primaryCta.label}
-                        </a>
+                        </Cta>
                       ) : null}
                       {item.secondaryCta ? (
-                        <a
-                          href={item.secondaryCta.href}
-                          className="site-btn site-btn--outline"
-                        >
+                        <Cta href={item.secondaryCta.href} variant="secondary">
                           {item.secondaryCta.label}
-                        </a>
+                        </Cta>
                       ) : null}
                     </div>
                   )}
@@ -109,7 +101,7 @@ export function ImageCopyAlternatingComponent({
             );
           })}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

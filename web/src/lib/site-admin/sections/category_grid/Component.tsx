@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, Cta, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { CategoryGridV1 } from "./schema";
 
@@ -8,6 +9,10 @@ import type { CategoryGridV1 } from "./schema";
  * data attribute so storefront CSS owns the layout rules. Icons resolve
  * through CSS (content: ...) or are replaced by imagery when `imageUrl`
  * is set — tile content is the same shape in either case.
+ *
+ * Phase E (Batch 2) — adopts Container + SectionHead + Cta primitives.
+ * Distinctive interior preserved: the variant-driven tile grid + icon /
+ * image / overlay layering + columnsDesktop CSS var.
  */
 export function CategoryGridComponent({
   props,
@@ -25,26 +30,20 @@ export function CategoryGridComponent({
         ...presentationInlineStyles(presentation),
       }}
     >
-      <div className="site-category-grid__inner">
-        {(eyebrow || headline || copy || footerCta) && (
-          <header className="site-category-grid__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-category-grid__headline">
-                {renderInlineRich(headline)}
-              </h2>
-            ) : null}
-            {copy ? <p className="site-category-grid__copy">{copy}</p> : null}
-            {footerCta ? (
-              <a
-                href={footerCta.href}
-                className="site-btn site-btn--outline site-category-grid__cta"
-              >
-                {footerCta.label}
-              </a>
-            ) : null}
-          </header>
-        )}
+      <Container width="standard">
+        <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+          intro={copy}
+        />
+        {footerCta ? (
+          <div className="site-category-grid__head-cta">
+            <Cta href={footerCta.href} variant="secondary">
+              {footerCta.label}
+            </Cta>
+          </div>
+        ) : null}
         <div className="site-category-grid__grid">
           {items.map((item, i) => {
             const TileTag: "a" | "div" = item.href ? "a" : "div";
@@ -87,7 +86,7 @@ export function CategoryGridComponent({
             );
           })}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

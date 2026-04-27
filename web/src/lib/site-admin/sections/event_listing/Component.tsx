@@ -1,7 +1,14 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, Cta, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { EventListingV1 } from "./schema";
+
+/**
+ * Phase E (Batch 2) — Container + SectionHead + Cta. Distinctive
+ * interior preserved: the date/time column rhythm, category pill,
+ * per-event metadata stack.
+ */
 
 export function EventListingComponent({ props }: SectionComponentProps<EventListingV1>) {
   const { eyebrow, headline, events, variant, presentation } = props;
@@ -12,13 +19,12 @@ export function EventListingComponent({ props }: SectionComponentProps<EventList
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-events__inner">
-        {(eyebrow || headline) && (
-          <header className="site-events__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? <h2 className="site-events__headline">{renderInlineRich(headline)}</h2> : null}
-          </header>
-        )}
+      <Container width="standard">
+        <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+        />
         <ol className="site-events__list">
           {events.map((e, i) => (
             <li className="site-events__item" key={`${e.title}-${i}`}>
@@ -32,15 +38,15 @@ export function EventListingComponent({ props }: SectionComponentProps<EventList
                 {e.location ? <p className="site-events__location">{e.location}</p> : null}
                 {e.description ? <p className="site-events__desc">{e.description}</p> : null}
                 {e.rsvpUrl ? (
-                  <a className="site-btn site-btn--ghost site-events__rsvp" href={e.rsvpUrl}>
+                  <Cta href={e.rsvpUrl} variant="ghost" className="site-events__rsvp">
                     {e.rsvpLabel || "RSVP"}
-                  </a>
+                  </Cta>
                 ) : null}
               </div>
             </li>
           ))}
         </ol>
-      </div>
+      </Container>
     </section>
   );
 }

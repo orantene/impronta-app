@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { TeamGridV1 } from "./schema";
 
@@ -15,15 +16,14 @@ export function TeamGridComponent({ props }: SectionComponentProps<TeamGridV1>) 
       }}
       {...presentationDataAttrs(presentation)}
     >
-      <div className="site-team__inner">
+      <Container width="standard">
         {(eyebrow || headline || intro) && (
-          <header className="site-team__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-team__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-            {intro ? <p className="site-team__intro">{intro}</p> : null}
-          </header>
+          <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+          intro={intro}
+        />
         )}
         <ul className="site-team__grid">
           {members.map((m, i) => {
@@ -62,7 +62,7 @@ export function TeamGridComponent({ props }: SectionComponentProps<TeamGridV1>) 
             );
           })}
         </ul>
-      </div>
+      </Container>
     </section>
   );
 }

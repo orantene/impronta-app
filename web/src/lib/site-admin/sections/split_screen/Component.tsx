@@ -3,8 +3,18 @@ import {
   presentationInlineStyles,
 } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Cta } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { SplitScreenV1 } from "./schema";
+
+/**
+ * Phase E (Batch 2) — split_screen's `__inner` is a 2-column flex
+ * wrapper for `__media` + `__copy`, not a generic content container,
+ * so it intentionally does NOT use the standard Container primitive.
+ * Only the CTAs adopt the shared Cta primitive — the variant-driven
+ * column layout (50/50, 40/60, 60/40, edge-to-edge), sticky media,
+ * and side-flip mechanics are the section's signature and stay.
+ */
 
 export function SplitScreenComponent({
   props,
@@ -76,22 +86,16 @@ export function SplitScreenComponent({
             </div>
           ) : null}
           {(primaryCta || secondaryCta) && (
-            <div className="site-split__ctas">
+            <div className="site-prim-ctas site-split__ctas">
               {primaryCta ? (
-                <a
-                  className="site-btn site-btn--primary"
-                  href={primaryCta.href}
-                >
+                <Cta href={primaryCta.href} variant="primary">
                   {primaryCta.label}
-                </a>
+                </Cta>
               ) : null}
               {secondaryCta ? (
-                <a
-                  className="site-btn site-btn--ghost"
-                  href={secondaryCta.href}
-                >
+                <Cta href={secondaryCta.href} variant="ghost">
                   {secondaryCta.label}
-                </a>
+                </Cta>
               ) : null}
             </div>
           )}

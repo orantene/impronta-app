@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { ComparisonTableV1 } from "./schema";
 
@@ -23,15 +24,14 @@ export function ComparisonTableComponent({
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-compare__inner">
+      <Container width="standard">
         {(eyebrow || headline || intro) && (
-          <header className="site-compare__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-compare__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-            {intro ? <p className="site-compare__intro">{intro}</p> : null}
-          </header>
+          <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+          intro={intro}
+        />
         )}
         <div className="site-compare__scroll">
           <table className="site-compare__table">
@@ -74,7 +74,7 @@ export function ComparisonTableComponent({
             </tbody>
           </table>
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

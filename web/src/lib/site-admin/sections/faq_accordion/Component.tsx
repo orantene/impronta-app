@@ -3,8 +3,14 @@ import {
   presentationInlineStyles,
 } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { FaqAccordionV1 } from "./schema";
+
+/**
+ * Phase E (Batch 2) — Container + SectionHead. Distinctive interior:
+ * `<details>`-driven accordion with chevron rotation animation stays.
+ */
 
 export function FaqAccordionComponent({
   props,
@@ -25,18 +31,13 @@ export function FaqAccordionComponent({
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-faq__inner">
-        {(eyebrow || headline || intro) && (
-          <header className="site-faq__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-faq__headline">
-                {renderInlineRich(headline)}
-              </h2>
-            ) : null}
-            {intro ? <p className="site-faq__intro">{intro}</p> : null}
-          </header>
-        )}
+      <Container width="standard">
+        <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+          intro={intro}
+        />
         <div className="site-faq__list">
           {items.map((item, i) => {
             const open = defaultOpen === i;
@@ -61,7 +62,7 @@ export function FaqAccordionComponent({
             );
           })}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

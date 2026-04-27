@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { ContactFormV1 } from "./schema";
 
@@ -48,15 +49,14 @@ export function ContactFormComponent({
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-form__inner">
+      <Container width="standard">
         {(eyebrow || headline || intro) && (
-          <header className="site-form__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-form__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-            {intro ? <p className="site-form__intro">{intro}</p> : null}
-          </header>
+          <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+          intro={intro}
+        />
         )}
 
         <form className="site-form__form" action={formAction} method={formMethod}>
@@ -184,7 +184,7 @@ export function ContactFormComponent({
             }}
           />
         ) : null}
-      </div>
+      </Container>
     </section>
   );
 }

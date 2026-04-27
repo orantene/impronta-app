@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, Cta, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { PricingGridV1 } from "./schema";
 
@@ -13,15 +14,13 @@ export function PricingGridComponent({ props }: SectionComponentProps<PricingGri
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-pricing__inner">
+      <Container width="standard">
         {(eyebrow || headline || intro) && (
-          <header className="site-pricing__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-pricing__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-            {intro ? <p className="site-pricing__intro">{intro}</p> : null}
-          </header>
+          <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+        />
         )}
         <div className="site-pricing__grid">
           {plans.map((plan, i) => (
@@ -53,20 +52,17 @@ export function PricingGridComponent({ props }: SectionComponentProps<PricingGri
                   </li>
                 ))}
               </ul>
-              <a
-                className={
-                  plan.highlighted
-                    ? "site-btn site-btn--primary site-pricing__cta"
-                    : "site-btn site-btn--ghost site-pricing__cta"
-                }
+              <Cta
                 href={plan.ctaHref}
+                variant={plan.highlighted ? "primary" : "ghost"}
+                className="site-pricing__cta"
               >
                 {plan.ctaLabel}
-              </a>
+              </Cta>
             </article>
           ))}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

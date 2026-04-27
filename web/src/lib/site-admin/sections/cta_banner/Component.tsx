@@ -1,11 +1,21 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Cta } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { CtaBannerV1 } from "./schema";
 
 /**
  * Server-rendered CTA banner. Variant selection happens via a `data-variant`
  * attribute that storefront CSS targets for its layout rules.
+ *
+ * Phase E (Batch 2) — adopts the shared `Cta` primitive for primary +
+ * secondary buttons. Section-internal layout (`__shell` / `__inner` and
+ * variant-specific positioning rules) is intentionally preserved — the
+ * three variants (centered-overlay / split-image / minimal-band) all
+ * depend on the `__inner` element being the positioning context, plus
+ * the `__headline` carries a deliberately large clamp(34px, 5.2vw, 68px)
+ * that's distinctive to this section's editorial conversion tone. Only
+ * the CTA shape unifies.
  */
 export function CtaBannerComponent({ props }: SectionComponentProps<CtaBannerV1>) {
   const {
@@ -67,22 +77,16 @@ export function CtaBannerComponent({ props }: SectionComponentProps<CtaBannerV1>
           </h2>
           {copy ? <p className="site-cta-banner__copy">{copy}</p> : null}
           {(primaryCta || secondaryCta) && (
-            <div className="site-cta-banner__ctas">
+            <div className="site-prim-ctas site-cta-banner__ctas">
               {primaryCta ? (
-                <a
-                  href={primaryCta.href}
-                  className="site-btn site-btn--primary"
-                >
+                <Cta href={primaryCta.href} variant="primary">
                   {primaryCta.label}
-                </a>
+                </Cta>
               ) : null}
               {secondaryCta ? (
-                <a
-                  href={secondaryCta.href}
-                  className="site-btn site-btn--outline"
-                >
+                <Cta href={secondaryCta.href} variant="secondary">
                   {secondaryCta.label}
-                </a>
+                </Cta>
               ) : null}
             </div>
           )}

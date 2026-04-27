@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { BlogIndexV1 } from "./schema";
 
@@ -15,14 +16,13 @@ export function BlogIndexComponent({ props }: SectionComponentProps<BlogIndexV1>
       }}
       {...presentationDataAttrs(presentation)}
     >
-      <div className="site-blog__inner">
+      <Container width="standard">
         {(eyebrow || headline) && (
-          <header className="site-blog__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-blog__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-          </header>
+          <SectionHead
+          align="center"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+        />
         )}
         <ul className="site-blog__grid">
           {posts.map((post, i) => (
@@ -53,7 +53,7 @@ export function BlogIndexComponent({ props }: SectionComponentProps<BlogIndexV1>
             </li>
           ))}
         </ul>
-      </div>
+      </Container>
     </section>
   );
 }

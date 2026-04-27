@@ -1,7 +1,14 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { DonationFormV1 } from "./schema";
+
+/**
+ * Phase E (Batch 2) — Container + SectionHead. Submit button stays as
+ * `<button>` (form submit, not navigational), so the Cta primitive
+ * doesn't apply here.
+ */
 
 const FMT: Record<string, string> = {
   USD: "$",
@@ -21,14 +28,13 @@ export function DonationFormComponent({ props }: SectionComponentProps<DonationF
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-donate__inner">
-        {(eyebrow || headline || intro) && (
-          <header className="site-donate__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? <h2 className="site-donate__headline">{renderInlineRich(headline)}</h2> : null}
-            {intro ? <p className="site-donate__intro">{intro}</p> : null}
-          </header>
-        )}
+      <Container width="standard">
+        <SectionHead
+          align="start"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+          intro={intro}
+        />
         <form className="site-donate__form" action={checkoutUrl} method="GET">
           <div className="site-donate__chips" role="radiogroup" aria-label="Donation amount">
             {amounts.map((amt, i) => (
@@ -62,7 +68,7 @@ export function DonationFormComponent({ props }: SectionComponentProps<DonationF
           </button>
           {trustNote ? <p className="site-donate__trust">{trustNote}</p> : null}
         </form>
-      </div>
+      </Container>
     </section>
   );
 }
