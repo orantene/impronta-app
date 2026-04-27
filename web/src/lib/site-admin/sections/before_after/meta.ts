@@ -7,4 +7,6 @@ export const beforeAfterMeta: SectionMeta = {
     "Two images stacked with a draggable divider. CSS-only — no JS required.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: false,
 };

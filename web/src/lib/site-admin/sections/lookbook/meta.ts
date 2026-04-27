@@ -5,4 +5,6 @@ export const lookbookMeta: SectionMeta = {
   description: "Two-page magazine spread layout (left + right images with optional caption beneath). Repeat the section for a multi-spread book.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: false,
 };

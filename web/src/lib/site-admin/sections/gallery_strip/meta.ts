@@ -7,4 +7,6 @@ export const galleryStripMeta: SectionMeta = {
     "Editorial image mosaic with aspect-ratio cycling (wide/tall/square). Optional italic caption below.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: true,
 };

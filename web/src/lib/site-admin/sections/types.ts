@@ -25,14 +25,51 @@ export type SectionBusinessPurpose =
   | "feature"
   | "footer";
 
+/**
+ * Phase D — picker-side category. Eight curated buckets driving the
+ * §8 Add-section library tab strip. Distinct from `businessPurpose`
+ * (which stays for analytics + non-picker consumers; low blast radius
+ * keeps both for now).
+ */
+export type SectionCategory =
+  | "hero"
+  | "trust"
+  | "showcase"
+  | "story"
+  | "convert"
+  | "form"
+  | "embed"
+  | "navigation";
+
+/**
+ * Phase D — surfaced as a small pill on the picker tile. Restrained
+ * vocabulary: only `new` (blue) for recently-added types, and `premium`
+ * (neutral) for elevated / distinctive types. No BETA / EXPERIMENTAL /
+ * DEPRECATED proliferation.
+ */
+export type SectionTag = "new" | "premium";
+
 export interface SectionMeta {
   key: string;
   label: string;
   description: string;
-  /** Business purpose (groups in the section picker). */
+  /** Business purpose (legacy field; kept for analytics + non-picker uses). */
   businessPurpose: SectionBusinessPurpose;
   /** Agency-visible when TRUE; platform-internal when FALSE. */
   visibleToAgency: boolean;
+  /**
+   * Phase D — picker category for the §8 tab strip. Required for any
+   * `visibleToAgency: true` section. The picker uses this to group tiles.
+   */
+  category: SectionCategory;
+  /**
+   * Phase D — true when this section appears in the curated default
+   * picker view (~15 types). False = revealed only by the "Show advanced
+   * sections" toggle. Search across all sections regardless.
+   */
+  inDefault: boolean;
+  /** Phase D — optional pill on the tile preview. Restrained on purpose. */
+  tag?: SectionTag;
 }
 
 export interface SectionComponentProps<TShape> {

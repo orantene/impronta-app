@@ -7,4 +7,6 @@ export const processStepsMeta: SectionMeta = {
     "How-it-works block with 2–6 numbered cards. Choose numbered-column, horizontal-timeline, or alternating-image variant.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: false,
 };

@@ -7,4 +7,6 @@ export const lottieMeta: SectionMeta = {
     "Embeds a Lottie animation via the LottieFiles web-component. Loop / autoplay / hover-to-play.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "embed",
+  inDefault: false,
 };

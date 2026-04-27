@@ -7,4 +7,6 @@ export const codeEmbedMeta: SectionMeta = {
     "Sandboxed iframe embed (Calendly, YouTube, Vimeo, Spotify). Operator pastes the URL — we never inject raw HTML.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "embed",
+  inDefault: false,
 };

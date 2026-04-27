@@ -7,4 +7,6 @@ export const teamGridMeta: SectionMeta = {
     "Headshots + name + role grid. For an in-house team page (separate from the talent roster).",
   businessPurpose: "trust",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: false,
 };

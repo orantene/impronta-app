@@ -5,4 +5,6 @@ export const masonryMeta: SectionMeta = {
   description: "Pinterest-style masonry layout. Pure CSS columns — no JS. Best for portrait + landscape mixed media.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: false,
 };

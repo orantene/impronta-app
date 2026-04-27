@@ -5,4 +5,6 @@ export const bookingWidgetMeta: SectionMeta = {
   description: "Embedded scheduling widget (Calendly / Cal.com / Acuity / SavvyCal). First-class section with pre-tuned defaults.",
   businessPurpose: "conversion",
   visibleToAgency: true,
+  category: "convert",
+  inDefault: false,
 };

@@ -7,4 +7,6 @@ export const anchorNavMeta: SectionMeta = {
     "Sticky-able horizontal nav of links to anchors elsewhere on the page (or external URLs).",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "navigation",
+  inDefault: false,
 };

@@ -7,4 +7,6 @@ export const marqueeMeta: SectionMeta = {
     "Continuously scrolling row of text or logos. Used for press strips, partner logos, value statements.",
   businessPurpose: "trust",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: false,
 };

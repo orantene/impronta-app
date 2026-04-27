@@ -15,4 +15,6 @@ export const siteHeaderMeta: SectionMeta = {
    * free-floating section a tenant could place inside a page body.
    */
   visibleToAgency: false,
+  category: "navigation",
+  inDefault: false,
 };

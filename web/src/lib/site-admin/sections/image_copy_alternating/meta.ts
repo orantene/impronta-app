@@ -7,4 +7,6 @@ export const imageCopyAlternatingMeta: SectionMeta = {
     "Editorial alternating image/copy rows. Each item is one row with image left/right. Ideal for service pages, category deep-dives, feature walkthroughs.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: true,
 };

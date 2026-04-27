@@ -7,4 +7,6 @@ export const testimonialsTrioMeta: SectionMeta = {
     "Three (or up to four) editorial quote cards with palette accents. Layout variants for trio, single hero, or carousel.",
   businessPurpose: "trust",
   visibleToAgency: true,
+  category: "trust",
+  inDefault: true,
 };

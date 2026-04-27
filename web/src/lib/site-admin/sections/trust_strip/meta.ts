@@ -7,4 +7,6 @@ export const trustStripMeta: SectionMeta = {
     "Small band of positioning value-props: icon row with serif numerals, metrics row with stats, or logo row. Three variants, all token-styled.",
   businessPurpose: "trust",
   visibleToAgency: true,
+  category: "trust",
+  inDefault: true,
 };

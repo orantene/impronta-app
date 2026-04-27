@@ -79,7 +79,21 @@ export interface CompositionLibraryEntry {
   typeKey: string;
   label: string;
   description: string;
+  /** Legacy `businessPurpose` value — kept for analytics + legacy callers. */
   purpose: string;
+  /**
+   * Phase D — picker category (one of the 8 buckets in the §8 tab strip:
+   * hero / trust / showcase / story / convert / form / embed / navigation).
+   */
+  category: string;
+  /**
+   * Phase D — when true the entry appears in the curated default picker
+   * view (~15 types). When false it is revealed by the "Show advanced
+   * sections" toggle. Search hits both regardless.
+   */
+  inDefault: boolean;
+  /** Phase D — optional pill ("new" | "premium") shown on the tile preview. */
+  tag?: "new" | "premium";
 }
 
 export interface CompositionData {
@@ -225,6 +239,9 @@ export async function loadHomepageCompositionAction(input: {
       label: s.meta.label,
       description: s.meta.description,
       purpose: s.meta.businessPurpose,
+      category: s.meta.category,
+      inDefault: s.meta.inDefault,
+      tag: s.meta.tag,
     }),
   );
 

@@ -7,4 +7,6 @@ export const valuesTrioMeta: SectionMeta = {
     "Three numbered value cards with optional label + detail. Used on About pages and principle statements.",
   businessPurpose: "trust",
   visibleToAgency: true,
+  category: "trust",
+  inDefault: true,
 };

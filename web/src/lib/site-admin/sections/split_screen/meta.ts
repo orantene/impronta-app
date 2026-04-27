@@ -7,4 +7,6 @@ export const splitScreenMeta: SectionMeta = {
     "Two side-by-side panels: image + copy, or copy + copy. Optional reverse + sticky media.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: true,
 };

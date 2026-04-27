@@ -5,4 +5,6 @@ export const videoReelMeta: SectionMeta = {
   description: "Single video player with operator-defined chapter markers (jump-to-time links beneath).",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: false,
 };

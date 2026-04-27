@@ -7,4 +7,6 @@ export const contactFormMeta: SectionMeta = {
     "Native HTML form with configurable fields and submit endpoint (Formspree, Netlify, custom API, mailto).",
   businessPurpose: "conversion",
   visibleToAgency: true,
+  category: "form",
+  inDefault: true,
 };

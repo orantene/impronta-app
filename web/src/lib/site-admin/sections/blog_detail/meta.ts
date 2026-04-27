@@ -5,4 +5,6 @@ export const blogDetailMeta: SectionMeta = {
   description: "Long-form post with hero image, byline, body, optional pull-quote.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: false,
 };

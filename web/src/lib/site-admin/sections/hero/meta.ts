@@ -7,4 +7,6 @@ export const heroMeta: SectionMeta = {
     "Above-the-fold section: headline, sub-headline, optional CTAs, optional background media. Reference type shipped in M0.",
   businessPurpose: "hero",
   visibleToAgency: true,
+  category: "hero",
+  inDefault: true,
 };

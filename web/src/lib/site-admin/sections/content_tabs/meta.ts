@@ -7,4 +7,6 @@ export const contentTabsMeta: SectionMeta = {
     "Tabbed panels with rich-text bodies. CSS-only — uses radio inputs + :checked.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: false,
 };

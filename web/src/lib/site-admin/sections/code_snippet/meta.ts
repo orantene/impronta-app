@@ -5,4 +5,6 @@ export const codeSnippetMeta: SectionMeta = {
   description: "Monospaced code block with optional file name + copy button. Plain-text rendering (no syntax highlight).",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "embed",
+  inDefault: false,
 };

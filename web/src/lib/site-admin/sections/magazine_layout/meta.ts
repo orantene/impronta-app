@@ -5,4 +5,6 @@ export const magazineLayoutMeta: SectionMeta = {
   description: "Asymmetric grid: one large hero card + 2-4 smaller cards. Editorial spread feel.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: false,
 };

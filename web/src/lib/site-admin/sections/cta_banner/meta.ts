@@ -7,4 +7,7 @@ export const ctaBannerMeta: SectionMeta = {
     "Emotional conversion block for the end of the page. Three variants (centered overlay, split image, minimal band) with primary / secondary / reassurance line.",
   businessPurpose: "conversion",
   visibleToAgency: true,
+  category: "convert",
+  inDefault: true,
+  tag: "premium",
 };

@@ -5,4 +5,6 @@ export const eventListingMeta: SectionMeta = {
   description: "Upcoming events list with date / time / location / RSVP link.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "convert",
+  inDefault: false,
 };

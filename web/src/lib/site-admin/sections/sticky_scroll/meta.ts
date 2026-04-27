@@ -5,4 +5,6 @@ export const stickyScrollMeta: SectionMeta = {
   description: "Two-column layout where the media column sticks while the text column scrolls past.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: false,
 };

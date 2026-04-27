@@ -7,4 +7,6 @@ export const timelineMeta: SectionMeta = {
     "Vertical milestones with date + title + body. For founder stories, project phases, release notes.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: false,
 };

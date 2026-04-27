@@ -5,4 +5,6 @@ export const scrollCarouselMeta: SectionMeta = {
   description: "Horizontally scrollable card row with snap points. CSS-only — no library, no JS.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: false,
 };

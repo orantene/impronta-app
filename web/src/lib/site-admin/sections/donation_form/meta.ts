@@ -5,4 +5,6 @@ export const donationFormMeta: SectionMeta = {
   description: "Amount selector + suggested tiers + checkout link. Operator wires the checkout URL (Stripe / Donorbox / etc).",
   businessPurpose: "conversion",
   visibleToAgency: true,
+  category: "convert",
+  inDefault: false,
 };

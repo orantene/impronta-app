@@ -13,4 +13,6 @@ export const siteFooterMeta: SectionMeta = {
    * tenant per locale).
    */
   visibleToAgency: false,
+  category: "navigation",
+  inDefault: false,
 };

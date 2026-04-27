@@ -244,16 +244,114 @@ const S_BANNER = (
   <rect x="10" y="30" width="180" height="50" rx="3" fill="currentColor" fillOpacity="0.2" />
 );
 
+// ── Phase D — wireframes for every default-tier section so the §8 picker
+// reads curated, not "wall of fallback rectangles".
+
+const S_HERO_SPLIT = (
+  <g>
+    <rect x="10" y="20" width="86" height="70" rx="3" fill="currentColor" fillOpacity="0.18" />
+    <g fill="currentColor" fillOpacity="0.28">
+      <rect x="106" y="32" width="80" height="6" rx="1" />
+      <rect x="106" y="44" width="60" height="3" rx="1" />
+      <rect x="106" y="52" width="68" height="3" rx="1" />
+      <rect x="106" y="68" width="34" height="10" rx="2" fillOpacity="0.4" />
+    </g>
+  </g>
+);
+
+const S_PRESS = (
+  <g fill="currentColor" fillOpacity="0.32">
+    <rect x="10" y="40" width="28" height="20" rx="1" />
+    <rect x="46" y="40" width="28" height="20" rx="1" />
+    <rect x="82" y="40" width="28" height="20" rx="1" />
+    <rect x="118" y="40" width="28" height="20" rx="1" />
+    <rect x="154" y="40" width="28" height="20" rx="1" />
+  </g>
+);
+
+const S_CONTACT_FORM = (
+  <g fill="currentColor" fillOpacity="0.16">
+    <rect x="10" y="22" width="180" height="10" rx="2" />
+    <rect x="10" y="36" width="180" height="10" rx="2" />
+    <rect x="10" y="50" width="180" height="22" rx="2" />
+    <rect x="10" y="76" width="60" height="10" rx="5" fillOpacity="0.36" />
+  </g>
+);
+
+const S_VALUES_TRIO = (
+  <g>
+    {[10, 72, 134].map((x, i) => (
+      <g key={i} fill="currentColor">
+        <circle cx={x + 28} cy={36} r={7} fillOpacity="0.32" />
+        <rect x={x + 6} y={50} width={44} height={3} rx={1} fillOpacity="0.32" />
+        <rect x={x + 4} y={58} width={50} height={2.5} rx={1} fillOpacity="0.18" />
+        <rect x={x + 4} y={64} width={46} height={2.5} rx={1} fillOpacity="0.18" />
+      </g>
+    ))}
+  </g>
+);
+
+const S_SPLIT_SCREEN = (
+  <g>
+    <rect x="10" y="20" width="86" height="70" rx="3" fill="currentColor" fillOpacity="0.16" />
+    <g fill="currentColor" fillOpacity="0.28">
+      <rect x="108" y="28" width="78" height="6" rx="1" />
+      <rect x="108" y="40" width="64" height="3" rx="1" />
+      <rect x="108" y="48" width="70" height="3" rx="1" />
+      <rect x="108" y="56" width="50" height="3" rx="1" />
+    </g>
+  </g>
+);
+
+const S_IMAGE_COPY_ALT = (
+  <g>
+    <g fill="currentColor" fillOpacity="0.16">
+      <rect x="10" y="14" width="80" height="36" rx="2" />
+      <rect x="110" y="60" width="80" height="36" rx="2" />
+    </g>
+    <g fill="currentColor" fillOpacity="0.28">
+      <rect x="100" y="22" width="80" height="4" rx="1" />
+      <rect x="100" y="32" width="64" height="3" rx="1" />
+      <rect x="100" y="40" width="60" height="3" rx="1" />
+      <rect x="20" y="68" width="80" height="4" rx="1" />
+      <rect x="20" y="78" width="64" height="3" rx="1" />
+      <rect x="20" y="86" width="60" height="3" rx="1" />
+    </g>
+  </g>
+);
+
+const S_STATS = (
+  <g>
+    {[10, 60, 110, 160].map((x, i) => (
+      <g key={i} fill="currentColor">
+        <rect x={x} y={32} width={40} height={16} rx={2} fillOpacity="0.28" />
+        <rect x={x + 4} y={56} width={32} height={3} rx={1} fillOpacity="0.18" />
+      </g>
+    ))}
+  </g>
+);
+
 const SECTION_WIRES: Record<string, React.ReactNode> = {
+  // default tier (15)
   hero: S_HERO,
-  trust_strip: S_STRIP,
-  category_grid: S_GRID,
+  hero_split: S_HERO_SPLIT,
   featured_talent: S_FEATURED,
-  process_steps: S_PROCESS,
-  destinations_mosaic: S_DESTINATIONS,
+  category_grid: S_GRID,
   gallery_strip: S_GALLERY,
   testimonials_trio: S_TESTIMONIALS,
+  trust_strip: S_STRIP,
+  press_strip: S_PRESS,
   cta_banner: S_CTA,
+  contact_form: S_CONTACT_FORM,
+  faq_accordion: S_FAQ,
+  values_trio: S_VALUES_TRIO,
+  split_screen: S_SPLIT_SCREEN,
+  image_copy_alternating: S_IMAGE_COPY_ALT,
+  stats: S_STATS,
+  // advanced tier (subset that already had wireframes)
+  process_steps: S_PROCESS,
+  destinations_mosaic: S_DESTINATIONS,
+  // legacy aliases
   faq_stack: S_FAQ,
   banner: S_BANNER,
 };

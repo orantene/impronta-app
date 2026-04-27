@@ -7,4 +7,6 @@ export const statsMeta: SectionMeta = {
     "Big number row (3-6 metrics) with optional caption. Trust signals like '12 years', '180 cities', 'NPS 72'.",
   businessPurpose: "trust",
   visibleToAgency: true,
+  category: "trust",
+  inDefault: true,
 };

@@ -7,4 +7,6 @@ export const blogIndexMeta: SectionMeta = {
     "Card grid of recent posts. Each item is editor-managed (manual list) — pluggable to a real CMS query later.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "story",
+  inDefault: false,
 };

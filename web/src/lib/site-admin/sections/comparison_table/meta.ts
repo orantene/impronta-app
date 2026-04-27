@@ -7,4 +7,6 @@ export const comparisonTableMeta: SectionMeta = {
     "Feature × column matrix with check / dash / text values. Used for plan comparisons or service tiers.",
   businessPurpose: "conversion",
   visibleToAgency: true,
+  category: "convert",
+  inDefault: false,
 };

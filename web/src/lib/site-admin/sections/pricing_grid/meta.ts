@@ -7,4 +7,6 @@ export const pricingGridMeta: SectionMeta = {
     "2-4 plan cards with price, features, and CTA. Highlight one plan for emphasis.",
   businessPurpose: "conversion",
   visibleToAgency: true,
+  category: "convert",
+  inDefault: false,
 };

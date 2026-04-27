@@ -7,4 +7,6 @@ export const pressStripMeta: SectionMeta = {
     "Horizontal row of publication names or logos. Used as \"As seen in\" social proof.",
   businessPurpose: "trust",
   visibleToAgency: true,
+  category: "trust",
+  inDefault: true,
 };

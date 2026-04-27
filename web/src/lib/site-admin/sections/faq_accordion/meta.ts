@@ -7,4 +7,6 @@ export const faqAccordionMeta: SectionMeta = {
     "Question + answer list. Click to expand. SEO-friendly (uses native <details>).",
   businessPurpose: "trust",
   visibleToAgency: true,
+  category: "story",
+  inDefault: true,
 };

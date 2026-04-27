@@ -7,4 +7,6 @@ export const categoryGridMeta: SectionMeta = {
     "Portrait or icon-tile grid for services / categories / verticals. Three layout variants with configurable columns.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "showcase",
+  inDefault: true,
 };

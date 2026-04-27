@@ -5,4 +5,6 @@ export const mapOverlayMeta: SectionMeta = {
   description: "Embedded map (Google Maps) with a copy panel overlaid. Used for studio location pages, hours, contact.",
   businessPurpose: "feature",
   visibleToAgency: true,
+  category: "convert",
+  inDefault: false,
 };
