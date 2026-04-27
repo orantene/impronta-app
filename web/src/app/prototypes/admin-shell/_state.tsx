@@ -3312,8 +3312,10 @@ export type ChannelEntry = {
   name: string;
   /** "tulala.digital/t/marta-reyes" or "models.com/marta-reyes" */
   url?: string;
-  /** Live state — published / off / pending invite. */
-  status: "live" | "off" | "pending" | "published" | "invited";
+  /** Live state — published / off / pending invite / paused (A8).
+   *  Paused = stay listed but not accepting NEW pitches. Distinct from
+   *  off (which fully removes the talent from the channel). */
+  status: "live" | "off" | "pending" | "published" | "invited" | "paused";
   /** Last-7d signal counts. Drives the value-of-channel display. */
   views7d: number;
   /** Trend vs prior 7d — drives the +/- delta caption on Reach stats. */
@@ -3913,7 +3915,7 @@ export const PLATFORM_HQ_TEAM: TeamMember[] = [
 
 // ─── Provider ────────────────────────────────────────────────────────
 
-type Toast = { id: number; message: string };
+type Toast = { id: number; message: string; undo?: () => void };
 
 export type Impersonation = {
   tenantSlug: string;
@@ -3982,7 +3984,7 @@ type Ctx = {
   drawerStack: DrawerContext[];
   openUpgrade: (offer: Omit<UpgradeOffer, "open">) => void;
   closeUpgrade: () => void;
-  toast: (message: string) => void;
+  toast: (message: string, opts?: { undo?: () => void }) => void;
   dismissToast: (id: number) => void;
   completeTask: (id: string) => void;
 };
@@ -4182,12 +4184,12 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     setUpgrade({ open: false });
   }, []);
 
-  const toast = useCallback((message: string) => {
+  const toast = useCallback((message: string, opts?: { undo?: () => void }) => {
     const id = ++toastIdRef.current;
-    setToasts((prev) => [...prev, { id, message }]);
+    setToasts((prev) => [...prev, { id, message, undo: opts?.undo }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 2400);
+    }, opts?.undo ? 5000 : 2400); // undo toasts stay longer
   }, []);
 
   const dismissToast = useCallback((id: number) => {

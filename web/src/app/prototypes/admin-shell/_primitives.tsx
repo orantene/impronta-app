@@ -3122,22 +3122,18 @@ const TOAST_LIFETIME_MS = 4500;
  * (so reading a long-ish toast doesn't get interrupted), mouseleave
  * resumes from a fresh full window. Click dismisses immediately.
  */
-function ToastRow({ id, message, onDismiss }: { id: number; message: string; onDismiss?: (id: number) => void }) {
+function ToastRow({ id, message, undo, onDismiss }: { id: number; message: string; undo?: () => void; onDismiss?: (id: number) => void }) {
   const [paused, setPaused] = useState(false);
   useEffect(() => {
     if (!onDismiss || paused) return;
-    const handle = window.setTimeout(() => onDismiss(id), TOAST_LIFETIME_MS);
+    const lifetime = undo ? TOAST_LIFETIME_MS * 2 : TOAST_LIFETIME_MS;
+    const handle = window.setTimeout(() => onDismiss(id), lifetime);
     return () => window.clearTimeout(handle);
-  }, [id, onDismiss, paused]);
+  }, [id, onDismiss, paused, undo]);
   return (
-    <button
-      type="button"
-      onClick={() => onDismiss?.(id)}
+    <div
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
-      aria-label={`Dismiss: ${message}`}
       style={{
         background: COLORS.ink,
         color: "#fff",
@@ -3148,20 +3144,57 @@ function ToastRow({ id, message, onDismiss }: { id: number; message: string; onD
         boxShadow: "0 12px 30px -10px rgba(11,11,13,0.5)",
         display: "inline-flex",
         alignItems: "center",
-        gap: 8,
+        gap: 10,
         animation: "tulalaToastIn .18s ease",
-        border: "none",
-        cursor: onDismiss ? "pointer" : "default",
-        // Re-enable interactivity on the toast itself.
         pointerEvents: "auto",
-        // Ensures the multi-line bottom-right alignment stays clean
-        // regardless of length.
         textAlign: "left",
       }}
     >
       <Icon name="check" size={14} stroke={2} />
-      {message}
-    </button>
+      <span>{message}</span>
+      {undo && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            undo();
+            onDismiss?.(id);
+          }}
+          onFocus={() => setPaused(true)}
+          onBlur={() => setPaused(false)}
+          style={{
+            background: "rgba(255,255,255,0.15)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            padding: "4px 10px",
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            marginLeft: 4,
+          }}
+        >
+          Undo
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => onDismiss?.(id)}
+        aria-label={`Dismiss: ${message}`}
+        style={{
+          background: "transparent",
+          color: "rgba(255,255,255,0.6)",
+          border: "none",
+          padding: 0,
+          marginLeft: undo ? 0 : "auto",
+          cursor: "pointer",
+          display: "inline-flex",
+        }}
+      >
+        <Icon name="x" size={11} stroke={2} />
+      </button>
+    </div>
   );
 }
 
@@ -3169,7 +3202,7 @@ export function ToastHost({
   toasts,
   onDismiss,
 }: {
-  toasts: { id: number; message: string }[];
+  toasts: { id: number; message: string; undo?: () => void }[];
   onDismiss?: (id: number) => void;
 }) {
   return (
@@ -3196,7 +3229,7 @@ export function ToastHost({
       }}
     >
       {toasts.map((t) => (
-        <ToastRow key={t.id} id={t.id} message={t.message} onDismiss={onDismiss} />
+        <ToastRow key={t.id} id={t.id} message={t.message} undo={t.undo} onDismiss={onDismiss} />
       ))}
       <style>{`
         @keyframes tulalaToastIn {

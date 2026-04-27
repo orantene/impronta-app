@@ -5185,11 +5185,17 @@ function ReachPage() {
   );
 
   const setOn = (id: string, on: boolean) => {
+    const wasOn = channelOn[id] ?? false;
     setChannelOn((prev) => ({ ...prev, [id]: on }));
     const ch =
       TALENT_CHANNELS.find((c) => c.id === id) ??
       AVAILABLE_CHANNELS.find((c) => c.id === id);
-    if (ch) toast(`${ch.name} · ${on ? "on" : "off"}`);
+    // A11: undo on save toasts — pass an undo callback that flips back.
+    if (ch) {
+      toast(`${ch.name} · ${on ? "on" : "off"}`, {
+        undo: () => setChannelOn((prev) => ({ ...prev, [id]: wasOn })),
+      });
+    }
   };
 
   // Maximum-confirm dialog state. Picking Maximum opens unverified
@@ -5958,27 +5964,33 @@ function ChannelRow({
   on: boolean;
   onToggle: (next: boolean) => void;
   first: boolean;
-  /** Optional manage action — when set + channel is non-toggleable,
-   *  renders a "Manage →" button instead of "Contract-managed" text.
-   *  Used for agency channels so talent can open the relationship drawer. */
   onManage?: () => void;
 }) {
+  // A8: local paused state. Paused = listed but not accepting NEW pitches.
+  // Distinct from off (which fully removes you).
+  const [paused, setPaused] = useState(false);
+  const effectiveOn = on && !paused;
   const status =
     channel.toggleable === false
       ? channel.badge ?? "Contract"
-      : on
-        ? "Live"
-        : "Off";
-  const statusFg = on ? COLORS.green : COLORS.inkDim;
+      : paused && on
+        ? "Paused"
+        : on
+          ? "Live"
+          : "Off";
+  const statusFg = paused && on ? COLORS.amber : on ? COLORS.green : COLORS.inkDim;
+  // A10: trust-impact warning when toggling on an unverified channel.
+  // Inline note below the row, dismissible by toggling off.
+  const showTrustWarning = on && channel.kind === "external" && channel.verified === false;
   return (
+    <div style={{ borderTop: first ? "none" : `1px solid ${COLORS.borderSoft}` }}>
     <div
       style={{
         display: "flex",
         alignItems: "center",
         gap: 12,
         padding: "12px 14px",
-        borderTop: first ? "none" : `1px solid ${COLORS.borderSoft}`,
-        opacity: !on && channel.toggleable ? 0.7 : 1,
+        opacity: paused ? 0.6 : !on && channel.toggleable ? 0.7 : 1,
         transition: "opacity .12s",
       }}
     >
@@ -6092,7 +6104,28 @@ function ChannelRow({
         </div>
       </div>
       {channel.toggleable ? (
-        <Toggle on={on} onChange={() => onToggle(!on)} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <Toggle on={on} onChange={() => onToggle(!on)} />
+          {/* A8: Pause / Resume link — only when channel is on */}
+          {on && (
+            <button
+              type="button"
+              onClick={() => setPaused((p) => !p)}
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                fontFamily: FONTS.body,
+                fontSize: 10.5,
+                color: paused ? COLORS.amber : COLORS.inkMuted,
+                cursor: "pointer",
+                fontWeight: paused ? 600 : 500,
+              }}
+            >
+              {paused ? "Resume" : "Pause"}
+            </button>
+          )}
+        </div>
       ) : onManage ? (
         <button
           type="button"
@@ -6122,6 +6155,40 @@ function ChannelRow({
           Contract-managed
         </span>
       )}
+    </div>
+    {/* A10: trust-impact warning — coral inline note when channel is on
+        AND not Tulala-verified. Sets expectation about lower-quality
+        inquiries before they hit the inbox. */}
+    {showTrustWarning && !paused && (
+      <div
+        style={{
+          padding: "8px 14px 12px 14px",
+          borderTop: `1px dashed rgba(194,106,69,0.20)`,
+          background: COLORS.coralSoft,
+          fontFamily: FONTS.body,
+          fontSize: 11,
+          color: COLORS.coralDeep,
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ fontWeight: 600 }}>Heads up:</strong> {channel.name} isn't Tulala-verified. Inquiries may include unvetted clients. Adjust your contact policy if needed.
+      </div>
+    )}
+    {paused && (
+      <div
+        style={{
+          padding: "8px 14px 12px 14px",
+          borderTop: `1px dashed rgba(82,96,109,0.20)`,
+          background: "rgba(82,96,109,0.06)",
+          fontFamily: FONTS.body,
+          fontSize: 11,
+          color: COLORS.amber,
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ fontWeight: 600 }}>Paused:</strong> still listed but not accepting new pitches. Click Resume to start accepting again.
+      </div>
+    )}
     </div>
   );
 }
