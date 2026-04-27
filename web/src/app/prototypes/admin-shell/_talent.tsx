@@ -3793,12 +3793,12 @@ function CalendarMonthGrid() {
   addMark(1, { kind: "block", id: "av1", label: "Travel · Lisbon", type: "travel" });
   addMark(2, { kind: "block", id: "av1", label: "Travel · Lisbon", type: "travel" });
 
-  // Booking bk1 — May 6
-  addMark(6, { kind: "booking", id: "bk1", label: "Mango lookbook", client: "Mango" });
+  // Booking bk1 — May 6 · 08:30 call (A6 time-of-day on grid)
+  addMark(6, { kind: "booking", id: "bk1", label: "08:30 · Mango", client: "Mango" });
 
-  // Booking bk2 — May 14, 15
-  addMark(14, { kind: "booking", id: "bk2", label: "Vogue Italia editorial", client: "Vogue Italia" });
-  addMark(15, { kind: "booking", id: "bk2", label: "Vogue Italia editorial", client: "Vogue Italia" });
+  // Booking bk2 — May 14, 15 · 07:00 call
+  addMark(14, { kind: "booking", id: "bk2", label: "07:00 · Vogue", client: "Vogue Italia" });
+  addMark(15, { kind: "booking", id: "bk2", label: "07:00 · Vogue", client: "Vogue Italia" });
 
   // Block av2 — May 22-26 (personal)
   for (let d = 22; d <= 26; d++) {
