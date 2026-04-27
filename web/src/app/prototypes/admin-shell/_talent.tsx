@@ -8509,6 +8509,219 @@ function CalendarEventRow({
  * The "Pipeline confidence" caption hints at the model's quality so the
  * talent doesn't over-trust an early-year extrapolation.
  */
+/**
+ * Audit #37 — Earnings goal progress ring. SVG-based circular
+ * progress with the YTD total in the middle and remaining/percent
+ * captions. Goal is configurable inline (click "Edit goal").
+ *
+ * Math: goal defaults to €30k/yr; progress = total / goal capped at
+ * 100%. Stroke is forest accent for "on or above pace", amber if
+ * pace is < 70% of where it should be by date, coral if < 40%.
+ */
+function EarningsGoalRing({ total }: { total: number }) {
+  const { toast } = useProto();
+  const [goal, setGoal] = useState(30000);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editValue, setEditValue] = useState(String(goal));
+
+  const monthsElapsed = 4;          // mock — Apr
+  const expectedByNow = (goal / 12) * monthsElapsed;
+  const paceRatio = expectedByNow > 0 ? total / expectedByNow : 0;
+  const tone = paceRatio >= 1 ? COLORS.green : paceRatio >= 0.7 ? COLORS.amber : COLORS.coral;
+  const paceLabel = paceRatio >= 1 ? "On track" : paceRatio >= 0.7 ? "Slightly behind" : "Behind pace";
+  const pct = Math.min(1, total / goal);
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const dash = circumference * pct;
+
+  return (
+    <section
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        padding: "16px 18px",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        marginBottom: 16,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {/* SVG ring */}
+      <div style={{ position: "relative", width: 88, height: 88, flexShrink: 0 }}>
+        <svg width={88} height={88} viewBox="0 0 88 88" aria-hidden>
+          <circle cx={44} cy={44} r={radius} fill="none" stroke="rgba(11,11,13,0.08)" strokeWidth={6} />
+          <circle
+            cx={44}
+            cy={44}
+            r={radius}
+            fill="none"
+            stroke={tone}
+            strokeWidth={6}
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${circumference}`}
+            transform="rotate(-90 44 44)"
+            style={{ transition: "stroke-dasharray .6s cubic-bezier(.4,.0,.2,1)" }}
+          />
+        </svg>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 18,
+              fontWeight: 600,
+              color: COLORS.ink,
+              letterSpacing: -0.3,
+            }}
+          >
+            {Math.round(pct * 100)}%
+          </span>
+          <span
+            style={{
+              fontSize: 9.5,
+              color: COLORS.inkMuted,
+              fontWeight: 600,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+            }}
+          >
+            of goal
+          </span>
+        </div>
+      </div>
+
+      {/* Right side — amount, goal, pace, edit */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: 0.7,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+            marginBottom: 2,
+          }}
+        >
+          2026 earnings goal
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, color: COLORS.ink, letterSpacing: -0.3 }}>
+            €{total.toLocaleString()}
+          </span>
+          <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
+            of €{goal.toLocaleString()}
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              padding: "2px 7px",
+              borderRadius: 999,
+              background: tone === COLORS.green ? "rgba(46,125,91,0.10)" : tone === COLORS.amber ? "rgba(176,141,82,0.12)" : COLORS.coralSoft,
+              color: tone === COLORS.green ? "#1F5C42" : tone === COLORS.amber ? COLORS.amber : COLORS.coralDeep,
+              marginLeft: "auto",
+            }}
+          >
+            {paceLabel}
+          </span>
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+          €{Math.max(0, goal - total).toLocaleString()} to go · expected by now ≈ €{Math.round(expectedByNow).toLocaleString()}
+        </div>
+        {editOpen ? (
+          <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: COLORS.inkMuted }}>€</span>
+            <input
+              type="text"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              autoFocus
+              style={{
+                width: 100,
+                padding: "5px 8px",
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                color: COLORS.ink,
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 6,
+                outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const next = parseInt(editValue.replace(/[^0-9]/g, ""), 10);
+                if (next > 0) {
+                  setGoal(next);
+                  toast(`Goal set to €${next.toLocaleString()}`);
+                }
+                setEditOpen(false);
+              }}
+              style={{
+                padding: "5px 10px",
+                background: COLORS.ink,
+                color: "#fff",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                fontWeight: 600,
+              }}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditOpen(false)}
+              style={{
+                padding: "5px 8px",
+                background: "transparent",
+                color: COLORS.inkMuted,
+                border: "none",
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setEditValue(String(goal)); setEditOpen(true); }}
+            style={{
+              marginTop: 6,
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: COLORS.indigo,
+              cursor: "pointer",
+            }}
+          >
+            Edit goal →
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function ForecastTile({ total, bookingsCount }: { total: number; bookingsCount: number }) {
   // Assume we're 4 months into the year for the prototype's mock data
   // (April). Production reads this from the actual current month + the
@@ -8737,6 +8950,11 @@ function ActivityPage() {
         );
       })()}
 
+      {/* Audit #37 — Earnings goal progress ring. Goal is set via the
+          ring's edit affordance; defaults to €30k/yr. Sits beside the
+          forecast tile below for tight contextual coupling. */}
+      <EarningsGoalRing total={total} />
+
       {/* Compact stat strip — same pattern as Reach hero */}
       <div
         data-tulala-stat-strip
@@ -8856,7 +9074,58 @@ function ActivityPage() {
             />
           </div>
         ) : (
-          filtered.map((e) => <EarningRow key={e.id} earning={e} />)
+          // Audit #36 — group by month with header + month-total
+          // sub-line. Months ordered most-recent first; rows preserve
+          // the original sort within each group.
+          (() => {
+            type Group = { key: string; label: string; total: number; rows: typeof filtered };
+            const groups: Group[] = [];
+            const groupOrder = ["Apr 2026", "Mar 2026", "Feb 2026", "Jan 2026", "Dec 2025", "Nov 2025", "Oct 2025"];
+            for (const e of filtered) {
+              // Mock: payoutDate "Apr 25 2026" or "Apr 25" → month label "Apr 2026"
+              const m = e.payoutDate.match(/([A-Za-z]{3})/)?.[1] ?? "";
+              const y = e.payoutDate.match(/(20\d\d)/)?.[1] ?? "2026";
+              const key = `${m} ${y}`;
+              let g = groups.find((x) => x.key === key);
+              if (!g) {
+                g = { key, label: key, total: 0, rows: [] };
+                groups.push(g);
+              }
+              g.rows.push(e);
+              g.total += parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
+            }
+            groups.sort((a, b) => groupOrder.indexOf(a.key) - groupOrder.indexOf(b.key));
+            return groups.map((g) => (
+              <div key={g.key}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    padding: "12px 0 8px",
+                    borderTop: groups.indexOf(g) === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: 0.7,
+                      textTransform: "uppercase",
+                      color: COLORS.inkMuted,
+                    }}
+                  >
+                    {g.label}
+                  </span>
+                  <span style={{ fontSize: 12, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>
+                    €{g.total.toLocaleString()} · {g.rows.length} payout{g.rows.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                {g.rows.map((e) => <EarningRow key={e.id} earning={e} />)}
+              </div>
+            ));
+          })()
         )}
       </div>
 
