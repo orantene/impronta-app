@@ -3980,6 +3980,39 @@ export type ProtoState = {
 export type Density = "comfortable" | "compact";
 export type WorkspaceLayout = "topbar" | "sidebar";
 
+// ─── F5: Real-time push (engineering hook-up point) ──────────────────
+//
+// These types describe the shape of the realtime subscription the
+// backend should push to a connected client. The prototype doesn't
+// wire them — production replaces the static mock counts with these
+// streams. Added here so the type contract is fixed before engineering
+// stands up the websocket.
+
+export type RealtimeChannel =
+  | "talent-inbox"        // new inquiry / hold landed
+  | "talent-conflict"     // calendar overlap detected by backend
+  | "talent-counter"      // mock counts: bell badge, hybrid mode unread
+  | "workspace-inbox"     // workspace inbox new item
+  | "workspace-counter";  // workspace counter aggregates
+
+export type RealtimeEvent =
+  | { type: "inquiry-arrived"; channel: "talent-inbox" | "workspace-inbox"; inquiryId: string; at: string }
+  | { type: "conflict-detected"; channel: "talent-conflict"; payload: { dateISO: string; eventIds: string[] }; at: string }
+  | { type: "counter-changed"; channel: "talent-counter" | "workspace-counter"; counts: Record<string, number>; at: string };
+
+// ─── F6: Telemetry (color-frequency budgets + interaction events) ────
+//
+// Same engineering hookup pattern. The design system has color
+// frequency budgets (forest ≤5/screen, coral 0–2, red 0–1/week);
+// telemetry tracks how often each role-color is rendered so the team
+// can catch budget violations in production.
+
+export type TelemetryEvent =
+  | { type: "color-rendered"; role: "brand" | "success" | "coral" | "indigo" | "royal" | "critical" | "caution" | "locked" | "focus"; surface: Surface; page: string; at: string }
+  | { type: "drawer-opened"; drawerId: DrawerId; surface: Surface; at: string }
+  | { type: "mode-flip"; from: Surface; to: Surface; at: string }
+  | { type: "celebration-shown"; milestone: string; at: string };
+
 type Ctx = {
   state: ProtoState;
   setSurface: (s: Surface) => void;
