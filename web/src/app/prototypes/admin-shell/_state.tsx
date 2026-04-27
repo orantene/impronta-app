@@ -3103,6 +3103,10 @@ export const TALENT_REQUESTS: TalentRequest[] = [
   // Surfaces the conflict-resolution UI on the calendar so Marta sees the
   // collision before either party expects her to commit.
   { id: "rq5", kind: "hold", agency: "Acme Models", client: "Stella McCartney", clientTrust: "verified", brief: "Lookbook · single day", date: "May 14", amount: "€2,200", ageHrs: 4, status: "needs-answer" },
+  // Cancelled / fell-through inquiries — surface in the new "Cancelled"
+  // calendar filter alongside cancelled bookings.
+  { id: "rq6", kind: "casting", agency: "Acme Models", client: "H&M", clientTrust: "verified", brief: "Online catalogue · 3 talent shortlist", date: "Apr 24", amount: "€900", ageHrs: 96, status: "declined" },
+  { id: "rq7", kind: "hold", agency: "Praline London", client: "Topshop", clientTrust: "basic", brief: "Pop-up activation · weekend", date: "Apr 12", amount: "£600", ageHrs: 240, status: "expired" },
 ];
 
 export type TalentBooking = {
@@ -3114,8 +3118,16 @@ export type TalentBooking = {
   endDate?: string;
   location: string;
   amount: string;
-  status: "confirmed" | "in-progress" | "wrapped" | "paid";
+  status: "confirmed" | "in-progress" | "wrapped" | "paid" | "cancelled";
   call: string;
+  /** Who cancelled — only set when status === "cancelled". Drives the
+   *  cancelled-row microcopy ("Client cancelled · 3d before shoot"). */
+  cancelledBy?: "client" | "talent" | "agency" | "system";
+  /** Optional reason microcopy, surfaced under the row title. */
+  cancelReason?: string;
+  /** When cancellation happened — relative phrase ("3d before shoot",
+   *  "day-of", "after wrap"). */
+  cancelTiming?: string;
 };
 
 export const TALENT_BOOKINGS: TalentBooking[] = [
@@ -3123,6 +3135,10 @@ export const TALENT_BOOKINGS: TalentBooking[] = [
   { id: "bk2", agency: "Acme Models", client: "Vogue Italia", brief: "Editorial spread", startDate: "May 14", endDate: "May 15", location: "Milan · Studio 5", amount: "€3,200", status: "confirmed", call: "07:00" },
   { id: "bk3", agency: "Praline London", client: "Burberry", brief: "Lookbook", startDate: "Apr 18", location: "London · Hackney", amount: "£2,400", status: "wrapped", call: "—" },
   { id: "bk4", agency: "Acme Models", client: "Zara", brief: "Capsule lookbook", startDate: "Mar 28", location: "Madrid", amount: "€2,000", status: "paid", call: "—" },
+  // Cancellation examples — surface in the new "Cancelled" filter on
+  // Calendar so the talent has a record of what fell through.
+  { id: "bk5", agency: "Acme Models", client: "Hugo Boss", brief: "AW campaign", startDate: "May 9", location: "Berlin · Studio Mitte", amount: "€2,400", status: "cancelled", call: "08:00", cancelledBy: "client", cancelReason: "Client postponed campaign · no kill fee due", cancelTiming: "3d before shoot" },
+  { id: "bk6", agency: "Praline London", client: "Selfridges", brief: "Editorial · summer spread", startDate: "Apr 22", location: "London · Studio 2C", amount: "£1,800", status: "cancelled", call: "—", cancelledBy: "talent", cancelReason: "Travel conflict · settled with hold-day fee", cancelTiming: "day before shoot" },
 ];
 
 export type AvailabilityBlock = {
@@ -3157,6 +3173,19 @@ export type EarningSource =
   | { kind: "marketplace"; name: string }
   | { kind: "manual" }; // off-platform booking added manually by the talent
 
+/**
+ * How the talent actually got paid. Tax + bookkeeping-relevant.
+ *
+ *   transfer  Bank transfer (default for agency-routed work).
+ *   card      Credit/debit card payment.
+ *   cash      Cash in hand. Common in some markets — esp Latin America.
+ *   in-kind   Product / service / gift in lieu of cash. Tax-treatable
+ *             differently and worth tracking explicitly. (e.g. a watch
+ *             from Bvlgari, clothing from Mango, hotel stay, etc.)
+ *   mixed     Combination (e.g. partial cash + partial in-kind).
+ */
+export type EarningsPaymentMethod = "transfer" | "card" | "cash" | "in-kind" | "mixed";
+
 export type EarningsRow = {
   id: string;
   /** Date of the shoot / booking */
@@ -3170,6 +3199,14 @@ export type EarningsRow = {
   /** Where the booking originated. Drives the source chip in the
    *  closed-booking drawer + earnings activity reports. */
   source: EarningSource;
+  /** How the talent was paid — transfer / card / cash / in-kind / mixed.
+   *  Drives the payment-method chip on Past calendar rows + earnings rows.
+   *  Tax-relevant: in-kind especially (gifts, products) reports differently. */
+  paymentMethod: EarningsPaymentMethod;
+  /** Optional note describing in-kind payment value or mixed-method
+   *  composition (e.g. "+ Bvlgari watch · est €1,200" or "60% transfer +
+   *  40% product"). */
+  paymentNote?: string;
   /** Other talent on this booking (excluding self). Empty for solo gigs. */
   team?: string[];
   /**
@@ -3195,6 +3232,7 @@ export const EARNINGS_ROWS: EarningsRow[] = [
     amount: "€3,600",
     status: "paid",
     source: { kind: "personal" },
+    paymentMethod: "transfer",
     team: ["Carla Vega"],
     broughtTeam: true,
   },
@@ -3207,13 +3245,33 @@ export const EARNINGS_ROWS: EarningsRow[] = [
     amount: "€1,200",
     status: "paid",
     source: { kind: "hub", name: "Tulala Hub" },
+    paymentMethod: "transfer",
   },
-  { id: "e1", workDate: "Mar 28, 2026", payoutDate: "Apr 4, 2026", agency: "Acme Models", client: "Zara", amount: "€2,000", status: "paid", source: { kind: "agency" } },
-  { id: "e2", workDate: "Mar 10, 2026", payoutDate: "Mar 21, 2026", agency: "Praline London", client: "Burberry", amount: "£2,400", status: "paid", source: { kind: "agency" } },
-  { id: "e3", workDate: "Mar 1, 2026", payoutDate: "Mar 12, 2026", agency: "Acme Models", client: "Vogue Italia", amount: "€2,800", status: "paid", source: { kind: "agency" } },
-  { id: "e4", workDate: "Feb 14, 2026", payoutDate: "Feb 28, 2026", agency: "Acme Models", client: "Mango", amount: "€1,600", status: "paid", source: { kind: "agency" } },
-  { id: "e5", workDate: "Jan 30, 2026", payoutDate: "Feb 14, 2026", agency: "Acme Models", client: "Net-a-Porter", amount: "€3,400", status: "paid", source: { kind: "agency" } },
+  // Mix of payment methods seeded so the Past calendar / earnings views
+  // can showcase the full method taxonomy: transfer (default), card,
+  // cash (efectivo — common in Latin America), in-kind (gifts / products).
+  { id: "e1", workDate: "Mar 28, 2026", payoutDate: "Apr 4, 2026", agency: "Acme Models", client: "Zara", amount: "€2,000", status: "paid", source: { kind: "agency" }, paymentMethod: "transfer" },
+  { id: "e2", workDate: "Mar 10, 2026", payoutDate: "Mar 21, 2026", agency: "Praline London", client: "Burberry", amount: "£2,400", status: "paid", source: { kind: "agency" }, paymentMethod: "transfer" },
+  { id: "e3", workDate: "Mar 1, 2026", payoutDate: "Mar 12, 2026", agency: "Acme Models", client: "Vogue Italia", amount: "€2,800", status: "paid", source: { kind: "agency" }, paymentMethod: "mixed", paymentNote: "Transfer + Vogue editorial credit" },
+  // Mango paid in product (clothing capsule) — tax-relevant in-kind example.
+  { id: "e4", workDate: "Feb 14, 2026", payoutDate: "Feb 28, 2026", agency: "Acme Models", client: "Mango", amount: "€1,600", status: "paid", source: { kind: "agency" }, paymentMethod: "in-kind", paymentNote: "Capsule wardrobe · est. value" },
+  { id: "e5", workDate: "Jan 30, 2026", payoutDate: "Feb 14, 2026", agency: "Acme Models", client: "Net-a-Porter", amount: "€3,400", status: "paid", source: { kind: "agency" }, paymentMethod: "transfer" },
 ];
+
+/**
+ * Display label per payment method. Used in chips + microcopy.
+ */
+export const PAYMENT_METHOD_META: Record<EarningsPaymentMethod, {
+  label: string;
+  short: string;
+  hint: string;
+}> = {
+  transfer: { label: "Bank transfer", short: "Transfer", hint: "Paid via bank transfer (default for agency-routed work)." },
+  card:     { label: "Card payment", short: "Card", hint: "Paid via credit/debit card." },
+  cash:     { label: "Cash · efectivo", short: "Cash", hint: "Paid in cash. Track for tax reporting." },
+  "in-kind":{ label: "In-kind · gift", short: "In-kind", hint: "Paid in product, service, or gift instead of cash. Tax-treated differently." },
+  mixed:    { label: "Mixed", short: "Mixed", hint: "Combination of cash + in-kind or multiple methods." },
+};
 
 // ════════════════════════════════════════════════════════════════════
 // REACH — distribution channels

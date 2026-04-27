@@ -34,6 +34,7 @@ import {
   EXPOSURE_PRESET_META,
   FONTS,
   INQUIRY_STAGE_META,
+  PAYMENT_METHOD_META,
   MY_AGENCIES,
   MY_TALENT_PROFILE,
   POLAROID_SET,
@@ -1047,7 +1048,10 @@ function EarningRow({ earning }: { earning: typeof EARNINGS_ROWS[number] }) {
             tone={earning.source.kind === "manual" ? "coral" : "success"}
           />
           <span style={{ color: COLORS.inkMuted }}>
-            Paid {earning.payoutDate}
+            {PAYMENT_METHOD_META[earning.paymentMethod].short} · paid {earning.payoutDate}
+            {earning.paymentNote && (
+              <span style={{ color: COLORS.coral }}> · {earning.paymentNote}</span>
+            )}
           </span>
         </div>
       </div>
@@ -3986,7 +3990,7 @@ function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim"; l
 //   inquiry   — in-flight inquiry the talent is being considered for. Indigo.
 //   past      — wrapped/paid bookings. Ink-dim.
 
-type CalendarEventKind = "booked" | "pending" | "inquiry" | "past";
+type CalendarEventKind = "booked" | "pending" | "inquiry" | "past" | "cancelled";
 
 type CalendarEvent = {
   id: string;
@@ -4008,7 +4012,7 @@ type CalendarEvent = {
 
 function CalendarPage() {
   const { openDrawer, toast } = useProto();
-  const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "all">("booked");
+  const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "cancelled" | "all">("booked");
 
   // Build a unified event list from the existing data fixtures.
   // Days are parsed loosely — May references stay numeric.
@@ -4081,19 +4085,76 @@ function CalendarPage() {
         status: "Coordinator picking talent",
         drawer: { id: "inquiry-workspace", payload: { inquiryId: i.id, pov: "talent" } },
       })),
-    // Past bookings
+    // Past bookings — append payment method to status microcopy when
+    // we can find a matching earnings row. "Paid · Transfer · 7d after work"
+    // gives the talent immediate insight into client payout speed + method.
     ...TALENT_BOOKINGS.filter((b) => b.status === "wrapped" || b.status === "paid").map(
-      (b): CalendarEvent => ({
-        id: b.id,
-        kind: "past",
-        client: b.client,
-        brief: b.brief,
-        startDay: parseMayDay(b.startDate),
-        endDay: parseMayDay(b.endDate ?? b.startDate),
-        dateLabel: b.endDate ? `${b.startDate}–${b.endDate}` : b.startDate,
-        amount: b.amount,
-        status: `${b.status === "paid" ? "Paid" : "Wrapped"} · ${b.location}`,
-        drawer: { id: "talent-booking-detail", payload: { id: b.id } },
+      (b): CalendarEvent => {
+        const earning = EARNINGS_ROWS.find((e) => e.client === b.client && e.amount === b.amount);
+        const methodShort = earning ? PAYMENT_METHOD_META[earning.paymentMethod].short : null;
+        const payoutSpeed = earning ? computePayoutSpeed(b.startDate, earning.payoutDate) : null;
+        const statusBits: string[] = [b.status === "paid" ? "Paid" : "Wrapped"];
+        if (methodShort) statusBits.push(methodShort);
+        if (payoutSpeed) statusBits.push(payoutSpeed);
+        return {
+          id: b.id,
+          kind: "past",
+          client: b.client,
+          brief: b.brief,
+          startDay: parseMayDay(b.startDate),
+          endDay: parseMayDay(b.endDate ?? b.startDate),
+          dateLabel: b.endDate ? `${b.startDate}–${b.endDate}` : b.startDate,
+          amount: b.amount,
+          status: statusBits.join(" · "),
+          drawer: { id: "talent-booking-detail", payload: { id: b.id } },
+        };
+      },
+    ),
+    // Cancelled bookings — talent has a record of what fell through.
+    // Status microcopy names who cancelled + when, so the talent can see
+    // patterns over time (which clients flake, what timing predicts cancels).
+    ...TALENT_BOOKINGS.filter((b) => b.status === "cancelled").map(
+      (b): CalendarEvent => {
+        const who = b.cancelledBy === "client"
+          ? "Client cancelled"
+          : b.cancelledBy === "talent"
+            ? "You cancelled"
+            : b.cancelledBy === "agency"
+              ? "Agency cancelled"
+              : "Cancelled";
+        const microcopy = [who];
+        if (b.cancelTiming) microcopy.push(b.cancelTiming);
+        if (b.cancelReason) microcopy.push(b.cancelReason);
+        return {
+          id: b.id,
+          kind: "cancelled",
+          client: b.client,
+          brief: b.brief,
+          startDay: parseMayDay(b.startDate),
+          endDay: parseMayDay(b.endDate ?? b.startDate),
+          dateLabel: b.endDate ? `${b.startDate}–${b.endDate}` : b.startDate,
+          amount: b.amount,
+          status: microcopy.join(" · "),
+          drawer: { id: "talent-booking-detail", payload: { id: b.id } },
+        };
+      },
+    ),
+    // Cancelled inquiries — declined offers + expired requests count too.
+    ...TALENT_REQUESTS.filter((r) => r.status === "declined" || r.status === "expired").map(
+      (r): CalendarEvent => ({
+        id: r.id,
+        kind: "cancelled",
+        client: r.client,
+        brief: r.brief,
+        startDay: parseMayDay(r.date),
+        endDay: parseMayDay(r.date, true),
+        dateLabel: r.date ?? "Date TBC",
+        amount: r.amount,
+        status:
+          r.status === "declined"
+            ? "You declined"
+            : "Expired · no response in window",
+        drawer: { id: "talent-offer-detail", payload: { id: r.id } },
       }),
     ),
   ];
@@ -4131,6 +4192,7 @@ function CalendarPage() {
     pending: events.filter((e) => e.kind === "pending").length,
     inquiry: events.filter((e) => e.kind === "inquiry").length,
     past: events.filter((e) => e.kind === "past").length,
+    cancelled: events.filter((e) => e.kind === "cancelled").length,
     all: events.length,
   };
 
@@ -4197,7 +4259,9 @@ function CalendarPage() {
                 ? `Pending replies · ${filteredEvents.length}`
                 : filter === "inquiry"
                   ? `Open inquiries · ${filteredEvents.length}`
-                  : `Past · ${filteredEvents.length}`}
+                  : filter === "cancelled"
+                    ? `Cancelled · ${filteredEvents.length}`
+                    : `Past · ${filteredEvents.length}`}
         </CapsLabel>
         <div
           style={{
@@ -4304,6 +4368,32 @@ function CalendarPage() {
 
 /** Parse "May 14" / "Tue · May 6" / "May 14–15" → numeric day-of-month.
  *  Returns the START day unless `endOfRange` is true. */
+/**
+ * Lightweight payout-speed compute. Returns "Nd after work" given a
+ * work date + payout date. Best-effort string parse — production should
+ * subtract real Date objects.
+ */
+function computePayoutSpeed(workDate: string, payoutDate: string): string | null {
+  const workMatch = workDate.match(/([A-Za-z]+)\s+(\d{1,2})/);
+  const payoutMatch = payoutDate.match(/([A-Za-z]+)\s+(\d{1,2})/);
+  if (!workMatch || !payoutMatch) return null;
+  const monthIdx: Record<string, number> = {
+    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+  };
+  const wMonth = monthIdx[workMatch[1]!] ?? -1;
+  const pMonth = monthIdx[payoutMatch[1]!] ?? -1;
+  if (wMonth === -1 || pMonth === -1) return null;
+  const wDay = parseInt(workMatch[2]!, 10);
+  const pDay = parseInt(payoutMatch[2]!, 10);
+  // Approximate — assume same year, 30 days per month
+  const diff = (pMonth - wMonth) * 30 + (pDay - wDay);
+  if (diff <= 0) return null;
+  if (diff <= 7) return `paid ${diff}d after work`;
+  if (diff <= 21) return `paid ${diff}d later`;
+  return `paid ${Math.round(diff / 7)}w later`;
+}
+
 function parseMayDay(s: string | null | undefined, endOfRange = false): number | null {
   if (!s) return null;
   const matches = s.match(/May\s*(\d{1,2})(?:\s*[–-]\s*(\d{1,2}))?/);
@@ -4318,14 +4408,15 @@ function FilterChipStrip({
   onChange,
   counts,
 }: {
-  filter: "booked" | "pending" | "inquiry" | "past" | "all";
-  onChange: (f: "booked" | "pending" | "inquiry" | "past" | "all") => void;
-  counts: { booked: number; pending: number; inquiry: number; past: number; all: number };
+  filter: "booked" | "pending" | "inquiry" | "past" | "cancelled" | "all";
+  onChange: (f: "booked" | "pending" | "inquiry" | "past" | "cancelled" | "all") => void;
+  counts: { booked: number; pending: number; inquiry: number; past: number; cancelled: number; all: number };
 }) {
   const chips: { key: typeof filter; label: string; count: number; tone: string }[] = [
     { key: "booked", label: "Booked", count: counts.booked, tone: COLORS.green },
     { key: "pending", label: "Pending", count: counts.pending, tone: COLORS.coral },
     { key: "inquiry", label: "Inquiry", count: counts.inquiry, tone: COLORS.indigo },
+    { key: "cancelled", label: "Cancelled", count: counts.cancelled, tone: COLORS.critical },
     { key: "past", label: "Past", count: counts.past, tone: COLORS.inkDim },
     { key: "all", label: "All", count: counts.all, tone: COLORS.ink },
   ];
@@ -4521,6 +4612,7 @@ function kindToLabel(kind: CalendarEventKind): string {
     pending: "pending hold",
     inquiry: "open inquiry",
     past: "past",
+    cancelled: "cancelled",
   }[kind];
 }
 
@@ -4541,12 +4633,14 @@ function CalendarEventRow({
     pending: "coral",
     inquiry: "indigo",
     past: "amber",
+    cancelled: "amber", // slate — drained, not urgent
   };
   const kindLabel = {
     booked: "Booked",
     pending: "Pending",
     inquiry: "Inquiry",
-    past: event.status.startsWith("Paid") ? "Paid" : "Past",
+    past: event.status.startsWith("Paid") ? "Paid" : "Wrapped",
+    cancelled: "Cancelled",
   }[event.kind];
   return (
     <button
