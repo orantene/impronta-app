@@ -4961,105 +4961,185 @@ function CalendarEventRow({
 // ACTIVITY (earnings + history)
 // ════════════════════════════════════════════════════════════════════
 
+// ─── B3: Activity — earnings & history (compactness pass) ──────────
+//
+// Replaces the table layout with the unified EarningRow pattern. Adds
+// filter chips per source so the talent can slice "what did the personal
+// page earn me" vs "what came from agencies" — the Reach connection
+// surfaced inline.
+
 function ActivityPage() {
   const { openDrawer } = useProto();
+  const [filter, setFilter] = useState<"all" | "agency" | "personal" | "hub" | "studio" | "manual">("all");
+
+  const filtered = EARNINGS_ROWS.filter(
+    (e) => filter === "all" || e.source.kind === filter,
+  );
+
   const total = EARNINGS_ROWS.reduce((sum, e) => {
     const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
     return sum + num;
   }, 0);
+
+  const filteredTotal = filtered.reduce((sum, e) => {
+    const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
+    return sum + num;
+  }, 0);
+
+  // Top-source — what's actually earning the most.
+  const sourceTotals: Record<string, number> = {};
+  for (const e of EARNINGS_ROWS) {
+    const k = e.source.kind;
+    const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
+    sourceTotals[k] = (sourceTotals[k] ?? 0) + num;
+  }
+  const topSource = Object.entries(sourceTotals).sort((a, b) => b[1] - a[1])[0];
+  const topSourceLabel = topSource
+    ? topSource[0] === "agency"
+      ? "Agency-routed"
+      : topSource[0] === "personal"
+        ? "Personal page"
+        : topSource[0] === "hub"
+          ? "Tulala Hub"
+          : topSource[0] === "manual"
+            ? "Off-platform"
+            : topSource[0]
+    : "—";
+
+  const counts = {
+    all: EARNINGS_ROWS.length,
+    agency: EARNINGS_ROWS.filter((e) => e.source.kind === "agency").length,
+    personal: EARNINGS_ROWS.filter((e) => e.source.kind === "personal").length,
+    hub: EARNINGS_ROWS.filter((e) => e.source.kind === "hub").length,
+    studio: EARNINGS_ROWS.filter((e) => e.source.kind === "studio").length,
+    manual: EARNINGS_ROWS.filter((e) => e.source.kind === "manual").length,
+  };
 
   return (
     <>
       <PageHeader
         eyebrow="Activity"
         title="Earnings & history"
-        subtitle="Everything you've been paid through Tulala-tracked agencies. Tap a row to see the booking and contract."
-        actions={<SecondaryButton onClick={() => openDrawer("talent-payouts")}>Payout settings</SecondaryButton>}
+        subtitle="Everything you've been paid — agency-routed, personal-page direct, hubs, off-platform. Tap a row for booking detail."
+        actions={
+          <>
+            <SecondaryButton onClick={() => openDrawer("talent-add-event", { mode: "work" })}>
+              + Log work
+            </SecondaryButton>
+            <SecondaryButton onClick={() => openDrawer("talent-payouts")}>
+              Payout settings
+            </SecondaryButton>
+          </>
+        }
       />
 
-      <Grid cols="3">
-        <StatusCard label="Paid YTD" value={`€${total.toLocaleString()}`} caption="across 5 bookings" tone="green" />
-        <StatusCard label="Avg booking" value={`€${Math.round(total / 5).toLocaleString()}`} caption="across 5 bookings" tone="ink" />
-        <StatusCard label="Top client" value="Net-a-Porter" caption="€3,400 in Feb" tone="dim" />
-      </Grid>
+      {/* Compact stat strip — same pattern as Reach hero */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 0,
+          padding: "12px 16px",
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 10,
+          marginBottom: 16,
+        }}
+      >
+        <ReachStat label="Paid YTD" value={`€${total.toLocaleString()}`} caption={`across ${EARNINGS_ROWS.length} bookings`} tone="success" />
+        <ReachStatDivider />
+        <ReachStat label="Avg booking" value={`€${Math.round(total / EARNINGS_ROWS.length).toLocaleString()}`} caption="this year" tone="ink" />
+        <ReachStatDivider />
+        <ReachStat label="Top channel" value={topSourceLabel} caption={topSource ? `€${topSource[1].toLocaleString()}` : ""} tone="indigo" />
+      </div>
 
-      <div style={{ height: 24 }} />
+      {/* Filter chips per source */}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+        {([
+          { key: "all" as const, label: "All", tone: COLORS.ink },
+          { key: "agency" as const, label: "Agency", tone: COLORS.amber },
+          { key: "personal" as const, label: "Personal page", tone: COLORS.royal },
+          { key: "hub" as const, label: "Hubs", tone: COLORS.indigo },
+          { key: "studio" as const, label: "Studios", tone: COLORS.green },
+          { key: "manual" as const, label: "Off-platform", tone: COLORS.coral },
+        ]).map((c) => {
+          const active = filter === c.key;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => setFilter(c.key)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 11px",
+                borderRadius: 999,
+                background: active ? COLORS.ink : "#fff",
+                border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                fontWeight: 500,
+                color: active ? "#fff" : COLORS.ink,
+              }}
+            >
+              {!active && (
+                <span aria-hidden style={{ width: 6, height: 6, borderRadius: "50%", background: c.tone }} />
+              )}
+              <span>{c.label}</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: active ? "rgba(255,255,255,0.6)" : COLORS.inkDim,
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {counts[c.key]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-      <CapsLabel>All earnings</CapsLabel>
+      <CapsLabel>
+        {filter === "all" ? "All earnings" : `${filter.charAt(0).toUpperCase()}${filter.slice(1)} earnings`}
+        {" · "}
+        €{filteredTotal.toLocaleString()}
+      </CapsLabel>
+
       <div
         style={{
           marginTop: 10,
           background: "#fff",
           border: `1px solid ${COLORS.borderSoft}`,
           borderRadius: 12,
-          overflow: "hidden",
+          padding: "0 14px",
         }}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1.4fr 1.4fr 0.8fr 0.8fr 36px",
-            padding: "10px 16px",
-            background: "rgba(11,11,13,0.02)",
-            borderBottom: `1px solid ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body,
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: 1,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
-          }}
-        >
-          <span>Date</span>
-          <span>Agency</span>
-          <span>Client</span>
-          <span style={{ textAlign: "right" }}>Amount</span>
-          <span style={{ textAlign: "right" }}>Status</span>
-          <span />
-        </div>
+        {filtered.length === 0 ? (
+          <div style={{ padding: "32px 12px" }}>
+            <EmptyState
+              icon="info"
+              title={`No ${filter} earnings yet`}
+              body="Switch filter above to see other sources."
+              compact
+            />
+          </div>
+        ) : (
+          filtered.map((e) => <EarningRow key={e.id} earning={e} />)
+        )}
+      </div>
+
+      {/* Legacy table block — keep for the bottom secondary "Status" column,
+          but compact; chevron drawer handler stays the same. */}
+      <div style={{ display: "none" }}>
         {EARNINGS_ROWS.map((e) => (
           <button
             key={e.id}
             onClick={() => openDrawer("talent-earnings-detail", { id: e.id })}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1.4fr 1.4fr 0.8fr 0.8fr 36px",
-              padding: "13px 16px",
-              borderBottom: `1px solid ${COLORS.borderSoft}`,
-              background: "transparent",
-              border: "none",
-              borderTop: "none",
-              borderLeft: "none",
-              borderRight: "none",
-              cursor: "pointer",
-              textAlign: "left",
-              width: "100%",
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              alignItems: "center",
-            }}
+            style={{ display: "none" }}
           >
-            <span style={{ color: COLORS.inkMuted }}>{e.workDate}</span>
-            <span style={{ color: COLORS.ink, fontWeight: 500 }}>{e.agency}</span>
-            <span style={{ color: COLORS.ink }}>{e.client}</span>
-            <span style={{ textAlign: "right", color: COLORS.ink, fontWeight: 600 }}>{e.amount}</span>
-            <span style={{ textAlign: "right" }}>
-              <span
-                style={{
-                  display: "inline-flex",
-                  padding: "2px 8px",
-                  borderRadius: 999,
-                  background: e.status === "paid" ? "rgba(46,125,91,0.10)" : "rgba(82,96,109,0.10)",
-                  color: e.status === "paid" ? "#1F5C42" : "#3A4651",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: 0.3,
-                  textTransform: "capitalize",
-                }}
-              >
-                {e.status}
-              </span>
-            </span>
             <span style={{ display: "inline-flex", justifyContent: "flex-end" }}>
               <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
             </span>
