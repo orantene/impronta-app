@@ -5257,7 +5257,7 @@ function ReachPage() {
           channelOn={channelOn}
           onToggle={setOn}
           available={AVAILABLE_CHANNELS.filter((c) => c.kind === "external")}
-          onAdd={(c) => setOn(c.id, true)}
+          onAdd={(c) => openDrawer("talent-hub-detail", { channelId: c.id })}
         />
         <DistributionCard
           kind="studio"
@@ -5267,7 +5267,7 @@ function ReachPage() {
           channelOn={channelOn}
           onToggle={setOn}
           available={AVAILABLE_CHANNELS.filter((c) => c.kind === "studio")}
-          onAdd={(c) => setOn(c.id, true)}
+          onAdd={(c) => openDrawer("talent-hub-detail", { channelId: c.id })}
         />
       </div>
 
@@ -7226,6 +7226,128 @@ const MOCK_CLOSED_DETAIL: Record<
 // client identity.
 
 type AddEventMode = "pick" | "work" | "block";
+
+// ─── A3: Hub-detail mini-drawer ─────────────────────────────────────
+//
+// Opens when a talent clicks "+ Add" on an unjoined channel in Reach.
+// Shows the channel's terms, fees, expected response time BEFORE the
+// talent commits. Avoids the "I joined this and now I'm spammed" problem.
+
+export function TalentHubDetailDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-hub-detail";
+  const channelId = (state.drawer.payload?.channelId as string) ?? "";
+  const channel =
+    TALENT_CHANNELS.find((c) => c.id === channelId) ??
+    AVAILABLE_CHANNELS.find((c) => c.id === channelId) ??
+    null;
+
+  if (!channel) return null;
+
+  const feePct = channel.feeRate ? Math.round(channel.feeRate * 100) : 0;
+  const responseTime =
+    channel.kind === "studio"
+      ? "1–3 weeks (slow but high-quality leads)"
+      : channel.verified
+        ? "Within 24h for most inquiries"
+        : "Variable — newer platform, less data";
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={channel.name}
+      description={`${channel.kind === "studio" ? "Studio · free book" : channel.verified ? "Verified external hub" : "External hub · not yet Tulala-verified"} · joining is reversible`}
+      width={520}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton
+            onClick={() => {
+              toast(`Joined ${channel.name} · they'll forward inquiries to you`);
+              closeDrawer();
+            }}
+          >
+            Join {channel.name}
+          </PrimaryButton>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 18, fontFamily: FONTS.body }}>
+        {channel.description && (
+          <div
+            style={{
+              padding: "12px 14px",
+              background: COLORS.surfaceAlt,
+              borderRadius: 10,
+              fontSize: 13,
+              color: COLORS.ink,
+              lineHeight: 1.55,
+            }}
+          >
+            {channel.description}
+          </div>
+        )}
+
+        <section>
+          <SubsectionLabel>The deal</SubsectionLabel>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+            <KvRow label="Fee rate" value={feePct === 0 ? "0% · no platform take" : `${feePct}% on bookings via ${channel.name}`} />
+            <KvRow label="Response time" value={responseTime} />
+            <KvRow
+              label="Verified"
+              value={
+                channel.verified ? "Yes — Tulala-vetted" : "No — newer / unverified"
+              }
+            />
+            <KvRow label="Reversible?" value="Yes — toggle off anytime in Reach" />
+          </div>
+        </section>
+
+        <section>
+          <SubsectionLabel>What happens when you join</SubsectionLabel>
+          <ul
+            style={{
+              margin: "8px 0 0",
+              paddingLeft: 18,
+              fontSize: 12.5,
+              color: COLORS.ink,
+              lineHeight: 1.7,
+            }}
+          >
+            <li>{channel.name} can list your profile + forward inquiries</li>
+            <li>Inquiries land in your Tulala inbox alongside agency-routed ones</li>
+            <li>Your contact-policy filters still apply — Basic-tier clients are blocked if you've blocked them</li>
+            {feePct > 0 && (
+              <li>
+                When a booking comes through {channel.name}, they take {feePct}% of the fee at payout
+              </li>
+            )}
+            <li>You can pause or leave any time from Reach</li>
+          </ul>
+        </section>
+
+        {!channel.verified && (
+          <div
+            style={{
+              padding: "10px 12px",
+              background: COLORS.coralSoft,
+              border: `1px solid rgba(194,106,69,0.18)`,
+              borderRadius: 8,
+              fontSize: 11.5,
+              color: COLORS.coralDeep,
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ fontWeight: 600 }}>Heads up:</strong>{" "}
+            {channel.name} isn't yet Tulala-verified. Inquiries may include
+            unvetted clients. You can leave with one click if quality drops.
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
 
 export function TalentAddEventDrawer() {
   const { state, closeDrawer, toast } = useProto();
