@@ -387,7 +387,7 @@ function TalentTopbar() {
         borderBottom: `1px solid ${COLORS.borderSoft}`,
         padding: "0 28px",
         position: "sticky",
-        top: 106, // 50 ControlBar + 56 IdentityBar
+        top: "calc(var(--proto-cbar, 50px) + 56px)",
         zIndex: 40,
       }}
     >
@@ -683,6 +683,8 @@ function TalentTodayPage() {
         }
         onAvailability={() => openDrawer("talent-block-dates")}
         onOpenProfile={() => openDrawer("talent-profile-edit")}
+        onOpenCalendar={() => setTalentPage("calendar")}
+        onOpenActivity={() => setTalentPage("activity")}
       />
 
       {/* Order rationale (Tier 2 audit): group temporally.
@@ -1435,6 +1437,8 @@ function TalentTodayHero({
   onReplyNow,
   onAvailability,
   onOpenProfile,
+  onOpenCalendar,
+  onOpenActivity,
 }: {
   firstName: string;
   pendingCount: number;
@@ -1456,6 +1460,9 @@ function TalentTodayHero({
   onReplyNow: () => void;
   onAvailability: () => void;
   onOpenProfile: () => void;
+  /** Audit #11 — drill-in handlers for the stats strip. */
+  onOpenCalendar?: () => void;
+  onOpenActivity?: () => void;
 }) {
   // Display location: drop the "·" separator for hero copy, keep it in
   // the chip. "Playa del Carmen · Mexico" → "Playa del Carmen, Mexico".
@@ -1508,7 +1515,13 @@ function TalentTodayHero({
     subline = `${pendingCount} replies needed today.`;
   } else {
     headlineParts = `${pendingCount} things need your reply.`;
-    subline = "Top of inbox first.";
+    // Audit #16 — concrete next-action microcopy. Names the oldest
+    // waiter so the talent has a concrete starting point, not a vague
+    // "top of inbox first" instruction.
+    const oldest = pendingTargets[0]?.name;
+    subline = oldest
+      ? `${oldest} has been waiting longest — start there.`
+      : "Reply in age order to keep relationships warm.";
   }
 
   return (
@@ -1639,6 +1652,7 @@ function TalentTodayHero({
           value={String(upcomingCount)}
           caption={nextBookingDate ? `next ${nextBookingDate}` : "none yet"}
           tone="ink"
+          onClick={onOpenCalendar}
         />
         <HeroStatDivider />
         <HeroStat
@@ -1647,6 +1661,7 @@ function TalentTodayHero({
           caption="+€800 vs prior 30d"
           captionTone="success"
           tone="ink"
+          onClick={onOpenActivity}
         />
         <HeroStatDivider />
         <HeroStat
@@ -4610,6 +4625,49 @@ function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim" | 
 // no time-grid column — because the prototype's data is day-granular,
 // not hour-granular.
 
+/**
+ * Audit #34 — calendar color legend. Surfaces the meaning of the
+ * left-border tones used by Week + Day views (and the conflict banner)
+ * so the user doesn't have to memorize the system.
+ */
+function CalendarColorLegend() {
+  const items: { tone: string; label: string }[] = [
+    { tone: COLORS.green, label: "Booked" },
+    { tone: COLORS.coral, label: "Pending / hold" },
+    { tone: COLORS.indigo, label: "Inquiry" },
+    { tone: COLORS.inkDim, label: "Past" },
+  ];
+  return (
+    <div
+      role="img"
+      aria-label="Event status legend"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
+        fontFamily: FONTS.body,
+        fontSize: 10.5,
+        color: COLORS.inkMuted,
+      }}
+    >
+      {items.map((it) => (
+        <span key={it.label} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 2,
+              background: it.tone,
+            }}
+          />
+          {it.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function CalendarWeekView({
   events,
   onOpen,
@@ -4639,7 +4697,11 @@ function CalendarWeekView({
           fontFamily: FONTS.body,
         }}
       >
-        <CapsLabel>Week of May 12 — May 18, 2026</CapsLabel>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <CapsLabel>Week of May 12 — May 18, 2026</CapsLabel>
+          {/* Audit #34 — color legend so the left-border tones are scannable */}
+          <CalendarColorLegend />
+        </div>
         <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
           {events.filter((e) => e.startDay !== null && days.includes(e.startDay!)).length} events
         </span>
@@ -5860,24 +5922,44 @@ function ActivityPage() {
         }
       />
 
-      {/* Celebration moment — first €1k month milestone. Forest tone
-          because earnings are inherently a "you earned this" event, not a
-          brand-accent one. Dismiss persists for the session. */}
-      {!celebrationDismissed && total >= 1000 && (
-        <div style={{ marginBottom: 16 }}>
-          <CelebrationBanner
-            tone="forest"
-            eyebrow="Milestone"
-            title={`€${total.toLocaleString()} this year — you crossed the €1k mark`}
-            body="That's real, repeatable income. Keep your reach channels healthy and the next milestone follows."
-            primaryLabel="View earnings detail"
-            onPrimary={() => setFilter("all")}
-            secondaryLabel="Share with my agency"
-            onSecondary={() => toast("Shared with primary agency")}
-            onDismiss={() => setCelebrationDismissed(true)}
-          />
-        </div>
-      )}
+      {/* Audit #38 — multiple celebration thresholds, not just €1k.
+          Picks the highest threshold the user crossed, in priority order:
+          €10k YTD > €5k YTD > 10 bookings > €1k YTD > 5 bookings.
+          Audit #39 — primary CTA now opens the booking detail that
+          tipped past the milestone, instead of clicking back to "All". */}
+      {!celebrationDismissed && (() => {
+        const bookingsCount = EARNINGS_ROWS.length;
+        const milestone =
+          total >= 10000
+            ? { eyebrow: "Milestone", title: `€${total.toLocaleString()} YTD — you crossed the €10k mark`, body: "Top quartile of platform earnings. Keep your channels healthy." }
+            : total >= 5000
+            ? { eyebrow: "Milestone", title: `€${total.toLocaleString()} YTD — €5k crossed`, body: "Reliable income. Halfway to a €10k year on the books." }
+            : bookingsCount >= 10
+            ? { eyebrow: "Milestone", title: `${bookingsCount} bookings closed this year`, body: "You've reached double digits. Repeat clients are usually next." }
+            : total >= 1000
+            ? { eyebrow: "Milestone", title: `€${total.toLocaleString()} this year — €1k mark crossed`, body: "Real, repeatable income. Keep reach healthy." }
+            : bookingsCount >= 5
+            ? { eyebrow: "Milestone", title: `${bookingsCount} bookings closed`, body: "Past your first handful. Patterns start to show now." }
+            : null;
+        if (!milestone) return null;
+        // Drill-in to the most recent booking — the one that "tipped past" the threshold.
+        const latestId = EARNINGS_ROWS[0]?.id;
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <CelebrationBanner
+              tone="forest"
+              eyebrow={milestone.eyebrow}
+              title={milestone.title}
+              body={milestone.body}
+              primaryLabel={latestId ? "Open most recent booking" : undefined}
+              onPrimary={latestId ? () => openDrawer("talent-closed-booking", { earningId: latestId }) : undefined}
+              secondaryLabel="Share with my agency"
+              onSecondary={() => toast("Shared with primary agency")}
+              onDismiss={() => setCelebrationDismissed(true)}
+            />
+          </div>
+        );
+      })()}
 
       {/* Compact stat strip — same pattern as Reach hero */}
       <div
@@ -7476,12 +7558,9 @@ function SettingsPage() {
           affordance="Get help"
           onClick={() => openDrawer("help")}
         />
-        <SecondaryCard
-          title="Sign out / leave"
-          description="Sign out of your account or end your relationship with an agency."
-          affordance="Open"
-          onClick={() => openDrawer("talent-leave-agency")}
-        />
+        {/* Audit #47 — "Sign out / leave" card removed. Sign out lives
+            in the identity bar; ending an agency relationship lives in
+            the per-agency relationship drawer (Agencies section above). */}
       </Grid>
     </>
   );

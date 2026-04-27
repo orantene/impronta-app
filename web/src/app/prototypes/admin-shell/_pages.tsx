@@ -407,7 +407,7 @@ export function WorkspaceTopbar() {
         borderBottom: `1px solid ${COLORS.borderSoft}`,
         padding: "0 28px",
         position: "sticky",
-        top: 106, // 50 ControlBar + 56 IdentityBar
+        top: "calc(var(--proto-cbar, 50px) + 56px)",
         zIndex: Z.topbar,
       }}
     >
@@ -817,7 +817,7 @@ export function TulalaIdentityBar() {
         background: "#fff",
         borderBottom: `1px solid ${COLORS.borderSoft}`,
         position: "sticky",
-        top: 50,
+        top: "var(--proto-cbar, 50px)",
         zIndex: 50,
         padding: "0 24px",
         height: 56,
@@ -896,12 +896,14 @@ export function TulalaIdentityBar() {
         </span>
 
         {/* Acting-as context — flips with mode. Click opens the
-            tenant or agency switcher depending on which side. */}
+            tenant or agency switcher depending on which side.
+            Audit #4 — chevron rotates on hover to invite the click. */}
         <button
           type="button"
           onClick={onActingClick}
           aria-label={`Acting as ${actingLabel} — switch`}
           title={actingSubLabel}
+          className="tulala-acting-chip"
           style={{
             display: "inline-flex",
             alignItems: "center",
@@ -938,7 +940,16 @@ export function TulalaIdentityBar() {
           >
             {actingLabel}
           </span>
-          <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+          <span
+            aria-hidden
+            className="tulala-acting-chevron"
+            style={{
+              display: "inline-flex",
+              transition: "transform .22s cubic-bezier(.4,.0,.2,1)",
+            }}
+          >
+            <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+          </span>
         </button>
 
         <div style={{ flex: 1 }} />
@@ -1046,20 +1057,41 @@ function ModeTogglePill({
   flipMode: () => void;
 }) {
   const inTalent = surface === "talent";
+  // Audit #5 — animated thumb slides between Talent and Workspace
+  // sides. Rocker-switch feel beats a hard background swap. The thumb
+  // is positioned via CSS variable so width measures naturally to the
+  // active label.
   return (
     <div
       role="tablist"
       aria-label="Switch between Talent and Workspace"
       style={{
+        position: "relative",
         display: "inline-flex",
-        alignItems: "center",
-        gap: 2,
+        alignItems: "stretch",
         background: "rgba(11,11,13,0.05)",
         borderRadius: 999,
         padding: 3,
         fontFamily: FONTS.body,
       }}
     >
+      {/* Sliding thumb — sized to half of the parent's content box. */}
+      <span
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 3,
+          bottom: 3,
+          left: 3,
+          width: "calc(50% - 3px)",
+          transform: inTalent ? "translateX(0%)" : "translateX(100%)",
+          background: COLORS.ink,
+          borderRadius: 999,
+          transition: "transform .28s cubic-bezier(.4,.0,.2,1)",
+          pointerEvents: "none",
+          boxShadow: "0 1px 1px rgba(11,11,13,0.10)",
+        }}
+      />
       <ModeTogglePillButton
         active={inTalent}
         label="Talent"
@@ -1093,7 +1125,7 @@ function ModeTogglePillButton({
       aria-selected={active}
       onClick={onClick}
       style={{
-        background: active ? COLORS.ink : "transparent",
+        background: "transparent",
         color: active ? "#fff" : COLORS.inkMuted,
         border: "none",
         borderRadius: 999,
@@ -1106,7 +1138,11 @@ function ModeTogglePillButton({
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        transition: "background .18s, color .18s",
+        position: "relative",
+        zIndex: 1,
+        transition: "color .28s",
+        flex: 1,
+        justifyContent: "center",
       }}
       onMouseEnter={(e) => {
         if (!active) e.currentTarget.style.color = COLORS.ink;
@@ -1280,9 +1316,9 @@ function WorkspaceSidebarShell() {
           borderRight: `1px solid ${COLORS.borderSoft}`,
           padding: "20px 14px",
           position: "sticky",
-          top: 106, // 50 ControlBar + 56 IdentityBar
+          top: "calc(var(--proto-cbar, 50px) + 56px)",
           alignSelf: "flex-start",
-          maxHeight: "calc(100vh - 106px)",
+          maxHeight: "calc(100vh - var(--proto-cbar, 50px) - 56px)",
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",

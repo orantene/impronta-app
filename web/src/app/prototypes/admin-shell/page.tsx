@@ -27,7 +27,7 @@
  * Dev-handoff documentation lives at `web/docs/admin-redesign/dev-handoff.md`.
  */
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { ProtoProvider, useProto, COLORS, FONTS } from "./_state";
 import { ToastHost, BackToTop } from "./_primitives";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./_pages";
@@ -41,6 +41,33 @@ function ToastBridge() {
   return <ToastHost toasts={state.toasts} onDismiss={dismissToast} />;
 }
 
+/**
+ * Audit item #6 — hide the dev-only PROTOTYPE control bar (Surface /
+ * Plan / Role pickers) unless `?dev=1` is on the URL. Demos look like
+ * the real product by default; engineers add `?dev=1` to switch
+ * dimensions during testing.
+ *
+ * The visibility flag is also written to a CSS variable so sticky
+ * descendants (IdentityBar, mode-shell topbars/sidebars) can adjust
+ * their `top` offset without prop-drilling. See `--proto-cbar` below.
+ */
+function useDevControlBar() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    try {
+      setShow(new URLSearchParams(window.location.search).get("dev") === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  return show;
+}
+
+function DevOnlyControlBar({ show }: { show: boolean }) {
+  if (!show) return null;
+  return <ControlBar />;
+}
+
 
 // ─── Page entry ──────────────────────────────────────────────────────
 
@@ -48,6 +75,22 @@ export default function AdminShellPrototypePage() {
   return (
     <Suspense fallback={null}>
       <ProtoProvider>
+        <PrototypeRoot />
+      </ProtoProvider>
+    </Suspense>
+  );
+}
+
+function PrototypeRoot() {
+  const showDevBar = useDevControlBar();
+  return (
+    <ProtoProviderInnerOriginal showDevBar={showDevBar} />
+  );
+}
+
+function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
+  return (
+    <>
         {/* Global keyboard-focus styling for the prototype. Scoped via
             `.tulala-shell` so we don't leak into other prototypes. Uses
             :focus-visible so mouse clicks don't trigger the ring. */}
@@ -63,6 +106,10 @@ export default function AdminShellPrototypePage() {
           }
           .tulala-shell button:focus:not(:focus-visible) {
             outline: none;
+          }
+          /* Audit #4 — acting-as chevron rotates 180° on chip hover. */
+          .tulala-shell .tulala-acting-chip:hover .tulala-acting-chevron {
+            transform: rotate(180deg);
           }
           /* Skip-to-main: invisible until focused. Lets keyboard users
              jump past the dark prototype ControlBar and into the surface. */
@@ -349,7 +396,12 @@ export default function AdminShellPrototypePage() {
         `}</style>
         <div
           className="tulala-shell"
+          data-dev={showDevBar ? "1" : "0"}
           style={{
+            // CSS var consumed by sticky descendants (IdentityBar +
+            // mode-shell topbars/sidebars) so they offset correctly
+            // whether the dev control bar is shown or hidden.
+            ["--proto-cbar" as never]: showDevBar ? "50px" : "0px",
             background: COLORS.surface,
             minHeight: "100vh",
             fontFamily: FONTS.body,
@@ -363,8 +415,10 @@ export default function AdminShellPrototypePage() {
             Skip to main content
           </a>
 
-          {/* Top: prototype control bar (dark, sticky) */}
-          <ControlBar />
+          {/* Top: prototype control bar (dark, sticky). Hidden on
+              non-dev URLs so the prototype demos look like the real
+              product. Pass ?dev=1 to show it. */}
+          <DevOnlyControlBar show={showDevBar} />
 
           {/* Below: the surface — workspace, talent, client, or platform */}
           <SurfaceRouter />
@@ -387,7 +441,6 @@ export default function AdminShellPrototypePage() {
           {/* Floating "↑ Top" — appears after 600px of scroll. */}
           <BackToTop />
         </div>
-      </ProtoProvider>
-    </Suspense>
+    </>
   );
 }
