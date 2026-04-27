@@ -782,6 +782,13 @@ function TalentTodayPage() {
         currentLocation={profile.currentLocation}
         availableForWork={profile.availableForWork}
         availableToTravel={profile.availableToTravel}
+        // Day-1 = no work history at all yet. Hero shifts to welcome tone.
+        isDay1={
+          upcoming.length === 0 &&
+          paidThisMonthTotal === 0 &&
+          mine.length === 0 &&
+          needsAnswer.length === 0
+        }
         onReplyNow={
           firstPending
             ? firstPending.onClick
@@ -1342,6 +1349,7 @@ function TalentTodayHero({
   currentLocation,
   availableForWork,
   availableToTravel,
+  isDay1,
   onReplyNow,
   onAvailability,
   onOpenProfile,
@@ -1360,6 +1368,9 @@ function TalentTodayHero({
   availableForWork: boolean;
   /** Open to travel for work. Distinct from availableForWork. */
   availableToTravel: boolean;
+  /** True for a brand-new talent: no bookings, no earnings, no inquiries.
+   *  Hero shifts to a welcome / setup tone instead of the operational one. */
+  isDay1: boolean;
   onReplyNow: () => void;
   onAvailability: () => void;
   onOpenProfile: () => void;
@@ -1369,17 +1380,17 @@ function TalentTodayHero({
   const locationDisplay = currentLocation.replace(/\s*·\s*/, ", ");
 
   // Context-aware headline + subline. The hero changes meaning based on
-  // TWO axes:
+  // THREE axes now:
+  //   - is this Day-1 (no work history yet) — welcome tone
   //   - pending replies (urgent / not urgent)
   //   - availability + location (where you are, what you're up for)
-  //
-  // When pending > 0, urgency wins and the headline names the clients
-  // waiting. When pending = 0, the headline becomes the availability
-  // statement — the page tells the talent where they are and what
-  // they're up for, which is what they want to know on a quiet day.
   let headlineParts: ReactNode;
   let subline: string;
-  if (pendingCount === 0) {
+  if (isDay1) {
+    headlineParts = `Welcome to Tulala, ${firstName}.`;
+    subline =
+      "Your storefront is live. First inquiries usually arrive within a week — finish your profile to speed things up.";
+  } else if (pendingCount === 0) {
     if (!availableForWork) {
       headlineParts = `You're in ${locationDisplay} — not taking work.`;
       subline = "Existing bookings aren't affected. Toggle availability when you're back.";
