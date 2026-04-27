@@ -4808,7 +4808,7 @@ function ThreadInfoSidebar({
         </InfoSection>
       )}
 
-      {/* Section: Your rate / Your take */}
+      {/* Section: Your rate / Your take + change-request affordance */}
       {(conv.amountToYou || conv.pinned.rate) && (
         <InfoSection
           icon="info"
@@ -4823,6 +4823,11 @@ function ThreadInfoSidebar({
               You see your take-home only. Full offer is between the agency and the client.
             </div>
           )}
+          {/* Talent can ALWAYS request a change — even on a locked
+              booking. Useful for scope creep, additional days, usage
+              extensions. Sends a structured change-request to the
+              coordinator who negotiates with the client. */}
+          <RateChangeRequest currentValue={conv.amountToYou ?? conv.pinned.rate?.value ?? ""} />
         </InfoSection>
       )}
 
@@ -4963,6 +4968,143 @@ function ThreadInfoSidebar({
         </div>
       )}
     </aside>
+  );
+}
+
+/**
+ * Inline rate-change request — the talent can always ask for more,
+ * even on a locked booking. Submits a structured request to the
+ * coordinator (private), who decides whether/how to take it to the
+ * client. The submission also drops a system-style message in the
+ * chat thread so the request is visible in the timeline.
+ */
+function RateChangeRequest({ currentValue }: { currentValue: string }) {
+  const { toast } = useProto();
+  const [open, setOpen] = useState(false);
+  const [proposed, setProposed] = useState("");
+  const [reason, setReason] = useState("");
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          marginTop: 8,
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: COLORS.indigo,
+        }}
+      >
+        Request a change →
+      </button>
+    );
+  }
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        padding: 10,
+        background: "rgba(11,11,13,0.03)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 8,
+        fontFamily: FONTS.body,
+        animation: "tulala-fade-in .15s ease",
+      }}
+    >
+      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
+        Currently <strong style={{ color: COLORS.ink }}>{currentValue || "—"}</strong>.
+        Your reply goes private to the coordinator first.
+      </div>
+      <input
+        type="text"
+        placeholder="Proposed (e.g. €4,000)"
+        value={proposed}
+        onChange={(e) => setProposed(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "6px 8px",
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.ink,
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 6,
+          marginBottom: 6,
+          boxSizing: "border-box",
+        }}
+      />
+      <textarea
+        placeholder="Reason (optional) — e.g. scope expanded, extra usage…"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        rows={2}
+        style={{
+          width: "100%",
+          padding: "6px 8px",
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.ink,
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 6,
+          marginBottom: 8,
+          resize: "vertical",
+          boxSizing: "border-box",
+        }}
+      />
+      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          onClick={() => { setOpen(false); setProposed(""); setReason(""); }}
+          style={{
+            padding: "5px 10px",
+            background: "transparent",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 6,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!proposed.trim()) {
+              toast("Add a proposed amount first");
+              return;
+            }
+            toast(`Rate change request sent to coordinator · ${currentValue || "—"} → ${proposed}`);
+            setOpen(false);
+            setProposed("");
+            setReason("");
+          }}
+          style={{
+            padding: "5px 10px",
+            background: COLORS.ink,
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 600,
+            color: "#fff",
+          }}
+        >
+          Send request
+        </button>
+      </div>
+    </div>
   );
 }
 
