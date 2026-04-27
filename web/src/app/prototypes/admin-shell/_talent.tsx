@@ -75,6 +75,7 @@ import {
   Avatar,
   Bullet,
   CapsLabel,
+  CelebrationBanner,
   ClientTrustBadge,
   ClientTrustChip,
   Divider,
@@ -817,6 +818,9 @@ function Grid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto" 
 function TalentTodayPage() {
   const { openDrawer, setTalentPage } = useProto();
   const profile = MY_TALENT_PROFILE;
+  // First-session checklist persists dismiss only for the session in the
+  // prototype. Production wires this to a per-user kv pair.
+  const [firstSessionDismissed, setFirstSessionDismissed] = useState(false);
   const needsAnswer = TALENT_REQUESTS.filter((r) => r.status === "needs-answer");
   const upcoming = TALENT_BOOKINGS.filter((b) => b.status === "confirmed").slice(0, 3);
   const paidThisMonth = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
@@ -847,12 +851,40 @@ function TalentTodayPage() {
   // hop instead of "go to inbox, find the top item, click it."
   const firstPending = pendingTargets[0];
 
+  // Day-1 detection mirrors the hero's isDay1 logic — drives whether we
+  // render the first-session checklist.
+  const isDay1 =
+    upcoming.length === 0 &&
+    paidThisMonthTotal === 0 &&
+    mine.length === 0 &&
+    needsAnswer.length === 0;
+
   return (
     <>
+      {/* First-session checklist — shows ONCE on Day-1 and routes the
+          new talent through the 4 onboarding wins that unlock inquiries.
+          Sits above the hero so it's the first thing they see.
+          polaroidCount/channelsLive/payoutSet are stubbed; production
+          derives them from the profile object. */}
+      {isDay1 && !firstSessionDismissed && (
+        <FirstSessionChecklist
+          completeness={profile.completeness}
+          polaroidCount={0}
+          channelsLive={0}
+          payoutSet={false}
+          onProfile={() => openDrawer("talent-profile-edit")}
+          onPolaroids={() => openDrawer("talent-polaroids")}
+          onReach={() => setTalentPage("reach")}
+          onPayouts={() => openDrawer("talent-payouts")}
+          onDismiss={() => setFirstSessionDismissed(true)}
+        />
+      )}
+
       {/* Profile-completeness banner — only when below the visibility
           threshold. Indigo soft (info, not urgent) with a clear CTA.
-          Auto-disappears at >= 80% so it never becomes wallpaper. */}
-      {profile.completeness < 80 && (
+          Auto-disappears at >= 80% so it never becomes wallpaper. Hidden
+          on Day-1 since the FirstSessionChecklist owns that moment. */}
+      {!isDay1 && profile.completeness < 80 && (
         <ProfileCompletenessBanner
           percent={profile.completeness}
           missing={profile.missing}
@@ -1068,6 +1100,201 @@ function ProfileCompletenessBanner({
         Finish profile →
       </span>
     </button>
+  );
+}
+
+/**
+ * First-session checklist — Day-1 onboarding. Four ordered steps that turn
+ * a freshly-claimed talent profile into one inquiries can actually find.
+ * Stays compact; rows toggle to a "✓ Done" state when the underlying mock
+ * data shows the step is complete.
+ *
+ * Why a structured checklist (not free-form tips):
+ *  - Day-1 talents need a deterministic "now do this" path, not a wall of
+ *    suggestions. Numbered, ordered steps reduce decision fatigue.
+ *  - Each row routes directly to the drawer/page that completes it — no
+ *    hunting through settings.
+ *  - The dismiss × is intentional: a power-user who claimed for testing
+ *    can clear it; production gates this on a per-user kv pair.
+ */
+function FirstSessionChecklist({
+  completeness,
+  polaroidCount,
+  channelsLive,
+  payoutSet,
+  onProfile,
+  onPolaroids,
+  onReach,
+  onPayouts,
+  onDismiss,
+}: {
+  completeness: number;
+  polaroidCount: number;
+  channelsLive: number;
+  payoutSet: boolean;
+  onProfile: () => void;
+  onPolaroids: () => void;
+  onReach: () => void;
+  onPayouts: () => void;
+  onDismiss: () => void;
+}) {
+  const steps: { label: string; description: string; done: boolean; onClick: () => void }[] = [
+    {
+      label: "Finish your profile basics",
+      description: completeness >= 80 ? "Done." : `${completeness}% complete · ${80 - completeness}% to unlock visibility`,
+      done: completeness >= 80,
+      onClick: onProfile,
+    },
+    {
+      label: "Add at least 6 polaroids",
+      description: polaroidCount >= 6 ? "Done — your gallery is ready." : `${polaroidCount} of 6 · clients filter on visual fit first`,
+      done: polaroidCount >= 6,
+      onClick: onPolaroids,
+    },
+    {
+      label: "Turn on a reach channel",
+      description: channelsLive > 0 ? `${channelsLive} live` : "No channel live · without one, no inquiries route to you",
+      done: channelsLive > 0,
+      onClick: onReach,
+    },
+    {
+      label: "Add a payout method",
+      description: payoutSet ? "Done — you'll get paid on time." : "Bank or card · so we can pay you out on the first booking",
+      done: payoutSet,
+      onClick: onPayouts,
+    },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  return (
+    <section
+      style={{
+        position: "relative",
+        background: `linear-gradient(135deg, ${COLORS.accentSoft} 0%, #fff 70%)`,
+        border: `1px solid ${COLORS.accent}`,
+        borderRadius: 14,
+        padding: "16px 18px",
+        marginBottom: 14,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+        <div>
+          <div
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.7,
+              textTransform: "uppercase",
+              color: COLORS.accent,
+              marginBottom: 3,
+            }}
+          >
+            First session
+          </div>
+          <h3
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 17,
+              fontWeight: 500,
+              color: COLORS.ink,
+              margin: 0,
+              letterSpacing: -0.15,
+            }}
+          >
+            {doneCount === steps.length
+              ? "You're set up. Inquiries land here."
+              : `${doneCount} of ${steps.length} done — ${steps.length - doneCount} to go`}
+          </h3>
+        </div>
+        <button
+          onClick={onDismiss}
+          aria-label="Dismiss first-session checklist"
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: "none",
+            background: "transparent",
+            color: COLORS.inkMuted,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="x" size={11} />
+        </button>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {steps.map((step, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={step.onClick}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 12px",
+              background: "#fff",
+              border: `1px solid ${step.done ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`,
+              borderRadius: 9,
+              textAlign: "left",
+              fontFamily: FONTS.body,
+              cursor: "pointer",
+              opacity: step.done ? 0.7 : 1,
+              transition: "border-color .12s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = step.done ? COLORS.green : COLORS.accent)}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = step.done ? "rgba(46,125,91,0.30)" : COLORS.borderSoft)}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: "50%",
+                background: step.done ? COLORS.green : COLORS.accentSoft,
+                color: step.done ? "#fff" : COLORS.accentDeep,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 11,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {step.done ? <Icon name="check" size={11} color="#fff" /> : idx + 1}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: COLORS.ink,
+                  textDecoration: step.done ? "line-through" : "none",
+                  lineHeight: 1.35,
+                }}
+              >
+                {step.label}
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: COLORS.inkMuted,
+                  marginTop: 2,
+                  lineHeight: 1.4,
+                }}
+              >
+                {step.description}
+              </div>
+            </div>
+            {!step.done && <Icon name="chevron-right" size={12} color={COLORS.inkDim} />}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -3893,15 +4120,19 @@ function InboxPage() {
                 search
                   ? `No ${filter === "all" ? "items" : filter + " items"} match "${search}"`
                   : filter === "action"
-                    ? "Nothing waiting on you"
+                    ? "Inbox zero. Enjoy the quiet."
                     : filter === "closed"
                       ? "Archive is clear"
-                      : `No ${filter} items`
+                      : filter === "all"
+                        ? "Nothing in the inbox yet"
+                        : `No ${filter} items`
               }
               body={
                 filter === "action"
-                  ? "You're caught up. Switch to other filters to see what's in flight."
-                  : "Switch filter above to see other items."
+                  ? "You're caught up — every offer, hold, and request has been handled. Open a different filter to peek at what's in flight."
+                  : filter === "all"
+                    ? "Inquiries land here the moment a client or agency reaches out. Make sure your reach channels are on so the right ones find you."
+                    : "Switch filter above to see other items."
               }
               compact
             />
@@ -4903,14 +5134,22 @@ function CalendarPage() {
               icon="calendar"
               title={
                 filter === "booked"
-                  ? "No confirmed bookings yet"
+                  ? "Calendar's clear"
                   : filter === "pending"
                     ? "Nothing pending — you're caught up"
                     : filter === "inquiry"
-                      ? "No open inquiries"
-                      : "Nothing in the archive yet"
+                      ? "No live inquiries"
+                      : "Archive's empty for now"
               }
-              body="Switch filter above to see other kinds of events."
+              body={
+                filter === "booked"
+                  ? "No confirmed bookings on the books. The first one always lands faster than you think."
+                  : filter === "pending"
+                    ? "Every hold has been confirmed or released. Nice."
+                    : filter === "inquiry"
+                      ? "Open inquiries will surface here so they don't get lost in the inbox."
+                      : "Past bookings will collect here once the first one wraps."
+              }
               compact
             />
           ) : (
@@ -5371,8 +5610,12 @@ function CalendarEventRow({
 // surfaced inline.
 
 function ActivityPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer, toast } = useProto();
   const [filter, setFilter] = useState<"all" | "agency" | "personal" | "hub" | "studio" | "manual">("all");
+  // Celebration moment is local-only in the prototype; production wires
+  // this to talent_celebration_events with a dismissed_at flag so the
+  // banner doesn't reappear on next session.
+  const [celebrationDismissed, setCelebrationDismissed] = useState(false);
 
   const filtered = EARNINGS_ROWS.filter(
     (e) => filter === "all" || e.source.kind === filter,
@@ -5434,6 +5677,25 @@ function ActivityPage() {
           </>
         }
       />
+
+      {/* Celebration moment — first €1k month milestone. Forest tone
+          because earnings are inherently a "you earned this" event, not a
+          brand-accent one. Dismiss persists for the session. */}
+      {!celebrationDismissed && total >= 1000 && (
+        <div style={{ marginBottom: 16 }}>
+          <CelebrationBanner
+            tone="forest"
+            eyebrow="Milestone"
+            title={`€${total.toLocaleString()} this year — you crossed the €1k mark`}
+            body="That's real, repeatable income. Keep your reach channels healthy and the next milestone follows."
+            primaryLabel="View earnings detail"
+            onPrimary={() => setFilter("all")}
+            secondaryLabel="Share with my agency"
+            onSecondary={() => toast("Shared with primary agency")}
+            onDismiss={() => setCelebrationDismissed(true)}
+          />
+        </div>
+      )}
 
       {/* Compact stat strip — same pattern as Reach hero */}
       <div
@@ -5523,8 +5785,26 @@ function ActivityPage() {
           <div style={{ padding: "32px 12px" }}>
             <EmptyState
               icon="info"
-              title={`No ${filter} earnings yet`}
-              body="Switch filter above to see other sources."
+              title={
+                filter === "manual"
+                  ? "Nothing logged off-platform"
+                  : filter === "agency" || filter === "personal" || filter === "hub" || filter === "studio"
+                    ? `No ${filter} earnings yet`
+                    : "No earnings here yet"
+              }
+              body={
+                filter === "manual"
+                  ? "Use Log work to record gigs you booked outside Tulala. Keeps your earnings story complete in one place."
+                  : filter === "agency"
+                    ? "When your agency closes a booking on your behalf, it lands here automatically."
+                    : filter === "personal"
+                      ? "Earnings from inquiries through your personal page route here. Keep your reach channels healthy."
+                      : filter === "hub"
+                        ? "Earnings from Tulala Hub bookings show up here once any close."
+                        : filter === "studio"
+                          ? "Studio bookings — open a studio relationship in Reach to start receiving these."
+                          : "Once you start booking, this view becomes the story of your income."
+              }
               compact
             />
           </div>

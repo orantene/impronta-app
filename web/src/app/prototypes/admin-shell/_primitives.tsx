@@ -2152,6 +2152,159 @@ function EmptyStateTip({
   );
 }
 
+/**
+ * Celebration banner for milestone moments — first booking, first €1k month,
+ * 10th confirmed booking, etc. Visual goal: feel warm without screaming.
+ *
+ *  - Soft accent gradient wash (no full saturation; keeps frequency-budget
+ *    discipline — celebrations are rare, single-card events).
+ *  - Optional dismiss × so the user can clear it once acknowledged.
+ *  - Optional secondary action ("Share", "View receipt") to convert the
+ *    moment into a next step.
+ *
+ * Caller decides when to show. The component is dumb. The expectation is
+ * that production wires this to a `talent_celebration_events` row and
+ * dismissing here writes `dismissed_at`.
+ */
+export function CelebrationBanner({
+  eyebrow,
+  title,
+  body,
+  primaryLabel,
+  onPrimary,
+  secondaryLabel,
+  onSecondary,
+  onDismiss,
+  tone = "accent",
+}: {
+  eyebrow?: string;
+  title: string;
+  body?: string;
+  primaryLabel?: string;
+  onPrimary?: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+  onDismiss?: () => void;
+  /** Forest = milestone you earned (income, badges); accent = brand celebration. */
+  tone?: "accent" | "forest";
+}) {
+  const accent = tone === "forest" ? COLORS.green : COLORS.accent;
+  const wash = tone === "forest" ? "rgba(46,125,91,0.10)" : COLORS.accentSoft;
+  return (
+    <section
+      style={{
+        position: "relative",
+        background: `linear-gradient(135deg, ${wash} 0%, #fff 60%)`,
+        border: `1px solid ${accent}`,
+        borderRadius: 14,
+        padding: "16px 18px 16px 18px",
+        fontFamily: FONTS.body,
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 12,
+          background: "#fff",
+          border: `1px solid ${accent}`,
+          color: accent,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          boxShadow: `0 0 0 4px ${wash}`,
+        }}
+      >
+        <Icon name="sparkle" size={17} stroke={1.7} color={accent} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {eyebrow && (
+          <div
+            style={{
+              fontSize: 10.5,
+              fontWeight: 600,
+              letterSpacing: 0.7,
+              textTransform: "uppercase",
+              color: accent,
+              marginBottom: 3,
+            }}
+          >
+            {eyebrow}
+          </div>
+        )}
+        <h3
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 17,
+            fontWeight: 500,
+            color: COLORS.ink,
+            margin: 0,
+            letterSpacing: -0.15,
+            lineHeight: 1.3,
+          }}
+        >
+          {title}
+        </h3>
+        {body && (
+          <p
+            style={{
+              fontSize: 12.5,
+              color: COLORS.inkMuted,
+              margin: "4px 0 0",
+              lineHeight: 1.5,
+            }}
+          >
+            {body}
+          </p>
+        )}
+        {(primaryLabel || secondaryLabel) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+            {primaryLabel && onPrimary && (
+              <PrimaryButton size="sm" onClick={onPrimary}>{primaryLabel}</PrimaryButton>
+            )}
+            {secondaryLabel && onSecondary && (
+              <SecondaryButton size="sm" onClick={onSecondary}>
+                {secondaryLabel}
+              </SecondaryButton>
+            )}
+          </div>
+        )}
+      </div>
+      {onDismiss && (
+        <button
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: "none",
+            background: "transparent",
+            color: COLORS.inkMuted,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.06)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          <Icon name="x" size={11} />
+        </button>
+      )}
+    </section>
+  );
+}
+
 export function MoreWithSection({
   plan,
   title,
