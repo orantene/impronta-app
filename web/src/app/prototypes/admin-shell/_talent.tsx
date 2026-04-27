@@ -54,6 +54,7 @@ import {
   useProto,
   type ChannelEntry,
   type ChannelKind,
+  type ClientTrustLevel,
   type ExposurePreset,
   type RichInquiry,
   type TalentBooking,
@@ -74,6 +75,7 @@ import {
   Avatar,
   Bullet,
   CapsLabel,
+  ClientTrustBadge,
   ClientTrustChip,
   Divider,
   EmptyState,
@@ -3469,250 +3471,428 @@ function CompletenessBar({ value }: { value: number }) {
 // INBOX
 // ════════════════════════════════════════════════════════════════════
 
+// ─── Inbox redesign — Phase B1 ──────────────────────────────────────
+//
+// Unified row anatomy + filter chips, matching the Calendar discipline.
+// Replaces the prior nested "From your agencies" + "Holds & casting calls"
+// dual-list with one flat list filtered by status. Same row pattern as
+// Today's Needs-reply / Inquiries — talent learns it once, applies
+// everywhere.
+//
+// Filter chips:
+//   Action       — needs your reply (offers awaiting + inquiry-pending)
+//   Active       — in flight (coordinator working, peer holds, etc.)
+//   Confirmed    — accepted / approved / booked
+//   Closed       — declined / expired / cancelled
+//   All          — everything
+
+type InboxFilter = "action" | "active" | "confirmed" | "closed" | "all";
+
+type InboxItem = {
+  id: string;
+  source: "inquiry" | "request";
+  category: InboxFilter;
+  client: string;
+  clientTrust: ClientTrustLevel;
+  brief: string;
+  kindLabel: string;
+  kindTone: "coral" | "indigo" | "amber" | "success" | "ink";
+  microcopy: string;
+  ageHrs: number;
+  date?: string;
+  amount?: string;
+  agency: string;
+  onOpen: () => void;
+};
+
 function InboxPage() {
   const { openDrawer } = useProto();
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<InboxFilter>("action");
   const allMine = myInquiries();
-  // T9: filter by search across client name + brief
-  const mine = search.trim()
-    ? allMine.filter(
-        (i) =>
-          i.clientName.toLowerCase().includes(search.toLowerCase()) ||
-          i.brief.toLowerCase().includes(search.toLowerCase()),
-      )
-    : allMine;
 
-  const inquiryGroups: { id: string; label: string; filter: (i: RichInquiry) => boolean }[] = [
-    {
-      id: "needs-me",
-      label: "Awaiting your answer",
-      filter: (i) => myStatusOn(i) === "pending",
-    },
-    {
-      id: "in-flight",
-      label: "Active — coordinator is working it",
-      filter: (i) =>
-        (i.stage === "coordination" || i.stage === "submitted") &&
-        myStatusOn(i) !== "pending" &&
-        myStatusOn(i) !== "declined",
-    },
-    {
-      id: "approved-booked",
-      label: "Confirmed",
-      filter: (i) =>
-        (i.stage === "approved" || i.stage === "booked") &&
-        myStatusOn(i) !== "declined",
-    },
-    {
-      id: "closed",
-      label: "Closed",
-      filter: (i) =>
-        i.stage === "rejected" ||
-        i.stage === "expired" ||
-        myStatusOn(i) === "declined",
-    },
+  // Derive unified InboxItems from both data sources.
+  const items: InboxItem[] = [
+    ...allMine.map((i): InboxItem => {
+      const status = myStatusOn(i);
+      const category: InboxFilter =
+        status === "pending"
+          ? "action"
+          : i.stage === "approved" || i.stage === "booked"
+            ? "confirmed"
+            : i.stage === "rejected" || i.stage === "expired" || status === "declined"
+              ? "closed"
+              : "active";
+      const microcopy =
+        status === "pending"
+          ? "Awaiting your answer"
+          : i.stage === "coordination"
+            ? "Coordinator picking talent"
+            : i.stage === "offer_pending"
+              ? "Offer with client"
+              : i.stage === "approved"
+                ? "Approved · awaiting booking"
+                : i.stage === "booked"
+                  ? "Booked"
+                  : INQUIRY_STAGE_META[i.stage].label;
+      return {
+        id: i.id,
+        source: "inquiry",
+        category,
+        client: i.clientName,
+        clientTrust: i.clientTrust,
+        brief: i.brief,
+        kindLabel: "Inquiry",
+        kindTone: status === "pending" ? "coral" : "indigo",
+        microcopy,
+        ageHrs: i.lastActivityHrs,
+        date: i.date ?? undefined,
+        agency: i.agencyName,
+        onOpen: () => openDrawer("inquiry-workspace", { inquiryId: i.id, pov: "talent" }),
+      };
+    }),
+    ...TALENT_REQUESTS.map((r): InboxItem => {
+      const category: InboxFilter =
+        r.status === "needs-answer"
+          ? "action"
+          : r.status === "accepted"
+            ? "confirmed"
+            : r.status === "viewed"
+              ? "active"
+              : "closed";
+      const microcopy =
+        r.status === "needs-answer"
+          ? "Needs your answer"
+          : r.status === "viewed"
+            ? "Viewed · no answer required yet"
+            : r.status === "accepted"
+              ? "You accepted"
+              : r.status === "declined"
+                ? "You declined"
+                : "Expired";
+      const kindLabel = r.kind.charAt(0).toUpperCase() + r.kind.slice(1);
+      return {
+        id: r.id,
+        source: "request",
+        category,
+        client: r.client,
+        clientTrust: r.clientTrust,
+        brief: r.brief,
+        kindLabel,
+        kindTone: r.status === "needs-answer" ? "coral" : "amber",
+        microcopy,
+        ageHrs: r.ageHrs,
+        date: r.date,
+        amount: r.amount,
+        agency: r.agency,
+        onOpen: () => openDrawer("talent-offer-detail", { id: r.id }),
+      };
+    }),
   ];
 
-  const requestGroups: { id: string; label: string; filter: (r: TalentRequest) => boolean }[] = [
-    { id: "needs-answer", label: "Needs your answer", filter: (r) => r.status === "needs-answer" },
-    { id: "viewed", label: "Viewed — no answer needed yet", filter: (r) => r.status === "viewed" },
-    {
-      id: "decided",
-      label: "Decided",
-      filter: (r) => r.status === "accepted" || r.status === "declined" || r.status === "expired",
-    },
-  ];
+  // Apply search + filter
+  const filtered = items.filter((it) => {
+    if (filter !== "all" && it.category !== filter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!it.client.toLowerCase().includes(q) && !it.brief.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const counts = {
+    action: items.filter((it) => it.category === "action").length,
+    active: items.filter((it) => it.category === "active").length,
+    confirmed: items.filter((it) => it.category === "confirmed").length,
+    closed: items.filter((it) => it.category === "closed").length,
+    all: items.length,
+  };
 
   return (
     <>
       <PageHeader
         eyebrow="Inbox"
-        title="Inquiries & requests"
-        subtitle="Live inquiries put you in the same group thread as your coordinator. Holds and casting calls are quick decisions that may not need a thread yet."
+        title="Everything that needs you, in one place"
+        subtitle="Inquiries from your agencies plus holds and casting calls. Filter by what you need to do."
       />
 
-      {/* T9: Search bar */}
-      <div style={{ marginBottom: 20 }}>
+      {/* Search bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          background: "#fff",
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 8,
+          padding: "9px 14px",
+          marginBottom: 12,
+        }}
+      >
+        <Icon name="search" size={13} color={COLORS.inkDim} />
+        <input
+          type="text"
+          placeholder="Search by client or brief…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            border: "none",
+            background: "transparent",
+            outline: "none",
+            fontFamily: FONTS.body,
+            fontSize: 13.5,
+            color: COLORS.ink,
+            flex: 1,
+          }}
+        />
+        {search && (
+          <button
+            onClick={() => setSearch("")}
+            style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, color: COLORS.inkDim }}
+          >
+            <Icon name="x" size={12} color={COLORS.inkDim} />
+          </button>
+        )}
+      </div>
+
+      {/* Filter chip strip — same pattern as Calendar */}
+      <InboxFilterChips filter={filter} onChange={setFilter} counts={counts} />
+
+      <div style={{ height: 16 }} />
+
+      {/* Unified list — same row anatomy across all kinds. */}
+      <section
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 12,
+          padding: "0 14px",
+        }}
+      >
+        {filtered.length === 0 ? (
+          <div style={{ padding: "32px 12px" }}>
+            <EmptyState
+              icon="mail"
+              title={
+                search
+                  ? `No ${filter === "all" ? "items" : filter + " items"} match "${search}"`
+                  : filter === "action"
+                    ? "Nothing waiting on you"
+                    : filter === "closed"
+                      ? "Archive is clear"
+                      : `No ${filter} items`
+              }
+              body={
+                filter === "action"
+                  ? "You're caught up. Switch to other filters to see what's in flight."
+                  : "Switch filter above to see other items."
+              }
+              compact
+            />
+          </div>
+        ) : (
+          filtered.map((it, idx) => (
+            <InboxRow key={`${it.source}-${it.id}`} item={it} first={idx === 0} />
+          ))
+        )}
+      </section>
+    </>
+  );
+}
+
+function InboxFilterChips({
+  filter,
+  onChange,
+  counts,
+}: {
+  filter: InboxFilter;
+  onChange: (f: InboxFilter) => void;
+  counts: Record<InboxFilter, number>;
+}) {
+  const chips: { key: InboxFilter; label: string; tone: string }[] = [
+    { key: "action", label: "Action", tone: COLORS.coral },
+    { key: "active", label: "Active", tone: COLORS.indigo },
+    { key: "confirmed", label: "Confirmed", tone: COLORS.green },
+    { key: "closed", label: "Closed", tone: COLORS.inkDim },
+    { key: "all", label: "All", tone: COLORS.ink },
+  ];
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      {chips.map((c) => {
+        const active = filter === c.key;
+        return (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => onChange(c.key)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "6px 11px",
+              borderRadius: 999,
+              background: active ? COLORS.ink : "#fff",
+              border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              fontWeight: 500,
+              color: active ? "#fff" : COLORS.ink,
+              transition: "background .12s",
+            }}
+          >
+            {!active && (
+              <span
+                aria-hidden
+                style={{ width: 6, height: 6, borderRadius: "50%", background: c.tone }}
+              />
+            )}
+            <span>{c.label}</span>
+            <span
+              style={{
+                fontVariantNumeric: "tabular-nums",
+                color: active ? "rgba(255,255,255,0.6)" : COLORS.inkDim,
+                fontSize: 11.5,
+              }}
+            >
+              {counts[c.key]}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Unified inbox row — same anatomy as Today's Needs-reply rows. */
+function InboxRow({ item, first }: { item: InboxItem; first: boolean }) {
+  const [hover, setHover] = useState(false);
+  // Coral-escalated timestamp for stale action items
+  const ageColor =
+    item.category === "action" && item.ageHrs >= 24
+      ? COLORS.coral
+      : item.category === "action" && item.ageHrs >= 12
+        ? COLORS.coral
+        : COLORS.inkDim;
+  const ageWeight = item.category === "action" && item.ageHrs >= 24 ? 600 : 400;
+  const ageLabel =
+    item.ageHrs < 24 ? `${item.ageHrs}h ago` : `${Math.floor(item.ageHrs / 24)}d ago`;
+  return (
+    <button
+      type="button"
+      onClick={item.onOpen}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        width: "100%",
+        padding: "14px 0",
+        borderTop: first ? "none" : `1px solid ${COLORS.borderSoft}`,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: FONTS.body,
+        transition: "background .12s",
+      }}
+    >
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <Avatar
+          size={36}
+          tone="auto"
+          hashSeed={item.client}
+          initials={inboxClientInitials(item.client)}
+        />
+        <ClientTrustBadge level={item.clientTrust} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            background: "#fff",
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 8,
-            padding: "9px 14px",
-            maxWidth: 480,
+            gap: 8,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: COLORS.ink,
           }}
         >
-          <Icon name="search" size={13} color={COLORS.inkDim} />
-          <input
-            type="text"
-            placeholder="Search by client or brief…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+          <span>{item.client}</span>
+          <span style={{ color: COLORS.inkDim }}>·</span>
+          <span
             style={{
-              border: "none",
-              background: "transparent",
-              outline: "none",
-              fontFamily: FONTS.body,
-              fontSize: 13.5,
-              color: COLORS.ink,
-              flex: 1,
+              color: COLORS.inkMuted,
+              fontWeight: 400,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
             }}
-          />
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, color: COLORS.inkDim }}
-            >
-              <Icon name="x" size={12} color={COLORS.inkDim} />
-            </button>
-          )}
+          >
+            {item.brief}
+          </span>
         </div>
-        {search && mine.length === 0 && (
-          <div style={{ marginTop: 8, fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
-            No inquiries match "{search}"
-          </div>
-        )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 2,
+            fontSize: 11.5,
+          }}
+        >
+          <KindChip label={item.kindLabel} tone={item.kindTone} />
+          <span style={{ color: COLORS.inkMuted }}>
+            {item.microcopy}
+            {item.date && ` · ${item.date}`}
+            {item.amount && ` · ${item.amount}`}
+          </span>
+        </div>
       </div>
-
-      {/* RICH INQUIRIES — talent's POV */}
-      {mine.length > 0 && (
-        <div style={{ marginBottom: 12 }}>
-          <CapsLabel>From your agencies</CapsLabel>
-        </div>
+      {item.category === "action" && hover && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "5px 10px",
+            borderRadius: 7,
+            background: COLORS.coralSoft,
+            color: COLORS.coralDeep,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 600,
+          }}
+        >
+          Reply →
+        </span>
       )}
-      {inquiryGroups.map((g) => {
-        const items = mine.filter(g.filter);
-        if (items.length === 0) return null;
-        return (
-          <section key={g.id} style={{ marginBottom: 24 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 12,
-                  color: COLORS.inkMuted,
-                  fontWeight: 500,
-                  letterSpacing: 0.2,
-                }}
-              >
-                {g.label}
-              </span>
-              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim }}>
-                {items.length} {items.length === 1 ? "inquiry" : "inquiries"}
-              </span>
-            </div>
-            <div
-              style={{
-                background: "#fff",
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 12,
-                padding: "0 14px",
-              }}
-            >
-              {items.map((i) => (
-                <InquiryRow key={i.id} inquiry={i} />
-              ))}
-            </div>
-          </section>
-        );
-      })}
-
-      {/* LEGACY REQUESTS — holds and casting calls (one-off pings) */}
-      {TALENT_REQUESTS.length > 0 && (
-        <div style={{ marginBottom: 12, marginTop: mine.length > 0 ? 32 : 0 }}>
-          <CapsLabel>Holds & casting calls</CapsLabel>
-        </div>
-      )}
-      {requestGroups.map((g) => {
-        const items = TALENT_REQUESTS.filter(g.filter);
-        if (items.length === 0) return null;
-        return (
-          <section key={g.id} style={{ marginBottom: 24 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                justifyContent: "space-between",
-                marginBottom: 8,
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 12,
-                  color: COLORS.inkMuted,
-                  fontWeight: 500,
-                  letterSpacing: 0.2,
-                }}
-              >
-                {g.label}
-              </span>
-              <span style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkDim }}>
-                {items.length} {items.length === 1 ? "item" : "items"}
-              </span>
-            </div>
-            <div
-              style={{
-                background: "#fff",
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 12,
-                padding: "0 14px",
-              }}
-            >
-              {items.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => openDrawer("talent-offer-detail", { id: r.id })}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "14px 0",
-                    borderBottom: `1px solid ${COLORS.borderSoft}`,
-                    background: "transparent",
-                    border: "none",
-                    borderTop: "none",
-                    borderLeft: "none",
-                    borderRight: "none",
-                    cursor: "pointer",
-                    textAlign: "left",
-                    width: "100%",
-                    fontFamily: FONTS.body,
-                  }}
-                >
-                  <RequestKindBadge kind={r.kind} status={r.status} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink }}>
-                      {r.client} · {r.brief}
-                    </div>
-                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-                      via {r.agency}
-                      {r.date && <> · {r.date}</>}
-                      {r.amount && <> · {r.amount}</>}
-                    </div>
-                  </div>
-                  <span style={{ fontSize: 11.5, color: COLORS.inkDim }}>
-                    {r.ageHrs < 24 ? `${r.ageHrs}h` : `${Math.floor(r.ageHrs / 24)}d`} ago
-                  </span>
-                  <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
-                </button>
-              ))}
-            </div>
-          </section>
-        );
-      })}
-    </>
+      <span
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          color: ageColor,
+          fontWeight: ageWeight,
+          fontVariantNumeric: "tabular-nums",
+          flexShrink: 0,
+        }}
+      >
+        {ageLabel}
+      </span>
+      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+    </button>
   );
+}
+
+function inboxClientInitials(name: string): string {
+  const words = name.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) {
+    return (words[0]!.charAt(0) + words[1]!.charAt(0)).toUpperCase();
+  }
+  return name.charAt(0).toUpperCase();
 }
 
 function RequestKindBadge({ kind, status }: { kind: TalentRequest["kind"]; status: TalentRequest["status"] }) {
