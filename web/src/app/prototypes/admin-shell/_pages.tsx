@@ -833,9 +833,11 @@ export function TulalaIdentityBar() {
           margin: "0 auto",
         }}
       >
-        {/* Brand mark — wordmark in display font, restrained */}
+        {/* Brand mark — wordmark in display font, restrained.
+            Hidden at phone widths to free space for identity + toggle. */}
         <div
           aria-label="Tulala"
+          data-tulala-brand
           style={{
             fontFamily: FONTS.display,
             fontSize: 16,
@@ -849,7 +851,7 @@ export function TulalaIdentityBar() {
           Tulala
         </div>
 
-        <div style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 4px" }} />
+        <div data-tulala-id-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 4px" }} />
 
         {/* User identity — the one human across modes. Click opens the
             account menu. Avatar + name + small chevron. */}
