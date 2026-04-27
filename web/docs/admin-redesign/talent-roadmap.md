@@ -12,10 +12,73 @@
 
 ---
 
-## ✅ What's shipped (the floor we're building from)
+## ✅ What's shipped (running ledger)
 
-Eleven commits on `phase-1` this design pass. Every one of these was
-signed off by the user before merging.
+Twenty-five+ commits on `phase-1` across the full Phase A→G design pass.
+Updated 2026-04-26 after the "execute everything without stopping" sprint.
+
+### Phase A — Close-the-loops (9/12 shipped)
+
+| # | Item | Commit |
+|---|---|---|
+| A1 | Team-mates field on Log work | `38f899b` |
+| A2 | Payment method picker on Log work | `38f899b` |
+| A3 | Hub-detail mini-drawer for Reach `+ Add` | `1d6e359` |
+| A4 | Settings → Reach demote + cross-link banner | `4bc406f` |
+| A5 | Existing blocks shown in Availability drawer | `067279c` |
+| A6 | Time-of-day on Calendar grid pills | `40e4849` |
+| A7 | Pending + inquiry events on month grid (ghosted) | `da33bda` |
+| A9 | Notification settings deep-link from Settings | `067279c` |
+| A12 | Microcopy passes (academic sublines rewritten) | `067279c` |
+
+**Deferred (3)**: A8 pause-mode, A10 trust-score impact preview, A11 undo-on-toasts. All flagged for engineering follow-up.
+
+### Phase B — Big surface redesigns (2.5/4 shipped)
+
+| # | Item | Commit |
+|---|---|---|
+| B1 | **Talent Inbox redesign** — unified rows + filter chips | `0a316f1` |
+| B3 | Activity audit + redesign — source filter chips, EarningRow | `4475743` |
+| B4 | Settings audit (partial: A4 Privacy demote, D6 Help card) | `4bc406f`, `6935a90` |
+
+**Deferred**: B2 Edit profile audit. Sprawling 12-drawer page; needs its own focused session.
+
+### Phase C — Onboarding + emotional polish (3/7 shipped)
+
+| # | Item | Commit |
+|---|---|---|
+| C1 | Day-1 / new-talent hero variant | `1ba633d` |
+| C6 | Travel preferences richer in Availability | `b965bc1` |
+| C7 | currentLocation quick-pick chips | `b965bc1` |
+
+**Deferred (4)**: C2 empty states with personality, C3 celebration moments, C4 onboarding first-session flow, C5 0-pending hero verified-in-preview.
+
+### Phase D — Missing features (3/8 shipped as scaffolds)
+
+| # | Item | Commit |
+|---|---|---|
+| D4 | Booking contract section in closed-booking drawer | `6935a90` |
+| D6 | Help & support entry on Settings | `6935a90` |
+| D8 | Agency exclusivity model + manage on Reach | `0498c4f` |
+
+**Deferred (5)**: D1 trust verification flow, D2 Stripe Connect payouts, D3 tax docs, D5 reviews aggregation surface, D7 friend referrals tracking. All are real product builds — design specs in handoff doc §8.
+
+### Phase E + F + G — Documentation
+
+- E1-E7 strategic bets: full design specs in [`talent-backend-handoff.md`](./talent-backend-handoff.md) §8
+- F1-F9 cross-cutting infra: requirements documented in handoff doc §3, §5, §6, §7
+- G: backend handoff doc shipped (`f0f093a`) — schema for 5 new tables, per-surface query+mutation map, 4-sprint migration plan
+
+### Plus binding product specs saved to memory
+
+- `project_agency_exclusivity_model.md` — auto-exclusivity, plan-tier × commission rules
+- `project_workspace_talent_hybrid.md` — talent-as-workspace-owner UX (Phase X future)
+
+---
+
+## ✅ Original (kept for reference) — what shipped pre-sprint
+
+The first design pass laid the foundation:
 
 | Commit | Surface | What |
 |---|---|---|
