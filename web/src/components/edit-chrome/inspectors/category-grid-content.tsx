@@ -34,6 +34,7 @@ import {
   type CtaShape,
   type DragHandleProps,
 } from "./kit";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 type IconKey = (typeof CATEGORY_ICON_KEYS)[number];
 type Variant = "portrait-masonry" | "horizontal-scroll" | "small-icon-list";
@@ -135,24 +136,24 @@ export function CategoryGridContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Headline</label>
-          <input
-            type="text"
-            className={KIT.inputLg}
-            placeholder="A section title that orients the visitor"
-            maxLength={200}
+          <RichEditor
             value={headline}
-            onChange={(e) => update({ headline: e.target.value || undefined })}
+            onChange={(next) => update({ headline: next || undefined })}
+            variant="single"
+            tenantId={tenantId}
+            placeholder="A section title that orients the visitor"
+            ariaLabel="Headline"
           />
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Intro copy</label>
-          <textarea
-            className={KIT.textarea}
-            rows={2}
-            placeholder="Optional — a short paragraph under the headline"
-            maxLength={320}
+          <RichEditor
             value={copy}
-            onChange={(e) => update({ copy: e.target.value || undefined })}
+            onChange={(next) => update({ copy: next || undefined })}
+            variant="multi"
+            tenantId={tenantId}
+            placeholder="Optional — a short paragraph under the headline"
+            ariaLabel="Intro copy"
           />
         </div>
       </InspectorGroup>

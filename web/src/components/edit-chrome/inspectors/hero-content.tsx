@@ -28,6 +28,7 @@ import {
   type CtaShape,
 } from "./kit";
 import { KIT } from "./kit/tokens";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 interface HeroContentProps {
   draftProps: Record<string, unknown>;
@@ -124,25 +125,25 @@ export function HeroContentInspector({
           <div className="flex flex-col gap-3">
             <Field>
               <FieldLabel>Headline</FieldLabel>
-              <textarea
-                className={KIT.textarea}
+              <RichEditor
                 value={headline}
-                maxLength={140}
-                rows={2}
-                onChange={(e) => update({ headline: e.target.value })}
+                onChange={(next) => update({ headline: next })}
+                variant="single"
+                tenantId={tenantId}
+                ariaLabel="Headline"
               />
               <Helper><span /><HelperCounter current={headline.length} max={140} /></Helper>
             </Field>
 
             <Field>
               <FieldLabel>Sub-headline</FieldLabel>
-              <textarea
-                className={KIT.textarea}
+              <RichEditor
                 value={subheadline}
-                maxLength={240}
-                rows={2}
+                onChange={(next) => update({ subheadline: next || undefined })}
+                variant="single"
+                tenantId={tenantId}
                 placeholder="Optional"
-                onChange={(e) => update({ subheadline: e.target.value || undefined })}
+                ariaLabel="Sub-headline"
               />
               {subheadline ? (
                 <Helper><span /><HelperCounter current={subheadline.length} max={240} /></Helper>

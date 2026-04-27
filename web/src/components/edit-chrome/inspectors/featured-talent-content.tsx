@@ -39,6 +39,7 @@ import {
   type TalentSearchHit,
 } from "@/lib/site-admin/edit-mode/talent-search";
 import { useEffect } from "react";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 type SourceMode =
   | "manual_pick"
@@ -97,7 +98,7 @@ function cleanObject<T extends Record<string, unknown>>(o: T): T {
 
 export function FeaturedTalentContentInspector({
   draftProps,
-  tenantId: _tenantId,
+  tenantId,
   onChange,
 }: Props) {
   const eyebrow = (draftProps.eyebrow as string | undefined) ?? "";
@@ -179,24 +180,24 @@ export function FeaturedTalentContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Headline</label>
-          <input
-            type="text"
-            className={KIT.inputLg}
-            placeholder="A section title that names the set"
-            maxLength={200}
+          <RichEditor
             value={headline}
-            onChange={(e) => update({ headline: e.target.value || undefined })}
+            onChange={(next) => update({ headline: next || undefined })}
+            variant="single"
+            tenantId={tenantId}
+            placeholder="A section title that names the set"
+            ariaLabel="Headline"
           />
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Intro copy</label>
-          <textarea
-            className={KIT.textarea}
-            rows={2}
-            placeholder="Optional — one paragraph of context"
-            maxLength={400}
+          <RichEditor
             value={copy}
-            onChange={(e) => update({ copy: e.target.value || undefined })}
+            onChange={(next) => update({ copy: next || undefined })}
+            variant="multi"
+            tenantId={tenantId}
+            placeholder="Optional — one paragraph of context"
+            ariaLabel="Intro copy"
           />
         </div>
       </InspectorGroup>

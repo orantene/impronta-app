@@ -22,6 +22,7 @@ import {
   CtaDuoEditor,
   type CtaShape,
 } from "./kit";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 type Variant = "centered-overlay" | "split-image" | "minimal-band";
 type BandTone = "ivory" | "champagne" | "espresso" | "blush";
@@ -109,37 +110,35 @@ export function CtaBannerContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Headline</label>
-          <textarea
-            className={KIT.textarea}
-            rows={2}
-            placeholder="The decisive line. Keep it short."
-            maxLength={160}
+          <RichEditor
             value={headline}
-            onChange={(e) => update({ headline: e.target.value })}
+            onChange={(next) => update({ headline: next })}
+            variant="single"
+            tenantId={tenantId}
+            placeholder="The decisive line. Keep it short."
+            ariaLabel="Headline"
           />
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Supporting copy</label>
-          <textarea
-            className={KIT.textarea}
-            rows={2}
-            placeholder="Optional — one reassuring paragraph under the headline"
-            maxLength={320}
+          <RichEditor
             value={copy}
-            onChange={(e) => update({ copy: e.target.value || undefined })}
+            onChange={(next) => update({ copy: next || undefined })}
+            variant="multi"
+            tenantId={tenantId}
+            placeholder="Optional — one reassuring paragraph under the headline"
+            ariaLabel="Supporting copy"
           />
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Reassurance line</label>
-          <input
-            type="text"
-            className={KIT.input}
-            placeholder="Optional — italic line below the buttons"
-            maxLength={120}
+          <RichEditor
             value={reassurance}
-            onChange={(e) =>
-              update({ reassurance: e.target.value || undefined })
-            }
+            onChange={(next) => update({ reassurance: next || undefined })}
+            variant="single"
+            tenantId={tenantId}
+            placeholder="Optional — italic line below the buttons"
+            ariaLabel="Reassurance line"
           />
         </div>
       </InspectorGroup>

@@ -26,6 +26,7 @@
 import { useState } from "react";
 
 import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 import {
   DraggableList,
   InspectorGroup,
@@ -302,15 +303,13 @@ export function GalleryStripContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Headline</label>
-          <textarea
-            className={KIT.textarea}
+          <RichEditor
             value={headline}
-            maxLength={200}
-            rows={2}
+            onChange={(next) => onChange({ ...draftProps, headline: next || undefined })}
+            variant="single"
+            tenantId={tenantId}
             placeholder="A year in frames"
-            onChange={(e) =>
-              onChange({ ...draftProps, headline: e.target.value || undefined })
-            }
+            ariaLabel="Headline"
           />
         </div>
       </InspectorGroup>

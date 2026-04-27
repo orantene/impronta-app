@@ -30,6 +30,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { InspectorGroup, KIT, VisualChipGroup, type ChipOption } from "./kit";
+import { RichEditor } from "@/components/edit-chrome/rich-editor";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -355,6 +356,7 @@ function VoiceSlot({
 
 export function TestimonialsTrioContentInspector({
   draftProps,
+  tenantId,
   onChange,
 }: Props) {
   // Local slot state — gives stable slot positions (A/B/C) regardless of how
@@ -435,15 +437,13 @@ export function TestimonialsTrioContentInspector({
         </div>
         <div className={KIT.field}>
           <label className={KIT.label}>Headline</label>
-          <textarea
-            className={KIT.textarea}
+          <RichEditor
             value={headline}
-            maxLength={200}
-            rows={2}
+            onChange={(next) => patchMeta({ headline: next || undefined })}
+            variant="single"
+            tenantId={tenantId}
             placeholder="In their own words"
-            onChange={(e) =>
-              patchMeta({ headline: e.target.value || undefined })
-            }
+            ariaLabel="Headline"
           />
         </div>
       </InspectorGroup>
