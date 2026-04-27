@@ -23,6 +23,7 @@ import {
   TALENT_PAGES,
   TALENT_PAGE_META,
   TALENT_STATE_LABEL,
+  MY_TALENT_PROFILE,
   TENANT,
   WORKSPACE_PAGES,
   getClients,
@@ -395,11 +396,8 @@ function ToggleControl({
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar() {
-  const { state, setPage, openDrawer, flipMode, setWorkspaceLayout } = useProto();
-  const tenant = TENANT;
+  const { state, setPage, setWorkspaceLayout } = useProto();
   const canCreate = meetsRole(state.role, "editor");
-  // Hybrid users have a personal talent surface. Surface unread there too.
-  const talentUnread = state.alsoTalent ? 4 : 0;
 
   return (
     <header
@@ -409,7 +407,7 @@ export function WorkspaceTopbar() {
         borderBottom: `1px solid ${COLORS.borderSoft}`,
         padding: "0 28px",
         position: "sticky",
-        top: 50,
+        top: 106, // 50 ControlBar + 56 IdentityBar
         zIndex: Z.topbar,
       }}
     >
@@ -419,103 +417,12 @@ export function WorkspaceTopbar() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          height: 56,
+          height: 52,
         }}
       >
-        {/* Tenant identity — single button. Avatar + name (visible) opens
-            the workspace switcher. The plan/entity chips that used to
-            sit beside the name and open a *different* drawer are now
-            hidden behind the chevron's menu, eliminating the
-            "two-affordances-side-by-side" ambiguity. */}
-        <div data-tulala-tenant-chip style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={() => openDrawer("tenant-switcher")}
-            aria-label={`${tenant.name} — switch workspace`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: "4px 8px 4px 0",
-              fontFamily: FONTS.body,
-              borderRadius: RADIUS.md,
-              transition: "background .12s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(11,11,13,0.04)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-            }}
-          >
-            <span
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 7,
-                background: COLORS.ink,
-                color: "#fff",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: FONTS.display,
-                fontSize: 14,
-                fontWeight: 600,
-                letterSpacing: 0.2,
-              }}
-            >
-              {tenant.initials}
-            </span>
-            <span
-              style={{
-                fontFamily: FONTS.display,
-                fontSize: 16,
-                fontWeight: 500,
-                letterSpacing: -0.1,
-                color: COLORS.ink,
-              }}
-            >
-              {tenant.name}
-            </span>
-            <Icon name="chevron-down" size={11} color={COLORS.inkDim} />
-          </button>
-          {/* Home shortcut — a tiny icon button that takes you to the
-              overview page. Was implicit on the old name-button click;
-              now lives as its own affordance. */}
-          <button
-            data-tulala-tenant-meta
-            onClick={() => setPage("overview")}
-            aria-label="Go to overview"
-            title="Overview"
-            style={{
-              background: "transparent",
-              border: "none",
-              padding: 4,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              color: COLORS.inkMuted,
-              borderRadius: RADIUS.sm,
-              transition: "background .12s, color .12s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(11,11,13,0.04)";
-              e.currentTarget.style.color = COLORS.ink;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = COLORS.inkMuted;
-            }}
-          >
-            <Icon name="sparkle" size={12} stroke={1.7} />
-          </button>
-        </div>
-
-        <div data-tulala-topbar-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 8px" }} />
-
-        {/* Nav */}
+        {/* Page nav — the only thing the workspace topbar owns now.
+            Tenant identity, mode toggle, bell/help/settings, role chip,
+            avatar all moved to the persistent identity bar above. */}
         <nav data-tulala-app-topbar-nav aria-label="Workspace sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {WORKSPACE_PAGES.map((p) => {
             const active = state.page === p;
@@ -545,16 +452,11 @@ export function WorkspaceTopbar() {
                 }}
               >
                 {p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
-                {/* Active-page indicator: 3px black bar that scales in
-                    from the center on activation. Always-rendered with
-                    opacity/scale transitions so we get a smooth glide
-                    when the active item changes. Bold-only wasn't enough
-                    of a visual signal. */}
                 <span
                   aria-hidden
                   style={{
                     position: "absolute",
-                    bottom: -16,
+                    bottom: -14,
                     left: 8,
                     right: 8,
                     height: 3,
@@ -572,104 +474,9 @@ export function WorkspaceTopbar() {
           })}
         </nav>
 
-        {/* Right side */}
+        {/* Right side — Quick create + sidebar layout toggle. */}
         <div data-tulala-app-topbar-right style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {canCreate && <QuickCreateMenu />}
-
-          {/* Bell — numbered badge with real unread count, capped at 9+.
-              Was a dot; the count makes triage faster. */}
-          {(() => {
-            // Mock unread count — production reads from notifications view.
-            const unreadCount = 3;
-            const badge = unreadCount > 9 ? "9+" : String(unreadCount);
-            return (
-              <button
-                onClick={() => openDrawer("notifications")}
-                aria-label={`Notifications${unreadCount > 0 ? ` — ${unreadCount} unread` : ""}`}
-                style={{ ...iconButtonStyle, position: "relative" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.border;
-                  e.currentTarget.style.color = COLORS.ink;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = COLORS.borderSoft;
-                  e.currentTarget.style.color = COLORS.inkMuted;
-                }}
-              >
-                <BellIcon />
-                {unreadCount > 0 && (
-                  <span
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      top: -3,
-                      right: -3,
-                      minWidth: 16,
-                      height: 16,
-                      padding: "0 4px",
-                      borderRadius: 999,
-                      background: COLORS.accent,
-                      color: "#fff",
-                      fontSize: 9.5,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      boxShadow: "0 0 0 2px #fff",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {badge}
-                  </span>
-                )}
-              </button>
-            );
-          })()}
-
-          {/* Help — opens the help drawer with shortcuts + support
-              entries. Shares its hot-key (?) with the palette. */}
-          <Popover content="Help (press ?)">
-            <button
-              type="button"
-              onClick={() => openDrawer("help")}
-              aria-label="Help"
-              style={iconButtonStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = COLORS.border;
-                e.currentTarget.style.color = COLORS.ink;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = COLORS.borderSoft;
-                e.currentTarget.style.color = COLORS.inkMuted;
-              }}
-            >
-              <span style={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: 14 }}>?</span>
-            </button>
-          </Popover>
-          {/* Settings gear shortcut — settings is the last tab in the
-              nav, but every "how do I change X" question goes here
-              first. A gear in the right cluster makes it 1-click. */}
-          <Popover content="Settings">
-            <button
-              type="button"
-              onClick={() => setPage("workspace")}
-              aria-label="Settings"
-              style={iconButtonStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = COLORS.border;
-                e.currentTarget.style.color = COLORS.ink;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = COLORS.borderSoft;
-                e.currentTarget.style.color = COLORS.inkMuted;
-              }}
-            >
-              <Icon name="settings" size={15} stroke={1.7} />
-            </button>
-          </Popover>
-
-          {/* X2 layout toggle — switches workspace shell to sidebar layout. */}
           <Popover content="Switch to sidebar layout">
             <button
               type="button"
@@ -691,129 +498,6 @@ export function WorkspaceTopbar() {
               </svg>
             </button>
           </Popover>
-
-          <RoleChip role={state.role} />
-          {/* Hybrid mode toggle. When the workspace owner ALSO has a talent
-              profile, expose a one-click flip to their personal surface. The
-              non-active label carries an unread pill so they don't miss
-              inquiries while admin-mode. Replaces the old "On roster" chip. */}
-          {state.alsoTalent && (
-            <div
-              role="tablist"
-              aria-label="Switch between workspace and talent mode"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 2,
-                background: "rgba(11,11,13,0.05)",
-                borderRadius: 999,
-                padding: 3,
-                fontFamily: FONTS.body,
-              }}
-            >
-              <button
-                role="tab"
-                aria-selected="true"
-                style={{
-                  background: COLORS.ink,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "5px 11px",
-                  cursor: "default",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  letterSpacing: 0.1,
-                }}
-              >
-                Workspace
-              </button>
-              <button
-                role="tab"
-                aria-selected="false"
-                onClick={flipMode}
-                title="Switch to your personal talent surface"
-                style={{
-                  background: "transparent",
-                  color: COLORS.inkMuted,
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "5px 11px",
-                  cursor: "pointer",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  letterSpacing: 0.1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
-                onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
-              >
-                Talent
-                {talentUnread > 0 && (
-                  <span
-                    aria-label={`${talentUnread} unread on talent surface`}
-                    style={{
-                      minWidth: 14,
-                      height: 14,
-                      padding: "0 4px",
-                      borderRadius: 999,
-                      background: COLORS.accent,
-                      color: "#fff",
-                      fontSize: 9,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {talentUnread > 9 ? "9+" : talentUnread}
-                  </span>
-                )}
-              </button>
-            </div>
-          )}
-          <button
-            onClick={() => openDrawer("my-profile")}
-            style={{
-              background: "transparent",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-            }}
-            aria-label="My profile"
-          >
-            {/* Real avatar: ringed, gradient seeded by name. Initials
-                fallback if photoUrl ever resolves null. The gradient
-                is lightweight; production should swap in an uploaded
-                photo via the photoUrl prop. */}
-            <span
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background:
-                  "conic-gradient(from 200deg at 50% 50%, #0F4F3E, #1F7B5C, #093328, #0F4F3E)",
-                color: "#fff",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: FONTS.display,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 0.3,
-                border: "2px solid #fff",
-                boxShadow: "0 1px 2px rgba(11,11,13,0.10)",
-              }}
-            >
-              OT
-            </span>
-          </button>
         </div>
       </div>
     </header>
@@ -1085,30 +769,420 @@ function QuickCreateMenu() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// Persistent identity bar — owns the chrome that's the SAME across
+// workspace + talent modes (brand, user, acting-as context, mode toggle,
+// global utilities). Sticks below the prototype ControlBar (50px).
+//
+// Why: the user is one human. The mode (Talent vs Workspace) is a
+// context choice, not two products. Lifting the toggle + identity here
+// means there's exactly ONE place to look, regardless of which surface
+// is rendered below.
+//
+// Single source of truth for cross-mode unread:
+// ════════════════════════════════════════════════════════════════════
+
+const TALENT_UNREAD = 4;     // Mock — production reads from realtime channel
+const WORKSPACE_UNREAD = 2;  // Mock — production reads from realtime channel
+
+export function TulalaIdentityBar() {
+  const { state, openDrawer, flipMode, toast } = useProto();
+  const { surface, alsoTalent, role, plan, entityType } = state;
+
+  // Only the hybrid-user surfaces (workspace + talent) get this bar.
+  // Client and platform are different products with their own chrome.
+  if (surface !== "workspace" && surface !== "talent") return null;
+
+  const userName = MY_TALENT_PROFILE.name;
+  const userInitials = MY_TALENT_PROFILE.initials;
+
+  // Acting-as context flips with mode. Workspace = the agency the user
+  // owns. Talent = the agency the user is currently representing.
+  const inWorkspace = surface === "workspace";
+  const actingLabel = inWorkspace ? TENANT.name : MY_TALENT_PROFILE.primaryAgency;
+  const actingSubLabel = inWorkspace
+    ? `${plan.charAt(0).toUpperCase() + plan.slice(1)} · ${entityType} · ${role.charAt(0).toUpperCase() + role.slice(1)}`
+    : "Primary agency";
+  const onActingClick = () =>
+    inWorkspace ? openDrawer("tenant-switcher") : openDrawer("talent-agency-relationship");
+
+  // The notifications + help drawers are different on each side — the
+  // bell opens the right one based on surface.
+  const notificationsDrawerId = inWorkspace ? "notifications" : "talent-notifications";
+  const notificationsUnread = inWorkspace ? WORKSPACE_UNREAD + 1 : TALENT_UNREAD;
+
+  return (
+    <header
+      data-tulala-identity-bar
+      style={{
+        background: "#fff",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        position: "sticky",
+        top: 50,
+        zIndex: 50,
+        padding: "0 24px",
+        height: 56,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          height: "100%",
+          maxWidth: 1440,
+          margin: "0 auto",
+        }}
+      >
+        {/* Brand mark — wordmark in display font, restrained */}
+        <div
+          aria-label="Tulala"
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 16,
+            fontWeight: 500,
+            letterSpacing: 0.4,
+            color: COLORS.ink,
+            textTransform: "uppercase",
+            paddingRight: 4,
+          }}
+        >
+          Tulala
+        </div>
+
+        <div style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 4px" }} />
+
+        {/* User identity — the one human across modes. Click opens the
+            account menu. Avatar + name + small chevron. */}
+        <button
+          type="button"
+          onClick={() => toast("Account menu — sign out, profile, settings, shortcuts")}
+          aria-label={`Signed in as ${userName}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 9,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: "4px 6px 4px 4px",
+            borderRadius: 999,
+            fontFamily: FONTS.body,
+            transition: "background .12s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          <Avatar initials={userInitials} size={28} tone="ink" />
+          <span
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 14,
+              fontWeight: 500,
+              color: COLORS.ink,
+              letterSpacing: -0.05,
+            }}
+          >
+            {userName}
+          </span>
+          <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+        </button>
+
+        {/* Subtle separator dot between identity and acting-as */}
+        <span
+          aria-hidden
+          style={{ fontFamily: FONTS.body, fontSize: 14, color: COLORS.inkDim, marginLeft: -2 }}
+        >
+          /
+        </span>
+
+        {/* Acting-as context — flips with mode. Click opens the
+            tenant or agency switcher depending on which side. */}
+        <button
+          type="button"
+          onClick={onActingClick}
+          aria-label={`Acting as ${actingLabel} — switch`}
+          title={actingSubLabel}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            padding: "5px 9px",
+            borderRadius: 999,
+            fontFamily: FONTS.body,
+            transition: "background .12s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: COLORS.green,
+              flexShrink: 0,
+            }}
+          />
+          <span
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 500,
+              color: COLORS.ink,
+              letterSpacing: -0.05,
+            }}
+          >
+            {actingLabel}
+          </span>
+          <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+        </button>
+
+        <div style={{ flex: 1 }} />
+
+        {/* Mode toggle — the centerpiece. ONLY for hybrid users. Pill
+            with ink-filled active side; inactive side carries unread. */}
+        {alsoTalent && <ModeTogglePill surface={surface} flipMode={flipMode} />}
+
+        {/* Global utilities — single source for both modes. */}
+        <IdentityBarIconButton
+          aria-label={`Notifications · ${notificationsUnread} unread`}
+          onClick={() => openDrawer(notificationsDrawerId)}
+          badge={notificationsUnread}
+        >
+          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
+            <path d="M10 21a2 2 0 0 0 4 0" />
+          </svg>
+        </IdentityBarIconButton>
+
+        <IdentityBarIconButton
+          aria-label="Help"
+          onClick={() => openDrawer("help")}
+        >
+          <span style={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: 13 }}>?</span>
+        </IdentityBarIconButton>
+      </div>
+    </header>
+  );
+}
+
+function ModeTogglePill({
+  surface,
+  flipMode,
+}: {
+  surface: Surface;
+  flipMode: () => void;
+}) {
+  const inTalent = surface === "talent";
+  return (
+    <div
+      role="tablist"
+      aria-label="Switch between Talent and Workspace"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 2,
+        background: "rgba(11,11,13,0.05)",
+        borderRadius: 999,
+        padding: 3,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <ModeTogglePillButton
+        active={inTalent}
+        label="Talent"
+        unread={inTalent ? 0 : TALENT_UNREAD}
+        onClick={inTalent ? undefined : flipMode}
+      />
+      <ModeTogglePillButton
+        active={!inTalent}
+        label="Workspace"
+        unread={!inTalent ? 0 : WORKSPACE_UNREAD}
+        onClick={!inTalent ? undefined : flipMode}
+      />
+    </div>
+  );
+}
+
+function ModeTogglePillButton({
+  active,
+  label,
+  unread,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  unread: number;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      style={{
+        background: active ? COLORS.ink : "transparent",
+        color: active ? "#fff" : COLORS.inkMuted,
+        border: "none",
+        borderRadius: 999,
+        padding: "6px 14px",
+        cursor: active ? "default" : "pointer",
+        fontFamily: FONTS.body,
+        fontSize: 12.5,
+        fontWeight: active ? 600 : 500,
+        letterSpacing: 0.1,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        transition: "background .18s, color .18s",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.color = COLORS.ink;
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.color = COLORS.inkMuted;
+      }}
+    >
+      {label}
+      {unread > 0 && (
+        <span
+          aria-label={`${unread} unread`}
+          style={{
+            minWidth: 16,
+            height: 16,
+            padding: "0 5px",
+            borderRadius: 999,
+            background: COLORS.green,
+            color: "#fff",
+            fontSize: 9.5,
+            fontWeight: 700,
+            lineHeight: 1,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function IdentityBarIconButton({
+  onClick,
+  children,
+  badge,
+  ...rest
+}: {
+  onClick: () => void;
+  children: ReactNode;
+  badge?: number;
+  "aria-label"?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 8,
+        border: `1px solid ${COLORS.borderSoft}`,
+        background: "#fff",
+        color: COLORS.inkMuted,
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+        transition: "border-color .12s, color .12s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = COLORS.border;
+        e.currentTarget.style.color = COLORS.ink;
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = COLORS.borderSoft;
+        e.currentTarget.style.color = COLORS.inkMuted;
+      }}
+      {...rest}
+    >
+      {children}
+      {badge && badge > 0 && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: -3,
+            right: -3,
+            minWidth: 16,
+            height: 16,
+            padding: "0 4px",
+            borderRadius: 999,
+            background: COLORS.accent,
+            color: "#fff",
+            fontSize: 9.5,
+            fontWeight: 700,
+            lineHeight: 1,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 0 0 2px #fff",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {badge > 9 ? "9+" : badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * HybridShell — wraps any inner shell with the persistent identity bar.
+ * Use for workspace + talent surfaces (the hybrid-user surfaces).
+ */
+export function HybridShell({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <TulalaIdentityBar />
+      {children}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Workspace shell + page router
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceShell() {
   const { state } = useProto();
-  // X2: Sidebar layout option for hybrid talent owners. Toggled from
-  // the topbar utility cluster; persisted to localStorage.
-  if (state.workspaceLayout === "sidebar") {
-    return <WorkspaceSidebarShell />;
-  }
   return (
-    <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 56px - 50px)" }}>
-      <WorkspaceTopbar />
-      <main
-        data-tulala-surface-main
-        style={{
-          padding: "28px 28px 60px",
-          maxWidth: 1320,
-          margin: "0 auto",
-        }}
-      >
-        <PageRouter page={state.page} />
-      </main>
-    </div>
+    <HybridShell>
+      {state.workspaceLayout === "sidebar" ? (
+        <WorkspaceSidebarShell />
+      ) : (
+        <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 56px - 56px - 50px)" }}>
+          <WorkspaceTopbar />
+          <main
+            data-tulala-surface-main
+            style={{
+              padding: "28px 28px 60px",
+              maxWidth: 1320,
+              margin: "0 auto",
+            }}
+          >
+            <PageRouter page={state.page} />
+          </main>
+        </div>
+      )}
+    </HybridShell>
   );
 }
 
@@ -1119,18 +1193,16 @@ export function WorkspaceShell() {
  * fixed-width sidebar on the left and the main column flexing.
  */
 function WorkspaceSidebarShell() {
-  const { state, setPage, setWorkspaceLayout, openDrawer, flipMode } = useProto();
-  const { role, plan, alsoTalent } = state;
-  const tenant = TENANT;
+  const { state, setPage, openDrawer } = useProto();
+  const { role } = state;
   const canCreate = meetsRole(role, "editor");
-  const talentUnread = alsoTalent ? 4 : 0;
   return (
     <div
       style={{
         display: "grid",
         gridTemplateColumns: "232px 1fr",
         background: COLORS.surface,
-        minHeight: "calc(100vh - 56px - 50px)",
+        minHeight: "calc(100vh - 56px - 56px - 50px)",
       }}
     >
       <aside
@@ -1138,11 +1210,11 @@ function WorkspaceSidebarShell() {
         style={{
           background: "#fff",
           borderRight: `1px solid ${COLORS.borderSoft}`,
-          padding: "18px 14px",
+          padding: "20px 14px",
           position: "sticky",
-          top: 50,
+          top: 106, // 50 ControlBar + 56 IdentityBar
           alignSelf: "flex-start",
-          maxHeight: "calc(100vh - 50px)",
+          maxHeight: "calc(100vh - 106px)",
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
@@ -1150,54 +1222,10 @@ function WorkspaceSidebarShell() {
           fontFamily: FONTS.body,
         }}
       >
-        <button
-          type="button"
-          onClick={() => openDrawer("tenant-switcher")}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "8px 10px",
-            background: "rgba(11,11,13,0.04)",
-            border: "none",
-            borderRadius: 10,
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            textAlign: "left",
-            width: "100%",
-          }}
-        >
-          <span
-            aria-hidden
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 7,
-              background: COLORS.ink,
-              color: "#fff",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: FONTS.display,
-              fontSize: 13,
-              fontWeight: 600,
-              flexShrink: 0,
-            }}
-          >
-            {tenant.name.charAt(0)}
-          </span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {tenant.name}
-            </div>
-            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 1 }}>
-              {plan} · {state.entityType}
-            </div>
-          </div>
-          <Icon name="chevron-down" size={11} color={COLORS.inkMuted} />
-        </button>
-
-        <nav aria-label="Workspace sections" style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        {/* Page nav — the one thing the sidebar owns. Tenant identity,
+            mode toggle, bell/help all live in the persistent identity
+            bar above. Clean. */}
+        <nav aria-label="Workspace sections" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {WORKSPACE_PAGES.map((p) => {
             const active = state.page === p;
             return (
@@ -1209,7 +1237,7 @@ function WorkspaceSidebarShell() {
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  padding: "8px 12px",
+                  padding: "9px 12px",
                   background: active ? "rgba(11,11,13,0.06)" : "transparent",
                   border: "none",
                   borderRadius: 7,
@@ -1220,6 +1248,19 @@ function WorkspaceSidebarShell() {
                   color: active ? COLORS.ink : COLORS.inkMuted,
                   textAlign: "left",
                   letterSpacing: 0.05,
+                  transition: "background .12s, color .12s",
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.background = "rgba(11,11,13,0.025)";
+                    e.currentTarget.style.color = COLORS.ink;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = COLORS.inkMuted;
+                  }
                 }}
               >
                 {PAGE_META[p].label}
@@ -1229,162 +1270,6 @@ function WorkspaceSidebarShell() {
         </nav>
 
         <div style={{ flex: 1 }} />
-
-        {alsoTalent && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <CapsLabel>Mode</CapsLabel>
-            <div
-              role="tablist"
-              aria-label="Switch between workspace and talent mode"
-              style={{
-                display: "flex",
-                background: "rgba(11,11,13,0.05)",
-                borderRadius: 999,
-                padding: 3,
-                fontFamily: FONTS.body,
-              }}
-            >
-              <button
-                role="tab"
-                aria-selected="true"
-                style={{
-                  flex: 1,
-                  background: COLORS.ink,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "5px 11px",
-                  cursor: "default",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                }}
-              >
-                Workspace
-              </button>
-              <button
-                role="tab"
-                aria-selected="false"
-                onClick={flipMode}
-                style={{
-                  flex: 1,
-                  background: "transparent",
-                  color: COLORS.inkMuted,
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "5px 11px",
-                  cursor: "pointer",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 5,
-                }}
-              >
-                Talent
-                {talentUnread > 0 && (
-                  <span
-                    style={{
-                      minWidth: 14,
-                      height: 14,
-                      padding: "0 4px",
-                      borderRadius: 999,
-                      background: COLORS.accent,
-                      color: "#fff",
-                      fontSize: 9,
-                      fontWeight: 700,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {talentUnread}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <button
-            type="button"
-            onClick={() => openDrawer("notifications")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "7px 10px",
-              background: "transparent",
-              border: "none",
-              borderRadius: 7,
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-              textAlign: "left",
-            }}
-          >
-            <Icon name="info" size={12} stroke={1.7} color={COLORS.inkMuted} />
-            <span style={{ flex: 1 }}>Notifications</span>
-            <span
-              style={{
-                background: COLORS.accent,
-                color: "#fff",
-                fontSize: 9.5,
-                fontWeight: 700,
-                padding: "1px 6px",
-                borderRadius: 999,
-              }}
-            >
-              3
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => openDrawer("help")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "7px 10px",
-              background: "transparent",
-              border: "none",
-              borderRadius: 7,
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-              textAlign: "left",
-            }}
-          >
-            <Icon name="info" size={12} stroke={1.7} />
-            <span style={{ flex: 1 }}>Help</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setWorkspaceLayout("topbar")}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "7px 10px",
-              background: "transparent",
-              border: "none",
-              borderRadius: 7,
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              color: COLORS.inkMuted,
-              textAlign: "left",
-            }}
-          >
-            <Icon name="external" size={12} stroke={1.7} />
-            <span style={{ flex: 1 }}>Switch to topbar</span>
-          </button>
-        </div>
 
         {canCreate && (
           <PrimaryButton onClick={() => openDrawer("new-inquiry")}>+ New inquiry</PrimaryButton>
@@ -4919,9 +4804,18 @@ export function SurfaceRouter() {
   const inner = (() => {
     switch (state.surface) {
       case "workspace":
+        // WorkspaceShell wraps with HybridShell internally so the
+        // persistent identity bar renders above the inner shell.
         return <WorkspaceShell />;
       case "talent":
-        return <TalentSurface />;
+        // Wrap talent here at the router level — avoids a circular
+        // import that would happen if _talent.tsx pulled HybridShell
+        // from _pages.tsx (since _pages.tsx imports TalentSurface).
+        return (
+          <HybridShell>
+            <TalentSurface />
+          </HybridShell>
+        );
       case "client":
         return <ClientSurface />;
       case "platform":

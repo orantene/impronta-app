@@ -357,7 +357,7 @@ function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
 
 export function TalentSurface() {
   return (
-    <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 50px)" }}>
+    <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 50px - 56px)" }}>
       <TalentTopbar />
       <main
         data-tulala-surface-main
@@ -376,11 +376,8 @@ export function TalentSurface() {
 // ─── Topbar (lighter than workspace admin) ─────────────────────────
 
 function TalentTopbar() {
-  const { state, setTalentPage, openDrawer, flipMode } = useProto();
+  const { state, setTalentPage, openDrawer } = useProto();
   const profile = MY_TALENT_PROFILE;
-  // Hybrid users own a workspace too. We surface a workspace-side unread
-  // count so they don't lose track of their roster while in talent mode.
-  const workspaceUnread = state.alsoTalent ? 2 : 0;
 
   return (
     <header
@@ -390,7 +387,7 @@ function TalentTopbar() {
         borderBottom: `1px solid ${COLORS.borderSoft}`,
         padding: "0 28px",
         position: "sticky",
-        top: 50,
+        top: 106, // 50 ControlBar + 56 IdentityBar
         zIndex: 40,
       }}
     >
@@ -400,71 +397,13 @@ function TalentTopbar() {
           display: "flex",
           alignItems: "center",
           gap: 16,
-          height: 56,
+          height: 52,
         }}
       >
-        {/* My identity (talent-side, NOT a tenant) */}
-        <button
-          onClick={() => setTalentPage("profile")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            padding: 0,
-            fontFamily: FONTS.body,
-          }}
-        >
-          <Avatar initials={profile.initials} size={28} tone="ink" />
-          <span
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 16,
-              fontWeight: 500,
-              letterSpacing: -0.1,
-              color: COLORS.ink,
-            }}
-          >
-            {profile.name}
-          </span>
-        </button>
-
-        {/* Agency switcher chip — opens which agency I'm acting under */}
-        <button
-          onClick={() => openDrawer("talent-agency-relationship")}
-          aria-label="Agency"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: "rgba(11,11,13,0.04)",
-            border: "none",
-            padding: "4px 10px",
-            borderRadius: 999,
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.ink,
-            fontWeight: 500,
-          }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: COLORS.green,
-            }}
-          />
-          {profile.primaryAgency}
-          <Icon name="chevron-down" size={11} color={COLORS.inkDim} />
-        </button>
-
-        <div data-tulala-topbar-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 8px" }} />
-
-        {/* Page nav */}
+        {/* Page nav — the only thing the talent topbar owns now.
+            User identity (Marta), agency-acting-as chip, mode toggle,
+            bell + notifications all moved to the persistent identity
+            bar above. */}
         <nav data-tulala-app-topbar-nav aria-label="Talent sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {TALENT_PAGES.map((p) => {
             const active = state.talentPage === p;
@@ -498,7 +437,7 @@ function TalentTopbar() {
                   aria-hidden
                   style={{
                     position: "absolute",
-                    bottom: -16,
+                    bottom: -14,
                     left: 8,
                     right: 8,
                     height: 3,
@@ -516,182 +455,8 @@ function TalentTopbar() {
           })}
         </nav>
 
-        {/* Right */}
+        {/* Right — only the talent-specific "Preview public profile" CTA. */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {/* Mode toggle — only for hybrid users (alsoTalent && owns workspace).
-              Pill: ⚭ Talent · Workspace ⟶ flipMode. The non-active label is
-              clickable; the active label sits inside an ink-filled chip. */}
-          {state.alsoTalent && (
-            <div
-              role="tablist"
-              aria-label="Switch between talent and workspace mode"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 2,
-                background: "rgba(11,11,13,0.05)",
-                borderRadius: 999,
-                padding: 3,
-                fontFamily: FONTS.body,
-                fontSize: 11.5,
-                fontWeight: 500,
-              }}
-            >
-              <button
-                role="tab"
-                aria-selected="true"
-                style={{
-                  background: COLORS.ink,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "5px 11px",
-                  cursor: "default",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  letterSpacing: 0.1,
-                }}
-              >
-                Talent
-              </button>
-              <button
-                role="tab"
-                aria-selected="false"
-                onClick={flipMode}
-                style={{
-                  background: "transparent",
-                  color: COLORS.inkMuted,
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "5px 11px",
-                  cursor: "pointer",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  letterSpacing: 0.1,
-                  position: "relative",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
-                onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
-                title="Switch to workspace mode (manage your studio/agency)"
-              >
-                Workspace
-                {workspaceUnread > 0 && (
-                  <span
-                    aria-label={`${workspaceUnread} unread in workspace`}
-                    style={{
-                      minWidth: 14,
-                      height: 14,
-                      padding: "0 4px",
-                      borderRadius: 999,
-                      background: COLORS.accent,
-                      color: "#fff",
-                      fontSize: 9,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {workspaceUnread > 9 ? "9+" : workspaceUnread}
-                  </span>
-                )}
-              </button>
-            </div>
-          )}
-          {/* Notifications bell — matches the workspace topbar pattern.
-              Numbered badge with the unread count, capped at 9+. */}
-          {(() => {
-            const unread = 4; // mock count: 2 offers + 1 hold expiring + 1 mention
-            const iconBtn: React.CSSProperties = {
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              border: `1px solid ${COLORS.borderSoft}`,
-              background: "#fff",
-              color: COLORS.inkMuted,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
-            };
-            return (
-              <button
-                onClick={() => openDrawer("talent-notifications")}
-                aria-label={`Notifications${unread > 0 ? ` — ${unread} unread` : ""}`}
-                style={iconBtn}
-              >
-                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
-                  <path d="M10 21a2 2 0 0 0 4 0" />
-                </svg>
-                {unread > 0 && (
-                  <span
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      top: -3,
-                      right: -3,
-                      minWidth: 16,
-                      height: 16,
-                      padding: "0 4px",
-                      borderRadius: 999,
-                      background: COLORS.accent,
-                      color: "#fff",
-                      fontSize: 9.5,
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      boxShadow: "0 0 0 2px #fff",
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {unread > 9 ? "9+" : unread}
-                  </span>
-                )}
-              </button>
-            );
-          })()}
-          <button
-            onClick={() => openDrawer("talent-today-pulse")}
-            aria-label="Inbox"
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 8,
-              border: `1px solid ${COLORS.borderSoft}`,
-              background: "#fff",
-              color: COLORS.inkMuted,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
-            }}
-          >
-            <Icon name="mail" size={14} stroke={1.7} />
-            <span
-              style={{
-                position: "absolute",
-                top: 7,
-                right: 8,
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: COLORS.amber,
-                boxShadow: "0 0 0 2px #fff",
-              }}
-            />
-          </button>
           <a
             href={`https://${profile.publicUrl}`}
             target="_blank"
