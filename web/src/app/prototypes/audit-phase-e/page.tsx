@@ -18,9 +18,9 @@
  */
 import type { Metadata } from "next";
 
-import { PublicHeader } from "@/components/public-header";
-import { PublicCmsFooterNav } from "@/components/public-cms-footer";
-import { getRequestLocale } from "@/i18n/request-locale";
+// NOTE: intentionally NO PublicHeader / PublicCmsFooterNav imports — those
+// hit shared tenant-resolution code that was failing at SSR on this prototype
+// route. Bare-bones audit page renders the sections only.
 
 import { ValuesTrioComponent } from "@/lib/site-admin/sections/values_trio/Component";
 import { CategoryGridComponent } from "@/lib/site-admin/sections/category_grid/Component";
@@ -49,11 +49,9 @@ const IMG = (id: string) =>
 const IMPRONTA_TENANT = "00000000-0000-0000-0000-000000000001";
 const baseProps = { tenantId: IMPRONTA_TENANT, locale: "en", preview: false, sectionId: "" };
 
-export default async function AuditPhaseEPage() {
-  const locale = await getRequestLocale();
+export default function AuditPhaseEPage() {
   return (
     <>
-      <PublicHeader />
       <main className="w-full flex-1">
         {/* ── 1. values_trio (Batch 1) ────────────────────────────────── */}
         <ValuesTrioComponent
@@ -258,11 +256,6 @@ export default async function AuditPhaseEPage() {
           }}
         />
       </main>
-      <footer className="border-t border-border px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center text-sm text-muted-foreground">
-          <PublicCmsFooterNav locale={locale} />
-        </div>
-      </footer>
     </>
   );
 }
