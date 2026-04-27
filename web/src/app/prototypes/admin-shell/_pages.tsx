@@ -814,12 +814,8 @@ export function TulalaIdentityBar() {
     <header
       data-tulala-identity-bar
       style={{
-        // Premium feel: subtle warm-white tint + soft elevation +
-        // 2px accent stripe at the very bottom edge so the bar
-        // anchors the brand without a heavy logo.
-        background: COLORS.surfaceAlt,
-        borderBottom: "none",
-        boxShadow: `0 1px 0 ${COLORS.borderSoft}, inset 0 -2px 0 ${COLORS.accent}`,
+        background: "#fff",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
         position: "sticky",
         top: "var(--proto-cbar, 50px)",
         zIndex: 50,
@@ -1690,6 +1686,109 @@ function Grid({
 // OVERVIEW
 // ════════════════════════════════════════════════════════════════════
 
+/**
+ * Audit #49 — Today's focus card. One prominent banner at the top of
+ * the workspace overview with the single most urgent line of the day.
+ * Reduces "where do I start" anxiety by surfacing the answer above
+ * the metric grid.
+ */
+function TodaysFocusCard({
+  pendingClients,
+  draftCount,
+  nextBookingLabel,
+  onOpen,
+}: {
+  pendingClients: number;
+  draftCount: number;
+  nextBookingLabel: string | null;
+  onOpen: () => void;
+}) {
+  // Build a one-line action priority — most urgent thing wins.
+  let title = "All caught up — nothing urgent today.";
+  let body = "Use the next quiet hour to refine a draft or chase a hold.";
+  let primary: { label: string; onClick: () => void } | null = null;
+  if (pendingClients > 0) {
+    title = `${pendingClients} ${pendingClients === 1 ? "inquiry is" : "inquiries are"} waiting on the client.`;
+    body = "Send a reminder, share polaroids, or close the offer.";
+    primary = { label: "Open today's pulse", onClick: onOpen };
+  } else if (draftCount > 0) {
+    title = `${draftCount} ${draftCount === 1 ? "draft" : "drafts"} haven't been sent.`;
+    body = "Finish the brief and send while the client's still warm.";
+    primary = { label: "Open drafts", onClick: onOpen };
+  }
+  return (
+    <section
+      style={{
+        position: "relative",
+        background: `linear-gradient(135deg, ${COLORS.accentSoft} 0%, #fff 60%)`,
+        border: `1px solid ${COLORS.accent}`,
+        borderRadius: 14,
+        padding: "16px 20px",
+        marginBottom: 16,
+        fontFamily: FONTS.body,
+        display: "flex",
+        alignItems: "center",
+        gap: 16,
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 12,
+          background: "#fff",
+          border: `1px solid ${COLORS.accent}`,
+          color: COLORS.accent,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          boxShadow: `0 0 0 4px ${COLORS.accentSoft}`,
+        }}
+      >
+        <Icon name="bolt" size={17} stroke={1.7} color={COLORS.accent} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: 0.7,
+            textTransform: "uppercase",
+            color: COLORS.accent,
+            marginBottom: 3,
+          }}
+        >
+          Today's focus
+        </div>
+        <h3
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 18,
+            fontWeight: 500,
+            color: COLORS.ink,
+            margin: 0,
+            letterSpacing: -0.2,
+            lineHeight: 1.3,
+          }}
+        >
+          {title}
+        </h3>
+        <p style={{ fontSize: 12.5, color: COLORS.inkMuted, margin: "4px 0 0", lineHeight: 1.5 }}>
+          {body}
+          {nextBookingLabel && <span> · {nextBookingLabel}.</span>}
+        </p>
+      </div>
+      {primary && (
+        <PrimaryButton size="sm" onClick={primary.onClick}>
+          {primary.label}
+        </PrimaryButton>
+      )}
+    </section>
+  );
+}
+
 function OverviewPage() {
   const { state, openDrawer, openUpgrade, completeTask, toast } = useProto();
   const isFree = state.plan === "free";
@@ -1717,6 +1816,16 @@ function OverviewPage() {
             </PrimaryButton>
           )
         }
+      />
+
+      {/* Audit #49 — Today's focus card. ONE prominent banner at the
+          top with the highest-urgency line of the day. Single source
+          of urgency above the metric strip. */}
+      <TodaysFocusCard
+        pendingClients={awaiting.length}
+        draftCount={draftCount}
+        nextBookingLabel={confirmedThisWeek[0]?.client ? `${confirmedThisWeek[0].client} starts tomorrow` : null}
+        onOpen={() => openDrawer("today-pulse")}
       />
 
       {/* Stat row */}
