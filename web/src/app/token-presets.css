@@ -3250,7 +3250,7 @@ body { font-size: var(--token-typography-body-size, revert); }
  * Container / FullBleed / Stack / Grid / AspectRatio / SectionHead
  * Sections opt-in by composing these in their Component.tsx.
  * ========================================================================= */
-.site-prim-container { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
+.site-prim-container { width: min(var(--site-container-max), 100%); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
 .site-prim-container--narrow { width: min(720px, 100%); }
 .site-prim-container--wide { width: min(1280px, 100%); }
 .site-prim-container--editorial { width: min(1080px, 100%); padding-inline: clamp(24px, 4vw, 56px); }
