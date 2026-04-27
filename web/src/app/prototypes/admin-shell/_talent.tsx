@@ -2146,6 +2146,21 @@ function MyProfilePage() {
   const p = MY_TALENT_PROFILE;
   const m = p.measurements;
 
+  // B2: Map missing fields to the drawer that completes them. Lets the
+  // banner offer one-click fix-it actions, not just a list.
+  const missingFieldRoutes: { label: string; drawer: string; payload?: Record<string, unknown> }[] =
+    p.missing.map((field) => {
+      const lower = field.toLowerCase();
+      if (lower.includes("polaroid")) return { label: field, drawer: "talent-polaroids" };
+      if (lower.includes("rate card")) return { label: field, drawer: "talent-rate-card" };
+      if (lower.includes("showreel")) return { label: field, drawer: "talent-showreel" };
+      if (lower.includes("measurement")) return { label: field, drawer: "talent-measurements" };
+      if (lower.includes("document")) return { label: field, drawer: "talent-documents" };
+      if (lower.includes("portfolio")) return { label: field, drawer: "talent-portfolio" };
+      // Default — open the basics drawer
+      return { label: field, drawer: "talent-profile-edit" };
+    });
+
   return (
     <>
       <PageHeader
@@ -2163,6 +2178,94 @@ function MyProfilePage() {
           </>
         }
       />
+
+      {/* B2: Profile Health banner — single destination for the hero
+          completeness stat. Renders only when < 100. Each missing field
+          is a clickable chip that jumps to the relevant drawer. */}
+      {p.completeness < 100 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "14px 18px",
+            marginBottom: 16,
+            background: COLORS.indigoSoft,
+            border: `1px solid rgba(91,107,160,0.18)`,
+            borderRadius: 12,
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div
+            style={{
+              flexShrink: 0,
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "#fff",
+              border: `2px solid ${COLORS.indigo}`,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: FONTS.display,
+              fontSize: 18,
+              fontWeight: 600,
+              color: COLORS.indigoDeep,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {p.completeness}%
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: COLORS.indigoDeep,
+                marginBottom: 2,
+              }}
+            >
+              {100 - p.completeness}% from full health · {missingFieldRoutes.length} field{missingFieldRoutes.length === 1 ? "" : "s"} left
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: COLORS.indigoDeep,
+                opacity: 0.8,
+                marginBottom: 8,
+              }}
+            >
+              Complete profiles get higher placement on agency rosters and the Tulala hub.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {missingFieldRoutes.map((r) => (
+                <button
+                  key={r.label}
+                  type="button"
+                  onClick={() => openDrawer(r.drawer as "talent-profile-edit", r.payload)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "5px 11px",
+                    background: "#fff",
+                    border: `1px solid rgba(91,107,160,0.30)`,
+                    borderRadius: 999,
+                    cursor: "pointer",
+                    fontFamily: FONTS.body,
+                    fontSize: 11.5,
+                    fontWeight: 500,
+                    color: COLORS.indigoDeep,
+                  }}
+                >
+                  <Icon name="plus" size={10} stroke={2} color={COLORS.indigoDeep} />
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero band ──────────────────────────────────────────────── */}
       <ProfileHero />
