@@ -1016,7 +1016,7 @@ function AccountMenuTrigger({
   }, [open]);
 
   return (
-    <div data-tulala-account-menu-root style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+    <div data-tulala-account-menu-root style={{ position: "relative" }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -1816,6 +1816,16 @@ function OverviewPage() {
             </PrimaryButton>
           )
         }
+      />
+
+      {/* Audit #49 — Today's focus card. ONE prominent banner at the
+          top with the highest-urgency line of the day. Single source
+          of urgency above the metric strip. */}
+      <TodaysFocusCard
+        pendingClients={awaiting.length}
+        draftCount={draftCount}
+        nextBookingLabel={confirmedThisWeek[0]?.client ? `${confirmedThisWeek[0].client} starts tomorrow` : null}
+        onOpen={() => openDrawer("today-pulse")}
       />
 
       {/* Stat row */}
@@ -5479,12 +5489,10 @@ const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "pl
 
 const TALENT_TAB_ICON: Partial<Record<TalentPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
   today: "bolt",
-  messages: "mail",
   profile: "user",
   inbox: "mail",
   calendar: "calendar",
   activity: "sparkle",
-  reach: "search",
   settings: "info",
 };
 
