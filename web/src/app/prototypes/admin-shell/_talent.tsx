@@ -369,6 +369,11 @@ export function TalentSurface() {
       >
         <TalentRouter />
       </main>
+      {/* Messages FAB — bottom-right floating button on every talent
+          page EXCEPT the Messages page itself. Tap → opens the
+          Messages overlay sheet with the conversation list + currently
+          open thread. Mobile-first sized; PWA-ready. */}
+      <TalentMessagesFab />
     </div>
   );
 }
@@ -4003,6 +4008,200 @@ const STAGE_META: Record<MsgStage, { label: string; tone: string; bg: string }> 
   cancelled: { label: "Cancelled", tone: COLORS.coral, bg: COLORS.coralSoft },
 };
 
+/**
+ * Messages FAB — floating button at bottom-right on every talent page
+ * that is NOT the Messages page. Tap → slides up an overlay sheet
+ * containing the same Messages experience. Designed for mobile-first
+ * but useful on desktop too (quick check without page navigation).
+ *
+ * Hidden on the Messages page (where it would be redundant).
+ */
+function TalentMessagesFab() {
+  const { state, setTalentPage } = useProto();
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  if (state.talentPage === "messages") return null;
+  const totalUnread = MOCK_CONVERSATIONS.reduce((s, c) => s + c.unreadCount, 0);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Messages · ${totalUnread} unread`}
+        onClick={() => setOverlayOpen(true)}
+        style={{
+          position: "fixed",
+          bottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
+          right: 20,
+          width: 56,
+          height: 56,
+          borderRadius: 999,
+          background: COLORS.ink,
+          color: "#fff",
+          border: "none",
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 6px 24px rgba(11,11,13,0.20), 0 1px 3px rgba(11,11,13,0.10)",
+          zIndex: 60,
+          transition: "transform .12s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+      >
+        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+        </svg>
+        {totalUnread > 0 && (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: 4,
+              right: 4,
+              minWidth: 20,
+              height: 20,
+              padding: "0 6px",
+              borderRadius: 999,
+              background: COLORS.accent,
+              color: "#fff",
+              fontSize: 10.5,
+              fontWeight: 700,
+              lineHeight: 1,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 0 0 2px " + COLORS.ink,
+              fontVariantNumeric: "tabular-nums",
+              fontFamily: FONTS.body,
+            }}
+          >
+            {totalUnread > 9 ? "9+" : totalUnread}
+          </span>
+        )}
+      </button>
+
+      {/* Overlay sheet */}
+      {overlayOpen && (
+        <MessagesOverlaySheet
+          onClose={() => setOverlayOpen(false)}
+          onOpenFullPage={() => {
+            setOverlayOpen(false);
+            setTalentPage("messages");
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function MessagesOverlaySheet({
+  onClose,
+  onOpenFullPage,
+}: {
+  onClose: () => void;
+  onOpenFullPage: () => void;
+}) {
+  return (
+    <>
+      {/* Scrim */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(11,11,13,0.32)",
+          zIndex: 70,
+          animation: "tulala-fade-in .18s ease",
+        }}
+      />
+      {/* Sheet — slides up from bottom on mobile, right on desktop */}
+      <aside
+        role="dialog"
+        aria-label="Messages"
+        style={{
+          position: "fixed",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: "min(100vw, 720px)",
+          background: "#fff",
+          zIndex: 71,
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 0 60px rgba(11,11,13,0.25)",
+          animation: "tulala-slide-right .22s cubic-bezier(.4,.0,.2,1)",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <style>{`
+          @keyframes tulala-fade-in { from { opacity: 0; } to { opacity: 1; } }
+          @keyframes tulala-slide-right {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+          }
+        `}</style>
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "14px 18px",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+          }}
+        >
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0, color: COLORS.ink }}>
+            Messages
+          </h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              onClick={onOpenFullPage}
+              style={{
+                background: "transparent",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 7,
+                padding: "5px 11px",
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                fontWeight: 500,
+                color: COLORS.ink,
+              }}
+            >
+              Open full page →
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                color: COLORS.inkMuted,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Icon name="x" size={14} />
+            </button>
+          </div>
+        </div>
+        {/* Content — reuse the Messages page two-pane */}
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <TalentMessagesPage />
+        </div>
+      </aside>
+    </>
+  );
+}
+
 function TalentMessagesPage() {
   const [activeId, setActiveId] = useState<string>(MOCK_CONVERSATIONS[0]!.id);
   const [search, setSearch] = useState("");
@@ -4031,8 +4230,11 @@ function TalentMessagesPage() {
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 14,
         overflow: "hidden",
-        height: "calc(100vh - var(--proto-cbar, 50px) - 56px - 52px - 56px)",
-        minHeight: 600,
+        // Fill available height. When rendered as the page, the talent
+        // surface main provides ~tall enough container; when rendered
+        // inside the overlay sheet, the sheet's flex column gives 100%.
+        height: "min(calc(100vh - var(--proto-cbar, 50px) - 56px - 52px - 56px), 800px)",
+        minHeight: 560,
         fontFamily: FONTS.body,
       }}
     >
