@@ -8950,11 +8950,6 @@ function ActivityPage() {
         );
       })()}
 
-      {/* Audit #37 — Earnings goal progress ring. Goal is set via the
-          ring's edit affordance; defaults to €30k/yr. Sits beside the
-          forecast tile below for tight contextual coupling. */}
-      <EarningsGoalRing total={total} />
-
       {/* Compact stat strip — same pattern as Reach hero */}
       <div
         data-tulala-stat-strip
@@ -9074,58 +9069,7 @@ function ActivityPage() {
             />
           </div>
         ) : (
-          // Audit #36 — group by month with header + month-total
-          // sub-line. Months ordered most-recent first; rows preserve
-          // the original sort within each group.
-          (() => {
-            type Group = { key: string; label: string; total: number; rows: typeof filtered };
-            const groups: Group[] = [];
-            const groupOrder = ["Apr 2026", "Mar 2026", "Feb 2026", "Jan 2026", "Dec 2025", "Nov 2025", "Oct 2025"];
-            for (const e of filtered) {
-              // Mock: payoutDate "Apr 25 2026" or "Apr 25" → month label "Apr 2026"
-              const m = e.payoutDate.match(/([A-Za-z]{3})/)?.[1] ?? "";
-              const y = e.payoutDate.match(/(20\d\d)/)?.[1] ?? "2026";
-              const key = `${m} ${y}`;
-              let g = groups.find((x) => x.key === key);
-              if (!g) {
-                g = { key, label: key, total: 0, rows: [] };
-                groups.push(g);
-              }
-              g.rows.push(e);
-              g.total += parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
-            }
-            groups.sort((a, b) => groupOrder.indexOf(a.key) - groupOrder.indexOf(b.key));
-            return groups.map((g) => (
-              <div key={g.key}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "space-between",
-                    padding: "12px 0 8px",
-                    borderTop: groups.indexOf(g) === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
-                    fontFamily: FONTS.body,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      letterSpacing: 0.7,
-                      textTransform: "uppercase",
-                      color: COLORS.inkMuted,
-                    }}
-                  >
-                    {g.label}
-                  </span>
-                  <span style={{ fontSize: 12, color: COLORS.ink, fontVariantNumeric: "tabular-nums" }}>
-                    €{g.total.toLocaleString()} · {g.rows.length} payout{g.rows.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-                {g.rows.map((e) => <EarningRow key={e.id} earning={e} />)}
-              </div>
-            ));
-          })()
+          filtered.map((e) => <EarningRow key={e.id} earning={e} />)
         )}
       </div>
 
