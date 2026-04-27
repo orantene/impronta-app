@@ -469,6 +469,8 @@ export type DrawerId =
   | "talent-voice-reply"
   | "talent-multi-agency-picker"
   | "talent-chat-archive"
+  // — Audit r3: reply templates (#53)
+  | "reply-templates"
   // — Client surface drawers ————————————————————————————————————
   | "client-today-pulse"
   | "client-talent-card"

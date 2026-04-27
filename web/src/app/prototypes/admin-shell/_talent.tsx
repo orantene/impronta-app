@@ -16,7 +16,7 @@
  *   plus ~15 talent drawer bodies dispatched from _drawers.tsx via talentDrawer()
  */
 
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import {
   TalentAnalyticsCard,
   TalentFunnelCard,
@@ -3823,9 +3823,16 @@ type InboxItem = {
 };
 
 function InboxPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer, toast } = useProto();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("action");
+  // Audit #23 — bulk-select state. Set of row keys (`${source}-${id}`).
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Audit #24 — saved views. Persisted per-session; production reads
+  // from a `talent_saved_views` table.
+  const [savedView, setSavedView] = useState<string>("default");
+  // Audit #26 — smart-sort axis.
+  const [sortAxis, setSortAxis] = useState<"urgency" | "newest" | "value" | "fit">("urgency");
   const allMine = myInquiries();
 
   // Derive unified InboxItems from both data sources.
@@ -3907,16 +3914,47 @@ function InboxPage() {
     }),
   ];
 
-  // Apply search + filter
-  const filtered = items.filter((it) => {
-    if (filter !== "all" && it.category !== filter) return false;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      if (!it.client.toLowerCase().includes(q) && !it.brief.toLowerCase().includes(q)) {
-        return false;
+  // Audit #24 — saved-view filter rules. Each view is a function that
+  // takes the items and returns the subset.
+  const applySavedView = (its: InboxItem[]) => {
+    if (savedView === "verified") return its.filter((it) => it.clientTrust !== "basic");
+    if (savedView === "expiring") return its.filter((it) => (it.ageHrs ?? 0) > 16);
+    if (savedView === "agency") return its.filter((it) => it.agency !== undefined);
+    return its;
+  };
+
+  // Apply search + filter + saved view
+  const filtered = applySavedView(
+    items.filter((it) => {
+      if (filter !== "all" && it.category !== filter) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (!it.client.toLowerCase().includes(q) && !it.brief.toLowerCase().includes(q)) {
+          return false;
+        }
       }
+      return true;
+    }),
+  );
+
+  // Audit #26 — smart sort. Mutates filtered's sort axis.
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortAxis === "newest") return (a.ageHrs ?? 0) - (b.ageHrs ?? 0);
+    if (sortAxis === "value") {
+      const valA = parseFloat((a.amount ?? "0").replace(/[^0-9.]/g, "")) || 0;
+      const valB = parseFloat((b.amount ?? "0").replace(/[^0-9.]/g, "")) || 0;
+      return valB - valA;
     }
-    return true;
+    if (sortAxis === "fit") {
+      // Mock: verified clients > silver > gold > basic; tie-broken by age.
+      const tierRank: Record<string, number> = { gold: 0, silver: 1, verified: 2, basic: 3 };
+      return (tierRank[a.clientTrust ?? "basic"] ?? 3) - (tierRank[b.clientTrust ?? "basic"] ?? 3);
+    }
+    // urgency: action items first, then by age
+    const actA = a.category === "action" ? 0 : 1;
+    const actB = b.category === "action" ? 0 : 1;
+    if (actA !== actB) return actA - actB;
+    return (b.ageHrs ?? 0) - (a.ageHrs ?? 0);
   });
 
   const counts = {
@@ -3977,6 +4015,28 @@ function InboxPage() {
       {/* Filter chip strip — same pattern as Calendar */}
       <InboxFilterChips filter={filter} onChange={setFilter} counts={counts} />
 
+      {/* Audit #24 + #26 — saved views + smart-sort toolbar. Sits above
+          the list so all triage controls are in one place. */}
+      <InboxPowerToolbar
+        savedView={savedView}
+        onSavedViewChange={setSavedView}
+        sortAxis={sortAxis}
+        onSortChange={setSortAxis}
+        totalShown={filtered.length}
+      />
+
+      {/* Audit #23 — bulk action bar. Renders only when selection > 0. */}
+      {selected.size > 0 && (
+        <BulkActionBar
+          count={selected.size}
+          onClear={() => setSelected(new Set())}
+          onAction={(action) => {
+            toast(`${action} · ${selected.size} item${selected.size === 1 ? "" : "s"}`);
+            setSelected(new Set());
+          }}
+        />
+      )}
+
       <div style={{ height: 16 }} />
 
       {/* E1: AI reply assistant prototype. Shows when there's an action
@@ -4024,9 +4084,27 @@ function InboxPage() {
             />
           </div>
         ) : (
-          filtered.map((it, idx) => (
-            <InboxRow key={`${it.source}-${it.id}`} item={it} first={idx === 0} />
-          ))
+          sorted.map((it, idx) => {
+            const key = `${it.source}-${it.id}`;
+            return (
+              <InboxRow
+                key={key}
+                item={it}
+                first={idx === 0}
+                checked={selected.has(key)}
+                onToggleCheck={() => {
+                  setSelected((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(key)) next.delete(key);
+                    else next.add(key);
+                    return next;
+                  });
+                }}
+                onSnooze={() => toast(`Snoozed · ${it.client} returns to top in 1 day`)}
+                onTemplate={() => openDrawer("reply-templates", { itemId: key })}
+              />
+            );
+          })
         )}
       </section>
     </>
@@ -4232,6 +4310,155 @@ function AIReplyAssistant({ item }: { item: InboxItem | null }) {
   );
 }
 
+/**
+ * Audit #24 + #26 — saved views + smart-sort toolbar. Premium triage
+ * controls: predefined saved views (default / verified clients only /
+ * holds expiring / from agencies) and a sort axis selector
+ * (urgency / newest / value / fit). All persist for the session.
+ */
+function InboxPowerToolbar({
+  savedView,
+  onSavedViewChange,
+  sortAxis,
+  onSortChange,
+  totalShown,
+}: {
+  savedView: string;
+  onSavedViewChange: (v: string) => void;
+  sortAxis: "urgency" | "newest" | "value" | "fit";
+  onSortChange: (s: "urgency" | "newest" | "value" | "fit") => void;
+  totalShown: number;
+}) {
+  const views = [
+    { id: "default", label: "All inbox" },
+    { id: "verified", label: "Verified+ clients only" },
+    { id: "expiring", label: "Holds expiring" },
+    { id: "agency", label: "From agencies" },
+  ];
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        marginTop: 10,
+        padding: "8px 0",
+        fontFamily: FONTS.body,
+        flexWrap: "wrap",
+      }}
+    >
+      <CapsLabel>View</CapsLabel>
+      <select
+        value={savedView}
+        onChange={(e) => onSavedViewChange(e.target.value)}
+        style={inboxToolbarSelectStyle}
+      >
+        {views.map((v) => (
+          <option key={v.id} value={v.id}>{v.label}</option>
+        ))}
+      </select>
+      <span style={{ color: COLORS.borderSoft }}>|</span>
+      <CapsLabel>Sort</CapsLabel>
+      <select
+        value={sortAxis}
+        onChange={(e) => onSortChange(e.target.value as "urgency" | "newest" | "value" | "fit")}
+        style={inboxToolbarSelectStyle}
+      >
+        <option value="urgency">Urgency</option>
+        <option value="newest">Newest</option>
+        <option value="value">Highest value</option>
+        <option value="fit">Best fit (AI)</option>
+      </select>
+      <div style={{ flex: 1 }} />
+      <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+        {totalShown} item{totalShown === 1 ? "" : "s"}
+      </span>
+    </div>
+  );
+}
+
+const inboxToolbarSelectStyle: CSSProperties = {
+  padding: "5px 10px",
+  fontFamily: FONTS.body,
+  fontSize: 12,
+  fontWeight: 500,
+  color: COLORS.ink,
+  background: "#fff",
+  border: `1px solid ${COLORS.borderSoft}`,
+  borderRadius: 7,
+  cursor: "pointer",
+};
+
+/**
+ * Audit #23 — bulk action bar. Renders inline above the list when one
+ * or more rows are selected. Decline / hold / archive in one click.
+ */
+function BulkActionBar({
+  count,
+  onClear,
+  onAction,
+}: {
+  count: number;
+  onClear: () => void;
+  onAction: (label: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 14px",
+        background: COLORS.ink,
+        color: "#fff",
+        borderRadius: 10,
+        fontFamily: FONTS.body,
+        marginTop: 12,
+      }}
+    >
+      <span style={{ fontSize: 13, fontWeight: 600 }}>
+        {count} selected
+      </span>
+      <span style={{ flex: 1 }} />
+      {(["Hold open", "Decline", "Archive"] as const).map((label) => (
+        <button
+          key={label}
+          onClick={() => onAction(label)}
+          style={{
+            background: "rgba(255,255,255,0.10)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            color: "#fff",
+            borderRadius: 7,
+            padding: "5px 12px",
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            fontWeight: 500,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.18)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
+        >
+          {label}
+        </button>
+      ))}
+      <button
+        onClick={onClear}
+        aria-label="Clear selection"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "rgba(255,255,255,0.7)",
+          cursor: "pointer",
+          padding: "4px 6px",
+          fontSize: 14,
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 function InboxFilterChips({
   filter,
   onChange,
@@ -4297,7 +4524,21 @@ function InboxFilterChips({
 }
 
 /** Unified inbox row — same anatomy as Today's Needs-reply rows. */
-function InboxRow({ item, first }: { item: InboxItem; first: boolean }) {
+function InboxRow({
+  item,
+  first,
+  checked,
+  onToggleCheck,
+  onSnooze,
+  onTemplate,
+}: {
+  item: InboxItem;
+  first: boolean;
+  checked?: boolean;
+  onToggleCheck?: () => void;
+  onSnooze?: () => void;
+  onTemplate?: () => void;
+}) {
   const [hover, setHover] = useState(false);
   // Coral-escalated timestamp for stale action items
   const ageColor =
@@ -4310,9 +4551,7 @@ function InboxRow({ item, first }: { item: InboxItem; first: boolean }) {
   const ageLabel =
     item.ageHrs < 24 ? `${item.ageHrs}h ago` : `${Math.floor(item.ageHrs / 24)}d ago`;
   return (
-    <button
-      type="button"
-      onClick={item.onOpen}
+    <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -4322,14 +4561,56 @@ function InboxRow({ item, first }: { item: InboxItem; first: boolean }) {
         width: "100%",
         padding: "14px 0",
         borderTop: first ? "none" : `1px solid ${COLORS.borderSoft}`,
-        background: "transparent",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
+        background: checked ? "rgba(15,79,62,0.04)" : "transparent",
         fontFamily: FONTS.body,
         transition: "background .12s",
       }}
     >
+      {/* Audit #23 — bulk-select checkbox. Visible on hover, on checked
+          state, or when other rows are checked (the parent controls). */}
+      {onToggleCheck && (
+        <label
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            cursor: "pointer",
+            opacity: checked || hover ? 1 : 0.4,
+            transition: "opacity .12s",
+            flexShrink: 0,
+            paddingLeft: 2,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={!!checked}
+            onChange={onToggleCheck}
+            style={{
+              width: 16,
+              height: 16,
+              cursor: "pointer",
+              accentColor: COLORS.accent,
+            }}
+          />
+        </label>
+      )}
+      <button
+        type="button"
+        onClick={item.onOpen}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flex: 1,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+          fontFamily: FONTS.body,
+          padding: 0,
+          minWidth: 0,
+        }}
+      >
       <div style={{ position: "relative", flexShrink: 0 }}>
         <Avatar
           size={36}
@@ -4413,9 +4694,64 @@ function InboxRow({ item, first }: { item: InboxItem; first: boolean }) {
         {ageLabel}
       </span>
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
-    </button>
+      </button>
+      {/* Audit #25 + #53 — hover-only quick actions: snooze + insert
+          template. Click on these doesn't propagate to the row's open
+          handler. Always reserve space (visibility:hidden when not
+          hovering) so the row width doesn't jump. */}
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          flexShrink: 0,
+          visibility: hover ? "visible" : "hidden",
+        }}
+      >
+        {onSnooze && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onSnooze(); }}
+            aria-label={`Snooze ${item.client}`}
+            title="Snooze · returns to top in 1 day"
+            style={inboxHoverIconStyle}
+          >
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </button>
+        )}
+        {onTemplate && item.category === "action" && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onTemplate(); }}
+            aria-label="Insert reply template"
+            title="Reply with template"
+            style={inboxHoverIconStyle}
+          >
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="9" y1="15" x2="15" y2="15" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
+
+const inboxHoverIconStyle: CSSProperties = {
+  width: 26,
+  height: 26,
+  borderRadius: 6,
+  border: `1px solid ${COLORS.borderSoft}`,
+  background: "#fff",
+  color: COLORS.inkMuted,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
 
 function inboxClientInitials(name: string): string {
   const words = name.split(/\s+/).filter(Boolean);
@@ -12174,6 +12510,70 @@ export function TalentMultiAgencyPickerDrawer() {
 // Closed-booking → "Download chat" generates a PDF mock with the full
 // thread + attachments index. Useful for talents who want a record of
 // what was agreed before contract.
+
+/**
+ * Audit #53 — reply templates drawer. Pre-written common responses
+ * the talent can insert with one click. Edit before send. The list is
+ * mock; production reads from `talent_reply_templates` table.
+ */
+const REPLY_TEMPLATES = [
+  { id: "rt1", title: "Yes — confirm availability", body: "Hi! Yes — I'm available on the dates you mentioned. Sending availability and rate card. Looking forward to hearing more about the brief." },
+  { id: "rt2", title: "Need more info", body: "Hi — thanks for reaching out. Before I confirm, could you share: usage scope, location, hair/makeup, and call time? Happy to move quickly once I have those." },
+  { id: "rt3", title: "Polite decline — rate", body: "Thank you for thinking of me. Unfortunately the rate offered isn't aligned with my current bookings. Happy to revisit if there's flexibility." },
+  { id: "rt4", title: "Polite decline — schedule", body: "Thank you so much for the offer. Unfortunately I'm already booked on those dates. Hope we can work together soon." },
+  { id: "rt5", title: "Hold response", body: "Got it — happy to hold these dates for 48h. If you need more time, just let me know and I'll see what I can do." },
+];
+
+export function ReplyTemplatesDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "reply-templates";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Reply with template"
+      description="Tap a template to insert it into the reply box. You can still edit before sending."
+      width={560}
+      footer={
+        <>
+          <SecondaryButton onClick={() => toast("New template (prototype)")}>+ New template</SecondaryButton>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {REPLY_TEMPLATES.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => { toast(`Template inserted · "${t.title}"`); closeDrawer(); }}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "stretch",
+              gap: 4,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              fontFamily: FONTS.body,
+              cursor: "pointer",
+              textAlign: "left",
+              transition: "border-color .12s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.accent)}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.title}</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
+              {t.body.length > 120 ? `${t.body.slice(0, 118)}…` : t.body}
+            </div>
+          </button>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
 
 export function TalentChatArchiveDrawer() {
   const { state, closeDrawer, toast } = useProto();

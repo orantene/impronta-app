@@ -126,6 +126,7 @@ import {
   TalentVoiceReplyDrawer,
   TalentMultiAgencyPickerDrawer,
   TalentChatArchiveDrawer,
+  ReplyTemplatesDrawer,
 } from "./_talent";
 import {
   ClientTodayPulseDrawer,
@@ -395,6 +396,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentMultiAgencyPickerDrawer />;
     case "talent-chat-archive":
       return <TalentChatArchiveDrawer />;
+    case "reply-templates":
+      return <ReplyTemplatesDrawer />;
 
     // ─── Payments / payouts ─────────────────────────────────────────────
     case "payments-setup":
