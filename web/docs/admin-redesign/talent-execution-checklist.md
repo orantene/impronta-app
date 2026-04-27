@@ -22,18 +22,18 @@
 - [x] **A5** Existing blocks shown in Availability drawer · 🟢 · `067279c`
 - [x] **A6** Time-of-day on Calendar grid pills · 🟢 · `40e4849`
 - [x] **A7** Pending + inquiry events on month grid · 🟡 · `da33bda`
-- [ ] **A8** Pause-mode for Reach channels · 🚧🟢 · needs product call on semantics
+- [x] **A8** Pause-mode for Reach channels · 🟢 · `aba25f0`
 - [x] **A9** Notification settings deep-link from Settings · 🟢 · `067279c`
-- [ ] **A10** Trust-score impact preview when toggling channels · 🔴🟡 · needs scoring algo
-- [ ] **A11** Undo on save toasts · 🚧🟢 · toast-utility refactor
+- [x] **A10** Trust-score impact preview when toggling channels · 🟡 · `aba25f0`
+- [x] **A11** Undo on save toasts · 🟢 · `aba25f0`
 - [x] **A12** Microcopy passes (academic sublines) · 🟢 · `067279c`
 
 ---
 
-## Phase B — Big surface redesigns (2.5/4 done)
+## Phase B — Big surface redesigns (3.5/4 done)
 
 - [x] **B1** Talent Inbox redesign — unified rows + filter chips · 🔴 · `0a316f1`
-- [ ] **B2** Edit profile audit + redesign · 🚧🔴 · sprawling 12-drawer page; needs own session
+- [x] **B2** Edit profile — Profile Health banner with field-to-drawer routing · 🔴 · `1860ad9`
 - [x] **B3** Activity audit + redesign · 🟡 · `4475743`
 - [x] **B4** Settings audit (partial — A4 demote + D6 Help card) · 🟡 · `4bc406f` `6935a90`
 
@@ -64,9 +64,9 @@
 
 ---
 
-## Phase E — Strategic bets (0/7 built — all documented)
+## Phase E — Strategic bets (1/7 built — rest documented)
 
-- [ ] **E1** AI reply assistant on Inbox · 📋⭐🔴 · spec in handoff §8.1
+- [x] **E1** AI reply assistant on Inbox — prototype with 3 reply variants · ⭐🔴 · `7c04b12`
 - [ ] **E2** Smart conflict resolution · 📋⭐🟡 · spec in handoff §8.2
 - [ ] **E3** Earnings forecasting · 📋⭐🟡 · spec in handoff §8.3
 - [ ] **E4** Talent-to-talent network · 📋⭐🔴 · spec in handoff §8.4
@@ -129,10 +129,10 @@ Captured from your direction this session. Major architectural lift; spec in `pr
 
 ## Tally
 
-- ✅ **Shipped**: 23 items
-- 🚧 **Deferred (ready)**: 9 items
+- ✅ **Shipped**: 25 items
+- 🚧 **Deferred (ready)**: 8 items
 - 🔴 **Blocked on decision**: 6 items
-- 📋 **Documented (specs only)**: 22 items
+- 📋 **Documented (specs only)**: 21 items
 - **Total**: 60 items in the plan
 
 Engineering wiring (Phase G surface migration) ≈ 3 weeks for one engineer per the handoff doc.
