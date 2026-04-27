@@ -416,12 +416,44 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell button[aria-label^="Messages ·"][style*="position: fixed"] {
               bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
             }
-            /* Composer mobile: input taller for thumb comfort, attach
-               popover spans full viewport width above the composer. */
+            /* Composer mobile: input taller for thumb comfort, button
+               touch zones grown, attach popover spans full viewport
+               width above the composer. */
             .tulala-shell [data-tulala-thread-pane] form input,
             .tulala-shell [data-tulala-thread-pane] input[placeholder="Message…"] {
               padding: 12px 0 !important;
               font-size: 15px !important;
+            }
+            /* Composer trigger buttons (attach +, smart ✨, voice 🎙️):
+               grow to 40px hit area for thumb comfort. */
+            .tulala-shell [data-tulala-thread-pane] [aria-label="Attach"],
+            .tulala-shell [data-tulala-thread-pane] [aria-label^="Hide smart"],
+            .tulala-shell [data-tulala-thread-pane] [aria-label^="Show smart"],
+            .tulala-shell [data-tulala-thread-pane] [aria-label="Voice note"] {
+              width: 40px !important;
+              height: 40px !important;
+            }
+            .tulala-shell [data-tulala-thread-pane] [aria-label="Send"] {
+              width: 40px !important;
+              height: 40px !important;
+            }
+            /* Thread header on mobile: condense padding so it doesn't
+               eat 60px of vertical space when stacked under the
+               identity bar. */
+            .tulala-shell [data-tulala-thread-pane] > div:first-child {
+              padding: 10px 14px !important;
+            }
+            /* Bottom-sheet info panel: pad past the safe-area inset and
+               give the close button + first heading more breathing room. */
+            .tulala-shell [data-tulala-thread-info-sidebar] > div:first-child {
+              padding: 16px 18px 12px !important;
+            }
+            /* Message bubbles: tighter padding at mobile, larger font
+               for readability over arm's length. */
+            .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 16px 16px 4px 16px"],
+            .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 16px 16px 16px 4px"] {
+              font-size: 14.5px !important;
+              line-height: 1.45 !important;
             }
             /* Action message cards (rate input, transport, etc.) clamp
                to viewport width at mobile. */
