@@ -1045,7 +1045,10 @@ function NotifRow({
 export function TalentNotificationsDrawer() {
   const { state, closeDrawer, openDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-notifications";
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // A9: deep-link from Settings → opens with settings pane expanded
+  const [settingsOpen, setSettingsOpen] = useState(
+    state.drawer.payload?.expanded === "settings",
+  );
   // Recent / Archive tab state — Archive shows previously-dismissed
   // updates so the talent can find a notification they cleared by mistake.
   const [view, setView] = useState<"recent" | "archive">("recent");
@@ -1546,7 +1549,7 @@ export function TalentAnalyticsCard() {
             Profile views · last 7 days
           </div>
           <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-            Where your link is being viewed and what it converts to.
+            How your link is performing.
           </div>
         </div>
       </div>
@@ -1636,7 +1639,7 @@ export function TalentFunnelCard() {
         Inquiries you're in
       </div>
       <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-        How many other talent are also being considered, and where each conversation has reached.
+        Who else you're up against, and where each is in the pipeline.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 12 }}>
         {myInquiries.map((inq, i) => (

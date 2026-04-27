@@ -6233,8 +6233,8 @@ function SettingsPage() {
         <SecondaryCard
           title="Notifications"
           description="What email and push you get when an agency sends you a request."
-          affordance="Manage"
-          onClick={() => openDrawer("talent-notifications")}
+          affordance="Manage prefs"
+          onClick={() => openDrawer("talent-notifications", { expanded: "settings" })}
         />
         <SecondaryCard
           title="Privacy"
@@ -8199,7 +8199,72 @@ export function TalentBlockDatesDrawer() {
           </div>
         </section>
 
-        {/* ─── 3. Add to your calendar ────────────────────────────
+        {/* ─── 3. Existing blocks (A5) ──────────────────────────── */}
+        {AVAILABILITY_BLOCKS.length > 0 && (
+          <section>
+            <SubsectionLabel>Your existing blocks · {AVAILABILITY_BLOCKS.length}</SubsectionLabel>
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                flexDirection: "column",
+                gap: 0,
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              {AVAILABILITY_BLOCKS.map((b, i) => (
+                <div
+                  key={b.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: b.type === "travel" ? COLORS.amber : COLORS.inkMuted,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, color: COLORS.ink, fontWeight: 500 }}>
+                      {b.startDate} – {b.endDate}
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                      {b.reason}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toast(`Block "${b.reason}" removed`)}
+                    aria-label={`Remove block ${b.startDate}-${b.endDate}`}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      padding: "4px 6px",
+                      cursor: "pointer",
+                      color: COLORS.inkDim,
+                    }}
+                  >
+                    <Icon name="x" size={11} stroke={1.8} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ─── 4. Add to your calendar ────────────────────────────
             Two action paths into the full Add Event drawer. Replaces the
             prior inline From/To/Reason form because the dedicated drawer
             does it better — reason chips, currency picker, advanced
