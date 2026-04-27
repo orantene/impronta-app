@@ -5459,7 +5459,10 @@ function BottomTab({
               height: 14,
               padding: "0 4px",
               borderRadius: 999,
-              background: COLORS.accent,
+              // When the tab is active, the pill is green; the badge needs
+              // a contrasting fill (coral). When inactive, the icon area
+              // is transparent so the badge can be brand-green.
+              background: active ? COLORS.coral : COLORS.accent,
               color: "#fff",
               fontSize: 9,
               fontWeight: 700,

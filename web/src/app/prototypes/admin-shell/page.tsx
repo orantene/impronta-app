@@ -467,8 +467,9 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               max-width: 88% !important;
             }
             /* Conversation list rows: 44px minimum vertical tap area
-               (Apple HIG / Material). */
-            .tulala-shell [data-tulala-list-pane] button {
+               (Apple HIG / Material). Scoped to the list-body buttons
+               (conversation rows) — NOT the header chips/filter pills. */
+            .tulala-shell [data-tulala-list-pane] > div:nth-child(2) > button {
               min-height: 56px !important;
             }
           }
@@ -595,6 +596,27 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
              Audit J1–J8 + section A/B/C/D/E/F/G/H/I improvements.
              Mobile-only @media rules; desktop styles untouched. */
 
+          /* Audit A2 + A7 — Mode toggle pill on mobile. The pill was
+             rendering at 38px tall in a 56px bar — too dominant. Tighten
+             button padding (vertical 6→4), shrink font slightly (12.5→
+             12), drop tablist padding 3→2 — total pill ~30px. Better
+             proportion in the bar; same touch area via tap-pad. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-identity-bar] [role="tablist"][aria-label="Switch between Talent and Workspace"] {
+              padding: 2px !important;
+            }
+            .tulala-shell [data-tulala-identity-bar] [role="tablist"][aria-label="Switch between Talent and Workspace"] > button {
+              padding: 4px 10px !important;
+              font-size: 12px !important;
+            }
+            .tulala-shell [data-tulala-identity-bar] [role="tablist"][aria-label="Switch between Talent and Workspace"] > span[aria-hidden] {
+              top: 2px !important;
+              bottom: 2px !important;
+              left: 2px !important;
+              width: calc(50% - 2px) !important;
+            }
+          }
+
           /* J4/J5 (audit C1+C2) — TalentTodayHero stacks vertically at
              <720. The right-column action buttons drop below the
              headline so the title doesn't wrap to 4 lines. */
@@ -661,9 +683,10 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             }
           }
 
-          /* Audit C7 + I1 — Tap-target floor 56px on lists. */
+          /* Audit C7 + I1 — Tap-target floor 56px on lists. Scoped to
+             conversation rows (list body), not header chip buttons. */
           @media (max-width: 720px) {
-            .tulala-shell [data-tulala-list-pane] > div > button,
+            .tulala-shell [data-tulala-list-pane] > div:nth-child(2) > button,
             .tulala-shell [data-tulala-row] {
               min-height: 56px !important;
             }
