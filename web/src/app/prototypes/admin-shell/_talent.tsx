@@ -4488,69 +4488,91 @@ function ConversationThread({
   conv: Conversation;
   messages: Msg[];
 }) {
-  const stage = STAGE_META[conv.stage];
   const isLocked = conv.stage === "booked";
   const isReadOnly = conv.stage === "past" || conv.stage === "cancelled";
+  // Right info sidebar — open by default on desktop. Designed so the
+  // top of the chat stays clean for the highlight; users open this
+  // panel for full pinned info, files, action items, leader, etc.
+  const [infoOpen, setInfoOpen] = useState(true);
   return (
-    <section
+    <div
       style={{
-        display: "flex",
-        flexDirection: "column",
+        display: "grid",
+        gridTemplateColumns: infoOpen ? "1fr 320px" : "1fr",
         background: "#fff",
         minHeight: 0,
+        transition: "grid-template-columns .22s cubic-bezier(.4,.0,.2,1)",
       }}
     >
-      {/* Sticky thread header */}
-      <ThreadHeader conv={conv} />
-
-      {/* Pinned info cards row */}
-      <PinnedInfoRow conv={conv} isLocked={isLocked} />
-
-      {/* Read-only banner if past */}
-      {isReadOnly && (
-        <div
-          style={{
-            padding: "8px 18px",
-            background: "rgba(11,11,13,0.04)",
-            borderBottom: `1px solid ${COLORS.borderSoft}`,
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.inkMuted,
-          }}
-        >
-          🔒 This thread is archived. Read-only.
-        </div>
-      )}
-
-      {/* Message stream */}
-      <div
+      <section
         style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "16px 22px",
           display: "flex",
           flexDirection: "column",
-          gap: 10,
+          background: "#fff",
           minHeight: 0,
-          background: COLORS.surface,
+          minWidth: 0,
         }}
       >
-        {messages.map((m) => (
-          <MessageBubble key={m.id} msg={m} stage={conv.stage} />
-        ))}
-        {/* Typing indicator (mock — only for inquiry stage) */}
-        {conv.stage === "inquiry" && <TypingIndicator name={conv.leader.name.split(" ")[0]!} />}
-      </div>
+        {/* Sticky thread header — highlight only */}
+        <ThreadHeader conv={conv} infoOpen={infoOpen} onToggleInfo={() => setInfoOpen((v) => !v)} />
 
-      {/* Composer */}
-      {!isReadOnly && <Composer conv={conv} isLocked={isLocked} />}
-    </section>
+        {/* Read-only banner if past */}
+        {isReadOnly && (
+          <div
+            style={{
+              padding: "8px 18px",
+              background: "rgba(11,11,13,0.04)",
+              borderBottom: `1px solid ${COLORS.borderSoft}`,
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              color: COLORS.inkMuted,
+            }}
+          >
+            🔒 This thread is archived. Read-only.
+          </div>
+        )}
+
+        {/* Message stream */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "16px 22px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            minHeight: 0,
+            background: COLORS.surface,
+          }}
+        >
+          {messages.map((m) => (
+            <MessageBubble key={m.id} msg={m} stage={conv.stage} />
+          ))}
+          {/* Typing indicator (mock — only for inquiry stage) */}
+          {conv.stage === "inquiry" && <TypingIndicator name={conv.leader.name.split(" ")[0]!} />}
+        </div>
+
+        {/* Composer */}
+        {!isReadOnly && <Composer conv={conv} isLocked={isLocked} />}
+      </section>
+
+      {/* Right info sidebar — full pinned info + extras. Closes via the
+          ⓘ toggle in the thread header. Slides off-screen at <540px. */}
+      {infoOpen && <ThreadInfoSidebar conv={conv} isLocked={isLocked} onClose={() => setInfoOpen(false)} />}
+    </div>
   );
 }
 
-function ThreadHeader({ conv }: { conv: Conversation }) {
+function ThreadHeader({
+  conv,
+  infoOpen,
+  onToggleInfo,
+}: {
+  conv: Conversation;
+  infoOpen: boolean;
+  onToggleInfo: () => void;
+}) {
   const stage = STAGE_META[conv.stage];
-  const { openDrawer } = useProto();
   return (
     <div
       style={{
@@ -4587,29 +4609,10 @@ function ThreadHeader({ conv }: { conv: Conversation }) {
           {conv.brief} {conv.date && `· ${conv.date}`}
         </div>
       </div>
-      {/* Right side — leader chip + actions */}
+      {/* Right side — search + options + info toggle. Leader, location,
+          schedule, transport now live in the right info sidebar (toggle
+          this with the panel button on the right). */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <button
-          type="button"
-          title={conv.leader.role}
-          onClick={() => openDrawer("talent-agency-relationship")}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "5px 9px",
-            background: "rgba(11,11,13,0.04)",
-            border: "none",
-            borderRadius: 999,
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.ink,
-          }}
-        >
-          <Avatar size={18} tone="ink" initials={conv.leader.initials} />
-          <span style={{ fontWeight: 500 }}>{conv.leader.name.split(" ")[0]}</span>
-        </button>
         <button
           type="button"
           title="Search in thread"
@@ -4625,6 +4628,25 @@ function ThreadHeader({ conv }: { conv: Conversation }) {
           style={iconButtonSm}
         >
           <span style={{ fontFamily: FONTS.body, fontWeight: 700, color: COLORS.inkMuted, letterSpacing: 1 }}>···</span>
+        </button>
+        {/* Info panel toggle — sidebar-icon glyph with active state */}
+        <button
+          type="button"
+          onClick={onToggleInfo}
+          aria-label={infoOpen ? "Hide info panel" : "Show info panel"}
+          aria-pressed={infoOpen}
+          title={infoOpen ? "Hide details" : "Show details"}
+          style={{
+            ...iconButtonSm,
+            background: infoOpen ? COLORS.ink : "#fff",
+            color: infoOpen ? "#fff" : COLORS.inkMuted,
+            borderColor: infoOpen ? COLORS.ink : COLORS.borderSoft,
+          }}
+        >
+          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M15 3v18" />
+          </svg>
         </button>
       </div>
     </div>
@@ -4643,74 +4665,325 @@ const iconButtonSm: CSSProperties = {
   justifyContent: "center",
 };
 
-function PinnedInfoRow({ conv, isLocked }: { conv: Conversation; isLocked: boolean }) {
-  const cards: { icon: "map-pin" | "calendar" | "external" | "info"; label: string; value: string; locked?: boolean }[] = [];
-  if (conv.location) cards.push({ icon: "map-pin", label: "Location", value: conv.location });
-  if (conv.pinned.callTime || conv.pinned.schedule) {
-    cards.push({ icon: "calendar", label: "Schedule", value: conv.pinned.schedule ?? `Call ${conv.pinned.callTime}` });
-  }
-  if (conv.pinned.transport) cards.push({ icon: "external", label: "Transport", value: conv.pinned.transport });
-  if (conv.amountToYou) {
-    cards.push({ icon: "info", label: "Your take", value: conv.amountToYou, locked: isLocked });
-  } else if (conv.pinned.rate) {
-    const r = conv.pinned.rate;
-    cards.push({
-      icon: "info",
-      label: r.status === "you-quoted" ? "Your rate" : r.status === "client-budget" ? "Client budget" : "Agreed rate",
-      value: r.value,
-      locked: isLocked,
-    });
-  }
-  if (cards.length === 0) return null;
+/**
+ * Right-rail info sidebar — full pinned info + extras for the open
+ * thread. Toggleable from the thread header. Stays clean at the top
+ * of the chat (just the highlight); details on-demand here.
+ *
+ * Sections (in priority order, shown only when populated):
+ *   1. Schedule + call time + location (with map link)
+ *   2. Transport (editable by coordinator/client)
+ *   3. Your rate / Your take-home (locked when booked)
+ *   4. Coordinator note (private to talent ↔ coordinator)
+ *   5. Leader (who's running this for you)
+ *   6. Files & attachments (count from chat)
+ *   7. Action items (open + completed)
+ *   8. Stage actions: drop / cancel (when booked) · resolve conflict
+ *      (when hold conflict)
+ */
+function ThreadInfoSidebar({
+  conv,
+  isLocked,
+  onClose,
+}: {
+  conv: Conversation;
+  isLocked: boolean;
+  onClose: () => void;
+}) {
+  const { openDrawer, toast } = useProto();
+  return (
+    <aside
+      data-tulala-thread-info-sidebar
+      style={{
+        borderLeft: `1px solid ${COLORS.borderSoft}`,
+        background: "#fff",
+        overflowY: "auto",
+        minHeight: 0,
+        fontFamily: FONTS.body,
+        animation: "tulala-info-fade .18s ease",
+      }}
+    >
+      <style>{`@keyframes tulala-info-fade { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }`}</style>
+
+      {/* Sidebar header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          padding: "14px 16px",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+        }}
+      >
+        <h3 style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 500, letterSpacing: -0.1, margin: 0, color: COLORS.ink }}>
+          Details
+        </h3>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close info panel"
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 6,
+            border: "none",
+            background: "transparent",
+            color: COLORS.inkMuted,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          <Icon name="x" size={12} />
+        </button>
+      </div>
+
+      {/* Section: Schedule */}
+      {(conv.pinned.schedule || conv.pinned.callTime || conv.date) && (
+        <InfoSection icon="calendar" label="Schedule">
+          <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.5 }}>
+            {conv.date && <div style={{ fontWeight: 500 }}>{conv.date}</div>}
+            {conv.pinned.schedule && (
+              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 3 }}>
+                {conv.pinned.schedule}
+              </div>
+            )}
+          </div>
+        </InfoSection>
+      )}
+
+      {/* Section: Location */}
+      {conv.location && (
+        <InfoSection icon="map-pin" label="Location">
+          <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.5 }}>{conv.location}</div>
+          <a
+            href={`https://maps.google.com/?q=${encodeURIComponent(conv.location)}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              marginTop: 8,
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: COLORS.indigo,
+              textDecoration: "none",
+            }}
+          >
+            <Icon name="external" size={11} color={COLORS.indigo} />
+            Open in Maps
+          </a>
+        </InfoSection>
+      )}
+
+      {/* Section: Transport */}
+      {conv.pinned.transport && (
+        <InfoSection icon="external" label="Transport">
+          <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55 }}>
+            {conv.pinned.transport}
+          </div>
+        </InfoSection>
+      )}
+
+      {/* Section: Your rate / Your take */}
+      {(conv.amountToYou || conv.pinned.rate) && (
+        <InfoSection
+          icon="info"
+          label={conv.amountToYou ? "Your take-home" : conv.pinned.rate?.status === "you-quoted" ? "Your rate" : conv.pinned.rate?.status === "client-budget" ? "Client budget" : "Agreed rate"}
+          locked={isLocked}
+        >
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: COLORS.green, fontFamily: FONTS.display, letterSpacing: -0.1 }}>
+            {conv.amountToYou ?? conv.pinned.rate?.value ?? "—"}
+          </div>
+          {isLocked && (
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
+              You see your take-home only. Full offer is between the agency and the client.
+            </div>
+          )}
+        </InfoSection>
+      )}
+
+      {/* Section: Coordinator note (private) */}
+      {conv.pinned.coordinatorNote && (
+        <InfoSection icon="info" label="From your coordinator (private)">
+          <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.55, fontStyle: "italic" }}>
+            "{conv.pinned.coordinatorNote}"
+          </div>
+        </InfoSection>
+      )}
+
+      {/* Section: Leader */}
+      <InfoSection icon="user" label="Leader on this">
+        <button
+          type="button"
+          onClick={() => openDrawer("talent-agency-relationship")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            width: "100%",
+            padding: "8px 10px",
+            background: "rgba(11,11,13,0.03)",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+            textAlign: "left",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <Avatar size={28} tone="ink" initials={conv.leader.initials} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{conv.leader.name}</div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{conv.leader.role}</div>
+          </div>
+          <Icon name="chevron-right" size={11} color={COLORS.inkDim} />
+        </button>
+      </InfoSection>
+
+      {/* Section: Files (mock counts based on stage) */}
+      <InfoSection icon="external" label="Files & attachments">
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {[
+            { name: "Mood board (4 images)", kind: "📷" },
+            ...(conv.stage === "booked" ? [
+              { name: "Vogue_callsheet_v2.pdf", kind: "📄" },
+              { name: "Vogue_Italia_Editorial_May14-15.pdf", kind: "📑" },
+            ] : []),
+            ...(conv.stage === "past" ? [
+              { name: "Loewe_invoice_Apr18.pdf", kind: "📄" },
+              { name: "Selects (12 images)", kind: "📷" },
+            ] : []),
+          ].map((f, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => toast(`Open ${f.name}`)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 8px",
+                background: "transparent",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+                color: COLORS.ink,
+                transition: "background .12s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.03)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <span style={{ fontSize: 14 }}>{f.kind}</span>
+              <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {f.name}
+              </span>
+            </button>
+          ))}
+        </div>
+      </InfoSection>
+
+      {/* Stage-specific actions: drop / cancel (when booked); resolve
+          (when hold conflict) */}
+      {conv.stage === "booked" && (
+        <div style={{ padding: "12px 16px", borderTop: `1px solid ${COLORS.borderSoft}` }}>
+          <button
+            type="button"
+            onClick={() => toast("Drop request sent to coordinator")}
+            style={{
+              width: "100%",
+              padding: "9px 12px",
+              background: "transparent",
+              border: `1px solid ${COLORS.coral}`,
+              color: COLORS.coralDeep,
+              borderRadius: 8,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              fontWeight: 600,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.coralSoft)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            Drop / cancel booking
+          </button>
+          <p style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 6, lineHeight: 1.5 }}>
+            Sends a cancel request to your coordinator. They negotiate with the client.
+          </p>
+        </div>
+      )}
+      {conv.id === "c4" && (
+        <div style={{ padding: "12px 16px", borderTop: `1px solid ${COLORS.borderSoft}` }}>
+          <button
+            type="button"
+            onClick={() => toast("Opened conflict resolver")}
+            style={{
+              width: "100%",
+              padding: "9px 12px",
+              background: COLORS.coral,
+              border: "none",
+              color: "#fff",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              fontWeight: 600,
+            }}
+          >
+            ✨ Resolve conflict
+          </button>
+          <p style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 6, lineHeight: 1.5 }}>
+            This thread overlaps with another booking. Open the smart resolver to pick a path.
+          </p>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function InfoSection({
+  icon,
+  label,
+  locked,
+  children,
+}: {
+  icon: "map-pin" | "calendar" | "external" | "info" | "user";
+  label: string;
+  locked?: boolean;
+  children: ReactNode;
+}) {
   return (
     <div
       style={{
-        display: "flex",
-        gap: 8,
-        padding: "10px 18px",
+        padding: "14px 16px",
         borderBottom: `1px solid ${COLORS.borderSoft}`,
-        background: "#fff",
-        overflowX: "auto",
-        fontFamily: FONTS.body,
       }}
     >
-      {cards.map((c, i) => (
-        <div
-          key={i}
-          style={{
-            display: "inline-flex",
-            alignItems: "flex-start",
-            gap: 8,
-            padding: "8px 12px",
-            background: COLORS.surfaceAlt,
-            borderRadius: 9,
-            border: `1px solid ${COLORS.borderSoft}`,
-            minWidth: 180,
-            flexShrink: 0,
-            position: "relative",
-          }}
-        >
-          <Icon name={c.icon} size={13} color={COLORS.inkMuted} stroke={1.7} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 9.5,
-                fontWeight: 700,
-                letterSpacing: 0.6,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted,
-                marginBottom: 2,
-              }}
-            >
-              {c.label}
-              {c.locked && <span aria-label="locked" style={{ marginLeft: 5 }}>🔒</span>}
-            </div>
-            <div style={{ fontSize: 12, color: COLORS.ink, lineHeight: 1.4 }}>
-              {c.value}
-            </div>
-          </div>
-        </div>
-      ))}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 9.5,
+          fontWeight: 700,
+          letterSpacing: 0.7,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+          marginBottom: 8,
+        }}
+      >
+        <Icon name={icon} size={11} color={COLORS.inkMuted} stroke={1.7} />
+        {label}
+        {locked && <span aria-label="locked" style={{ marginLeft: 4 }}>🔒</span>}
+      </div>
+      {children}
     </div>
   );
 }

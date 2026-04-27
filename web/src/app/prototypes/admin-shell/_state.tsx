@@ -54,9 +54,10 @@ export type TalentPage =
 export type ClientPlan = "free" | "pro" | "enterprise";
 export type ClientPage =
   | "today"
+  | "messages"      // Chat-first inquiry/booking surface (mirrors talent)
   | "discover"
   | "shortlists"
-  | "inquiries"
+  | "inquiries"     // Legacy list view — kept for URL compat
   | "bookings"
   | "settings";
 
@@ -103,11 +104,13 @@ export const TALENT_PAGES: TalentPage[] = [
   "reach",
   "settings",
 ];
+// Messages replaces Inquiries as the canonical chat-first surface for
+// clients (mirrors talent). Inquiries remains for URL compat.
 export const CLIENT_PAGES: ClientPage[] = [
   "today",
+  "messages",
   "discover",
   "shortlists",
-  "inquiries",
   "bookings",
   "settings",
 ];
@@ -292,6 +295,7 @@ export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
 
 export const CLIENT_PAGE_META: Record<ClientPage, { label: string }> = {
   today: { label: "Today" },
+  messages: { label: "Messages" },
   discover: { label: "Discover" },
   shortlists: { label: "Shortlists" },
   inquiries: { label: "Inquiries" },
