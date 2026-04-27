@@ -1571,7 +1571,12 @@ html[data-token-typography-scale-preset="editorial"] {
  * ------------------------------------------------------------------------- */
 .site-values-trio { padding-block: var(--site-section-y); }
 /* Phase E (Batch 1) — values_trio __inner / __head / __headline collapsed
- * into Container + SectionHead primitives. */
+ * into Container + SectionHead primitives. The headline sizing is
+ * deliberately larger than the default H2 ramp (this section's headline
+ * is the editorial centerpiece) — preserved as a per-section override
+ * scoped to the primitive class. */
+.site-values-trio .site-prim-head__headline { font-size: clamp(32px, 4.6vw, 54px); }
+.site-values-trio .site-prim-head { max-width: 700px; margin-bottom: 56px; }
 .site-values-trio__grid { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .site-values-trio__card {
   padding: 36px 32px;
@@ -2911,7 +2916,12 @@ html[data-token-icon-family="geometric"] {
 /* ---- Code embed ------------------------------------------------------ */
 .site-embed { padding-block: var(--site-section-y); }
 /* Phase E (Batch 1) — code_embed __inner / __head / __headline collapsed
- * into Container + SectionHead primitives. */
+ * into Container + SectionHead primitives. The headline sizing is
+ * deliberately smaller than the default H2 ramp (this section is a
+ * tertiary embed; the iframe is the focus) — preserved as a per-section
+ * override scoped to the primitive class. */
+.site-embed .site-prim-head__headline { font-size: clamp(24px, 3vw, 36px); }
+.site-embed .site-prim-head { margin-bottom: 24px; }
 .site-embed__frame {
   position: relative;
   width: 100%;
@@ -3235,7 +3245,11 @@ body { font-size: var(--token-typography-body-size, revert); }
  * ========================================================================= */
 .site-logo-cloud { padding-block: var(--site-section-y); }
 /* Phase E (Batch 1) — logo_cloud __inner / __head / __headline collapsed
- * into Container + SectionHead primitives. */
+ * into Container + SectionHead primitives. The headline sizing is
+ * deliberately smaller than the default H2 ramp (this section is a
+ * quiet logo wall; the headline is secondary) — preserved as a
+ * per-section override scoped to the primitive class. */
+.site-logo-cloud .site-prim-head__headline { font-size: clamp(20px, 2.6vw, 28px); }
 .site-logo-cloud__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--lc-cols, 6), minmax(0, 1fr)); gap: 24px 32px; align-items: center; justify-items: center; }
 @media (max-width: 880px) { .site-logo-cloud__grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 540px) { .site-logo-cloud__grid { grid-template-columns: repeat(2, 1fr); } }
