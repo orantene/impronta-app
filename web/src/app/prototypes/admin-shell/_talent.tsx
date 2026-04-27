@@ -1644,6 +1644,7 @@ function TalentTodayHero({
       }}
     >
       <div
+        data-tulala-talent-hero-row
         style={{
           display: "flex",
           alignItems: "flex-start",

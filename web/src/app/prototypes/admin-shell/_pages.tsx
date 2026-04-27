@@ -917,12 +917,17 @@ export function TulalaIdentityBar() {
             }}
           />
           <span
+            data-tulala-acting-label
             style={{
               fontFamily: FONTS.body,
               fontSize: 13,
               fontWeight: 500,
               color: COLORS.ink,
               letterSpacing: -0.05,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: 180,
             }}
           >
             {actingLabel}
@@ -1388,21 +1393,23 @@ function IdentityBarIconButton({
           aria-hidden
           style={{
             position: "absolute",
-            top: -3,
-            right: -3,
-            minWidth: 16,
-            height: 16,
-            padding: "0 4px",
+            // Tucked inside the button border so it doesn't clip the
+            // 56px identity bar at mobile.
+            top: 1,
+            right: 1,
+            minWidth: 14,
+            height: 14,
+            padding: "0 3px",
             borderRadius: 999,
             background: COLORS.accent,
             color: "#fff",
-            fontSize: 9.5,
+            fontSize: 9,
             fontWeight: 700,
             lineHeight: 1,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: "0 0 0 2px #fff",
+            boxShadow: "0 0 0 1.5px #fff",
             fontVariantNumeric: "tabular-nums",
           }}
         >
@@ -5452,7 +5459,7 @@ function BottomTab({
               height: 14,
               padding: "0 4px",
               borderRadius: 999,
-              background: COLORS.coral,
+              background: COLORS.accent,
               color: "#fff",
               fontSize: 9,
               fontWeight: 700,
@@ -5489,10 +5496,12 @@ const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "pl
 
 const TALENT_TAB_ICON: Partial<Record<TalentPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
   today: "bolt",
+  messages: "mail",
   profile: "user",
   inbox: "mail",
   calendar: "calendar",
   activity: "sparkle",
+  reach: "search",
   settings: "info",
 };
 
