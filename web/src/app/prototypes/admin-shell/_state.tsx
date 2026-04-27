@@ -3069,11 +3069,25 @@ export type TalentAgency = {
   isPrimary: boolean;
   status: "active" | "exclusive" | "non-exclusive" | "ended";
   bookingsYTD: number;
+  /**
+   * The agency's own Tulala plan tier. Drives the exclusivity rules:
+   *   - free      No exclusivity allowed. Friend-shares-link case. 0% take.
+   *   - studio    Studio-level admin. Auto-exclusive when admin adds talent.
+   *               Take-rate applies on bookings the studio brings.
+   *   - agency    Full agency. Same as studio but with broader capability +
+   *               typically a higher take-rate.
+   */
+  planTier: "free" | "studio" | "agency";
+  /** % the agency takes on bookings they bring (0 for free plan). */
+  commissionRate: number;
 };
 
 export const MY_AGENCIES: TalentAgency[] = [
-  { id: "ag1", name: "Acme Models", slug: "acme-models", joinedAt: "Mar 2024", isPrimary: true, status: "exclusive", bookingsYTD: 6 },
-  { id: "ag2", name: "Praline London", slug: "praline-london", joinedAt: "Jan 2025", isPrimary: false, status: "non-exclusive", bookingsYTD: 2 },
+  { id: "ag1", name: "Acme Models", slug: "acme-models", joinedAt: "Mar 2024", isPrimary: true, status: "exclusive", bookingsYTD: 6, planTier: "agency", commissionRate: 0.18 },
+  { id: "ag2", name: "Praline London", slug: "praline-london", joinedAt: "Jan 2025", isPrimary: false, status: "non-exclusive", bookingsYTD: 2, planTier: "studio", commissionRate: 0.12 },
+  // Friend-on-free case — demonstrates the "free plan, no exclusivity, no
+  // commission" tier per the agency-exclusivity spec.
+  { id: "ag3", name: "Estudio Solé (friend)", slug: "estudio-sole", joinedAt: "Apr 2026", isPrimary: false, status: "active", bookingsYTD: 0, planTier: "free", commissionRate: 0 },
 ];
 
 export type TalentRequest = {

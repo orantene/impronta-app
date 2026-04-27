@@ -5230,13 +5230,23 @@ function ReachPage() {
         <DistributionCard
           kind="agency"
           title="Agencies on roster"
-          description="Agency contracts route inquiries through them. Manage relationships in Settings."
+          description="One exclusive agency at a time. Make / leave / view rights granted per agency."
           channels={TALENT_CHANNELS.filter((c) => c.kind === "agency")}
           channelOn={channelOn}
           onToggle={setOn}
           onPrimary={{
             label: "+ Join another agency",
-            handler: () => toast("Agency search · coming soon"),
+            handler: () => openDrawer("talent-agency-relationship", { mode: "add" }),
+          }}
+          onManage={(c) => {
+            // Map channel id ("ch-agency-acme") to MY_AGENCIES id ("ag1").
+            // Best-effort lookup by name match; production will store the
+            // agency_id directly on the distribution row.
+            const ag = MY_AGENCIES.find((a) =>
+              c.name.toLowerCase().includes(a.name.toLowerCase()) ||
+              a.name.toLowerCase().includes(c.name.toLowerCase()),
+            );
+            openDrawer("talent-agency-relationship", { id: ag?.id ?? "ag1" });
           }}
         />
         <DistributionCard
@@ -5665,6 +5675,7 @@ function DistributionCard({
   onPrimary,
   available,
   onAdd,
+  onManage,
 }: {
   kind: ChannelKind;
   title: string;
@@ -5675,6 +5686,10 @@ function DistributionCard({
   onPrimary?: { label: string; handler: () => void };
   available?: ChannelEntry[];
   onAdd?: (c: ChannelEntry) => void;
+  /** Manage action per channel — used by Agencies card to open the
+   *  TalentAgencyRelationshipDrawer. Replaces the "Contract-managed"
+   *  static label with a clickable "Manage →" affordance. */
+  onManage?: (c: ChannelEntry) => void;
 }) {
   // Lane-level icon + tone
   const laneMeta: Record<ChannelKind, { icon: string; toneFg: string; toneBg: string }> = {
@@ -5799,6 +5814,7 @@ function DistributionCard({
             on={channelOn[c.id] ?? false}
             onToggle={(next) => onToggle(c.id, next)}
             first={i === 0}
+            onManage={onManage ? () => onManage(c) : undefined}
           />
         ))}
         {showAvailable && (
@@ -5823,11 +5839,16 @@ function ChannelRow({
   on,
   onToggle,
   first,
+  onManage,
 }: {
   channel: ChannelEntry;
   on: boolean;
   onToggle: (next: boolean) => void;
   first: boolean;
+  /** Optional manage action — when set + channel is non-toggleable,
+   *  renders a "Manage →" button instead of "Contract-managed" text.
+   *  Used for agency channels so talent can open the relationship drawer. */
+  onManage?: () => void;
 }) {
   const status =
     channel.toggleable === false
@@ -5959,6 +5980,24 @@ function ChannelRow({
       </div>
       {channel.toggleable ? (
         <Toggle on={on} onChange={() => onToggle(!on)} />
+      ) : onManage ? (
+        <button
+          type="button"
+          onClick={onManage}
+          style={{
+            background: "transparent",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 7,
+            padding: "5px 11px",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 500,
+            color: COLORS.ink,
+            cursor: "pointer",
+          }}
+        >
+          Manage →
+        </button>
       ) : (
         <span
           style={{
@@ -8477,13 +8516,29 @@ export function TalentAgencyRelationshipDrawer() {
   const id = (state.drawer.payload?.id as string) ?? "ag1";
   const a = MY_AGENCIES.find((x) => x.id === id) ?? MY_AGENCIES[0];
 
+  // Plan-tier shapes the rules: free can't be exclusive, agency/studio
+  // sets exclusivity + commission. Per the agency-exclusivity product spec.
+  const planLabel = a.planTier === "free"
+    ? "Free plan"
+    : a.planTier === "studio"
+      ? "Studio plan"
+      : "Agency plan";
+  const exclusivityRule = a.planTier === "free"
+    ? "Free-tier agencies can't hold exclusivity. They share their link to refer work but you're not bound."
+    : a.status === "exclusive"
+      ? `${a.name} is your exclusive agency. You can have only one exclusive at a time.`
+      : `${a.name} represents you alongside other agencies. Exclusivity is granted per agency.`;
+  const commissionLabel = a.commissionRate === 0
+    ? "No commission · friend / free-plan agency"
+    : `${Math.round(a.commissionRate * 100)}% on bookings ${a.name} brings`;
+
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title={a.name}
-      description={`${a.status === "exclusive" ? "Exclusive" : "Non-exclusive"} relationship · joined ${a.joinedAt}`}
-      width={520}
+      description={`${a.status === "exclusive" ? "Exclusive" : a.status === "non-exclusive" ? "Non-exclusive" : "Active"} relationship · joined ${a.joinedAt}`}
+      width={540}
       footer={
         <StandardFooter
           onSave={() => closeDrawer()}
@@ -8492,17 +8547,88 @@ export function TalentAgencyRelationshipDrawer() {
         />
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <KvRow label="Status" value={a.status} />
-        <KvRow label="Joined" value={a.joinedAt} />
-        <KvRow label="Bookings YTD" value={a.bookingsYTD} />
-        <KvRow label="Primary" value={a.isPrimary ? "Yes" : "No"} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Plan + commission summary chip */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 12px",
+            background: a.planTier === "free" ? "rgba(11,11,13,0.04)" : COLORS.indigoSoft,
+            border: `1px solid ${a.planTier === "free" ? COLORS.borderSoft : "rgba(91,107,160,0.18)"}`,
+            borderRadius: 8,
+            fontFamily: FONTS.body,
+            fontSize: 12,
+          }}
+        >
+          <Icon name="info" size={12} stroke={1.7} color={COLORS.inkMuted} />
+          <span style={{ color: COLORS.ink, fontWeight: 500 }}>
+            {planLabel} · {commissionLabel}
+          </span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <KvRow label="Status" value={a.status} />
+          <KvRow label="Joined" value={a.joinedAt} />
+          <KvRow label="Bookings YTD" value={a.bookingsYTD} />
+          <KvRow label="Primary" value={a.isPrimary ? "Yes" : "No"} />
+          <KvRow label="Take rate" value={a.commissionRate === 0 ? "—" : `${Math.round(a.commissionRate * 100)}%`} />
+        </div>
+
+        <Divider label="Exclusivity" />
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            color: COLORS.inkMuted,
+            lineHeight: 1.6,
+          }}
+        >
+          {exclusivityRule}
+        </div>
+        {a.planTier !== "free" && a.status !== "exclusive" && (
+          <button
+            type="button"
+            onClick={() => openDrawer("talent-leave-agency", { id: a.id, mode: "make-exclusive" })}
+            style={{
+              alignSelf: "flex-start",
+              padding: "7px 12px",
+              background: "transparent",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 7,
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 500,
+              color: COLORS.ink,
+              cursor: "pointer",
+            }}
+          >
+            Make {a.name} exclusive →
+          </button>
+        )}
+        {a.status === "exclusive" && (
+          <div
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              color: COLORS.inkDim,
+              fontStyle: "italic",
+            }}
+          >
+            To switch exclusivity to a different agency, end this relationship first.
+          </div>
+        )}
+
         <Divider label="What this agency can do" />
         <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, lineHeight: 1.7 }}>
           <li>Pitch you to clients (you confirm before anything is booked)</li>
           <li>List you on their public roster</li>
           <li>Hold dates on your calendar with your approval</li>
           <li>Send you direct messages via the inbox</li>
+          {a.commissionRate > 0 && (
+            <li>Take {Math.round(a.commissionRate * 100)}% of any booking they bring you</li>
+          )}
         </ul>
       </div>
     </DrawerShell>
