@@ -5862,15 +5862,76 @@ function AvailableChannelRow({
 // ════════════════════════════════════════════════════════════════════
 
 function SettingsPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer, setTalentPage } = useProto();
 
   return (
     <>
       <PageHeader
         eyebrow="Settings"
         title="Your account"
-        subtitle="Agencies, notifications, privacy and payouts."
+        subtitle="Agencies, notifications, privacy and payouts. Where you appear lives in Reach."
+        actions={
+          <SecondaryButton onClick={() => setTalentPage("reach")}>
+            Open Reach →
+          </SecondaryButton>
+        }
       />
+
+      {/* A4 cross-link banner — Reach owns distribution decisions; Privacy
+          here is just the locked / sensitive bits. */}
+      <button
+        type="button"
+        onClick={() => setTalentPage("reach")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+          padding: "12px 14px",
+          marginBottom: 16,
+          background: COLORS.indigoSoft,
+          border: `1px solid rgba(91,107,160,0.18)`,
+          borderRadius: 10,
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          textAlign: "left",
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 7,
+            background: "rgba(91,107,160,0.18)",
+            color: COLORS.indigoDeep,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="globe" size={13} stroke={1.7} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.indigoDeep }}>
+            Distribution decisions live in Reach
+          </div>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: COLORS.indigoDeep,
+              opacity: 0.78,
+              marginTop: 1,
+            }}
+          >
+            Toggle channels, manage which hubs and studios you're listed on, set exposure presets — all over there.
+          </div>
+        </div>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.indigoDeep }}>
+          Open Reach →
+        </span>
+      </button>
 
       <Divider label="Agencies" />
       <Grid cols="auto">
@@ -5947,7 +6008,7 @@ function SettingsPage() {
         />
         <SecondaryCard
           title="Privacy"
-          description="Where your profile appears — Tulala hub, agency rosters, public search."
+          description="Search-engine indexing, sensitive measurements, document visibility. Channel toggles moved to Reach."
           affordance="Manage"
           onClick={() => openDrawer("talent-privacy")}
         />
