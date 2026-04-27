@@ -3305,28 +3305,41 @@ body { font-size: var(--token-typography-body-size, revert); }
   outline-offset: 3px;
 }
 .site-prim-cta:active { transform: translateY(1px); }
+/* Cta variants are bound to `--token-color-primary` (brand accent) and
+ * `--token-color-surface-raised` (paper/white surface), matching the
+ * legacy `.site-btn--primary` convention. This is robust across tenant
+ * brands that use unconventional ink/paper polarities (e.g. impronta
+ * defines --token-color-ink as a light cream tone, where binding to
+ * ink would produce light-on-light primary buttons).
+ *
+ * Hex fallbacks are warm-ink + paper to stay safe even if the brand
+ * tokens are entirely missing. */
 .site-prim-cta--primary {
-  background: var(--token-color-ink, #111);
-  color: var(--token-color-paper, #fff);
+  background: var(--token-color-primary, #1a1a1a);
+  color: var(--token-color-surface-raised, #ffffff);
+  border-color: var(--token-color-primary, #1a1a1a);
 }
-.site-prim-cta--primary:hover { background: var(--token-color-primary, #1f1f1f); }
+.site-prim-cta--primary:hover {
+  background: color-mix(in srgb, var(--token-color-primary, #1a1a1a) 88%, #000);
+  border-color: color-mix(in srgb, var(--token-color-primary, #1a1a1a) 88%, #000);
+}
 .site-prim-cta--secondary {
   background: transparent;
-  color: var(--token-color-ink, #111);
-  border-color: color-mix(in srgb, var(--token-color-ink, #111) 28%, transparent);
+  color: var(--token-color-primary, #1a1a1a);
+  border-color: color-mix(in srgb, var(--token-color-primary, #1a1a1a) 36%, transparent);
 }
 .site-prim-cta--secondary:hover {
-  background: color-mix(in srgb, var(--token-color-ink, #111) 6%, transparent);
-  border-color: var(--token-color-ink, #111);
+  background: color-mix(in srgb, var(--token-color-primary, #1a1a1a) 6%, transparent);
+  border-color: var(--token-color-primary, #1a1a1a);
 }
 .site-prim-cta--ghost {
   background: transparent;
-  color: var(--token-color-ink, #111);
+  color: var(--token-color-primary, #1a1a1a);
   padding: 10px 4px;
   border-radius: 0;
 }
 .site-prim-cta--ghost:hover {
-  color: var(--token-color-primary, #1f1f1f);
+  color: color-mix(in srgb, var(--token-color-primary, #1a1a1a) 80%, #000);
 }
 .site-prim-cta--ghost::after {
   content: "→";
@@ -3341,11 +3354,13 @@ body { font-size: var(--token-typography-body-size, revert); }
 [data-section-tablet-background="espresso"] .site-prim-cta--primary {
   background: #f6f1ea;
   color: #2d2623;
+  border-color: #f6f1ea;
 }
 [data-section-background="espresso"] .site-prim-cta--primary:hover,
 [data-section-mobile-background="espresso"] .site-prim-cta--primary:hover,
 [data-section-tablet-background="espresso"] .site-prim-cta--primary:hover {
   background: #ffffff;
+  border-color: #ffffff;
 }
 [data-section-background="espresso"] .site-prim-cta--secondary,
 [data-section-mobile-background="espresso"] .site-prim-cta--secondary,
@@ -3358,6 +3373,16 @@ body { font-size: var(--token-typography-body-size, revert); }
 [data-section-tablet-background="espresso"] .site-prim-cta--secondary:hover {
   background: rgba(246, 241, 234, 0.08);
   border-color: #f6f1ea;
+}
+[data-section-background="espresso"] .site-prim-cta--ghost,
+[data-section-mobile-background="espresso"] .site-prim-cta--ghost,
+[data-section-tablet-background="espresso"] .site-prim-cta--ghost {
+  color: #f6f1ea;
+}
+[data-section-background="espresso"] .site-prim-cta--ghost:hover,
+[data-section-mobile-background="espresso"] .site-prim-cta--ghost:hover,
+[data-section-tablet-background="espresso"] .site-prim-cta--ghost:hover {
+  color: #ffffff;
 }
 /* Two-CTA row layout helper used by sections composing primary+secondary. */
 .site-prim-ctas {
