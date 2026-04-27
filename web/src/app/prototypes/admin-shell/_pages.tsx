@@ -814,8 +814,12 @@ export function TulalaIdentityBar() {
     <header
       data-tulala-identity-bar
       style={{
-        background: "#fff",
-        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        // Premium feel: subtle warm-white tint + soft elevation +
+        // 2px accent stripe at the very bottom edge so the bar
+        // anchors the brand without a heavy logo.
+        background: COLORS.surfaceAlt,
+        borderBottom: "none",
+        boxShadow: `0 1px 0 ${COLORS.borderSoft}, inset 0 -2px 0 ${COLORS.accent}`,
         position: "sticky",
         top: "var(--proto-cbar, 50px)",
         zIndex: 50,
@@ -5132,12 +5136,18 @@ export function MobileBottomNav() {
       }));
     }
     if (state.surface === "talent") {
+      // Mock per-tab unread counts so the bottom tabs show life. Real
+      // product reads from realtime channels.
+      const TALENT_TAB_BADGE: Partial<Record<TalentPage, number>> = {
+        messages: 4,
+      };
       return TALENT_PAGES.map((p) => ({
         id: p,
         label: TALENT_PAGE_META[p].label,
         active: state.talentPage === p,
         run: () => setTalentPage(p as TalentPage),
         icon: TALENT_TAB_ICON[p as TalentPage] ?? "info",
+        badge: TALENT_TAB_BADGE[p as TalentPage],
       }));
     }
     if (state.surface === "client") {
@@ -5271,17 +5281,20 @@ function BottomTab({
   icon,
   active,
   run,
+  badge,
 }: {
   id: string;
   label: string;
   icon: "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit" | "x" | "chevron-right" | "chevron-down";
   active: boolean;
   run: () => void;
+  badge?: number;
 }) {
   return (
     <button
       type="button"
       onClick={run}
+      aria-current={active ? "page" : undefined}
       style={{
         flex: 1,
         background: "transparent",
@@ -5291,15 +5304,61 @@ function BottomTab({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 3,
-        padding: "6px 4px",
-        color: active ? COLORS.accentDeep : COLORS.inkMuted,
+        gap: 4,
+        padding: "8px 4px 6px",
+        color: active ? COLORS.ink : COLORS.inkMuted,
         fontFamily: FONTS.body,
-        fontSize: 10.5,
-        fontWeight: 500,
+        fontSize: 11,
+        fontWeight: active ? 600 : 500,
+        position: "relative",
       }}
     >
-      <Icon name={icon} size={18} stroke={active ? 2 : 1.7} color={active ? COLORS.accent : COLORS.inkMuted} />
+      {/* Active indicator — pill background behind the icon for a
+          tactile "selected" feel. Subtle 24px tinted pill, ink color
+          icon when active, muted when not. */}
+      <span
+        aria-hidden
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 38,
+          height: 24,
+          borderRadius: 999,
+          background: active ? COLORS.accent : "transparent",
+          color: active ? "#fff" : COLORS.inkMuted,
+          transition: "background .18s, color .18s",
+          position: "relative",
+        }}
+      >
+        <Icon name={icon} size={16} stroke={active ? 2 : 1.7} color={active ? "#fff" : COLORS.inkMuted} />
+        {badge && badge > 0 && (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: -3,
+              right: -4,
+              minWidth: 14,
+              height: 14,
+              padding: "0 4px",
+              borderRadius: 999,
+              background: COLORS.coral,
+              color: "#fff",
+              fontSize: 9,
+              fontWeight: 700,
+              lineHeight: 1,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontVariantNumeric: "tabular-nums",
+              boxShadow: "0 0 0 1.5px #fff",
+            }}
+          >
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </span>
       <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 70 }}>
         {label}
       </span>
