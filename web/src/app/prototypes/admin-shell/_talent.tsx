@@ -3776,6 +3776,16 @@ function InboxPage() {
 
       <div style={{ height: 16 }} />
 
+      {/* E1: AI reply assistant prototype. Shows when there's an action
+          item — suggests a reply for the top pending. Mock — production
+          calls an LLM with the inquiry context. Privacy: opt-in toggle
+          in Settings (per spec); on by default in this prototype. */}
+      {counts.action > 0 && (
+        <AIReplyAssistant
+          item={items.find((it) => it.category === "action") ?? null}
+        />
+      )}
+
       {/* Unified list — same row anatomy across all kinds. */}
       <section
         style={{
@@ -3813,6 +3823,205 @@ function InboxPage() {
         )}
       </section>
     </>
+  );
+}
+
+/**
+ * E1: AI reply assistant — high-fidelity prototype. Surfaces 3 hardcoded
+ * reply variants for the top pending action item. The talent picks a
+ * variant, optionally edits, and sends.
+ *
+ * In production: calls an LLM with the inquiry thread context. Privacy:
+ * opt-in toggle in Settings (per the agency-exclusivity spec). Client
+ * names anonymized in the prompt by default. See backend handoff §8.1.
+ */
+function AIReplyAssistant({ item }: { item: InboxItem | null }) {
+  const { toast } = useProto();
+  const [expanded, setExpanded] = useState(false);
+  const [pickedIdx, setPickedIdx] = useState<number | null>(null);
+  if (!item) return null;
+
+  // Hardcoded variants per kind. Production: LLM-generated.
+  const variants: { label: string; body: string }[] = [
+    {
+      label: "Quick confirm",
+      body: `Hi — confirmed for ${item.date ?? "the date listed"}. ${item.amount ? `${item.amount} works on my end.` : ""} Bringing the standard kit. Anything specific from the brief I should plan for?`,
+    },
+    {
+      label: "Polite hold",
+      body: `Hi — interested but I need to check one conflict. Can I confirm by end of day tomorrow? If you need an answer sooner, please let me know.`,
+    },
+    {
+      label: "Decline with grace",
+      body: `Thanks for thinking of me. I won't be able to take this one — already committed for ${item.date ?? "around then"}. Would love to be in mind for the next campaign.`,
+    },
+  ];
+
+  return (
+    <div
+      style={{
+        marginBottom: 16,
+        padding: "12px 14px",
+        background: COLORS.royalSoft,
+        border: `1px solid rgba(95,75,139,0.18)`,
+        borderRadius: 12,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          textAlign: "left",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 7,
+            background: "rgba(95,75,139,0.18)",
+            color: COLORS.royalDeep,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="sparkle" size={13} stroke={1.7} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.royalDeep }}>
+            AI suggestion for {item.client}
+          </div>
+          <div
+            style={{
+              fontSize: 11.5,
+              color: COLORS.royalDeep,
+              opacity: 0.78,
+              marginTop: 1,
+            }}
+          >
+            {expanded
+              ? "Pick a variant — edit if needed, then send."
+              : "3 reply variants ready. Click to preview."}
+          </div>
+        </div>
+        <Icon
+          name="chevron-down"
+          size={12}
+          stroke={2}
+          color={COLORS.royalDeep}
+        />
+      </button>
+
+      {expanded && (
+        <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+          {variants.map((v, i) => {
+            const active = pickedIdx === i;
+            return (
+              <button
+                key={v.label}
+                type="button"
+                onClick={() => setPickedIdx(active ? null : i)}
+                style={{
+                  textAlign: "left",
+                  padding: "10px 12px",
+                  background: active ? "#fff" : "rgba(255,255,255,0.65)",
+                  border: `1px solid ${active ? COLORS.royal : "rgba(95,75,139,0.18)"}`,
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    color: COLORS.royalDeep,
+                  }}
+                >
+                  {v.label}
+                </div>
+                <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5 }}>
+                  {v.body}
+                </div>
+              </button>
+            );
+          })}
+          {pickedIdx !== null && (
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  toast(`Sent reply to ${item.client}`, {
+                    undo: () => toast("Reply unsent"),
+                  });
+                  setPickedIdx(null);
+                  setExpanded(false);
+                }}
+                style={{
+                  background: COLORS.ink,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 14px",
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+              >
+                Send →
+              </button>
+              <button
+                type="button"
+                onClick={() => toast("Edit composer · coming next sprint")}
+                style={{
+                  background: "transparent",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 8,
+                  padding: "8px 14px",
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: COLORS.ink,
+                  cursor: "pointer",
+                }}
+              >
+                Edit before sending
+              </button>
+            </div>
+          )}
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 10.5,
+              color: COLORS.inkDim,
+              fontFamily: FONTS.body,
+            }}
+          >
+            Privacy: client name is anonymized when we generate suggestions. Toggle off in Settings → Notifications.
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
