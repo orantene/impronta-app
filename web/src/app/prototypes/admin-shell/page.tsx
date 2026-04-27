@@ -480,6 +480,20 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               z-index: 0;
             }
           }
+          /* Identity bar mobile collapse — drop the lowest-priority
+             utilities below 720px so the centerpiece (mode toggle +
+             notifications) keeps room. Help, locale toggle, sign-out
+             move to the avatar menu. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-identity-bar] {
+              padding: 0 14px !important;
+            }
+            .tulala-shell [data-tulala-identity-bar] [aria-label="Help"],
+            .tulala-shell [data-tulala-identity-bar] [aria-label="Sign out"],
+            .tulala-shell [data-tulala-identity-bar] [role="group"][aria-label="Language"] {
+              display: none !important;
+            }
+          }
           /* Phone-specific tightening — values, captions, and chip rows
              that still feel cramped at 720 get a final pass at 540. */
           @media (max-width: 540px) {
@@ -488,6 +502,20 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             }
             .tulala-shell [data-tulala-surface-main] {
               padding: 14px 12px 40px !important;
+            }
+            /* Identity bar phone — collapse brand, name, slash separator.
+               Keep avatar (recognizable identity) + acting-as chip + mode
+               toggle + bell. The mode toggle is the centerpiece; protect
+               its width. */
+            .tulala-shell [data-tulala-brand],
+            .tulala-shell [data-tulala-id-divider],
+            .tulala-shell [data-tulala-identity-name],
+            .tulala-shell [data-tulala-id-slash] {
+              display: none !important;
+            }
+            /* Tighten gaps so everything fits on a 360px viewport. */
+            .tulala-shell [data-tulala-identity-bar] > div {
+              gap: 8px !important;
             }
           }
           /* Print: strip the prototype chrome (dark ControlBar, drawer

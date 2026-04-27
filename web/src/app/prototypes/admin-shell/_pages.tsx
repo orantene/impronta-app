@@ -876,6 +876,7 @@ export function TulalaIdentityBar() {
         >
           <Avatar initials={userInitials} size={28} tone="ink" />
           <span
+            data-tulala-identity-name
             style={{
               fontFamily: FONTS.body,
               fontSize: 14,
@@ -889,9 +890,11 @@ export function TulalaIdentityBar() {
           <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
         </button>
 
-        {/* Subtle separator dot between identity and acting-as */}
+        {/* Subtle separator dot between identity and acting-as.
+            Hidden at phone widths (where the name text also collapses). */}
         <span
           aria-hidden
+          data-tulala-id-slash
           style={{ fontFamily: FONTS.body, fontSize: 14, color: COLORS.inkDim, marginLeft: -2 }}
         >
           /
