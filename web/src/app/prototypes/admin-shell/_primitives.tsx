@@ -755,6 +755,69 @@ export function ClientTrustChip({
 }
 
 /**
+ * ClientTrustBadge — compact icon-only overlay for placement on the
+ * bottom-right corner of a client avatar. Hides for `basic` (basic =
+ * default, no badge needs to render). Hover/click reveals the same
+ * Popover tooltip that ClientTrustChip uses.
+ *
+ * Use when:
+ *  - The trust signal needs to ride along with brand identity (avatars
+ *    in row lists) without consuming additional row space.
+ *
+ * Anatomy:
+ *  - 16×16 circle, 2px white border (so it lifts off the avatar)
+ *  - Tier-tinted background, tier icon inside
+ *  - Positioned absolute — caller wraps Avatar in `position: relative`
+ *
+ * Iconography per tier:
+ *  - verified  → check        (identity confirmed)
+ *  - silver    → sparkle      (funded, established)
+ *  - gold      → sparkle      (highest trust, deeper color)
+ */
+export function ClientTrustBadge({
+  level,
+  size = 16,
+}: {
+  level: ClientTrustLevel;
+  size?: number;
+}) {
+  if (level === "basic") return null;
+  const meta = CLIENT_TRUST_META[level];
+  const palette: Record<Exclude<ClientTrustLevel, "basic">, { bg: string; fg: string }> = {
+    verified: { bg: "#3F5C70", fg: "#fff" },
+    silver: { bg: "#7F8896", fg: "#fff" },
+    gold: { bg: COLORS.accent, fg: "#fff" },
+  };
+  const c = palette[level];
+  const iconName = level === "verified" ? "check" : "sparkle";
+  return (
+    <Popover content={`${meta.label} client — ${meta.hint}`}>
+      <span
+        aria-label={`${meta.label} client`}
+        style={{
+          position: "absolute",
+          right: -2,
+          bottom: -2,
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          background: c.bg,
+          color: c.fg,
+          border: `2px solid #fff`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 1px 2px rgba(11,11,13,0.10)",
+          cursor: "default",
+        }}
+      >
+        <Icon name={iconName} size={Math.round(size * 0.55)} stroke={2.4} color={c.fg} />
+      </span>
+    </Popover>
+  );
+}
+
+/**
  * Inline upsell banner for the client surface — surfaces "Get Verified"
  * (or the appropriate next-tier explainer) on the client dashboard.
  *

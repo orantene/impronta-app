@@ -1055,7 +1055,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
     id: "RI-203",
     agencyName: "Acme Models",
     clientName: "Bvlgari",
-    clientTrust: "gold",
+    clientTrust: "silver",
     brief: "Jewelry campaign · 1 talent · multi-day",
     date: "May 18–20",
     location: "Rome · Cinecittà 7",
@@ -3096,13 +3096,13 @@ export type TalentRequest = {
 
 export const TALENT_REQUESTS: TalentRequest[] = [
   { id: "rq1", kind: "offer", agency: "Acme Models", client: "Mango", clientTrust: "gold", brief: "Lookbook · spring capsule · 1 day", date: "Tue · May 6", amount: "€1,800", ageHrs: 5, status: "needs-answer" },
-  { id: "rq2", kind: "hold", agency: "Acme Models", client: "Bvlgari", clientTrust: "gold", brief: "Editorial · jewelry campaign", date: "May 18–20", amount: "€4,000–6,000", ageHrs: 18, status: "needs-answer" },
+  { id: "rq2", kind: "hold", agency: "Acme Models", client: "Bvlgari", clientTrust: "silver", brief: "Editorial · jewelry campaign", date: "May 18–20", amount: "€4,000–6,000", ageHrs: 18, status: "needs-answer" },
   { id: "rq3", kind: "casting", agency: "Praline London", client: "Net-a-Porter", clientTrust: "silver", brief: "Casting call · video lookbook", date: "Apr 30", amount: "TBC", ageHrs: 36, status: "viewed" },
   { id: "rq4", kind: "offer", agency: "Acme Models", client: "Vogue Italia", clientTrust: "gold", brief: "Editorial spread · 2 day shoot", date: "May 14–15", amount: "€3,200", ageHrs: 60, status: "accepted" },
   // Conflicted hold — overlaps with confirmed bk2 (Vogue Italia · May 14–15).
   // Surfaces the conflict-resolution UI on the calendar so Marta sees the
   // collision before either party expects her to commit.
-  { id: "rq5", kind: "hold", agency: "Acme Models", client: "Stella McCartney", clientTrust: "gold", brief: "Lookbook · single day", date: "May 14", amount: "€2,200", ageHrs: 4, status: "needs-answer" },
+  { id: "rq5", kind: "hold", agency: "Acme Models", client: "Stella McCartney", clientTrust: "verified", brief: "Lookbook · single day", date: "May 14", amount: "€2,200", ageHrs: 4, status: "needs-answer" },
 ];
 
 export type TalentBooking = {

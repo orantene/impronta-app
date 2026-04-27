@@ -35,6 +35,7 @@ import {
 } from "./_state";
 import {
   Avatar,
+  ClientTrustBadge,
   ClientTrustChip,
   DrawerShell,
   EmptyState,
@@ -1741,14 +1742,20 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      {/* Client identity — avatar with initials + auto-hashed tint per
-          brand. In production: real client logo URLs go here via photoUrl. */}
-      <Avatar
-        size={36}
-        tone="auto"
-        hashSeed={inquiry.clientName}
-        initials={clientInitials(inquiry.clientName)}
-      />
+      {/* Avatar + trust badge overlay — the badge rides on the avatar's
+          bottom-right corner so trust tier ships with brand identity
+          without consuming row height. Hover/click reveals tooltip
+          ("Silver client — Funded account above the standard threshold...").
+          Hidden entirely for `basic` tier (default = no badge). */}
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <Avatar
+          size={36}
+          tone="auto"
+          hashSeed={inquiry.clientName}
+          initials={clientInitials(inquiry.clientName)}
+        />
+        <ClientTrustBadge level={inquiry.clientTrust} />
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -1812,7 +1819,6 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
           </span>
         </div>
       </div>
-      <ClientTrustChip level={inquiry.clientTrust} compact />
       <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
     </button>
   );
