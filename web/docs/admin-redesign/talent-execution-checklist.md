@@ -39,48 +39,48 @@
 
 ---
 
-## Phase C — Onboarding + emotional polish (3/7 done)
+## Phase C — Onboarding + emotional polish (6/7 done)
 
 - [x] **C1** Day-1 / new-talent hero variant · 🟡 · `1ba633d`
-- [ ] **C2** Empty states with personality · 🚧🟡 · per-surface pass needed
-- [ ] **C3** Celebration moments (first booking, first €1k month) · 🚧🟡 · needs `talent_celebration_events` table
-- [ ] **C4** Onboarding first-session flow · 🚧🟡
+- [x] **C2** Empty states with personality — warmer Inbox/Calendar/Activity copy · 🟡 · `b1f1063`
+- [x] **C3** Celebration moments — CelebrationBanner primitive + Activity €1k milestone · 🟡 · `b1f1063`
+- [x] **C4** Onboarding first-session flow — FirstSessionChecklist on Day-1 hero · 🟡 · `b1f1063`
 - [ ] **C5** 0-pending hero state verified in preview · 🚧🟢
 - [x] **C6** Travel preferences richer in Availability · 🟡 · `b965bc1`
 - [x] **C7** currentLocation quick-pick chips (autocomplete preview) · 🟡 · `b965bc1`
 
 ---
 
-## Phase D — Missing features (3/8 done as scaffolds)
+## Phase D — Missing features (7/8 done as scaffolds)
 
-- [ ] **D1** Trust verification flow (ID upload → Verified badge) · 🔴 · needs admin review queue + product spec
-- [ ] **D2** Payouts setup (Stripe Connect) · 🔴 · launch-blocker; real Stripe integration
+- [x] **D1** Trust verification flow — 5-step ID + selfie scaffold · 🔴 · `c2df44a`
+- [x] **D2** Payouts setup — multi-step Stripe-Connect-style onboarding scaffold · 🔴 · `c2df44a`
 - [ ] **D3** Tax docs / 1099s · 🔴🟡 · decision: in-kind reporting?
 - [x] **D4** Booking contracts section in closed-booking drawer · 🟡 · `6935a90`
-- [ ] **D5** Reviews aggregation surface (dedicated page) · 🚧🟡
+- [x] **D5** Reviews aggregation drawer with stats + verified review cards · 🟡 · (already shipped previously — TalentReviewsDrawer)
 - [x] **D6** Help & support entry · 🟡 · `6935a90`
-- [ ] **D7** Friend referrals tracking · 🔴🟡⭐ · attribution model decision needed
+- [x] **D7** Friend referrals tracking — invite link + status list + remind action · 🟡⭐ · `c2df44a`
 - [x] **D8** Agency exclusivity model + Reach manage actions · 🟡⭐ · `0498c4f` (binding spec saved to memory)
 
 ---
 
-## Phase E — Strategic bets (1/7 built — rest documented)
+## Phase E — Strategic bets (4/7 built — rest documented)
 
 - [x] **E1** AI reply assistant on Inbox — prototype with 3 reply variants · ⭐🔴 · `7c04b12`
 - [ ] **E2** Smart conflict resolution · 📋⭐🟡 · spec in handoff §8.2
-- [ ] **E3** Earnings forecasting · 📋⭐🟡 · spec in handoff §8.3
+- [x] **E3** Earnings forecasting — ForecastTile on Activity (year-end + 30d + confidence) · ⭐🟡 · `c2df44a`
 - [ ] **E4** Talent-to-talent network · 📋⭐🔴 · spec in handoff §8.4
 - [ ] **E5** Voice replies (mobile) · 📋⭐🔴 · spec in handoff §8.5
-- [ ] **E6** Pro tier value visualization on Reach · 📋⭐🟡 · spec in handoff §8.6
-- [ ] **E7** Compare hubs view · 📋🟡 · spec in handoff §8.7
+- [x] **E6** Pro tier value visualization on Reach — ProTierValueCard with 3 unlocks · ⭐🟡 · `c2df44a`
+- [x] **E7** Compare hubs view — drawer with side-by-side stats + best-fit pill · 🟡 · `c2df44a`
 
 ---
 
-## Phase F — Cross-cutting infrastructure (0/9 — all documented)
+## Phase F — Cross-cutting infrastructure (1/9 — rest documented)
 
 - [ ] **F1** Mobile responsive audit (every surface at 375px) · 📋🔴
 - [ ] **F2** Real photos integration (avatars + brand logos) · 📋🟡
-- [ ] **F3** Loading / skeleton states · 📋🟡
+- [x] **F3** Loading / skeleton states — RowSkeleton primitive ready for use · 🟡 · `c2df44a`
 - [ ] **F4** Keyboard navigation audit · 📋🟡
 - [ ] **F5** Real-time push (notifications, conflicts, counters) · 📋🔴
 - [ ] **F6** Telemetry for color frequency budgets · 📋🔴
@@ -98,15 +98,15 @@
 
 ---
 
-## Phase X — NEW · Workspace × Talent hybrid mode (0/6 done)
+## Phase X — Workspace × Talent hybrid mode (4/6 done)
 
 Captured from your direction this session. Major architectural lift; spec in `project_workspace_talent_hybrid.md` (memory).
 
-- [ ] **X1** Surface state supports `mode: "talent" | "admin"` toggle · 📋🔴
-- [ ] **X2** SidebarShell layout component (workspace-style, talent-aware) · 📋🔴
-- [ ] **X3** Mode toggle UI (top-right of either layout) · 📋🟡
-- [ ] **X4** Inbox scoping — talent vs admin separation · 📋🟡
-- [ ] **X5** Cross-mode notifications (admin pill in talent mode) · 📋🟡
+- [x] **X1** Surface state — `flipMode()` action gated to `alsoTalent` users · 🔴 · `6053e25`
+- [ ] **X2** SidebarShell layout component (workspace-style, talent-aware) · 🚧🔴 · workspace topbar serves the role; sidebar pivot deferred
+- [x] **X3** Mode toggle UI — segmented Talent ⇄ Workspace pill in BOTH topbars · 🟡 · `6053e25`
+- [x] **X4** Inbox scoping — natural separation by surface (no rewiring needed) · 🟡 · `6053e25`
+- [x] **X5** Cross-mode notifications — unread count pills on the inactive label · 🟡 · `6053e25`
 - [ ] **X6** Network plan multi-agency picker · 📋🔴
 
 ---
@@ -129,13 +129,33 @@ Captured from your direction this session. Major architectural lift; spec in `pr
 
 ## Tally
 
-- ✅ **Shipped**: 25 items
-- 🚧 **Deferred (ready)**: 8 items
-- 🔴 **Blocked on decision**: 6 items
-- 📋 **Documented (specs only)**: 21 items
+- ✅ **Shipped**: 39 items
+- 🚧 **Deferred (ready)**: 3 items (B2 deep-dive, C5 verify, X2 sidebar pivot)
+- 🔴 **Blocked on decision**: 5 items (D3 tax, E2/E4/E5 strategic, X6 multi-agency)
+- 📋 **Documented (specs only)**: 13 items (mostly F infrastructure + DPs)
 - **Total**: 60 items in the plan
 
 Engineering wiring (Phase G surface migration) ≈ 3 weeks for one engineer per the handoff doc.
+
+---
+
+## 3-week sprint summary (2026-04-26)
+
+**Week 1** — A8 pause-mode + A10 trust-impact + A11 undo-toasts (`aba25f0`),
+B2 Profile Health banner (`1860ad9`), early-jumped E1 AI reply assistant
+(`7c04b12`).
+
+**Week 2** — X1+X3+X5 Workspace × Talent hybrid mode toggle (`6053e25`),
+C2/C3/C4 emotional polish: warmer empties + CelebrationBanner +
+FirstSessionChecklist (`b1f1063`).
+
+**Week 3** — D1 trust verification + D2 payouts onboarding + D7 referrals
++ E3 forecast tile + E6 Pro-tier value + E7 hub compare + F3 RowSkeleton
+(`c2df44a`).
+
+14 items shipped this sprint window. Talent surface now covers 39 of 60
+plan items; the remaining 21 split between deferred polish, decision
+blockers, and the production infrastructure pass owned by engineering.
 
 ---
 
