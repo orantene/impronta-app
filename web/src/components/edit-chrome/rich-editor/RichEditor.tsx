@@ -39,6 +39,7 @@ import { SerializePlugin } from "./plugins/SerializePlugin";
 import { KeyboardShortcutsPlugin } from "./plugins/KeyboardShortcutsPlugin";
 import { SingleLinePlugin } from "./plugins/SingleLinePlugin";
 import { LinkPickerPopover } from "./plugins/LinkPickerPopover";
+import { FormatPlugin } from "./plugins/FormatPlugin";
 
 export type RichEditorVariant = "single" | "multi";
 
@@ -157,6 +158,7 @@ export function RichEditor({
           ErrorBoundary={LexicalErrorBoundary}
         />
         <LinkPlugin />
+        <FormatPlugin />
         <SerializePlugin onChange={onChange} multiline={variant === "multi"} />
         <KeyboardShortcutsPlugin onRequestLink={onRequestLink} />
         <ToolbarPlugin onRequestLink={onRequestLink} />
