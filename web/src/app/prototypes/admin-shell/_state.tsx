@@ -41,8 +41,9 @@ export type WorkspacePage =
 // the agency they belong to). Keep dimensions minimal: which agency, which page.
 export type TalentPage =
   | "today"
+  | "messages"      // Chat-first inquiry/booking surface (replaces inbox)
   | "profile"
-  | "inbox"
+  | "inbox"         // Legacy list view — kept for URL compat, not in nav
   | "calendar"
   | "activity"
   | "reach"
@@ -90,10 +91,13 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "billing",
   "workspace",
 ];
+// Messages replaces Inbox as the canonical chat-first surface. Inbox
+// stays in the type union for URL backward-compat but is hidden from
+// the topbar nav.
 export const TALENT_PAGES: TalentPage[] = [
   "today",
+  "messages",
   "profile",
-  "inbox",
   "calendar",
   "activity",
   "reach",
@@ -277,6 +281,7 @@ export const PAGE_META: Record<WorkspacePage, { label: string }> = {
 
 export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
   today: { label: "Today" },
+  messages: { label: "Messages" },
   profile: { label: "Edit profile" },
   inbox: { label: "Inbox" },
   calendar: { label: "Calendar" },

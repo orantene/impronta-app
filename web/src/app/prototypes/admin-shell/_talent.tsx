@@ -490,6 +490,8 @@ function TalentRouter() {
   switch (state.talentPage) {
     case "today":
       return <TalentTodayPage />;
+    case "messages":
+      return <TalentMessagesPage />;
     case "profile":
       return <MyProfilePage />;
     case "inbox":
@@ -3780,6 +3782,1377 @@ function CompletenessBar({ value }: { value: number }) {
       >
         {value}% complete
       </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MESSAGES — chat-first inquiry/booking surface
+// ────────────────────────────────────────────────────────────────────
+// Premium Messenger-style two-pane experience that absorbs the legacy
+// Inbox. Conversation list on the left, full-bleed thread on the right.
+//
+// Design principles per product direction (2026-04-26):
+//   1. Chat IS the inquiry/booking record. Every interaction lives in
+//      one timeline.
+//   2. Action items live INLINE in the chat as message bubbles
+//      (rate input, transport pick, confirm). No separate panels.
+//   3. Stage-aware visuals + permissions: Inquiry (open) / Booked
+//      (locked-info, you see only your take-home) / Past (read-only).
+//   4. Mobile-first sizing — built to feel native when wrapped as a
+//      PWA / native quick-messenger.
+//   5. Pinned info cards at the top of every thread: brief, location
+//      with map link, transport, schedule, your rate, leader.
+//   6. Rich content support: text, image, file, voice note, location
+//      pin, calendar invite, contract sign-off, payment receipt,
+//      polaroid request, system messages (stage transitions).
+// ════════════════════════════════════════════════════════════════════
+
+type MsgStage = "inquiry" | "hold" | "booked" | "past" | "cancelled";
+
+type Conversation = {
+  id: string;
+  client: string;
+  clientInitials: string;
+  clientTrust: import("./_state").ClientTrustLevel;
+  brief: string;
+  stage: MsgStage;
+  agency: string;
+  leader: { name: string; role: string; initials: string };
+  location?: string;
+  date?: string;
+  /** Talent's take-home — only set when booked. Hides full offer per spec. */
+  amountToYou?: string;
+  /** Last message preview line — for the conversation list rail. */
+  lastMessage: { sender: "you" | "client" | "coordinator" | "agency" | "system"; preview: string; ageHrs: number };
+  unreadCount: number;
+  /** Pinned info cards — what the coordinator/client/agency entered. */
+  pinned: {
+    transport?: string;
+    schedule?: string;
+    callTime?: string;
+    rate?: { value: string; status: "you-quoted" | "client-budget" | "agreed" };
+    coordinatorNote?: string;
+  };
+};
+
+const MOCK_CONVERSATIONS: Conversation[] = [
+  {
+    id: "c1",
+    client: "Mango",
+    clientInitials: "M",
+    clientTrust: "verified",
+    brief: "Spring lookbook · Madrid",
+    stage: "inquiry",
+    agency: "Acme Models",
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    location: "Madrid · Calle de Velázquez 18",
+    date: "May 14",
+    lastMessage: { sender: "coordinator", preview: "What's your rate for a 1-day Madrid shoot? Mango asking.", ageHrs: 5 },
+    unreadCount: 2,
+    pinned: {
+      transport: "Taxi reimbursed (keep receipts) · Mango covers hotel night before",
+      schedule: "May 14 · call 08:00 · wrap by 18:00",
+      callTime: "08:00",
+      rate: { value: "—", status: "you-quoted" },
+      coordinatorNote: "Mango is keen — they liked your editorial reel. Pricing decision is yours; I'll close once we hear back from them.",
+    },
+  },
+  {
+    id: "c2",
+    client: "Bvlgari",
+    clientInitials: "B",
+    clientTrust: "gold",
+    brief: "Editorial · jewelry campaign",
+    stage: "hold",
+    agency: "Acme Models",
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    location: "Milan · TBC (likely Studio Verde)",
+    date: "May 18–20",
+    lastMessage: { sender: "client", preview: "Holding the dates — call sheet by Friday. Scope is jewelry close-ups + 1 lifestyle frame.", ageHrs: 18 },
+    unreadCount: 1,
+    pinned: {
+      transport: "Driver from your hotel each day · car included",
+      schedule: "May 18–20 · call 07:30 · 3 day shoot",
+      callTime: "07:30",
+      rate: { value: "€4,000–6,000", status: "client-budget" },
+      coordinatorNote: "Hold is locked. Confirming budget when call sheet drops.",
+    },
+  },
+  {
+    id: "c3",
+    client: "Vogue Italia",
+    clientInitials: "VI",
+    clientTrust: "gold",
+    brief: "Editorial spread · 2 days",
+    stage: "booked",
+    agency: "Acme Models",
+    leader: { name: "Ana Vega", role: "Coordinator · Acme Models", initials: "AV" },
+    location: "Milan · Studio 5, Via Tortona 27",
+    date: "May 14–15",
+    amountToYou: "€3,200 (your take · paid 14d after wrap)",
+    lastMessage: { sender: "coordinator", preview: "Call sheet attached. Hair/makeup at 06:30, on set 07:00. Confirm by EOD?", ageHrs: 4 },
+    unreadCount: 1,
+    pinned: {
+      transport: "Bus pickup at 06:00 from your hotel · driver name: Marco · WhatsApp +39 333 111 2222",
+      schedule: "May 14 · call 07:00 · wrap by 19:00 · May 15 · call 08:00 · wrap by 17:00",
+      callTime: "07:00",
+      rate: { value: "—", status: "agreed" },
+    },
+  },
+  {
+    id: "c4",
+    client: "Stella McCartney",
+    clientInitials: "SM",
+    clientTrust: "verified",
+    brief: "Lookbook · single day",
+    stage: "hold",
+    agency: "Acme Models",
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    location: "Paris · TBC",
+    date: "May 14",
+    lastMessage: { sender: "system", preview: "Hold conflict with Vogue Italia (May 14). Resolve via Calendar.", ageHrs: 4 },
+    unreadCount: 0,
+    pinned: {
+      coordinatorNote: "Conflicts with Vogue Italia. We'd love to keep this if you can resolve dates with the client.",
+    },
+  },
+  {
+    id: "c5",
+    client: "Loewe",
+    clientInitials: "L",
+    clientTrust: "gold",
+    brief: "Capsule editorial · 2 talent · 1 day",
+    stage: "past",
+    agency: "Acme Models",
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    location: "Madrid · ESTUDIO ROCA",
+    date: "Apr 18",
+    amountToYou: "€3,600 (paid Apr 25 via transfer)",
+    lastMessage: { sender: "system", preview: "Booking wrapped. Selects shared. Paid in full.", ageHrs: 168 },
+    unreadCount: 0,
+    pinned: {
+      transport: "Drove yourself · €120 fuel + tolls reimbursed",
+      schedule: "Apr 18 · call 09:00 · wrap by 16:30",
+      rate: { value: "—", status: "agreed" },
+    },
+  },
+];
+
+type Msg =
+  | { id: string; kind: "text"; sender: ConvSender; body: string; ts: string; readBy?: ConvSender[] }
+  | { id: string; kind: "image"; sender: ConvSender; caption?: string; count: number; ts: string }
+  | { id: string; kind: "file"; sender: ConvSender; filename: string; sizeKB: number; ts: string }
+  | { id: string; kind: "voice"; sender: ConvSender; durationSec: number; transcript?: string; ts: string }
+  | { id: string; kind: "location"; sender: ConvSender; label: string; ts: string }
+  | { id: string; kind: "system"; body: string; ts: string }
+  | { id: string; kind: "action-rate"; ts: string; resolved?: string }
+  | { id: string; kind: "action-transport"; ts: string; options: string[]; resolved?: string }
+  | { id: string; kind: "action-confirm"; label: string; ts: string; resolved?: boolean }
+  | { id: string; kind: "calendar-invite"; ts: string; title: string; date: string; resolved?: "yes" | "no" }
+  | { id: string; kind: "contract-sign"; ts: string; filename: string; resolved?: boolean }
+  | { id: string; kind: "polaroid-request"; ts: string; resolved?: number }
+  | { id: string; kind: "payment-receipt"; ts: string; amount: string; method: string };
+
+type ConvSender = "you" | "client" | "coordinator" | "agency";
+
+const MOCK_THREAD: Record<string, Msg[]> = {
+  c1: [
+    { id: "c1m1", kind: "system", body: "Inquiry created · routed to Acme Models", ts: "Apr 28 · 10:14" },
+    { id: "c1m2", kind: "text", sender: "coordinator", body: "Hi Marta — Mango is briefing for a Spring lookbook in Madrid. Single day, May 14. Editorial energy, less commercial. Are you open?", ts: "Apr 28 · 10:18", readBy: ["you"] },
+    { id: "c1m3", kind: "image", sender: "coordinator", caption: "Mood board — what they sent us.", count: 4, ts: "Apr 28 · 10:19" },
+    { id: "c1m4", kind: "text", sender: "you", body: "Yes, I'm open on May 14. Looks beautiful — happy to do this.", ts: "Apr 28 · 11:02", readBy: ["coordinator"] },
+    { id: "c1m5", kind: "text", sender: "coordinator", body: "Great. Mango's asking for your rate. Single day, full usage (web + social, 12 months, EU). Lunch + transport included.", ts: "Apr 28 · 14:30", readBy: ["you"] },
+    { id: "c1m6", kind: "action-rate", ts: "Apr 28 · 14:31" },
+  ],
+  c2: [
+    { id: "c2m1", kind: "system", body: "Hold opened · May 18–20 · Bvlgari", ts: "Apr 26 · 09:00" },
+    { id: "c2m2", kind: "text", sender: "client", body: "Holding May 18–20 for Marta. Editorial · jewelry close-ups + 1 lifestyle frame. Budget €4–6k for 3 days, depending on usage.", ts: "Apr 26 · 09:02", readBy: ["coordinator", "you"] },
+    { id: "c2m3", kind: "calendar-invite", ts: "Apr 26 · 09:03", title: "Bvlgari · Editorial (Hold)", date: "May 18–20" },
+    { id: "c2m4", kind: "voice", sender: "coordinator", durationSec: 22, transcript: "Bvlgari are great to work with — long-time client. They'll lock by Friday. I'd quote at the top of their range, you've worked editorial volume before.", ts: "Apr 26 · 09:30" },
+    { id: "c2m5", kind: "text", sender: "you", body: "Sounds good. Let's see the call sheet then I'll quote.", ts: "Apr 26 · 11:14", readBy: ["coordinator"] },
+    { id: "c2m6", kind: "text", sender: "client", body: "Holding the dates — call sheet by Friday. Scope is jewelry close-ups + 1 lifestyle frame.", ts: "Yesterday · 16:42" },
+  ],
+  c3: [
+    { id: "c3m1", kind: "system", body: "Booking confirmed · May 14–15 · Vogue Italia", ts: "Apr 12 · 14:00" },
+    { id: "c3m2", kind: "text", sender: "coordinator", body: "Booked! Two days at Studio 5 in Milan. Locked rate, locked usage. You're seeing your take-home only — full offer is between Vogue and us.", ts: "Apr 12 · 14:01", readBy: ["you"] },
+    { id: "c3m3", kind: "contract-sign", ts: "Apr 12 · 14:02", filename: "Vogue_Italia_Editorial_May14-15.pdf", resolved: true },
+    { id: "c3m4", kind: "polaroid-request", ts: "Apr 14 · 09:00", resolved: 6 },
+    { id: "c3m5", kind: "location", sender: "coordinator", label: "Studio 5 · Via Tortona 27, Milan", ts: "May 1 · 11:00" },
+    { id: "c3m6", kind: "file", sender: "coordinator", filename: "Vogue_callsheet_v2.pdf", sizeKB: 412, ts: "5h ago" },
+    { id: "c3m7", kind: "text", sender: "coordinator", body: "Call sheet attached. Hair/makeup at 06:30, on set 07:00. Confirm by EOD?", ts: "5h ago" },
+    { id: "c3m8", kind: "action-confirm", label: "Confirm call sheet", ts: "5h ago" },
+  ],
+  c4: [
+    { id: "c4m1", kind: "text", sender: "client", body: "Holding for Stella McCartney lookbook on May 14 in Paris. Will confirm by Wednesday.", ts: "Apr 25 · 16:00", readBy: ["coordinator", "you"] },
+    { id: "c4m2", kind: "system", body: "Hold conflict detected with Vogue Italia (May 14). Resolve via Calendar.", ts: "4h ago" },
+  ],
+  c5: [
+    { id: "c5m1", kind: "system", body: "Booking confirmed · Apr 18 · Loewe", ts: "Apr 8 · 11:00" },
+    { id: "c5m2", kind: "text", sender: "coordinator", body: "Loewe Capsule editorial. 2 talent, 1 day, ESTUDIO ROCA. You drove yourself — fuel + tolls reimbursed.", ts: "Apr 8 · 11:02" },
+    { id: "c5m3", kind: "system", body: "Wrapped · selects shared", ts: "Apr 18 · 17:30" },
+    { id: "c5m4", kind: "payment-receipt", ts: "Apr 25 · 09:14", amount: "€3,600", method: "Transfer" },
+  ],
+};
+
+const STAGE_META: Record<MsgStage, { label: string; tone: string; bg: string }> = {
+  inquiry: { label: "Inquiry", tone: COLORS.coral, bg: COLORS.coralSoft },
+  hold: { label: "Hold", tone: COLORS.amber, bg: "rgba(176,141,82,0.10)" },
+  booked: { label: "Booked", tone: COLORS.green, bg: "rgba(46,125,91,0.10)" },
+  past: { label: "Past", tone: COLORS.inkDim, bg: "rgba(11,11,13,0.04)" },
+  cancelled: { label: "Cancelled", tone: COLORS.coral, bg: COLORS.coralSoft },
+};
+
+function TalentMessagesPage() {
+  const [activeId, setActiveId] = useState<string>(MOCK_CONVERSATIONS[0]!.id);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "unread" | "inquiry" | "hold" | "booked" | "past">("all");
+
+  const filteredList = MOCK_CONVERSATIONS.filter((c) => {
+    if (filter === "unread" && c.unreadCount === 0) return false;
+    if (filter !== "all" && filter !== "unread" && c.stage !== filter) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!c.client.toLowerCase().includes(q) && !c.brief.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const active = MOCK_CONVERSATIONS.find((c) => c.id === activeId) ?? MOCK_CONVERSATIONS[0]!;
+  const messages = MOCK_THREAD[active.id] ?? [];
+
+  return (
+    <div
+      data-tulala-messages-shell
+      style={{
+        display: "grid",
+        gridTemplateColumns: "340px 1fr",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 14,
+        overflow: "hidden",
+        height: "calc(100vh - var(--proto-cbar, 50px) - 56px - 52px - 56px)",
+        minHeight: 600,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {/* Left rail — conversation list */}
+      <ConversationList
+        conversations={filteredList}
+        activeId={active.id}
+        onSelect={setActiveId}
+        search={search}
+        onSearchChange={setSearch}
+        filter={filter}
+        onFilterChange={setFilter}
+        totalUnread={MOCK_CONVERSATIONS.reduce((sum, c) => sum + c.unreadCount, 0)}
+      />
+      {/* Right pane — open thread */}
+      <ConversationThread conv={active} messages={messages} />
+    </div>
+  );
+}
+
+function ConversationList({
+  conversations,
+  activeId,
+  onSelect,
+  search,
+  onSearchChange,
+  filter,
+  onFilterChange,
+  totalUnread,
+}: {
+  conversations: Conversation[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  search: string;
+  onSearchChange: (s: string) => void;
+  filter: "all" | "unread" | "inquiry" | "hold" | "booked" | "past";
+  onFilterChange: (f: "all" | "unread" | "inquiry" | "hold" | "booked" | "past") => void;
+  totalUnread: number;
+}) {
+  const filterChips: { id: typeof filter; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "unread", label: `Unread${totalUnread > 0 ? ` (${totalUnread})` : ""}` },
+    { id: "inquiry", label: "Inquiry" },
+    { id: "hold", label: "Hold" },
+    { id: "booked", label: "Booked" },
+    { id: "past", label: "Past" },
+  ];
+  return (
+    <aside
+      style={{
+        borderRight: `1px solid ${COLORS.borderSoft}`,
+        display: "flex",
+        flexDirection: "column",
+        background: "#fff",
+        minHeight: 0,
+      }}
+    >
+      {/* Header */}
+      <div style={{ padding: "14px 14px 10px", borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, letterSpacing: -0.2, margin: 0, color: COLORS.ink }}>
+            Messages
+          </h2>
+          <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+            {conversations.length} thread{conversations.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        {/* Search */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            background: "rgba(11,11,13,0.04)",
+            borderRadius: 8,
+            padding: "7px 10px",
+          }}
+        >
+          <Icon name="search" size={13} color={COLORS.inkMuted} stroke={1.7} />
+          <input
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search clients, briefs…"
+            style={{
+              flex: 1,
+              border: "none",
+              background: "transparent",
+              outline: "none",
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              color: COLORS.ink,
+            }}
+          />
+        </div>
+        {/* Filter chips */}
+        <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+          {filterChips.map((f) => {
+            const active = filter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => onFilterChange(f.id)}
+                style={{
+                  background: active ? COLORS.ink : "transparent",
+                  color: active ? "#fff" : COLORS.inkMuted,
+                  border: active ? "none" : `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 999,
+                  padding: "3px 9px",
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 11,
+                  fontWeight: active ? 600 : 500,
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* List */}
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        {conversations.length === 0 ? (
+          <div style={{ padding: "32px 14px", textAlign: "center", color: COLORS.inkMuted, fontSize: 12 }}>
+            Nothing here. Try another filter.
+          </div>
+        ) : (
+          conversations.map((c) => (
+            <ConversationListRow
+              key={c.id}
+              conv={c}
+              active={c.id === activeId}
+              onClick={() => onSelect(c.id)}
+            />
+          ))
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function ConversationListRow({
+  conv,
+  active,
+  onClick,
+}: {
+  conv: Conversation;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const stage = STAGE_META[conv.stage];
+  const ageLabel = conv.lastMessage.ageHrs < 1
+    ? "now"
+    : conv.lastMessage.ageHrs < 24
+      ? `${conv.lastMessage.ageHrs}h`
+      : `${Math.floor(conv.lastMessage.ageHrs / 24)}d`;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        width: "100%",
+        padding: "12px 14px",
+        background: active ? "rgba(11,11,13,0.05)" : "transparent",
+        borderLeft: active ? `3px solid ${COLORS.ink}` : "3px solid transparent",
+        borderTop: "none",
+        borderRight: "none",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: FONTS.body,
+        transition: "background .12s",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.background = "rgba(11,11,13,0.02)";
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.background = "transparent";
+      }}
+    >
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <Avatar size={40} tone="auto" hashSeed={conv.client} initials={conv.clientInitials} />
+        <ClientTrustBadge level={conv.clientTrust} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+          <span style={{ fontSize: 13, fontWeight: conv.unreadCount > 0 ? 600 : 500, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {conv.client}
+          </span>
+          <span style={{ fontSize: 10.5, color: conv.unreadCount > 0 ? COLORS.ink : COLORS.inkDim, fontWeight: conv.unreadCount > 0 ? 600 : 400, flexShrink: 0 }}>
+            {ageLabel}
+          </span>
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {conv.brief}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              padding: "1px 5px",
+              borderRadius: 4,
+              background: stage.bg,
+              color: stage.tone,
+            }}
+          >
+            {stage.label}
+          </span>
+          <span style={{ fontSize: 11, color: COLORS.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>
+            {conv.lastMessage.sender === "you" ? "You: " : ""}
+            {conv.lastMessage.preview}
+          </span>
+          {conv.unreadCount > 0 && (
+            <span
+              style={{
+                minWidth: 16,
+                height: 16,
+                padding: "0 5px",
+                borderRadius: 999,
+                background: COLORS.accent,
+                color: "#fff",
+                fontSize: 9.5,
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontVariantNumeric: "tabular-nums",
+                flexShrink: 0,
+              }}
+            >
+              {conv.unreadCount}
+            </span>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ConversationThread({
+  conv,
+  messages,
+}: {
+  conv: Conversation;
+  messages: Msg[];
+}) {
+  const stage = STAGE_META[conv.stage];
+  const isLocked = conv.stage === "booked";
+  const isReadOnly = conv.stage === "past" || conv.stage === "cancelled";
+  return (
+    <section
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        background: "#fff",
+        minHeight: 0,
+      }}
+    >
+      {/* Sticky thread header */}
+      <ThreadHeader conv={conv} />
+
+      {/* Pinned info cards row */}
+      <PinnedInfoRow conv={conv} isLocked={isLocked} />
+
+      {/* Read-only banner if past */}
+      {isReadOnly && (
+        <div
+          style={{
+            padding: "8px 18px",
+            background: "rgba(11,11,13,0.04)",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+          }}
+        >
+          🔒 This thread is archived. Read-only.
+        </div>
+      )}
+
+      {/* Message stream */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "16px 22px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          minHeight: 0,
+          background: COLORS.surface,
+        }}
+      >
+        {messages.map((m) => (
+          <MessageBubble key={m.id} msg={m} stage={conv.stage} />
+        ))}
+        {/* Typing indicator (mock — only for inquiry stage) */}
+        {conv.stage === "inquiry" && <TypingIndicator name={conv.leader.name.split(" ")[0]!} />}
+      </div>
+
+      {/* Composer */}
+      {!isReadOnly && <Composer conv={conv} isLocked={isLocked} />}
+    </section>
+  );
+}
+
+function ThreadHeader({ conv }: { conv: Conversation }) {
+  const stage = STAGE_META[conv.stage];
+  const { openDrawer } = useProto();
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 18px",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        background: "#fff",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <Avatar size={36} tone="auto" hashSeed={conv.client} initials={conv.clientInitials} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14.5, fontWeight: 600, color: COLORS.ink }}>{conv.client}</span>
+          <ClientTrustChip level={conv.clientTrust} />
+          <span
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              padding: "2px 6px",
+              borderRadius: 999,
+              background: stage.bg,
+              color: stage.tone,
+            }}
+          >
+            {stage.label}
+          </span>
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+          {conv.brief} {conv.date && `· ${conv.date}`}
+        </div>
+      </div>
+      {/* Right side — leader chip + actions */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <button
+          type="button"
+          title={conv.leader.role}
+          onClick={() => openDrawer("talent-agency-relationship")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "5px 9px",
+            background: "rgba(11,11,13,0.04)",
+            border: "none",
+            borderRadius: 999,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.ink,
+          }}
+        >
+          <Avatar size={18} tone="ink" initials={conv.leader.initials} />
+          <span style={{ fontWeight: 500 }}>{conv.leader.name.split(" ")[0]}</span>
+        </button>
+        <button
+          type="button"
+          title="Search in thread"
+          aria-label="Search in thread"
+          style={iconButtonSm}
+        >
+          <Icon name="search" size={13} color={COLORS.inkMuted} stroke={1.7} />
+        </button>
+        <button
+          type="button"
+          title="Thread options"
+          aria-label="Thread options"
+          style={iconButtonSm}
+        >
+          <span style={{ fontFamily: FONTS.body, fontWeight: 700, color: COLORS.inkMuted, letterSpacing: 1 }}>···</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const iconButtonSm: CSSProperties = {
+  width: 30,
+  height: 30,
+  borderRadius: 7,
+  border: `1px solid ${COLORS.borderSoft}`,
+  background: "#fff",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+function PinnedInfoRow({ conv, isLocked }: { conv: Conversation; isLocked: boolean }) {
+  const cards: { icon: "map-pin" | "calendar" | "external" | "info"; label: string; value: string; locked?: boolean }[] = [];
+  if (conv.location) cards.push({ icon: "map-pin", label: "Location", value: conv.location });
+  if (conv.pinned.callTime || conv.pinned.schedule) {
+    cards.push({ icon: "calendar", label: "Schedule", value: conv.pinned.schedule ?? `Call ${conv.pinned.callTime}` });
+  }
+  if (conv.pinned.transport) cards.push({ icon: "external", label: "Transport", value: conv.pinned.transport });
+  if (conv.amountToYou) {
+    cards.push({ icon: "info", label: "Your take", value: conv.amountToYou, locked: isLocked });
+  } else if (conv.pinned.rate) {
+    const r = conv.pinned.rate;
+    cards.push({
+      icon: "info",
+      label: r.status === "you-quoted" ? "Your rate" : r.status === "client-budget" ? "Client budget" : "Agreed rate",
+      value: r.value,
+      locked: isLocked,
+    });
+  }
+  if (cards.length === 0) return null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        padding: "10px 18px",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        background: "#fff",
+        overflowX: "auto",
+        fontFamily: FONTS.body,
+      }}
+    >
+      {cards.map((c, i) => (
+        <div
+          key={i}
+          style={{
+            display: "inline-flex",
+            alignItems: "flex-start",
+            gap: 8,
+            padding: "8px 12px",
+            background: COLORS.surfaceAlt,
+            borderRadius: 9,
+            border: `1px solid ${COLORS.borderSoft}`,
+            minWidth: 180,
+            flexShrink: 0,
+            position: "relative",
+          }}
+        >
+          <Icon name={c.icon} size={13} color={COLORS.inkMuted} stroke={1.7} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: 0.6,
+                textTransform: "uppercase",
+                color: COLORS.inkMuted,
+                marginBottom: 2,
+              }}
+            >
+              {c.label}
+              {c.locked && <span aria-label="locked" style={{ marginLeft: 5 }}>🔒</span>}
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.ink, lineHeight: 1.4 }}>
+              {c.value}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MessageBubble({ msg, stage }: { msg: Msg; stage: MsgStage }) {
+  const fromYou = "sender" in msg && msg.sender === "you";
+  const isSystem = msg.kind === "system";
+  const isAction = msg.kind.startsWith("action-") || msg.kind === "calendar-invite" || msg.kind === "contract-sign" || msg.kind === "polaroid-request" || msg.kind === "payment-receipt";
+
+  if (isSystem) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", margin: "6px 0", fontFamily: FONTS.body }}>
+        <span
+          style={{
+            fontSize: 11,
+            color: COLORS.inkMuted,
+            background: "rgba(11,11,13,0.04)",
+            padding: "4px 12px",
+            borderRadius: 999,
+          }}
+        >
+          {msg.body} · {msg.ts}
+        </span>
+      </div>
+    );
+  }
+
+  const align = fromYou ? "flex-end" : "flex-start";
+
+  if (isAction) {
+    return (
+      <div style={{ display: "flex", justifyContent: align, fontFamily: FONTS.body }}>
+        <ActionMessage msg={msg} fromYou={fromYou} stage={stage} />
+      </div>
+    );
+  }
+
+  // Regular content message
+  return (
+    <div style={{ display: "flex", justifyContent: align, gap: 8, fontFamily: FONTS.body }}>
+      {!fromYou && "sender" in msg && (
+        <Avatar
+          size={26}
+          tone="auto"
+          hashSeed={msg.sender}
+          initials={msg.sender === "client" ? "" : msg.sender === "coordinator" ? "SM" : msg.sender === "agency" ? "AC" : ""}
+        />
+      )}
+      <div style={{ maxWidth: "70%" }}>
+        <ContentMessageBody msg={msg} fromYou={fromYou} />
+        <ReadReceiptRow msg={msg} fromYou={fromYou} />
+      </div>
+    </div>
+  );
+}
+
+function ContentMessageBody({ msg, fromYou }: { msg: Msg; fromYou: boolean }) {
+  const bg = fromYou ? COLORS.ink : "#fff";
+  const fg = fromYou ? "#fff" : COLORS.ink;
+  const border = fromYou ? "none" : `1px solid ${COLORS.borderSoft}`;
+
+  if (msg.kind === "text") {
+    return (
+      <div
+        style={{
+          background: bg,
+          color: fg,
+          border,
+          borderRadius: fromYou ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+          padding: "9px 14px",
+          fontSize: 13.5,
+          lineHeight: 1.45,
+        }}
+      >
+        {msg.body}
+      </div>
+    );
+  }
+  if (msg.kind === "image") {
+    return (
+      <div
+        style={{
+          background: bg,
+          color: fg,
+          border,
+          borderRadius: 14,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: msg.count === 1 ? "1fr" : "repeat(2, 1fr)",
+            gap: 2,
+          }}
+        >
+          {Array.from({ length: Math.min(msg.count, 4) }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                aspectRatio: "4 / 3",
+                background: `linear-gradient(135deg, ${COLORS.surfaceAlt}, rgba(11,11,13,0.06))`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 22,
+                color: COLORS.inkMuted,
+              }}
+            >
+              🖼️
+            </div>
+          ))}
+        </div>
+        {msg.caption && (
+          <div style={{ padding: "7px 14px", fontSize: 12.5, color: fg }}>{msg.caption}</div>
+        )}
+        {msg.count > 4 && (
+          <div style={{ padding: "5px 14px 8px", fontSize: 11, color: fromYou ? "rgba(255,255,255,0.7)" : COLORS.inkMuted }}>
+            +{msg.count - 4} more
+          </div>
+        )}
+      </div>
+    );
+  }
+  if (msg.kind === "file") {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 12px",
+          background: bg,
+          color: fg,
+          border,
+          borderRadius: 12,
+          minWidth: 220,
+        }}
+      >
+        <span style={{ fontSize: 22 }}>📄</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 500 }}>{msg.filename}</div>
+          <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 1 }}>
+            {msg.sizeKB} KB · PDF
+          </div>
+        </div>
+        <span style={{ fontSize: 11, opacity: 0.7 }}>↓</span>
+      </div>
+    );
+  }
+  if (msg.kind === "voice") {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "9px 14px",
+          background: bg,
+          color: fg,
+          border,
+          borderRadius: 999,
+          minWidth: 220,
+        }}
+      >
+        <span style={{ fontSize: 16 }}>▶</span>
+        <div style={{ flex: 1 }}>
+          <div
+            aria-hidden
+            style={{
+              height: 20,
+              background: `repeating-linear-gradient(90deg, ${fromYou ? "rgba(255,255,255,0.4)" : COLORS.borderSoft} 0 2px, transparent 2px 5px)`,
+              borderRadius: 4,
+            }}
+          />
+          {msg.transcript && (
+            <div style={{ fontSize: 10.5, opacity: 0.75, marginTop: 4, lineHeight: 1.4 }}>
+              "{msg.transcript}"
+            </div>
+          )}
+        </div>
+        <span style={{ fontSize: 11, opacity: 0.7, fontVariantNumeric: "tabular-nums" }}>
+          0:{msg.durationSec.toString().padStart(2, "0")}
+        </span>
+      </div>
+    );
+  }
+  if (msg.kind === "location") {
+    return (
+      <a
+        href={`https://maps.google.com/?q=${encodeURIComponent(msg.label)}`}
+        target="_blank"
+        rel="noreferrer"
+        style={{
+          display: "block",
+          background: bg,
+          color: fg,
+          border,
+          borderRadius: 12,
+          overflow: "hidden",
+          textDecoration: "none",
+          minWidth: 240,
+        }}
+      >
+        <div
+          style={{
+            aspectRatio: "5 / 2",
+            background: `linear-gradient(135deg, ${COLORS.indigoSoft}, rgba(91,107,160,0.20))`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 28,
+          }}
+        >
+          📍
+        </div>
+        <div style={{ padding: "8px 12px" }}>
+          <div style={{ fontSize: 12.5, fontWeight: 500, color: fromYou ? "#fff" : COLORS.ink }}>
+            {msg.label}
+          </div>
+          <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 2 }}>Tap to open in Maps</div>
+        </div>
+      </a>
+    );
+  }
+  return null;
+}
+
+function ReadReceiptRow({ msg, fromYou }: { msg: Msg; fromYou: boolean }) {
+  if (!fromYou || !("ts" in msg)) return null;
+  const readBy = "readBy" in msg ? msg.readBy : undefined;
+  const checkmark = readBy && readBy.length > 0 ? "✓✓" : "✓";
+  const checkColor = readBy && readBy.length > 0 ? COLORS.green : COLORS.inkDim;
+  return (
+    <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 3, fontSize: 10.5, color: COLORS.inkMuted }}>
+      <span>{msg.ts}</span>
+      <span style={{ color: checkColor, fontFamily: "monospace" }}>{checkmark}</span>
+    </div>
+  );
+}
+
+function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; stage: MsgStage }) {
+  const { toast } = useProto();
+
+  if (msg.kind === "action-rate") {
+    const [val, setVal] = useState(msg.resolved ?? "");
+    const submitted = !!msg.resolved;
+    return (
+      <div
+        style={{
+          background: "#fff",
+          border: `2px solid ${submitted ? COLORS.green : COLORS.coral}`,
+          borderRadius: 14,
+          padding: "12px 14px",
+          maxWidth: 380,
+          fontFamily: FONTS.body,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 16 }}>💸</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: submitted ? COLORS.green : COLORS.ink }}>
+            {submitted ? "Rate sent to coordinator" : "What's your rate for this?"}
+          </span>
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+          1 day, full usage (web + social, 12 months, EU). Lunch + transport included.
+          {!submitted && " Your reply goes private to the coordinator first — they negotiate with the client."}
+        </div>
+        {submitted ? (
+          <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.green }}>€{val} / day</div>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                background: "#fff",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 8,
+                padding: "0 10px",
+                flex: 1,
+              }}
+            >
+              <span style={{ fontSize: 13, color: COLORS.inkMuted, marginRight: 6 }}>€</span>
+              <input
+                type="text"
+                placeholder="1,800"
+                value={val}
+                onChange={(e) => setVal(e.target.value)}
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  fontFamily: FONTS.body,
+                  fontSize: 13,
+                  padding: "8px 0",
+                  color: COLORS.ink,
+                }}
+              />
+              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>/day</span>
+            </div>
+            <PrimaryButton size="sm" onClick={() => toast(`Rate sent privately to coordinator · €${val}/day`)}>
+              Send
+            </PrimaryButton>
+          </div>
+        )}
+      </div>
+    );
+  }
+  if (msg.kind === "action-transport") {
+    return (
+      <div style={{ background: "#fff", border: `2px solid ${COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 380, fontFamily: FONTS.body }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 16 }}>🚖</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>Confirm your transport</span>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {msg.options.map((opt) => (
+            <button
+              key={opt}
+              onClick={() => toast(`Transport · ${opt}`)}
+              style={{
+                background: "rgba(11,11,13,0.04)",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 999,
+                padding: "5px 11px",
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 12,
+              }}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (msg.kind === "action-confirm") {
+    return (
+      <div style={{ background: "#fff", border: `2px solid ${COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 10 }}>{msg.label}</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <PrimaryButton size="sm" onClick={() => toast("Call sheet confirmed")}>Confirm</PrimaryButton>
+          <SecondaryButton size="sm" onClick={() => toast("Issue noted — coordinator will follow up")}>Has issues</SecondaryButton>
+        </div>
+      </div>
+    );
+  }
+  if (msg.kind === "calendar-invite") {
+    return (
+      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.indigo, marginBottom: 4 }}>
+          📅 Calendar invite
+        </div>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{msg.title}</div>
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{msg.date}</div>
+        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+          <PrimaryButton size="sm" onClick={() => toast("Added to your calendar")}>Add</PrimaryButton>
+          <SecondaryButton size="sm" onClick={() => toast("Declined")}>Decline</SecondaryButton>
+        </div>
+      </div>
+    );
+  }
+  if (msg.kind === "contract-sign") {
+    return (
+      <div style={{ background: "#fff", border: `1px solid ${msg.resolved ? "rgba(46,125,91,0.30)" : COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 16 }}>📑</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{msg.resolved ? "Contract signed" : "Sign contract"}</span>
+          {msg.resolved && <span style={{ color: COLORS.green, fontSize: 11, fontWeight: 600 }}>✓</span>}
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>{msg.filename}</div>
+        {!msg.resolved && (
+          <PrimaryButton size="sm" onClick={() => toast("Opening signing flow…")}>Review & sign</PrimaryButton>
+        )}
+      </div>
+    );
+  }
+  if (msg.kind === "polaroid-request") {
+    return (
+      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 16 }}>📸</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+            Polaroids requested {msg.resolved ? `· ${msg.resolved} sent` : ""}
+          </span>
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>
+          Recent, unretouched, full-body + face. 5 minimum.
+        </div>
+        {msg.resolved ? (
+          <div style={{ fontSize: 12, color: COLORS.green, fontWeight: 600 }}>✓ {msg.resolved} polaroids delivered</div>
+        ) : (
+          <PrimaryButton size="sm" onClick={() => toast("Open camera roll…")}>Upload polaroids</PrimaryButton>
+        )}
+      </div>
+    );
+  }
+  if (msg.kind === "payment-receipt") {
+    return (
+      <div style={{ background: "rgba(46,125,91,0.06)", border: `1px solid rgba(46,125,91,0.25)`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.green, marginBottom: 4 }}>
+          ✓ Paid
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.display, letterSpacing: -0.2 }}>
+          {msg.amount}
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>via {msg.method} · {msg.ts}</div>
+      </div>
+    );
+  }
+  return null;
+}
+
+function TypingIndicator({ name }: { name: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 0 0 6px", fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted }}>
+      <span style={{ display: "inline-flex", gap: 3 }}>
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            style={{
+              width: 5,
+              height: 5,
+              borderRadius: "50%",
+              background: COLORS.inkMuted,
+              animation: `tulala-typing 1.2s infinite ease-in-out ${i * 0.15}s`,
+              display: "inline-block",
+            }}
+          />
+        ))}
+      </span>
+      {name} is typing…
+      <style>{`
+        @keyframes tulala-typing {
+          0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+          30% { opacity: 1; transform: translateY(-2px); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean }) {
+  const { toast } = useProto();
+  const [text, setText] = useState("");
+  const [attachOpen, setAttachOpen] = useState(false);
+
+  // Smart-reply chips — context-aware (mock)
+  const smartReplies = isLocked
+    ? ["Confirmed", "On my way 🚖", "Running 5 min late"]
+    : conv.stage === "inquiry"
+      ? ["Yes, available", "Need more info", "Send rate via 💸 above"]
+      : ["Holding 👍", "Sounds good", "Will confirm later today"];
+
+  return (
+    <div
+      style={{
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        padding: "10px 14px 12px",
+        background: "#fff",
+        position: "relative",
+      }}
+    >
+      {/* Smart-reply chips */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+        {smartReplies.map((r) => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => { setText(r); }}
+            style={{
+              background: "rgba(11,11,13,0.04)",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 999,
+              padding: "4px 10px",
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              color: COLORS.ink,
+            }}
+          >
+            ✨ {r}
+          </button>
+        ))}
+      </div>
+
+      {/* Composer row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "rgba(11,11,13,0.04)",
+          borderRadius: 12,
+          padding: "6px 8px",
+        }}
+      >
+        {/* Attach trigger */}
+        <button
+          type="button"
+          onClick={() => setAttachOpen((v) => !v)}
+          aria-label="Attach"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 999,
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: COLORS.inkMuted,
+          }}
+        >
+          <Icon name="plus" size={14} stroke={2} />
+        </button>
+        <input
+          type="text"
+          placeholder={isLocked ? "Locked thread — only chat allowed" : "Message…"}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          style={{
+            flex: 1,
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+            padding: "8px 0",
+          }}
+        />
+        {/* Voice + send */}
+        <button
+          type="button"
+          aria-label="Voice note"
+          title="Hold to record"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 999,
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: COLORS.inkMuted,
+          }}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="3" width="6" height="12" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!text.trim()) return;
+            toast("Message sent");
+            setText("");
+          }}
+          aria-label="Send"
+          disabled={!text.trim()}
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: 999,
+            border: "none",
+            background: text.trim() ? COLORS.ink : "rgba(11,11,13,0.06)",
+            color: text.trim() ? "#fff" : COLORS.inkDim,
+            cursor: text.trim() ? "pointer" : "not-allowed",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "background .12s",
+          }}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Attach menu — popover above composer */}
+      {attachOpen && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 4px)",
+            left: 14,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            boxShadow: "0 6px 24px rgba(11,11,13,0.10)",
+            padding: 6,
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 90px)",
+            gap: 4,
+            fontFamily: FONTS.body,
+            zIndex: 20,
+          }}
+        >
+          {[
+            { icon: "📷", label: "Photo" },
+            { icon: "📄", label: "File" },
+            { icon: "📍", label: "Location" },
+            { icon: "🎙️", label: "Voice" },
+            { icon: "📅", label: "Calendar" },
+            { icon: "💸", label: "Quote rate" },
+          ].map((a) => (
+            <button
+              key={a.label}
+              type="button"
+              onClick={() => { toast(`${a.label} attach (prototype)`); setAttachOpen(false); }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+                padding: "10px 6px",
+                background: "transparent",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 11,
+                color: COLORS.inkMuted,
+                transition: "background .12s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <span style={{ fontSize: 20 }}>{a.icon}</span>
+              <span>{a.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
