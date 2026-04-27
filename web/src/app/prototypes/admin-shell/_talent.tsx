@@ -687,6 +687,17 @@ function TalentTodayPage() {
         onOpenActivity={() => setTalentPage("activity")}
       />
 
+      {/* Audit #14 — Today's plan inline banner. Shows today's confirmed
+          shoots inline (call time, location). The mock's "today" is May
+          6; production reads from real date. Only renders when the next
+          booking literally starts today, so it auto-vanishes off-day. */}
+      {upcoming.length > 0 && upcoming[0]!.startDate.includes("May 6") && (
+        <TodaysPlanBanner
+          bookings={upcoming.filter((b) => b.startDate.includes("May 6")).slice(0, 3)}
+          onOpen={(id) => openDrawer("talent-booking-detail", { id })}
+        />
+      )}
+
       {/* Order rationale (Tier 2 audit): group temporally.
             Forward-facing first  → Needs reply, Inquiries (in flight), Calendar
             Backward-facing after → Earnings, Profile views (looking back, 2-up)
@@ -867,6 +878,101 @@ function ProfileCompletenessBanner({
         Finish profile →
       </span>
     </button>
+  );
+}
+
+/**
+ * Audit #14 — Today's plan banner. Surfaces TODAY's confirmed shoots
+ * inline on the Talent Today page so the talent doesn't have to open
+ * Calendar to see what's happening in the next 12 hours. Compact rows
+ * with call time, brief, location, and a quick "open" affordance.
+ *
+ * Forest-soft tint because confirmed bookings are positive ground —
+ * this isn't an alert, it's "here's what you committed to."
+ */
+function TodaysPlanBanner({
+  bookings,
+  onOpen,
+}: {
+  bookings: TalentBooking[];
+  onOpen: (id: string) => void;
+}) {
+  if (bookings.length === 0) return null;
+  return (
+    <section
+      style={{
+        background: `linear-gradient(135deg, rgba(46,125,91,0.08) 0%, #fff 70%)`,
+        border: `1px solid rgba(46,125,91,0.20)`,
+        borderRadius: 12,
+        padding: "12px 16px",
+        marginBottom: 16,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: 0.7,
+            textTransform: "uppercase",
+            color: COLORS.green,
+          }}
+        >
+          Today
+        </span>
+        <span style={{ fontSize: 12, color: COLORS.inkMuted }}>
+          {bookings.length === 1 ? "1 confirmed shoot" : `${bookings.length} confirmed shoots`}
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {bookings.map((b) => (
+          <button
+            key={b.id}
+            type="button"
+            onClick={() => onOpen(b.id)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "8px 12px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 8,
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: FONTS.body,
+              transition: "border-color .12s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.green)}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
+          >
+            <span
+              style={{
+                fontFamily: FONTS.display,
+                fontSize: 16,
+                fontWeight: 600,
+                color: COLORS.green,
+                fontVariantNumeric: "tabular-nums",
+                width: 56,
+                flexShrink: 0,
+              }}
+            >
+              {b.call}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+                {b.client} · {b.brief}
+              </div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                {b.location}
+              </div>
+            </div>
+            <Icon name="chevron-right" size={12} color={COLORS.inkDim} />
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -6122,6 +6228,10 @@ function ActivityPage() {
 function ReachPage() {
   const { openDrawer, toast } = useProto();
 
+  // Audit #40 — dismissible Pro-tier card. Once dismissed for the
+  // session, the page falls back to a compact strip at the same spot.
+  const [proTierDismissed, setProTierDismissed] = useState(false);
+
   // Local state — preset slider + per-channel overrides. In production
   // these would persist via mutations on TalentDistribution rows.
   const [preset, setPreset] = useState<ExposurePreset>("wide");
@@ -6231,6 +6341,14 @@ function ReachPage() {
           a delta or context line so the strip reads as "here's where I
           am, here's the trend." Earnings is the single most important
           metric — it answers "what did distribution actually earn me?" */}
+      {/* Audit #44 — Reach health score. Single 0–100 number that
+          summarizes how well distributed the talent is. Sits above the
+          stat strip so it's the first thing scanned. */}
+      <ReachHealthScore
+        liveChannels={liveChannels}
+        totalChannels={TALENT_CHANNELS.length}
+        inquiries7d={totalInquiries7d}
+      />
       <div
         style={{
           display: "flex",
@@ -6385,14 +6503,22 @@ function ReachPage() {
       <div style={{ height: 24 }} />
 
       {/* Pro tier value card (E6) — only when on a non-Portfolio tier.
-          Shows the concrete unlocks vs current tier so the upgrade pitch
-          is grounded in the talent's actual missing surfaces, not vague
-          "more features". Forest accent — earnings-adjacent framing. */}
+          Audit #40 — dismissible per-session. Shown until the talent
+          dismisses it or upgrades; then a compact "Pro unlocks 3 modules
+          → Compare" sticky strip lives at the bottom of Reach instead. */}
       {MY_TALENT_PROFILE.subscription.tier !== "portfolio" && (
-        <ProTierValueCard
-          currentTier={MY_TALENT_PROFILE.subscription.tier}
-          onCompare={() => openDrawer("talent-tier-compare")}
-        />
+        proTierDismissed ? (
+          <ProTierCompactStrip
+            currentTier={MY_TALENT_PROFILE.subscription.tier}
+            onCompare={() => openDrawer("talent-tier-compare")}
+          />
+        ) : (
+          <ProTierValueCard
+            currentTier={MY_TALENT_PROFILE.subscription.tier}
+            onCompare={() => openDrawer("talent-tier-compare")}
+            onDismiss={() => setProTierDismissed(true)}
+          />
+        )
       )}
 
       {/* Maximum-exposure confirm dialog. Surfaces the real trade-off
@@ -6761,9 +6887,11 @@ function ExposurePresetSlider({
 function ProTierValueCard({
   currentTier,
   onCompare,
+  onDismiss,
 }: {
   currentTier: TalentSubscriptionTier;
   onCompare: () => void;
+  onDismiss?: () => void;
 }) {
   // Skip if already on top tier (parent gates this, but defensive).
   if (currentTier === "portfolio") return null;
@@ -6795,6 +6923,31 @@ function ProTierValueCard({
         fontFamily: FONTS.body,
       }}
     >
+      {onDismiss && (
+        <button
+          onClick={onDismiss}
+          aria-label="Dismiss — collapse to a compact strip"
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            width: 22,
+            height: 22,
+            borderRadius: 6,
+            border: "none",
+            background: "transparent",
+            color: COLORS.inkMuted,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.06)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          <Icon name="x" size={11} />
+        </button>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <span
           style={{
@@ -6865,6 +7018,127 @@ function ProTierValueCard({
         </span>
       </div>
     </section>
+  );
+}
+
+/**
+ * Audit #44 — Reach health score. Distills "how well-distributed are
+ * you" into a single 0–100 number with tone (red/amber/green). Math is
+ * intentionally simple (channel coverage + 7d inquiry signal). Tone
+ * shifts at 50 / 75 thresholds.
+ */
+function ReachHealthScore({
+  liveChannels,
+  totalChannels,
+  inquiries7d,
+}: {
+  liveChannels: number;
+  totalChannels: number;
+  inquiries7d: number;
+}) {
+  const coverage = Math.round((liveChannels / Math.max(totalChannels, 1)) * 60); // 0–60
+  const volume = Math.min(inquiries7d * 5, 40); // 0–40
+  const score = Math.min(coverage + volume, 100);
+  const tone = score >= 75 ? "green" : score >= 50 ? "amber" : "coral";
+  const toneColor = tone === "green" ? COLORS.green : tone === "amber" ? COLORS.amber : COLORS.coral;
+  const label =
+    score >= 90 ? "Excellent — fully distributed" :
+    score >= 75 ? "Healthy — most channels live" :
+    score >= 50 ? "Mixed — a few channels need attention" :
+    "Low — turn on more channels";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "12px 16px",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+        marginBottom: 10,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: "50%",
+          background: "#fff",
+          border: `3px solid ${toneColor}`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontFamily: FONTS.display,
+          fontSize: 18,
+          fontWeight: 600,
+          color: COLORS.ink,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {score}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted }}>
+          Reach health
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginTop: 2 }}>
+          {label}
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+          {liveChannels} of {totalChannels} channels live · {inquiries7d} inquiries in last 7d
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Audit #40 — compact strip variant of the Pro-tier value card. Shown
+ * after the talent dismisses the full card. Single line, low visual
+ * weight, but still the upgrade affordance is one click away.
+ */
+function ProTierCompactStrip({
+  currentTier,
+  onCompare,
+}: {
+  currentTier: TalentSubscriptionTier;
+  onCompare: () => void;
+}) {
+  const isBasic = currentTier === "basic";
+  const targetTier = isBasic ? "pro" : "portfolio";
+  const targetMeta = TALENT_TIER_META[targetTier];
+  return (
+    <button
+      type="button"
+      onClick={onCompare}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        width: "100%",
+        padding: "10px 14px",
+        background: "rgba(46,125,91,0.06)",
+        border: `1px solid rgba(46,125,91,0.20)`,
+        borderRadius: 10,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        textAlign: "left",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(46,125,91,0.10)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(46,125,91,0.06)")}
+    >
+      <Icon name="sparkle" size={13} color={COLORS.green} stroke={1.7} />
+      <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink, fontWeight: 500 }}>
+        On {TALENT_TIER_META[currentTier].label}.{" "}
+        <span style={{ color: COLORS.green, fontWeight: 600 }}>{targetMeta.label}</span> unlocks 3 modules · {targetMeta.monthlyPrice}
+      </span>
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.green }}>
+        Compare →
+      </span>
+    </button>
   );
 }
 
@@ -7083,6 +7357,7 @@ function ChannelRow({
         opacity: paused ? 0.6 : !on && channel.toggleable ? 0.7 : 1,
         transition: "opacity .12s",
       }}
+      data-channel-row
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div

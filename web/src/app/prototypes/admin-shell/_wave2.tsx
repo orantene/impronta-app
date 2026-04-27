@@ -1627,7 +1627,10 @@ export function TalentFunnelCard() {
   return (
     <section
       style={{
-        background: "#fff",
+        // Audit #12 — soft surfaceAlt background distinguishes this
+        // "in-flight pipeline" card from the white "Needs your reply"
+        // card above. Same shape, lower visual weight = lower urgency.
+        background: COLORS.surfaceAlt,
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 12,
         padding: "16px 18px",
@@ -1635,8 +1638,25 @@ export function TalentFunnelCard() {
         marginBottom: 12,
       }}
     >
-      <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
-        Inquiries you're in
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+          Inquiries you're in
+        </div>
+        <span
+          aria-hidden
+          style={{
+            fontSize: 9.5,
+            fontWeight: 700,
+            letterSpacing: 0.6,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+            background: "rgba(11,11,13,0.06)",
+            padding: "2px 6px",
+            borderRadius: 999,
+          }}
+        >
+          Watching
+        </span>
       </div>
       <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
         Who else you're up against, and where each is in the pipeline.
