@@ -1750,6 +1750,7 @@ function TalentTodayHero({
           carries a small caption (next-up, trend, or status hint) so the
           strip is scannable on its own without re-scrolling the page. */}
       <div
+        data-tulala-stat-strip
         style={{
           display: "flex",
           alignItems: "center",
@@ -2058,6 +2059,7 @@ function HeroStatDivider() {
   return (
     <span
       aria-hidden
+      data-tulala-stat-divider
       style={{
         width: 1,
         height: 28,
@@ -8518,6 +8520,7 @@ function ForecastTile({ total, bookingsCount }: { total: number; bookingsCount: 
 
   return (
     <section
+      data-tulala-forecast-tile
       style={{
         display: "flex",
         alignItems: "stretch",
@@ -8734,6 +8737,7 @@ function ActivityPage() {
 
       {/* Compact stat strip — same pattern as Reach hero */}
       <div
+        data-tulala-stat-strip
         style={{
           display: "flex",
           alignItems: "center",
@@ -9384,6 +9388,7 @@ function ReachStatDivider() {
   return (
     <span
       aria-hidden
+      data-tulala-stat-divider
       style={{
         width: 1,
         height: 28,

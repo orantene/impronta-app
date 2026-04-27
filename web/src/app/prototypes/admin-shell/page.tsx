@@ -480,6 +480,52 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               z-index: 0;
             }
           }
+          /* Talent / workspace stat strips: wrap to 2-up grid at <720
+             so 3 stats with vertical dividers don't overflow the row.
+             Hide the inline dividers (they're abs-positioned 1px lines
+             that look broken when the strip wraps). */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-stat-strip] {
+              flex-wrap: wrap !important;
+              gap: 12px !important;
+              padding: 12px 14px !important;
+              row-gap: 12px !important;
+            }
+            .tulala-shell [data-tulala-stat-strip] > [data-tulala-stat-divider] {
+              display: none !important;
+            }
+            .tulala-shell [data-tulala-stat-strip] > * {
+              flex-basis: 45% !important;
+              flex-grow: 1 !important;
+            }
+          }
+          /* Forecast tile: 3-up horizontal collapses to vertical stack
+             at <720 so each metric is full-width and readable. The
+             internal vertical 1px dividers turn into 1px horizontal
+             dividers via flex-direction. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-forecast-tile] {
+              flex-direction: column !important;
+            }
+            .tulala-shell [data-tulala-forecast-tile] > div[style*="width: 1px"] {
+              width: 100% !important;
+              height: 1px !important;
+            }
+          }
+          /* Talent / surface H1 mobile typography. The big 30px display
+             headline scales down to keep proportions on phone. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-surface-main] h1 {
+              font-size: 26px !important;
+              letter-spacing: -0.4px !important;
+            }
+          }
+          @media (max-width: 540px) {
+            .tulala-shell [data-tulala-surface-main] h1 {
+              font-size: 22px !important;
+              letter-spacing: -0.3px !important;
+            }
+          }
           /* Identity bar mobile collapse — drop the lowest-priority
              utilities below 720px so the centerpiece (mode toggle +
              notifications) keeps room. Help, locale toggle, sign-out
