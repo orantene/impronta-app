@@ -1054,6 +1054,29 @@ html[data-token-typography-scale-preset="editorial"] {
   color: rgba(255, 255, 255, 0.82);
 }
 
+/* Image-less fallback for centered-overlay: when no backgroundImageUrl is
+ * seeded, the shell would otherwise have no surface, so the body bg shows
+ * through. Headline + copy default to surface-raised which on dark-bodied
+ * tenants (e.g. impronta) resolves to a dark color too — making text
+ * invisible. Apply a warm-dark editorial gradient + cream text to keep the
+ * section legible regardless of brand-token polarity. */
+.site-cta-banner[data-variant="centered-overlay"]:not([data-has-image="true"]) .site-cta-banner__shell {
+  background: linear-gradient(180deg, #2a221e 0%, #1a1410 100%);
+  color: #f6f1ea;
+}
+.site-cta-banner[data-variant="centered-overlay"]:not([data-has-image="true"]) .site-cta-banner__headline {
+  color: #f6f1ea;
+}
+.site-cta-banner[data-variant="centered-overlay"]:not([data-has-image="true"]) .site-cta-banner__copy {
+  color: rgba(246, 241, 234, 0.88);
+}
+.site-cta-banner[data-variant="centered-overlay"]:not([data-has-image="true"]) .site-cta-banner__inner .site-eyebrow {
+  color: rgba(246, 241, 234, 0.72);
+}
+.site-cta-banner[data-variant="centered-overlay"]:not([data-has-image="true"]) .site-cta-banner__reassurance {
+  color: rgba(246, 241, 234, 0.82);
+}
+
 /* Variant: split image. */
 .site-cta-banner[data-variant="split-image"] .site-cta-banner__shell {
   flex-direction: row;

@@ -46,6 +46,7 @@ export function CtaBannerComponent({ props }: SectionComponentProps<CtaBannerV1>
       data-image-side={imageSide}
       data-band-tone={bandTone}
       data-inset-card={insetCard ? "true" : undefined}
+      data-has-image={hasBackground ? "true" : undefined}
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
