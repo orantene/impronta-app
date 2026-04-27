@@ -395,7 +395,7 @@ function ToggleControl({
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar() {
-  const { state, setPage, openDrawer, flipMode } = useProto();
+  const { state, setPage, openDrawer, flipMode, setWorkspaceLayout } = useProto();
   const tenant = TENANT;
   const canCreate = meetsRole(state.role, "editor");
   // Hybrid users have a personal talent surface. Surface unread there too.
@@ -666,6 +666,29 @@ export function WorkspaceTopbar() {
               }}
             >
               <Icon name="settings" size={15} stroke={1.7} />
+            </button>
+          </Popover>
+
+          {/* X2 layout toggle — switches workspace shell to sidebar layout. */}
+          <Popover content="Switch to sidebar layout">
+            <button
+              type="button"
+              onClick={() => setWorkspaceLayout("sidebar")}
+              aria-label="Switch to sidebar layout"
+              style={iconButtonStyle}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = COLORS.border;
+                e.currentTarget.style.color = COLORS.ink;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = COLORS.borderSoft;
+                e.currentTarget.style.color = COLORS.inkMuted;
+              }}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 3v18" />
+              </svg>
             </button>
           </Popover>
 
@@ -1067,6 +1090,11 @@ function QuickCreateMenu() {
 
 export function WorkspaceShell() {
   const { state } = useProto();
+  // X2: Sidebar layout option for hybrid talent owners. Toggled from
+  // the topbar utility cluster; persisted to localStorage.
+  if (state.workspaceLayout === "sidebar") {
+    return <WorkspaceSidebarShell />;
+  }
   return (
     <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 56px - 50px)" }}>
       <WorkspaceTopbar />
@@ -1075,6 +1103,300 @@ export function WorkspaceShell() {
         style={{
           padding: "28px 28px 60px",
           maxWidth: 1320,
+          margin: "0 auto",
+        }}
+      >
+        <PageRouter page={state.page} />
+      </main>
+    </div>
+  );
+}
+
+/**
+ * X2: SidebarShell — workspace-style vertical rail layout. Used by
+ * hybrid talent owners who prefer a workspace-y mental model. Carries
+ * the same content as the topbar shell (PageRouter), just with a
+ * fixed-width sidebar on the left and the main column flexing.
+ */
+function WorkspaceSidebarShell() {
+  const { state, setPage, setWorkspaceLayout, openDrawer, flipMode } = useProto();
+  const { role, plan, alsoTalent } = state;
+  const tenant = TENANT;
+  const canCreate = meetsRole(role, "editor");
+  const talentUnread = alsoTalent ? 4 : 0;
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "232px 1fr",
+        background: COLORS.surface,
+        minHeight: "calc(100vh - 56px - 50px)",
+      }}
+    >
+      <aside
+        data-tulala-app-sidebar
+        style={{
+          background: "#fff",
+          borderRight: `1px solid ${COLORS.borderSoft}`,
+          padding: "18px 14px",
+          position: "sticky",
+          top: 50,
+          alignSelf: "flex-start",
+          maxHeight: "calc(100vh - 50px)",
+          overflowY: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+          fontFamily: FONTS.body,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => openDrawer("tenant-switcher")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "8px 10px",
+            background: "rgba(11,11,13,0.04)",
+            border: "none",
+            borderRadius: 10,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            textAlign: "left",
+            width: "100%",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 7,
+              background: COLORS.ink,
+              color: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: FONTS.display,
+              fontSize: 13,
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          >
+            {tenant.name.charAt(0)}
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {tenant.name}
+            </div>
+            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.6, marginTop: 1 }}>
+              {plan} · {state.entityType}
+            </div>
+          </div>
+          <Icon name="chevron-down" size={11} color={COLORS.inkMuted} />
+        </button>
+
+        <nav aria-label="Workspace sections" style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {WORKSPACE_PAGES.map((p) => {
+            const active = state.page === p;
+            return (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPage(p)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "8px 12px",
+                  background: active ? "rgba(11,11,13,0.06)" : "transparent",
+                  border: "none",
+                  borderRadius: 7,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 13,
+                  fontWeight: active ? 600 : 500,
+                  color: active ? COLORS.ink : COLORS.inkMuted,
+                  textAlign: "left",
+                  letterSpacing: 0.05,
+                }}
+              >
+                {PAGE_META[p].label}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div style={{ flex: 1 }} />
+
+        {alsoTalent && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <CapsLabel>Mode</CapsLabel>
+            <div
+              role="tablist"
+              aria-label="Switch between workspace and talent mode"
+              style={{
+                display: "flex",
+                background: "rgba(11,11,13,0.05)",
+                borderRadius: 999,
+                padding: 3,
+                fontFamily: FONTS.body,
+              }}
+            >
+              <button
+                role="tab"
+                aria-selected="true"
+                style={{
+                  flex: 1,
+                  background: COLORS.ink,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "5px 11px",
+                  cursor: "default",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                }}
+              >
+                Workspace
+              </button>
+              <button
+                role="tab"
+                aria-selected="false"
+                onClick={flipMode}
+                style={{
+                  flex: 1,
+                  background: "transparent",
+                  color: COLORS.inkMuted,
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "5px 11px",
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 5,
+                }}
+              >
+                Talent
+                {talentUnread > 0 && (
+                  <span
+                    style={{
+                      minWidth: 14,
+                      height: 14,
+                      padding: "0 4px",
+                      borderRadius: 999,
+                      background: COLORS.accent,
+                      color: "#fff",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {talentUnread}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <button
+            type="button"
+            onClick={() => openDrawer("notifications")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "7px 10px",
+              background: "transparent",
+              border: "none",
+              borderRadius: 7,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: COLORS.inkMuted,
+              textAlign: "left",
+            }}
+          >
+            <Icon name="info" size={12} stroke={1.7} color={COLORS.inkMuted} />
+            <span style={{ flex: 1 }}>Notifications</span>
+            <span
+              style={{
+                background: COLORS.accent,
+                color: "#fff",
+                fontSize: 9.5,
+                fontWeight: 700,
+                padding: "1px 6px",
+                borderRadius: 999,
+              }}
+            >
+              3
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => openDrawer("help")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "7px 10px",
+              background: "transparent",
+              border: "none",
+              borderRadius: 7,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: COLORS.inkMuted,
+              textAlign: "left",
+            }}
+          >
+            <Icon name="info" size={12} stroke={1.7} />
+            <span style={{ flex: 1 }}>Help</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setWorkspaceLayout("topbar")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "7px 10px",
+              background: "transparent",
+              border: "none",
+              borderRadius: 7,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              color: COLORS.inkMuted,
+              textAlign: "left",
+            }}
+          >
+            <Icon name="external" size={12} stroke={1.7} />
+            <span style={{ flex: 1 }}>Switch to topbar</span>
+          </button>
+        </div>
+
+        {canCreate && (
+          <PrimaryButton onClick={() => openDrawer("new-inquiry")}>+ New inquiry</PrimaryButton>
+        )}
+      </aside>
+
+      <main
+        data-tulala-surface-main
+        style={{
+          padding: "28px 28px 60px",
+          maxWidth: 1180,
+          width: "100%",
           margin: "0 auto",
         }}
       >

@@ -3967,9 +3967,18 @@ export type ProtoState = {
   completedTasks: Set<string>;
   /** Comfortable (default) vs compact list density. Persisted to localStorage. */
   density: Density;
+  /**
+   * Workspace layout preference (X2). "topbar" (default) keeps the
+   * existing horizontal nav. "sidebar" pivots to a workspace-style
+   * vertical rail — useful for hybrid talent owners who run a workspace
+   * and want a workspace-y mental model when they switch into it.
+   * Persisted to localStorage.
+   */
+  workspaceLayout: WorkspaceLayout;
 };
 
 export type Density = "comfortable" | "compact";
+export type WorkspaceLayout = "topbar" | "sidebar";
 
 type Ctx = {
   state: ProtoState;
@@ -3987,6 +3996,7 @@ type Ctx = {
   setEntityType: (e: EntityType) => void;
   setAlsoTalent: (b: boolean) => void;
   setDensity: (d: Density) => void;
+  setWorkspaceLayout: (l: WorkspaceLayout) => void;
   setPage: (p: WorkspacePage) => void;
   setTalentPage: (p: TalentPage) => void;
   setClientPlan: (p: ClientPlan) => void;
@@ -4033,13 +4043,16 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
   const [density, setDensityState] = useState<Density>("comfortable");
+  const [workspaceLayout, setWorkspaceLayoutState] = useState<WorkspaceLayout>("topbar");
   const toastIdRef = useRef(0);
 
-  // Hydrate density from localStorage on mount.
+  // Hydrate density + workspace layout from localStorage on mount.
   useEffect(() => {
     try {
       const v = window.localStorage.getItem("tulala_density");
       if (v === "comfortable" || v === "compact") setDensityState(v);
+      const l = window.localStorage.getItem("tulala_workspaceLayout");
+      if (l === "topbar" || l === "sidebar") setWorkspaceLayoutState(l);
     } catch {
       /* ignore — quota / private mode */
     }
@@ -4048,6 +4061,14 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     setDensityState(d);
     try {
       window.localStorage.setItem("tulala_density", d);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const setWorkspaceLayout = useCallback((l: WorkspaceLayout) => {
+    setWorkspaceLayoutState(l);
+    try {
+      window.localStorage.setItem("tulala_workspaceLayout", l);
     } catch {
       /* ignore */
     }
@@ -4288,6 +4309,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
         toasts,
         completedTasks,
         density,
+        workspaceLayout,
       },
       setSurface: handleSetSurface,
       flipMode,
@@ -4296,6 +4318,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       setEntityType,
       setAlsoTalent,
       setDensity,
+      setWorkspaceLayout,
       setPage,
       setTalentPage,
       setClientPlan,
@@ -4333,7 +4356,9 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       toasts,
       completedTasks,
       density,
+      workspaceLayout,
       setDensity,
+      setWorkspaceLayout,
       handleSetSurface,
       flipMode,
       startImpersonation,
