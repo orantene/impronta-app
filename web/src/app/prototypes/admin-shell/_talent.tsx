@@ -3971,9 +3971,13 @@ function CalendarMonthGrid() {
 
   // Define what's on each day. Dates are loosely aligned with fixtures.
   // bk1 = May 6, bk2 = May 14-15, av1 = Apr 28 → May 2, av2 = May 22-26.
+  // A7: pending + inquiry mark kinds added — coral for pending, indigo
+  // for inquiry, ghosted opacity to differentiate from confirmed.
   type DayMark =
     | { kind: "booking"; id: string; label: string; client: string }
-    | { kind: "block"; id: string; label: string; type: "travel" | "personal" | "blocked" };
+    | { kind: "block"; id: string; label: string; type: "travel" | "personal" | "blocked" }
+    | { kind: "pending"; id: string; label: string }
+    | { kind: "inquiry"; id: string; label: string };
 
   const marksByDay: Record<number, DayMark[]> = {};
   const addMark = (day: number, mark: DayMark) => {
@@ -3991,6 +3995,14 @@ function CalendarMonthGrid() {
   addMark(14, { kind: "booking", id: "bk2", label: "07:00 · Vogue", client: "Vogue Italia" });
   addMark(15, { kind: "booking", id: "bk2", label: "07:00 · Vogue", client: "Vogue Italia" });
 
+  // A7: Pending hold rq5 — Stella McCartney May 14 (CONFLICTS with bk2)
+  addMark(14, { kind: "pending", id: "rq5", label: "Hold · Stella McCartney" });
+
+  // A7: Pending hold rq2 — Bvlgari May 18-20
+  for (let d = 18; d <= 20; d++) {
+    addMark(d, { kind: "pending", id: "rq2", label: "Hold · Bvlgari" });
+  }
+
   // Block av2 — May 22-26 (personal)
   for (let d = 22; d <= 26; d++) {
     addMark(d, { kind: "block", id: "av2", label: "Personal", type: "personal" });
@@ -4003,8 +4015,10 @@ function CalendarMonthGrid() {
     <section style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <CapsLabel>May 2026</CapsLabel>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <CalendarLegendDot tone="green" label="Booking" />
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <CalendarLegendDot tone="green" label="Booked" />
+          <CalendarLegendDot tone="coral" label="Pending" />
+          <CalendarLegendDot tone="indigo" label="Inquiry" />
           <CalendarLegendDot tone="amber" label="Travel" />
           <CalendarLegendDot tone="dim" label="Personal" />
         </div>
@@ -4088,29 +4102,40 @@ function CalendarMonthGrid() {
                   </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  {marks.map((mark, mi) => (
+                  {marks.map((mark, mi) => {
+                    // A7: tone palette per mark kind
+                    let bg = "rgba(11,11,13,0.05)";
+                    let fg = COLORS.inkMuted;
+                    if (mark.kind === "booking") {
+                      bg = "rgba(46,125,91,0.10)";
+                      fg = "#1F5C42";
+                    } else if (mark.kind === "pending") {
+                      bg = COLORS.coralSoft;
+                      fg = COLORS.coralDeep;
+                    } else if (mark.kind === "inquiry") {
+                      bg = COLORS.indigoSoft;
+                      fg = COLORS.indigoDeep;
+                    } else if (mark.kind === "block" && mark.type === "travel") {
+                      bg = "rgba(82,96,109,0.12)";
+                      fg = "#3A4651";
+                    }
+                    return (
                     <button
                       key={`${idx}-${mi}`}
                       onClick={() => {
                         if (mark.kind === "booking") {
                           openDrawer("talent-booking-detail", { id: mark.id });
+                        } else if (mark.kind === "pending") {
+                          openDrawer("talent-offer-detail", { id: mark.id });
+                        } else if (mark.kind === "inquiry") {
+                          openDrawer("inquiry-workspace", { inquiryId: mark.id, pov: "talent" });
                         } else {
                           openDrawer("talent-availability", { id: mark.id });
                         }
                       }}
                       style={{
-                        background:
-                          mark.kind === "booking"
-                            ? "rgba(46,125,91,0.10)"
-                            : mark.type === "travel"
-                              ? "rgba(82,96,109,0.12)"
-                              : "rgba(11,11,13,0.05)",
-                        color:
-                          mark.kind === "booking"
-                            ? "#1F5C42"
-                            : mark.type === "travel"
-                              ? "#3A4651"
-                              : COLORS.inkMuted,
+                        background: bg,
+                        color: fg,
                         border: "none",
                         borderRadius: 5,
                         padding: "3px 6px",
@@ -4123,12 +4148,16 @@ function CalendarMonthGrid() {
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
+                        // Pending/inquiry render slightly ghosted to differentiate
+                        // from confirmed events.
+                        opacity: mark.kind === "pending" || mark.kind === "inquiry" ? 0.85 : 1,
                       }}
                       title={mark.label}
                     >
                       {mark.label}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -4139,13 +4168,17 @@ function CalendarMonthGrid() {
   );
 }
 
-function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim"; label: string }) {
+function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim" | "coral" | "indigo"; label: string }) {
   const c =
     tone === "green"
       ? COLORS.green
       : tone === "amber"
         ? COLORS.amber
-        : COLORS.inkMuted;
+        : tone === "coral"
+          ? COLORS.coral
+          : tone === "indigo"
+            ? COLORS.indigo
+            : COLORS.inkMuted;
   return (
     <span
       style={{
