@@ -3815,6 +3815,14 @@ function CompletenessBar({ value }: { value: number }) {
 
 type MsgStage = "inquiry" | "hold" | "booked" | "past" | "cancelled";
 
+type Participant = {
+  initials: string;
+  name: string;
+  role: string;
+  /** Whether the participant is a Tulala talent (clickable → profile). */
+  isTalent?: boolean;
+};
+
 type Conversation = {
   id: string;
   client: string;
@@ -3824,6 +3832,9 @@ type Conversation = {
   stage: MsgStage;
   agency: string;
   leader: { name: string; role: string; initials: string };
+  /** Crew + other talents on this shoot. Surfaced on-demand via a
+   *  thread-header chip; not forced into the always-visible UI. */
+  participants?: Participant[];
   location?: string;
   date?: string;
   /** Talent's take-home — only set when booked. Hides full offer per spec. */
@@ -3851,6 +3862,13 @@ const MOCK_CONVERSATIONS: Conversation[] = [
     stage: "inquiry",
     agency: "Acme Models",
     leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "JR", name: "João Ribeiro", role: "Photographer" },
+      { initials: "LV", name: "Lia Varga", role: "Stylist · Mango in-house" },
+      { initials: "AM", name: "Anaïs Moreau", role: "MUA" },
+      { initials: "CR", name: "Camille Roux", role: "Talent · Acme Models", isTalent: true },
+      { initials: "MV", name: "Marco Vasquez", role: "Talent · Acme Models", isTalent: true },
+    ],
     location: "Madrid · Calle de Velázquez 18",
     date: "May 14",
     lastMessage: { sender: "coordinator", preview: "What's your rate for a 1-day Madrid shoot? Mango asking.", ageHrs: 5 },
@@ -4202,7 +4220,7 @@ function MessagesOverlaySheet({
   );
 }
 
-function TalentMessagesPage() {
+export function TalentMessagesPage() {
   const [activeId, setActiveId] = useState<string>(MOCK_CONVERSATIONS[0]!.id);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "inquiry" | "hold" | "booked" | "past">("all");
@@ -5433,6 +5451,9 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
   const { toast } = useProto();
   const [text, setText] = useState("");
   const [attachOpen, setAttachOpen] = useState(false);
+  // Smart replies are now opt-in via a ✨ toggle in the composer row,
+  // not forced. Real-estate-respecting per design feedback.
+  const [smartOpen, setSmartOpen] = useState(false);
 
   // Smart-reply chips — context-aware (mock)
   const smartReplies = isLocked
@@ -5450,28 +5471,41 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
         position: "relative",
       }}
     >
-      {/* Smart-reply chips */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-        {smartReplies.map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => { setText(r); }}
-            style={{
-              background: "rgba(11,11,13,0.04)",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 999,
-              padding: "4px 10px",
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-              fontSize: 11.5,
-              color: COLORS.ink,
-            }}
-          >
-            ✨ {r}
-          </button>
-        ))}
-      </div>
+      {/* Smart-reply chips — only visible when toggled on. Tap a chip
+          to insert it into the input; tap again to refine. Hidden by
+          default so the composer doesn't take extra real estate. */}
+      {smartOpen && (
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            marginBottom: 8,
+            flexWrap: "wrap",
+            animation: "tulala-smart-fade .18s ease",
+          }}
+        >
+          <style>{`@keyframes tulala-smart-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          {smartReplies.map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => { setText(r); setSmartOpen(false); }}
+              style={{
+                background: "rgba(11,11,13,0.04)",
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 999,
+                padding: "4px 10px",
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                color: COLORS.ink,
+              }}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Composer row */}
       <div
@@ -5503,6 +5537,28 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
           }}
         >
           <Icon name="plus" size={14} stroke={2} />
+        </button>
+        {/* Smart-reply toggle — ✨ icon. Active state when chips visible. */}
+        <button
+          type="button"
+          onClick={() => setSmartOpen((v) => !v)}
+          aria-label={smartOpen ? "Hide smart replies" : "Show smart replies"}
+          aria-pressed={smartOpen}
+          title="Smart replies (AI suggestions)"
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 999,
+            border: smartOpen ? `1px solid ${COLORS.accentDeep}` : "none",
+            background: smartOpen ? COLORS.accentSoft : "transparent",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 14,
+          }}
+        >
+          ✨
         </button>
         <input
           type="text"

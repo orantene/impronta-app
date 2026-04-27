@@ -18,6 +18,7 @@
 
 import { useState, type ReactNode } from "react";
 import { ClientOnboardingArc } from "./_wave2";
+import { TalentMessagesPage } from "./_talent";
 import {
   AGENCY_RELIABILITY,
   CLIENT_BOOKINGS,
@@ -272,7 +273,76 @@ function ClientRouter() {
       return <ClientBookingsPage />;
     case "settings":
       return <ClientSettingsPage />;
+    case "messages":
+      return <ClientMessagesPage />;
   }
+}
+
+/**
+ * Client Messages page — mirror of TalentMessagesPage. Same chat
+ * surface; production wires the same conversation thread to both
+ * surfaces with `pov: "talent" | "client"` so the bubbles align
+ * correctly on each side. The prototype ships the talent component
+ * here as a placeholder demonstrating the parity (same UX both sides).
+ */
+function ClientMessagesPage() {
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  return (
+    <div style={{ paddingBottom: 8 }}>
+      {!bannerDismissed && <ClientPovBanner onDismiss={() => setBannerDismissed(true)} />}
+      <TalentMessagesPage />
+    </div>
+  );
+}
+
+function ClientPovBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        padding: "10px 14px",
+        marginBottom: 12,
+        background: COLORS.indigoSoft,
+        border: `1px solid rgba(91,107,160,0.25)`,
+        borderRadius: 10,
+        fontFamily: FONTS.body,
+        fontSize: 12,
+        color: COLORS.indigoDeep,
+        lineHeight: 1.5,
+      }}
+    >
+      <span style={{ fontSize: 14 }}>💬</span>
+      <div style={{ flex: 1 }}>
+        <strong style={{ fontWeight: 600 }}>Client view:</strong>{" "}
+        the same chat experience your talent + coordinator use. In production this surface mirrors the same conversation
+        from <em>your</em> perspective — your bubbles ink-filled, talent &amp; coordinator messages from the agency side.
+        Action cards swap to client actions: "Approve offer", "Sign booking", "Pay invoice".
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 5,
+          border: "none",
+          background: "transparent",
+          color: COLORS.indigoDeep,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontSize: 13,
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
 }
 
 // ─── Shared header ────────────────────────────────────────────────
