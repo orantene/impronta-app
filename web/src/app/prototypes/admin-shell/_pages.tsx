@@ -965,8 +965,76 @@ export function TulalaIdentityBar() {
         >
           <span style={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: 13 }}>?</span>
         </IdentityBarIconButton>
+
+        {/* Locale toggle — matches production EN/ES affordance.
+            Compact pill; the inactive side flips on click. */}
+        <LocaleToggle />
+
+        {/* Sign out — matches production. Compact icon button at the
+            far right; click confirms via toast in the prototype. */}
+        <IdentityBarIconButton
+          aria-label="Sign out"
+          onClick={() => toast("Signed out (prototype)")}
+        >
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <path d="m16 17 5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+        </IdentityBarIconButton>
       </div>
     </header>
+  );
+}
+
+function LocaleToggle() {
+  const { toast } = useProto();
+  const [locale, setLocale] = useState<"EN" | "ES">("EN");
+  return (
+    <div
+      role="group"
+      aria-label="Language"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        background: "rgba(11,11,13,0.05)",
+        borderRadius: 8,
+        padding: 2,
+        fontFamily: FONTS.body,
+      }}
+    >
+      {(["EN", "ES"] as const).map((code) => {
+        const active = locale === code;
+        return (
+          <button
+            key={code}
+            type="button"
+            onClick={() => {
+              if (active) return;
+              setLocale(code);
+              toast(`Language · ${code === "EN" ? "English" : "Español"}`);
+            }}
+            aria-pressed={active}
+            style={{
+              background: active ? "#fff" : "transparent",
+              border: "none",
+              borderRadius: 6,
+              padding: "5px 9px",
+              cursor: active ? "default" : "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: 0.6,
+              color: active ? COLORS.ink : COLORS.inkMuted,
+              boxShadow: active ? "0 1px 1px rgba(11,11,13,0.06)" : "none",
+              transition: "background .12s, color .12s",
+            }}
+          >
+            {code}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
