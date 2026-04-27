@@ -526,6 +526,25 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               letter-spacing: -0.3px !important;
             }
           }
+          /* Composer attach menu — at <720 expands to a full-width
+             bottom sheet (anchored to the composer's bottom edge),
+             not a 270px popover. 4-up grid for thumb-comfortable
+             items + each tile sized 44px+ (Apple HIG). */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-attach-menu] {
+              left: 0 !important;
+              right: 0 !important;
+              border-radius: 14px 14px 0 0 !important;
+              padding: 12px 14px !important;
+              grid-template-columns: repeat(4, 1fr) !important;
+              gap: 6px !important;
+              animation: tulala-sheet-up .22s cubic-bezier(.4,.0,.2,1) !important;
+            }
+            .tulala-shell [data-tulala-attach-menu] > button {
+              padding: 14px 6px !important;
+              min-height: 64px !important;
+            }
+          }
           /* Identity bar mobile collapse — drop the lowest-priority
              utilities below 720px so the centerpiece (mode toggle +
              notifications) keeps room. Help, locale toggle, sign-out

@@ -6056,9 +6056,11 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
         </button>
       </div>
 
-      {/* Attach menu — popover above composer */}
+      {/* Attach menu — popover above composer on desktop, slides up
+          as a bottom sheet on mobile (CSS overrides at <720px). */}
       {attachOpen && (
         <div
+          data-tulala-attach-menu
           style={{
             position: "absolute",
             bottom: "calc(100% + 4px)",
