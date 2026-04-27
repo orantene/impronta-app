@@ -43,7 +43,11 @@ export const metadata: Metadata = {
 const IMG = (id: string) =>
   `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=80`;
 
-const baseProps = { tenantId: undefined as string | undefined, locale: "en", preview: false, sectionId: "" };
+// impronta tenant_id (only needed for sections that hit the DB, e.g.
+// featured_talent — none of which are in this composition, but the type
+// is required).
+const IMPRONTA_TENANT = "00000000-0000-0000-0000-000000000001";
+const baseProps = { tenantId: IMPRONTA_TENANT, locale: "en", preview: false, sectionId: "" };
 
 export default async function AuditPhaseEPage() {
   const locale = await getRequestLocale();
