@@ -7161,6 +7161,13 @@ function LogWorkForm({
   const [contact, setContact] = useState("");
   const [notes, setNotes] = useState("");
   const [delivered, setDelivered] = useState("");
+  // A1: Team-mates — comma-separated names of others on the booking.
+  // Free text in v1; production should autocomplete from talent network.
+  const [teamMates, setTeamMates] = useState("");
+  const [iBroughtTeam, setIBroughtTeam] = useState(false);
+  // A2: Payment method picker.
+  const [paymentMethod, setPaymentMethod] = useState<"transfer" | "card" | "cash" | "in-kind" | "mixed" | "">("");
+  const [paymentNote, setPaymentNote] = useState("");
 
   const canSave = client.trim().length > 0 && date.trim().length > 0;
 
@@ -7294,6 +7301,120 @@ function LogWorkForm({
                   placeholder="8 looks, hero image, BTS carousel"
                 />
               </FieldRow>
+              <FieldRow
+                label="Other talent on the booking"
+                optional
+                hint="Names — comma-separated. Useful when you brought a friend or worked as a team."
+              >
+                <TextInput
+                  value={teamMates}
+                  onChange={(e) => setTeamMates(e.target.value)}
+                  placeholder="Carla Vega, Tomás Navarro"
+                />
+              </FieldRow>
+              {teamMates.trim().length > 0 && (
+                <FieldRow
+                  label=""
+                  optional
+                  hint=""
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIBroughtTeam((b) => !b)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      width: "100%",
+                      padding: "10px 12px",
+                      background: iBroughtTeam ? COLORS.coralSoft : "#fff",
+                      border: `1px solid ${iBroughtTeam ? "rgba(194,106,69,0.30)" : COLORS.border}`,
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontFamily: FONTS.body,
+                      textAlign: "left",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 4,
+                        background: iBroughtTeam ? COLORS.coral : "transparent",
+                        border: `1.5px solid ${iBroughtTeam ? COLORS.coral : COLORS.border}`,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {iBroughtTeam && <Icon name="check" size={10} stroke={2.5} color="#fff" />}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+                        I brought them
+                      </div>
+                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                        Marks you as the de-facto coordinator. Surfaces a "You brought {teamMates.split(",")[0]?.trim()}" tag in your booking history.
+                      </div>
+                    </div>
+                  </button>
+                </FieldRow>
+              )}
+              <FieldRow
+                label="Payment method"
+                optional
+                hint="How you got paid. Tax-relevant — especially in-kind / gifts."
+              >
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {([
+                    { id: "transfer", label: "Transfer" },
+                    { id: "cash", label: "Cash · efectivo" },
+                    { id: "card", label: "Card" },
+                    { id: "in-kind", label: "In-kind · gift" },
+                    { id: "mixed", label: "Mixed" },
+                  ] as const).map((m) => {
+                    const active = paymentMethod === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setPaymentMethod(active ? "" : m.id)}
+                        style={{
+                          padding: "6px 11px",
+                          borderRadius: 999,
+                          background: active ? COLORS.ink : "#fff",
+                          border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+                          cursor: "pointer",
+                          fontFamily: FONTS.body,
+                          fontSize: 12,
+                          fontWeight: 500,
+                          color: active ? "#fff" : COLORS.ink,
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FieldRow>
+              {(paymentMethod === "in-kind" || paymentMethod === "mixed") && (
+                <FieldRow
+                  label="Payment note"
+                  optional
+                  hint="Describe the in-kind value or the mixed-method split."
+                >
+                  <TextInput
+                    value={paymentNote}
+                    onChange={(e) => setPaymentNote(e.target.value)}
+                    placeholder={
+                      paymentMethod === "in-kind"
+                        ? "e.g. Bvlgari watch · est €1,200"
+                        : "e.g. 60% transfer + 40% product"
+                    }
+                  />
+                </FieldRow>
+              )}
               <FieldRow label="Notes" optional>
                 <TextArea
                   value={notes}
