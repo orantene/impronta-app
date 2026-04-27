@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 
 import type { SectionComponentProps } from "../types";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
+import { renderInlineRich } from "../shared/rich-text";
 import type { HeroV1, HeroSlide } from "./schema";
 
 /**
@@ -60,9 +61,9 @@ export function HeroComponent({ props }: SectionComponentProps<HeroV1>) {
 
       <div className="site-hero__inner">
         <div className="site-hero__copy">
-          <h1 className="site-hero__headline">{headline}</h1>
+          <h1 className="site-hero__headline">{renderInlineRich(headline)}</h1>
           {subheadline ? (
-            <p className="site-hero__subheadline">{subheadline}</p>
+            <p className="site-hero__subheadline">{renderInlineRich(subheadline)}</p>
           ) : null}
           {(primaryCta || secondaryCta) && (
             <div className="site-hero__ctas">
