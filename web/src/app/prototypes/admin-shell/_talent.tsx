@@ -3890,6 +3890,11 @@ const MOCK_CONVERSATIONS: Conversation[] = [
     stage: "hold",
     agency: "Acme Models",
     leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "PM", name: "Paolo Marchetti", role: "Photographer" },
+      { initials: "GS", name: "Giulia Sarti", role: "Stylist · Bvlgari in-house" },
+      { initials: "LT", name: "Lia Torres", role: "Talent · Acme Models", isTalent: true },
+    ],
     location: "Milan · TBC (likely Studio Verde)",
     date: "May 18–20",
     lastMessage: { sender: "client", preview: "Holding the dates — call sheet by Friday. Scope is jewelry close-ups + 1 lifestyle frame.", ageHrs: 18 },
@@ -3911,6 +3916,14 @@ const MOCK_CONVERSATIONS: Conversation[] = [
     stage: "booked",
     agency: "Acme Models",
     leader: { name: "Ana Vega", role: "Coordinator · Acme Models", initials: "AV" },
+    participants: [
+      { initials: "MR", name: "Mario Rossi", role: "Photographer" },
+      { initials: "FB", name: "Francesca Bianchi", role: "Creative director · Vogue" },
+      { initials: "EL", name: "Elena Lombardi", role: "Fashion editor" },
+      { initials: "AP", name: "Aaron Park", role: "MUA" },
+      { initials: "SH", name: "Sofia Herrera", role: "Talent · Acme Models", isTalent: true },
+      { initials: "ER", name: "Emma Ricci", role: "Talent · Praline London", isTalent: true },
+    ],
     location: "Milan · Studio 5, Via Tortona 27",
     date: "May 14–15",
     amountToYou: "€3,200 (your take · paid 14d after wrap)",
@@ -3932,6 +3945,10 @@ const MOCK_CONVERSATIONS: Conversation[] = [
     stage: "hold",
     agency: "Acme Models",
     leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "JD", name: "Julien Dubois", role: "Photographer" },
+      { initials: "AB", name: "Anna Bernard", role: "Stylist · Stella in-house" },
+    ],
     location: "Paris · TBC",
     date: "May 14",
     lastMessage: { sender: "system", preview: "Hold conflict with Vogue Italia (May 14). Resolve via Calendar.", ageHrs: 4 },
@@ -3949,6 +3966,12 @@ const MOCK_CONVERSATIONS: Conversation[] = [
     stage: "past",
     agency: "Acme Models",
     leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "DA", name: "Diego Álvarez", role: "Photographer" },
+      { initials: "RC", name: "Rocío Castro", role: "Art director · Loewe" },
+      { initials: "AM", name: "Anaïs Moreau", role: "MUA" },
+      { initials: "LO", name: "Lucia Ortiz", role: "Talent · Acme Models", isTalent: true },
+    ],
     location: "Madrid · ESTUDIO ROCA",
     date: "Apr 18",
     amountToYou: "€3,600 (paid Apr 25 via transfer)",
@@ -4224,6 +4247,16 @@ export function TalentMessagesPage() {
   const [activeId, setActiveId] = useState<string>(MOCK_CONVERSATIONS[0]!.id);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "inquiry" | "hold" | "booked" | "past">("all");
+  /**
+   * Mobile pane state — single-pane stack on small screens.
+   *   "list"   = conversation list visible, thread hidden
+   *   "thread" = thread visible fullscreen, list hidden + back button
+   * On desktop both render side-by-side; CSS toggles which is shown
+   * via the [data-mobile-pane] attribute under @media (max-width: 720px).
+   * Default = list (so cold-arriving on mobile lands on the index, not
+   * a random thread).
+   */
+  const [mobilePane, setMobilePane] = useState<"list" | "thread">("list");
 
   const filteredList = MOCK_CONVERSATIONS.filter((c) => {
     if (filter === "unread" && c.unreadCount === 0) return false;
@@ -4241,6 +4274,7 @@ export function TalentMessagesPage() {
   return (
     <div
       data-tulala-messages-shell
+      data-mobile-pane={mobilePane}
       style={{
         display: "grid",
         gridTemplateColumns: "340px 1fr",
@@ -4260,15 +4294,20 @@ export function TalentMessagesPage() {
       <ConversationList
         conversations={filteredList}
         activeId={active.id}
-        onSelect={setActiveId}
+        onSelect={(id) => { setActiveId(id); setMobilePane("thread"); }}
         search={search}
         onSearchChange={setSearch}
         filter={filter}
         onFilterChange={setFilter}
         totalUnread={MOCK_CONVERSATIONS.reduce((sum, c) => sum + c.unreadCount, 0)}
       />
-      {/* Right pane — open thread */}
-      <ConversationThread conv={active} messages={messages} />
+      {/* Right pane — open thread (fullscreen on mobile, returns to
+          list via the back button rendered inside ThreadHeader). */}
+      <ConversationThread
+        conv={active}
+        messages={messages}
+        onBackToList={() => setMobilePane("list")}
+      />
     </div>
   );
 }
@@ -4302,6 +4341,7 @@ function ConversationList({
   ];
   return (
     <aside
+      data-tulala-list-pane
       style={{
         borderRight: `1px solid ${COLORS.borderSoft}`,
         display: "flex",
@@ -4494,17 +4534,104 @@ function ConversationListRow({
             </span>
           )}
         </div>
+        {/* Participants row — stacked avatars of people on this shoot.
+            Talents float left (most relevant to the user); crew fills
+            the rest. Capped at 5 avatars + "+N" overflow. */}
+        {conv.participants && conv.participants.length > 0 && (
+          <ParticipantsStack participants={conv.participants} />
+        )}
       </div>
     </button>
+  );
+}
+
+/**
+ * Stacked avatars showing who else is on this shoot. Talents are
+ * sorted to the front (the user cares most about peers); crew fills
+ * the rest. Visible cap = 5; the rest collapse into "+N".
+ */
+function ParticipantsStack({ participants }: { participants: Participant[] }) {
+  const sorted = [...participants].sort((a, b) => Number(!!b.isTalent) - Number(!!a.isTalent));
+  const visible = sorted.slice(0, 5);
+  const overflow = sorted.length - visible.length;
+  return (
+    <div
+      aria-label={`${participants.length} on this shoot`}
+      title={participants.map((p) => `${p.name} · ${p.role}`).join("\n")}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        marginTop: 6,
+        paddingTop: 6,
+        borderTop: `1px dashed rgba(11,11,13,0.06)`,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          fontSize: 10,
+          color: COLORS.inkMuted,
+          marginRight: 2,
+          letterSpacing: 0.4,
+        }}
+      >
+        with
+      </span>
+      <div style={{ display: "inline-flex", alignItems: "center" }}>
+        {visible.map((p, i) => (
+          <span
+            key={`${p.initials}-${i}`}
+            style={{
+              marginLeft: i === 0 ? 0 : -6,
+              border: "1.5px solid #fff",
+              borderRadius: "50%",
+              display: "inline-block",
+              position: "relative",
+              zIndex: visible.length - i,
+            }}
+          >
+            <Avatar size={20} tone="auto" hashSeed={p.name} initials={p.initials} />
+          </span>
+        ))}
+        {overflow > 0 && (
+          <span
+            style={{
+              marginLeft: -6,
+              minWidth: 20,
+              height: 20,
+              padding: "0 5px",
+              borderRadius: 999,
+              border: "1.5px solid #fff",
+              background: "rgba(11,11,13,0.10)",
+              color: COLORS.inkMuted,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 9.5,
+              fontWeight: 700,
+              fontFamily: FONTS.body,
+              fontVariantNumeric: "tabular-nums",
+              position: "relative",
+              zIndex: 0,
+            }}
+          >
+            +{overflow}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
 function ConversationThread({
   conv,
   messages,
+  onBackToList,
 }: {
   conv: Conversation;
   messages: Msg[];
+  onBackToList?: () => void;
 }) {
   const isLocked = conv.stage === "booked";
   const isReadOnly = conv.stage === "past" || conv.stage === "cancelled";
@@ -4523,6 +4650,7 @@ function ConversationThread({
       }}
     >
       <section
+        data-tulala-thread-pane
         style={{
           display: "flex",
           flexDirection: "column",
@@ -4532,7 +4660,7 @@ function ConversationThread({
         }}
       >
         {/* Sticky thread header — highlight only */}
-        <ThreadHeader conv={conv} infoOpen={infoOpen} onToggleInfo={() => setInfoOpen((v) => !v)} />
+        <ThreadHeader conv={conv} infoOpen={infoOpen} onToggleInfo={() => setInfoOpen((v) => !v)} onBackToList={onBackToList} />
 
         {/* Read-only banner if past */}
         {isReadOnly && (
@@ -4550,24 +4678,22 @@ function ConversationThread({
           </div>
         )}
 
-        {/* Message stream */}
+        {/* Message stream — warm cream background, day separators
+            grouped via the renderer, breathable spacing. */}
         <div
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "16px 22px",
+            padding: "20px 24px 16px",
             display: "flex",
             flexDirection: "column",
-            gap: 10,
+            gap: 6,
             minHeight: 0,
-            background: COLORS.surface,
+            background: COLORS.surfaceAlt,
+            backgroundImage: `radial-gradient(circle at 20% 0%, rgba(15,79,62,0.025), transparent 50%)`,
           }}
         >
-          {messages.map((m) => (
-            <MessageBubble key={m.id} msg={m} stage={conv.stage} />
-          ))}
-          {/* Typing indicator (mock — only for inquiry stage) */}
-          {conv.stage === "inquiry" && <TypingIndicator name={conv.leader.name.split(" ")[0]!} />}
+          {renderMessagesWithSeparators(messages, conv.stage, conv.leader.name.split(" ")[0]!)}
         </div>
 
         {/* Composer */}
@@ -4585,10 +4711,12 @@ function ThreadHeader({
   conv,
   infoOpen,
   onToggleInfo,
+  onBackToList,
 }: {
   conv: Conversation;
   infoOpen: boolean;
   onToggleInfo: () => void;
+  onBackToList?: () => void;
 }) {
   const stage = STAGE_META[conv.stage];
   return (
@@ -4603,6 +4731,35 @@ function ThreadHeader({
         fontFamily: FONTS.body,
       }}
     >
+      {/* Mobile back button — visible only at narrow widths via CSS.
+          Returns from thread → list pane in the single-pane stack. */}
+      {onBackToList && (
+        <button
+          type="button"
+          className="tulala-mobile-back"
+          onClick={onBackToList}
+          aria-label="Back to messages list"
+          style={{
+            display: "none",
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            border: "none",
+            background: "transparent",
+            color: COLORS.ink,
+            cursor: "pointer",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            flexShrink: 0,
+            marginRight: -4,
+          }}
+        >
+          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+        </button>
+      )}
       <Avatar size={36} tone="auto" hashSeed={conv.client} initials={conv.clientInitials} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -5148,24 +5305,94 @@ function InfoSection({
   );
 }
 
-function MessageBubble({ msg, stage }: { msg: Msg; stage: MsgStage }) {
+/**
+ * Premium message stream renderer. Groups by day and inserts subtle
+ * date separators between blocks. Also handles consecutive-from-same-
+ * sender visual grouping (tighter spacing, avatar only on first).
+ */
+function renderMessagesWithSeparators(messages: Msg[], stage: MsgStage, typingName: string) {
+  const out: ReactNode[] = [];
+  let lastDay: string | null = null;
+  let lastSender: string | null = null;
+  messages.forEach((m, i) => {
+    const day = extractDay(m.ts);
+    if (day !== lastDay) {
+      out.push(<DaySeparator key={`sep-${i}`} label={day} />);
+      lastDay = day;
+      lastSender = null;
+    }
+    const senderId = m.kind === "system" || !("sender" in m) ? "system" : m.sender;
+    const isFirstOfGroup = senderId !== lastSender;
+    out.push(
+      <MessageBubble key={m.id} msg={m} stage={stage} isFirstOfGroup={isFirstOfGroup} />,
+    );
+    lastSender = senderId ?? null;
+  });
+  if (stage === "inquiry") out.push(<TypingIndicator key="typing" name={typingName} />);
+  return out;
+}
+
+function extractDay(ts: string): string {
+  // ts looks like "Apr 28 · 10:14" or "5h ago" or "Yesterday · 16:42"
+  if (ts.includes("ago")) return "Today";
+  if (ts.startsWith("Yesterday")) return "Yesterday";
+  // "Apr 28 · ..." or "May 1 · ..."
+  const match = ts.match(/^([A-Z][a-z]+ \d+)/);
+  return match ? match[1]! : ts;
+}
+
+function DaySeparator({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        margin: "16px 4px 8px",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <span style={{ flex: 1, height: 1, background: "rgba(11,11,13,0.06)" }} />
+      <span
+        style={{
+          fontSize: 9.5,
+          fontWeight: 700,
+          letterSpacing: 0.7,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ flex: 1, height: 1, background: "rgba(11,11,13,0.06)" }} />
+    </div>
+  );
+}
+
+function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg; stage: MsgStage; isFirstOfGroup?: boolean }) {
   const fromYou = "sender" in msg && msg.sender === "you";
   const isSystem = msg.kind === "system";
   const isAction = msg.kind.startsWith("action-") || msg.kind === "calendar-invite" || msg.kind === "contract-sign" || msg.kind === "polaroid-request" || msg.kind === "payment-receipt";
 
   if (isSystem) {
+    // Premium system message — subtle, italic, centered. No background
+    // pill (felt heavy). Just a small caption with a refined dot.
     return (
-      <div style={{ display: "flex", justifyContent: "center", margin: "6px 0", fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", justifyContent: "center", margin: "12px 0 6px", fontFamily: FONTS.body }}>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 10.5,
             color: COLORS.inkMuted,
-            background: "rgba(11,11,13,0.04)",
-            padding: "4px 12px",
-            borderRadius: 999,
+            fontStyle: "italic",
+            letterSpacing: 0.05,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
           }}
         >
-          {msg.body} · {msg.ts}
+          <span aria-hidden style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.inkDim }} />
+          {msg.body}
+          <span aria-hidden style={{ width: 4, height: 4, borderRadius: "50%", background: COLORS.inkDim }} />
         </span>
       </div>
     );
@@ -5175,53 +5402,105 @@ function MessageBubble({ msg, stage }: { msg: Msg; stage: MsgStage }) {
 
   if (isAction) {
     return (
-      <div style={{ display: "flex", justifyContent: align, fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", justifyContent: align, fontFamily: FONTS.body, marginTop: isFirstOfGroup ? 8 : 0 }}>
         <ActionMessage msg={msg} fromYou={fromYou} stage={stage} />
       </div>
     );
   }
 
-  // Regular content message
+  // Regular content message — premium grouped layout.
+  // First-in-group: shows avatar (incoming) + sender label
+  // Subsequent: tighter spacing, avatar slot reserved (visually empty)
+  // for vertical alignment.
+  const senderLabel = "sender" in msg
+    ? msg.sender === "coordinator"
+      ? "Sara · Coordinator"
+      : msg.sender === "agency"
+        ? "Acme Models"
+        : msg.sender === "client"
+          ? "Client"
+          : ""
+    : "";
   return (
-    <div style={{ display: "flex", justifyContent: align, gap: 8, fontFamily: FONTS.body }}>
-      {!fromYou && "sender" in msg && (
-        <Avatar
-          size={26}
-          tone="auto"
-          hashSeed={msg.sender}
-          initials={msg.sender === "client" ? "" : msg.sender === "coordinator" ? "SM" : msg.sender === "agency" ? "AC" : ""}
-        />
+    <div style={{
+      display: "flex",
+      justifyContent: align,
+      gap: 10,
+      fontFamily: FONTS.body,
+      marginTop: isFirstOfGroup ? 8 : 0,
+    }}>
+      {!fromYou && (
+        isFirstOfGroup && "sender" in msg ? (
+          <Avatar
+            size={28}
+            tone="auto"
+            hashSeed={msg.sender}
+            initials={msg.sender === "client" ? "" : msg.sender === "coordinator" ? "SM" : msg.sender === "agency" ? "AC" : ""}
+          />
+        ) : (
+          <span style={{ width: 28, flexShrink: 0 }} aria-hidden />
+        )
       )}
-      <div style={{ maxWidth: "70%" }}>
-        <ContentMessageBody msg={msg} fromYou={fromYou} />
+      <div style={{ maxWidth: "72%", display: "flex", flexDirection: "column", gap: 3 }}>
+        {!fromYou && isFirstOfGroup && senderLabel && (
+          <div
+            style={{
+              fontSize: 9.5,
+              fontWeight: 700,
+              letterSpacing: 0.7,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted,
+              paddingLeft: 4,
+            }}
+          >
+            {senderLabel}
+          </div>
+        )}
+        <ContentMessageBody msg={msg} fromYou={fromYou} isFirstOfGroup={isFirstOfGroup} />
         <ReadReceiptRow msg={msg} fromYou={fromYou} />
       </div>
     </div>
   );
 }
 
-function ContentMessageBody({ msg, fromYou }: { msg: Msg; fromYou: boolean }) {
-  const bg = fromYou ? COLORS.ink : "#fff";
+function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { msg: Msg; fromYou: boolean; isFirstOfGroup?: boolean }) {
+  // Premium bubble palette:
+  //   You    — ink with very subtle inner sheen (linear gradient)
+  //   Other  — pure white with thin 1px borderSoft + soft shadow
+  // Border-radius is uniform on the side AWAY from sender; tail-corner
+  // (4px) only on the first-in-group, otherwise also rounded for
+  // grouped consecutive messages.
+  const youBg = `linear-gradient(180deg, ${COLORS.ink} 0%, #1a1a1d 100%)`;
+  const otherBg = "#fff";
   const fg = fromYou ? "#fff" : COLORS.ink;
   const border = fromYou ? "none" : `1px solid ${COLORS.borderSoft}`;
+  const shadow = fromYou
+    ? "0 1px 1px rgba(11,11,13,0.20)"
+    : "0 1px 2px rgba(11,11,13,0.04)";
+  const radius = fromYou
+    ? (isFirstOfGroup ? "18px 18px 6px 18px" : "18px 18px 18px 18px")
+    : (isFirstOfGroup ? "18px 18px 18px 6px" : "18px 18px 18px 18px");
 
   if (msg.kind === "text") {
     return (
       <div
         style={{
-          background: bg,
+          background: fromYou ? youBg : otherBg,
           color: fg,
           border,
-          borderRadius: fromYou ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-          padding: "9px 14px",
+          borderRadius: radius,
+          padding: "10px 15px",
           fontSize: 13.5,
-          lineHeight: 1.45,
+          lineHeight: 1.5,
+          boxShadow: shadow,
+          letterSpacing: 0.05,
         }}
       >
         {msg.body}
       </div>
     );
   }
+  const bg = fromYou ? COLORS.ink : "#fff";
   if (msg.kind === "image") {
     return (
       <div
@@ -5395,11 +5674,13 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
       <div
         style={{
           background: "#fff",
-          border: `2px solid ${submitted ? COLORS.green : COLORS.coral}`,
+          border: `1px solid ${submitted ? "rgba(46,125,91,0.30)" : "rgba(194,106,69,0.30)"}`,
+          borderLeft: `3px solid ${submitted ? COLORS.green : COLORS.coral}`,
           borderRadius: 14,
-          padding: "12px 14px",
+          padding: "14px 16px",
           maxWidth: 380,
           fontFamily: FONTS.body,
+          boxShadow: "0 1px 3px rgba(11,11,13,0.04)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -5456,7 +5737,7 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
   }
   if (msg.kind === "action-transport") {
     return (
-      <div style={{ background: "#fff", border: `2px solid ${COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 380, fontFamily: FONTS.body }}>
+      <div style={{ background: "#fff", border: `1px solid rgba(194,106,69,0.30)`, borderLeft: `3px solid ${COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 380, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 16 }}>🚖</span>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>Confirm your transport</span>
@@ -5485,7 +5766,7 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
   }
   if (msg.kind === "action-confirm") {
     return (
-      <div style={{ background: "#fff", border: `2px solid ${COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
+      <div style={{ background: "#fff", border: `1px solid rgba(194,106,69,0.30)`, borderLeft: `3px solid ${COLORS.coral}`, borderRadius: 14, padding: "12px 14px", maxWidth: 360, fontFamily: FONTS.body }}>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 10 }}>{msg.label}</div>
         <div style={{ display: "flex", gap: 8 }}>
           <PrimaryButton size="sm" onClick={() => toast("Call sheet confirmed")}>Confirm</PrimaryButton>
@@ -5649,15 +5930,17 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
         </div>
       )}
 
-      {/* Composer row */}
+      {/* Composer row — premium pill shape with subtle inner shadow */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
-          background: "rgba(11,11,13,0.04)",
-          borderRadius: 12,
-          padding: "6px 8px",
+          gap: 6,
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 999,
+          padding: "5px 6px 5px 8px",
+          boxShadow: "inset 0 1px 2px rgba(11,11,13,0.025)",
         }}
       >
         {/* Attach trigger */}

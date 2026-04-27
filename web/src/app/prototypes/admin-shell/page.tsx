@@ -347,6 +347,119 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
           [data-tulala-density="compact"] .tulala-shell [data-tulala-grid] {
             gap: 8px !important;
           }
+          /* Messages page — premium mobile pattern. Two-pane layout
+             collapses to a single-pane stack at <720px. The list is
+             shown by default; tapping a conversation flips to the
+             thread; back arrow returns to list. Identity bar +
+             talent topbar stay sticky above. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-messages-shell] {
+              grid-template-columns: 1fr !important;
+              border: none !important;
+              border-radius: 0 !important;
+              height: calc(100vh - var(--proto-cbar, 50px) - 56px - 52px) !important;
+              max-height: calc(100vh - var(--proto-cbar, 50px) - 56px - 52px) !important;
+              min-height: 0 !important;
+            }
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-thread-pane],
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-thread-info-sidebar] {
+              display: none !important;
+            }
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-list-pane] {
+              display: none !important;
+            }
+            /* Single-pane: thread fills viewport, no right info sidebar
+               by default — ensure thread pane spans full width when
+               sidebar isn't collapsed yet via the toggle. */
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] {
+              grid-template-columns: 1fr !important;
+            }
+            /* Info sidebar at mobile = premium bottom sheet (not a
+               full-screen overlay). Slides up from bottom with rounded
+               top corners + drag-handle pill + soft shadow. Caps at
+               80vh so the user can still see thread context above. */
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-thread-info-sidebar] {
+              position: fixed !important;
+              left: 0 !important;
+              right: 0 !important;
+              bottom: 0 !important;
+              top: auto !important;
+              max-height: 80vh !important;
+              border-left: none !important;
+              border-top: 1px solid rgba(11,11,13,0.08) !important;
+              border-radius: 18px 18px 0 0 !important;
+              z-index: 200 !important;
+              box-shadow: 0 -10px 40px rgba(11,11,13,0.18) !important;
+              animation: tulala-sheet-up .26s cubic-bezier(.4,.0,.2,1) !important;
+              padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+            }
+            /* Drag-handle pill at top of the bottom sheet — pure visual
+               affordance hinting the sheet is dismissable. Tap × to close. */
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-thread-info-sidebar]::before {
+              content: "";
+              position: sticky;
+              top: 0;
+              display: block;
+              width: 36px;
+              height: 4px;
+              border-radius: 999px;
+              background: rgba(11,11,13,0.18);
+              margin: 8px auto 0;
+              z-index: 1;
+            }
+            /* Mobile back button reveals at narrow widths */
+            .tulala-shell .tulala-mobile-back {
+              display: inline-flex !important;
+            }
+            /* Mobile FAB sits comfortably above the bottom tab bar +
+               safe-area inset. */
+            .tulala-shell button[aria-label^="Messages ·"][style*="position: fixed"] {
+              bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+            /* Composer mobile: input taller for thumb comfort, attach
+               popover spans full viewport width above the composer. */
+            .tulala-shell [data-tulala-thread-pane] form input,
+            .tulala-shell [data-tulala-thread-pane] input[placeholder="Message…"] {
+              padding: 12px 0 !important;
+              font-size: 15px !important;
+            }
+            /* Action message cards (rate input, transport, etc.) clamp
+               to viewport width at mobile. */
+            .tulala-shell [data-tulala-thread-pane] [style*="max-width: 380px"],
+            .tulala-shell [data-tulala-thread-pane] [style*="max-width: 360px"],
+            .tulala-shell [data-tulala-thread-pane] [style*="max-width: 320px"] {
+              max-width: calc(100vw - 48px) !important;
+            }
+            /* Message bubbles use more of the viewport on mobile. */
+            .tulala-shell [data-tulala-thread-pane] [style*="max-width: 70%"] {
+              max-width: 88% !important;
+            }
+            /* Conversation list rows: 44px minimum vertical tap area
+               (Apple HIG / Material). */
+            .tulala-shell [data-tulala-list-pane] button {
+              min-height: 56px !important;
+            }
+          }
+          @keyframes tulala-sheet-up {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+          }
+          /* Pinned info row inside the messages page (legacy class — now
+             always lives in the right sidebar; targeted here just in case
+             it sneaks back). */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-messages-shell] [data-tulala-app-topbar-row],
+            .tulala-shell [data-tulala-messages-shell] [data-tulala-surface-main] {
+              max-width: 100% !important;
+            }
+          }
+          /* Talent surface main padding compresses on mobile so the
+             messages shell can fill the viewport without margins. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-surface-main]:has([data-tulala-messages-shell]) {
+              padding: 0 !important;
+            }
+          }
           /* Mobile tap-target floor. Apple HIG / Material both call for
              44×44 minimum hit area. A transparent ::before sits behind
              the control, expanding the hit-area without changing visual
