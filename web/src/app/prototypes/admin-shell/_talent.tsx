@@ -8386,7 +8386,7 @@ export function TalentBlockDatesDrawer() {
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-        {/* ─── 1. Where are you? ──────────────────────────────────── */}
+        {/* ─── 1. Where are you? — C7 location autocomplete suggestions ── */}
         <section>
           <SubsectionLabel>Where are you?</SubsectionLabel>
           <div style={{ marginTop: 10 }}>
@@ -8400,10 +8400,61 @@ export function TalentBlockDatesDrawer() {
                 placeholder="City · Country"
               />
             </FieldRow>
+            {/* C7: Quick-pick chips for fashion-cities. Production should
+                replace with Google Places autocomplete. */}
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                flexWrap: "wrap",
+                marginTop: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10.5,
+                  color: COLORS.inkDim,
+                  fontFamily: FONTS.body,
+                  fontWeight: 500,
+                  letterSpacing: 0.4,
+                  textTransform: "uppercase",
+                  marginRight: 4,
+                  alignSelf: "center",
+                }}
+              >
+                Quick pick:
+              </span>
+              {[
+                "Madrid · Spain",
+                "Paris · France",
+                "Milan · Italy",
+                "London · UK",
+                "New York · USA",
+                "Playa del Carmen · Mexico",
+              ].map((city) => (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => setLocation(city)}
+                  style={{
+                    padding: "3px 9px",
+                    background: location === city ? COLORS.ink : "#fff",
+                    border: `1px solid ${location === city ? COLORS.ink : COLORS.borderSoft}`,
+                    borderRadius: 999,
+                    cursor: "pointer",
+                    fontFamily: FONTS.body,
+                    fontSize: 11,
+                    color: location === city ? "#fff" : COLORS.ink,
+                  }}
+                >
+                  {city.split(" ·")[0]}
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* ─── 2. Taking work? ──────────────────────────────────── */}
+        {/* ─── 2. Taking work? — C6 travel preferences richer ─────────── */}
         <section>
           <SubsectionLabel>Taking work</SubsectionLabel>
           <div
@@ -8432,6 +8483,70 @@ export function TalentBlockDatesDrawer() {
               disabled={!availableForWork}
             />
           </div>
+          {/* C6: Travel preferences richer — only when travel is on */}
+          {availableToTravel && availableForWork && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: "12px 14px",
+                background: COLORS.surfaceAlt,
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 10,
+                fontFamily: FONTS.body,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: 0.4,
+                  textTransform: "uppercase",
+                  color: COLORS.inkMuted,
+                  marginBottom: 8,
+                }}
+              >
+                Travel preferences
+              </div>
+              <FieldRow label="Willing to fly to" optional hint="Cities or regions you'll travel for. Leave blank for anywhere.">
+                <TextInput placeholder="Paris, Milan, NYC · or leave blank for anywhere" />
+              </FieldRow>
+              <div style={{ height: 8 }} />
+              <FieldRow label="Min booking value when traveling" optional hint="Bookings below this amount won't be pitched if travel is required.">
+                <TextInput placeholder="e.g. €1,500" />
+              </FieldRow>
+              <div style={{ height: 10 }} />
+              <button
+                type="button"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  padding: "8px 10px",
+                  background: "#fff",
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  textAlign: "left",
+                }}
+              >
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
+                    background: "transparent",
+                    border: `1.5px solid ${COLORS.border}`,
+                    flexShrink: 0,
+                  }}
+                />
+                <div style={{ fontSize: 12, color: COLORS.ink }}>
+                  Travel costs must be covered by client
+                </div>
+              </button>
+            </div>
+          )}
         </section>
 
         {/* ─── 3. Existing blocks (A5) ──────────────────────────── */}
