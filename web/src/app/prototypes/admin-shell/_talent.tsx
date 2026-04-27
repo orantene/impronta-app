@@ -5609,6 +5609,135 @@ function CalendarEventRow({
 // page earn me" vs "what came from agencies" — the Reach connection
 // surfaced inline.
 
+/**
+ * Earnings forecast tile (E3). Two numbers — projected year-end total
+ * and the next-30-day forecast — surfaced as a compact strip so the
+ * talent has a forward-looking view of their pipeline, not just a YTD
+ * rear-view. Math here is intentionally naive (linear pace × pace
+ * adjustment); production would consult a confidence-weighted model.
+ *
+ * The "Pipeline confidence" caption hints at the model's quality so the
+ * talent doesn't over-trust an early-year extrapolation.
+ */
+function ForecastTile({ total, bookingsCount }: { total: number; bookingsCount: number }) {
+  // Assume we're 4 months into the year for the prototype's mock data
+  // (April). Production reads this from the actual current month + the
+  // talent's full earnings ledger.
+  const monthsElapsed = 4;
+  const avgPerMonth = total / monthsElapsed;
+  const yearEndProjection = Math.round(avgPerMonth * 12);
+  const next30 = Math.round(avgPerMonth * 1.05); // 5% pace bump from active pipeline
+  const confidence = bookingsCount >= 8 ? "High" : bookingsCount >= 4 ? "Medium" : "Low";
+  const confidenceColor = confidence === "High" ? COLORS.green : confidence === "Medium" ? COLORS.amber : COLORS.coral;
+
+  return (
+    <section
+      style={{
+        display: "flex",
+        alignItems: "stretch",
+        gap: 0,
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        marginBottom: 16,
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ flex: 1, padding: "14px 18px" }}>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 10.5,
+            fontWeight: 600,
+            letterSpacing: 0.7,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+          }}
+        >
+          Forecast · year-end
+        </div>
+        <div
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 26,
+            fontWeight: 500,
+            color: COLORS.ink,
+            letterSpacing: -0.4,
+            marginTop: 2,
+            lineHeight: 1.1,
+          }}
+        >
+          €{yearEndProjection.toLocaleString()}
+        </div>
+        <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+          Based on YTD pace × 12. {bookingsCount < 4 ? "Few data points yet — wide error band." : "Updates monthly."}
+        </div>
+      </div>
+      <div style={{ width: 1, background: COLORS.borderSoft }} />
+      <div style={{ flex: 1, padding: "14px 18px" }}>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 10.5,
+            fontWeight: 600,
+            letterSpacing: 0.7,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+          }}
+        >
+          Next 30 days
+        </div>
+        <div
+          style={{
+            fontFamily: FONTS.display,
+            fontSize: 26,
+            fontWeight: 500,
+            color: COLORS.ink,
+            letterSpacing: -0.4,
+            marginTop: 2,
+            lineHeight: 1.1,
+          }}
+        >
+          €{next30.toLocaleString()}
+        </div>
+        <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+          Live pipeline + recent close-rate. Updated daily.
+        </div>
+      </div>
+      <div style={{ width: 1, background: COLORS.borderSoft }} />
+      <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 10.5,
+            fontWeight: 600,
+            letterSpacing: 0.7,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+          }}
+        >
+          Confidence
+        </div>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 6,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 600,
+            color: confidenceColor,
+          }}
+        >
+          <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: confidenceColor }} />
+          {confidence}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ActivityPage() {
   const { openDrawer, toast } = useProto();
   const [filter, setFilter] = useState<"all" | "agency" | "personal" | "hub" | "studio" | "manual">("all");
@@ -5716,6 +5845,12 @@ function ActivityPage() {
         <ReachStatDivider />
         <ReachStat label="Top channel" value={topSourceLabel} caption={topSource ? `€${topSource[1].toLocaleString()}` : ""} tone="indigo" />
       </div>
+
+      {/* Earnings forecast tile (E3). Naive projection — current YTD pace
+          extrapolated to year-end, trimmed to a 12-month rolling average
+          for stability. Production wires this to a real model that
+          factors seasonality + booking-pipeline confidence. */}
+      <ForecastTile total={total} bookingsCount={EARNINGS_ROWS.length} />
 
       {/* Filter chips per source */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
@@ -6102,10 +6237,28 @@ function ReachPage() {
           surfacing it here. Inquiries through verified hubs follow the same trust + payout
           rules as agency-routed work.
         </div>
-        <div style={{ marginTop: 12 }}>
-          <TextInput placeholder="Search Models.com, Cast Iron, Atelier Paris…" />
+        <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ flex: 1 }}>
+            <TextInput placeholder="Search Models.com, Cast Iron, Atelier Paris…" />
+          </div>
+          <SecondaryButton onClick={() => openDrawer("talent-hub-compare")}>
+            Compare hubs
+          </SecondaryButton>
         </div>
       </section>
+
+      <div style={{ height: 24 }} />
+
+      {/* Pro tier value card (E6) — only when on a non-Portfolio tier.
+          Shows the concrete unlocks vs current tier so the upgrade pitch
+          is grounded in the talent's actual missing surfaces, not vague
+          "more features". Forest accent — earnings-adjacent framing. */}
+      {MY_TALENT_PROFILE.subscription.tier !== "portfolio" && (
+        <ProTierValueCard
+          currentTier={MY_TALENT_PROFILE.subscription.tier}
+          onCompare={() => openDrawer("talent-tier-compare")}
+        />
+      )}
 
       {/* Maximum-exposure confirm dialog. Surfaces the real trade-off
           (marketplace inquiries from Basic clients) before applying. */}
@@ -6455,6 +6608,126 @@ function ExposurePresetSlider({
           {current.label}.
         </strong>{" "}
         {current.description}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Pro-tier value card (E6). Surfaces a concrete unlock-list for the
+ * next subscription tier, anchored to the talent's current tier so the
+ * pitch reflects what they'd actually gain. Avoids the "feature wall"
+ * trap by leading with the 3 highest-value modules first.
+ *
+ * Forest accent because tier upgrades are framed as earnings-adjacent
+ * (more reach, better presentation, higher inquiry rate), not branded
+ * marketing.
+ */
+function ProTierValueCard({
+  currentTier,
+  onCompare,
+}: {
+  currentTier: TalentSubscriptionTier;
+  onCompare: () => void;
+}) {
+  // Skip if already on top tier (parent gates this, but defensive).
+  if (currentTier === "portfolio") return null;
+  const isBasic = currentTier === "basic";
+  const targetTier = isBasic ? "pro" : "portfolio";
+  const targetMeta = TALENT_TIER_META[targetTier];
+
+  // Anchor the pitch on what's missing today, in priority order.
+  const unlocks = isBasic
+    ? [
+        { label: "Template picker", body: "Pick a personal-page template that matches your category — Roster, Magazine, Editorial, Reel." },
+        { label: "Press + Media Kit", body: "Linked press band and a downloadable PDF media kit. Casting directors love these." },
+        { label: "Video & social embeds", body: "Embed Instagram reels, TikTok, Vimeo right on your personal page." },
+      ]
+    : [
+        { label: "Custom domain", body: "Use marta-reyes.com instead of tulala.digital/t/marta-reyes. Yours, kept on renewal." },
+        { label: "Multi-section page-builder", body: "Up to 12 stacked sections. Tell a story, not just show a grid." },
+        { label: "Priority discovery placement", body: "Higher position in Tulala Hub search + recommendations." },
+      ];
+
+  return (
+    <section
+      style={{
+        position: "relative",
+        background: `linear-gradient(135deg, rgba(46,125,91,0.10) 0%, #fff 60%)`,
+        border: `1px solid ${COLORS.green}`,
+        borderRadius: 14,
+        padding: "16px 18px",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            letterSpacing: 0.7,
+            textTransform: "uppercase",
+            color: COLORS.green,
+            background: "rgba(46,125,91,0.10)",
+            padding: "4px 9px",
+            borderRadius: 999,
+          }}
+        >
+          {targetMeta.label} · {targetMeta.monthlyPrice}
+        </span>
+        <span style={{ fontSize: 12, color: COLORS.inkMuted }}>vs your current {TALENT_TIER_META[currentTier].label}</span>
+      </div>
+      <h3
+        style={{
+          fontFamily: FONTS.display,
+          fontSize: 20,
+          fontWeight: 500,
+          color: COLORS.ink,
+          margin: 0,
+          letterSpacing: -0.2,
+          lineHeight: 1.2,
+          marginBottom: 12,
+        }}
+      >
+        {isBasic
+          ? "Three things Pro unlocks that move inquiry rate"
+          : "What Portfolio adds on top of Pro"}
+      </h3>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 14 }}>
+        {unlocks.map((item, idx) => (
+          <div
+            key={idx}
+            style={{
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: COLORS.ink,
+                lineHeight: 1.3,
+                marginBottom: 4,
+              }}
+            >
+              {item.label}
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+              {item.body}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <PrimaryButton onClick={onCompare}>See full comparison</PrimaryButton>
+        <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+          Cancel anytime. Your URL stays the same.
+        </span>
       </div>
     </section>
   );
@@ -7109,6 +7382,20 @@ function SettingsPage() {
           description="Bank info for direct payouts when an agency uses Tulala billing."
           affordance="Manage"
           onClick={() => openDrawer("talent-payouts")}
+        />
+        <SecondaryCard
+          title="Identity verification"
+          description="Get the Verified badge on every inquiry. ID + selfie · reviewed by our trust team within 24h."
+          meta={<><StatDot tone="amber" /> Not yet verified</>}
+          affordance="Verify identity"
+          onClick={() => openDrawer("talent-verification")}
+        />
+        <SecondaryCard
+          title="Refer a friend"
+          description="When a talent you invite closes their first booking, you both earn €50 in payout credit."
+          meta={<><StatDot tone="green" /> 1 active</>}
+          affordance="Open referrals"
+          onClick={() => openDrawer("talent-referrals")}
         />
         <SecondaryCard
           title="Help & support"
@@ -10132,40 +10419,753 @@ function PresetButton({
 export function TalentPayoutsDrawer() {
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-payouts";
+  // Multi-step Stripe-Connect-style onboarding scaffold. Each step
+  // captures one logical block; the actual KYC + bank handoff happens
+  // via Stripe's hosted flow in production. The drawer mocks the
+  // progression so the prototype demonstrates the experience.
+  type Step = "country" | "personal" | "bank" | "tax" | "verify" | "done";
+  const [step, setStep] = useState<Step>("country");
+  const [country, setCountry] = useState("Spain");
+  const stepIndex: Record<Step, number> = {
+    country: 0,
+    personal: 1,
+    bank: 2,
+    tax: 3,
+    verify: 4,
+    done: 5,
+  };
+  const stepCount = 5;
+  const stepLabels = ["Country", "Personal", "Bank", "Tax", "Verify"];
+
+  const advance = (next: Step) => {
+    setStep(next);
+    if (next === "done") toast("Payout setup complete — you'll be paid out via Stripe");
+  };
+
+  const reset = () => {
+    setStep("country");
+  };
+
   return (
     <DrawerShell
       open={open}
-      onClose={closeDrawer}
-      title="Payouts"
-      description="Direct deposit when an agency uses Tulala billing. For agencies that pay you directly, nothing changes."
-      width={520}
+      onClose={() => {
+        closeDrawer();
+        // Defer reset so the closing animation doesn't show the country step.
+        setTimeout(reset, 200);
+      }}
+      title="Set up payouts"
+      description="Stripe Connect handles KYC + banking. Tulala never sees your bank details."
+      width={560}
       footer={
-        <>
-          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={() => toast("Take this to your agency to enter banking info securely")}>
-            Set up via agency
-          </PrimaryButton>
-        </>
+        step === "done" ? (
+          <PrimaryButton onClick={() => { closeDrawer(); setTimeout(reset, 200); }}>Done</PrimaryButton>
+        ) : (
+          <>
+            <SecondaryButton onClick={() => { closeDrawer(); setTimeout(reset, 200); }}>
+              Save & exit
+            </SecondaryButton>
+            <PrimaryButton
+              onClick={() => {
+                if (step === "country") advance("personal");
+                else if (step === "personal") advance("bank");
+                else if (step === "bank") advance("tax");
+                else if (step === "tax") advance("verify");
+                else if (step === "verify") advance("done");
+              }}
+            >
+              {step === "verify" ? "Submit" : "Continue"}
+            </PrimaryButton>
+          </>
+        )
+      }
+    >
+      {/* Step indicator */}
+      <div
+        aria-hidden
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          marginBottom: 18,
+        }}
+      >
+        {stepLabels.map((label, idx) => {
+          const isActive = idx === stepIndex[step];
+          const isDone = idx < stepIndex[step];
+          return (
+            <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: isDone ? COLORS.green : isActive ? COLORS.ink : "rgba(11,11,13,0.06)",
+                  color: isDone || isActive ? "#fff" : COLORS.inkDim,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  fontFamily: FONTS.body,
+                  flexShrink: 0,
+                }}
+              >
+                {isDone ? <Icon name="check" size={11} color="#fff" /> : idx + 1}
+              </span>
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 11,
+                  color: isActive ? COLORS.ink : COLORS.inkMuted,
+                  fontWeight: isActive ? 600 : 500,
+                }}
+              >
+                {label}
+              </span>
+              {idx < stepLabels.length - 1 && (
+                <span
+                  style={{
+                    flex: 1,
+                    height: 1,
+                    background: idx < stepIndex[step] ? COLORS.green : "rgba(11,11,13,0.10)",
+                    marginRight: 0,
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Trust banner — always visible during the flow */}
+      <div
+        style={{
+          padding: "12px 14px",
+          background: COLORS.accentSoft,
+          border: `1px solid rgba(15,79,62,0.18)`,
+          borderRadius: 10,
+          marginBottom: 14,
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.ink,
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ color: COLORS.accentDeep }}>Encrypted via Stripe.</strong>{" "}
+        Bank details and ID never touch Tulala servers. You'll see a Stripe-hosted page in production.
+      </div>
+
+      {step === "country" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldRow label="Country of residence" hint="Determines your payout currency and tax form">
+            <select
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                fontFamily: FONTS.body,
+                fontSize: 13,
+                border: `1px solid ${COLORS.borderSoft}`,
+                borderRadius: 8,
+                background: "#fff",
+                color: COLORS.ink,
+              }}
+            >
+              <option>Spain</option>
+              <option>Italy</option>
+              <option>France</option>
+              <option>Germany</option>
+              <option>United Kingdom</option>
+              <option>United States</option>
+            </select>
+          </FieldRow>
+          <KvRow label="Payout currency" value={country === "United States" ? "USD" : country === "United Kingdom" ? "GBP" : "EUR"} />
+          <KvRow label="Tax form" value={country === "United States" ? "W-9" : "W-8BEN"} />
+        </div>
+      )}
+
+      {step === "personal" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldRow label="Legal name">
+            <TextInput defaultValue="Marta Reyes" />
+          </FieldRow>
+          <FieldRow label="Date of birth">
+            <TextInput placeholder="DD / MM / YYYY" />
+          </FieldRow>
+          <FieldRow label="Address">
+            <TextInput placeholder="Street, city, postcode" />
+          </FieldRow>
+        </div>
+      )}
+
+      {step === "bank" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div
+            style={{
+              padding: "16px",
+              background: "#fff",
+              border: `1px dashed ${COLORS.border}`,
+              borderRadius: 12,
+              textAlign: "center",
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              color: COLORS.inkMuted,
+            }}
+          >
+            <Icon name="external" size={20} color={COLORS.accentDeep} />
+            <div style={{ marginTop: 10, fontWeight: 600, color: COLORS.ink, fontSize: 14 }}>
+              Continue on Stripe to add your bank
+            </div>
+            <div style={{ marginTop: 6, lineHeight: 1.5, maxWidth: 360, margin: "6px auto 0" }}>
+              In production this opens a Stripe-hosted page where your IBAN / sort code is
+              entered behind their PCI-DSS infrastructure.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {step === "tax" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <FieldRow label={country === "United States" ? "W-9 form" : "W-8BEN form"} hint="Confirms your tax residency">
+            <TextInput defaultValue={`${country} resident`} />
+          </FieldRow>
+          <FieldRow label="Tax ID" hint="Your local TIN, NIE, or SSN">
+            <TextInput placeholder="••••••" />
+          </FieldRow>
+          <KvRow label="VAT number" value="(optional)" />
+        </div>
+      )}
+
+      {step === "verify" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <KvRow label="Country" value={country} />
+          <KvRow label="Bank" value="Connected via Stripe" />
+          <KvRow label="Tax form" value={country === "United States" ? "W-9 · ready" : "W-8BEN · ready"} />
+          <KvRow label="Schedule" value="Per-booking · paid 14 days after wrap" />
+          <KvRow label="First payout ETA" value="Once your next booking wraps" />
+        </div>
+      )}
+
+      {step === "done" && (
+        <CelebrationBanner
+          tone="forest"
+          eyebrow="Setup complete"
+          title="Payouts are live"
+          body="Stripe will pay you 14 days after each wrap. You can update bank or tax details anytime from Settings."
+        />
+      )}
+    </DrawerShell>
+  );
+}
+
+// ─── Trust verification (D1) ────────────────────────────────────
+
+/**
+ * Identity verification scaffold. Multi-step ID upload flow that — once
+ * approved by an admin — lifts the talent's trust tier from Basic to
+ * Verified, unlocking the Verified badge on roster cards and inquiry
+ * workspaces.
+ *
+ * This is a scaffold. The real flow uses a vendor (Stripe Identity, Onfido,
+ * Persona) that returns a verification result via webhook; the prototype
+ * stops at "submitted — under review" so the admin queue is implied but
+ * not modeled here.
+ */
+export function TalentVerificationDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-verification";
+  type Step = "intro" | "id-type" | "upload" | "selfie" | "submitted";
+  const [step, setStep] = useState<Step>("intro");
+  const [idType, setIdType] = useState<"passport" | "drivers-license" | "national-id">("passport");
+
+  const reset = () => setStep("intro");
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={() => {
+        closeDrawer();
+        setTimeout(reset, 200);
+      }}
+      title="Verify your identity"
+      description="Upload a government ID + a quick selfie. Once approved you get the Verified badge — clients see it on every inquiry."
+      width={560}
+      footer={
+        step === "submitted" ? (
+          <PrimaryButton onClick={() => { closeDrawer(); setTimeout(reset, 200); }}>Done</PrimaryButton>
+        ) : (
+          <>
+            <SecondaryButton onClick={() => { closeDrawer(); setTimeout(reset, 200); }}>Cancel</SecondaryButton>
+            <PrimaryButton
+              onClick={() => {
+                if (step === "intro") setStep("id-type");
+                else if (step === "id-type") setStep("upload");
+                else if (step === "upload") setStep("selfie");
+                else if (step === "selfie") {
+                  setStep("submitted");
+                  toast("Verification submitted — you'll hear back within 24h");
+                }
+              }}
+            >
+              {step === "selfie" ? "Submit for review" : "Continue"}
+            </PrimaryButton>
+          </>
+        )
       }
     >
       <div
         style={{
-          padding: "14px 16px",
-          background: COLORS.surfaceAlt,
+          padding: "12px 14px",
+          background: COLORS.accentSoft,
           border: `1px solid rgba(15,79,62,0.18)`,
-          borderRadius: 12,
+          borderRadius: 10,
           marginBottom: 14,
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.ink,
+          lineHeight: 1.5,
         }}
       >
-        <CapsLabel color={COLORS.accentDeep}>For your security</CapsLabel>
-        <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, marginTop: 6, lineHeight: 1.55 }}>
-          We never collect bank details directly inside Tulala's prototype. In production, banking
-          is set up via your agency's encrypted Stripe Connect onboarding.
-        </div>
+        <strong style={{ color: COLORS.accentDeep }}>End-to-end encrypted.</strong>{" "}
+        Documents are reviewed by Tulala's trust team and deleted after approval. Never shared with clients.
       </div>
-      <KvRow label="Currency" value="EUR" />
-      <KvRow label="Schedule" value="Per-booking · paid 14 days after wrap" />
-      <KvRow label="Tax form" value="W-8BEN · pending" />
+
+      {step === "intro" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <h3
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 18,
+              fontWeight: 500,
+              color: COLORS.ink,
+              margin: 0,
+              letterSpacing: -0.15,
+            }}
+          >
+            Why verify?
+          </h3>
+          <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+            {[
+              { label: "Verified badge on every inquiry", body: "Clients filter on it. Verified profiles get ~3× more replies in our data." },
+              { label: "Higher trust tier", body: "Eligible for Silver and Gold tiers as your booking history grows." },
+              { label: "Required for payouts > €1k", body: "Compliance — Stripe needs the same KYC anyway." },
+            ].map((item, idx) => (
+              <li
+                key={idx}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "10px 12px",
+                  background: "#fff",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 9,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <span
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    background: COLORS.accentSoft,
+                    color: COLORS.accentDeep,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}
+                >
+                  {idx + 1}
+                </span>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, lineHeight: 1.35 }}>
+                    {item.label}
+                  </div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.45 }}>
+                    {item.body}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {step === "id-type" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <CapsLabel>Choose ID type</CapsLabel>
+          {([
+            { id: "passport" as const, label: "Passport", body: "Best — single-page, accepted globally." },
+            { id: "drivers-license" as const, label: "Driver's license", body: "Front + back. Some countries only." },
+            { id: "national-id" as const, label: "National ID card", body: "EU residents — front + back." },
+          ]).map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setIdType(opt.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 14px",
+                background: "#fff",
+                border: `1px solid ${idType === opt.id ? COLORS.accent : COLORS.borderSoft}`,
+                borderRadius: 10,
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: FONTS.body,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  border: `2px solid ${idType === opt.id ? COLORS.accent : COLORS.border}`,
+                  background: idType === opt.id ? COLORS.accent : "transparent",
+                  flexShrink: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {idType === opt.id && (
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />
+                )}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{opt.label}</div>
+                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{opt.body}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {step === "upload" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <CapsLabel>Upload your {idType === "passport" ? "passport photo page" : idType === "drivers-license" ? "license front + back" : "ID front + back"}</CapsLabel>
+          <button
+            type="button"
+            style={{
+              padding: "32px 16px",
+              background: "#fff",
+              border: `2px dashed ${COLORS.border}`,
+              borderRadius: 12,
+              textAlign: "center",
+              fontFamily: FONTS.body,
+              cursor: "pointer",
+            }}
+          >
+            <Icon name="external" size={22} color={COLORS.inkMuted} />
+            <div style={{ marginTop: 10, fontSize: 14, fontWeight: 500, color: COLORS.ink }}>
+              Drop file or click to upload
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+              JPG or PNG · max 8MB · clear corners visible
+            </div>
+          </button>
+          {idType !== "passport" && (
+            <button
+              type="button"
+              style={{
+                padding: "32px 16px",
+                background: "#fff",
+                border: `2px dashed ${COLORS.border}`,
+                borderRadius: 12,
+                textAlign: "center",
+                fontFamily: FONTS.body,
+                cursor: "pointer",
+              }}
+            >
+              <Icon name="external" size={22} color={COLORS.inkMuted} />
+              <div style={{ marginTop: 10, fontSize: 14, fontWeight: 500, color: COLORS.ink }}>
+                Upload back side
+              </div>
+            </button>
+          )}
+        </div>
+      )}
+
+      {step === "selfie" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <CapsLabel>Quick selfie</CapsLabel>
+          <button
+            type="button"
+            style={{
+              aspectRatio: "1 / 1",
+              maxWidth: 280,
+              margin: "0 auto",
+              background: COLORS.surfaceAlt,
+              border: `2px dashed ${COLORS.border}`,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "column",
+              gap: 8,
+              fontFamily: FONTS.body,
+              cursor: "pointer",
+              color: COLORS.inkMuted,
+            }}
+          >
+            <Icon name="user" size={32} color={COLORS.inkMuted} />
+            <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>Take selfie</div>
+            <div style={{ fontSize: 11.5 }}>So we know it's really you</div>
+          </button>
+          <p style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, margin: 0, lineHeight: 1.5, textAlign: "center" }}>
+            One photo. We compare it to your ID. Deleted after approval.
+          </p>
+        </div>
+      )}
+
+      {step === "submitted" && (
+        <CelebrationBanner
+          tone="accent"
+          eyebrow="Submitted"
+          title="Under review — you'll hear back in 24 hours"
+          body="We email you once approved. Your inquiries get a small 'verification pending' chip until then."
+        />
+      )}
+    </DrawerShell>
+  );
+}
+
+// ─── Friend referrals (D7) ──────────────────────────────────────
+
+const REFERRAL_LIST = [
+  { id: "r1", name: "Sara Mendez", status: "joined" as const, joinedAt: "2 weeks ago", earned: 0 },
+  { id: "r2", name: "Marco Vasquez", status: "earning" as const, joinedAt: "5 weeks ago", earned: 50 },
+  { id: "r3", name: "Lia Torres", status: "invited" as const, joinedAt: "Sent 3 days ago", earned: 0 },
+];
+
+export function TalentReferralsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-referrals";
+  const link = "tulala.digital/r/marta-reyes";
+  const earnedTotal = REFERRAL_LIST.reduce((sum, r) => sum + r.earned, 0);
+  const joinedCount = REFERRAL_LIST.filter((r) => r.status !== "invited").length;
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Refer a friend"
+      description="When a talent you invited closes their first booking, you both earn €50 in payout credit."
+      width={560}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 8,
+          marginBottom: 16,
+        }}
+      >
+        <SummaryStat label="Sent" value={String(REFERRAL_LIST.length)} accent="ink" />
+        <SummaryStat label="Joined" value={String(joinedCount)} accent="green" />
+        <SummaryStat label="Earned" value={`€${earnedTotal}`} accent="green" />
+      </div>
+
+      <FieldRow label="Your invite link" hint="Click to copy. Anyone who signs up via this link is yours.">
+        <button
+          type="button"
+          onClick={() => toast("Invite link copied")}
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 8,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.ink,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            textAlign: "left",
+          }}
+        >
+          <Icon name="external" size={13} color={COLORS.inkMuted} />
+          <span style={{ flex: 1, fontFamily: "monospace" }}>{link}</span>
+          <span style={{ fontSize: 11.5, color: COLORS.accentDeep, fontWeight: 600 }}>Copy</span>
+        </button>
+      </FieldRow>
+
+      <Divider label="Referrals" />
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {REFERRAL_LIST.map((r) => (
+          <div
+            key={r.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 12px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 9,
+              fontFamily: FONTS.body,
+            }}
+          >
+            <Avatar initials={r.name.split(" ").map((n) => n[0]).join("")} size={28} tone="ink" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{r.name}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                {r.status === "earning"
+                  ? `Earned · joined ${r.joinedAt}`
+                  : r.status === "joined"
+                    ? `Joined ${r.joinedAt} · waiting on first booking`
+                    : r.joinedAt}
+              </div>
+            </div>
+            {r.earned > 0 && (
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: COLORS.green,
+                }}
+              >
+                +€{r.earned}
+              </span>
+            )}
+            {r.status === "invited" && (
+              <SecondaryButton size="sm" onClick={() => toast("Reminder sent")}>Remind</SecondaryButton>
+            )}
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Hub compare (E7) ───────────────────────────────────────────
+
+const HUB_COMPARE_DATA = [
+  {
+    name: "Tulala Hub · Madrid",
+    listingFee: "€8/mo",
+    avgInquiriesPerMonth: 9,
+    averageDayRate: "€280",
+    closeRate: "22%",
+    talentCount: 240,
+    notes: "Strong fashion + commercial briefs. Hub-fee waived for verified talents.",
+    recommended: true,
+  },
+  {
+    name: "Tulala Hub · Barcelona",
+    listingFee: "€8/mo",
+    avgInquiriesPerMonth: 6,
+    averageDayRate: "€240",
+    closeRate: "18%",
+    talentCount: 180,
+    notes: "More editorial / lifestyle. Slower volume, higher day rates.",
+    recommended: false,
+  },
+  {
+    name: "TalentLink · Lisbon",
+    listingFee: "€12/mo",
+    avgInquiriesPerMonth: 4,
+    averageDayRate: "€220",
+    closeRate: "14%",
+    talentCount: 90,
+    notes: "Smaller hub, higher signal-to-noise. Good if you're already on a Madrid hub.",
+    recommended: false,
+  },
+];
+
+export function TalentHubCompareDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-hub-compare";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Compare hubs"
+      description="Side-by-side: listing fee, monthly volume, and close-rate. Numbers are rolling 90-day averages from talents on each hub."
+      width={760}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+        {HUB_COMPARE_DATA.map((hub) => (
+          <div
+            key={hub.name}
+            style={{
+              position: "relative",
+              padding: "14px 14px 16px",
+              background: "#fff",
+              border: `1px solid ${hub.recommended ? COLORS.accent : COLORS.borderSoft}`,
+              borderRadius: 12,
+              fontFamily: FONTS.body,
+            }}
+          >
+            {hub.recommended && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: -10,
+                  left: 12,
+                  background: COLORS.accent,
+                  color: "#fff",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: 0.6,
+                  textTransform: "uppercase",
+                  padding: "3px 8px",
+                  borderRadius: 999,
+                }}
+              >
+                Best fit
+              </span>
+            )}
+            <div
+              style={{
+                fontFamily: FONTS.display,
+                fontSize: 15,
+                fontWeight: 500,
+                color: COLORS.ink,
+                marginBottom: 10,
+                letterSpacing: -0.1,
+              }}
+            >
+              {hub.name}
+            </div>
+            <KvRow label="Listing fee" value={hub.listingFee} />
+            <KvRow label="Inquiries / mo" value={String(hub.avgInquiriesPerMonth)} />
+            <KvRow label="Avg day rate" value={hub.averageDayRate} />
+            <KvRow label="Close rate" value={hub.closeRate} />
+            <KvRow label="Roster size" value={`${hub.talentCount} talents`} />
+            <p
+              style={{
+                margin: "10px 0 0",
+                fontSize: 11.5,
+                color: COLORS.inkMuted,
+                lineHeight: 1.5,
+              }}
+            >
+              {hub.notes}
+            </p>
+            <div style={{ marginTop: 12 }}>
+              <PrimaryButton
+                size="sm"
+                onClick={() => toast(`Listed on ${hub.name}`)}
+              >
+                {hub.recommended ? "Get listed" : "List on this hub"}
+              </PrimaryButton>
+            </div>
+          </div>
+        ))}
+      </div>
     </DrawerShell>
   );
 }

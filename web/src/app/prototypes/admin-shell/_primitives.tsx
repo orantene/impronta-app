@@ -2305,6 +2305,63 @@ export function CelebrationBanner({
   );
 }
 
+/**
+ * Loading skeleton for a list row (F3). Lightweight stand-in while a
+ * surface is fetching — keeps the layout from collapsing as data loads
+ * and prevents the "spinner-then-flash" feel.
+ *
+ * Defaults to one shimmering bar; pass `lines={n}` for a stack. Width
+ * is 100% by default so it tracks the container.
+ *
+ * Note: animation is a CSS-class linear-gradient sweep declared inline
+ * so the prototype doesn't depend on an external stylesheet.
+ */
+export function RowSkeleton({
+  lines = 1,
+  height = 14,
+  rounded = 6,
+}: {
+  lines?: number;
+  height?: number;
+  rounded?: number;
+}) {
+  return (
+    <div
+      aria-busy="true"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 6,
+        padding: "10px 0",
+      }}
+    >
+      <style>{`
+        @keyframes tulala-skeleton-shimmer {
+          0% { background-position: -240px 0; }
+          100% { background-position: 240px 0; }
+        }
+      `}</style>
+      {Array.from({ length: lines }).map((_, idx) => (
+        <span
+          key={idx}
+          aria-hidden
+          style={{
+            display: "block",
+            width: idx === lines - 1 && lines > 1 ? "60%" : "100%",
+            height,
+            borderRadius: rounded,
+            background: `linear-gradient(90deg, rgba(11,11,13,0.04) 0%, rgba(11,11,13,0.10) 50%, rgba(11,11,13,0.04) 100%)`,
+            backgroundSize: "240px 100%",
+            backgroundRepeat: "no-repeat",
+            backgroundColor: "rgba(11,11,13,0.04)",
+            animation: "tulala-skeleton-shimmer 1.4s linear infinite",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function MoreWithSection({
   plan,
   title,

@@ -458,6 +458,10 @@ export type DrawerId =
   | "talent-payouts"
   | "talent-contact-preferences"
   | "talent-earnings-detail"
+  // — Phase D scaffolds (verification, referrals, hub compare) —
+  | "talent-verification"
+  | "talent-referrals"
+  | "talent-hub-compare"
   // — Client surface drawers ————————————————————————————————————
   | "client-today-pulse"
   | "client-talent-card"

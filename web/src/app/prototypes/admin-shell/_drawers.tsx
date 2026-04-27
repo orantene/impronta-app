@@ -117,6 +117,9 @@ import {
   TalentPressDrawer,
   TalentMediaKitDrawer,
   TalentCustomDomainDrawer,
+  TalentVerificationDrawer,
+  TalentReferralsDrawer,
+  TalentHubCompareDrawer,
 } from "./_talent";
 import {
   ClientTodayPulseDrawer,
@@ -366,6 +369,14 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentMediaKitDrawer />;
     case "talent-custom-domain":
       return <TalentCustomDomainDrawer />;
+
+    // ─── Phase D scaffolds ──────────────────────────────────────────────
+    case "talent-verification":
+      return <TalentVerificationDrawer />;
+    case "talent-referrals":
+      return <TalentReferralsDrawer />;
+    case "talent-hub-compare":
+      return <TalentHubCompareDrawer />;
 
     // ─── Payments / payouts ─────────────────────────────────────────────
     case "payments-setup":
