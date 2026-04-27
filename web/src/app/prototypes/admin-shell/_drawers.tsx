@@ -120,6 +120,12 @@ import {
   TalentVerificationDrawer,
   TalentReferralsDrawer,
   TalentHubCompareDrawer,
+  TalentTaxDocsDrawer,
+  TalentConflictResolveDrawer,
+  TalentNetworkDrawer,
+  TalentVoiceReplyDrawer,
+  TalentMultiAgencyPickerDrawer,
+  TalentChatArchiveDrawer,
 } from "./_talent";
 import {
   ClientTodayPulseDrawer,
@@ -377,6 +383,18 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentReferralsDrawer />;
     case "talent-hub-compare":
       return <TalentHubCompareDrawer />;
+    case "talent-tax-docs":
+      return <TalentTaxDocsDrawer />;
+    case "talent-conflict-resolve":
+      return <TalentConflictResolveDrawer />;
+    case "talent-network":
+      return <TalentNetworkDrawer />;
+    case "talent-voice-reply":
+      return <TalentVoiceReplyDrawer />;
+    case "talent-multi-agency-picker":
+      return <TalentMultiAgencyPickerDrawer />;
+    case "talent-chat-archive":
+      return <TalentChatArchiveDrawer />;
 
     // ─── Payments / payouts ─────────────────────────────────────────────
     case "payments-setup":

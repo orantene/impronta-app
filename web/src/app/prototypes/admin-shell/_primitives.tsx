@@ -2306,6 +2306,66 @@ export function CelebrationBanner({
 }
 
 /**
+ * Real date picker primitive (F9). Replaces TextInput placeholders with a
+ * native HTML5 date input styled to match the rest of the form system.
+ * Native is the right call here:
+ *  - Mobile gets the OS date wheel for free.
+ *  - Keyboard nav works without a custom focus trap.
+ *  - Locale-aware formatting comes from the browser.
+ *
+ * For range pickers (start + end) compose two of these side by side.
+ */
+export function DatePicker({
+  value,
+  onChange,
+  placeholder = "Pick a date",
+  min,
+  max,
+}: {
+  value?: string;
+  onChange?: (v: string) => void;
+  placeholder?: string;
+  min?: string;
+  max?: string;
+}) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 8,
+        padding: "0 10px",
+        height: 36,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <Icon name="calendar" size={13} color={COLORS.inkMuted} />
+      <input
+        type="date"
+        value={value ?? ""}
+        onChange={(e) => onChange?.(e.target.value)}
+        min={min}
+        max={max}
+        placeholder={placeholder}
+        style={{
+          flex: 1,
+          padding: "0 0 0 8px",
+          border: "none",
+          outline: "none",
+          background: "transparent",
+          fontFamily: FONTS.body,
+          fontSize: 13,
+          color: COLORS.ink,
+        }}
+      />
+    </div>
+  );
+}
+
+/**
  * Loading skeleton for a list row (F3). Lightweight stand-in while a
  * surface is fetching — keeps the layout from collapsing as data loads
  * and prevents the "spinner-then-flash" feel.

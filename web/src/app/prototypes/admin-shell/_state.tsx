@@ -462,6 +462,13 @@ export type DrawerId =
   | "talent-verification"
   | "talent-referrals"
   | "talent-hub-compare"
+  // — Final 21 push: D3 tax + E2/E4/E5 strategic + X6 network plan + F8 archive
+  | "talent-tax-docs"
+  | "talent-conflict-resolve"
+  | "talent-network"
+  | "talent-voice-reply"
+  | "talent-multi-agency-picker"
+  | "talent-chat-archive"
   // — Client surface drawers ————————————————————————————————————
   | "client-today-pulse"
   | "client-talent-card"

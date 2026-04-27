@@ -4837,6 +4837,229 @@ function CalendarLegendDot({ tone, label }: { tone: "green" | "amber" | "dim" | 
   );
 }
 
+// ─── Calendar week + day views (F7) ──────────────────────────────
+//
+// Both views consume the same CalendarEvent[] used by the list. Week
+// groups by start day across a 7-day strip; Day shows a single day's
+// events bucketed by morning/afternoon/evening. Both are list-style —
+// no time-grid column — because the prototype's data is day-granular,
+// not hour-granular.
+
+function CalendarWeekView({
+  events,
+  onOpen,
+}: {
+  events: { id: string; kind: string; client: string; brief: string; dateLabel: string; status: string; startDay: number | null; drawer: { id: import("./_state").DrawerId; payload: Record<string, unknown> } }[];
+  onOpen: (d: { id: import("./_state").DrawerId; payload: Record<string, unknown> }) => void;
+}) {
+  // Anchor on May 12–18 (week containing the prototype's mock conflict).
+  const weekStart = 12;
+  const days = Array.from({ length: 7 }, (_, i) => weekStart + i);
+  return (
+    <section
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          padding: "10px 14px",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <CapsLabel>Week of May 12 — May 18, 2026</CapsLabel>
+        <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+          {events.filter((e) => e.startDay !== null && days.includes(e.startDay!)).length} events
+        </span>
+      </div>
+      {days.map((d) => {
+        const dayEvents = events.filter((e) => e.startDay === d);
+        const dayName = ["Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Mon"][d - weekStart] ?? "";
+        return (
+          <div
+            key={d}
+            style={{
+              display: "flex",
+              gap: 12,
+              padding: "10px 14px",
+              borderTop: d === weekStart ? "none" : `1px solid ${COLORS.borderSoft}`,
+              background: dayEvents.length > 0 ? "#fff" : "rgba(11,11,13,0.015)",
+              fontFamily: FONTS.body,
+            }}
+          >
+            <div style={{ width: 60, flexShrink: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 500, color: COLORS.ink, fontFamily: FONTS.display, letterSpacing: -0.2 }}>
+                {d}
+              </div>
+              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: 0.7 }}>
+                {dayName}
+              </div>
+            </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+              {dayEvents.length === 0 ? (
+                <div style={{ fontSize: 11.5, color: COLORS.inkDim, paddingTop: 4 }}>—</div>
+              ) : (
+                dayEvents.map((e) => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    onClick={() => onOpen(e.drawer)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 10px",
+                      background: "rgba(11,11,13,0.03)",
+                      border: "none",
+                      borderLeft: `3px solid ${
+                        e.kind === "booked" ? COLORS.green :
+                        e.kind === "pending" ? COLORS.coral :
+                        e.kind === "inquiry" ? COLORS.indigo :
+                        e.kind === "cancelled" ? COLORS.coral :
+                        COLORS.inkDim
+                      }`,
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontFamily: FONTS.body,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+                        {e.client} · {e.brief}
+                      </div>
+                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                        {e.status}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function CalendarDayView({
+  events,
+  onOpen,
+}: {
+  events: { id: string; kind: string; client: string; brief: string; dateLabel: string; status: string; amount?: string; startDay: number | null; drawer: { id: import("./_state").DrawerId; payload: Record<string, unknown> } }[];
+  onOpen: (d: { id: import("./_state").DrawerId; payload: Record<string, unknown> }) => void;
+}) {
+  // Anchor on May 14 — the prototype's hot day with the conflict.
+  const targetDay = 14;
+  const dayEvents = events.filter((e) => e.startDay === targetDay);
+  // Bucket assignment is mock — production reads time-of-day from event records.
+  const bucketed = {
+    morning: dayEvents.slice(0, Math.ceil(dayEvents.length / 3)),
+    afternoon: dayEvents.slice(Math.ceil(dayEvents.length / 3), Math.ceil((dayEvents.length * 2) / 3)),
+    evening: dayEvents.slice(Math.ceil((dayEvents.length * 2) / 3)),
+  };
+  return (
+    <section
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        overflow: "hidden",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div
+        style={{
+          padding: "12px 16px",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div>
+          <div style={{ fontFamily: FONTS.display, fontSize: 22, fontWeight: 500, color: COLORS.ink, letterSpacing: -0.3 }}>
+            Thursday, May {targetDay}
+          </div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            {dayEvents.length} events
+          </div>
+        </div>
+      </div>
+      {(["morning", "afternoon", "evening"] as const).map((bucket) => (
+        <div
+          key={bucket}
+          style={{
+            display: "flex",
+            gap: 12,
+            padding: "12px 16px",
+            borderTop: bucket === "morning" ? "none" : `1px solid ${COLORS.borderSoft}`,
+          }}
+        >
+          <div style={{ width: 90, flexShrink: 0 }}>
+            <CapsLabel>{bucket}</CapsLabel>
+            <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 2 }}>
+              {bucket === "morning" ? "Before 12" : bucket === "afternoon" ? "12 — 6pm" : "After 6pm"}
+            </div>
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+            {bucketed[bucket].length === 0 ? (
+              <div style={{ fontSize: 11.5, color: COLORS.inkDim, paddingTop: 4 }}>Free</div>
+            ) : (
+              bucketed[bucket].map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => onOpen(e.drawer)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    background: "#fff",
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    borderLeft: `3px solid ${
+                      e.kind === "booked" ? COLORS.green :
+                      e.kind === "pending" ? COLORS.coral :
+                      e.kind === "inquiry" ? COLORS.indigo :
+                      COLORS.inkDim
+                    }`,
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+                      {e.client}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                      {e.brief} · {e.status}
+                    </div>
+                  </div>
+                  {e.amount && (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.green }}>
+                      {e.amount}
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 // ─── Calendar event model ─────────────────────────────────────────
 //
 // The calendar shows four kinds of events, all represented uniformly so
@@ -4870,6 +5093,9 @@ type CalendarEvent = {
 function CalendarPage() {
   const { openDrawer, toast } = useProto();
   const [filter, setFilter] = useState<"booked" | "pending" | "inquiry" | "past" | "cancelled" | "all">("booked");
+  // F7: Month / Week / Day view toggle. Month is the default — week and
+  // day re-render the same event list with progressive zoom-in.
+  const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
 
   // Build a unified event list from the existing data fixtures.
   // Days are parsed loosely — May references stay numeric.
@@ -5100,8 +5326,64 @@ function CalendarPage() {
 
       <div style={{ height: 16 }} />
 
-      {/* Month grid (visual context) */}
-      <CalendarMonthGrid />
+      {/* View mode toggle — Month / Week / Day. Same data, progressive
+          zoom. Week + Day are list-style; only Month uses the grid. */}
+      <div
+        role="tablist"
+        aria-label="Calendar view"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 2,
+          background: "rgba(11,11,13,0.05)",
+          borderRadius: 999,
+          padding: 3,
+          marginBottom: 12,
+          fontFamily: FONTS.body,
+        }}
+      >
+        {(["month", "week", "day"] as const).map((m) => {
+          const active = viewMode === m;
+          return (
+            <button
+              key={m}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setViewMode(m)}
+              style={{
+                background: active ? COLORS.ink : "transparent",
+                color: active ? "#fff" : COLORS.inkMuted,
+                border: "none",
+                borderRadius: 999,
+                padding: "5px 12px",
+                cursor: active ? "default" : "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                fontWeight: active ? 600 : 500,
+                letterSpacing: 0.1,
+                textTransform: "capitalize",
+              }}
+            >
+              {m}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Month grid (visual context) — only shown in Month view. */}
+      {viewMode === "month" && <CalendarMonthGrid />}
+
+      {/* Week view — 7-row stack with day labels. Same row format as
+          the list below but explicitly grouped by day. */}
+      {viewMode === "week" && (
+        <CalendarWeekView events={events} onOpen={(d) => openDrawer(d.id, d.payload)} />
+      )}
+
+      {/* Day view — single-day timeline with morning/afternoon/evening
+          buckets. Uses the same event source. */}
+      {viewMode === "day" && (
+        <CalendarDayView events={events} onOpen={(d) => openDrawer(d.id, d.payload)} />
+      )}
 
       <div style={{ height: 24 }} />
 
@@ -5352,6 +5634,7 @@ function ConflictBanner({
   conflicts: { a: CalendarEvent; b: CalendarEvent }[];
   onResolve: (action: "decline" | "talk" | "reschedule", target: CalendarEvent) => void;
 }) {
+  const { openDrawer } = useProto();
   // Severity escalates with conflict count: 1–2 is warning, 3+ is critical.
   const severe = conflicts.length >= 3;
   return (
@@ -5418,6 +5701,11 @@ function ConflictBanner({
               {" "}({kindToLabel(c.b.kind)}).
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <ConflictActionChip
+                label="✨ Smart resolve"
+                onClick={() => openDrawer("talent-conflict-resolve")}
+                severe={severe}
+              />
               <ConflictActionChip
                 label={`Decline ${resolvable.client}`}
                 onClick={() => onResolve("decline", resolvable)}
@@ -7398,6 +7686,26 @@ function SettingsPage() {
           onClick={() => openDrawer("talent-referrals")}
         />
         <SecondaryCard
+          title="Tax documents"
+          description="Year-end summaries, W-8BEN/W-9 on file, off-platform self-declaration."
+          affordance="Open tax docs"
+          onClick={() => openDrawer("talent-tax-docs")}
+        />
+        <SecondaryCard
+          title="Talent network"
+          description="Follow other talents, see who's working where, hand off briefs you can't take."
+          meta={<><StatDot tone="green" /> 2 following</>}
+          affordance="Open network"
+          onClick={() => openDrawer("talent-network")}
+        />
+        <SecondaryCard
+          title="Workspace · multi-agency"
+          description="On the Network plan? Switch between agencies you own. Studio Reyes + Bumble live · Acme primary."
+          meta={<><StatDot tone="green" /> 3 workspaces</>}
+          affordance="Switch workspace"
+          onClick={() => openDrawer("talent-multi-agency-picker")}
+        />
+        <SecondaryCard
           title="Help & support"
           description="Common questions, contracts, payouts, contact our team."
           affordance="Get help"
@@ -7543,7 +7851,7 @@ export function TalentTodayPulseDrawer() {
 // ─── Offer detail drawer ──────────────────────────────────────────
 
 export function TalentOfferDetailDrawer() {
-  const { state, closeDrawer, toast } = useProto();
+  const { state, closeDrawer, toast, openDrawer } = useProto();
   const open = state.drawer.drawerId === "talent-offer-detail" || state.drawer.drawerId === "talent-request-detail";
   const id = (state.drawer.payload?.id as string) ?? "rq1";
   const r = TALENT_REQUESTS.find((x) => x.id === id) ?? TALENT_REQUESTS[0];
@@ -7586,6 +7894,9 @@ export function TalentOfferDetailDrawer() {
               }}
             >
               Hold open
+            </SecondaryButton>
+            <SecondaryButton onClick={() => openDrawer("talent-voice-reply")}>
+              🎙️ Voice reply
             </SecondaryButton>
             <PrimaryButton
               onClick={() => {
@@ -7775,6 +8086,9 @@ export function TalentClosedBookingDrawer() {
             Older →
           </button>
           <div style={{ flex: 1 }} />
+          <SecondaryButton onClick={() => openDrawer("talent-chat-archive")}>
+            📄 Archive thread
+          </SecondaryButton>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
@@ -11165,6 +11479,636 @@ export function TalentHubCompareDrawer() {
             </div>
           </div>
         ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Tax docs (D3) ──────────────────────────────────────────────
+//
+// Documented decision in DP1 + DP10: should off-platform earnings flow
+// into 1099 reporting? In-kind / gift earnings? Default position taken
+// here: ON-platform earnings are reported automatically; off-platform is
+// opt-in (talent declares it) with a clear tax-receipt download. This
+// matches what most marketplaces do (Fiverr, Upwork, Etsy) and avoids
+// surprising talents at year-end.
+
+export function TalentTaxDocsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-tax-docs";
+  const yearTotal = EARNINGS_ROWS.reduce((sum, e) => {
+    const num = parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0;
+    return sum + num;
+  }, 0);
+  const platformTotal = EARNINGS_ROWS
+    .filter((e) => e.source.kind !== "manual")
+    .reduce((sum, e) => sum + (parseFloat(e.amount.replace(/[^0-9.]/g, "")) || 0), 0);
+  const offPlatformTotal = yearTotal - platformTotal;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Tax documents"
+      description="Year-end summary + downloadable forms. Tulala reports your platform earnings; off-platform you declare yourself."
+      width={580}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 8,
+          marginBottom: 16,
+        }}
+      >
+        <SummaryStat label="2026 total" value={`€${yearTotal.toLocaleString()}`} accent="ink" />
+        <SummaryStat label="Platform" value={`€${platformTotal.toLocaleString()}`} accent="green" />
+        <SummaryStat label="Off-platform" value={`€${offPlatformTotal.toLocaleString()}`} accent="amber" />
+      </div>
+
+      <Divider label="Available documents" />
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[
+          { label: "2026 W-8BEN form", body: "On file · expires Dec 2029", action: "Download" },
+          { label: "2025 income summary (1099-K equivalent)", body: "EU residents: tax receipt PDF · €18,420 reported", action: "Download" },
+          { label: "2026 in-progress income receipt", body: `€${platformTotal.toLocaleString()} platform · regenerates monthly`, action: "Preview" },
+        ].map((doc, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => toast(`${doc.label} · ${doc.action.toLowerCase()}d`)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              fontFamily: FONTS.body,
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <Icon name="external" size={14} color={COLORS.inkMuted} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{doc.label}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{doc.body}</div>
+            </div>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.accentDeep }}>{doc.action}</span>
+          </button>
+        ))}
+      </div>
+
+      <div
+        style={{
+          marginTop: 16,
+          padding: "12px 14px",
+          background: COLORS.indigoSoft,
+          border: `1px solid rgba(91,107,160,0.18)`,
+          borderRadius: 10,
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.indigoDeep,
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ fontWeight: 600 }}>About off-platform & in-kind:</strong>{" "}
+        Off-platform earnings you log via "Log work" appear in your year-end summary
+        as self-declared income. In-kind / gift work shows separately and isn't
+        included in the cash total — useful for your records, not reported to tax
+        authorities. Talk to a local advisor for your jurisdiction.
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Smart conflict resolution (E2) ─────────────────────────────
+//
+// Surfaces a calendar conflict (two holds for overlapping dates, or a
+// new inquiry that overlaps a confirmed booking) and offers three
+// resolution paths: prefer-A, prefer-B, propose-alt-window. The
+// resolution flow is wrapped in a confirm-step so the talent owns the
+// decision; AI ranks options based on day-rate, client trust tier, and
+// agency relationship.
+
+export function TalentConflictResolveDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-conflict-resolve";
+  const [choice, setChoice] = useState<"a" | "b" | "alt" | null>(null);
+
+  // Mock conflict — in production resolved from inquiry.dates × booking.dates
+  const conflict = {
+    a: { client: "Mango", date: "May 14", brief: "Spring campaign · Madrid", rate: "€1,200/day", trust: "Verified", recommended: true },
+    b: { client: "Atelier Paris", date: "May 14", brief: "Editorial wrap · Paris", rate: "€800/day", trust: "Basic", recommended: false },
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Conflict on May 14"
+      description="Two clients want you the same day. Tulala ranks them by rate, trust, and agency relationship. You decide."
+      width={620}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Decide later</SecondaryButton>
+          <PrimaryButton
+            onClick={() => {
+              if (!choice) return toast("Pick a resolution first");
+              const action = choice === "a" ? "Mango confirmed · Atelier declined" :
+                             choice === "b" ? "Atelier confirmed · Mango declined" :
+                             "Alternative window proposed to both";
+              toast(action);
+              closeDrawer();
+            }}
+          >
+            Apply resolution
+          </PrimaryButton>
+        </>
+      }
+    >
+      {(["a", "b"] as const).map((key) => {
+        const c = conflict[key];
+        const selected = choice === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setChoice(key)}
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 12,
+              width: "100%",
+              padding: "14px 16px",
+              marginBottom: 10,
+              background: "#fff",
+              border: `1px solid ${selected ? COLORS.accent : c.recommended ? "rgba(15,79,62,0.30)" : COLORS.borderSoft}`,
+              borderRadius: 12,
+              cursor: "pointer",
+              textAlign: "left",
+              fontFamily: FONTS.body,
+              position: "relative",
+            }}
+          >
+            {c.recommended && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: -10,
+                  left: 14,
+                  background: COLORS.accent,
+                  color: "#fff",
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  letterSpacing: 0.6,
+                  textTransform: "uppercase",
+                  padding: "3px 8px",
+                  borderRadius: 999,
+                }}
+              >
+                AI suggests
+              </span>
+            )}
+            <span
+              aria-hidden
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                border: `2px solid ${selected ? COLORS.accent : COLORS.border}`,
+                background: selected ? COLORS.accent : "transparent",
+                marginTop: 2,
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {selected && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{c.client}</div>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{c.brief}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.green }}>{c.rate}</span>
+                <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>· {c.trust}</span>
+              </div>
+            </div>
+          </button>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={() => setChoice("alt")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+          padding: "12px 16px",
+          background: "rgba(11,11,13,0.025)",
+          border: `1px dashed ${choice === "alt" ? COLORS.accent : COLORS.border}`,
+          borderRadius: 12,
+          cursor: "pointer",
+          textAlign: "left",
+          fontFamily: FONTS.body,
+        }}
+      >
+        <span
+          aria-hidden
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            border: `2px solid ${choice === "alt" ? COLORS.accent : COLORS.border}`,
+            background: choice === "alt" ? COLORS.accent : "transparent",
+            flexShrink: 0,
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>Propose alternative dates to both</div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+            Suggest May 12 to Mango and May 16 to Atelier · we draft the messages
+          </div>
+        </div>
+      </button>
+    </DrawerShell>
+  );
+}
+
+// ─── Talent-to-talent network (E4) ──────────────────────────────
+//
+// Lightweight network where talents follow each other, see who's working
+// where, and trade casting recommendations. NOT a chat product — that
+// would invite spam. Instead: read-only activity feed + one-click "I'm
+// not free, try her" referral.
+
+const NETWORK_TALENTS = [
+  { id: "n1", name: "Sara Mendez", initials: "SM", category: "Editorial", lastSeen: "2d ago", booked: 12, mutuals: 3, follows: true },
+  { id: "n2", name: "Lia Torres", initials: "LT", category: "Commercial", lastSeen: "Today", booked: 8, mutuals: 5, follows: true },
+  { id: "n3", name: "Marco Vasquez", initials: "MV", category: "Runway", lastSeen: "1w ago", booked: 4, mutuals: 1, follows: false },
+  { id: "n4", name: "Camille Roux", initials: "CR", category: "Editorial · Lifestyle", lastSeen: "Today", booked: 18, mutuals: 7, follows: false },
+];
+
+export function TalentNetworkDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-network";
+  const [follows, setFollows] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(NETWORK_TALENTS.map((t) => [t.id, t.follows])),
+  );
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Your network"
+      description="Talents you follow + suggested matches. Useful when you need to hand off a brief — one tap, fully attributed."
+      width={620}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      <CapsLabel>Following · {Object.values(follows).filter(Boolean).length}</CapsLabel>
+      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+        {NETWORK_TALENTS.filter((t) => follows[t.id]).map((t) => (
+          <NetworkRow
+            key={t.id}
+            t={t}
+            following={true}
+            onToggle={() => setFollows((p) => ({ ...p, [t.id]: !p[t.id] }))}
+            onRefer={() => toast(`Referral note sent to ${t.name}`)}
+          />
+        ))}
+      </div>
+      <Divider label="Suggested · same category" />
+      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+        {NETWORK_TALENTS.filter((t) => !follows[t.id]).map((t) => (
+          <NetworkRow
+            key={t.id}
+            t={t}
+            following={false}
+            onToggle={() => setFollows((p) => ({ ...p, [t.id]: true }))}
+            onRefer={() => toast(`Follow ${t.name} first to refer`)}
+          />
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function NetworkRow({
+  t,
+  following,
+  onToggle,
+  onRefer,
+}: {
+  t: typeof NETWORK_TALENTS[number];
+  following: boolean;
+  onToggle: () => void;
+  onRefer: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 12px",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 9,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <Avatar initials={t.initials} size={32} tone="ink" />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{t.name}</div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+          {t.category} · {t.booked} bookings · {t.mutuals} mutuals · {t.lastSeen}
+        </div>
+      </div>
+      {following && (
+        <SecondaryButton size="sm" onClick={onRefer}>Refer brief</SecondaryButton>
+      )}
+      <SecondaryButton size="sm" onClick={onToggle}>
+        {following ? "Unfollow" : "Follow"}
+      </SecondaryButton>
+    </div>
+  );
+}
+
+// ─── Voice replies (E5) ─────────────────────────────────────────
+//
+// Mobile-first hold-to-talk. Drawer shows the recording UI (waveform +
+// transcript preview) and submits the audio + transcript to the inquiry
+// as a normal message. Default privacy position taken: transcripts are
+// stored alongside audio; talent can delete either independently.
+
+export function TalentVoiceReplyDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-voice-reply";
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const [done, setDone] = useState(false);
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={() => {
+        closeDrawer();
+        setTimeout(() => { setRecording(false); setSeconds(0); setDone(false); }, 200);
+      }}
+      title="Voice reply"
+      description="Hold to talk · we transcribe automatically. Both audio + transcript go to the inquiry; you can delete either."
+      width={460}
+      footer={
+        done ? (
+          <>
+            <SecondaryButton onClick={() => { setDone(false); setSeconds(0); }}>Re-record</SecondaryButton>
+            <PrimaryButton onClick={() => { toast("Voice reply sent"); closeDrawer(); }}>
+              Send reply
+            </PrimaryButton>
+          </>
+        ) : (
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+        )
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "20px 0" }}>
+        {!done ? (
+          <button
+            type="button"
+            onPointerDown={() => { setRecording(true); setSeconds(0); }}
+            onPointerUp={() => {
+              if (recording) {
+                setRecording(false);
+                if (seconds > 0) setDone(true);
+              }
+            }}
+            onPointerLeave={() => {
+              if (recording) {
+                setRecording(false);
+                if (seconds > 0) setDone(true);
+              }
+            }}
+            aria-label={recording ? "Recording — release to stop" : "Hold to record"}
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: "50%",
+              background: recording ? COLORS.coral : COLORS.accent,
+              border: "none",
+              color: "#fff",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: recording ? `0 0 0 12px rgba(194,106,69,0.18)` : `0 0 0 0 rgba(15,79,62,0)`,
+              transition: "background .15s, box-shadow .25s",
+            }}
+          >
+            <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="3" width="6" height="12" rx="3" />
+              <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+            </svg>
+          </button>
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              padding: "16px",
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12,
+              fontFamily: FONTS.body,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.green }} />
+              <CapsLabel>Transcript · {Math.max(seconds, 8)}s</CapsLabel>
+            </div>
+            <p style={{ margin: 0, fontSize: 13, color: COLORS.ink, lineHeight: 1.55 }}>
+              "Hi Mango — yes, available May 14, day rate is twelve hundred euros. Sending quote now."
+            </p>
+            <div style={{ marginTop: 12, fontSize: 11.5, color: COLORS.inkMuted }}>
+              Edit transcript before sending if you want — the audio still goes through as-is.
+            </div>
+          </div>
+        )}
+        {!done && (
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, textAlign: "center" }}>
+            {recording ? `Recording · ${seconds}s` : "Hold to record · max 60s"}
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Network plan multi-agency picker (X6) ──────────────────────
+//
+// For talents on the Network plan (workspace owner with multi-agency
+// reach). Switches the active workspace context across agencies the
+// talent owns — Studio → Agency upgrade picker if they want to add a
+// new one. Default position on commission cross-routing: each agency
+// keeps its own contracted rate; the picker is only about WHO sees the
+// inquiry first, not who gets paid.
+
+const MY_NETWORK_AGENCIES = [
+  { id: "ag-acme", name: "Acme Models", role: "Owner", plan: "Agency", talents: 28, primary: true },
+  { id: "ag-studio", name: "Studio Reyes", role: "Owner", plan: "Studio", talents: 6, primary: false },
+  { id: "ag-bumble", name: "Bumble Talents (sub-roster)", role: "Coordinator", plan: "Free", talents: 4, primary: false },
+];
+
+export function TalentMultiAgencyPickerDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-multi-agency-picker";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Switch workspace"
+      description="On the Network plan you can own multiple agencies. Each keeps its own roster + commission. Pick one to see its inbox."
+      width={520}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <PrimaryButton onClick={() => toast("Open Network plan upgrade")}>
+            + New agency
+          </PrimaryButton>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {MY_NETWORK_AGENCIES.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => { toast(`Switched to ${a.name}`); closeDrawer(); }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "12px 14px",
+              background: "#fff",
+              border: `1px solid ${a.primary ? COLORS.accent : COLORS.borderSoft}`,
+              borderRadius: 10,
+              fontFamily: FONTS.body,
+              cursor: "pointer",
+              textAlign: "left",
+              position: "relative",
+            }}
+          >
+            <Avatar initials={a.name.split(" ").map((n) => n[0]).join("")} size={32} tone="ink" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{a.name}</span>
+                {a.primary && (
+                  <span
+                    style={{
+                      fontSize: 9.5,
+                      fontWeight: 700,
+                      letterSpacing: 0.6,
+                      textTransform: "uppercase",
+                      color: COLORS.accentDeep,
+                      background: COLORS.accentSoft,
+                      padding: "2px 6px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    Primary
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                {a.role} · {a.plan} plan · {a.talents} talents
+              </div>
+            </div>
+            <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+          </button>
+        ))}
+      </div>
+      <div
+        style={{
+          marginTop: 16,
+          padding: "12px 14px",
+          background: COLORS.indigoSoft,
+          border: `1px solid rgba(91,107,160,0.18)`,
+          borderRadius: 10,
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          color: COLORS.indigoDeep,
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ fontWeight: 600 }}>Cross-agency commission:</strong>{" "}
+        Each agency keeps its contracted rate. Switching workspace doesn't move money — it's only about who sees what inbox.
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── Chat archive (F8) ──────────────────────────────────────────
+//
+// Closed-booking → "Download chat" generates a PDF mock with the full
+// thread + attachments index. Useful for talents who want a record of
+// what was agreed before contract.
+
+export function TalentChatArchiveDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-chat-archive";
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Archive this thread"
+      description="Generate a timestamped PDF with the full message history + attachments index. Yours to keep — outside Tulala."
+      width={520}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={() => { toast("Chat archive · ready in your inbox"); closeDrawer(); }}>
+            Generate PDF
+          </PrimaryButton>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <KvRow label="Thread" value="Mango · Spring campaign" />
+        <KvRow label="Messages" value="42 · April 2 to April 19" />
+        <KvRow label="Attachments" value="3 files · 2 PDFs + 1 image" />
+        <KvRow label="Format" value="PDF · sealed timestamp" />
+        <Divider label="Includes" />
+        <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
+          {[
+            "Full message history with timestamps + sender labels",
+            "All client + agency replies in original order",
+            "Attachment index with filenames + upload dates",
+            "Booking summary card (dates, rate, scope, status)",
+          ].map((line, idx) => (
+            <li key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink }}>
+              <span style={{ marginTop: 4, width: 4, height: 4, borderRadius: "50%", background: COLORS.green, flexShrink: 0 }} />
+              {line}
+            </li>
+          ))}
+        </ul>
+        <div
+          style={{
+            marginTop: 4,
+            padding: "10px 12px",
+            background: "rgba(46,125,91,0.08)",
+            border: `1px solid rgba(46,125,91,0.20)`,
+            borderRadius: 8,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.green,
+            lineHeight: 1.5,
+          }}
+        >
+          The PDF is generated server-side and signed with a timestamp hash — useful as evidence if there's a dispute.
+        </div>
       </div>
     </DrawerShell>
   );
