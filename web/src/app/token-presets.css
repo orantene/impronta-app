@@ -911,28 +911,15 @@ html[data-token-typography-scale-preset="editorial"] {
   color: #f6f1ea;
 }
 .site-trust-strip[data-background="espresso"] h3,
-.site-trust-strip[data-background="espresso"] .site-trust-strip__headline {
+.site-trust-strip[data-background="espresso"] .site-prim-head__headline {
   color: #f6f1ea;
 }
 .site-trust-strip[data-background="espresso"] .site-trust-strip__detail {
   color: rgba(246, 241, 234, 0.8);
 }
-.site-trust-strip__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-trust-strip__head {
-  margin-bottom: 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-.site-trust-strip__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(28px, 3.5vw, 44px);
-  max-width: 640px;
-}
+/* Phase E (Batch 1) — __inner / __head / __headline collapsed into the
+ * shared Container + SectionHead primitives. This block was 14 lines.
+ */
 .site-trust-strip__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1583,9 +1570,8 @@ html[data-token-typography-scale-preset="editorial"] {
  * M8 — Values trio section.
  * ------------------------------------------------------------------------- */
 .site-values-trio { padding-block: var(--site-section-y); }
-.site-values-trio__inner { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
-.site-values-trio__head { text-align: center; margin-bottom: 56px; max-width: 700px; margin-inline: auto; display: flex; flex-direction: column; gap: 14px; align-items: center; }
-.site-values-trio__headline { font-family: var(--site-heading-font); font-size: clamp(32px, 4.6vw, 54px); }
+/* Phase E (Batch 1) — values_trio __inner / __head / __headline collapsed
+ * into Container + SectionHead primitives. */
 .site-values-trio__grid { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .site-values-trio__card {
   padding: 36px 32px;
@@ -1612,7 +1598,7 @@ html[data-token-typography-scale-preset="editorial"] {
  * M8 — Press strip.
  * ------------------------------------------------------------------------- */
 .site-press-strip { padding-block: 56px; border-block: 1px solid var(--token-color-line); }
-.site-press-strip__inner { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
+/* Phase E (Batch 1) — press_strip __inner collapsed into Container primitive. */
 .site-press-strip__row { display: flex; flex-wrap: wrap; gap: 36px; align-items: center; justify-content: center; color: var(--token-color-ink); }
 .site-press-strip__eyebrow { font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--token-color-muted); }
 .site-press-strip__name { font-family: var(--site-heading-font); font-style: italic; font-weight: 300; font-size: 22px; color: var(--token-color-ink); opacity: 0.78; }
@@ -2055,26 +2041,10 @@ html[data-token-icon-family="geometric"] {
 
 /* ---- Stats ----------------------------------------------------------- */
 .site-stats { padding-block: var(--site-section-y); }
-.site-stats__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-stats[data-align="center"] .site-stats__head { text-align: center; margin-inline: auto; }
+/* Phase E (Batch 1) — stats __inner / __head / __headline collapsed into
+ * Container + SectionHead primitives. The data-align="center" rule for
+ * the grid stays (it controls grid item alignment, not the head). */
 .site-stats[data-align="center"] .site-stats__grid { text-align: center; justify-items: center; }
-.site-stats__head {
-  max-width: 720px;
-  margin-bottom: 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.site-stats__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(28px, 4vw, 48px);
-  line-height: 1.1;
-  color: var(--token-color-ink);
-}
 .site-stats__grid {
   display: grid;
   gap: clamp(28px, 4vw, 56px);
@@ -2940,23 +2910,8 @@ html[data-token-icon-family="geometric"] {
 
 /* ---- Code embed ------------------------------------------------------ */
 .site-embed { padding-block: var(--site-section-y); }
-.site-embed__inner {
-  width: var(--site-container-max);
-  margin-inline: auto;
-  padding-inline: clamp(20px, 3vw, 44px);
-}
-.site-embed__head {
-  text-align: center;
-  margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.site-embed__headline {
-  font-family: var(--site-heading-font);
-  font-size: clamp(24px, 3vw, 36px);
-  color: var(--token-color-ink);
-}
+/* Phase E (Batch 1) — code_embed __inner / __head / __headline collapsed
+ * into Container + SectionHead primitives. */
 .site-embed__frame {
   position: relative;
   width: 100%;
@@ -3033,11 +2988,8 @@ html[data-token-icon-family="geometric"] {
 .site-testimonials-trio__headline,
 .site-process-steps__headline,
 .site-image-copy__headline,
-.site-values-trio__headline,
 .site-gallery-strip__headline,
 .site-featured-talent__headline,
-.site-trust-strip__headline,
-.site-stats__headline,
 .site-faq__headline,
 .site-split__headline,
 .site-timeline__headline,
@@ -3046,7 +2998,11 @@ html[data-token-icon-family="geometric"] {
 .site-form__headline,
 .site-ba__headline,
 .site-tabs__headline,
-.site-embed__headline {
+/* Phase E — primitive headline picks up the same H2 token + clamp so
+ * sections migrated to SectionHead inherit the same typographic ramp.
+ * Batch-1 selectors (trust-strip, stats, values-trio, embed) removed
+ * from this list as their __headline class is no longer rendered. */
+.site-prim-head__headline {
   /* H2-class headlines across sections. */
   font-size: var(--token-typography-h2-size, clamp(28px, 4vw, 48px));
 }
@@ -3278,9 +3234,8 @@ body { font-size: var(--token-typography-body-size, revert); }
  * overlay, donation form, code snippet, event listing, lookbook
  * ========================================================================= */
 .site-logo-cloud { padding-block: var(--site-section-y); }
-.site-logo-cloud__inner { width: var(--site-container-max); margin-inline: auto; padding-inline: clamp(20px, 3vw, 44px); }
-.site-logo-cloud__head { text-align: center; margin-bottom: 32px; display: flex; flex-direction: column; gap: 8px; }
-.site-logo-cloud__headline { font-family: var(--site-heading-font); font-size: clamp(20px, 2.6vw, 28px); color: var(--token-color-ink); }
+/* Phase E (Batch 1) — logo_cloud __inner / __head / __headline collapsed
+ * into Container + SectionHead primitives. */
 .site-logo-cloud__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(var(--lc-cols, 6), minmax(0, 1fr)); gap: 24px 32px; align-items: center; justify-items: center; }
 @media (max-width: 880px) { .site-logo-cloud__grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 540px) { .site-logo-cloud__grid { grid-template-columns: repeat(2, 1fr); } }

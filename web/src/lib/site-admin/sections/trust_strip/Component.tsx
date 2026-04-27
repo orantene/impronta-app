@@ -1,5 +1,6 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { TrustStripV1 } from "./schema";
 
@@ -29,17 +30,12 @@ export function TrustStripComponent({ props }: SectionComponentProps<TrustStripV
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-trust-strip__inner">
-        {(eyebrow || headline) && (
-          <header className="site-trust-strip__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-trust-strip__headline">
-                {renderInlineRich(headline)}
-              </h2>
-            ) : null}
-          </header>
-        )}
+      <Container width="standard">
+        <SectionHead
+          align="start"
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+        />
         <div className="site-trust-strip__grid" data-count={items.length}>
           {items.map((item, i) => (
             <div key={`${item.label}-${i}`} className="site-trust-strip__item">
@@ -58,7 +54,7 @@ export function TrustStripComponent({ props }: SectionComponentProps<TrustStripV
             </div>
           ))}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

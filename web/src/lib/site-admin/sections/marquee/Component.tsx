@@ -5,6 +5,17 @@ import {
 import type { SectionComponentProps } from "../types";
 import type { MarqueeV1 } from "./schema";
 
+/**
+ * Phase E (Batch 1) — intentionally not wrapped in `Container` /
+ * `SectionHead`. Marquee's design IS full-bleed continuous motion;
+ * the kinetic signature is the section. Wrapping it in a standard
+ * 1200px container would chop the scroll and break the seamless
+ * loop. The section already has no `__inner` / `__head` /
+ * `__headline` wrappers, so there is no per-section CSS sprawl to
+ * collapse. Touched only to record this judgment in code so a future
+ * pass doesn't accidentally "unify" it into a generic shape.
+ */
+
 const SEP_CHAR: Record<MarqueeV1["separator"], string> = {
   dot: "·",
   slash: "/",

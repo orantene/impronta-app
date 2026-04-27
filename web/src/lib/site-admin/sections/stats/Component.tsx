@@ -3,9 +3,15 @@ import {
   presentationInlineStyles,
 } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
+import { Container, SectionHead } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { StatsV1 } from "./schema";
 
+/**
+ * Phase E (Batch 1) — uses Container + SectionHead. Distinctive interior:
+ * the oversized numerals (the section's visual weight) live in
+ * .site-stats__value via the per-section CSS, untouched.
+ */
 export function StatsComponent({ props }: SectionComponentProps<StatsV1>) {
   const { eyebrow, headline, items, variant, align, presentation } = props;
   return (
@@ -16,17 +22,12 @@ export function StatsComponent({ props }: SectionComponentProps<StatsV1>) {
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-stats__inner">
-        {(eyebrow || headline) && (
-          <header className="site-stats__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-stats__headline">
-                {renderInlineRich(headline)}
-              </h2>
-            ) : null}
-          </header>
-        )}
+      <Container width="standard">
+        <SectionHead
+          align={align === "center" ? "center" : "start"}
+          eyebrow={eyebrow}
+          headline={headline ? renderInlineRich(headline) : undefined}
+        />
         <dl className="site-stats__grid">
           {items.map((item, i) => (
             <div className="site-stats__item" key={`${item.label}-${i}`}>
@@ -38,7 +39,7 @@ export function StatsComponent({ props }: SectionComponentProps<StatsV1>) {
             </div>
           ))}
         </dl>
-      </div>
+      </Container>
     </section>
   );
 }

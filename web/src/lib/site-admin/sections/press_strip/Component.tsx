@@ -1,7 +1,14 @@
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
+import { Container } from "../shared/section-primitives";
 import type { SectionComponentProps } from "../types";
 import type { PressStripV1 } from "./schema";
 
+/**
+ * Phase E (Batch 1) — uses Container primitive. Press strip has no
+ * eyebrow + headline pair (it's a single inline row of names/logos)
+ * so SectionHead doesn't apply; only the wrapping container width
+ * collapses to the shared primitive.
+ */
 export function PressStripComponent({
   props,
 }: SectionComponentProps<PressStripV1>) {
@@ -13,7 +20,7 @@ export function PressStripComponent({
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-press-strip__inner">
+      <Container width="standard">
         <div className="site-press-strip__row">
           {eyebrow ? (
             <span className="site-press-strip__eyebrow">{eyebrow}</span>
@@ -34,7 +41,7 @@ export function PressStripComponent({
             ),
           )}
         </div>
-      </div>
+      </Container>
     </section>
   );
 }

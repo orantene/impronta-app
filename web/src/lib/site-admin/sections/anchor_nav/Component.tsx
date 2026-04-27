@@ -2,6 +2,15 @@ import { presentationDataAttrs, presentationInlineStyles } from "../shared/prese
 import type { SectionComponentProps } from "../types";
 import type { AnchorNavV1 } from "./schema";
 
+/**
+ * Phase E (Batch 1) — intentionally not wrapped in `Container` /
+ * `SectionHead`. Anchor nav's design is a sticky in-page link rail
+ * (horizontal on desktop, optionally sticky); a standard centered
+ * container would chop the rail. The section already has no `__inner`
+ * / `__head` wrappers, so there is no per-section CSS sprawl to
+ * collapse. Touched only to record the judgment in code.
+ */
+
 export function AnchorNavComponent({ props }: SectionComponentProps<AnchorNavV1>) {
   const { links, variant, sticky, align, presentation } = props;
   return (

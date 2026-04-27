@@ -125,10 +125,20 @@ export function Reveal({
 
 // ── SectionHead (eyebrow + headline + intro) ────────────────────────────
 
+/**
+ * Phase E — accepts ReactNode for eyebrow / headline / intro so callers
+ * can pipe through `renderInlineRich(value)` and keep marker-styled spans
+ * (italic blush accent, semantic bold/italic, link styling) without
+ * converting to plain text first. The primitive remains a pure layout +
+ * typographic-rhythm wrapper; per-section head CSS goes away.
+ */
+
+import type { ReactNode as ReactNodeType } from "react";
+
 export interface SectionHeadProps {
-  eyebrow?: string;
-  headline?: string;
-  intro?: string;
+  eyebrow?: ReactNodeType;
+  headline?: ReactNodeType;
+  intro?: ReactNodeType;
   align?: "start" | "center";
   className?: string;
 }
