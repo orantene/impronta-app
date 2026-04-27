@@ -853,27 +853,9 @@ export function TulalaIdentityBar() {
 
         <div data-tulala-id-divider style={{ width: 1, height: 22, background: COLORS.borderSoft, margin: "0 4px" }} />
 
-        {/* User identity — the one human across modes. Click opens the
-            account menu. Avatar + name + small chevron. */}
-        <button
-          type="button"
-          onClick={() => toast("Account menu — sign out, profile, settings, shortcuts")}
-          aria-label={`Signed in as ${userName}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 9,
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            padding: "4px 6px 4px 4px",
-            borderRadius: 999,
-            fontFamily: FONTS.body,
-            transition: "background .12s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        >
+        {/* User identity — the one human across modes. Click opens
+            the account menu (audit #3). */}
+        <AccountMenuTrigger userName={userName} userInitials={userInitials}>
           <Avatar initials={userInitials} size={28} tone="ink" />
           <span
             data-tulala-identity-name
@@ -888,7 +870,7 @@ export function TulalaIdentityBar() {
             {userName}
           </span>
           <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
-        </button>
+        </AccountMenuTrigger>
 
         {/* Subtle separator dot between identity and acting-as.
             Hidden at phone widths (where the name text also collapses). */}
@@ -1000,6 +982,184 @@ export function TulalaIdentityBar() {
         </IdentityBarIconButton>
       </div>
     </header>
+  );
+}
+
+/**
+ * Account menu trigger + popover (audit #3). Wraps the identity
+ * button with click-to-open menu. Items: Profile / Settings /
+ * Keyboard shortcuts / Sign out. Used in the persistent identity
+ * bar above the surfaces.
+ */
+function AccountMenuTrigger({
+  userName,
+  userInitials: _userInitials,
+  children,
+}: {
+  userName: string;
+  userInitials: string;
+  children: ReactNode;
+}) {
+  const { toast } = useProto();
+  const [open, setOpen] = useState(false);
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest("[data-tulala-account-menu-root]")) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div data-tulala-account-menu-root style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={`Signed in as ${userName}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 9,
+          background: open ? "rgba(11,11,13,0.06)" : "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: "4px 6px 4px 4px",
+          borderRadius: 999,
+          fontFamily: FONTS.body,
+          transition: "background .12s",
+        }}
+        onMouseEnter={(e) => {
+          if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.04)";
+        }}
+        onMouseLeave={(e) => {
+          if (!open) e.currentTarget.style.background = "transparent";
+        }}
+      >
+        {children}
+      </button>
+      {open && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            minWidth: 240,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            boxShadow: "0 10px 40px rgba(11,11,13,0.16)",
+            padding: 6,
+            zIndex: 200,
+            fontFamily: FONTS.body,
+            animation: "tulala-menu-fade .14s ease",
+          }}
+        >
+          <style>{`@keyframes tulala-menu-fade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          {/* Header — signed-in-as identity */}
+          <div
+            style={{
+              padding: "10px 12px 10px",
+              borderBottom: `1px solid ${COLORS.borderSoft}`,
+              marginBottom: 4,
+            }}
+          >
+            <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 2 }}>
+              Signed in as
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{userName}</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>orantenemx@gmail.com</div>
+          </div>
+
+          <AccountMenuItem
+            label="Profile"
+            sub="View / edit your public profile"
+            onClick={() => { setOpen(false); toast("Profile drawer (prototype)"); }}
+          />
+          <AccountMenuItem
+            label="Account settings"
+            sub="Email, password, security"
+            onClick={() => { setOpen(false); toast("Account settings (prototype)"); }}
+          />
+          <AccountMenuItem
+            label="Notifications"
+            sub="Email, push, digest preferences"
+            onClick={() => { setOpen(false); toast("Notification prefs (prototype)"); }}
+          />
+          <AccountMenuItem
+            label="Language"
+            sub="EN · ES"
+            onClick={() => { setOpen(false); toast("Language picker (prototype)"); }}
+          />
+          <AccountMenuItem
+            label="Keyboard shortcuts"
+            sub="Press ?"
+            onClick={() => { setOpen(false); toast("⌘K · ? for shortcuts"); }}
+          />
+          <div style={{ borderTop: `1px solid ${COLORS.borderSoft}`, marginTop: 4, paddingTop: 4 }}>
+            <AccountMenuItem
+              label="Sign out"
+              sub=""
+              tone="coral"
+              onClick={() => { setOpen(false); toast("Signed out (prototype)"); }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AccountMenuItem({
+  label,
+  sub,
+  tone,
+  onClick,
+}: {
+  label: string;
+  sub: string;
+  tone?: "coral";
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: 1,
+        width: "100%",
+        padding: "8px 12px",
+        background: "transparent",
+        border: "none",
+        borderRadius: 7,
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: FONTS.body,
+        transition: "background .1s",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <span style={{ fontSize: 13, fontWeight: 500, color: tone === "coral" ? COLORS.coralDeep : COLORS.ink }}>
+        {label}
+      </span>
+      {sub && (
+        <span style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+          {sub}
+        </span>
+      )}
+    </button>
   );
 }
 
