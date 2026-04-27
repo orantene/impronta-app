@@ -5,17 +5,14 @@
  *
  * Two gestures, both scoped to whichever section is currently selected:
  *
- *   1. Double-click a text node → the enclosing element flips to
- *      `contentEditable` with an outline. Enter / blur commits; Escape
- *      reverts. Commit:
- *        a. reads the new plain text,
- *        b. walks `draftProps` looking for a string leaf that equals the
- *           ORIGINAL text (captured at dblclick time),
- *        c. if it finds one (and only one) path, rewrites it via setDraftProps
- *           + flips dirty. The inspector's existing autosave loop does the
- *           round-trip + CAS + `router.refresh()`.
- *      If zero / multiple matches, we surface a lightweight "Open inspector"
- *      prompt — the operator can still edit that field in the right rail.
+ *   1. Double-click a text node → mount a `<CanvasEditOverlay>` over the
+ *      element. The overlay hosts the same `RichEditor` primitive used by
+ *      the inspector — same toolbar, same marker round-trip, same
+ *      brand-accent token, same Cmd-B / Cmd-I / Cmd-K shortcuts. On
+ *      Enter / outside-click / blur the overlay commits via
+ *      `findPathByValue` against the active section's draft props (the
+ *      inspector's autosave loop does the round-trip + CAS +
+ *      router.refresh()). Escape reverts.
  *
  *   2. Hover an `<img>` → a floating "Replace" pill appears near the top-
  *      right of the image. Click it → MediaPickerDialog opens. On pick we
@@ -28,23 +25,13 @@
  * collide in practice. We fail loudly rather than silently writing to the
  * wrong field.
  *
- * --- Phase C scope note ---
- *
- * Phase C ships the §17 premium rich-text experience inside the inspector
- * (right rail) via `inline-editor/RichEditor`. The canvas-dblclick path
- * here is intentionally left as raw-marker editing — replacing it with a
- * properly-mounted Lexical instance "on top of" the rendered section
- * element is a sub-project (own DOM root, selection model, scroll sync).
- *
- * Operators who want live styling, the four-action toolbar, and the
- * brand-accent token use the inspector. The on-canvas dblclick remains a
- * quick-edit affordance for plain text. The marker grammar is shared, so
- * anything typed on the canvas continues to round-trip through the
- * public `renderInlineRich` correctly.
- *
- * If lived-experience verification surfaces this as a real gap, Phase
- * C.1 will replace the canvas dblclick path with the same RichEditor
- * primitive. Until then: scope discipline.
+ * Phase C.1 — the legacy contenteditable + raw-marker toolbar that used to
+ * live here was replaced in-place with the `RichEditor` primitive
+ * (`./rich-editor/CanvasEditOverlay`). The marker grammar, the public
+ * render path (`shared/rich-text.tsx`), and the path-by-value commit
+ * mechanism are unchanged. Operators now see live styling (italic blush
+ * for accent, semantic bold/italic, real anchor styling for links) while
+ * editing on the canvas instead of `{accent}…{/accent}` raw markers.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -52,11 +39,32 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditContext } from "./edit-context";
 import { MediaPickerDialog } from "./media-picker-dialog";
 import { findPathByValue, setByPath } from "@/lib/site-admin/edit-mode/prop-path";
+import { CanvasEditOverlay } from "./rich-editor";
 
 type Banner =
   | { kind: "none" }
   | { kind: "info"; text: string }
   | { kind: "error"; text: string };
+
+interface ActiveTextEdit {
+  el: HTMLElement;
+  original: string;
+  variant: "single" | "multi";
+}
+
+const SINGLE_LINE_TAGS = new Set([
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "SPAN",
+  "A",
+  "STRONG",
+  "EM",
+  "SMALL",
+]);
 
 export function InlineEditor() {
   const {
@@ -74,18 +82,9 @@ export function InlineEditor() {
     rect: DOMRect;
   } | null>(null);
   const [banner, setBanner] = useState<Banner>({ kind: "none" });
-  // Phase 2 — floating toolbar shown above the active text selection while
-  // an inline edit is in progress. Three actions:
-  //   - Accent: wrap selection in `{accent}...{/accent}` (renderInlineRich
-  //     turns it into <em class="accent">). Output stays plain text in the
-  //     schema, so no schema change is needed.
-  //   - Plain: strip surrounding `{accent}...{/accent}` from selection.
-  //   - Link: prompt for URL, wrap in `[text](url)` — sections that opt
-  //     into Markdown links can render them; others ignore the syntax.
-  const [toolbar, setToolbar] = useState<{
-    rect: DOMRect;
-    el: HTMLElement;
-  } | null>(null);
+  // Phase C.1 — active canvas-edit overlay. The overlay (RichEditor +
+  // floating toolbar) is rendered when this is non-null.
+  const [activeEdit, setActiveEdit] = useState<ActiveTextEdit | null>(null);
 
   // Auto-dismiss info/error banners after 4s.
   useEffect(() => {
@@ -181,7 +180,7 @@ export function InlineEditor() {
       if (!draftPropsRef.current) return;
 
       // Don't re-engage an already-editing element.
-      if (e.target.closest("[data-inline-editing='1']")) return;
+      if (e.target.closest('[data-edit-overlay="canvas-edit"]')) return;
 
       // Images have their own path.
       if (e.target.tagName === "IMG") return;
@@ -189,100 +188,31 @@ export function InlineEditor() {
       const editable = findEditableTextEl(e.target);
       if (!editable) return;
 
+      const original = (editable.textContent ?? "").trim();
+      if (!original) return;
+
       e.preventDefault();
       e.stopPropagation();
-      beginTextEdit(editable);
-    }
 
-    function beginTextEdit(el: HTMLElement) {
-      const original = (el.textContent ?? "").trim();
-      if (!original) return;
-      el.setAttribute("data-inline-editing", "1");
-      el.setAttribute("contenteditable", "true");
-      // Toolbar tracks the active edit element. It positions itself above
-      // the current selection range; we update on selectionchange.
-      setToolbar({ rect: el.getBoundingClientRect(), el });
-      const onSelChange = () => {
-        const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0) return;
-        const range = sel.getRangeAt(0);
-        if (!el.contains(range.commonAncestorContainer)) return;
-        const r = range.getBoundingClientRect();
-        // Empty (caret) selection collapses to a 0-width rect; fall back
-        // to the whole element so the toolbar stays anchored.
-        const useRect = r.width === 0 && r.height === 0 ? el.getBoundingClientRect() : r;
-        setToolbar({ rect: useRect, el });
-      };
-      document.addEventListener("selectionchange", onSelChange);
-      // Match the selection ring's ink palette so the active text edit reads
-      // as the SAME editor chrome the operator just clicked into, not a
-      // secondary indicator in a different color family.
-      el.style.setProperty("outline", "1px solid rgba(17, 24, 39, 0.92)");
-      el.style.setProperty("outline-offset", "2px");
-      el.style.setProperty(
-        "box-shadow",
-        "0 0 0 4px rgba(17, 24, 39, 0.12)",
-      );
-      el.style.setProperty("border-radius", "2px");
-      el.style.setProperty("cursor", "text");
-      // select all
-      const sel = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      el.focus();
-
-      let committed = false;
-      const commit = () => {
-        if (committed) return;
-        committed = true;
-        const next = (el.textContent ?? "").trim();
-        teardown();
-        commitText(original, next);
-      };
-      const revert = () => {
-        if (committed) return;
-        committed = true;
-        el.textContent = original;
-        teardown();
-      };
-      const onKey = (ev: KeyboardEvent) => {
-        if (ev.key === "Enter" && !ev.shiftKey) {
-          ev.preventDefault();
-          commit();
-          el.blur();
-        } else if (ev.key === "Escape") {
-          ev.preventDefault();
-          revert();
-          el.blur();
-        }
-      };
-      const onBlur = () => {
-        commit();
-      };
-      const teardown = () => {
-        el.removeAttribute("contenteditable");
-        el.removeAttribute("data-inline-editing");
-        el.style.removeProperty("outline");
-        el.style.removeProperty("outline-offset");
-        el.style.removeProperty("box-shadow");
-        el.style.removeProperty("border-radius");
-        el.style.removeProperty("cursor");
-        el.removeEventListener("keydown", onKey);
-        el.removeEventListener("blur", onBlur);
-        document.removeEventListener("selectionchange", onSelChange);
-        setToolbar(null);
-      };
-      el.addEventListener("keydown", onKey);
-      el.addEventListener("blur", onBlur);
+      const variant: "single" | "multi" = SINGLE_LINE_TAGS.has(editable.tagName)
+        ? "single"
+        : "multi";
+      setActiveEdit({ el: editable, original, variant });
     }
 
     document.addEventListener("dblclick", onDblClick, true);
     return () => {
       document.removeEventListener("dblclick", onDblClick, true);
     };
-  }, [commitText]);
+  }, []);
+
+  function endActiveEdit(commit: boolean, next?: string) {
+    if (!activeEdit) return;
+    if (commit && next !== undefined) {
+      commitText(activeEdit.original, next);
+    }
+    setActiveEdit(null);
+  }
 
   // ── image hover + replace driver ─────────────────────────────────────
   useEffect(() => {
@@ -302,19 +232,16 @@ export function InlineEditor() {
         e.target instanceof HTMLImageElement
           ? e.target
           : (e.target.closest("img") as HTMLImageElement | null);
-      if (!img) {
+      if (!img || !sectionEl.contains(img)) {
         setImgHover(null);
         return;
       }
-      const rect = img.getBoundingClientRect();
-      setImgHover({ img, rect });
+      setImgHover({ img, rect: img.getBoundingClientRect() });
     }
     function onScrollOrResize() {
-      if (!targetImgRef.current) {
-        setImgHover((prev) =>
-          prev ? { img: prev.img, rect: prev.img.getBoundingClientRect() } : prev,
-        );
-      }
+      setImgHover((cur) =>
+        cur ? { img: cur.img, rect: cur.img.getBoundingClientRect() } : cur,
+      );
     }
     document.addEventListener("pointermove", onPointerMove);
     window.addEventListener("scroll", onScrollOrResize, {
@@ -434,303 +361,42 @@ export function InlineEditor() {
         </div>
       ) : null}
 
-      {toolbar ? (
-        <div
-          data-edit-overlay="inline-toolbar"
-          // Prevent the toolbar's own mousedown from blurring the
-          // contentEditable element (which would commit + tear down).
-          onMouseDown={(e) => e.preventDefault()}
-          style={{
-            position: "fixed",
-            top: Math.max(toolbar.rect.top - 40, 60),
-            left: Math.min(
-              Math.max(toolbar.rect.left + toolbar.rect.width / 2 - 110, 8),
-              window.innerWidth - 228,
-            ),
-            zIndex: 120,
-          }}
-          className="pointer-events-auto inline-flex items-center gap-1 rounded-full bg-zinc-900/95 px-1.5 py-1 text-white shadow-xl backdrop-blur"
-        >
-          <ToolbarButton
-            label="Accent"
-            title="Wrap selection in accent style"
-            onClick={() => wrapSelection("{accent}", "{/accent}")}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M19 4 L8 19" />
-              <path d="M5 19 L8 19" />
-              <path d="M16 4 L19 4" />
-            </svg>
-          </ToolbarButton>
-          <ToolbarButton
-            label="Bold"
-            title="Wrap selection in bold"
-            onClick={() => wrapSelection("{b}", "{/b}")}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M7 5h6.5a3.5 3.5 0 0 1 0 7H7z" />
-              <path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z" />
-            </svg>
-          </ToolbarButton>
-          <ToolbarButton
-            label="Italic"
-            title="Wrap selection in italic"
-            onClick={() => wrapSelection("{i}", "{/i}")}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M19 4 L10 4" />
-              <path d="M14 20 L5 20" />
-              <path d="M15 4 L9 20" />
-            </svg>
-          </ToolbarButton>
-          <ToolbarButton
-            label="Plain"
-            title="Strip all formatting markers from selection"
-            onClick={() => stripAllMarkers()}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M5 12 L19 12" />
-            </svg>
-          </ToolbarButton>
-          <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.18)" }} />
-          <ToolbarButton
-            label="Link"
-            title="Wrap selection as a link, or edit an existing one"
-            onClick={() => {
-              const sel = window.getSelection();
-              const selectedText = sel?.toString() ?? "";
-              // If the operator's selection is INSIDE an existing
-              // [text](url) marker, parse it and prefill the prompt
-              // with the current URL — so this becomes "edit link"
-              // instead of "wrap as link".
-              const existing = findEnclosingLinkMarker();
-              const initial = existing?.url ?? "";
-              const url = window.prompt(
-                existing
-                  ? `Edit link URL (or empty to remove)`
-                  : `Link URL (https://…)`,
-                initial,
-              );
-              if (url == null) return;
-              const trimmed = url.trim();
-              if (existing) {
-                // Replace the whole [text](url) marker.
-                if (!trimmed) {
-                  // Empty URL → unwrap, keep the visible text.
-                  replaceEnclosingLinkMarker(existing, existing.text);
-                } else {
-                  replaceEnclosingLinkMarker(
-                    existing,
-                    `[${existing.text}](${trimmed})`,
-                  );
-                }
-                return;
-              }
-              if (!trimmed) return;
-              if (!selectedText) return;
-              wrapSelection("[", `](${trimmed})`);
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-            </svg>
-          </ToolbarButton>
-          <ToolbarButton
-            label="Unlink"
-            title="Remove links from selection"
-            onClick={() => stripLinkMarkers()}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M9 17l-2 2a4.95 4.95 0 0 1-7-7l3-3" />
-              <path d="M15 7l2-2a4.95 4.95 0 0 1 7 7l-3 3" />
-              <path d="M2 22 22 2" />
-            </svg>
-          </ToolbarButton>
-        </div>
+      {activeEdit ? (
+        <CanvasEditOverlay
+          target={activeEdit.el}
+          initialValue={activeEdit.original}
+          variant={activeEdit.variant}
+          tenantId={tenantId ?? undefined}
+          onCommit={(next) => endActiveEdit(true, next)}
+          onCancel={() => endActiveEdit(false)}
+        />
       ) : null}
 
       <MediaPickerDialog
-        tenantId={tenantId}
+        tenantId={tenantId ?? null}
         open={mediaOpen}
         onPick={handleImagePicked}
-        onClose={() => {
-          setMediaOpen(false);
-          targetImgRef.current = null;
-        }}
+        onClose={() => setMediaOpen(false)}
       />
     </>
   );
 }
 
-function ToolbarButton({
-  children,
-  label,
-  title,
-  onClick,
-}: {
-  children: React.ReactNode;
-  label: string;
-  title: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={label}
-      onClick={onClick}
-      className="inline-flex h-7 cursor-pointer items-center justify-center rounded-full px-2 text-[10.5px] font-semibold uppercase tracking-[0.06em] transition hover:bg-white/10"
-      style={{ background: "transparent", border: "none", color: "white" }}
-    >
-      {children}
-    </button>
-  );
-}
-
-/**
- * Wrap the current selection inside the active contentEditable element with
- * `before` and `after` strings. Falls back to inserting at the caret if the
- * selection is collapsed.
- */
-function wrapSelection(before: string, after: string) {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return;
-  const range = sel.getRangeAt(0);
-  const text = sel.toString();
-  if (text.length === 0) {
-    // Insert markers at caret so the operator can type inside.
-    const node = document.createTextNode(`${before}${after}`);
-    range.insertNode(node);
-    return;
-  }
-  const replacement = document.createTextNode(`${before}${text}${after}`);
-  range.deleteContents();
-  range.insertNode(replacement);
-  // Re-select the inserted text so the toolbar stays anchored.
-  const newRange = document.createRange();
-  newRange.setStartAfter(replacement);
-  newRange.collapse(true);
-  sel.removeAllRanges();
-  sel.addRange(newRange);
-}
-
-/**
- * Strip ALL formatting markers from the active editable element's text
- * content (accent, bold, italic, link). We rewrite the whole element
- * rather than try to surgically unwrap a selection range because the
- * markers are paired and unbalanced surgery would corrupt the doc.
- */
-function stripAllMarkers() {
-  const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
-  if (!el) return;
-  const before = el.textContent ?? "";
-  let after = before
-    .replace(/\{accent\}/g, "")
-    .replace(/\{\/accent\}/g, "")
-    .replace(/\{b\}/g, "")
-    .replace(/\{\/b\}/g, "")
-    .replace(/\{i\}/g, "")
-    .replace(/\{\/i\}/g, "");
-  // Markdown-style link → just the visible label.
-  after = after.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-  if (before === after) return;
-  el.textContent = after;
-}
-
-/**
- * Convert every `[text](url)` to plain `text`. Leaves accent/bold/italic
- * markers intact.
- */
-function stripLinkMarkers() {
-  const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
-  if (!el) return;
-  const before = el.textContent ?? "";
-  const after = before.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-  if (before === after) return;
-  el.textContent = after;
-}
-
-/**
- * Phase 2 polish — find the `[text](url)` marker enclosing the current
- * caret/selection. Returns the span + parsed text/url so the toolbar
- * can offer "edit existing link" instead of "wrap as new link".
- */
-interface EnclosingLinkMarker {
-  text: string;
-  url: string;
-  /** Absolute character offsets within the editable element's textContent. */
-  start: number;
-  end: number;
-}
-
-function findEnclosingLinkMarker(): EnclosingLinkMarker | null {
-  const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
-  if (!el) return null;
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) return null;
-  const full = el.textContent ?? "";
-  const range = sel.getRangeAt(0);
-  // Compute the caret's character offset within the editable element
-  // by measuring the textContent length up to range.startContainer +
-  // startOffset.
-  const caretOffset = caretCharOffset(el, range.startContainer, range.startOffset);
-  const re = /\[([^\]]+)\]\(([^)]+)\)/g;
-  let match: RegExpExecArray | null;
-  while ((match = re.exec(full)) !== null) {
-    const start = match.index;
-    const end = start + match[0].length;
-    if (caretOffset >= start && caretOffset <= end) {
-      return { text: match[1], url: match[2], start, end };
-    }
-  }
-  return null;
-}
-
-function caretCharOffset(
-  root: HTMLElement,
-  container: Node,
-  offset: number,
-): number {
-  let chars = 0;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let n: Node | null = walker.nextNode();
-  while (n) {
-    if (n === container) {
-      return chars + offset;
-    }
-    chars += (n.nodeValue ?? "").length;
-    n = walker.nextNode();
-  }
-  return chars;
-}
-
-function replaceEnclosingLinkMarker(
-  marker: EnclosingLinkMarker,
-  replacement: string,
-) {
-  const el = document.querySelector<HTMLElement>("[data-inline-editing='1']");
-  if (!el) return;
-  const full = el.textContent ?? "";
-  const next = full.slice(0, marker.start) + replacement + full.slice(marker.end);
-  if (next === full) return;
-  el.textContent = next;
-}
-
-/**
- * Strip Next.js image-optimizer wrappers from an img src so we can match it
- * against the raw URL stored in section props. If the src isn't wrapped,
- * return it unchanged.
- */
 function resolveOriginalImageSrc(src: string): string {
+  if (!src) return src;
   try {
-    const url = new URL(src, window.location.origin);
-    if (url.pathname === "/_next/image") {
-      const inner = url.searchParams.get("url");
-      if (inner) return decodeURIComponent(inner);
+    if (src.startsWith("/_next/image")) {
+      const u = new URL(src, "http://x");
+      const url = u.searchParams.get("url");
+      if (url) return decodeURIComponent(url);
+    }
+    if (src.includes("/_next/image?")) {
+      const u = new URL(src);
+      const url = u.searchParams.get("url");
+      if (url) return decodeURIComponent(url);
     }
   } catch {
-    // absolute URL from another origin, or a data: URL — leave as-is
+    // fall through to raw
   }
   return src;
 }
