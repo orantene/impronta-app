@@ -375,8 +375,11 @@ export function TalentSurface() {
 // ─── Topbar (lighter than workspace admin) ─────────────────────────
 
 function TalentTopbar() {
-  const { state, setTalentPage, openDrawer } = useProto();
+  const { state, setTalentPage, openDrawer, flipMode } = useProto();
   const profile = MY_TALENT_PROFILE;
+  // Hybrid users own a workspace too. We surface a workspace-side unread
+  // count so they don't lose track of their roster while in talent mode.
+  const workspaceUnread = state.alsoTalent ? 2 : 0;
 
   return (
     <header
@@ -514,6 +517,93 @@ function TalentTopbar() {
 
         {/* Right */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Mode toggle — only for hybrid users (alsoTalent && owns workspace).
+              Pill: ⚭ Talent · Workspace ⟶ flipMode. The non-active label is
+              clickable; the active label sits inside an ink-filled chip. */}
+          {state.alsoTalent && (
+            <div
+              role="tablist"
+              aria-label="Switch between talent and workspace mode"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 2,
+                background: "rgba(11,11,13,0.05)",
+                borderRadius: 999,
+                padding: 3,
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                fontWeight: 500,
+              }}
+            >
+              <button
+                role="tab"
+                aria-selected="true"
+                style={{
+                  background: COLORS.ink,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "5px 11px",
+                  cursor: "default",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  letterSpacing: 0.1,
+                }}
+              >
+                Talent
+              </button>
+              <button
+                role="tab"
+                aria-selected="false"
+                onClick={flipMode}
+                style={{
+                  background: "transparent",
+                  color: COLORS.inkMuted,
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "5px 11px",
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  letterSpacing: 0.1,
+                  position: "relative",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
+                title="Switch to workspace mode (manage your studio/agency)"
+              >
+                Workspace
+                {workspaceUnread > 0 && (
+                  <span
+                    aria-label={`${workspaceUnread} unread in workspace`}
+                    style={{
+                      minWidth: 14,
+                      height: 14,
+                      padding: "0 4px",
+                      borderRadius: 999,
+                      background: COLORS.accent,
+                      color: "#fff",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {workspaceUnread > 9 ? "9+" : workspaceUnread}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
           {/* Notifications bell — matches the workspace topbar pattern.
               Numbered badge with the unread count, capped at 9+. */}
           {(() => {

@@ -3963,6 +3963,14 @@ export type Density = "comfortable" | "compact";
 type Ctx = {
   state: ProtoState;
   setSurface: (s: Surface) => void;
+  /**
+   * Hybrid-mode toggle for talents who also own a workspace.
+   * Flips between surface="talent" (their personal page) and
+   * surface="workspace" (their agency/studio cockpit). Carries the
+   * "I came from talent" return chip so the user has a one-click way
+   * back. No-op when alsoTalent is false.
+   */
+  flipMode: () => void;
   setPlan: (p: Plan) => void;
   setRole: (r: Role) => void;
   setEntityType: (e: EntityType) => void;
@@ -4214,6 +4222,19 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     setDrawer({ drawerId: null });
   }, []);
 
+  // Hybrid-mode toggle. Only meaningful for a user who is BOTH talent and
+  // workspace owner. Flips between the two surfaces, preserving the rest of
+  // the state shape. The reset-to-default-page rule from handleSetSurface
+  // is intentional — switching modes implies switching context.
+  const flipMode = useCallback(() => {
+    if (!alsoTalent) return; // gated to hybrid users only
+    if (surface === "talent") {
+      handleSetSurface("workspace");
+    } else if (surface === "workspace") {
+      handleSetSurface("talent");
+    }
+  }, [alsoTalent, surface, handleSetSurface]);
+
   // Impersonation: HQ user starts viewing a tenant's workspace. We jump to
   // the workspace surface in read-only mode, with a banner overlay (rendered
   // by SurfaceRouter when state.impersonating is set).
@@ -4258,6 +4279,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
         density,
       },
       setSurface: handleSetSurface,
+      flipMode,
       setPlan,
       setRole,
       setEntityType,
@@ -4302,6 +4324,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       density,
       setDensity,
       handleSetSurface,
+      flipMode,
       startImpersonation,
       stopImpersonation,
       openDrawer,

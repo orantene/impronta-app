@@ -395,9 +395,11 @@ function ToggleControl({
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar() {
-  const { state, setPage, openDrawer } = useProto();
+  const { state, setPage, openDrawer, flipMode } = useProto();
   const tenant = TENANT;
   const canCreate = meetsRole(state.role, "editor");
+  // Hybrid users have a personal talent surface. Surface unread there too.
+  const talentUnread = state.alsoTalent ? 4 : 0;
 
   return (
     <header
@@ -668,23 +670,90 @@ export function WorkspaceTopbar() {
           </Popover>
 
           <RoleChip role={state.role} />
+          {/* Hybrid mode toggle. When the workspace owner ALSO has a talent
+              profile, expose a one-click flip to their personal surface. The
+              non-active label carries an unread pill so they don't miss
+              inquiries while admin-mode. Replaces the old "On roster" chip. */}
           {state.alsoTalent && (
-            <span
+            <div
+              role="tablist"
+              aria-label="Switch between workspace and talent mode"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 5,
-                fontFamily: FONTS.body,
-                fontSize: 11,
-                color: COLORS.inkMuted,
-                background: "rgba(11,11,13,0.04)",
-                padding: "3px 8px",
+                gap: 2,
+                background: "rgba(11,11,13,0.05)",
                 borderRadius: 999,
+                padding: 3,
+                fontFamily: FONTS.body,
               }}
             >
-              <Icon name="user" size={11} stroke={1.7} />
-              On roster
-            </span>
+              <button
+                role="tab"
+                aria-selected="true"
+                style={{
+                  background: COLORS.ink,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "5px 11px",
+                  cursor: "default",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  letterSpacing: 0.1,
+                }}
+              >
+                Workspace
+              </button>
+              <button
+                role="tab"
+                aria-selected="false"
+                onClick={flipMode}
+                title="Switch to your personal talent surface"
+                style={{
+                  background: "transparent",
+                  color: COLORS.inkMuted,
+                  border: "none",
+                  borderRadius: 999,
+                  padding: "5px 11px",
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  letterSpacing: 0.1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
+                onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
+              >
+                Talent
+                {talentUnread > 0 && (
+                  <span
+                    aria-label={`${talentUnread} unread on talent surface`}
+                    style={{
+                      minWidth: 14,
+                      height: 14,
+                      padding: "0 4px",
+                      borderRadius: 999,
+                      background: COLORS.accent,
+                      color: "#fff",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {talentUnread > 9 ? "9+" : talentUnread}
+                  </span>
+                )}
+              </button>
+            </div>
           )}
           <button
             onClick={() => openDrawer("my-profile")}
