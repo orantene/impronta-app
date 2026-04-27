@@ -6362,6 +6362,12 @@ function SettingsPage() {
           onClick={() => openDrawer("talent-payouts")}
         />
         <SecondaryCard
+          title="Help & support"
+          description="Common questions, contracts, payouts, contact our team."
+          affordance="Get help"
+          onClick={() => openDrawer("help")}
+        />
+        <SecondaryCard
           title="Sign out / leave"
           description="Sign out of your account or end your relationship with an agency."
           affordance="Open"
@@ -6664,7 +6670,7 @@ export function TalentBookingDetailDrawer() {
 // design: this isn't a booking workflow, it's a portfolio entry.
 
 export function TalentClosedBookingDrawer() {
-  const { state, closeDrawer, openDrawer } = useProto();
+  const { state, closeDrawer, openDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "talent-closed-booking";
   const earningId = (state.drawer.payload?.earningId as string) ?? "e1";
   const e = EARNINGS_ROWS.find((x) => x.id === earningId) ?? EARNINGS_ROWS[0]!;
@@ -6983,6 +6989,60 @@ export function TalentClosedBookingDrawer() {
         {/* Client review — when present. Sage soft surface + 5-star rating
             + quoted feedback. Builds the talent's portfolio of validation
             over time. */}
+
+        {/* D4: Contract section. Production: pull signed PDF from
+            booking_contracts table. For prototype: scaffold the link. */}
+        <section>
+          <SectionLabel>Contract</SectionLabel>
+          <button
+            type="button"
+            onClick={() => toast(`Opening signed contract for ${e.client}…`)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              width: "100%",
+              padding: "12px 14px",
+              marginTop: 8,
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              textAlign: "left",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                background: COLORS.surfaceAlt,
+                color: COLORS.ink,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                fontFamily: FONTS.display,
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            >
+              PDF
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+                Signed booking agreement
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                {e.client} · {e.workDate} · counter-signed by both parties
+              </div>
+            </div>
+            <Icon name="external" size={13} color={COLORS.inkDim} />
+          </button>
+        </section>
+
         {detail.review && (
           <section>
             <SectionLabel>Client review</SectionLabel>
