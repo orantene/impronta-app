@@ -60,6 +60,49 @@ const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: "motion", label: "Motion" },
 ];
 
+/**
+ * Per-section-type tab visibility.
+ *
+ * The audit (2026-04-28 product-feel sprint) flagged the always-five-tabs
+ * inspector as "implies missing controls when most sections don't use
+ * Responsive or Motion." This map opts each section into the tabs that
+ * are actually meaningful for it. Anything not listed falls back to
+ * `DEFAULT_TABS` — Content + Style + Layout — so unfamiliar types get a
+ * sensible minimum without surfacing aspirational surfaces (Responsive,
+ * Motion) that read as broken when empty.
+ *
+ * Add a section here if Responsive overrides or Motion entry effects
+ * meaningfully add to the operator's vocabulary for that block.
+ */
+const DEFAULT_TABS: ReadonlyArray<TabKey> = ["content", "style", "layout"];
+
+const TABS_BY_SECTION_TYPE: Record<string, ReadonlyArray<TabKey>> = {
+  // Heroes carry headlines / overlays / motion entries — full toolkit.
+  hero: ["content", "style", "layout", "responsive", "motion"],
+  // Featured Talent grids meaningfully benefit from per-breakpoint counts +
+  // entry animation when scrolling into view.
+  featured_talent: ["content", "style", "layout", "responsive", "motion"],
+  gallery_strip: ["content", "style", "layout", "responsive", "motion"],
+  testimonials_trio: ["content", "style", "layout", "motion"],
+  // CTA banners are short and benefit from a subtle entry animation.
+  cta_banner: ["content", "style", "layout", "motion"],
+  // Image+copy alternating layouts use breakpoint flips on small screens.
+  image_copy_alternating: ["content", "style", "layout", "responsive"],
+  // Static content sections — Content + Style + Layout is the minimum.
+  trust_strip: ["content", "style", "layout"],
+  press_strip: ["content", "style", "layout"],
+  values_trio: ["content", "style", "layout"],
+  process_steps: ["content", "style", "layout"],
+  category_grid: ["content", "style", "layout", "responsive"],
+  destinations_mosaic: ["content", "style", "layout", "responsive"],
+  marquee: ["content", "style", "layout", "motion"],
+};
+
+function tabsForSection(typeKey: string | null | undefined): ReadonlyArray<TabKey> {
+  if (!typeKey) return DEFAULT_TABS;
+  return TABS_BY_SECTION_TYPE[typeKey] ?? DEFAULT_TABS;
+}
+
 function humanizeTypeKey(key: string | null | undefined): string {
   if (!key) return "Section";
   return key
@@ -131,8 +174,32 @@ export function InspectorDock() {
     if (loadedSection?.id === selectedSectionId && !dirty) return;
     setLoadingId(selectedSectionId);
     setLoadError(null);
+
+    // Sprint 2 — Timing instrumentation. Measures the operator-perceived
+    // latency from "section selected" to "inspector body paints with real
+    // fields." We log a structured object the QA pass can grep for to
+    // capture before/after distributions across many selection events.
+    //
+    // Phases:
+    //   t.click            — selection became `selectedSectionId` (≈ now())
+    //   t.actionStart      — server action call kicked off
+    //   t.actionEnd        — server action resolved
+    //   t.bodyPaint        — setLoadedSection committed; body will paint
+    //                        on next render
+    //
+    // All times are ms since `t.click` (relative deltas, easier to
+    // eyeball). The structured prefix `[t2-inspector-load]` is how the
+    // QA pass filters.
+    const tClick =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    const sid = selectedSectionId;
+    const now = () =>
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+
     (async () => {
-      const result = await loadSectionForEditAction(selectedSectionId);
+      const tActionStart = now();
+      const result = await loadSectionForEditAction(sid);
+      const tActionEnd = now();
       if (cancelled) return;
       setLoadingId(null);
       if (!result.ok) {
@@ -146,6 +213,16 @@ export function InspectorDock() {
       setDraftProps({ ...result.section.props });
       setDirty(false);
       setTab("content");
+      const tBodyPaint = now();
+      // eslint-disable-next-line no-console
+      console.info("[t2-inspector-load]", {
+        sectionId: sid,
+        sectionTypeKey: result.section.sectionTypeKey,
+        actionStartMs: Math.round(tActionStart - tClick),
+        actionEndMs: Math.round(tActionEnd - tClick),
+        bodyPaintMs: Math.round(tBodyPaint - tClick),
+        actionDurationMs: Math.round(tActionEnd - tActionStart),
+      });
     })();
     return () => {
       cancelled = true;
@@ -428,6 +505,33 @@ export function InspectorDock() {
         ? "Loading…"
         : "Inspector";
 
+  // 2026-04-28 — Tab strip is now adaptive per section type. Sections
+  // declare which tabs they meaningfully use; the strip only renders
+  // those. Sections not listed in TABS_BY_SECTION_TYPE fall back to
+  // DEFAULT_TABS (Content + Style + Layout). Falls back to all 5 only
+  // while the section row is still loading, so the strip doesn't jump
+  // size at hand-off.
+  const visibleTabs = useMemo<ReadonlyArray<TabKey>>(() => {
+    const allowed = loadedSection
+      ? tabsForSection(loadedSection.sectionTypeKey)
+      : skeletonHint
+        ? tabsForSection(skeletonHint.typeKey)
+        : DEFAULT_TABS;
+    const set = new Set(allowed);
+    // Preserve the canonical TABS order.
+    return TABS.filter((t) => set.has(t.key)).map((t) => t.key);
+  }, [loadedSection, skeletonHint]);
+
+  // If the active tab disappears for the new section type (e.g. operator
+  // had Motion open for Hero, then selects Trust Strip which doesn't
+  // surface Motion), fall back to Content so we never render an
+  // orphaned-but-active tab.
+  useEffect(() => {
+    if (!visibleTabs.includes(tab)) {
+      setTab("content");
+    }
+  }, [visibleTabs, tab]);
+
   return (
     <Drawer
       kind="dock"
@@ -437,7 +541,6 @@ export function InspectorDock() {
       testId="inspector-dock"
     >
       <DrawerHead
-        eyebrow="Inspector"
         title={sectionTitle}
         icon={
           loadedSection ? (
@@ -472,21 +575,23 @@ export function InspectorDock() {
         <InspectorSkeleton />
       ) : (
         <>
-          <div
-            style={{ borderBottom: `1px solid ${CHROME.line}`, paddingBottom: 10 }}
-          >
-            <DrawerTabs>
-              {TABS.map((t) => (
-                <DrawerTab
-                  key={t.key}
-                  active={tab === t.key}
-                  onClick={() => setTab(t.key)}
-                >
-                  {t.label}
-                </DrawerTab>
-              ))}
-            </DrawerTabs>
-          </div>
+          {visibleTabs.length > 1 ? (
+            <div
+              style={{ borderBottom: `1px solid ${CHROME.line}`, paddingBottom: 10 }}
+            >
+              <DrawerTabs>
+                {TABS.filter((t) => visibleTabs.includes(t.key)).map((t) => (
+                  <DrawerTab
+                    key={t.key}
+                    active={tab === t.key}
+                    onClick={() => setTab(t.key)}
+                  >
+                    {t.label}
+                  </DrawerTab>
+                ))}
+              </DrawerTabs>
+            </div>
+          ) : null}
 
           <DrawerBody padding="14px 14px 32px">
             {saveError ? (

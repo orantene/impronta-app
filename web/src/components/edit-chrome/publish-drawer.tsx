@@ -333,9 +333,7 @@ export function PublishDrawer() {
   return (
     <Drawer kind="publish" open={publishOpen} zIndex={88}>
       <DrawerHead
-        eyebrow="Publish"
-        title={isSuccess ? "Live" : "Push homepage live"}
-        titleStyle="display"
+        title={isSuccess ? "Published" : "Publish homepage"}
         icon={<PublishIcon />}
         meta={headerMeta}
         onClose={state.kind === "publishing" ? undefined : closePublish}

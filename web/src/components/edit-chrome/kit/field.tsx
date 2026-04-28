@@ -70,12 +70,15 @@ export function FieldLabel({
   return (
     <label
       htmlFor={htmlFor}
-      className={`flex items-center gap-1.5 uppercase ${className ?? ""}`}
+      className={`flex items-center gap-1.5 ${className ?? ""}`}
       style={{
-        fontSize: 10.5,
-        fontWeight: 700,
-        letterSpacing: "0.06em",
-        color: CHROME.text2,
+        // 2026-04-28 — Field labels dropped uppercase + caps-tracking.
+        // Sentence-case 12px, weight 600, normal tracking. Reads as
+        // "label," not "1990s admin tool eyebrow."
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: "-0.005em",
+        color: CHROME.ink,
         marginBottom: 6,
       }}
     >
@@ -91,11 +94,11 @@ export function FieldLabel({
       ) : null}
       {meta ? (
         <span
-          className="ml-auto normal-case"
+          className="ml-auto"
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 500,
-            color: CHROME.muted2,
+            color: CHROME.muted,
             letterSpacing: 0,
           }}
         >
@@ -104,16 +107,16 @@ export function FieldLabel({
       ) : null}
       {breakpoint ? (
         <span
-          className="ml-auto inline-flex items-center gap-1 uppercase"
+          className="ml-auto inline-flex items-center gap-1"
           style={{
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: "0.04em",
+            fontSize: 10.5,
+            fontWeight: 600,
+            letterSpacing: 0,
             color: CHROME.blue,
             background: CHROME.blueBg,
             border: `1px solid ${CHROME.blueLine}`,
             borderRadius: 999,
-            padding: "2px 6px",
+            padding: "2px 7px",
           }}
         >
           {breakpoint}

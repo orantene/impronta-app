@@ -264,9 +264,7 @@ export function RevisionsDrawer(): ReactElement | null {
   return (
     <Drawer kind="revisions" open={revisionsOpen} zIndex={87}>
       <DrawerHead
-        eyebrow="Revisions"
-        title={pageMetadata?.title ?? "Homepage"}
-        titleStyle="display"
+        title={`Revisions · ${pageMetadata?.title ?? "Homepage"}`}
         icon={<ClockIcon />}
         meta={
           revisions === null
@@ -278,7 +276,7 @@ export function RevisionsDrawer(): ReactElement | null {
         onClose={pendingId ? undefined : closeRevisions}
       />
 
-      <DrawerBody padding="14px 14px 24px">
+      <DrawerBody>
         {error ? (
           <div
             className="mb-3 rounded-md px-3 py-2"

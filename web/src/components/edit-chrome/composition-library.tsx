@@ -389,8 +389,7 @@ export function CompositionLibraryOverlay() {
     return (
       <Drawer kind="picker" open={drawerOpen} zIndex={110} width={drawerWidth}>
         <DrawerHead
-          eyebrow="Add section"
-          title="Pick a section"
+          title="Add a section"
           meta={insertingMeta}
           onClose={closeLibrary}
         />

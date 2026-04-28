@@ -20,7 +20,10 @@ import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { sectionUpsertSchema } from "@/lib/site-admin";
 import { upsertSection } from "@/lib/site-admin/server/sections";
-import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
+import {
+  loadSectionByIdForStaff,
+  loadSectionByIdForStaffCached,
+} from "@/lib/site-admin/server/sections-reads";
 import { logServerError } from "@/lib/server/safe-error";
 
 export type EditLoadResult =
@@ -46,7 +49,17 @@ export async function loadSectionForEditAction(
   if (!scope) return { ok: false, error: "Tenant scope required" };
 
   try {
-    const row = await loadSectionByIdForStaff(
+    // Sprint 2 — cache-first read. The cached variant uses
+    // `unstable_cache` keyed by (tenantId, sectionId) and tagged with
+    // `tagFor(tenantId, "sections", { id })` — the same tag that
+    // `upsertSection` calls `updateTag` on after every save. So a
+    // section the operator just edited is invalidated automatically;
+    // a section they're revisiting after working elsewhere is a cache
+    // hit. The auth + tenant-scope checks above still run on every
+    // call, so the cache only sits between authorized requests and
+    // Supabase. Falls back to the uncached staff-RLS path when
+    // SUPABASE_SERVICE_ROLE_KEY isn't configured (dev env without it).
+    const row = await loadSectionByIdForStaffCached(
       auth.supabase,
       scope.tenantId,
       sectionId,

@@ -229,7 +229,6 @@ export function ScheduleDrawer() {
   return (
     <Drawer kind="schedule" open={open} data-edit-drawer="schedule">
       <DrawerHead
-        eyebrow="Phase 12"
         icon={<ClockIcon />}
         title="Schedule publish"
         meta={

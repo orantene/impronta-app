@@ -134,8 +134,7 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
           }}
         />
         <DrawerHead
-          eyebrow="Replace image"
-          title="Media library"
+          title="Replace image"
           saveChip={
             <button
               type="button"

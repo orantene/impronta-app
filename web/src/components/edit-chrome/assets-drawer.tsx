@@ -418,9 +418,7 @@ export function AssetsDrawer(): ReactElement | null {
   return (
     <Drawer kind="assets" open={assetsOpen} zIndex={87}>
       <DrawerHead
-        eyebrow="Library"
-        title="Assets"
-        titleStyle="display"
+        title="Asset library"
         icon={<FolderIcon />}
         meta={
           <span>
@@ -470,7 +468,7 @@ export function AssetsDrawer(): ReactElement | null {
         <SearchInput value={query} onChange={setQuery} disabled={busy === "loading"} />
       </div>
 
-      <DrawerBody padding="14px 14px 24px">
+      <DrawerBody>
         {loadError ? (
           <ErrorBanner>{loadError}</ErrorBanner>
         ) : busy === "loading" && items === null ? (

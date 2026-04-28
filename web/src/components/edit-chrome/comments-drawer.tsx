@@ -402,7 +402,6 @@ export function CommentsDrawer() {
   return (
     <Drawer kind="comments" open={open} testId="comments-drawer">
       <DrawerHead
-        eyebrow="Phase 11"
         icon={<CommentIcon />}
         title={focusSectionId ? "Section comments" : "Comments"}
         meta={<span>{headerMeta}</span>}

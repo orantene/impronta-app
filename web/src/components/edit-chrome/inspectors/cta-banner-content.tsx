@@ -154,10 +154,7 @@ export function CtaBannerContentInspector({
         />
       </InspectorGroup>
 
-      <InspectorGroup
-        title="Layout style"
-        info="Picks the visual treatment. Each option previews how the block reads."
-      >
+      <InspectorGroup title="Layout style">
         <VisualChipGroup<Variant>
           value={variant}
           onChange={(v) => update({ variant: v })}

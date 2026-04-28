@@ -18,44 +18,60 @@
  * tokens is fine but propagate them to the mockup file at the same time.
  */
 
+/**
+ * Compressed token system (week-1 product-feel sprint, 2026-04-28).
+ *
+ * Canonical palette is **5 grays + 4 status accents**. Token *names* are
+ * kept stable so existing consumers don't break, but multi-step grays
+ * collapse to fewer real values:
+ *
+ *   - ink / ink2 / ink3 / ink4  → 2 real values (ink + ink-mid)
+ *   - text / text2              → text2 collapses up to text
+ *   - muted / muted2 / muted3   → muted + a single "muted-soft"
+ *   - line / lineMid / lineStrong / lineWarm → 2 real values (line + line-strong)
+ *
+ * Status accents now reduce to **green / amber / rose / blue**. Violet
+ * and teal alias to muted/blue so inherited consumers don't error, but
+ * new code should use the canonical four.
+ */
 export const CHROME = {
-  // Ink (text + selection foreground)
+  // ── Ink (titles, primary CTA, dark surfaces) ─────────────────
   ink: "#0b0b0d",
   ink2: "#18181b",
-  ink3: "#27272a",
+  ink3: "#18181b", // collapsed → ink2
   ink4: "#3f3f46",
 
-  // Paper layers (drawer body backgrounds — warm tints, not stark white)
+  // ── Paper (drawer body bg, warm-white) ───────────────────────
   paper: "#faf9f6",
   paper2: "#f3f0e8",
   paper3: "#e9e5d9",
 
-  // Surface (cards float on top of paper)
+  // ── Surface (white cards on paper) ───────────────────────────
   surface: "#ffffff",
   surface2: "#fdfcf9",
 
-  // Lines (hairline borders + dividers)
-  line: "rgba(24, 24, 27, 0.07)",
-  lineMid: "rgba(24, 24, 27, 0.13)",
-  lineStrong: "rgba(24, 24, 27, 0.22)",
-  lineWarm: "rgba(155, 130, 70, 0.16)",
+  // ── Lines (2 real values, 4 names for back-compat) ───────────
+  line: "rgba(24, 24, 27, 0.08)",
+  lineMid: "rgba(24, 24, 27, 0.08)", // collapsed → line
+  lineStrong: "rgba(24, 24, 27, 0.16)",
+  lineWarm: "rgba(24, 24, 27, 0.08)", // collapsed → line
 
-  // Text
+  // ── Text (3 real values, 5 names for back-compat) ────────────
   text: "#18181b",
-  text2: "#3f3f46",
+  text2: "#18181b", // collapsed → text
   muted: "#6b6b73",
-  muted2: "#9b9ba3",
-  muted3: "#c0c0c8",
+  muted2: "#8b8b93", // closer to muted (was #9b9ba3)
+  muted3: "#b8b8c0", // soft disabled
 
-  // Canvas (the storefront body bg, e.g. Editorial Noir)
+  // Canvas (storefront body bg, e.g. Editorial Noir)
   canvasDark: "#0a0a0a",
 
-  // Selection ink — used by the floating ring on the canvas
+  // Selection ink (canvas ring)
   selectOuter: "rgba(11, 11, 13, 0.95)",
   selectInset: "rgba(255, 255, 255, 0.7)",
   selectHalo: "rgba(11, 11, 13, 0.10)",
 
-  // Status accents
+  // ── Status accents (canonical 4: blue/green/amber/rose) ──────
   blue: "#2c5fdb",
   blueBg: "rgba(58, 123, 255, 0.10)",
   blueLine: "rgba(58, 123, 255, 0.24)",
@@ -68,12 +84,14 @@ export const CHROME = {
   rose: "#b42323",
   roseBg: "rgba(180, 35, 35, 0.10)",
   roseLine: "rgba(180, 35, 35, 0.22)",
-  violet: "#6d4ab8",
-  violetBg: "rgba(109, 74, 184, 0.10)",
-  violetLine: "rgba(109, 74, 184, 0.22)",
-  teal: "#0a7c8a",
-  tealBg: "rgba(10, 124, 138, 0.10)",
-  tealLine: "rgba(10, 124, 138, 0.22)",
+  // Legacy aliases — new code should NOT use these. Kept as
+  // back-compat so unfixed consumers still render reasonably.
+  violet: "#6b6b73", // → muted
+  violetBg: "rgba(107, 107, 115, 0.10)",
+  violetLine: "rgba(107, 107, 115, 0.22)",
+  teal: "#2c5fdb", // → blue
+  tealBg: "rgba(58, 123, 255, 0.10)",
+  tealLine: "rgba(58, 123, 255, 0.24)",
 } as const;
 
 /** Multi-layer box-shadows. Each value can drop straight into `style.boxShadow`. */

@@ -567,13 +567,11 @@ export function ThemeDrawer(): ReactElement | null {
   return (
     <Drawer kind="theme" open={themeOpen} zIndex={87}>
       <DrawerHead
-        eyebrow="Theme"
         title={
           snapshot?.presetSlug
-            ? prettyPreset(snapshot.presetSlug)
-            : "Custom theme"
+            ? `Theme · ${prettyPreset(snapshot.presetSlug)}`
+            : "Theme · Custom"
         }
-        titleStyle="display"
         icon={<ThemeIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={

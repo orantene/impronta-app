@@ -202,10 +202,7 @@ export function FeaturedTalentContentInspector({
         </div>
       </InspectorGroup>
 
-      <InspectorGroup
-        title="Who shows up"
-        info="Decide how this section fills — manually curate, or let it auto-fill from your roster."
-      >
+      <InspectorGroup title="Who shows up">
         <VisualChipGroup<SourceMode>
           value={sourceMode}
           onChange={switchMode}

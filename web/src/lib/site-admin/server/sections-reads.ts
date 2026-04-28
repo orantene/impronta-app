@@ -91,6 +91,77 @@ export async function loadSectionByIdForStaff(
   return data ?? null;
 }
 
+// ── Cached variant — Sprint 2 inspector latency target (p95 < 300 ms) ─────
+//
+// `loadSectionByIdForStaff` round-trips Supabase on every selection, which
+// dominates inspector load time when the operator clicks back into a
+// section they just visited. The Sprint 2 fix wraps the read in
+// `unstable_cache` keyed by (tenantId, sectionId) and tagged with
+// `tagFor(tenantId, "sections", { id })`. The autosave action's
+// `upsertSection` already calls `updateTag(tagFor(...))` on success, so
+// the cache invalidates the moment the operator commits a draft edit —
+// no special invalidation path needed.
+//
+// Auth contract is preserved: the caller still runs `requireStaff` +
+// `requireTenantScope` before invoking this. The cache only sits between
+// "tenant-scoped, staff-checked request" and Supabase. Cache identity is
+// derived from tenantId + sectionId; never from the user. A tenant's
+// staff all see the same cached row, which is correct (sections are
+// tenant-scoped, not per-staff).
+//
+// We use the service-role client here because `unstable_cache` runs
+// outside the request scope — there's no per-request RLS context to
+// rely on. Tenant scoping is enforced explicitly by the WHERE clause.
+const SECTION_DRAFT_REVALIDATE_SECONDS = 60; // safety net; tag invalidation does the real work
+
+async function loadCachedSectionRow(
+  tenantId: string,
+  sectionId: string,
+): Promise<SectionRow | null> {
+  return unstable_cache(
+    async (): Promise<SectionRow | null> => {
+      const supabase = createServiceRoleClient();
+      if (!supabase) return null;
+      const { data, error } = await supabase
+        .from("cms_sections")
+        .select(SECTION_COLUMNS)
+        .eq("tenant_id", tenantId)
+        .eq("id", sectionId)
+        .maybeSingle<SectionRow>();
+      if (error) {
+        console.warn(
+          "[site-admin/sections-reads] cached section load failed",
+          { tenantId, sectionId, error: error.message },
+        );
+        return null;
+      }
+      return data ?? null;
+    },
+    ["site-admin:section-draft", tenantId, sectionId],
+    {
+      tags: [tagFor(tenantId, "sections", { id: sectionId })],
+      revalidate: SECTION_DRAFT_REVALIDATE_SECONDS,
+    },
+  )();
+}
+
+/**
+ * Cache-first variant of `loadSectionByIdForStaff`. Falls back to the
+ * uncached staff-RLS read when the service-role key isn't configured
+ * (dev environments without `SUPABASE_SERVICE_ROLE_KEY`). Prefer this
+ * for latency-sensitive paths like the canvas inspector.
+ */
+export async function loadSectionByIdForStaffCached(
+  supabase: SupabaseClient,
+  tenantId: string,
+  sectionId: string,
+): Promise<SectionRow | null> {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
+    return loadSectionByIdForStaff(supabase, tenantId, sectionId);
+  }
+  return loadCachedSectionRow(tenantId, sectionId);
+}
+
 /**
  * List all sections for a tenant, most-recently-updated first. Used by the
  * `/admin/site-settings/sections` list view.

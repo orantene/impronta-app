@@ -158,10 +158,7 @@ export function CategoryGridContentInspector({
         </div>
       </InspectorGroup>
 
-      <InspectorGroup
-        title={`Categories (${items.length})`}
-        info="Up to 12 tiles. Drag to reorder. Each tile can use an icon, an image, or both."
-      >
+      <InspectorGroup title={`Categories (${items.length})`}>
         <DraggableList<Item>
           items={items}
           keyOf={(_, i) => String(i)}

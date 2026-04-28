@@ -87,8 +87,9 @@ function TbDivider() {
       style={{
         width: 1,
         height: 24,
-        background: CHROME.lineMid,
-        margin: "0 4px",
+        background: CHROME.lineStrong,
+        margin: "0 6px",
+        opacity: 0.5,
       }}
     />
   );
@@ -118,10 +119,10 @@ function TbIconBtn({
       disabled={disabled}
       title={title}
       aria-label={ariaLabel ?? title}
-      className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-transparent transition-colors disabled:cursor-not-allowed"
+      className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed"
       style={{
-        width: 32,
-        height: 32,
+        width: 36,
+        height: 36,
         background: "transparent",
         color: CHROME.muted,
       }}
@@ -690,11 +691,11 @@ function TbTextBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="inline-flex shrink-0 cursor-pointer items-center gap-[6px] rounded-[7px] border border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+      className="inline-flex shrink-0 cursor-pointer items-center gap-[6px] rounded-[8px] border border-transparent transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       style={{
-        height: 32,
-        padding: "0 12px",
-        fontSize: 12.5,
+        height: 36,
+        padding: "0 14px",
+        fontSize: 13,
         fontWeight: 500,
         letterSpacing: "-0.005em",
         color: CHROME.text2,
@@ -747,9 +748,9 @@ function PublishSplitButton({
   return (
     <div className="relative shrink-0" data-publish-split>
       <div
-        className="inline-flex items-stretch overflow-hidden rounded-[7px]"
+        className="inline-flex items-stretch overflow-hidden rounded-[8px]"
         style={{
-          height: 32,
+          height: 36,
           background: CHROME.ink,
           boxShadow:
             "0 1px 2px rgba(0,0,0,0.10), inset 0 0 0 1px rgba(255,255,255,0.10)",
@@ -759,8 +760,8 @@ function PublishSplitButton({
           type="button"
           onClick={onPublish}
           disabled={disabled}
-          className="cursor-pointer border-none text-[12.5px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ padding: "0 14px", background: "transparent" }}
+          className="cursor-pointer border-none text-[13px] font-semibold tracking-[-0.005em] text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ padding: "0 16px", background: "transparent" }}
         >
           Publish
         </button>
@@ -774,7 +775,7 @@ function PublishSplitButton({
           aria-label="Publish options"
           className="inline-flex cursor-pointer items-center justify-center border-none transition hover:bg-white/10"
           style={{
-            width: 28,
+            width: 32,
             background: "transparent",
             color: "rgba(255,255,255,0.85)",
           }}
@@ -918,126 +919,111 @@ function MenuItem({
 }
 
 /**
- * Share icon button + popover. Single self-contained surface that the
- * topbar drops into the right-icon cluster: clicking the icon toggles a
- * popover with an optional label input + a TTL choice (1h / 24h / 7d /
- * 30d) and a primary "Generate link" CTA. Submission calls the parent's
- * `onShare(opts)` (returns the absolute URL or null) and on success
- * writes to the clipboard, surfaces an inline "Link copied" success
- * state, and auto-closes after a short delay. Failure paths fall through
- * to the parent's mutation-error toast — the popover does NOT render its
- * own error UI. When `onShare` is undefined the icon is rendered
- * disabled (read-only chrome surface, e.g. unauthenticated preview).
+ * MoreMenu — overflow popover that hosts the secondary topbar actions.
+ *
+ * The 2026-04-28 compression sprint pulled five dedicated icon buttons
+ * (Page settings · Revisions · Theme · Assets · Share) out of the
+ * topbar and into this single popover. Comments + Preview stayed
+ * surfaced — Comments because it carries a badge, Preview because it
+ * is the highest-frequency secondary action.
+ *
+ * Each entry calls the open-handler the topbar already received from
+ * EditShell; if a handler is missing, the row renders disabled. The
+ * Share row spawns an inline mini-form (label + TTL + Generate) so
+ * the operator never leaves the popover to mint a link.
  */
-function ShareIconWithPopover({
+function MoreMenu({
+  onPageSettings,
+  onRevisions,
+  onTheme,
+  onAssets,
   onShare,
 }: {
+  onPageSettings?: () => void;
+  onRevisions?: () => void;
+  onTheme?: () => void;
+  onAssets?: () => void;
   onShare?: (opts: {
     label?: string;
     ttlSeconds?: number;
   }) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
-  const [label, setLabel] = useState("");
-  const [ttlChoice, setTtlChoice] =
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLabel, setShareLabel] = useState("");
+  const [shareTtl, setShareTtl] =
     useState<(typeof SHARE_TTL_CHOICES)[number]["id"]>(SHARE_TTL_DEFAULT);
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
 
-  // Outside-click close, mirrors PublishSplitButton's pattern.
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
       const target = e.target as HTMLElement;
-      if (!target.closest("[data-share-popover]")) {
+      if (!target.closest("[data-more-menu]")) {
         setOpen(false);
+        setShareOpen(false);
       }
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
-  // Reset the form fields whenever the popover closes so the next open
-  // starts clean. Preserve `copied=true` for the auto-close grace window
-  // so the icon flashes the green check after the popover hides.
   useEffect(() => {
-    if (open) {
-      setLabel("");
-      setTtlChoice(SHARE_TTL_DEFAULT);
+    if (!open) {
+      setShareOpen(false);
+      setShareLabel("");
+      setShareTtl(SHARE_TTL_DEFAULT);
     }
   }, [open]);
 
-  async function handleGenerate() {
-    if (!onShare || busy) return;
-    setBusy(true);
+  function handlePick(cb?: () => void) {
+    if (!cb) return;
+    cb();
+    setOpen(false);
+  }
+
+  async function handleGenerateShare() {
+    if (!onShare || shareBusy) return;
+    setShareBusy(true);
     try {
-      const ttlSeconds = SHARE_TTL_CHOICES.find((c) => c.id === ttlChoice)
+      const ttlSeconds = SHARE_TTL_CHOICES.find((c) => c.id === shareTtl)
         ?.seconds;
       const url = await onShare({
-        label: label.trim() || undefined,
+        label: shareLabel.trim() || undefined,
         ttlSeconds,
       });
       if (!url) return;
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         try {
           await navigator.clipboard.writeText(url);
-          setCopied(true);
-          setOpen(false);
-          window.setTimeout(() => setCopied(false), 2200);
         } catch {
           window.prompt("Share link", url);
         }
       }
+      setOpen(false);
     } finally {
-      setBusy(false);
+      setShareBusy(false);
     }
   }
 
   return (
-    <div className="relative shrink-0" data-share-popover>
+    <div className="relative shrink-0" data-more-menu>
       <TbIconBtn
-        title={copied ? "Link copied" : "Share preview link"}
-        onClick={onShare ? () => setOpen((o) => !o) : undefined}
-        disabled={!onShare}
+        title="More actions"
+        ariaLabel="More actions"
+        onClick={() => setOpen((o) => !o)}
       >
-        {copied ? (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={CHROME.green}
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        ) : (
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <circle cx="18" cy="5" r="3" />
-            <circle cx="6" cy="12" r="3" />
-            <circle cx="18" cy="19" r="3" />
-            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
-            <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
-          </svg>
-        )}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+          <circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+          <circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" />
+        </svg>
       </TbIconBtn>
 
       {open ? (
         <div
-          className="absolute right-0 top-[42px] z-[120] w-[300px] rounded-[10px] p-[14px]"
+          role="menu"
+          className="absolute right-0 top-[44px] z-[120] min-w-[260px] rounded-[10px] p-[6px]"
           style={{
             background: CHROME.surface,
             border: `1px solid ${CHROME.line}`,
@@ -1045,173 +1031,285 @@ function ShareIconWithPopover({
               "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
           }}
         >
-          <div
-            style={{
-              fontSize: 12.5,
-              fontWeight: 600,
-              color: CHROME.ink,
-              letterSpacing: "-0.005em",
-            }}
-          >
-            Share a preview link
-          </div>
-          <div
-            style={{
-              fontSize: 11.5,
-              color: CHROME.muted,
-              marginTop: 2,
-              lineHeight: 1.45,
-            }}
-          >
-            Anyone with the link can view this draft until it expires.
-          </div>
-
-          <label
-            style={{
-              display: "block",
-              marginTop: 12,
-              fontSize: 11,
-              fontWeight: 600,
-              color: CHROME.text,
-              letterSpacing: "0.02em",
-              textTransform: "uppercase",
-            }}
-          >
-            Label{" "}
-            <span
-              style={{
-                fontWeight: 500,
-                color: CHROME.muted,
-                textTransform: "none",
-                letterSpacing: 0,
-              }}
-            >
-              (optional)
-            </span>
-          </label>
-          <input
-            type="text"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder="Q3 review draft"
-            maxLength={80}
-            spellCheck={false}
-            style={{
-              width: "100%",
-              marginTop: 4,
-              padding: "7px 9px",
-              fontSize: 12.5,
-              color: CHROME.ink,
-              background: CHROME.paper,
-              border: `1px solid ${CHROME.line}`,
-              borderRadius: 6,
-              outline: 0,
-              boxSizing: "border-box",
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                void handleGenerate();
-              }
-            }}
-          />
-
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 11,
-              fontWeight: 600,
-              color: CHROME.text,
-              letterSpacing: "0.02em",
-              textTransform: "uppercase",
-            }}
-          >
-            Expires in
-          </div>
-          <div
-            role="radiogroup"
-            aria-label="Link expiration"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 1fr",
-              gap: 4,
-              marginTop: 4,
-            }}
-          >
-            {SHARE_TTL_CHOICES.map((c) => {
-              const active = c.id === ttlChoice;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setTtlChoice(c.id)}
-                  className="cursor-pointer transition"
-                  style={{
-                    padding: "6px 0",
-                    fontSize: 11.5,
-                    fontWeight: 500,
-                    background: active ? CHROME.ink : CHROME.paper,
-                    color: active ? "#fff" : CHROME.text,
-                    border: `1px solid ${active ? CHROME.ink : CHROME.line}`,
-                    borderRadius: 6,
-                    letterSpacing: "-0.005em",
-                  }}
-                >
-                  {c.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div
-            style={{
-              marginTop: 14,
-              display: "flex",
-              gap: 6,
-              justifyContent: "flex-end",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              disabled={busy}
-              className="cursor-pointer transition disabled:cursor-not-allowed disabled:opacity-60"
-              style={{
-                padding: "7px 12px",
-                fontSize: 12,
-                fontWeight: 500,
-                color: CHROME.text,
-                background: "transparent",
-                border: `1px solid ${CHROME.line}`,
-                borderRadius: 6,
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleGenerate()}
-              disabled={busy}
-              className="cursor-pointer transition disabled:cursor-not-allowed disabled:opacity-60"
-              style={{
-                padding: "7px 14px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#fff",
-                background: CHROME.ink,
-                border: `1px solid ${CHROME.ink}`,
-                borderRadius: 6,
-                letterSpacing: "-0.005em",
-              }}
-            >
-              {busy ? "Generating…" : "Generate link"}
-            </button>
-          </div>
+          {!shareOpen ? (
+            <>
+              <MoreRow
+                disabled={!onPageSettings}
+                onClick={() => handlePick(onPageSettings)}
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                }
+                label="Page settings"
+                hint="SEO, social, routing"
+              />
+              <MoreRow
+                disabled={!onRevisions}
+                onClick={() => handlePick(onRevisions)}
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                    <path d="M3 3v5h5" />
+                    <path d="M12 7v5l3 2" />
+                  </svg>
+                }
+                label="Revisions"
+                hint="Snapshot history"
+              />
+              <MoreRow
+                disabled={!onTheme}
+                onClick={() => handlePick(onTheme)}
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M12 22a10 10 0 1 1 10-10c0 2.5-2 4-4 4h-2a2 2 0 0 0-2 2 2 2 0 0 1-2 2z" />
+                  </svg>
+                }
+                label="Theme"
+                hint="Brand tokens & palette"
+              />
+              <MoreRow
+                disabled={!onAssets}
+                onClick={() => handlePick(onAssets)}
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  </svg>
+                }
+                label="Asset library"
+                hint="Images & uploads"
+                shortcut="⌘L"
+              />
+              <div
+                aria-hidden
+                style={{ height: 1, background: CHROME.line, margin: "4px 2px" }}
+              />
+              <MoreRow
+                disabled={!onShare}
+                onClick={() => setShareOpen(true)}
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.6" y1="13.5" x2="15.4" y2="17.5" />
+                    <line x1="15.4" y1="6.5" x2="8.6" y2="10.5" />
+                  </svg>
+                }
+                label="Share preview link…"
+                hint="Generate a private URL"
+                showCaret
+              />
+            </>
+          ) : (
+            <div style={{ padding: 8 }}>
+              <button
+                type="button"
+                onClick={() => setShareOpen(false)}
+                className="cursor-pointer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  color: CHROME.muted,
+                  background: "transparent",
+                  border: "none",
+                  marginBottom: 8,
+                  padding: 0,
+                }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+                Back
+              </button>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: CHROME.ink,
+                }}
+              >
+                Share a preview link
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: CHROME.muted,
+                  marginTop: 2,
+                  lineHeight: 1.45,
+                }}
+              >
+                Anyone with the link can view this draft until it expires.
+              </div>
+              <input
+                type="text"
+                value={shareLabel}
+                onChange={(e) => setShareLabel(e.target.value)}
+                placeholder="Q3 review draft"
+                maxLength={80}
+                spellCheck={false}
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  padding: "8px 10px",
+                  fontSize: 13,
+                  color: CHROME.ink,
+                  background: CHROME.paper,
+                  border: `1px solid ${CHROME.line}`,
+                  borderRadius: 6,
+                  outline: 0,
+                  boxSizing: "border-box",
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleGenerateShare();
+                  }
+                }}
+              />
+              <div
+                role="radiogroup"
+                aria-label="Link expiration"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                  gap: 4,
+                  marginTop: 8,
+                }}
+              >
+                {SHARE_TTL_CHOICES.map((c) => {
+                  const active = c.id === shareTtl;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setShareTtl(c.id)}
+                      className="cursor-pointer"
+                      style={{
+                        padding: "7px 0",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        background: active ? CHROME.ink : CHROME.paper,
+                        color: active ? "#fff" : CHROME.text,
+                        border: `1px solid ${active ? CHROME.ink : CHROME.line}`,
+                        borderRadius: 6,
+                        letterSpacing: "-0.005em",
+                      }}
+                    >
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleGenerateShare()}
+                disabled={shareBusy}
+                className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                style={{
+                  width: "100%",
+                  marginTop: 10,
+                  padding: "9px 12px",
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: "#fff",
+                  background: CHROME.ink,
+                  border: `1px solid ${CHROME.ink}`,
+                  borderRadius: 6,
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                {shareBusy ? "Generating…" : "Generate & copy link"}
+              </button>
+            </div>
+          )}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function MoreRow({
+  disabled,
+  onClick,
+  icon,
+  label,
+  hint,
+  shortcut,
+  showCaret,
+}: {
+  disabled?: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  hint?: string;
+  shortcut?: string;
+  showCaret?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex w-full cursor-pointer items-center gap-2.5 rounded-[6px] px-[10px] py-[8px] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+      style={{ color: CHROME.text, background: "transparent", border: "none" }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          (e.currentTarget as HTMLElement).style.background = CHROME.paper2;
+        }
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "transparent";
+      }}
+    >
+      <span
+        className="inline-flex shrink-0 items-center justify-center rounded-[5px]"
+        style={{
+          width: 26,
+          height: 26,
+          background: CHROME.paper2,
+          color: CHROME.ink,
+        }}
+        aria-hidden
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1 text-left">
+        <span className="block font-semibold tracking-[-0.005em]" style={{ color: CHROME.ink, fontSize: 13 }}>
+          {label}
+        </span>
+        {hint ? (
+          <span className="block" style={{ fontSize: 11, color: CHROME.muted, marginTop: 1 }}>
+            {hint}
+          </span>
+        ) : null}
+      </span>
+      {shortcut ? (
+        <span
+          className="shrink-0 rounded-[3px] border px-[5px] py-[2px] font-mono"
+          style={{
+            fontSize: 10.5,
+            color: CHROME.muted2,
+            background: CHROME.paper2,
+            borderColor: CHROME.line,
+          }}
+        >
+          {shortcut}
+        </span>
+      ) : null}
+      {showCaret ? (
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={CHROME.muted2} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      ) : null}
+    </button>
   );
 }
 
@@ -1420,61 +1518,45 @@ export function TopBar({
       {/* ── Spacer ── */}
       <span className="flex-1" />
 
-      {/* ── Right icon cluster ── */}
-      <TbIconBtn title="Page settings" onClick={onPageSettings}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      </TbIconBtn>
-      <TbIconBtn title="Revisions" onClick={onRevisions}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-          <path d="M3 3v5h5" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-      </TbIconBtn>
-      <TbIconBtn title="Theme" onClick={onTheme}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M12 22a10 10 0 1 1 10-10c0 2.5-2 4-4 4h-2a2 2 0 0 0-2 2 2 2 0 0 1-2 2z" />
-          <circle cx="6.5" cy="12.5" r="1" fill="currentColor" />
-          <circle cx="9.5" cy="7.5" r="1" fill="currentColor" />
-          <circle cx="14.5" cy="7.5" r="1" fill="currentColor" />
-          <circle cx="17.5" cy="12.5" r="1" fill="currentColor" />
-        </svg>
-      </TbIconBtn>
+      {/* ── Right cluster — surfaced primaries only ──
+       *
+       * Compression sprint (2026-04-28): the topbar used to render eight
+       * icon buttons + a Save draft text button on the right. Now it
+       * renders three. Comments stays surfaced because it carries an
+       * unread badge that needs to be glanceable; Preview stays because
+       * it's the highest-frequency secondary action; everything else
+       * (Page settings · Revisions · Theme · Assets · Share) collapses
+       * into the More menu so the eye lands on Publish without sweeping
+       * past a row of equal-weight icons. Save draft is handled by
+       * autosave + the Publish split-button's "Save as named draft…"
+       * checkpoint entry — no dedicated button needed.
+       */}
       <TbIconBtn
         title="Comments"
         onClick={onComments}
         badge={commentsBadge}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
         </svg>
       </TbIconBtn>
-      <TbIconBtn title="Assets library (⌘L)" onClick={onAssets}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        </svg>
-      </TbIconBtn>
       <TbIconBtn title="Preview as visitor (⌘P)" onClick={handlePreview}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
           <circle cx="12" cy="12" r="3" />
         </svg>
       </TbIconBtn>
-      <ShareIconWithPopover onShare={onShare} />
+      <MoreMenu
+        onPageSettings={onPageSettings}
+        onRevisions={onRevisions}
+        onTheme={onTheme}
+        onAssets={onAssets}
+        onShare={onShare}
+      />
 
       <TbDivider />
 
-      {/* ── Save draft · Publish split ── */}
-      <TbTextBtn
-        title="Save a draft checkpoint"
-        disabled={saving || !onSaveDraft}
-        onClick={onSaveDraft ? () => void onSaveDraft() : undefined}
-      >
-        Save draft
-      </TbTextBtn>
+      {/* ── Publish split (primary CTA) ── */}
       <PublishSplitButton
         onPublish={onPublish}
         onMenuSelect={handleMenuSelect}

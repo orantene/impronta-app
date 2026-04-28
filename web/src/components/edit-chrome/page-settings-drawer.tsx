@@ -342,9 +342,7 @@ export function PageSettingsDrawer() {
   return (
     <Drawer kind="pageSettings" open={pageSettingsOpen} zIndex={87}>
       <DrawerHead
-        eyebrow="Page settings"
-        title="Homepage"
-        titleStyle="display"
+        title="Page settings"
         icon={<CogIcon />}
         saveChip={<SaveChip status={chipStatus} />}
         meta={<>{host || "—"} <span style={{ color: CHROME.muted2 }}>·</span> /</>}

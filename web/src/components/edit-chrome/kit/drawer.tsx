@@ -4,14 +4,31 @@
  * Drawer — the unified chrome wrapper used by every editor drawer.
  *
  * Inspector, Publish, Page Settings, Revisions, Library, Theme, Assets,
- * Comments, Schedule — they all wear the same shape: eyebrow caps →
- * section icon + display title + savechip → meta line → tools group
- * (expand-cycle / fullscreen / close) → optional pill tabs → paper-tinted
- * body → optional footer with primary action.
+ * Comments, Schedule — they all wear the same shape: section icon +
+ * title + savechip → meta line → tools group (expand-cycle /
+ * fullscreen / close) → optional pill tabs → paper-tinted body →
+ * optional footer with primary action.
  *
  * This is the single answer to "every drawer should feel like the same
  * product." Every drawer in the editor MUST use this primitive — diverging
  * is a bug.
+ *
+ * **Sprint 2 unification contract (2026-04-28):**
+ *   - **One heading style.** 15 px / 600 / -0.01em / `CHROME.ink`. No
+ *     display-serif variant. Hierarchy comes from spacing + structure,
+ *     not typographic personality. The retired `titleStyle` prop has been
+ *     removed; type-system catches stragglers.
+ *   - **No decorative eyebrow.** The `eyebrow` prop still exists for
+ *     back-compat but new call sites omit it. The title row is the
+ *     heading.
+ *   - **Single body padding.** `DrawerBody` defaults to `14px 14px 24px`.
+ *     Drawers should use the default — explicit padding only when there's
+ *     a real content reason (e.g. inspector adds bottom room for tabs).
+ *   - **Single footer chrome.** `DrawerFoot` renders the same gradient +
+ *     border across all drawers.
+ *   - **Single tool cluster.** `DrawerHead`'s `onExpand`/`onFullscreen`/
+ *     `onClose` render the same 3-button cluster. No bespoke close
+ *     buttons in drawer bodies.
  *
  * Layout intent (matches mockup `:root` and `.drawer` rules):
  *   position: fixed
@@ -113,15 +130,17 @@ export function Drawer({
 // ── DrawerHead ──────────────────────────────────────────────────────────────
 
 interface DrawerHeadProps {
-  /** Caps eyebrow above the title row. */
-  eyebrow: string;
+  /**
+   * Caps eyebrow above the title row.
+   *
+   * Deprecated as of the 2026-04-28 compression sprint. Decorative
+   * "Inspector / Publish / Theme" labels have been retired in favor of a
+   * single-line title — the title row is the heading. New call sites
+   * should omit this prop. When absent, no eyebrow row renders.
+   */
+  eyebrow?: string;
   /** The display name (operator's chosen label). */
   title: string;
-  /**
-   * Title typography weight. `default` = 15px semibold sans (Inspector
-   * style), `display` = 18px serif italic-friendly (Publish/Settings).
-   */
-  titleStyle?: "default" | "display";
   /** Section type icon (or any decorative glyph). */
   icon?: ReactNode;
   /** Right-aligned status pill (Saved / Saving / count chip). */
@@ -137,7 +156,6 @@ interface DrawerHeadProps {
 export function DrawerHead({
   eyebrow,
   title,
-  titleStyle = "default",
   icon,
   saveChip,
   meta,
@@ -154,8 +172,8 @@ export function DrawerHead({
       }}
     >
       <div className="min-w-0 flex-1">
-        <Eyebrow>{eyebrow}</Eyebrow>
-        <div className="mt-1.5 flex items-center gap-2.5">
+        {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
+        <div className={`${eyebrow ? "mt-1.5" : ""} flex items-center gap-2.5`}>
           {icon ? (
             <span
               className="inline-flex size-[30px] shrink-0 items-center justify-center"
@@ -173,14 +191,14 @@ export function DrawerHead({
           <span
             className="min-w-0 flex-1 truncate"
             style={{
+              // Sprint 2 — single canonical drawer heading style. Display
+              // serif was retired (multi-personality typography read as
+              // inconsistency, not "important moment"). Hierarchy now comes
+              // from spacing + structure, not a separate font.
               color: CHROME.ink,
-              fontSize: titleStyle === "display" ? 18 : 15,
-              fontWeight: titleStyle === "display" ? 500 : 600,
-              fontFamily:
-                titleStyle === "display"
-                  ? '"New York", "Times New Roman", "PT Serif", Georgia, serif'
-                  : undefined,
-              letterSpacing: titleStyle === "display" ? "-0.014em" : "-0.01em",
+              fontSize: 15,
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
             }}
           >
             {title}
@@ -278,7 +296,7 @@ function ToolButton({
       onClick={onClick}
       title={title}
       aria-label={ariaLabel}
-      className="inline-flex size-[26px] cursor-pointer items-center justify-center rounded-[5px] transition-colors hover:shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+      className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-[6px] transition-colors hover:shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
       style={{
         background: "transparent",
         color: CHROME.muted,
@@ -338,9 +356,9 @@ export function DrawerTab({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 transition-all"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-3.5 py-2 transition-all"
       style={{
-        fontSize: 11.5,
+        fontSize: 13,
         fontWeight: 600,
         letterSpacing: "-0.005em",
         whiteSpace: "nowrap",
