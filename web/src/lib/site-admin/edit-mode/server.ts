@@ -23,6 +23,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
@@ -114,4 +115,5 @@ export async function exitEditModeAction(): Promise<void> {
   jar.delete(previewCookieNameFor(scope.tenantId));
   jar.delete(editCookieNameFor(scope.tenantId));
   revalidatePath("/", "layout");
+  redirect("/");
 }

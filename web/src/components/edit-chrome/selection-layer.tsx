@@ -149,6 +149,16 @@ export function SelectionLayer() {
   const autoscrollRafRef = useRef<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
+  // Scroll-lag fix: suppress the hover-ring's position CSS transition while
+  // the window is actively scrolling. Without this, the 80ms linear transition
+  // on `top`/`left` makes the ring visually lag behind the element because the
+  // transition animates from the pre-scroll position to the post-scroll one.
+  // We use a ref (not state) so the transition is disabled synchronously in
+  // the rAF callback that already fires on each scroll event — no extra render
+  // is needed. The flag is cleared 150 ms after the last scroll event; the
+  // transition re-arms naturally on the next pointer-move re-render.
+  const isScrollingRef = useRef(false);
+  const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useLayoutEffect(() => {
     const el = document.getElementById("edit-overlay-portal");
@@ -237,6 +247,13 @@ export function SelectionLayer() {
       setSelectedSectionId(id);
     }
     function onScrollOrResize() {
+      // Mark scrolling active — suppresses hover-ring position transition.
+      isScrollingRef.current = true;
+      if (scrollEndTimerRef.current !== null) clearTimeout(scrollEndTimerRef.current);
+      scrollEndTimerRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+        scrollEndTimerRef.current = null;
+      }, 150);
       scheduleRectRecompute();
     }
     function onKey(e: KeyboardEvent) {
@@ -270,6 +287,10 @@ export function SelectionLayer() {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
+      }
+      if (scrollEndTimerRef.current !== null) {
+        clearTimeout(scrollEndTimerRef.current);
+        scrollEndTimerRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -520,8 +541,11 @@ export function SelectionLayer() {
             borderRadius: 6,
             boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}`,
             pointerEvents: "none",
-            transition:
-              "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+            // Suppress position transition while scrolling so the ring
+            // tracks the element instantly instead of animating over 80ms.
+            transition: isScrollingRef.current
+              ? "none"
+              : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
           }}
         />
       ) : null}

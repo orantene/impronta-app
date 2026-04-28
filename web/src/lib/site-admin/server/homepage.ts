@@ -56,7 +56,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { updateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import type { SupabaseClient, PostgrestError } from "@supabase/supabase-js";
 
 import {
@@ -212,9 +212,9 @@ function mapTriggerError(error: PostgrestError): Phase5Result<never> {
 }
 
 function bustHomepageTags(tenantId: string, pageId: string, locale: Locale): void {
-  updateTag(tagFor(tenantId, "homepage", { locale }));
-  updateTag(tagFor(tenantId, "pages", { id: pageId }));
-  updateTag(tagFor(tenantId, "pages-all"));
+  revalidateTag(tagFor(tenantId, "homepage", { locale }));
+  revalidateTag(tagFor(tenantId, "pages", { id: pageId }));
+  revalidateTag(tagFor(tenantId, "pages-all"));
 }
 
 async function insertHomepageRevision(

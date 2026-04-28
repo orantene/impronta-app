@@ -1573,6 +1573,20 @@ html[data-token-typography-scale-preset="editorial"] {
 .site-press-strip__name { font-family: var(--site-heading-font); font-style: italic; font-weight: 300; font-size: 22px; color: var(--token-color-ink); opacity: 0.78; }
 .site-press-strip__logo { max-height: 28px; width: auto; opacity: 0.7; filter: grayscale(1); transition: opacity 240ms ease; }
 .site-press-strip__logo:hover { opacity: 1; filter: grayscale(0); }
+/* Responsive — tablet: tighten gap and font */
+@media (max-width: 900px) {
+  .site-press-strip { padding-block: 40px; }
+  .site-press-strip__row { gap: 24px; }
+  .site-press-strip__name { font-size: 18px; }
+}
+/* Responsive — mobile: horizontal scroll row, no wrapping */
+@media (max-width: 640px) {
+  .site-press-strip { padding-block: 32px; }
+  .site-press-strip__row { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; justify-content: flex-start; gap: 20px; padding-inline: 1rem; scrollbar-width: none; }
+  .site-press-strip__row::-webkit-scrollbar { display: none; }
+  .site-press-strip__name { font-size: 16px; white-space: nowrap; }
+  .site-press-strip__eyebrow { white-space: nowrap; }
+}
 
 /* ---------------------------------------------------------------------------
  * M8 — Gallery strip.
