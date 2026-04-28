@@ -175,6 +175,7 @@ export function PublishDrawer() {
     pageMetadata,
     pageVersion,
     pageId,
+    pageSlug,
     dirty,
     saving,
     locale,
@@ -253,7 +254,10 @@ export function PublishDrawer() {
     setState({ kind: "publishing" });
     const res = await publishHomepageFromEditModeAction({
       locale,
-      pageId,
+      // Pass pageId only for non-homepage pages (identified by non-null slug).
+      // Homepage always has a real cms_pages UUID but must route through the
+      // homepage publish path — passing null signals that path to the action.
+      pageId: pageSlug ? pageId : null,
       expectedVersion: pageVersion,
     });
     if (res.ok) {

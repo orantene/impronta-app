@@ -60,13 +60,22 @@ export function VisualChipGroup<T extends string>({
       {options.map((opt) => {
         const active = opt.value === value;
         return (
-          <button
+          // div instead of button — avoids the nested-button HTML violation
+          // caused by InfoTip rendering its own <button> inside the chip.
+          // role="radio" + tabIndex + keyboard handler preserve full a11y.
+          <div
             key={opt.value}
-            type="button"
             role="radio"
             aria-checked={active}
+            tabIndex={0}
             onClick={() => onChange(opt.value)}
-            className={`group flex flex-col items-stretch gap-1.5 rounded-lg border bg-white p-2 text-left transition ${
+            onKeyDown={(e) => {
+              if (e.key === " " || e.key === "Enter") {
+                e.preventDefault();
+                onChange(opt.value);
+              }
+            }}
+            className={`group flex cursor-pointer flex-col items-stretch gap-1.5 rounded-lg border bg-white p-2 text-left transition ${
               active
                 ? "border-zinc-900 shadow-[0_0_0_1px_rgba(24,24,27,0.9)]"
                 : "border-zinc-200 hover:border-zinc-400"
@@ -91,7 +100,7 @@ export function VisualChipGroup<T extends string>({
               </span>
               {opt.info ? <InfoTip label={opt.info} size={11} /> : null}
             </div>
-          </button>
+          </div>
         );
       })}
     </div>
