@@ -1,10 +1,12 @@
 /**
  * Phase E (Final Batch 3) — head-only migration.
- * SectionHead replaces the bespoke site-orbit__head / site-orbit__headline
- * pattern, unifying eyebrow + h2 rhythm. The absolute-positioned hotspot
- * tags (left: ${tag.x}%, top: ${tag.y}%) and orbit frame are preserved exactly.
+ * Container + SectionHead are placed as a sibling to site-orbit__inner (not
+ * inside it). site-orbit__inner uses an absolute-px width that overflows at
+ * mobile; Container clamps with min(..., 100%) ensuring the head is visible at
+ * all breakpoints. The absolute-positioned hotspot tags (left: ${tag.x}%,
+ * top: ${tag.y}%) and orbit frame are preserved exactly.
  */
-import { SectionHead } from "../shared/section-primitives";
+import { Container, SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -19,14 +21,16 @@ export function ImageOrbitComponent({ props }: SectionComponentProps<ImageOrbitV
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-orbit__inner">
-        {(eyebrow || headline) && (
+      {(eyebrow || headline) && (
+        <Container width="standard">
           <SectionHead
             align="center"
             eyebrow={eyebrow}
             headline={headline ? renderInlineRich(headline) : undefined}
           />
-        )}
+        </Container>
+      )}
+      <div className="site-orbit__inner">
         <div className="site-orbit__frame" style={{ aspectRatio: ratio }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="site-orbit__img" src={imageUrl} alt={imageAlt ?? ""} aria-hidden={imageAlt ? undefined : true} loading="lazy" />

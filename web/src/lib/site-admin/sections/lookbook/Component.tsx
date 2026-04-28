@@ -1,10 +1,13 @@
 /**
  * Phase E (Final Batch 3) — head-only migration.
- * SectionHead replaces the bespoke site-lookbook__head / site-lookbook__headline
- * pattern, unifying eyebrow + h2 rhythm. The spread-based 2-by-2 page layout
- * and per-page figcaption are preserved exactly.
+ * Container + SectionHead are placed as a sibling to site-lookbook__inner
+ * (not inside it). site-lookbook__inner uses width: var(--site-container-max)
+ * which is an absolute px value and overflows at mobile widths; Container uses
+ * min(--site-container-max, 100%) which clamps to the viewport. This ensures
+ * the head is readable at all breakpoints even when the spread grid overflows.
+ * The spread-based 2-by-2 page layout and per-page figcaption are preserved.
  */
-import { SectionHead } from "../shared/section-primitives";
+import { Container, SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -29,14 +32,16 @@ export function LookbookComponent({ props }: SectionComponentProps<LookbookV1>) 
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-lookbook__inner">
-        {(eyebrow || headline) && (
+      {(eyebrow || headline) && (
+        <Container width="standard">
           <SectionHead
             align="center"
             eyebrow={eyebrow}
             headline={headline ? renderInlineRich(headline) : undefined}
           />
-        )}
+        </Container>
+      )}
+      <div className="site-lookbook__inner">
         <div className="site-lookbook__pages">
           {pairs.map((pair, i) => (
             <div className="site-lookbook__spread" key={`spread-${i}`}>

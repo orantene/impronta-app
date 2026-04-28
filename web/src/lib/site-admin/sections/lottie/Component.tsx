@@ -1,4 +1,4 @@
-import { SectionHead } from "../shared/section-primitives";
+import { Container, SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -15,9 +15,9 @@ import type { LottieV1 } from "./schema";
  * placeholder so the layout doesn't shift.
  *
  * Phase E (Final Batch 3) — head-only migration.
- * SectionHead replaces the bespoke site-lottie__head / site-lottie__headline
- * pattern, unifying eyebrow + h2 rhythm. The lottie-player web-component,
- * lazy script tag, and frame sizing are preserved exactly.
+ * Container + SectionHead are placed as a sibling to site-lottie__inner (not
+ * inside it) to ensure viewport-clamped head at mobile. The lottie-player
+ * web-component, lazy script tag, and frame sizing are preserved exactly.
  */
 export function LottieComponent({ props }: SectionComponentProps<LottieV1>) {
   const {
@@ -39,14 +39,16 @@ export function LottieComponent({ props }: SectionComponentProps<LottieV1>) {
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-lottie__inner">
-        {(eyebrow || headline) && (
+      {(eyebrow || headline) && (
+        <Container width="standard">
           <SectionHead
             align="center"
             eyebrow={eyebrow}
             headline={headline ? renderInlineRich(headline) : undefined}
           />
-        )}
+        </Container>
+      )}
+      <div className="site-lottie__inner">
         <div
           className="site-lottie__frame"
           style={{ aspectRatio: ratio, maxWidth: `${maxWidth}px` }}

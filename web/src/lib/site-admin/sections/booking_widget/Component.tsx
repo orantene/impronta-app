@@ -1,11 +1,11 @@
 /**
  * Phase E (Final Batch 3) — head-only migration.
- * SectionHead replaces the bespoke site-booking__head / site-booking__headline
- * pattern, unifying eyebrow + h2 rhythm. The intro paragraph migrates to the
- * SectionHead `intro` slot (site-prim-head__intro). The conditional iframe /
- * button-link layout and frame sizing are preserved exactly.
+ * Container + SectionHead are placed as a sibling to site-booking__inner (not
+ * inside it) to ensure viewport-clamped head at mobile. The intro paragraph
+ * migrates to the SectionHead `intro` slot (site-prim-head__intro). The
+ * conditional iframe / button-link layout and frame sizing are preserved.
  */
-import { SectionHead } from "../shared/section-primitives";
+import { Container, SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -20,15 +20,17 @@ export function BookingWidgetComponent({ props }: SectionComponentProps<BookingW
       {...presentationDataAttrs(presentation)}
       style={presentationInlineStyles(presentation)}
     >
-      <div className="site-booking__inner">
-        {(eyebrow || headline || intro) && (
+      {(eyebrow || headline || intro) && (
+        <Container width="standard">
           <SectionHead
             align="center"
             eyebrow={eyebrow}
             headline={headline ? renderInlineRich(headline) : undefined}
             intro={intro}
           />
-        )}
+        </Container>
+      )}
+      <div className="site-booking__inner">
         {variant === "inline" ? (
           <div
             className="site-booking__frame"
