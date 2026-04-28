@@ -62,7 +62,33 @@ export async function EditChromeMount() {
   if (ctx.kind !== "agency" && ctx.kind !== "hub") return null;
 
   const staff = await requireStaff();
-  if (!staff.ok) return null;
+  if (!staff.ok) {
+    // T1-1 diagnostic — when ?edit=1 is on the URL but the staff check
+    // fails, an operator on the tenant host sees nothing (no pill, no
+    // error, just the live storefront). The most common cause in dev is
+    // that the admin session cookie lives on `localhost` while the
+    // storefront renders on a sibling host like `impronta.lvh.me` — the
+    // browser does not send the session cookie across that domain
+    // boundary. In production both hosts share the parent domain so the
+    // cookie travels. This log makes the failure mode visible in the
+    // dev terminal so the operator stops chasing a phantom bug.
+    if (process.env.NODE_ENV !== "production") {
+      const editIntent =
+        rawPathname.includes("edit=1") ||
+        reqHeaders.get("referer")?.includes("edit=1");
+      if (editIntent) {
+        console.warn(
+          `[edit-mode] EditChromeMount: staff check failed on tenant host ` +
+            `${ctx.kind} (tenantId=${ctx.tenantId}) with ?edit=1 intent. ` +
+            `Likely cause: no staff session on this host. In dev: the admin ` +
+            `session is on localhost; this storefront is on a sibling domain. ` +
+            `Sign in on the storefront host directly, or run admin from the ` +
+            `same parent domain (e.g. tulala.lvh.me + impronta.lvh.me).`,
+        );
+      }
+    }
+    return null;
+  }
 
   const editActive = await isEditModeActiveForTenant(ctx.tenantId);
   // Resolve the request's effective locale so the editor loads the matching

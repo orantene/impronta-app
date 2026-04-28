@@ -58,6 +58,22 @@ export function EditPill({ autoEnter = false }: EditPillProps) {
     if (!autoEnter || autoFiredRef.current) return;
     if (!formRef.current) return;
     autoFiredRef.current = true;
+    // T1-1 — Strip `?edit=1` from the URL on first auto-fire. Without
+    // this, a failed enter (no staff session, no tenant scope, JWT mint
+    // error, network drop on a different host like impronta.lvh.me)
+    // leaves the intent param in place; on reload the auto-enter fires
+    // again, fails again, and the operator gets stuck in a retry loop
+    // with no way to recover. The success path also benefits: copying
+    // the URL after entering edit mode no longer carries a stale intent
+    // flag that would trigger a re-enter on the next visit.
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("edit")) {
+        url.searchParams.delete("edit");
+        const next = url.pathname + (url.search ? url.search : "") + url.hash;
+        window.history.replaceState(null, "", next);
+      }
+    }
     // requestSubmit goes through React's form-action path so the action
     // result lands in `state` exactly like a manual click.
     formRef.current.requestSubmit();
