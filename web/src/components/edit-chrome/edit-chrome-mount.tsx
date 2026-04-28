@@ -48,15 +48,26 @@ export async function EditChromeMount() {
   // Extract the page slug from the original request pathname so the editor
   // loads the correct page's composition. The middleware sets
   // ORIGINAL_PATHNAME_HEADER before any rewrites, giving us the raw URL path.
-  // Strip an optional locale prefix (e.g. `/en/about` → slug `about`,
-  // `/about` → slug `about`, `/` → null = homepage).
+  //
+  // Path shapes we handle:
+  //   /                   → homepage (null)
+  //   /p/about            → slug "about"
+  //   /en/p/about         → locale "en", slug "about"
+  //   /es                 → locale "es", homepage (null)
+  //   /about              → slug "about" (hypothetical direct route)
   const rawPathname = requestHeaders.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
-  const segments = rawPathname.split("?")[0]!.split("/").filter(Boolean);
-  // If the first segment is a supported locale code, skip it.
   const supportedLocales = localeContext.settings.supportedLocales as ReadonlyArray<string>;
-  const firstSeg = segments[0] ?? "";
-  const afterLocale = supportedLocales.includes(firstSeg) ? segments[1] : firstSeg;
-  const pageSlug = afterLocale && afterLocale.length > 0 ? afterLocale : null;
+  let segs = rawPathname.split("?")[0]!.split("/").filter(Boolean);
+  // 1. Strip optional locale prefix.
+  if (segs.length > 0 && supportedLocales.includes(segs[0]!)) {
+    segs = segs.slice(1);
+  }
+  // 2. Strip optional /p/ page-route prefix so `/p/about` → slug `about`.
+  if (segs.length > 0 && segs[0] === "p") {
+    segs = segs.slice(1);
+  }
+  // 3. First remaining segment is the slug; nothing left → homepage.
+  const pageSlug = segs.length > 0 ? segs[0]! : null;
 
   return (
     <EditChrome
