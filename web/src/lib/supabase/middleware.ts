@@ -17,6 +17,39 @@ const GUEST_COOKIE = "impronta_guest";
 const GUEST_HEADER = "x-impronta-guest";
 const LOCALE_HEADER = "x-impronta-locale";
 
+/**
+ * Sprint 2.1 — request-scoped actor forwarding from middleware to RSCs/server
+ * actions. Middleware already calls `supabase.auth.getUser()` + a profile read
+ * to make routing decisions; without forwarding, every server action repeats
+ * that work via `requireStaff()`. Deployed-tier measurement showed this
+ * adds ~300–600 ms per server action on the inspector load path.
+ *
+ * The internal header names below are reserved for middleware's verified
+ * actor identity. Any incoming version of these headers is stripped on
+ * every request (anti-spoof) — only middleware can write them. The action
+ * trusts them because middleware always runs first and the header values
+ * came from the same `getUser` + `loadAccessProfile` pair we'd otherwise
+ * recompute downstream.
+ *
+ * The fast-path is intentionally minimal: just enough to satisfy
+ * `requireStaff` / `requireSession` / `requireAdmin` without re-issuing
+ * the RPC. Anything that needs the full Supabase `User` object (email,
+ * metadata) still falls through to the uncached path.
+ */
+const ACTOR_ID_HEADER = "x-impronta-actor-id";
+const ACTOR_EMAIL_HEADER = "x-impronta-actor-email";
+const ACTOR_APP_ROLE_HEADER = "x-impronta-actor-app-role";
+const ACTOR_STATUS_HEADER = "x-impronta-actor-status";
+const ACTOR_ONBOARDED_HEADER = "x-impronta-actor-onboarded";
+
+const ACTOR_HEADERS_TO_STRIP = [
+  ACTOR_ID_HEADER,
+  ACTOR_EMAIL_HEADER,
+  ACTOR_APP_ROLE_HEADER,
+  ACTOR_STATUS_HEADER,
+  ACTOR_ONBOARDED_HEADER,
+];
+
 export async function updateSession(
   request: NextRequest,
   options?: { pathnameForAuth?: string; languageSettings?: LanguageSettings },
@@ -32,6 +65,10 @@ export async function updateSession(
   const lang = options?.languageSettings ?? FALLBACK_LANGUAGE_SETTINGS;
 
   const forwardedHeaders = new Headers(request.headers);
+  // Sprint 2.1 — strip any client-supplied spoofs of the actor headers
+  // BEFORE we copy them downstream. Only middleware (post-getUser) is
+  // allowed to write these.
+  for (const h of ACTOR_HEADERS_TO_STRIP) forwardedHeaders.delete(h);
   forwardedHeaders.set(GUEST_HEADER, guestKey);
   const presetLocale = request.headers.get(LOCALE_HEADER);
   const fromPath = stripLocaleFromPathname(pathnameForAuth, lang).locale;
@@ -102,6 +139,38 @@ export async function updateSession(
 
   if (user) {
     sessionProfile = await loadAccessProfile(supabase, user.id);
+  }
+
+  // Sprint 2.1 — write the verified actor onto `forwardedHeaders` so
+  // downstream RSCs / server actions can skip a duplicate `getUser` +
+  // `loadAccessProfile` chain. The deployed-tier measurement showed
+  // each server action paid ~300–600 ms for this redundant work; the
+  // cache lives in the `getCachedActorSession` fast path
+  // (`@/lib/server/request-cache`).
+  //
+  // We rebuild `supabaseResponse` after mutating headers so the inner
+  // NextRequest seen by downstream code reflects the new values.
+  // Cookies set on the previous response (Supabase session rotation,
+  // guest cookie) are carried forward.
+  if (user) {
+    forwardedHeaders.set(ACTOR_ID_HEADER, user.id);
+    if (user.email) forwardedHeaders.set(ACTOR_EMAIL_HEADER, user.email);
+    if (sessionProfile?.app_role) {
+      forwardedHeaders.set(ACTOR_APP_ROLE_HEADER, sessionProfile.app_role);
+    }
+    if (sessionProfile?.account_status) {
+      forwardedHeaders.set(ACTOR_STATUS_HEADER, sessionProfile.account_status);
+    }
+    forwardedHeaders.set(
+      ACTOR_ONBOARDED_HEADER,
+      sessionProfile?.onboarding_completed_at ? "1" : "0",
+    );
+
+    const fresh = nextPreservingUrl();
+    for (const c of supabaseResponse.cookies.getAll()) {
+      fresh.cookies.set(c);
+    }
+    supabaseResponse = fresh;
   }
 
   const rawImpersonationCookie = request.cookies.get(
