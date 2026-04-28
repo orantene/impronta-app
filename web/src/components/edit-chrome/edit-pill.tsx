@@ -85,6 +85,15 @@ export function EditPill({ autoEnter = false }: EditPillProps) {
       action={formAction}
       className="pointer-events-none fixed inset-0 z-[80] flex items-end justify-end p-4 sm:p-6"
     >
+      {/* T3-2 — Top-of-viewport progress bar during pending entry. The
+          corner pill alone can be missed when the operator's eyes are on
+          the page; a thin animated bar at viewport top is unmissable and
+          mirrors the pattern modern apps use (Vercel, Linear, GitHub) to
+          telegraph "something is loading globally." Only renders during
+          the auto-enter or post-click pending window — once edit mode
+          engages, EditChromeMount swaps the whole tree to EditShell and
+          the bar unmounts with the pill. */}
+      <EntryProgressBar autoEnter={autoEnter} />
       <div className="pointer-events-auto flex flex-col items-end gap-2">
         {state && state.ok === false && state.error ? (
           <div
@@ -97,6 +106,40 @@ export function EditPill({ autoEnter = false }: EditPillProps) {
         <EditPillButton autoEnter={autoEnter} />
       </div>
     </form>
+  );
+}
+
+/**
+ * Slim 2px progress bar pinned to the top of the viewport during the
+ * enter-edit-mode round trip. Indeterminate animation (a moving glow)
+ * because we don't know the action's actual duration. Renders nothing
+ * when idle so it doesn't ghost over the storefront.
+ */
+function EntryProgressBar({ autoEnter }: { autoEnter: boolean }) {
+  const { pending } = useFormStatus();
+  if (!pending && !autoEnter) return null;
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed inset-x-0 top-0 z-[200] h-[2px] overflow-hidden"
+      style={{ background: "rgba(11, 11, 13, 0.06)" }}
+    >
+      <style>{`
+        @keyframes entry-progress-glide {
+          0%   { transform: translateX(-100%); }
+          50%  { transform: translateX(0%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
+      <div
+        className="h-full w-1/3"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, rgba(11,11,13,0.85) 50%, transparent)",
+          animation: "entry-progress-glide 1.1s ease-in-out infinite",
+        }}
+      />
+    </div>
   );
 }
 
