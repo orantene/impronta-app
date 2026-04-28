@@ -37,6 +37,7 @@ import { CommandPalette } from "./command-palette";
 import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
+import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
@@ -378,53 +379,60 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         selectedSectionId={selectedSectionId}
         navigatorOpen={navigatorOpen}
       />
-      <TopBar
-        device={device}
-        setDevice={setDevice}
-        dirty={dirty}
-        saving={saving}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onUndo={() => void undo()}
-        onRedo={() => void redo()}
-        onPublish={openPublish}
-        onPageSettings={openPageSettings}
-        onRevisions={openRevisions}
-        onTheme={openTheme}
-        onAssets={openAssets}
-        onSchedule={openSchedule}
-        onComments={openComments}
-        onSaveDraft={() => void saveDraft()}
-        onShare={(opts) => handleShareClick(opts, reportMutationError)}
-        pageTitle={pageMetadata?.title ?? undefined}
-        activeLocale={locale}
-        availableLocales={availableLocales}
-      />
-      <div
-        id="edit-overlay-portal"
-        className="pointer-events-none fixed inset-0 top-[54px] z-[70]"
-        aria-hidden
-      />
-      <SelectionLayer />
-      <CompositionInserters />
-      <InlineEditor />
-      <NavigatorPanel />
-      <InspectorDock />
-      <CompositionLibraryOverlay />
-      <PublishDrawer />
-      <PageSettingsDrawer />
-      <RevisionsDrawer />
-      <ThemeDrawer />
-      <AssetsDrawer />
-      <ScheduleDrawer />
-      <CommentsDrawer />
-      <CommandPalette open={paletteOpen} onClose={closePalette} />
-      <ShortcutOverlay
-        open={shortcutOverlayOpen}
-        onClose={closeShortcutOverlay}
-      />
-      <MutationErrorToast />
-      <DraftSavedToast />
+      {/* data-edit-chrome marks all editor UI so CanvasLinkInterceptor can
+          exclude these links (locale switcher, page picker, admin nav) from
+          its canvas-link block. display:contents is invisible to layout so
+          fixed-position chrome children keep their viewport positioning. */}
+      <div data-edit-chrome style={{ display: "contents" }}>
+        <TopBar
+          device={device}
+          setDevice={setDevice}
+          dirty={dirty}
+          saving={saving}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={() => void undo()}
+          onRedo={() => void redo()}
+          onPublish={openPublish}
+          onPageSettings={openPageSettings}
+          onRevisions={openRevisions}
+          onTheme={openTheme}
+          onAssets={openAssets}
+          onSchedule={openSchedule}
+          onComments={openComments}
+          onSaveDraft={() => void saveDraft()}
+          onShare={(opts) => handleShareClick(opts, reportMutationError)}
+          pageTitle={pageMetadata?.title ?? undefined}
+          activeLocale={locale}
+          availableLocales={availableLocales}
+        />
+        <div
+          id="edit-overlay-portal"
+          className="pointer-events-none fixed inset-0 top-[54px] z-[70]"
+          aria-hidden
+        />
+        <SelectionLayer />
+        <CompositionInserters />
+        <InlineEditor />
+        <NavigatorPanel />
+        <InspectorDock />
+        <CompositionLibraryOverlay />
+        <PublishDrawer />
+        <PageSettingsDrawer />
+        <RevisionsDrawer />
+        <ThemeDrawer />
+        <AssetsDrawer />
+        <ScheduleDrawer />
+        <CommentsDrawer />
+        <CommandPalette open={paletteOpen} onClose={closePalette} />
+        <ShortcutOverlay
+          open={shortcutOverlayOpen}
+          onClose={closeShortcutOverlay}
+        />
+        <MutationErrorToast />
+        <DraftSavedToast />
+        <CanvasLinkInterceptor />
+      </div>
       {children}
       <DeviceFrameStyle device={device} />
     </>
