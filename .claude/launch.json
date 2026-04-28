@@ -9,6 +9,13 @@
       "autoPort": true
     },
     {
+      "name": "Prototype Preview (3001)",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "cd /Users/oranpersonal/Desktop/impronta-app/web && npx next dev --webpack -p 3001"],
+      "port": 3001,
+      "autoPort": true
+    },
+    {
       "name": "Marketing (marketing.local)",
       "runtimeExecutable": "node",
       "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3101", "marketing.local"],
@@ -31,6 +38,18 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3104", "impronta.local"],
       "port": 3104
+    },
+    {
+      "name": "Impronta storefront (impronta.lvh.me)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3114", "impronta.lvh.me"],
+      "port": 3114
+    },
+    {
+      "name": "App (app.lvh.me)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/oranpersonal/Desktop/impronta-app/scripts/local-host-proxy.mjs", "3112", "app.lvh.me"],
+      "port": 3112
     },
     {
       "name": "Nova storefront (nova.local)",

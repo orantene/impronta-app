@@ -7,6 +7,13 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["next", "dev", "--webpack", "-p", "4500"],
       "port": 4500
+    },
+    {
+      "name": "Prototype Preview (3001)",
+      "cwd": "/Users/oranpersonal/Desktop/impronta-app/web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "dev", "--webpack", "-p", "3001"],
+      "port": 3001
     }
   ]
 }
