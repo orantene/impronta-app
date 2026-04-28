@@ -31,6 +31,7 @@ import {
   saveHomepageDraftComposition,
 } from "@/lib/site-admin/server/homepage";
 import { loadDraftHomepage } from "@/lib/site-admin/server/homepage-reads";
+import { createServiceRoleClient } from "@/lib/supabase/admin";
 import { loadSectionByIdForStaff } from "@/lib/site-admin/server/sections-reads";
 import { publishSection } from "@/lib/site-admin/server/sections";
 import { republishSiteShellSnapshot } from "@/lib/site-admin/edit-mode/site-shell-publish";
@@ -51,6 +52,7 @@ import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolve
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { CLIENT_ERROR, logServerError } from "@/lib/server/safe-error";
+import { publishPageSnapshot } from "@/lib/site-admin/edit-mode/page-composer-action";
 
 // ── types ─────────────────────────────────────────────────────────────────
 
@@ -98,6 +100,9 @@ export interface CompositionLibraryEntry {
 
 export interface CompositionData {
   locale: Locale;
+  /** The cms_pages.id for the page being edited. All mutations thread this
+   *  back so they target the correct page regardless of page type. */
+  pageId: string;
   pageVersion: number;
   metadata: {
     title: string;
@@ -157,6 +162,12 @@ function asLocale(raw: string): Locale | null {
  */
 export async function loadHomepageCompositionAction(input: {
   locale: string;
+  /**
+   * When non-null the editor is on a non-homepage page identified by this
+   * slug. The loader fetches that page's composition instead of the homepage.
+   * Null / undefined → homepage (existing behaviour).
+   */
+  pageSlug?: string | null;
 }): Promise<CompositionLoadResult> {
   const auth = await requireStaff();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -171,6 +182,155 @@ export async function loadHomepageCompositionAction(input: {
   if (!locale) {
     return { ok: false, error: `Unsupported locale "${input.locale}".` };
   }
+
+  const library: CompositionLibraryEntry[] = listAgencyVisibleSections().map(
+    (s) => ({
+      typeKey: s.meta.key,
+      label: s.meta.label,
+      description: s.meta.description,
+      purpose: s.meta.businessPurpose,
+      category: s.meta.category,
+      inDefault: s.meta.inDefault,
+      tag: s.meta.tag,
+    }),
+  );
+  const localeSettings = await loadTenantLocaleSettings(scope.tenantId);
+
+  // ── non-homepage page ──────────────────────────────────────────────────
+  if (input.pageSlug) {
+    const admin = createServiceRoleClient();
+    if (!admin) {
+      return { ok: false, error: "Server configuration error.", code: "SERVER_ERROR" };
+    }
+
+    const { data: pageRow, error: pageErr } = await admin
+      .from("cms_pages")
+      .select("id, title, meta_description, og_title, og_description, og_image_url, canonical_url, noindex, version")
+      .eq("tenant_id", scope.tenantId)
+      .eq("locale", locale)
+      .eq("slug", input.pageSlug)
+      .neq("status", "archived")
+      .maybeSingle<{
+        id: string;
+        title: string;
+        meta_description: string | null;
+        og_title: string | null;
+        og_description: string | null;
+        og_image_url: string | null;
+        canonical_url: string | null;
+        noindex: boolean;
+        version: number;
+      }>();
+    if (pageErr || !pageRow) {
+      return {
+        ok: false,
+        error: `Page "${input.pageSlug}" not found for this locale.`,
+        code: "NOT_FOUND",
+      };
+    }
+
+    // Draft-first: prefer is_draft=TRUE, fall through to live when empty.
+    type SectionJoinRow = {
+      slot_key: string;
+      section_id: string;
+      sort_order: number;
+      cms_sections: {
+        section_type_key: string;
+        name: string;
+        props_jsonb: Record<string, unknown> | null;
+      } | null;
+    };
+
+    const selectCols = `slot_key, section_id, sort_order, cms_sections:section_id(section_type_key, name, props_jsonb)`;
+
+    let { data: draftRows } = await admin
+      .from("cms_page_sections")
+      .select(selectCols)
+      .eq("tenant_id", scope.tenantId)
+      .eq("page_id", pageRow.id)
+      .eq("is_draft", true)
+      .order("slot_key")
+      .order("sort_order");
+
+    let sectionRows = (draftRows ?? []) as unknown as SectionJoinRow[];
+    if (sectionRows.length === 0) {
+      const { data: liveRows } = await admin
+        .from("cms_page_sections")
+        .select(selectCols)
+        .eq("tenant_id", scope.tenantId)
+        .eq("page_id", pageRow.id)
+        .eq("is_draft", false)
+        .order("slot_key")
+        .order("sort_order");
+      sectionRows = (liveRows ?? []) as unknown as SectionJoinRow[];
+    }
+
+    const slots: Record<string, CompositionSectionRef[]> = {};
+    for (const row of sectionRows) {
+      const sec = row.cms_sections;
+      if (!sec) continue;
+      const bucket = (slots[row.slot_key] ??= []);
+      const presentation = sec.props_jsonb?.presentation as
+        | { visibility?: string }
+        | undefined;
+      const rawVisibility = presentation?.visibility;
+      const visibility =
+        rawVisibility === "always" ||
+        rawVisibility === "desktop-only" ||
+        rawVisibility === "mobile-only" ||
+        rawVisibility === "hidden"
+          ? rawVisibility
+          : undefined;
+      bucket.push({
+        sectionId: row.section_id,
+        sortOrder: row.sort_order,
+        sectionTypeKey: sec.section_type_key,
+        name: sec.name,
+        visibility,
+      });
+    }
+    for (const k of Object.keys(slots)) {
+      slots[k]!.sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+
+    // Synthesise slot defs from the keys present; fall back to a single
+    // generic "body" slot when the page has no sections yet.
+    const slotKeys = Object.keys(slots);
+    const slotDefs: CompositionSlotDef[] =
+      slotKeys.length > 0
+        ? slotKeys.map((k) => ({
+            key: k,
+            label: k.charAt(0).toUpperCase() + k.slice(1),
+            required: false,
+            allowedSectionTypes: null,
+          }))
+        : [{ key: "body", label: "Body", required: false, allowedSectionTypes: null }];
+
+    return {
+      ok: true,
+      data: {
+        locale,
+        pageId: pageRow.id,
+        pageVersion: pageRow.version,
+        metadata: {
+          title: pageRow.title,
+          metaDescription: pageRow.meta_description,
+          introTagline: null, // homepage-specific field; not applicable here
+          ogTitle: pageRow.og_title,
+          ogDescription: pageRow.og_description,
+          ogImageUrl: pageRow.og_image_url,
+          canonicalUrl: pageRow.canonical_url,
+          noindex: pageRow.noindex,
+        },
+        slots,
+        slotDefs,
+        library,
+        availableLocales: localeSettings.supportedLocales,
+      },
+    };
+  }
+
+  // ── homepage (existing path) ───────────────────────────────────────────
 
   // Seed the row on first open so the editor can always save.
   const seed = await ensureHomepageRow(auth.supabase, {
@@ -233,28 +393,16 @@ export async function loadHomepageCompositionAction(input: {
     allowedSectionTypes: s.allowedSectionTypes ?? null,
   }));
 
-  const library: CompositionLibraryEntry[] = listAgencyVisibleSections().map(
-    (s) => ({
-      typeKey: s.meta.key,
-      label: s.meta.label,
-      description: s.meta.description,
-      purpose: s.meta.businessPurpose,
-      category: s.meta.category,
-      inDefault: s.meta.inDefault,
-      tag: s.meta.tag,
-    }),
-  );
-
   // Tenant's configured supported locales — used to render the locale
   // switcher in the topbar and the clone-from-locale command. Cached read
   // (60s TTL); the identity save invalidates this when an agency edits the
   // list, so the switcher reflects the active config without a hard reload.
-  const localeSettings = await loadTenantLocaleSettings(scope.tenantId);
 
   return {
     ok: true,
     data: {
       locale,
+      pageId: page.pageId,
       pageVersion: page.version,
       metadata: {
         title: page.title,
@@ -278,6 +426,11 @@ export async function loadHomepageCompositionAction(input: {
 
 export interface CompositionSaveInput {
   locale: string;
+  /**
+   * When non-null this is a non-homepage page and the save should target
+   * it by ID instead of looking up the homepage via system_template_key.
+   */
+  pageId?: string | null;
   expectedVersion: number;
   metadata: {
     title: string;
@@ -293,9 +446,16 @@ export interface CompositionSaveInput {
 }
 
 /**
- * Save a composition mutation atomically. Wraps `saveHomepageDraftComposition`
- * with a typed envelope so the in-place editor can ship discrete changes
- * without a full form round-trip.
+ * Save a composition mutation atomically.
+ *
+ * Homepage path (default): wraps `saveHomepageDraftComposition` so all
+ * gates — capability, CAS, slot type rules, archived-section rejection — run
+ * identically to the admin composer.
+ *
+ * Non-homepage path (when `input.pageId` is provided): performs a lighter
+ * save directly against that page's row — CAS on version, update metadata
+ * fields, rewrite `cms_page_sections WHERE is_draft=TRUE`. No slot-type
+ * restrictions apply on non-homepage pages.
  */
 export async function saveHomepageCompositionAction(
   input: CompositionSaveInput,
@@ -313,6 +473,100 @@ export async function saveHomepageCompositionAction(
   if (!locale) {
     return { ok: false, error: `Unsupported locale "${input.locale}".` };
   }
+
+  // ── non-homepage page save ─────────────────────────────────────────────
+  if (input.pageId) {
+    try {
+      const admin = createServiceRoleClient();
+      if (!admin) return { ok: false, error: "Server configuration error." };
+
+      // CAS: load the current version.
+      const { data: pageRow, error: loadErr } = await admin
+        .from("cms_pages")
+        .select("id, version")
+        .eq("id", input.pageId)
+        .eq("tenant_id", scope.tenantId)
+        .maybeSingle<{ id: string; version: number }>();
+      if (loadErr || !pageRow) {
+        return { ok: false, error: "Page not found.", code: "NOT_FOUND" };
+      }
+      if (pageRow.version !== input.expectedVersion) {
+        return {
+          ok: false,
+          error: "Someone else edited this page. Changes reloaded — try again.",
+          code: "VERSION_CONFLICT",
+          currentVersion: pageRow.version,
+        };
+      }
+
+      const nextVersion = pageRow.version + 1;
+
+      // Update page metadata fields (introTagline is homepage-only; skip).
+      const { error: updErr } = await admin
+        .from("cms_pages")
+        .update({
+          title: input.metadata.title,
+          meta_description: input.metadata.metaDescription ?? null,
+          og_title: input.metadata.ogTitle ?? null,
+          og_description: input.metadata.ogDescription ?? null,
+          og_image_url: input.metadata.ogImageUrl ?? null,
+          canonical_url: input.metadata.canonicalUrl ?? null,
+          noindex: input.metadata.noindex ?? false,
+          version: nextVersion,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", input.pageId)
+        .eq("tenant_id", scope.tenantId)
+        .eq("version", input.expectedVersion); // second CAS guard
+      if (updErr) {
+        return { ok: false, error: CLIENT_ERROR.update };
+      }
+
+      // Replace draft slot rows atomically: delete then insert.
+      await admin
+        .from("cms_page_sections")
+        .delete()
+        .eq("tenant_id", scope.tenantId)
+        .eq("page_id", input.pageId)
+        .eq("is_draft", true);
+
+      const newRows: Array<{
+        tenant_id: string;
+        page_id: string;
+        section_id: string;
+        slot_key: string;
+        sort_order: number;
+        is_draft: boolean;
+      }> = [];
+      for (const [slotKey, entries] of Object.entries(input.slots)) {
+        for (const e of entries ?? []) {
+          newRows.push({
+            tenant_id: scope.tenantId,
+            page_id: input.pageId,
+            section_id: e.sectionId,
+            slot_key: slotKey,
+            sort_order: e.sortOrder,
+            is_draft: true,
+          });
+        }
+      }
+      if (newRows.length > 0) {
+        const { error: insErr } = await admin
+          .from("cms_page_sections")
+          .insert(newRows);
+        if (insErr) {
+          return { ok: false, error: CLIENT_ERROR.update };
+        }
+      }
+
+      return { ok: true, pageVersion: nextVersion };
+    } catch (err) {
+      logServerError("edit-mode/composition/save-page", err);
+      return { ok: false, error: CLIENT_ERROR.update };
+    }
+  }
+
+  // ── homepage path (existing) ───────────────────────────────────────────
 
   // Schema treats absent fields as "leave unset" (writes NULL). The typed
   // envelope from edit-chrome carries `null` for cleared fields; the schema
@@ -407,6 +661,9 @@ function isUniqueNameViolation(code?: string, message?: string): boolean {
  */
 export async function createAndInsertSectionAction(input: {
   locale: string;
+  /** Non-null when editing a non-homepage page. Threaded to save so the
+   *  section is inserted into the correct page's composition. */
+  pageId?: string | null;
   expectedVersion: number;
   metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
@@ -445,22 +702,27 @@ export async function createAndInsertSectionAction(input: {
     };
   }
 
-  const slotDef = homepageTemplate.meta.slots.find(
-    (s) => s.key === input.targetSlotKey,
-  );
-  if (!slotDef) {
-    return {
-      ok: false,
-      error: `Unknown homepage slot "${input.targetSlotKey}".`,
-      code: "UNKNOWN_SLOT",
-    };
-  }
-  if (slotDef.allowedSectionTypes && !slotDef.allowedSectionTypes.includes(typeKey)) {
-    return {
-      ok: false,
-      error: `The ${slotDef.label} slot only accepts ${slotDef.allowedSectionTypes.join(", ")}.`,
-      code: "SLOT_TYPE_MISMATCH",
-    };
+  // Slot-type validation only applies to homepage (which has a template
+  // with allowedSectionTypes per slot). Non-homepage pages have no
+  // template restrictions — any section type is valid in any slot.
+  if (!input.pageId) {
+    const slotDef = homepageTemplate.meta.slots.find(
+      (s) => s.key === input.targetSlotKey,
+    );
+    if (!slotDef) {
+      return {
+        ok: false,
+        error: `Unknown homepage slot "${input.targetSlotKey}".`,
+        code: "UNKNOWN_SLOT",
+      };
+    }
+    if (slotDef.allowedSectionTypes && !slotDef.allowedSectionTypes.includes(typeKey)) {
+      return {
+        ok: false,
+        error: `The ${slotDef.label} slot only accepts ${slotDef.allowedSectionTypes.join(", ")}.`,
+        code: "SLOT_TYPE_MISMATCH",
+      };
+    }
   }
 
   // --- step 1: create the draft section (unique-name retry once) ---------
@@ -550,6 +812,7 @@ export async function createAndInsertSectionAction(input: {
 
   const saveRes = await saveHomepageCompositionAction({
     locale,
+    pageId: input.pageId,
     expectedVersion: input.expectedVersion,
     metadata: input.metadata,
     slots: slotsCopy,
@@ -589,6 +852,8 @@ export async function createAndInsertSectionAction(input: {
  */
 export async function duplicateSectionAction(input: {
   locale: string;
+  /** Non-null when editing a non-homepage page. */
+  pageId?: string | null;
   expectedVersion: number;
   metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
@@ -730,6 +995,7 @@ export async function duplicateSectionAction(input: {
 
   const saveRes = await saveHomepageCompositionAction({
     locale,
+    pageId: input.pageId,
     expectedVersion: input.expectedVersion,
     metadata: input.metadata,
     slots: slotsCopy,
@@ -779,12 +1045,15 @@ export type SaveDraftResult =
  */
 export async function saveDraftHomepageAction(input: {
   locale: string;
+  /** Non-null when editing a non-homepage page. */
+  pageId?: string | null;
   expectedVersion: number;
   metadata: CompositionSaveInput["metadata"];
   slots: Record<string, Array<{ sectionId: string; sortOrder: number }>>;
 }): Promise<SaveDraftResult> {
   const save = await saveHomepageCompositionAction({
     locale: input.locale,
+    pageId: input.pageId,
     expectedVersion: input.expectedVersion,
     metadata: input.metadata,
     slots: input.slots,
@@ -827,6 +1096,9 @@ export type PublishResult =
  */
 export async function publishHomepageFromEditModeAction(input: {
   locale: string;
+  /** When non-null the editor is on a non-homepage page and this publish
+   *  should target that page rather than the homepage. */
+  pageId?: string | null;
   expectedVersion: number;
 }): Promise<PublishResult> {
   const auth = await requireStaff();
@@ -843,6 +1115,24 @@ export async function publishHomepageFromEditModeAction(input: {
   }
   if (!isLocale(input.locale)) {
     return { ok: false, error: "Invalid locale", code: "VALIDATION_FAILED" };
+  }
+
+  // ── non-homepage publish ───────────────────────────────────────────────
+  // Delegates to the page-composer publishPageSnapshot op, which bakes the
+  // current draft slots into `published_page_snapshot` and busts the cache.
+  if (input.pageId) {
+    const res = await publishPageSnapshot({
+      pageId: input.pageId,
+      expectedVersion: input.expectedVersion,
+    });
+    if (!res.ok) {
+      return { ok: false, error: res.error, code: "PUBLISH_FAILED" };
+    }
+    return {
+      ok: true,
+      pageVersion: res.pageVersion,
+      publishedAt: res.publishedAt,
+    };
   }
 
   try {

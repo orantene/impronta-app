@@ -94,6 +94,12 @@ export interface LibraryTarget {
 export interface EditContextValue {
   tenantId: string;
   locale: string;
+  /** The slug of the page currently being edited, or null for the homepage. */
+  pageSlug: string | null;
+  /** The cms_pages.id for the page currently being edited. Resolved from the
+   *  composition load; null until the first load completes. All mutations use
+   *  this to target the correct page. */
+  pageId: string | null;
 
   /** Section the inspector is operating on. Null → "Select a section". */
   selectedSectionId: string | null;
@@ -419,6 +425,9 @@ interface EditProviderProps {
   tenantId: string;
   /** Falls back to `en` if omitted; edit chrome today operates on the platform default. */
   locale?: string;
+  /** When non-null the editor is on a non-homepage page with this slug.
+   *  Threaded from EditChromeMount via the URL pathname. */
+  pageSlug?: string | null;
   /** Server-known tenant locales, threaded from EditChromeMount so the
    *  topbar locale switcher renders on first paint. The composition load
    *  refreshes this once it lands; this prop just primes it. */
@@ -429,6 +438,7 @@ interface EditProviderProps {
 export function EditProvider({
   tenantId,
   locale = "en",
+  pageSlug = null,
   initialAvailableLocales,
   children,
 }: EditProviderProps) {
@@ -465,6 +475,7 @@ export function EditProvider({
   const [compositionLoaded, setCompositionLoaded] = useState(false);
   const [compositionLoading, setCompositionLoading] = useState(false);
   const [compositionError, setCompositionError] = useState<string | null>(null);
+  const [pageId, setPageId] = useState<string | null>(null);
   const [pageVersion, setPageVersion] = useState<number | null>(null);
   const [pageMetadata, setPageMetadata] = useState<PageMetadata | null>(null);
   const [slots, setSlots] = useState<Record<string, CompositionSectionRef[]>>(
@@ -590,6 +601,7 @@ export function EditProvider({
   }, [dirty, saving]);
 
   const applyComposition = useCallback((data: CompositionData) => {
+    setPageId(data.pageId);
     setPageVersion(data.pageVersion);
     setPageMetadata(data.metadata);
     setSlots(data.slots);
@@ -603,7 +615,7 @@ export function EditProvider({
   const refreshComposition = useCallback(async () => {
     setCompositionLoading(true);
     try {
-      const res = await loadHomepageCompositionAction({ locale });
+      const res = await loadHomepageCompositionAction({ locale, pageSlug });
       if (res.ok) {
         applyComposition(res.data);
         // Reloading authoritative state also clears history — the stack
@@ -621,7 +633,7 @@ export function EditProvider({
     } finally {
       setCompositionLoading(false);
     }
-  }, [locale, applyComposition]);
+  }, [locale, pageSlug, applyComposition]);
 
   // Initial load: only once per provider lifetime. Subsequent reloads go
   // through refreshComposition on mutation conflicts or explicit refresh.
@@ -688,6 +700,7 @@ export function EditProvider({
 
       const save = await saveHomepageCompositionAction({
         locale,
+        pageId,
         expectedVersion: pageVersion,
         ...stripSnapshotForSave(next),
       });
@@ -707,7 +720,7 @@ export function EditProvider({
       router.refresh();
       return { ok: true };
     },
-    [pageVersion, currentSnapshot, locale, refreshComposition, router, capHistory],
+    [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
   );
 
   // ── insert ─────────────────────────────────────────────────────────
@@ -727,6 +740,7 @@ export function EditProvider({
 
       const res = await createAndInsertSectionAction({
         locale,
+        pageId,
         expectedVersion: pageVersion,
         metadata: snap.metadata,
         slots: stripSnapshotForSave(snap).slots,
@@ -773,7 +787,7 @@ export function EditProvider({
       router.refresh();
       return { ok: true };
     },
-    [pageVersion, currentSnapshot, locale, refreshComposition, router, capHistory],
+    [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
   );
 
   // ── remove ─────────────────────────────────────────────────────────
@@ -811,6 +825,7 @@ export function EditProvider({
 
       const res = await duplicateSectionAction({
         locale,
+        pageId,
         expectedVersion: pageVersion,
         metadata: snap.metadata,
         slots: stripSnapshotForSave(snap).slots,
@@ -862,7 +877,7 @@ export function EditProvider({
       router.refresh();
       return { ok: true, newSectionId: res.section.id };
     },
-    [pageVersion, currentSnapshot, locale, refreshComposition, router, capHistory],
+    [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
   );
 
   // ── move to explicit slot + position ──────────────────────────────
@@ -977,6 +992,7 @@ export function EditProvider({
       setPageMetadata(target.metadata);
       const save = await saveHomepageCompositionAction({
         locale,
+        pageId,
         expectedVersion: pageVersion,
         ...stripSnapshotForSave(target),
       });
@@ -990,7 +1006,7 @@ export function EditProvider({
       setPageVersion(save.pageVersion);
       router.refresh();
     },
-    [pageVersion, locale, refreshComposition, router],
+    [pageVersion, locale, pageId, refreshComposition, router],
   );
 
   /**
@@ -1285,6 +1301,7 @@ export function EditProvider({
     setSaving(true);
     const res = await saveDraftHomepageAction({
       locale,
+      pageId,
       expectedVersion: pageVersion,
       ...stripSnapshotForSave(snap),
     });
@@ -1299,12 +1316,14 @@ export function EditProvider({
     setPageVersion(res.pageVersion);
     setLastDraftSavedAt(res.savedAt);
     return { ok: true, savedAt: res.savedAt };
-  }, [pageVersion, currentSnapshot, locale, refreshComposition]);
+  }, [pageVersion, currentSnapshot, locale, pageId, refreshComposition]);
 
   const value = useMemo<EditContextValue>(
     () => ({
       tenantId,
       locale,
+      pageSlug,
+      pageId,
       selectedSectionId,
       setSelectedSectionId,
       hoveredSectionId,
@@ -1405,6 +1424,8 @@ export function EditProvider({
     [
       tenantId,
       locale,
+      pageSlug,
+      pageId,
       selectedSectionId,
       hoveredSectionId,
       device,

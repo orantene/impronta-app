@@ -174,6 +174,7 @@ export function PublishDrawer() {
     slotDefs,
     pageMetadata,
     pageVersion,
+    pageId,
     dirty,
     saving,
     locale,
@@ -252,6 +253,7 @@ export function PublishDrawer() {
     setState({ kind: "publishing" });
     const res = await publishHomepageFromEditModeAction({
       locale,
+      pageId,
       expectedVersion: pageVersion,
     });
     if (res.ok) {

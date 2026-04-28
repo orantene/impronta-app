@@ -51,6 +51,10 @@ interface EditShellProps {
    *  to "en" when omitted; we forward the resolved value so non-default
    *  locale storefronts edit the correct homepage row. */
   locale?: string;
+  /** Slug of the page being edited. Null / undefined → homepage. Threaded
+   *  from EditChromeMount via the URL pathname so the editor loads the
+   *  correct page's composition. */
+  pageSlug?: string | null;
   /** Tenant-published locales, threaded from EditChromeMount so the topbar
    *  locale switcher is correct on first paint instead of waiting for the
    *  composition load round-trip. EditProvider keeps a local state copy
@@ -62,6 +66,7 @@ interface EditShellProps {
 export function EditShell({
   tenantId,
   locale,
+  pageSlug,
   availableLocales,
   children,
 }: EditShellProps) {
@@ -69,6 +74,7 @@ export function EditShell({
     <EditProvider
       tenantId={tenantId}
       locale={locale}
+      pageSlug={pageSlug}
       initialAvailableLocales={availableLocales}
     >
       <EditShellInner>{children}</EditShellInner>

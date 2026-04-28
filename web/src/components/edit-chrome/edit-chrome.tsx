@@ -52,6 +52,10 @@ interface EditChromeProps {
    *  EditShell → EditProvider so the editor loads the matching homepage row.
    *  Optional: the EditPill / PreviewPill branches don't need it. */
   locale?: string;
+  /** Slug of the current page being edited, or null for the homepage.
+   *  Parsed from the URL pathname in EditChromeMount and threaded down so
+   *  the editor loads the correct page's composition. */
+  pageSlug?: string | null;
   /** Locales the active tenant publishes. Threaded down so the topbar
    *  locale switcher renders on first paint without waiting for the
    *  composition load round-trip. Empty array → no switcher. */
@@ -62,6 +66,7 @@ export function EditChrome({
   tenantId,
   editActive,
   locale,
+  pageSlug,
   availableLocales,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
@@ -85,6 +90,7 @@ export function EditChrome({
       <EditShell
         tenantId={tenantId}
         locale={locale}
+        pageSlug={pageSlug}
         availableLocales={availableLocales}
       />
     </>
