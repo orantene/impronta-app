@@ -536,23 +536,58 @@ export function SelectionLayer() {
     <div data-edit-overlay className="pointer-events-none absolute inset-0">
       {/* ── Hover ring ────────────────────────────────────────────── */}
       {showHover ? (
-        <div
-          style={{
-            position: "fixed",
-            top: hoverRect.top,
-            left: hoverRect.left,
-            width: hoverRect.width,
-            height: hoverRect.height,
-            borderRadius: 6,
-            boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}`,
-            pointerEvents: "none",
-            // Suppress position transition while scrolling so the ring
-            // tracks the element instantly instead of animating over 80ms.
-            transition: isScrollingRef.current
-              ? "none"
-              : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
-          }}
-        />
+        <>
+          <div
+            style={{
+              position: "fixed",
+              top: hoverRect.top,
+              left: hoverRect.left,
+              width: hoverRect.width,
+              height: hoverRect.height,
+              borderRadius: 6,
+              boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}`,
+              pointerEvents: "none",
+              // Suppress position transition while scrolling so the ring
+              // tracks the element instantly instead of animating over 80ms.
+              transition: isScrollingRef.current
+                ? "none"
+                : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
+            }}
+          />
+          {/* T3-4 — "Click to edit" hover hint pinned to the ring's top-
+              right. Sets up the direct-manipulation mental model the
+              audit asked for: the operator reads the affordance before
+              they click, not after. Today clicking opens the inspector;
+              when inline text editing lands the same chip can swap to
+              "Double-click to edit text" without changing the position
+              or layer. */}
+          <div
+            style={{
+              position: "fixed",
+              top: Math.max(hoverRect.top - 24, 8),
+              left: Math.min(
+                hoverRect.left + hoverRect.width - 88,
+                window.innerWidth - 100,
+              ),
+              padding: "3px 8px",
+              borderRadius: 999,
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: "rgba(255,255,255,0.92)",
+              background: "rgba(11,11,13,0.92)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+              boxShadow: "0 4px 12px -4px rgba(0,0,0,0.35)",
+              transition: isScrollingRef.current
+                ? "none"
+                : "top 80ms linear, left 80ms linear",
+            }}
+          >
+            Click to edit
+          </div>
+        </>
       ) : null}
 
       {/* ── Selection ring ────────────────────────────────────────── */}
