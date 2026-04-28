@@ -584,18 +584,76 @@ function MutationErrorToast() {
 function DeviceFrameStyle({ device }: { device: EditDevice }) {
   const width = DEVICE_WIDTHS[device];
   if (!width) return null;
+  // T1-5 — Mobile/tablet preview presentation.
+  //
+  // Audit finding: switching to Mobile produced "a narrow vertical strip
+  // with huge black side gutters and headline text wrapping into a
+  // stacked column." Two issues:
+  //
+  //  a) The page's html background bled through the gutters around the
+  //     constrained body. On a dark storefront theme (editorial-noir,
+  //     etc.) that meant black voids on either side.
+  //  b) The layout inside the constrained body still ran at the desktop
+  //     breakpoint. CSS @media queries fire on viewport width, not body
+  //     width, so a 390px body in a 1280px viewport reads as desktop
+  //     CSS squeezed into a column.
+  //
+  // (b) is the deeper problem and a true fix needs the storefront to
+  // render in an iframe whose own viewport matches the device width.
+  // That is a structural change (cross-frame selection / inserter /
+  // inline-editor wiring) and out of scope for this pass. What we do
+  // here addresses (a) and signals to the operator that this is an
+  // approximation:
+  //
+  //   1. Neutral preview backdrop on html so the gutters look like a
+  //      device frame, not a broken layout.
+  //   2. Top padding on body so the constrained viewport sits below
+  //      the editor topbar, not flush against it.
+  //   3. Hairline device-frame outline (border + shadow) so the
+  //      operator reads "phone preview," not "broken canvas."
+  //   4. A small width chip pinned to the html so the operator can
+  //      see exactly what width is being simulated — and an aria-
+  //      live hint that real-device testing is recommended.
   return (
     <style>{`
+      html {
+        background: #2a2a30 !important;
+      }
       body {
         max-width: ${width}px !important;
         margin-left: auto !important;
         margin-right: auto !important;
+        margin-top: 24px !important;
+        margin-bottom: 24px !important;
         border-radius: 18px !important;
         overflow: hidden !important;
+        background: #ffffff !important;
         box-shadow:
-          0 0 0 1px rgba(0, 0, 0, 0.08),
-          0 30px 80px -30px rgba(0, 0, 0, 0.28),
-          0 8px 24px -12px rgba(0, 0, 0, 0.12) !important;
+          0 0 0 1px rgba(255, 255, 255, 0.06),
+          0 0 0 8px rgba(255, 255, 255, 0.02),
+          0 30px 80px -30px rgba(0, 0, 0, 0.55),
+          0 8px 24px -12px rgba(0, 0, 0, 0.35) !important;
+      }
+      /* Device frame outline label — pinned to the editor top bar area
+         so it floats outside the simulated viewport. Uses a fixed
+         position so it never affects body layout. */
+      html::before {
+        content: "${width}px preview · approximate";
+        position: fixed;
+        top: 62px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+        background: rgba(0, 0, 0, 0.3);
+        padding: 4px 10px;
+        border-radius: 999px;
+        pointer-events: none;
+        z-index: 50;
       }
     `}</style>
   );
