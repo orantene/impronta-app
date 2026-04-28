@@ -66,6 +66,22 @@ const HEADLINE_PROPS: Record<string, string | null> = {
   anchor_nav: null,
 };
 
+/** Translate raw prop-name pairs into operator-readable copy. */
+function humanizeAltMessage(urlProp: string, altProp: string): string {
+  // Map the url prop to a friendly description of the image.
+  const imageLabel: Record<string, string> = {
+    backgroundImageUrl: "background image",
+    imageUrl: "image",
+    beforeUrl: "before image",
+    afterUrl: "after image",
+    heroImageUrl: "hero image",
+    src: "image",
+  };
+  const label = imageLabel[urlProp] ?? "image";
+  void altProp; // included via the image label
+  return `The ${label} has no alt text — add a short description for screen readers.`;
+}
+
 function evaluate(
   sectionTypeKey: string,
   draftProps: Record<string, unknown>,
@@ -76,15 +92,15 @@ function evaluate(
   if (headlineProp) {
     const v = draftProps[headlineProp];
     const text = typeof v === "string" ? v.trim() : "";
-    if (!text && sectionTypeKey !== "hero") {
-      issues.push({
-        severity: "warn",
-        message: `Empty ${headlineProp} — section will render without a heading.`,
-      });
-    } else if (!text && sectionTypeKey === "hero") {
+    if (!text && sectionTypeKey === "hero") {
       issues.push({
         severity: "error",
-        message: "Hero has no headline. Page may render without an H1.",
+        message: "This hero has no headline — the page will be missing its main H1 heading, which hurts SEO and accessibility.",
+      });
+    } else if (!text) {
+      issues.push({
+        severity: "warn",
+        message: "This section has no headline — it will render without a title, which can confuse screen readers.",
       });
     }
   }
@@ -96,7 +112,7 @@ function evaluate(
     if (typeof url === "string" && url.trim() && (typeof alt !== "string" || !alt.trim())) {
       issues.push({
         severity: "warn",
-        message: `${f.url} is set but ${f.alt} is empty. Add alt text or mark as decorative.`,
+        message: humanizeAltMessage(f.url, f.alt),
       });
     }
   }
@@ -114,7 +130,7 @@ function evaluate(
     if (missing > 0) {
       issues.push({
         severity: "warn",
-        message: `${missing} item${missing > 1 ? "s have" : " has"} an image without alt text.`,
+        message: `${missing} item image${missing > 1 ? "s are" : " is"} missing alt text — add descriptions so screen readers can describe them.`,
       });
     }
   }
@@ -130,7 +146,7 @@ function evaluate(
     if (missing > 0) {
       issues.push({
         severity: "warn",
-        message: `${missing} member${missing > 1 ? "s have" : " has"} a portrait without alt text.`,
+        message: `${missing} portrait${missing > 1 ? "s are" : " is"} missing alt text — add names or descriptions.`,
       });
     }
   }
@@ -150,19 +166,22 @@ export function SectionA11yWarning({
 
   return (
     <div
-      className={`mb-3 flex flex-col gap-1 rounded-md border px-3 py-2 text-[11px] ${
+      className={`mb-3 rounded-lg border px-3 py-2.5 text-[11.5px] leading-relaxed ${
         tone === "error"
-          ? "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300"
-          : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+          ? "border-rose-200 bg-rose-50 text-rose-800"
+          : "border-amber-200 bg-amber-50 text-amber-900"
       }`}
     >
-      <div className="font-semibold uppercase tracking-wide">
-        A11y · {issues.length} issue{issues.length > 1 ? "s" : ""}
+      <div className={`mb-1.5 flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wider ${tone === "error" ? "text-rose-700" : "text-amber-700"}`}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        {tone === "error" ? "Needs attention" : `${issues.length > 1 ? `${issues.length} things` : "Something"} to improve`}
       </div>
-      <ul className="flex flex-col gap-0.5">
+      <ul className="flex flex-col gap-1">
         {issues.map((iss, i) => (
           <li key={i} className="flex items-start gap-1.5">
-            <span aria-hidden>•</span>
+            <span aria-hidden className="mt-[3px] shrink-0 opacity-60">·</span>
             <span>{iss.message}</span>
           </li>
         ))}

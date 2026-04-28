@@ -463,7 +463,7 @@ export function InspectorDock() {
           <DrawerBody padding="14px 14px 32px">
             {saveError ? (
               <div
-                className="mb-3 rounded-md px-3 py-2 text-[11px]"
+                className="mb-3 rounded-lg px-3 py-2.5 text-[11.5px]"
                 style={{
                   background: CHROME.amberBg,
                   border: `1px solid ${CHROME.amberLine}`,
@@ -473,40 +473,40 @@ export function InspectorDock() {
                 {saveError}
               </div>
             ) : null}
-            <SectionA11yWarning
-              sectionTypeKey={loadedSection.sectionTypeKey}
-              draftProps={draftProps}
-            />
-            {draftProps ? (
-              <div className="mb-3 flex justify-end">
-                <AiTranslateSectionButton
-                  sectionTypeKey={loadedSection.sectionTypeKey}
-                  currentProps={draftProps}
-                  onApply={(translations) => {
-                    // Bulk-apply: each translated field overwrites the
-                    // current value on the draft. Save loop picks it up
-                    // via the autosave timer.
-                    setDraftProps((prev) => {
-                      if (!prev) return prev;
-                      const next = { ...prev };
-                      for (const [k, v] of Object.entries(translations)) {
-                        next[k] = v;
-                      }
-                      return next;
-                    });
-                    setDirty(true);
-                  }}
-                />
-              </div>
-            ) : null}
             {tab === "content" ? (
-              <ContentTab
-                sectionTypeKey={loadedSection.sectionTypeKey}
-                schemaVersion={loadedSection.schemaVersion}
-                tenantId={tenantId}
-                draftProps={draftProps ?? {}}
-                onChange={handleContentChange}
-              />
+              <>
+                <SectionA11yWarning
+                  sectionTypeKey={loadedSection.sectionTypeKey}
+                  draftProps={draftProps}
+                />
+                <ContentTab
+                  sectionTypeKey={loadedSection.sectionTypeKey}
+                  schemaVersion={loadedSection.schemaVersion}
+                  tenantId={tenantId}
+                  draftProps={draftProps ?? {}}
+                  onChange={handleContentChange}
+                />
+                {/* AI translate — secondary tool at the foot of Content */}
+                {draftProps ? (
+                  <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: CHROME.line }}>
+                    <AiTranslateSectionButton
+                      sectionTypeKey={loadedSection.sectionTypeKey}
+                      currentProps={draftProps}
+                      onApply={(translations) => {
+                        setDraftProps((prev) => {
+                          if (!prev) return prev;
+                          const next = { ...prev };
+                          for (const [k, v] of Object.entries(translations)) {
+                            next[k] = v;
+                          }
+                          return next;
+                        });
+                        setDirty(true);
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </>
             ) : null}
             {tab === "layout" ? (
               <LayoutPanel
@@ -555,19 +555,28 @@ export function InspectorDock() {
 function EmptyState() {
   return (
     <div
-      className="flex flex-1 flex-col items-center justify-center px-6 text-center"
+      className="flex flex-1 flex-col items-center justify-center gap-0 px-8 text-center"
       style={{ color: CHROME.muted }}
     >
       <div
-        className="mb-3 size-10 rounded-full border border-dashed"
-        style={{ borderColor: CHROME.lineMid }}
-      />
-      <p className="text-sm font-medium" style={{ color: CHROME.text2 }}>
-        Select a section
+        className="mb-4 flex size-12 items-center justify-center rounded-2xl border"
+        style={{
+          borderColor: CHROME.lineMid,
+          background: `linear-gradient(180deg, ${CHROME.paper}, ${CHROME.paper2})`,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+          color: CHROME.muted,
+        }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      </div>
+      <p className="text-[13px] font-semibold tracking-tight" style={{ color: CHROME.text2 }}>
+        Select a section to edit
       </p>
-      <p className="mt-1 max-w-[220px] text-xs" style={{ color: CHROME.muted }}>
-        Click any section on the page to edit its content, layout, and styling
-        here.
+      <p className="mt-1.5 max-w-[200px] text-[11.5px] leading-relaxed" style={{ color: CHROME.muted2 }}>
+        Click any section on the canvas to open its editor here.
       </p>
     </div>
   );

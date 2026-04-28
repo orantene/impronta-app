@@ -54,7 +54,6 @@ import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
 
-// cleanSectionName imported from @/lib/site-admin/clean-section-name
 
 type PublishState =
   | { kind: "idle" }
@@ -887,7 +886,7 @@ function PreviewThumb() {
           margin: "6px 14px",
           borderRadius: 4,
           background:
-            "linear-gradient(90deg,rgba(245,240,232,0.16) 60%,#c9a227 60%)",
+            "linear-gradient(90deg,rgba(245,240,232,0.12) 58%,rgba(245,240,232,0.80) 58%)",
         }}
       />
     </div>

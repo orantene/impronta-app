@@ -29,16 +29,10 @@ export function HeadingLintBadge({
   const errors = issues.filter((i) => i.severity === "error").length;
   const warns = issues.filter((i) => i.severity === "warn").length;
 
-  if (issues.length === 0) {
-    return (
-      <div
-        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300"
-        title="Heading hierarchy looks good"
-      >
-        <span aria-hidden>✓</span> Headings OK
-      </div>
-    );
-  }
+  // No issues → render nothing. A green "Headings OK" badge is visual
+  // noise for operators who don't know what heading hierarchy means. If
+  // everything is fine, silence is the right affordance.
+  if (issues.length === 0) return null;
 
   const tone = errors > 0 ? "error" : "warn";
 
@@ -53,10 +47,8 @@ export function HeadingLintBadge({
             : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
         }`}
       >
-        <span aria-hidden>{tone === "error" ? "!" : "△"}</span>{" "}
-        {errors > 0 ? `${errors} error${errors > 1 ? "s" : ""}` : ""}
-        {errors > 0 && warns > 0 ? ", " : ""}
-        {warns > 0 ? `${warns} warning${warns > 1 ? "s" : ""}` : ""}
+        <span aria-hidden>{tone === "error" ? "!" : "△"}</span>
+        {errors > 0 ? `Heading structure — ${errors} error${errors > 1 ? "s" : ""}` : `Heading order — ${warns} warning${warns > 1 ? "s" : ""}`}
         <span aria-hidden className="opacity-60">
           {open ? "▴" : "▾"}
         </span>
