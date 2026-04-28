@@ -5,6 +5,12 @@
  * explanations, support article URLs, chatbot Q&A pairs, and ticket
  * routing categories.
  *
+ * For the bigger picture — audit findings, 25-workstream execution
+ * plan, designer + engineer handoff packages — see ROADMAP.md in this
+ * directory. The page-builder management plane (which integrates with
+ * a separate front-end editor codebase and supports hybrid-user
+ * context-switching) is tracked as workstream WS-27.
+ *
  * Usage:
  *  - DrawerShell auto-renders an ⓘ button + slide-down HelpPanel when
  *    `getHelp(drawerId)` returns an entry.
@@ -2147,6 +2153,173 @@ export const DRAWER_HELP: Partial<Record<DrawerId, HelpEntry>> = {
       "Toggle features region-by-region",
     ],
     relatedDrawers: ["platform-feature-flag"],
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // Trust & identity (WS-5)
+  // ════════════════════════════════════════════════════════════════
+
+  "client-trust-detail": {
+    audience: [W_ADMIN, W_COORD],
+    category: "Money",
+    purpose:
+      "Client trust tier — Basic through Gold — based on identity verification and funded-account signals.",
+    youCanHere: [
+      "See which tier the client is on and what each tier unlocks",
+      "Understand what verification steps are still outstanding",
+      "Trigger a manual review or override for edge cases",
+    ],
+    relatedDrawers: ["kyc-verification", "proof-of-funds", "payment-detail"],
+    ticketCategory: "Trust & Safety",
+  },
+
+  "escrow-detail": {
+    audience: [W_ADMIN, W_COORD, CLIENT],
+    category: "Money",
+    purpose:
+      "Escrow hold for a booking — Authorized → Held → Released lifecycle view.",
+    youCanHere: [
+      "See the current escrow state and unlock conditions",
+      "Review the funds release schedule",
+      "Raise a dispute before release if something is wrong",
+    ],
+    relatedDrawers: ["payment-detail", "refund-flow", "dispute-flow"],
+    ticketCategory: "Billing",
+  },
+
+  "refund-flow": {
+    audience: [W_ADMIN, CLIENT],
+    category: "Money",
+    purpose:
+      "Issue a refund for a booking payment — full or partial — with a required reason.",
+    youCanHere: [
+      "Select a refund reason for finance reporting",
+      "Choose full refund or enter a partial amount",
+      "See how long the credit takes to appear",
+    ],
+    relatedDrawers: ["payment-detail", "escrow-detail", "dispute-flow"],
+    ticketCategory: "Billing",
+  },
+
+  "dispute-flow": {
+    audience: [W_ADMIN, CLIENT, TALENT],
+    category: "Money",
+    purpose:
+      "Open a formal dispute for a payment or delivery issue — structured wizard with evidence upload.",
+    youCanHere: [
+      "Pick the dispute type (non-delivery, quality, unauthorised charge, other)",
+      "Attach evidence (messages, photos, documents)",
+      "Review your submission before final confirm",
+    ],
+    relatedDrawers: ["refund-flow", "escrow-detail", "payment-detail"],
+    ticketCategory: "Trust & Safety",
+  },
+
+  "kyc-verification": {
+    audience: [W_ADMIN, CLIENT, TALENT],
+    category: "Money",
+    purpose:
+      "Identity verification — photo ID + selfie — required to unlock higher trust tiers and payment limits.",
+    youCanHere: [
+      "Start the verification flow",
+      "See which step is pending (ID, selfie, review)",
+      "Check verification status after submission",
+    ],
+    relatedDrawers: ["client-trust-detail", "proof-of-funds"],
+    ticketCategory: "Trust & Safety",
+  },
+
+  "proof-of-funds": {
+    audience: [W_ADMIN, CLIENT],
+    category: "Money",
+    purpose:
+      "Verify a funded account — bank link or wire — to reach Silver or Gold trust tier.",
+    youCanHere: [
+      "Link a bank account via Plaid for instant verification",
+      "Alternatively upload a bank statement for manual review",
+      "See verification status and expected timeline",
+    ],
+    relatedDrawers: ["client-trust-detail", "kyc-verification"],
+    ticketCategory: "Billing",
+  },
+
+  "payout-method-failure": {
+    audience: [W_ADMIN, TALENT],
+    category: "Money",
+    purpose:
+      "Your payout method failed — see the reason and follow guided recovery steps.",
+    youCanHere: [
+      "Read the specific failure reason code",
+      "Update or replace the payout method",
+      "Retry the failed payout once the method is fixed",
+    ],
+    relatedDrawers: ["payment-detail", "payout-receiver-picker"],
+    ticketCategory: "Billing",
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // Subscriptions (WS-5)
+  // ════════════════════════════════════════════════════════════════
+
+  "subscription-lifecycle": {
+    audience: [W_ADMIN, TALENT],
+    category: "Money",
+    purpose:
+      "Full subscription lifecycle — trial, active, paused, grace period, and cancelled states.",
+    youCanHere: [
+      "See the current phase and what changes next",
+      "Pause or cancel an active subscription",
+      "Reactivate from grace-period or cancelled state",
+    ],
+    relatedDrawers: ["plan-billing", "payment-detail"],
+    ticketCategory: "Billing",
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // Notifications (WS-11)
+  // ════════════════════════════════════════════════════════════════
+
+  "notification-detail": {
+    audience: [W_ADMIN, W_COORD, TALENT, CLIENT],
+    category: "Notifications",
+    purpose:
+      "Full detail of a single notification — what happened, who triggered it, and what action is needed.",
+    youCanHere: [
+      "Read the full notification body",
+      "Jump to the related booking, inquiry, or thread",
+      "Mark as read or dismiss",
+    ],
+    relatedDrawers: ["inquiry-peek", "booking-peek"],
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  // AI assist (WS-18)
+  // ════════════════════════════════════════════════════════════════
+
+  "ai-draft-assist": {
+    audience: [W_ADMIN, W_COORD],
+    category: "AI",
+    purpose:
+      "AI-generated message drafts — describe what you want to say and get a polished draft.",
+    youCanHere: [
+      "Enter a prompt and generate a draft",
+      "Edit the draft inline before using it",
+      "Insert directly into the active message composer",
+    ],
+    relatedDrawers: ["inquiry-workspace"],
+  },
+
+  "ai-search-explain": {
+    audience: [W_ADMIN, W_COORD, CLIENT],
+    category: "AI",
+    purpose:
+      "See how the AI interpreted your search query and which filters were applied.",
+    youCanHere: [
+      "Review extracted keywords and inferred criteria",
+      "See total result count from this interpretation",
+      "Understand why certain results appeared (or didn't)",
+    ],
+    relatedDrawers: [],
   },
 };
 

@@ -24,10 +24,11 @@
  * the main _state.tsx until any of these graduate to "real."
  */
 
-import { useMemo, useState, type ReactNode } from "react";
+import React, { useMemo, useState, type ReactNode } from "react";
 import {
   COLORS,
   FONTS,
+  RADIUS,
   RICH_INQUIRIES,
   TENANT,
   useProto,
@@ -217,6 +218,7 @@ export function InboxSnippetsDrawer() {
 
 // ════════════════════════════════════════════════════════════════════
 // #10 — NotificationsPrefsDrawer
+// WS-11.1 (Push + SMS channels), WS-11.4 (DND + day schedule), WS-11.5 (lock-screen privacy)
 // ════════════════════════════════════════════════════════════════════
 
 type NotifEvent =
@@ -225,47 +227,113 @@ type NotifEvent =
   | "offer-received"
   | "cap-warning"
   | "client-replied"
-  | "team-mentioned";
+  | "team-mentioned"
+  | "payment-received"
+  | "inquiry-expiring";
 
-const NOTIF_EVENTS: { id: NotifEvent; label: string; description: string }[] = [
-  { id: "booking-confirmed", label: "Booking confirmed", description: "When all parties accept and a booking goes live." },
-  { id: "message-received", label: "Message received", description: "Any new message in any thread you're on." },
-  { id: "offer-received", label: "Offer received", description: "When the client side sends an offer or counter." },
-  { id: "cap-warning", label: "Cap warning", description: "When usage crosses 80% of a plan limit." },
-  { id: "client-replied", label: "Client replied", description: "When the client side responds in an active inquiry." },
-  { id: "team-mentioned", label: "Team mention", description: "When a teammate @mentions you anywhere." },
+const NOTIF_EVENTS: {
+  id: NotifEvent;
+  label: string;
+  description: string;
+  urgency: "high" | "medium" | "low";
+}[] = [
+  { id: "booking-confirmed", label: "Booking confirmed",  description: "All parties accepted — booking is live.",              urgency: "high"   },
+  { id: "message-received",  label: "Message received",   description: "New message in any thread you're on.",                 urgency: "medium" },
+  { id: "offer-received",    label: "Offer / counter",    description: "Client sends an offer or counter-offer.",              urgency: "high"   },
+  { id: "payment-received",  label: "Payment received",   description: "Payout processed or client payment cleared.",          urgency: "high"   },
+  { id: "inquiry-expiring",  label: "Inquiry expiring",   description: "An inquiry is 24h from its deadline.",                 urgency: "high"   },
+  { id: "cap-warning",       label: "Cap warning",        description: "Usage crosses 80% of a plan limit.",                   urgency: "medium" },
+  { id: "client-replied",    label: "Client replied",     description: "Client responds in an active inquiry thread.",         urgency: "medium" },
+  { id: "team-mentioned",    label: "Team mention",       description: "@mention from a teammate anywhere.",                   urgency: "medium" },
 ];
 
-type NotifChannel = "email" | "inApp" | "digest";
+// WS-11.1 — 5 channels: in-app, email, push, SMS, digest
+type NotifChannel = "inApp" | "email" | "push" | "sms" | "digest";
+
+const CHANNEL_LABELS: Record<NotifChannel, string> = {
+  inApp:  "In-app",
+  email:  "Email",
+  push:   "Push",
+  sms:    "SMS",
+  digest: "Digest",
+};
+
+function makeDefaultPrefs(): Record<NotifEvent, Record<NotifChannel, boolean>> {
+  const out: Partial<Record<NotifEvent, Record<NotifChannel, boolean>>> = {};
+  for (const ev of NOTIF_EVENTS) {
+    const isHigh = ev.urgency === "high";
+    out[ev.id] = {
+      inApp:  true,
+      email:  isHigh,
+      push:   isHigh,
+      sms:    ev.id === "booking-confirmed" || ev.id === "payment-received",
+      digest: ev.urgency !== "high",
+    };
+  }
+  return out as Record<NotifEvent, Record<NotifChannel, boolean>>;
+}
+
+type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+const DAYS: { key: DayKey; short: string }[] = [
+  { key: "mon", short: "M" }, { key: "tue", short: "T" }, { key: "wed", short: "W" },
+  { key: "thu", short: "T" }, { key: "fri", short: "F" }, { key: "sat", short: "S" }, { key: "sun", short: "S" },
+];
+
+type LockScreenPrivacy = "full" | "name-only" | "none";
 
 export function NotificationsPrefsDrawer() {
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "notifications-prefs";
-  // Initial prefs — every event on for in-app, booking-confirmed on for email.
-  const [prefs, setPrefs] = useState<Record<NotifEvent, Record<NotifChannel, boolean>>>(() => {
-    const out: Partial<Record<NotifEvent, Record<NotifChannel, boolean>>> = {};
-    for (const ev of NOTIF_EVENTS) {
-      out[ev.id] = {
-        email: ev.id === "booking-confirmed",
-        inApp: true,
-        digest: ev.id === "message-received" || ev.id === "client-replied",
-      };
-    }
-    return out as Record<NotifEvent, Record<NotifChannel, boolean>>;
+
+  const [prefs, setPrefs] = useState<Record<NotifEvent, Record<NotifChannel, boolean>>>(makeDefaultPrefs);
+
+  // WS-11.4 — DND / quiet hours
+  const [dndNow, setDndNow]           = useState(false);
+  const [quietEnabled, setQuietEnabled] = useState(true);
+  const [quietStart, setQuietStart]   = useState("22:00");
+  const [quietEnd, setQuietEnd]       = useState("07:00");
+  const [quietDays, setQuietDays] = useState<Record<DayKey, boolean>>({
+    mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: true,
   });
-  const [quietStart, setQuietStart] = useState("22:00");
-  const [quietEnd, setQuietEnd] = useState("07:00");
+
+  // WS-11.5 — Lock-screen privacy
+  const [lockScreen, setLockScreen] = useState<LockScreenPrivacy>("name-only");
 
   const toggle = (ev: NotifEvent, ch: NotifChannel) => {
     setPrefs((p) => ({ ...p, [ev]: { ...p[ev], [ch]: !p[ev][ch] } }));
   };
+  const toggleDay = (d: DayKey) => setQuietDays((p) => ({ ...p, [d]: !p[d] }));
+
+  const CHANNELS: NotifChannel[] = ["inApp", "email", "push", "sms", "digest"];
+  const COL_W = 58;
+  const GRID = `1fr ${CHANNELS.map(() => `${COL_W}px`).join(" ")}`;
+
+  // Group events by urgency for visual hierarchy
+  const highEvents   = NOTIF_EVENTS.filter((e) => e.urgency === "high");
+  const mediumEvents = NOTIF_EVENTS.filter((e) => e.urgency !== "high");
+
+  const UrgencyHeader = ({ label }: { label: string }) => (
+    <div style={{
+      padding: "6px 14px",
+      background: "rgba(11,11,13,0.02)",
+      borderBottom: `1px solid ${COLORS.borderSoft}`,
+      borderTop: `1px solid ${COLORS.borderSoft}`,
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: 0.6,
+      textTransform: "uppercase",
+      color: COLORS.inkMuted,
+    }}>
+      {label}
+    </div>
+  );
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Notifications"
-      description="Choose what reaches you, and how. Email goes immediately; digest batches into a daily 9am summary."
+      description="Control what reaches you, on which channel, and when. Email is immediate; digest batches into a daily 9am summary."
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
@@ -281,6 +349,33 @@ export function NotificationsPrefsDrawer() {
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+        {/* ── WS-11.4 — Do Not Disturb (immediate, top of page) ── */}
+        <section
+          style={{
+            background: dndNow ? "rgba(217,119,6,0.05)" : "#fff",
+            border: `1px solid ${dndNow ? "rgba(217,119,6,0.3)" : COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            transition: "background .2s, border-color .2s",
+          }}
+        >
+          <span style={{ fontSize: 22 }}>🌙</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: dndNow ? "#92400E" : COLORS.ink }}>
+              Do not disturb
+            </div>
+            <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              {dndNow ? "All channels silenced. Digest + booking-confirmed still deliver." : "Silence all channels until you turn this off."}
+            </div>
+          </div>
+          <Toggle on={dndNow} onChange={() => setDndNow((v) => !v)} />
+        </section>
+
+        {/* ── WS-11.1 — Per-channel / per-event grid ── */}
         <section
           style={{
             background: "#fff",
@@ -289,57 +384,141 @@ export function NotificationsPrefsDrawer() {
             overflow: "hidden",
           }}
         >
+          {/* Column headers */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 70px 70px 70px",
-              padding: "10px 14px",
+              gridTemplateColumns: GRID,
+              padding: "9px 14px",
               borderBottom: `1px solid ${COLORS.borderSoft}`,
-              background: "rgba(11,11,13,0.02)",
-              fontSize: 11,
-              fontWeight: 600,
+              background: "rgba(11,11,13,0.025)",
+              fontFamily: FONTS.body,
+              fontSize: 10.5,
+              fontWeight: 700,
               letterSpacing: 0.5,
               textTransform: "uppercase",
               color: COLORS.inkMuted,
+              alignItems: "center",
             }}
           >
             <span>Event</span>
-            <span style={{ textAlign: "center" }}>Email</span>
-            <span style={{ textAlign: "center" }}>In-app</span>
-            <span style={{ textAlign: "center" }}>Digest</span>
+            {CHANNELS.map((ch) => (
+              <span key={ch} style={{ textAlign: "center" }}>{CHANNEL_LABELS[ch]}</span>
+            ))}
           </div>
-          {NOTIF_EVENTS.map((ev) => (
-            <div
+
+          <UrgencyHeader label="Action required" />
+          {highEvents.map((ev, i) => (
+            <NotifPrefsRow
               key={ev.id}
-              data-tulala-row
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 70px 70px 70px",
-                alignItems: "center",
-                padding: "12px 14px",
-                borderTop: `1px solid ${COLORS.borderSoft}`,
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
-                  {ev.label}
-                </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {ev.description}
-                </div>
-              </div>
-              {(["email", "inApp", "digest"] as NotifChannel[]).map((ch) => (
-                <div key={ch} style={{ display: "flex", justifyContent: "center" }}>
-                  <Toggle
-                    on={prefs[ev.id][ch]}
-                    onChange={() => toggle(ev.id, ch)}
-                  />
-                </div>
-              ))}
-            </div>
+              ev={ev}
+              prefs={prefs[ev.id]}
+              channels={CHANNELS}
+              grid={GRID}
+              onToggle={(ch) => toggle(ev.id, ch)}
+              last={i === highEvents.length - 1}
+            />
+          ))}
+
+          <UrgencyHeader label="Updates" />
+          {mediumEvents.map((ev, i) => (
+            <NotifPrefsRow
+              key={ev.id}
+              ev={ev}
+              prefs={prefs[ev.id]}
+              channels={CHANNELS}
+              grid={GRID}
+              onToggle={(ch) => toggle(ev.id, ch)}
+              last={i === mediumEvents.length - 1}
+            />
           ))}
         </section>
 
+        {/* ── WS-11.4 — Quiet hours schedule ── */}
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: 14,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                Quiet hours
+              </div>
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                Email + push + SMS suppressed. Digest still delivers.
+              </div>
+            </div>
+            <Toggle on={quietEnabled} onChange={() => setQuietEnabled((v) => !v)} />
+          </div>
+
+          {quietEnabled && (
+            <>
+              {/* Time range */}
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <input
+                  type="time"
+                  value={quietStart}
+                  onChange={(e) => setQuietStart(e.target.value)}
+                  style={timeInputStyle}
+                />
+                <span style={{ fontFamily: FONTS.body, color: COLORS.inkMuted, fontSize: 12 }}>to</span>
+                <input
+                  type="time"
+                  value={quietEnd}
+                  onChange={(e) => setQuietEnd(e.target.value)}
+                  style={timeInputStyle}
+                />
+                <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkDim, marginLeft: 2 }}>
+                  Europe/Lisbon
+                </span>
+              </div>
+
+              {/* Day-of-week selector */}
+              <div>
+                <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginBottom: 7 }}>
+                  Apply on
+                </div>
+                <div style={{ display: "flex", gap: 5 }}>
+                  {DAYS.map((d) => (
+                    <button
+                      key={d.key}
+                      type="button"
+                      onClick={() => toggleDay(d.key)}
+                      aria-pressed={quietDays[d.key]}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: "50%",
+                        border: `1.5px solid ${quietDays[d.key] ? COLORS.accent : COLORS.border}`,
+                        background: quietDays[d.key] ? `rgba(31,92,66,0.1)` : "transparent",
+                        color: quietDays[d.key] ? COLORS.accent : COLORS.inkMuted,
+                        fontFamily: FONTS.body,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all .1s",
+                      }}
+                    >
+                      {d.short}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* ── WS-11.5 — Lock-screen privacy ── */}
         <section
           style={{
             background: "#fff",
@@ -351,38 +530,109 @@ export function NotificationsPrefsDrawer() {
             gap: 10,
           }}
         >
-          <div
-            style={{
-              fontFamily: FONTS.body,
-              fontSize: 12,
-              fontWeight: 600,
-              color: COLORS.ink,
-              letterSpacing: 0.05,
-            }}
-          >
-            Quiet hours
+          <div style={{ fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+            Lock-screen preview
           </div>
-          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
-            Email + in-app suppressed during this window. Digest still runs.
+          <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+            Controls what appears on your phone lock screen for Tulala push notifications.
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <input
-              type="time"
-              value={quietStart}
-              onChange={(e) => setQuietStart(e.target.value)}
-              style={timeInputStyle}
-            />
-            <span style={{ color: COLORS.inkMuted, fontSize: 12 }}>to</span>
-            <input
-              type="time"
-              value={quietEnd}
-              onChange={(e) => setQuietEnd(e.target.value)}
-              style={timeInputStyle}
-            />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {(
+              [
+                { key: "full"      as LockScreenPrivacy, label: "Full preview",  hint: "Show sender name + message preview" },
+                { key: "name-only" as LockScreenPrivacy, label: "Name only",     hint: "Show sender name, hide message content" },
+                { key: "none"      as LockScreenPrivacy, label: "No preview",    hint: "Only show \"New Tulala notification\"" },
+              ] as { key: LockScreenPrivacy; label: string; hint: string }[]
+            ).map((opt) => (
+              <button
+                key={opt.key}
+                type="button"
+                onClick={() => setLockScreen(opt.key)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "9px 12px",
+                  borderRadius: 9,
+                  border: `1.5px solid ${lockScreen === opt.key ? COLORS.accent : COLORS.border}`,
+                  background: lockScreen === opt.key ? "rgba(31,92,66,0.05)" : "transparent",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                {/* Radio dot */}
+                <span
+                  style={{
+                    width: 16, height: 16, borderRadius: "50%",
+                    border: `2px solid ${lockScreen === opt.key ? COLORS.accent : COLORS.border}`,
+                    background: lockScreen === opt.key ? COLORS.accent : "transparent",
+                    flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  {lockScreen === opt.key && (
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff" }} />
+                  )}
+                </span>
+                <div>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+                    {opt.label}
+                  </div>
+                  <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+                    {opt.hint}
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </section>
+
       </div>
     </DrawerShell>
+  );
+}
+
+// Row component used inside the per-event prefs grid (WS-11.1)
+function NotifPrefsRow({
+  ev,
+  prefs,
+  channels,
+  grid,
+  onToggle,
+  last,
+}: {
+  ev: typeof NOTIF_EVENTS[number];
+  prefs: Record<NotifChannel, boolean>;
+  channels: NotifChannel[];
+  grid: string;
+  onToggle: (ch: NotifChannel) => void;
+  last: boolean;
+}) {
+  return (
+    <div
+      data-tulala-notif-row={ev.id}
+      style={{
+        display: "grid",
+        gridTemplateColumns: grid,
+        alignItems: "center",
+        padding: "11px 14px",
+        borderBottom: last ? "none" : `1px solid ${COLORS.borderSoft}`,
+      }}
+    >
+      <div>
+        <div style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>
+          {ev.label}
+        </div>
+        <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+          {ev.description}
+        </div>
+      </div>
+      {channels.map((ch) => (
+        <div key={ch} style={{ display: "flex", justifyContent: "center" }}>
+          <Toggle on={prefs[ch]} onChange={() => onToggle(ch)} />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -3186,6 +3436,446 @@ const helpRowStyle: React.CSSProperties = {
   cursor: "pointer",
   textAlign: "left",
 };
+
+// ════════════════════════════════════════════════════════════════════
+// WS-9.1  Workspace activation v2 — progress + smart prompts
+// ════════════════════════════════════════════════════════════════════
+
+type ActivationStep = {
+  id:       string;
+  label:    string;
+  desc:     string;
+  done:     boolean;
+  cta:      string;
+  onCta?:   () => void;
+};
+
+export function WorkspaceActivationBanner() {
+  const { openDrawer, toast } = useProto();
+  const [dismissed, setDismissed] = useState(false);
+  const [reminded, setReminded] = useState(false);
+
+  const steps: ActivationStep[] = [
+    { id: "profile",    label: "Complete workspace profile",       desc: "Add logo, bio, and social links.",             done: true,  cta: "Edit profile",    onCta: () => openDrawer("workspace-settings") },
+    { id: "talent",     label: "Add your first talent",            desc: "Import or invite talent to your roster.",      done: true,  cta: "Add talent",      onCta: () => toast("Opening add-talent flow") },
+    { id: "inquiry",    label: "Send your first inquiry",          desc: "Try the booking flow end-to-end.",             done: false, cta: "New inquiry",     onCta: () => openDrawer("new-inquiry") },
+    { id: "payout",     label: "Connect a payout method",          desc: "Required to receive platform payouts.",        done: false, cta: "Set up payouts",  onCta: () => openDrawer("talent-payouts") },
+    { id: "domain",     label: "Set your workspace domain",        desc: "Go live on your branded URL.",                 done: false, cta: "Configure",       onCta: () => toast("Opening domain settings") },
+  ];
+
+  const doneCount = steps.filter((s) => s.done).length;
+  const pct = Math.round((doneCount / steps.length) * 100);
+  const allDone = doneCount === steps.length;
+
+  if (dismissed || allDone) return null;
+
+  return (
+    <div
+      style={{
+        background: COLORS.surfaceAlt, borderRadius: RADIUS.xl,
+        border: `1px solid ${COLORS.border}`, padding: "16px 18px",
+        fontFamily: FONTS.body, marginBottom: 20,
+      }}
+    >
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginBottom: 2 }}>
+            Get your workspace ready
+          </div>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+            {doneCount} of {steps.length} steps complete
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setDismissed(true);
+            setReminded(true);
+            toast("We'll remind you in 24 hours");
+          }}
+          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}
+        >
+          Remind me later
+        </button>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ height: 6, background: COLORS.border, borderRadius: 999, overflow: "hidden", marginBottom: 14 }}>
+        <div style={{
+          height: "100%", width: `${pct}%`,
+          background: COLORS.accent, borderRadius: 999,
+          transition: "width .5s ease",
+        }} />
+      </div>
+
+      {/* Step list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {steps.map((step) => (
+          <div
+            key={step.id}
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "8px 10px", borderRadius: RADIUS.md,
+              background: step.done ? "transparent" : "#fff",
+              border: `1px solid ${step.done ? "transparent" : COLORS.borderSoft}`,
+              opacity: step.done ? 0.55 : 1,
+            }}
+          >
+            {/* Check */}
+            <div style={{
+              width: 18, height: 18, borderRadius: "50%",
+              background: step.done ? COLORS.accent : COLORS.border,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              {step.done && <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12.5, fontWeight: step.done ? 400 : 600, color: COLORS.ink, textDecoration: step.done ? "line-through" : "none" }}>
+                {step.label}
+              </div>
+              {!step.done && (
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{step.desc}</div>
+              )}
+            </div>
+            {!step.done && step.onCta && (
+              <button
+                type="button"
+                onClick={step.onCta}
+                style={{
+                  padding: "4px 10px", borderRadius: 999,
+                  background: COLORS.accent, color: "#fff",
+                  border: "none", cursor: "pointer",
+                  fontFamily: FONTS.body, fontSize: 11, fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                {step.cta}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-9.2  Talent first-run — guided 3-step (claim profile, polaroids, availability)
+// ════════════════════════════════════════════════════════════════════
+
+const TALENT_FIRST_RUN_STEPS = [
+  {
+    step:  1,
+    emoji: "👤",
+    title: "Claim your profile",
+    body:  "Add a photo, bio, height, and measurements so coordinators can find and evaluate you.",
+    cta:   "talent-profile-edit" as const,
+    ctaLabel: "Fill in my profile",
+  },
+  {
+    step:  2,
+    emoji: "📸",
+    title: "Upload polaroids",
+    body:  "Your polaroids are the first thing an agency checks. Upload at least 4 fresh, natural shots.",
+    cta:   "talent-polaroids" as const,
+    ctaLabel: "Upload polaroids",
+  },
+  {
+    step:  3,
+    emoji: "📅",
+    title: "Mark your availability",
+    body:  "Let coordinators know when you're free. Block dates you can't work.",
+    cta:   "talent-availability" as const,
+    ctaLabel: "Set availability",
+  },
+];
+
+export function TalentFirstRunBanner() {
+  const { openDrawer } = useProto();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [dismissed, setDismissed] = useState(false);
+
+  const step = TALENT_FIRST_RUN_STEPS.find((s) => s.step === currentStep) ?? TALENT_FIRST_RUN_STEPS[0]!;
+  const isLast = currentStep === TALENT_FIRST_RUN_STEPS.length;
+
+  if (dismissed) return null;
+
+  return (
+    <div
+      style={{
+        background: "linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)",
+        borderRadius: RADIUS.xl, padding: "20px 20px 16px",
+        fontFamily: FONTS.body, marginBottom: 20, color: "#fff",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+      }}
+    >
+      {/* Progress dots */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+        {TALENT_FIRST_RUN_STEPS.map((s) => (
+          <div key={s.step} style={{
+            width: s.step <= currentStep ? 20 : 6,
+            height: 6, borderRadius: 999,
+            background: s.step <= currentStep ? COLORS.accent : "rgba(255,255,255,0.2)",
+            transition: "all .25s ease",
+          }} />
+        ))}
+      </div>
+
+      <div style={{ fontSize: 28, marginBottom: 8 }}>{step.emoji}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+        Step {step.step}: {step.title}
+      </div>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 16, lineHeight: 1.55 }}>
+        {step.body}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={() => openDrawer(step.cta)}
+          style={{
+            padding: "8px 16px", borderRadius: 999,
+            background: COLORS.accent, color: "#fff",
+            border: "none", cursor: "pointer",
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
+          }}
+        >
+          {step.ctaLabel}
+        </button>
+
+        {!isLast ? (
+          <button
+            type="button"
+            onClick={() => setCurrentStep((n) => n + 1)}
+            style={{
+              padding: "8px 14px", borderRadius: 999,
+              background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.75)",
+              border: "none", cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 13,
+            }}
+          >
+            Skip this step
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            style={{
+              padding: "8px 14px", borderRadius: 999,
+              background: "transparent", color: "rgba(255,255,255,0.5)",
+              border: "none", cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 12,
+            }}
+          >
+            Dismiss
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-9.3  Client first-run — verify, save first search, send first inquiry
+// ════════════════════════════════════════════════════════════════════
+
+const CLIENT_FIRST_RUN_STEPS = [
+  {
+    step:     1,
+    emoji:    "🔒",
+    title:    "Verify your brand",
+    body:     "Complete email + company verification to unlock inquiry sending and shortlist sharing.",
+    ctaLabel: "Verify now",
+    onCta:    "verify",
+  },
+  {
+    step:     2,
+    emoji:    "🔍",
+    title:    "Save your first search",
+    body:     "Browse talent, apply filters, and save the search to get notified when matches appear.",
+    ctaLabel: "Go to Discover",
+    onCta:    "discover",
+  },
+  {
+    step:     3,
+    emoji:    "✉️",
+    title:    "Send your first inquiry",
+    body:     "Pick a talent from your shortlist and send a brief. Coordinators typically reply within 4 hours.",
+    ctaLabel: "New inquiry",
+    onCta:    "inquiry",
+  },
+];
+
+export function ClientFirstRunBanner() {
+  const { openDrawer, toast, setClientPage } = useProto();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [dismissed, setDismissed] = useState(false);
+
+  const step = CLIENT_FIRST_RUN_STEPS.find((s) => s.step === currentStep) ?? CLIENT_FIRST_RUN_STEPS[0]!;
+  const isLast = currentStep === CLIENT_FIRST_RUN_STEPS.length;
+
+  function handleCta() {
+    if (step.onCta === "verify")   { toast("Opening verification flow"); }
+    if (step.onCta === "discover") { setClientPage("discover"); }
+    if (step.onCta === "inquiry")  { openDrawer("client-send-inquiry"); }
+    setCurrentStep((n) => Math.min(n + 1, CLIENT_FIRST_RUN_STEPS.length));
+  }
+
+  if (dismissed) return null;
+
+  return (
+    <div
+      style={{
+        background: COLORS.surfaceAlt, borderRadius: RADIUS.xl,
+        border: `1px solid ${COLORS.border}`, padding: "18px 18px 14px",
+        fontFamily: FONTS.body, marginBottom: 20,
+      }}
+    >
+      {/* Step pills */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {CLIENT_FIRST_RUN_STEPS.map((s) => (
+          <div
+            key={s.step}
+            style={{
+              height: 5, borderRadius: 999,
+              flex: s.step === currentStep ? 3 : 1,
+              background: s.step < currentStep ? COLORS.accent : s.step === currentStep ? COLORS.accent + "88" : COLORS.border,
+              transition: "all .25s",
+            }}
+          />
+        ))}
+      </div>
+
+      <div style={{ fontSize: 24, marginBottom: 6 }}>{step.emoji}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginBottom: 3 }}>
+        Step {step.step}: {step.title}
+      </div>
+      <div style={{ fontSize: 13, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.55 }}>
+        {step.body}
+      </div>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          onClick={handleCta}
+          style={{
+            padding: "8px 16px", borderRadius: 999,
+            background: COLORS.accent, color: "#fff",
+            border: "none", cursor: "pointer",
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 700,
+          }}
+        >
+          {step.ctaLabel}
+        </button>
+        {!isLast ? (
+          <button
+            type="button"
+            onClick={() => setCurrentStep((n) => n + 1)}
+            style={{
+              padding: "8px 14px", borderRadius: 999,
+              background: "transparent", color: COLORS.inkMuted,
+              border: `1px solid ${COLORS.border}`, cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 12,
+            }}
+          >
+            Skip
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            style={{
+              padding: "8px 14px", borderRadius: 999,
+              background: "transparent", color: COLORS.inkMuted,
+              border: "none", cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 12,
+            }}
+          >
+            Done
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-9.4  Demo-data seeding — "Show me with sample data" evaluator toggle
+// ════════════════════════════════════════════════════════════════════
+
+const DEMO_DATA_KEY = "tulala-demo-mode";
+
+export function DemoDataBanner() {
+  const { toast } = useProto();
+  const [enabled, setEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(DEMO_DATA_KEY) === "true";
+  });
+  const [dismissed, setDismissed] = useState(false);
+
+  function toggle() {
+    const next = !enabled;
+    setEnabled(next);
+    if (typeof window !== "undefined") {
+      if (next) localStorage.setItem(DEMO_DATA_KEY, "true");
+      else      localStorage.removeItem(DEMO_DATA_KEY);
+    }
+    toast(next ? "Demo data loaded — refresh to apply" : "Demo data cleared — refresh to reset");
+  }
+
+  if (dismissed) return null;
+
+  return (
+    <div
+      style={{
+        display:        "flex",
+        alignItems:     "center",
+        gap:            12,
+        padding:        "10px 14px",
+        background:     enabled ? COLORS.accent + "0D" : COLORS.surfaceAlt,
+        border:         `1px solid ${enabled ? COLORS.accent + "44" : COLORS.border}`,
+        borderRadius:   RADIUS.lg,
+        fontFamily:     FONTS.body,
+        marginBottom:   16,
+      }}
+    >
+      <span style={{ fontSize: 18 }}>🧪</span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+          {enabled ? "Demo data is active" : "Evaluating Tulala?"}
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+          {enabled ? "All data shown is fictional." : "Load sample inquiries, bookings, and talent to explore the full platform."}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={toggle}
+        style={{
+          padding: "6px 14px", borderRadius: 999,
+          background: enabled ? "#DC2626" + "11" : COLORS.accent,
+          color: enabled ? "#DC2626" : "#fff",
+          border: enabled ? `1px solid #DC262644` : "none",
+          cursor: "pointer",
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 700,
+          flexShrink: 0,
+        }}
+      >
+        {enabled ? "Clear demo data" : "Load demo data"}
+      </button>
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        aria-label="Dismiss"
+        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: COLORS.inkMuted, padding: 0, lineHeight: 1 }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
 
 // ════════════════════════════════════════════════════════════════════
 // Empty wrapper to keep file shape stable for future additions

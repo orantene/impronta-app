@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { ToastTone } from "./_primitives";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
@@ -26,13 +27,22 @@ export type Role = "viewer" | "editor" | "coordinator" | "admin" | "owner";
  *    inquiries route to talent (or talent's agency) directly. Listing-fee model.
  */
 export type EntityType = "agency" | "hub";
+// WS-3.1 — Consolidated from 9 → 6 pages.
+// Legacy names (inbox, work, site, billing, workspace) kept in the union
+// for URL backward-compat; they are NOT shown in the sidebar nav.
+// WS-3.6 — URL aliases: inbox→messages, work→messages, talent→roster,
+//           site→settings, billing→settings, workspace→settings.
 export type WorkspacePage =
   | "overview"
-  | "inbox"
+  | "messages"   // replaces inbox + absorbs work as a "By stage" view filter
   | "calendar"
+  | "roster"     // replaces talent
+  | "clients"
+  | "settings"   // replaces workspace; billing + site folded in via anchor nav
+  // ── legacy aliases (hidden from nav, kept for URL compat) ──
+  | "inbox"
   | "work"
   | "talent"
-  | "clients"
   | "site"
   | "billing"
   | "workspace";
@@ -45,8 +55,10 @@ export type TalentPage =
   | "profile"
   | "inbox"         // Legacy list view — kept for URL compat, not in nav
   | "calendar"
-  | "activity"
-  | "reach"
+  | "activity"      // Legacy — kept for URL compat; nav routes to settings tab
+  | "reach"         // Legacy — kept for URL compat; nav routes to agencies
+  | "agencies"      // WS-8.2: split from reach
+  | "public-page"   // WS-8.2: split from reach (personal page editor)
   | "settings";
 
 // Client surface — its own plan ladder. Free is browse-only, Pro adds active
@@ -81,27 +93,39 @@ export const ROLES: Role[] = ["viewer", "editor", "coordinator", "admin", "owner
 export const ENTITY_TYPES: EntityType[] = ["agency", "hub"];
 export const CLIENT_PLANS: ClientPlan[] = ["free", "pro", "enterprise"];
 export const HQ_ROLES: HqRole[] = ["support", "ops", "billing", "exec"];
+// WS-3.1 — The 6 canonical nav pages. Legacy aliases excluded.
 export const WORKSPACE_PAGES: WorkspacePage[] = [
   "overview",
-  "inbox",
+  "messages",
   "calendar",
-  "work",
-  "talent",
+  "roster",
   "clients",
-  "site",
-  "billing",
-  "workspace",
+  "settings",
 ];
+
+// WS-3.6 — resolve a legacy URL alias to its canonical page.
+export function resolveWorkspacePage(raw: string): WorkspacePage {
+  const aliases: Record<string, WorkspacePage> = {
+    inbox:     "messages",
+    work:      "messages",
+    talent:    "roster",
+    site:      "settings",
+    billing:   "settings",
+    workspace: "settings",
+  };
+  return (aliases[raw] as WorkspacePage | undefined) ?? (raw as WorkspacePage) ?? "overview";
+}
 // Messages replaces Inbox as the canonical chat-first surface. Inbox
 // stays in the type union for URL backward-compat but is hidden from
 // the topbar nav.
+// WS-8.1: activity removed from primary nav; WS-8.2: reach split into agencies + public-page
 export const TALENT_PAGES: TalentPage[] = [
   "today",
   "messages",
   "profile",
   "calendar",
-  "activity",
-  "reach",
+  "agencies",
+  "public-page",
   "settings",
 ];
 // Messages replaces Inquiries as the canonical chat-first surface for
@@ -291,34 +315,36 @@ export const SURFACE_META: Record<
   platform: { label: "Platform · Super Admin", short: "Platform", ready: true },
 };
 
-export const PAGE_META: Record<WorkspacePage, { label: string }> = {
-  overview: { label: "Overview" },
-  inbox: { label: "Inbox" },
-  calendar: { label: "Calendar" },
-  // "Pipeline" was confusing to non-sales users (sales jargon for
-  // "work-in-progress organized by stage"). "Workflow" reads naturally:
-  // it's the set of inquiries currently flowing through the agency,
-  // grouped by where they're stuck. Inbox is the personal "needs me"
-  // filter; Workflow is the team-wide view.
-  work: { label: "Workflow" },
-  talent: { label: "Talent" },
-  clients: { label: "Clients" },
-  // "Storefront" is industry jargon — the public site that clients land
-  // on. "Public site" is plain English and matches what the user sees.
-  site: { label: "Public site" },
-  billing: { label: "Billing" },
-  workspace: { label: "Settings" },
+// WS-3.2 — canonical page metadata.  Legacy aliases included so code that
+// still references them doesn't throw; they redirect immediately in nav.
+export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; description?: string }> = {
+  // ── canonical 6 ──
+  overview:  { label: "Overview",  icon: "home",     description: "Today's snapshot: unread, pending actions, recent activity" },
+  messages:  { label: "Messages",  icon: "mail",     description: "All threads across active inquiries and bookings" },
+  calendar:  { label: "Calendar",  icon: "calendar", description: "Scheduled shoots, holds, and deadlines" },
+  roster:    { label: "Roster",    icon: "users",    description: "Your talent, availability, and performance" },
+  clients:   { label: "Clients",   icon: "briefcase", description: "Client accounts, trust tiers, and booking history" },
+  settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
+  // ── legacy aliases (hidden from nav) ──
+  inbox:     { label: "Inbox",     icon: "mail" },
+  work:      { label: "Workflow",  icon: "layers" },
+  talent:    { label: "Talent",    icon: "users" },
+  site:      { label: "Public site", icon: "globe" },
+  billing:   { label: "Billing",   icon: "credit-card" },
+  workspace: { label: "Settings",  icon: "settings" },
 };
 
 export const TALENT_PAGE_META: Record<TalentPage, { label: string }> = {
-  today: { label: "Today" },
-  messages: { label: "Messages" },
-  profile: { label: "Edit profile" },
-  inbox: { label: "Inbox" },
-  calendar: { label: "Calendar" },
-  activity: { label: "Activity" },
-  reach: { label: "Reach" },
-  settings: { label: "Settings" },
+  today:       { label: "Today" },
+  messages:    { label: "Messages" },
+  profile:     { label: "Profile" },
+  inbox:       { label: "Inbox" },         // legacy
+  calendar:    { label: "Calendar" },
+  activity:    { label: "Activity" },      // legacy — redirects to settings
+  reach:       { label: "Reach" },         // legacy — redirects to agencies
+  agencies:    { label: "Agencies" },      // WS-8.2
+  "public-page": { label: "Public page" }, // WS-8.2
+  settings:    { label: "Settings" },
 };
 
 export const CLIENT_PAGE_META: Record<ClientPage, { label: string }> = {
@@ -432,6 +458,7 @@ export type DrawerId =
   | "site-health"
   | "team-activity"
   | "talent-activity"
+  | "my-activity"
   | "today-pulse"
   | "pipeline"
   | "drafts-holds"
@@ -506,6 +533,9 @@ export type DrawerId =
   | "talent-voice-reply"
   | "talent-multi-agency-picker"
   | "talent-chat-archive"
+  | "talent-receive-review"     // WS-8.13 — after-booking rating prompt
+  | "talent-agency-analytics"   // WS-8.14 — top agencies by booking volume
+  | "talent-career-analytics"   // WS-8.5  — quarterly career stats
   // — Audit r3: reply templates (#53)
   | "reply-templates"
   // — Client surface drawers ————————————————————————————————————
@@ -525,6 +555,9 @@ export type DrawerId =
   | "client-brand-switcher"
   | "client-settings"
   | "client-quick-question"
+  | "client-my-talent"        // WS-8.9  — repeat bookings + quick-rebook
+  | "client-spend-report"     // WS-8.11 — spend by talent / by agency
+  | "client-budget"           // WS-8.12 — budget cap + alert threshold
   // — Cross-cutting upgrade surfaces ————————————————————————————————
   | "plan-compare"
   // — Payments / payouts ——————————————————————————————————
@@ -564,7 +597,21 @@ export type DrawerId =
   | "tenant-switcher"
   | "talent-share-card"
   | "whats-new"
-  | "help";
+  | "help"
+  // ── WS-5 Money & Trust ──────────────────────────────────────────────
+  | "client-trust-detail"    // WS-5.9 — trust-tier explanation + upgrade path
+  | "escrow-detail"          // WS-5.1 — escrow state machine visualiser
+  | "refund-flow"            // WS-5.3 — multi-party refund orchestration
+  | "dispute-flow"           // WS-5.8 — chargeback / dispute resolution
+  | "kyc-verification"       // WS-5.10 — talent ID upload + status
+  | "proof-of-funds"         // WS-5.11 — client bank-link / wire verification
+  | "payout-method-failure"  // WS-5.7 — IBAN / card recovery flow
+  | "subscription-lifecycle" // WS-5.14 — trial → paid → pause → cancel + win-back
+  // ── WS-11 Notifications ─────────────────────────────────────────────
+  | "notification-detail"
+  // ── WS-18 AI assist ─────────────────────────────────────────────────
+  | "ai-draft-assist"
+  | "ai-search-explain";
 
 export type DrawerContext = {
   drawerId: DrawerId | null;
@@ -684,6 +731,11 @@ export type ThreadMessage = {
   ts: string; // human-readable, e.g. "Tue 9:14"
   isYou?: boolean;
   attachment?: string;
+  // WS-1.E — system messages that need an immediate action from the user.
+  // Renders a coral inline-banner with a "Resolve →" CTA below the message.
+  requiresAction?: boolean;
+  requiresActionLabel?: string; // e.g. "Review offer before it expires" — defaults to body
+  requiresActionCta?: string;   // e.g. "Review offer" — defaults to "Resolve →"
 };
 
 export type CoordinatorAssignment = {
@@ -700,7 +752,14 @@ export type RequirementGroup = {
   role: RequirementRole;
   needed: number;
   approved: number;
-  talents: { name: string; thumb: string; status: LineItemStatus }[];
+  // WS-1.F.2 — last-said snippet for roster cards in group thread header
+  talents: {
+    name: string;
+    thumb: string;
+    status: LineItemStatus;
+    lastSaidTs?: string;
+    lastSaidSnippet?: string;
+  }[];
 };
 
 export type Offer = {
@@ -953,9 +1012,9 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         needed: 3,
         approved: 1,
         talents: [
-          { name: "Marta Reyes", thumb: "🌸", status: "accepted" },
-          { name: "Tomás Navarro", thumb: "🍃", status: "pending" },
-          { name: "Zara Habib", thumb: "🌹", status: "pending" },
+          { name: "Marta Reyes",   thumb: "🌸", status: "accepted", lastSaidTs: "Mon 17:22", lastSaidSnippet: "All clear from me — happy to confirm." },
+          { name: "Tomás Navarro", thumb: "🍃", status: "pending",  lastSaidTs: "Tue 10:01", lastSaidSnippet: "Checking my schedule — back in 1h." },
+          { name: "Zara Habib",    thumb: "🌹", status: "pending" },
         ],
       },
     ],
@@ -1016,6 +1075,41 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         senderRole: "talent",
         body: "All clear from me — happy to confirm.",
         ts: "Mon 17:22",
+      },
+      {
+        id: "m6",
+        threadType: "group",
+        senderName: "Tomás Navarro",
+        senderInitials: "TN",
+        senderRole: "talent",
+        body: "Checking my schedule — back in 1h.",
+        ts: "Tue 10:01",
+      },
+      // WS-1.E — requiresAction: talent hold deadline requires coordinator action
+      {
+        id: "m7",
+        threadType: "group",
+        senderName: "System",
+        senderInitials: "SY",
+        senderRole: "system",
+        body: "Hold deadline for Tomás Navarro expires in 4 hours. Confirm or release.",
+        ts: "Tue 11:30",
+        requiresAction: true,
+        requiresActionLabel: "Hold deadline expires in 4 hours — confirm or release Tomás.",
+        requiresActionCta: "Manage hold",
+      },
+      // WS-1.E — requiresAction: client side — offer expiry
+      {
+        id: "m8",
+        threadType: "private",
+        senderName: "System",
+        senderInitials: "SY",
+        senderRole: "system",
+        body: "The offer expires in 24 hours. The client hasn't responded yet.",
+        ts: "Tue 11:30",
+        requiresAction: true,
+        requiresActionLabel: "Offer expires in 24 hours — nudge the client or extend the deadline.",
+        requiresActionCta: "Nudge client",
       },
     ],
   },
@@ -2448,6 +2542,35 @@ export const NOTIFICATIONS: NotificationItem[] = [
     title: "Vogue Italia replied to the offer",
     body: '"Reviewing the v2 offer with our producer — should have a decision by EOD."',
     ts: "22m ago",
+    read: false,
+    actorName: "Martina Greco",
+    actorInitials: "MG",
+    surface: "workspace",
+    targetDrawer: "inquiry-workspace",
+    targetPayload: { inquiryId: "RI-202" },
+  },
+  // WS-11.2 — extra messages from the same inquiry to trigger batching demo
+  {
+    id: "wn1b",
+    kind: "message",
+    inquiryId: "RI-202",
+    title: "Vogue Italia sent a follow-up",
+    body: '"Also — can you confirm Kai Lin availability for May 14?"',
+    ts: "18m ago",
+    read: false,
+    actorName: "Martina Greco",
+    actorInitials: "MG",
+    surface: "workspace",
+    targetDrawer: "inquiry-workspace",
+    targetPayload: { inquiryId: "RI-202" },
+  },
+  {
+    id: "wn1c",
+    kind: "message",
+    inquiryId: "RI-202",
+    title: "Vogue Italia — 3rd message",
+    body: "“Never mind — she confirmed directly. We’re good to go.”",
+    ts: "12m ago",
     read: false,
     actorName: "Martina Greco",
     actorInitials: "MG",
@@ -4380,7 +4503,7 @@ export const PLATFORM_HQ_TEAM: TeamMember[] = [
 // ─── Provider ────────────────────────────────────────────────────────
 
 type ToastAction = { label: string; onClick: () => void };
-type Toast = { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: "default" | "error" };
+type Toast = { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: ToastTone };
 
 export type Impersonation = {
   tenantSlug: string;
@@ -4500,7 +4623,7 @@ type Ctx = {
   drawerStack: DrawerContext[];
   openUpgrade: (offer: Omit<UpgradeOffer, "open">) => void;
   closeUpgrade: () => void;
-  toast: (message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: "default" | "error" }) => void;
+  toast: (message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: ToastTone }) => void;
   dismissToast: (id: number) => void;
   completeTask: (id: string) => void;
 };
@@ -4590,7 +4713,8 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     if (r && ROLES.includes(r as Role)) setRole(r as Role);
     if (et && ENTITY_TYPES.includes(et as EntityType)) setEntityType(et as EntityType);
     if (at === "true" || at === "false") setAlsoTalent(at === "true");
-    if (pg && WORKSPACE_PAGES.includes(pg as WorkspacePage)) setPage(pg as WorkspacePage);
+    // WS-3.6 — resolve legacy aliases before setting page
+    if (pg) setPage(resolveWorkspacePage(pg));
     if (tpg && TALENT_PAGES.includes(tpg as TalentPage)) setTalentPage(tpg as TalentPage);
     if (cpl && CLIENT_PLANS.includes(cpl as ClientPlan)) setClientPlan(cpl as ClientPlan);
     if (cpg && CLIENT_PAGES.includes(cpg as ClientPage)) setClientPage(cpg as ClientPage);
@@ -4711,9 +4835,22 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     setUpgrade({ open: false });
   }, []);
 
-  const toast = useCallback((message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: "default" | "error" }) => {
+  const toast = useCallback((message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: ToastTone }) => {
     const id = ++toastIdRef.current;
-    setToasts((prev) => [...prev, { id, message, undo: opts?.undo, action: opts?.action, tone: opts?.tone }]);
+    // WS-0.9 — toast queue limit. Max 3 toasts on screen at once.
+    // Errors get priority (kept), oldest non-error gets dropped.
+    // Without this cap, firing 5 toasts in a row stacks them and
+    // the user can't read any.
+    const TOAST_LIMIT = 3;
+    setToasts((prev) => {
+      const next = [...prev, { id, message, undo: opts?.undo, action: opts?.action, tone: opts?.tone }];
+      if (next.length <= TOAST_LIMIT) return next;
+      // Over limit — drop the oldest non-error toast first; if all are
+      // errors, drop the absolute oldest.
+      const dropIdx = next.findIndex((t) => t.tone !== "error");
+      const cutAt = dropIdx === -1 ? 0 : dropIdx;
+      return next.slice(0, cutAt).concat(next.slice(cutAt + 1));
+    });
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, (opts?.undo || opts?.action) ? 5000 : 2400); // actionable toasts stay longer
@@ -4922,6 +5059,10 @@ export const COLORS = {
   // "attention" without competing with the forest accent or carrying any
   // luxury connotation. See feedback_admin_aesthetics.md.
   amber: "#52606D",
+  /** Soft amber fill — caution / draft backgrounds. */
+  amberSoft: "rgba(82,96,109,0.10)",
+  /** Deep amber text — caution foreground on soft fills. */
+  amberDeep: "#3A4651",
   red: "#B0303A",
   // Coral — needs-action / soft warning, warmer than slate. Different
   // from gold/rust per the design memo; reads as "incomplete, touch
@@ -4997,6 +5138,36 @@ export const COLORS = {
 export const RADIUS = { sm: 7, md: 10, lg: 12, xl: 16 } as const;
 
 /**
+ * Transition scale — WS-16.3.
+ *
+ * One canonical system for every animation/transition in the prototype.
+ * Usage: `transition: \`background ${TRANSITION.micro}\``
+ *
+ *   micro   .12s            — instant hover colour/bg swap; no easing needed
+ *   sm      .15s ease       — small state change (opacity, border fade)
+ *   md      .18s ease       — component enter/exit (badges, pills expanding)
+ *   layout  .22s ease-out   — sidebar expand, grid reflow
+ *   drawer  .26s cubic-bezier(.4,0,.2,1)  — sheet/panel slides
+ *
+ * Things that SHOULD NOT use TRANSITION:
+ *   - Keyframe animations (use @keyframes with their own timing)
+ *   - prefers-reduced-motion guards (wrap the whole value in reduceMotionCheck())
+ *   - SVG stroke-dasharray (use TRANSITION.layout or a custom cubic)
+ */
+export const TRANSITION = {
+  /** 120 ms — instant hover colour/bg swap. */
+  micro:  ".12s",
+  /** 150 ms ease — small opacity/border state change. */
+  sm:     ".15s ease",
+  /** 180 ms ease — badge/pill expand, chip grow. */
+  md:     ".18s ease",
+  /** 220 ms ease-out — sidebar, grid column resize. */
+  layout: ".22s ease-out",
+  /** 260 ms material-decel — drawer/sheet slide. */
+  drawer: ".26s cubic-bezier(.4,0,.2,1)",
+} as const;
+
+/**
  * Vertical-rhythm spacing scale. Replace magic-number `<div height: N>`
  * spacers with `SPACE.section` and friends.
  */
@@ -5036,3 +5207,81 @@ export const FONTS = {
   body: '"Inter", system-ui, sans-serif',
   mono: 'ui-monospace, "SF Mono", Menlo, monospace',
 };
+
+// ─── WS-0.5 Telemetry shim ───────────────────────────────────────────
+//
+// Per ROADMAP §5.1 — every consequential action emits an event through
+// `track()`. Today this is a console.debug no-op (dev) / silent (prod).
+// Dev wires PostHog/Segment/etc. later by replacing the implementation.
+//
+// Event names are typed below so call sites get autocomplete and so
+// future consumers (analytics dashboards, A/B tests, retention cohorts)
+// know exactly what's available.
+
+/**
+ * Master event registry. Add new events here as workstreams ship.
+ * Keep names snake_case + verb_object (e.g. `chat_typing_indicator_seen`).
+ * Don't repurpose names — once shipped, an event's semantics are frozen
+ * for downstream consumers.
+ */
+export type TrackEvent =
+  // Chat / messaging (WS-1)
+  | "chat_view_mode_active"
+  | "chat_typing_indicator_seen"
+  | "chat_read_receipt_seen"
+  | "chat_jump_to_latest_clicked"
+  | "chat_system_group_expanded"
+  | "chat_system_action_clicked"
+  | "chat_attachment_added"
+  | "chat_thread_search_used"
+  | "chat_participant_filter_applied"
+  | "chat_overwhelm_self_reported"
+  // Inbox / inquiry surfaces (WS-1, WS-3)
+  | "inquiry_pending_offer_acted_on"
+  | "legacy_page_url_resolved"
+  // Mobile (WS-2)
+  | "mobile_chrome_height_ratio"
+  // Drawers (WS-4)
+  | "drawer_count_per_session"
+  | "drawer_help_opened"
+  | "drawer_help_feedback"
+  // Search (WS-7)
+  | "command_palette_opened"
+  | "command_palette_query"
+  | "command_palette_result_clicked"
+  // Onboarding (WS-9)
+  | "first_meaningful_action"
+  | "activation_step_completed"
+  // WS-27 page-builder
+  | "site_context_switched"
+  | "page_builder_opened"
+  | "page_published"
+  | "page_scheduled"
+  | "page_reverted"
+  | "domain_verification_started"
+  // WS-30 image rights
+  | "usage_extension_started"
+  | "tear_sheet_added"
+  // Performance (WS-13)
+  | "webvitals_lcp"
+  | "webvitals_fid"
+  | "webvitals_cls"
+  | "error_boundary_triggered"
+  // Catch-all for prototype-only diagnostics
+  | "prototype_diagnostic";
+
+export type TrackProps = Record<string, string | number | boolean | null | undefined>;
+
+/**
+ * Emit a typed telemetry event. Real analytics SDK plugs in here later.
+ * Until then, dev gets console.debug; prod no-ops silently.
+ */
+export function track(event: TrackEvent, props: TrackProps = {}): void {
+  if (typeof window === "undefined") return;
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("[track]", event, props);
+  }
+  // Future: pipe to analytics here. Example contracts:
+  //   window.posthog?.capture(event, props);
+  //   window.analytics?.track(event, props);
+}

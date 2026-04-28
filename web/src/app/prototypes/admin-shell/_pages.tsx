@@ -8,6 +8,7 @@ import {
   ENTITY_TYPE_META,
   ENTITY_TYPES,
   FONTS,
+  TRANSITION,
   describeSource,
   INQUIRY_STAGE_META,
   PAGE_META,
@@ -55,6 +56,7 @@ import {
   type InquirySource,
   type Plan,
   type PlatformPage,
+  type RichInquiry,
   type Role,
   type Surface,
   type TalentPage,
@@ -64,6 +66,7 @@ import {
   Affordance,
   Avatar,
   Bullet,
+  Card,
   CapNudge,
   CapsLabel,
   ClientTrustChip,
@@ -95,6 +98,8 @@ import {
   BulkSelectBar,
   BulkRowCheckbox,
   useKeyboardListNav,
+  useRovingTabindex,
+  scrollBehavior,
   FloatingFab,
   ConfirmModal,
   AutoSaveIndicator,
@@ -103,10 +108,20 @@ import {
   PageSkeleton,
   RowSkeleton,
 } from "./_primitives";
-import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv } from "./_wave2";
-import { TalentSurface } from "./_talent";
-import { ClientSurface } from "./_client";
-import { PlatformSurface } from "./_platform";
+import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv, WorkspaceActivationBanner, DemoDataBanner } from "./_wave2";
+// WS-13.1 — lazy-load non-workspace surfaces so the workspace JS bundle
+// doesn't ship talent / client / platform code unless the user actually
+// switches surface. Each surface is ~3–6 MB of inline styles + logic.
+import dynamic from "next/dynamic";
+const TalentSurface = dynamic(() => import("./_talent").then((m) => ({ default: m.TalentSurface })), { ssr: false });
+const ClientSurface = dynamic(() => import("./_client").then((m) => ({ default: m.ClientSurface })), { ssr: false });
+const PlatformSurface = dynamic(() => import("./_platform").then((m) => ({ default: m.PlatformSurface })), { ssr: false });
+import {
+  EmbeddedCommandPalette,
+  ShortcutHelpOverlay,
+  useKeyboardLayer,
+  BulkActionBar,
+} from "./_workspace";
 
 // ════════════════════════════════════════════════════════════════════
 // Prototype control bar
@@ -346,7 +361,7 @@ function SegmentedControl({
                 cursor: "pointer",
                 borderRadius: 4,
                 whiteSpace: "nowrap",
-                transition: "background .12s, color .12s",
+                transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
               }}
             >
               {opt.label}
@@ -388,7 +403,7 @@ function ToggleControl({
         fontFamily: FONTS.body,
         cursor: "pointer",
         borderRadius: 6,
-        transition: "background .12s, color .12s",
+        transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
       }}
     >
       <span
@@ -417,16 +432,23 @@ function greeting(): string {
 const MOCK_STOREFRONT_STATS = { views7d: 284, viewsGrowth: "+18%" };
 const ME_EMAIL = "orantenemx@gmail.com";
 
-// Sidebar page icons — local map so PAGE_META stays lean.
-const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "arrow-right" | "team" | "user" | "globe" | "credit" | "settings"> = {
-  overview: "bolt",
-  inbox: "mail",
-  calendar: "calendar",
-  work: "arrow-right",
-  talent: "team",
-  clients: "user",
-  site: "globe",
-  billing: "credit",
+// WS-3.2 — icon map updated for 6-page nav. Now mirrors PAGE_META.icon
+// (kept local for the IconName cast). Legacy aliases still present so
+// any path that references them doesn't blow up at runtime.
+const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "team" | "user" | "settings" | "globe" | "credit" | "arrow-right"> = {
+  // ── canonical 6 ──
+  overview:  "bolt",
+  messages:  "mail",
+  calendar:  "calendar",
+  roster:    "team",
+  clients:   "user",
+  settings:  "settings",
+  // ── legacy aliases ──
+  inbox:     "mail",
+  work:      "arrow-right",
+  talent:    "team",
+  site:      "globe",
+  billing:   "credit",
   workspace: "settings",
 };
 
@@ -434,10 +456,14 @@ const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "arrow-right" | "
 // Workspace topbar (product chrome)
 // ════════════════════════════════════════════════════════════════════
 
-export function WorkspaceTopbar() {
+export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
   const { state, setPage, setWorkspaceLayout } = useProto();
-  const isSettingsActive = state.page === "workspace";
+  // WS-3.2 — "workspace" is now "settings"; check both for backward compat
+  const isSettingsActive = state.page === "settings" || state.page === "workspace";
   const canCreate = meetsRole(state.role, "editor");
+  // WS-12.6 — roving tabindex on workspace topbar page nav
+  const topbarNavRef = useRef<HTMLElement | null>(null);
+  useRovingTabindex(topbarNavRef, "button", { orientation: "horizontal" });
 
   return (
     <header
@@ -463,7 +489,7 @@ export function WorkspaceTopbar() {
         {/* Page nav — the only thing the workspace topbar owns now.
             Tenant identity, mode toggle, bell/help/settings, role chip,
             avatar all moved to the persistent identity bar above. */}
-        <nav data-tulala-app-topbar-nav aria-label="Workspace sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
+        <nav ref={topbarNavRef} data-tulala-app-topbar-nav aria-label="Workspace sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {WORKSPACE_PAGES.map((p) => {
             const active = state.page === p;
             return (
@@ -482,7 +508,7 @@ export function WorkspaceTopbar() {
                   letterSpacing: 0.1,
                   borderRadius: 7,
                   position: "relative",
-                  transition: "color .12s, background .12s",
+                  transition: `color ${TRANSITION.micro}, background ${TRANSITION.micro}`,
                 }}
                 onMouseEnter={(e) => {
                   if (!active) e.currentTarget.style.color = COLORS.ink;
@@ -491,7 +517,8 @@ export function WorkspaceTopbar() {
                   if (!active) e.currentTarget.style.color = COLORS.inkMuted;
                 }}
               >
-                {p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
+                {/* WS-3.2 — "roster" inherits the entity-type label (Talent/Models/Artists) */}
+                {p === "roster" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
                 <span
                   aria-hidden
                   style={{
@@ -505,7 +532,7 @@ export function WorkspaceTopbar() {
                     opacity: active ? 1 : 0,
                     transform: active ? "scaleX(1)" : "scaleX(0.4)",
                     transformOrigin: "center",
-                    transition: "opacity .18s ease, transform .25s cubic-bezier(.4,.0,.2,1)",
+                    transition: `opacity ${TRANSITION.md}, transform ${TRANSITION.drawer}`,
                     pointerEvents: "none",
                   }}
                 />
@@ -513,6 +540,47 @@ export function WorkspaceTopbar() {
             );
           })}
         </nav>
+
+        {/* WS-7.1 Search / Cmd-K trigger */}
+        {onOpenSearch && (
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            aria-label="Search (⌘K)"
+            data-tulala-topbar-search
+            style={{
+              display:     "flex",
+              alignItems:  "center",
+              gap:         7,
+              padding:     "5px 10px 5px 8px",
+              border:      `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 7,
+              background:  COLORS.surfaceAlt,
+              cursor:      "pointer",
+              color:       COLORS.inkMuted,
+              fontFamily:  FONTS.body,
+              fontSize:    12,
+              transition:  `border-color ${TRANSITION.micro}`,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
+          >
+            <Icon name="search" size={12} stroke={2} />
+            <span>Search</span>
+            <kbd style={{
+              fontSize:     10,
+              marginLeft:   2,
+              padding:      "1px 5px",
+              background:   "#fff",
+              border:       `1px solid ${COLORS.border}`,
+              borderRadius: 4,
+              fontFamily:   FONTS.mono,
+              color:        COLORS.inkDim,
+            }}>
+              ⌘K
+            </kbd>
+          </button>
+        )}
 
         {/* Right side — Quick create + settings shortcut + sidebar layout toggle. */}
         <div data-tulala-app-topbar-right style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -757,7 +825,7 @@ function QuickCreateMenu() {
                 cursor: it.canDo ? "pointer" : "not-allowed",
                 opacity: it.canDo ? 1 : 0.4,
                 borderRadius: 8,
-                transition: "background .1s",
+                transition: `background ${TRANSITION.micro}`,
               }}
               onMouseEnter={(e) => {
                 if (it.canDo) e.currentTarget.style.background = "rgba(255,255,255,0.06)";
@@ -973,7 +1041,7 @@ export function TulalaIdentityBar() {
             padding: "5px 9px",
             borderRadius: 999,
             fontFamily: FONTS.body,
-            transition: "background .12s",
+            transition: `background ${TRANSITION.micro}`,
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -1028,7 +1096,7 @@ export function TulalaIdentityBar() {
             className="tulala-acting-chevron"
             style={{
               display: "inline-flex",
-              transition: "transform .22s cubic-bezier(.4,.0,.2,1)",
+              transition: `transform ${TRANSITION.layout}`,
             }}
           >
             <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
@@ -1068,7 +1136,7 @@ export function TulalaIdentityBar() {
             far right; click confirms via toast in the prototype. */}
         <IdentityBarIconButton
           aria-label="Sign out"
-          onClick={() => toast("Signed out (prototype)")}
+          onClick={() => toast("Signed out")}
         >
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -1096,7 +1164,7 @@ function AccountMenuTrigger({
   userInitials: string;
   children: ReactNode;
 }) {
-  const { toast, state } = useProto();
+  const { toast, state, openDrawer } = useProto();
   const [open, setOpen] = useState(false);
   // Close on outside click
   useEffect(() => {
@@ -1135,7 +1203,7 @@ function AccountMenuTrigger({
           padding: "4px 6px 4px 4px",
           borderRadius: 999,
           fontFamily: FONTS.body,
-          transition: "background .12s",
+          transition: `background ${TRANSITION.micro}`,
         }}
         onMouseEnter={(e) => {
           if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.04)";
@@ -1207,22 +1275,22 @@ function AccountMenuTrigger({
           <AccountMenuItem
             label="Profile"
             sub="View / edit your public profile"
-            onClick={() => { setOpen(false); toast("Profile drawer (prototype)"); }}
+            onClick={() => { setOpen(false); openDrawer("my-profile"); }}
           />
           <AccountMenuItem
             label="Account settings"
             sub="Email, password, security"
-            onClick={() => { setOpen(false); toast("Account settings (prototype)"); }}
+            onClick={() => { setOpen(false); openDrawer("workspace-settings"); }}
           />
           <AccountMenuItem
             label="Notifications"
             sub="Email, push, digest preferences"
-            onClick={() => { setOpen(false); toast("Notification prefs (prototype)"); }}
+            onClick={() => { setOpen(false); openDrawer("notifications-prefs"); }}
           />
           <AccountMenuItem
             label="Language"
             sub="EN · ES"
-            onClick={() => { setOpen(false); toast("Language picker (prototype)"); }}
+            onClick={() => { setOpen(false); toast("Language settings — coming soon"); }}
           />
           <AccountMenuItem
             label="Keyboard shortcuts"
@@ -1234,7 +1302,7 @@ function AccountMenuTrigger({
               label="Sign out"
               sub=""
               tone="coral"
-              onClick={() => { setOpen(false); toast("Signed out (prototype)"); }}
+              onClick={() => { setOpen(false); toast("Signed out"); }}
             />
           </div>
         </div>
@@ -1274,7 +1342,7 @@ function AccountMenuItem({
         cursor: "pointer",
         textAlign: "left",
         fontFamily: FONTS.body,
-        transition: "background .1s",
+        transition: `background ${TRANSITION.micro}`,
       }}
       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -1331,7 +1399,7 @@ function LocaleToggle() {
               letterSpacing: 0.6,
               color: active ? COLORS.ink : COLORS.inkMuted,
               boxShadow: active ? "0 1px 1px rgba(11,11,13,0.06)" : "none",
-              transition: "background .12s, color .12s",
+              transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
             }}
           >
             {code}
@@ -1426,7 +1494,12 @@ function ModeTogglePillButton({
         boxShadow: active ? "0 1px 2px rgba(11,11,13,0.12)" : "none",
       }}
       onMouseEnter={(e) => {
-        if (!active) e.currentTarget.style.color = COLORS.ink;
+        if (!active) {
+          e.currentTarget.style.color = COLORS.ink;
+          // WS-13.5 — warm the dynamic module cache so the flip animation
+          // starts instantly rather than waiting for the network.
+          if (label === "Talent") void import("./_talent");
+        }
       }}
       onMouseLeave={(e) => {
         if (!active) e.currentTarget.style.color = COLORS.inkMuted;
@@ -1486,7 +1559,7 @@ function IdentityBarIconButton({
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        transition: "border-color .12s, color .12s",
+        transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = COLORS.border;
@@ -1547,14 +1620,26 @@ export function HybridShell({ children }: { children: ReactNode }) {
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceShell() {
-  const { state } = useProto();
+  const { state, setPage, openDrawer } = useProto();
+  const [cmdOpen,   setCmdOpen]   = useState(false);
+  const [helpOpen,  setHelpOpen]  = useState(false);
+
+  // WS-7.4 — global keyboard shortcuts
+  useKeyboardLayer({
+    onOpenPalette: () => setCmdOpen(true),
+    onOpenHelp:    () => setHelpOpen((v) => !v),
+    onNavigate:    setPage,
+    onCompose:     () => openDrawer("new-inquiry"),
+    isModalOpen:   !!state.drawer.drawerId || cmdOpen || helpOpen,
+  });
+
   return (
     <HybridShell>
       {state.workspaceLayout === "sidebar" ? (
         <WorkspaceSidebarShell />
       ) : (
         <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 56px - 56px - 50px)" }}>
-          <WorkspaceTopbar />
+          <WorkspaceTopbar onOpenSearch={() => setCmdOpen(true)} />
           <main
             data-tulala-surface-main
             style={{
@@ -1567,6 +1652,10 @@ export function WorkspaceShell() {
           </main>
         </div>
       )}
+      {/* WS-7.1 Embedded palette (sidebar shell / workspace-scoped search) */}
+      <EmbeddedCommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
+      {/* WS-7.5 Shortcut help overlay */}
+      <ShortcutHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
     </HybridShell>
   );
 }
@@ -1581,6 +1670,9 @@ function WorkspaceSidebarShell() {
   const { state, setPage, openDrawer, setWorkspaceLayout } = useProto();
   const { role } = state;
   const canCreate = meetsRole(role, "editor");
+  // WS-12.6 — roving tabindex on sidebar nav: arrow keys move between pages
+  const sidebarNavRef = useRef<HTMLElement | null>(null);
+  useRovingTabindex(sidebarNavRef, "button");
   return (
     <div
       data-tulala-workspace-grid
@@ -1608,6 +1700,11 @@ function WorkspaceSidebarShell() {
           fontFamily: FONTS.body,
         }}
       >
+        {/* WS-12.10 — secondary skip link lets keyboard users bypass the
+            sidebar nav and jump straight to the page content area. */}
+        <a href="#tulala-workspace-content" className="skip-to-main">
+          Skip to page content
+        </a>
         {/* Tenant switcher (#3) — compact context chip at the top of the
             sidebar. Clicking opens the tenant-switcher drawer. On multi-
             workspace accounts this lists all workspaces; single-workspace
@@ -1627,7 +1724,7 @@ function WorkspaceSidebarShell() {
             width: "100%",
             textAlign: "left",
             fontFamily: FONTS.body,
-            transition: "background .12s",
+            transition: `background ${TRANSITION.micro}`,
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.accentSoft)}
           onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.surfaceAlt)}
@@ -1647,7 +1744,7 @@ function WorkspaceSidebarShell() {
         {/* Page nav — the one thing the sidebar owns. Tenant identity,
             mode toggle, bell/help all live in the persistent identity
             bar above. Clean. */}
-        <nav aria-label="Workspace sections" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <nav ref={sidebarNavRef} aria-label="Workspace sections" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {WORKSPACE_PAGES.map((p) => {
             const active = state.page === p;
             const iconName = PAGE_ICON[p];
@@ -1671,7 +1768,7 @@ function WorkspaceSidebarShell() {
                   color: active ? COLORS.ink : COLORS.inkMuted,
                   textAlign: "left",
                   letterSpacing: 0.05,
-                  transition: "background .12s, color .12s",
+                  transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
                 }}
                 onMouseEnter={(e) => {
                   if (!active) {
@@ -1687,7 +1784,7 @@ function WorkspaceSidebarShell() {
                 }}
               >
                 {iconName && <Icon name={iconName} size={14} stroke={1.6} color={active ? COLORS.ink : COLORS.inkMuted} />}
-                {p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
+                {p === "roster" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
               </button>
             );
           })}
@@ -1715,7 +1812,7 @@ function WorkspaceSidebarShell() {
             fontFamily: FONTS.body,
             fontSize: 11.5,
             color: COLORS.inkMuted,
-            transition: "border-color .12s, color .12s",
+            transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
           }}
           onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }}
@@ -1726,12 +1823,15 @@ function WorkspaceSidebarShell() {
       </aside>
 
       <main
+        id="tulala-workspace-content"
+        tabIndex={-1}
         data-tulala-surface-main
         style={{
           padding: "28px 28px 60px",
           maxWidth: 1180,
           width: "100%",
           margin: "0 auto",
+          outline: "none",
         }}
       >
         <PageRouter page={state.page} />
@@ -1746,28 +1846,37 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     case "overview":
       body = <OverviewPage />;
       break;
-    case "inbox":
+    // WS-3.2 — canonical "messages" route (was "inbox")
+    case "messages":
+    case "inbox":      // legacy alias — redirect resolves before this, but keep fallback
       body = <UnifiedInboxPage />;
       break;
     case "calendar":
       body = <CalendarPage />;
       break;
+    // WS-3.3 — "work" pipeline is now a view-filter inside Messages;
+    // keep the page component for now so deep-links still land somewhere.
     case "work":
       body = <WorkPage />;
       break;
-    case "talent":
+    // WS-3.1 — canonical "roster" route (was "talent")
+    case "roster":
+    case "talent":     // legacy alias
       body = <TalentPage />;
       break;
     case "clients":
       body = <ClientsPage />;
       break;
+    // WS-3.4 — "site" is en route to its own surface; for now keep it
+    // inside workspace but accessible at its old path.
     case "site":
       body = <SitePage />;
       break;
-    case "billing":
-      body = <BillingPage />;
-      break;
-    case "workspace":
+    // WS-3.5 — canonical "settings" route (was "workspace"); billing
+    // is folded in as an anchor section inside the settings page.
+    case "settings":
+    case "workspace":  // legacy alias
+    case "billing":    // legacy alias — folded into settings
       body = <WorkspacePageView />;
       break;
   }
@@ -2055,6 +2164,11 @@ function OverviewPage() {
         }
       />
 
+      {/* WS-9.1 — Workspace activation v2: progress + smart prompts */}
+      <WorkspaceActivationBanner />
+      {/* WS-9.4 — Demo data toggle for evaluators */}
+      <DemoDataBanner />
+
       {/* Audit #49 — Today's focus card. ONE prominent banner at the
           top with the highest-urgency line of the day. Single source
           of urgency above the metric strip. */}
@@ -2244,7 +2358,7 @@ function OverviewPage() {
           >
             Recent activity
           </h2>
-          <GhostButton size="sm" onClick={() => toast("Activity feed (prototype)")}>View all</GhostButton>
+          <GhostButton size="sm" onClick={() => openDrawer("team-activity")}>View all</GhostButton>
         </div>
         <div
           style={{
@@ -2396,7 +2510,7 @@ function OverviewFree() {
                     cursor: "pointer",
                     fontFamily: FONTS.body,
                     textAlign: "left",
-                    transition: "border-color .12s",
+                    transition: `border-color ${TRANSITION.micro}`,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = "rgba(11,11,13,0.20)";
@@ -2593,7 +2707,8 @@ function UnifiedInboxPage() {
   const { openDrawer, toast } = useProto();
   // Use RICH_INQUIRIES so we have nextActionBy / unread / lastActivityHrs.
   const inquiries = RICH_INQUIRIES;
-  const [filter, setFilter] = useState<"needs-me" | "all" | "unread">("needs-me");
+  // WS-3.3 — "by-stage" adds pipeline columns view within Messages
+  const [filter, setFilter] = useState<"needs-me" | "all" | "unread" | "by-stage">("needs-me");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recent" | "oldest" | "client">("recent");
   const [pagesShown, setPagesShown] = useState(1);
@@ -2776,8 +2891,9 @@ function UnifiedInboxPage() {
         {(
           [
             { id: "needs-me", label: `Needs me · ${inquiries.filter((i) => i.nextActionBy === "coordinator").length}` },
-            { id: "all", label: `All · ${inquiries.filter((i) => isOpen(i.stage)).length}` },
-            { id: "unread", label: `Unread · ${inquiries.filter((i) => isOpen(i.stage) && i.unreadGroup > 0).length}` },
+            { id: "all",      label: `All · ${inquiries.filter((i) => isOpen(i.stage)).length}` },
+            { id: "unread",   label: `Unread · ${inquiries.filter((i) => isOpen(i.stage) && i.unreadGroup > 0).length}` },
+            { id: "by-stage", label: "By stage" },
           ] as const
         ).map((f) => {
           const active = filter === f.id;
@@ -2863,7 +2979,13 @@ function UnifiedInboxPage() {
         </div>
       )}
 
-      {rows.length === 0 ? (
+      {/* WS-3.3 — "By stage" pipeline columns view */}
+      {filter === "by-stage" ? (
+        <InboxPipelineView
+          inquiries={RICH_INQUIRIES.filter((i) => isOpen(i.stage))}
+          onOpen={(id) => openDrawer("inquiry-workspace", { inquiryId: id })}
+        />
+      ) : rows.length === 0 ? (
         <EmptyState
           icon="mail"
           title={search.trim() ? `No results for "${search.trim()}"` : "Inbox zero"}
@@ -2978,7 +3100,7 @@ function UnifiedInboxPage() {
                             borderRadius: 999,
                           }}
                         >
-                          {inq.unreadGroup}
+                          {inq.unreadGroup} group
                         </span>
                       )}
                     </div>
@@ -3069,17 +3191,119 @@ function UnifiedInboxPage() {
           })}
         </div>
       )}
-      <LoadMore
-        total={matched.length}
-        shown={rows.length}
-        onMore={() => setPagesShown((p) => p + 1)}
-      />
+      {filter !== "by-stage" && (
+        <LoadMore
+          total={matched.length}
+          shown={rows.length}
+          onMore={() => setPagesShown((p) => p + 1)}
+        />
+      )}
       {/* FAB — new inquiry, mobile only (#4) */}
       <FloatingFab
         label="New inquiry"
         onClick={() => openDrawer("new-inquiry")}
       />
     </>
+  );
+}
+
+// ─── WS-3.3 InboxPipelineView ────────────────────────────────────────────────
+
+const PIPELINE_STAGES: Array<{ id: RichInquiry["stage"]; label: string; color: string }> = [
+  { id: "submitted",     label: "Submitted",     color: "#6366F1" },
+  { id: "coordination",  label: "Coordinating",  color: "#3B82F6" },
+  { id: "offer_pending", label: "Offer pending",  color: "#F59E0B" },
+  { id: "approved",      label: "Approved",      color: "#10B981" },
+  { id: "booked",        label: "Booked",        color: "#059669" },
+];
+
+function InboxPipelineView({
+  inquiries,
+  onOpen,
+}: {
+  inquiries: RichInquiry[];
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 10,
+        overflowX: "auto",
+        paddingBottom: 12,
+      }}
+    >
+      {PIPELINE_STAGES.map((col) => {
+        const colInqs = inquiries.filter((i) => i.stage === col.id);
+        return (
+          <div
+            key={col.id}
+            style={{
+              minWidth: 200, width: 220, flexShrink: 0,
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+              border: `1px solid ${COLORS.border}`, overflow: "hidden",
+            }}
+          >
+            {/* Column header */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "10px 12px",
+              borderBottom: `1px solid ${COLORS.border}`,
+              background: "#fff",
+            }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: col.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>{col.label}</span>
+              <span style={{
+                marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#fff",
+                background: col.color, borderRadius: 999,
+                padding: "1px 6px", fontFamily: FONTS.body,
+              }}>{colInqs.length}</span>
+            </div>
+
+            {/* Cards */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 8 }}>
+              {colInqs.length === 0 ? (
+                <div style={{ padding: "12px 8px", textAlign: "center", fontSize: 11.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>
+                  All clear
+                </div>
+              ) : (
+                colInqs.map((inq) => (
+                  <button
+                    key={inq.id}
+                    type="button"
+                    onClick={() => onOpen(inq.id)}
+                    style={{
+                      display: "block", width: "100%", textAlign: "left",
+                      padding: "10px 12px",
+                      background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                      borderRadius: RADIUS.md, cursor: "pointer",
+                      fontFamily: FONTS.body,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.accent)}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
+                  >
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>
+                      {inq.clientName}
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {inq.brief}
+                    </div>
+                    {inq.unreadGroup > 0 && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, color: "#fff",
+                        background: COLORS.accent, borderRadius: 999, padding: "1px 5px",
+                      }}>
+                        {inq.unreadGroup} new
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -3277,7 +3501,7 @@ function CalendarPage() {
                   flexDirection: "column",
                   gap: 4,
                   cursor: "pointer",
-                  transition: "background .1s",
+                  transition: `background ${TRANSITION.micro}`,
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -3374,7 +3598,7 @@ function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?:
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        transition: "border-color .12s, color .12s",
+        transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
         opacity: disabled ? 0.5 : 1,
       }}
       onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; } }}
@@ -3657,7 +3881,7 @@ function WorkPage() {
                 fontFamily: FONTS.body,
                 textAlign: "left",
                 width: "100%",
-                transition: "background .1s",
+                transition: `background ${TRANSITION.micro}`,
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -3823,7 +4047,7 @@ function SourceFilterChips({
               cursor: "pointer",
               whiteSpace: "nowrap",
               boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
-              transition: "background .12s, color .12s",
+              transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
             }}
           >
             {o.label}
@@ -4300,7 +4524,7 @@ function TalentPage() {
                 gap: 10,
                 textAlign: "left",
                 fontFamily: FONTS.body,
-                transition: "border-color .12s, box-shadow .12s",
+                transition: `border-color ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = "rgba(11,11,13,0.18)";
@@ -4682,7 +4906,7 @@ function ClientsPage() {
               fontFamily: FONTS.body,
               textAlign: "left",
               width: "100%",
-              transition: "background .1s",
+              transition: `background ${TRANSITION.micro}`,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -5178,8 +5402,8 @@ function TierSection({
   const palette: Record<typeof tone, { bg: string; fg: string; dot: string }> = {
     ink: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink, dot: COLORS.ink },
     indigo: { bg: "rgba(78,90,180,0.10)", fg: "#3D478A", dot: "#5C6BD0" },
-    amber: { bg: "rgba(82,96,109,0.12)", fg: "#3A4651", dot: COLORS.amber },
-    green: { bg: "rgba(46,125,91,0.12)", fg: "#1F5C42", dot: COLORS.green },
+    amber: { bg: "rgba(82,96,109,0.12)", fg: COLORS.amberDeep, dot: COLORS.amber },
+    green: { bg: "rgba(46,125,91,0.12)", fg: COLORS.successDeep, dot: COLORS.green },
   };
   const p = palette[tone];
   return (
@@ -5342,7 +5566,7 @@ function PlanLadderStrip() {
               textAlign: "left",
               fontFamily: FONTS.body,
               opacity: isReached && !isCurrent ? 0.6 : 1,
-              transition: "background .15s",
+              transition: `background ${TRANSITION.sm}`,
             }}
             onMouseEnter={(e) => {
               if (!isReached) e.currentTarget.style.background = "rgba(11,11,13,0.04)";
@@ -5489,13 +5713,13 @@ function BillingPage() {
             title="30-day volume"
             description={payout.recentVolume30d}
             affordance="See activity"
-            onClick={() => { document.querySelector("[data-billing-activity]")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+            onClick={() => { document.querySelector("[data-billing-activity]")?.scrollIntoView({ behavior: scrollBehavior(), block: "start" }); }}
           />
           <SecondaryCard
             title="Pending payouts"
             description={payout.pendingPayouts}
             affordance="See activity"
-            onClick={() => { document.querySelector("[data-billing-activity]")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+            onClick={() => { document.querySelector("[data-billing-activity]")?.scrollIntoView({ behavior: scrollBehavior(), block: "start" }); }}
           />
           <SecondaryCard
             title="Card acceptance"
@@ -5592,7 +5816,7 @@ function BillingActivityTable() {
               fontFamily: FONTS.body,
               fontSize: 13,
               color: COLORS.ink,
-              transition: "background .1s",
+              transition: `background ${TRANSITION.micro}`,
             }}
           >
             <div style={{ fontWeight: 600 }}>{row.ref}</div>
@@ -5627,17 +5851,105 @@ function BillingActivityTable() {
 // WORKSPACE (settings)
 // ════════════════════════════════════════════════════════════════════
 
+// WS-3.5  Settings page redesign — anchor-link sub-nav
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SETTINGS_SECTIONS = [
+  { id: "account",      label: "Account"        },
+  { id: "plan",         label: "Plan & billing" },
+  { id: "workspace",    label: "Workspace"      },
+  { id: "domain",       label: "Domain"         },
+  { id: "branding",     label: "Branding"       },
+  { id: "team",         label: "Team"           },
+  { id: "integrations", label: "Integrations"   },
+  { id: "danger",       label: "Danger zone"    },
+] as const;
+type SettingsSection = typeof SETTINGS_SECTIONS[number]["id"];
+
+function SettingsSectionHeader({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, marginBottom: 3 }}>{title}</div>
+      <div style={{ fontSize: 13, color: COLORS.inkMuted, fontFamily: FONTS.body }}>{desc}</div>
+    </div>
+  );
+}
+
+function LockedPill({ plan }: { plan: Plan }) {
+  return (
+    <span style={{
+      fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
+      background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+      border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body,
+      textTransform: "capitalize",
+    }}>
+      {plan}+
+    </span>
+  );
+}
+
 function WorkspacePageView() {
-  const { state, openDrawer, openUpgrade } = useProto();
+  const { state, openDrawer, openUpgrade, toast } = useProto();
   const isOwner = state.role === "owner";
   const isAdmin = meetsRole(state.role, "admin");
   const isFree = state.plan === "free";
+  const [activeSection, setActiveSection] = useState<SettingsSection>("account");
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Anchor refs for scroll-spy
+  const sectionRefs = useRef<Record<SettingsSection, HTMLDivElement | null>>({
+    account: null, plan: null, workspace: null, domain: null,
+    branding: null, team: null, integrations: null, danger: null,
+  });
+
   // Auto-save indicator (#6) — simulates a settings save 1.2s after mount
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   useEffect(() => {
     const t = setTimeout(() => setSavedAt(new Date()), 1200);
     return () => clearTimeout(t);
   }, []);
+
+  const scrollToSection = (id: SettingsSection) => {
+    setActiveSection(id);
+    sectionRefs.current[id]?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
+  };
+
+  /** Settings list row — white card with flex-row layout + hover lift.
+   *  Interactive rows: pass `onClick`; the whole surface becomes the tap target.
+   *  Non-interactive rows (inner button only): omit `onClick`. */
+  function SettingsRow({
+    children,
+    onClick,
+    opacity,
+    borderColor,
+  }: {
+    children: ReactNode;
+    onClick?: () => void;
+    opacity?: number;
+    borderColor?: string;
+  }) {
+    return (
+      <Card
+        interactive={!!onClick}
+        onClick={onClick}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "14px 16px",
+          marginBottom: 8,
+          fontFamily: FONTS.body,
+          ...(opacity !== undefined && { opacity }),
+          ...(borderColor ? { borderColor } : {}),
+        }}
+      >
+        {children}
+      </Card>
+    );
+  }
+  const SECTION_WRAP: CSSProperties = {
+    marginBottom: 32, scrollMarginTop: 80,
+  };
 
   return (
     <>
@@ -5648,158 +5960,263 @@ function WorkspacePageView() {
         actions={<AutoSaveIndicator savedAt={savedAt} />}
       />
 
-      <Grid cols="2">
-        {isOwner ? (
-          <PrimaryCard
-            title="Plan & billing"
-            description={`Currently on ${PLAN_META[state.plan].label}. ${PLAN_META[state.plan].theme}.`}
-            icon={<Icon name="credit" size={14} stroke={1.7} />}
-            badge={<PlanChip plan={state.plan} variant="solid" />}
-            affordance="Manage plan"
-            onClick={() => openDrawer("plan-billing")}
-          />
-        ) : (
-          <PrimaryCard
-            title="Plan & billing"
-            description={`Currently on ${PLAN_META[state.plan].label}. Only owners can change billing.`}
-            icon={<Icon name="credit" size={14} stroke={1.7} />}
-            badge={<PlanChip plan={state.plan} variant="outline" />}
-            meta={<ReadOnlyChip />}
-            affordance="View"
-            onClick={() => openDrawer("plan-billing")}
-          />
-        )}
+      {/* WS-3.5 — Two-column layout: sticky sub-nav + scrollable content */}
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
 
-        {isAdmin && !isFree ? (
-          <PrimaryCard
-            title="Team"
-            description={`${getTeam(state.plan).length} members. Roles: viewer / editor / coordinator / admin / owner.`}
-            icon={<Icon name="team" size={14} stroke={1.7} />}
-            affordance="Manage team"
-            onClick={() => openDrawer("team")}
-          />
-        ) : isFree ? (
-          <LockedCard
-            title="Team"
-            description="Free is single-user. Agency unlocks teammates with role-based access."
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: "Team & roles",
-                why: "Invite teammates with viewer / editor / coordinator / admin / owner roles.",
-                requiredPlan: "agency",
-                unlocks: ["Up to 25 seats", "Role-based access", "Approval workflow"],
-              })
-            }
-          />
-        ) : (
-          <PrimaryCard
-            title="Team"
-            description={`${getTeam(state.plan).length} members.`}
-            icon={<Icon name="team" size={14} stroke={1.7} />}
-            meta={<ReadOnlyChip />}
-            affordance="View"
-            onClick={() => openDrawer("team")}
-          />
-        )}
+        {/* ── Sticky sub-nav ───────────────────────────────────────── */}
+        <div style={{
+          width: 180, flexShrink: 0,
+          position: "sticky", top: 80,
+          background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+          border: `1px solid ${COLORS.border}`, padding: "8px 0",
+          fontFamily: FONTS.body,
+        }}>
+          {SETTINGS_SECTIONS.map((sec) => {
+            const isActive = activeSection === sec.id;
+            const isDanger = sec.id === "danger";
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => scrollToSection(sec.id as SettingsSection)}
+                style={{
+                  display: "block", width: "100%", textAlign: "left",
+                  padding: "7px 14px", background: "transparent", border: "none",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 400,
+                  color: isDanger ? "#DC2626" : isActive ? COLORS.ink : COLORS.inkMuted,
+                  borderLeft: `3px solid ${isActive && !isDanger ? COLORS.accent : "transparent"}`,
+                  transition: `all ${TRANSITION.micro}`,
+                }}
+                onMouseEnter={(e) => !isActive && (e.currentTarget.style.color = COLORS.ink)}
+                onMouseLeave={(e) => !isActive && (e.currentTarget.style.color = isDanger ? "#DC2626" : COLORS.inkMuted)}
+              >
+                {sec.label}
+              </button>
+            );
+          })}
+        </div>
 
-        {isAdmin && meetsPlan(state.plan, "agency") ? (
-          <PrimaryCard
-            title="Branding"
-            description="Logo, voice, brand colors. What clients see across emails and storefront."
-            icon={<Icon name="palette" size={14} stroke={1.7} />}
-            affordance="Open branding"
-            onClick={() => openDrawer("branding")}
-          />
-        ) : (
-          <LockedCard
-            title="Branding"
-            description="Studio uses default branding. Agency unlocks full brand identity control."
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: "Branding",
-                why: "Bring your full visual identity — logo, color, typography, voice — to client touchpoints.",
-                requiredPlan: "agency",
-                unlocks: ["Logo & favicon", "Color tokens", "Email signature", "Voice & tone"],
-              })
-            }
-          />
-        )}
+        {/* ── Scrollable sections ──────────────────────────────────── */}
+        <div style={{ flex: 1, minWidth: 0 }}>
 
-        <SecondaryCard
-          title="Identity"
-          description="Workspace name, slug, contact email."
-          affordance="Edit identity"
-          onClick={() => openDrawer("identity")}
-        />
-      </Grid>
+          {/* Account */}
+          <div
+            id="settings-account"
+            ref={(el) => { sectionRefs.current.account = el; }}
+            style={SECTION_WRAP}
+            onFocus={() => setActiveSection("account")}
+          >
+            <SettingsSectionHeader title="Account" desc="Workspace name, slug, and contact info." />
+            <SettingsRow onClick={() => openDrawer("identity")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{TENANT.name}</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Name · Slug · Contact email</div>
+              </div>
+              <Affordance label="Edit" />
+            </SettingsRow>
+          </div>
 
-      <Divider label="Operational" />
+          {/* Plan & billing */}
+          <div
+            id="settings-plan"
+            ref={(el) => { sectionRefs.current.plan = el; }}
+            style={SECTION_WRAP}
+            onFocus={() => setActiveSection("plan")}
+          >
+            <SettingsSectionHeader title="Plan & billing" desc="Your current plan, usage, and invoices." />
+            {isOwner ? (
+              <SettingsRow onClick={() => openDrawer("plan-billing")}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <PlanChip plan={state.plan} variant="solid" />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{PLAN_META[state.plan].label}</div>
+                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{PLAN_META[state.plan].theme}</div>
+                  </div>
+                </div>
+                <Affordance label="Manage" />
+              </SettingsRow>
+            ) : (
+              <SettingsRow opacity={0.6}>
+                <span style={{ fontSize: 13, color: COLORS.inkMuted }}>Only owners can change billing</span>
+                <ReadOnlyChip />
+              </SettingsRow>
+            )}
+          </div>
 
-      <Grid cols="3">
-        <SecondaryCard
-          title="Workspace settings"
-          description="Timezone, locale, default currency."
-          affordance="Configure"
-          onClick={() => openDrawer("workspace-settings")}
-        />
-        {meetsPlan(state.plan, "agency") ? (
-          <SecondaryCard
-            title="Field catalog"
-            description="Custom fields for talent, clients, bookings."
-            affordance="Manage fields"
-            onClick={() => openDrawer("field-catalog")}
-          />
-        ) : (
-          <LockedCard
-            title="Field catalog"
-            description="Custom fields for talent, clients, bookings."
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: "Field catalog",
-                why: "Add the fields your agency actually books on.",
-                requiredPlan: "agency",
-              })
-            }
-          />
-        )}
-        {meetsPlan(state.plan, "agency") ? (
-          <SecondaryCard
-            title="Taxonomy"
-            description="Tags, niches, segments for filtering."
-            affordance="Manage taxonomy"
-            onClick={() => openDrawer("taxonomy")}
-          />
-        ) : (
-          <LockedCard
-            title="Taxonomy"
-            description="Tags, niches, segments for filtering."
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: "Taxonomy",
-                why: "Define your own tags and categories for talent and clients.",
-                requiredPlan: "agency",
-              })
-            }
-          />
-        )}
-      </Grid>
+          {/* Workspace */}
+          <div
+            id="settings-workspace"
+            ref={(el) => { sectionRefs.current.workspace = el; }}
+            style={SECTION_WRAP}
+            onFocus={() => setActiveSection("workspace")}
+          >
+            <SettingsSectionHeader title="Workspace" desc="Timezone, locale, currency, custom fields, and taxonomy." />
+            {[
+              { title: "General",     desc: "Timezone · Locale · Default currency",  drawer: "workspace-settings" as const },
+              { title: "Field catalog", desc: "Custom fields for talent, clients, bookings", drawer: "field-catalog" as const, plan: "agency" as const },
+              { title: "Taxonomy",    desc: "Tags, niches, segments for filtering",  drawer: "taxonomy" as const, plan: "agency" as const },
+            ].map((row) => {
+              const locked = row.plan && !meetsPlan(state.plan, row.plan);
+              return (
+                <SettingsRow
+                  key={row.drawer}
+                  opacity={locked ? 0.55 : 1}
+                  onClick={() => locked ? openUpgrade({ feature: row.title, why: row.desc, requiredPlan: row.plan! }) : openDrawer(row.drawer)}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.title}</div>
+                    <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{row.desc}</div>
+                  </div>
+                  {locked ? <LockedPill plan={row.plan!} /> : <Affordance label="Configure" />}
+                </SettingsRow>
+              );
+            })}
+          </div>
 
-      {isOwner && (
-        <>
-          <Divider label="Sensitive" />
-          <SecondaryCard
-            title="Danger zone"
-            description="Delete workspace, transfer ownership, export everything."
-            affordance="Open"
-            onClick={() => openDrawer("danger-zone")}
-          />
-        </>
-      )}
+          {/* Domain */}
+          <div
+            id="settings-domain"
+            ref={(el) => { sectionRefs.current.domain = el; }}
+            style={SECTION_WRAP}
+            onFocus={() => setActiveSection("domain")}
+          >
+            <SettingsSectionHeader title="Domain" desc="Run your storefront at your own domain." />
+            {meetsPlan(state.plan, "studio") ? (
+              <SettingsRow onClick={() => toast("Domain settings — coming soon")}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Custom domain</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                    {TENANT.customDomain ?? "No custom domain connected"}
+                  </div>
+                </div>
+                <Affordance label="Configure" />
+              </SettingsRow>
+            ) : (
+              <SettingsRow
+                opacity={0.55}
+                onClick={() => openUpgrade({ feature: "Custom domain", why: "Run your storefront at your own domain.", requiredPlan: "studio" })}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Custom domain</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Studio or above</div>
+                </div>
+                <LockedPill plan="studio" />
+              </SettingsRow>
+            )}
+          </div>
 
+          {/* Branding */}
+          <div
+            id="settings-branding"
+            ref={(el) => { sectionRefs.current.branding = el; }}
+            style={SECTION_WRAP}
+            onFocus={() => setActiveSection("branding")}
+          >
+            <SettingsSectionHeader title="Branding" desc="Logo, colors, email identity — what clients see." />
+            {isAdmin && meetsPlan(state.plan, "agency") ? (
+              <SettingsRow onClick={() => openDrawer("branding")}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Brand identity</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Logo · Colors · Email signature · Voice</div>
+                </div>
+                <Affordance label="Edit" />
+              </SettingsRow>
+            ) : (
+              <SettingsRow
+                opacity={0.55}
+                onClick={() => openUpgrade({ feature: "Branding", why: "Full brand identity control.", requiredPlan: "agency", unlocks: ["Logo & favicon", "Color tokens", "Email signature"] })}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Brand identity</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Agency or above</div>
+                </div>
+                <LockedPill plan="agency" />
+              </SettingsRow>
+            )}
+          </div>
+
+          {/* Team */}
+          <div
+            id="settings-team"
+            ref={(el) => { sectionRefs.current.team = el; }}
+            style={SECTION_WRAP}
+            onFocus={() => setActiveSection("team")}
+          >
+            <SettingsSectionHeader title="Team" desc="Invite teammates and assign roles." />
+            {isAdmin && !isFree ? (
+              <SettingsRow onClick={() => openDrawer("team")}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Team members</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                    {getTeam(state.plan).length} members · viewer / editor / coordinator / admin / owner
+                  </div>
+                </div>
+                <Affordance label="Manage" />
+              </SettingsRow>
+            ) : (
+              <SettingsRow
+                opacity={0.55}
+                onClick={() => openUpgrade({ feature: "Team & roles", why: "Invite teammates.", requiredPlan: "agency", unlocks: ["Up to 25 seats", "Role-based access"] })}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Team members</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Requires Agency or above</div>
+                </div>
+                <LockedPill plan="agency" />
+              </SettingsRow>
+            )}
+          </div>
+
+          {/* Integrations */}
+          <div
+            id="settings-integrations"
+            ref={(el) => { sectionRefs.current.integrations = el; }}
+            style={SECTION_WRAP}
+            onFocus={() => setActiveSection("integrations")}
+          >
+            <SettingsSectionHeader title="Integrations" desc="Connect calendars, CRMs, and other tools." />
+            {[
+              { name: "Google Calendar sync", status: "Connected",  connected: true  },
+              { name: "Slack notifications",   status: "Not set up", connected: false },
+              { name: "Xero / QuickBooks",      status: "Not set up", connected: false },
+            ].map((intg) => (
+              <SettingsRow key={intg.name} onClick={() => toast(`${intg.name} — coming soon`)}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{intg.name}</div>
+                  <div style={{ fontSize: 12, marginTop: 2, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted }}>
+                    {intg.status}
+                  </div>
+                </div>
+                <Affordance label={intg.connected ? "Manage" : "Connect"} />
+              </SettingsRow>
+            ))}
+          </div>
+
+          {/* Danger zone */}
+          {isOwner && (
+            <div
+              id="settings-danger"
+              ref={(el) => { sectionRefs.current.danger = el; }}
+              style={{ ...SECTION_WRAP, borderTop: `1px solid #FCA5A5`, paddingTop: 24 }}
+              onFocus={() => setActiveSection("danger")}
+            >
+              <SettingsSectionHeader title="Danger zone" desc="Irreversible operations — proceed with care." />
+              <SettingsRow borderColor="#FCA5A5" onClick={() => openDrawer("danger-zone")}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#DC2626" }}>Delete or transfer workspace</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Export everything, transfer ownership, or delete this workspace.</div>
+                </div>
+                <Affordance label="Open" />
+              </SettingsRow>
+            </div>
+          )}
+
+        </div>{/* end scrollable sections */}
+      </div>{/* end two-column layout */}
+
+      {/* Legacy — keep MoreWithSection for free plan upsell below the main layout */}
       {state.plan === "free" && (
         <MoreWithSection plan="studio">
           <CompactLockedCard
@@ -5862,7 +6279,7 @@ export function SurfaceRouter() {
     }
   })();
   return (
-    <main id="tulala-main" aria-label={`${state.surface} surface`} style={{ display: "contents" }}>
+    <main id="tulala-main" tabIndex={-1} aria-label={`${state.surface} surface`} style={{ display: "contents", outline: "none" }}>
       {inner}
     </main>
   );
@@ -5890,6 +6307,9 @@ export function MobileBottomNav() {
     setPlatformPage,
   } = useProto();
   const [moreOpen, setMoreOpen] = useState(false);
+  // WS-12.6 — left/right arrows move between bottom nav tabs
+  const bottomNavRef = useRef<HTMLElement | null>(null);
+  useRovingTabindex(bottomNavRef, "button", { orientation: "horizontal" });
 
   const tabs = (() => {
     if (state.surface === "workspace") {
@@ -5941,6 +6361,7 @@ export function MobileBottomNav() {
   return (
     <>
       <nav
+        ref={bottomNavRef}
         data-tulala-mobile-bottom-nav
         aria-label={`${state.surface} sections`}
         style={{
@@ -6084,7 +6505,7 @@ function BottomTab({
         fontWeight: active ? 600 : 500,
         letterSpacing: 0.05,
         position: "relative",
-        transition: "background .15s ease, color .15s ease",
+        transition: `background ${TRANSITION.sm}, color ${TRANSITION.sm}`,
       }}
     >
       <span

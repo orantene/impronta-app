@@ -5,6 +5,7 @@ import {
   CLIENT_TRUST_META,
   COLORS,
   FONTS,
+  TRANSITION,
   PLANS,
   PLAN_LADDER,
   PLAN_LADDER_HEADER,
@@ -48,6 +49,7 @@ import {
   CapsLabel,
   ClientTrustChip,
   Divider,
+  EmptyState,
   FieldRow,
   GhostButton,
   Icon,
@@ -132,7 +134,10 @@ import {
   TalentMultiAgencyPickerDrawer,
   TalentChatArchiveDrawer,
   ReplyTemplatesDrawer,
-} from "./_talent";
+  TalentCareerAnalyticsDrawer,
+  TalentReceiveReviewDrawer,
+  TalentAgencyAnalyticsDrawer,
+} from "./_talent_drawers";
 import {
   ClientTodayPulseDrawer,
   ClientTalentCardDrawer,
@@ -150,6 +155,9 @@ import {
   ClientSavedSearchDrawer,
   ClientSettingsDrawer,
   ClientQuickQuestionDrawer,
+  ClientMyTalentDrawer,
+  ClientSpendReportDrawer,
+  ClientBudgetDrawer,
 } from "./_client";
 import {
   PlatformTodayPulseDrawer,
@@ -248,6 +256,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <ActivityFeedDrawer kind="team" />;
     case "talent-activity":
       return <ActivityFeedDrawer kind="talent" />;
+    case "my-activity":
+      return <MyActivityDrawer />;
     case "homepage":
       return <SimpleStubDrawer
         title="Homepage hero"
@@ -405,6 +415,12 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <TalentChatArchiveDrawer />;
     case "reply-templates":
       return <ReplyTemplatesDrawer />;
+    case "talent-career-analytics":
+      return <TalentCareerAnalyticsDrawer />;
+    case "talent-receive-review":
+      return <TalentReceiveReviewDrawer />;
+    case "talent-agency-analytics":
+      return <TalentAgencyAnalyticsDrawer />;
 
     // ─── Payments / payouts ─────────────────────────────────────────────
     case "payments-setup":
@@ -447,6 +463,12 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <ClientSettingsDrawer />;
     case "client-quick-question":
       return <ClientQuickQuestionDrawer />;
+    case "client-my-talent":
+      return <ClientMyTalentDrawer />;
+    case "client-spend-report":
+      return <ClientSpendReportDrawer />;
+    case "client-budget":
+      return <ClientBudgetDrawer />;
 
     // ─── Cross-cutting upgrade surfaces ─────────────────────────────────
     case "plan-compare":
@@ -513,6 +535,34 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <WhatsNewDrawer />;
     case "help":
       return <HelpDrawer />;
+
+    // ── WS-5 Money & Trust ──────────────────────────────────────────
+    case "client-trust-detail":
+      return <ClientTrustDetailDrawer />;
+    case "escrow-detail":
+      return <EscrowDetailDrawer />;
+    case "refund-flow":
+      return <RefundFlowDrawer />;
+    case "dispute-flow":
+      return <DisputeFlowDrawer />;
+    case "kyc-verification":
+      return <KycVerificationDrawer />;
+    case "proof-of-funds":
+      return <ProofOfFundsDrawer />;
+    case "payout-method-failure":
+      return <PayoutMethodFailureDrawer />;
+    case "subscription-lifecycle":
+      return <SubscriptionLifecycleDrawer />;
+
+    // ── WS-11 Notifications ─────────────────────────────────────────
+    case "notification-detail":
+      return <NotificationDetailDrawer />;
+
+    // ── WS-18 AI assist ─────────────────────────────────────────────
+    case "ai-draft-assist":
+      return <AiDraftAssistDrawer />;
+    case "ai-search-explain":
+      return <AiSearchExplainDrawer />;
 
     default:
       return <SimpleStubDrawer title="Coming up next" description="This drawer's full design lands in the next iteration." sections={[]} />;
@@ -682,6 +732,7 @@ function TenantSummaryDrawer() {
           }}
         >
           <span
+            aria-hidden
             style={{
               width: 8,
               height: 8,
@@ -727,7 +778,7 @@ function TenantSummaryDrawer() {
                 fontSize: 13,
                 color: COLORS.ink,
                 textAlign: "left",
-                transition: "border-color .12s",
+                transition: `border-color ${TRANSITION.micro}`,
               }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(11,11,13,0.18)")}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
@@ -759,14 +810,23 @@ function TenantSummaryDrawer() {
                   background: isCurrent ? "rgba(11,11,13,0.05)" : "transparent",
                 }}
               >
+                {/* WS-12.9 — icon, not color alone, signals reached vs locked */}
                 <span
+                  aria-hidden
                   style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: isReached ? COLORS.ink : COLORS.inkDim,
+                    width: 14,
+                    height: 14,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    color: isReached ? COLORS.ink : COLORS.inkDim,
                   }}
-                />
+                >
+                  {isReached
+                    ? <Icon name="check" size={11} stroke={2.5} />
+                    : <Icon name="lock" size={11} stroke={1.8} />}
+                </span>
                 <span style={{ fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, color: COLORS.ink, minWidth: 70 }}>
                   {PLAN_META[p].label}
                 </span>
@@ -1015,7 +1075,7 @@ function ThemeFoundationsDrawer() {
                 cursor: "pointer",
                 fontFamily: FONTS.body,
                 textAlign: "left",
-                transition: "border-color .12s",
+                transition: `border-color ${TRANSITION.micro}`,
               }}
             >
               <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
@@ -1461,8 +1521,8 @@ function BrandingDrawer() {
         </FieldRow>
         <FieldRow label="Accent">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input type="color" defaultValue="#0F4F3E" style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
-            <TextInput defaultValue="#0F4F3E" />
+            <input type="color" defaultValue={COLORS.accent} style={{ width: 38, height: 32, border: `1px solid ${COLORS.border}`, borderRadius: 6 }} />
+            <TextInput defaultValue={COLORS.accent} />
           </div>
         </FieldRow>
       </Section>
@@ -1950,7 +2010,7 @@ function RadioCardGroup({ options, defaultId }: { options: { id: string; title: 
               textAlign: "left",
               display: "flex",
               gap: 10,
-              transition: "border-color .12s",
+              transition: `border-color ${TRANSITION.micro}`,
             }}
           >
             <span
@@ -2373,7 +2433,7 @@ function DayDetailDrawer() {
       title={displayLabel}
       description={
         dayInquiries.length === 0
-          ? "No bookings or inquiries on this day."
+          ? "Nothing scheduled — add a booking below."
           : `${dayInquiries.length} ${dayInquiries.length === 1 ? "inquiry" : "inquiries"} scheduled.`
       }
       footer={
@@ -2434,7 +2494,7 @@ function DayDetailDrawer() {
                   cursor: "pointer",
                   fontFamily: FONTS.body,
                   textAlign: "left",
-                  transition: "border-color .12s",
+                  transition: `border-color ${TRANSITION.micro}`,
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
                 onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
@@ -2682,7 +2742,7 @@ function TodayPulseDrawer() {
               display: "flex",
               alignItems: "center",
               gap: 12,
-              transition: "border-color .12s",
+              transition: `border-color ${TRANSITION.micro}`,
             }}
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(11,11,13,0.18)")}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
@@ -2788,9 +2848,12 @@ function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting" | "con
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.length === 0 ? (
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
-            Nothing here yet.
-          </div>
+          <EmptyState
+            compact
+            icon="calendar"
+            title="Nothing here yet"
+            body="Inquiries matching this stage will appear here as they progress through the pipeline."
+          />
         ) : items.map((iq) => (
           <button
             key={iq.id}
@@ -2827,9 +2890,73 @@ function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting" | "con
 // Notifications & activity feeds
 // ════════════════════════════════════════════════════════════════════
 
+// WS-11.2 — notification batching types
+type BatchedNotif = {
+  kind: "batch";
+  id: string;
+  batchKind: NotificationItem["kind"];
+  inquiryId?: string;
+  count: number;
+  actors: string[];        // distinct actor names
+  summary: string;         // "3 new messages from Vogue Italia"
+  ts: string;              // ts of the latest item
+  items: NotificationItem[];
+  targetDrawer: NotificationItem["targetDrawer"];
+  targetPayload?: NotificationItem["targetPayload"];
+};
+
+type NotifListItem = NotificationItem | BatchedNotif;
+
+/** Group consecutive same-kind+same-inquiryId notifications into batches. */
+function batchNotifications(items: NotificationItem[]): NotifListItem[] {
+  const out: NotifListItem[] = [];
+  let i = 0;
+  while (i < items.length) {
+    const curr = items[i];
+    // Only batch unread messages from the same inquiry
+    if (curr.kind === "message" && !curr.read && curr.inquiryId) {
+      const group: NotificationItem[] = [curr];
+      while (
+        i + group.length < items.length &&
+        items[i + group.length].kind === "message" &&
+        !items[i + group.length].read &&
+        items[i + group.length].inquiryId === curr.inquiryId
+      ) {
+        group.push(items[i + group.length]);
+      }
+      if (group.length >= 2) {
+        // Infer a readable entity name from the inquiry ID
+        const entityName =
+          group[0].title.split(" ")[0] + (group[0].title.split(" ")[1] ? " " + group[0].title.split(" ")[1] : "");
+        const actors = [...new Set(group.map((g) => g.actorName))];
+        out.push({
+          kind: "batch",
+          id: `batch-${curr.id}`,
+          batchKind: "message",
+          inquiryId: curr.inquiryId,
+          count: group.length,
+          actors,
+          summary: `${group.length} new messages from ${entityName}`,
+          ts: group[group.length - 1].ts,
+          items: group,
+          targetDrawer: curr.targetDrawer,
+          targetPayload: curr.targetPayload,
+        });
+        i += group.length;
+        continue;
+      }
+    }
+    out.push(curr);
+    i++;
+  }
+  return out;
+}
+
 function NotificationsDrawer() {
-  const { closeDrawer, openDrawer } = useProto();
+  const { closeDrawer, openDrawer, toast } = useProto();
   const [filter, setFilter] = useState<"all" | "unread" | "action">("all");
+  // WS-11.2 — track which batches are expanded
+  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
 
   const KIND_ICON: Record<NotificationItem["kind"], "mail" | "user" | "calendar" | "credit" | "check" | "bolt" | "bell"> = {
     message:  "mail",
@@ -2849,8 +2976,195 @@ function NotificationsDrawer() {
     if (filter === "action") return ACTION_KINDS.includes(n.kind) && !n.read;
     return true;
   });
+  const batched = batchNotifications(filtered);
   const unreadCount = items.filter((n) => !n.read).length;
   const actionCount = items.filter((n) => ACTION_KINDS.includes(n.kind) && !n.read).length;
+
+  const toggleBatch = (id: string) =>
+    setExpandedBatches((s) => {
+      const next = new Set(s);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const renderSingleItem = (n: NotificationItem, compact?: boolean) => (
+    <button
+      key={n.id}
+      onClick={() => openDrawer(n.targetDrawer, n.targetPayload)}
+      style={{
+        background: !n.read ? "#fff" : "rgba(11,11,13,0.015)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: compact ? 8 : 10,
+        padding: compact ? "8px 10px" : 12,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        textAlign: "left",
+        display: "flex",
+        gap: 10,
+        alignItems: "flex-start",
+        width: "100%",
+      }}
+    >
+      <Avatar initials={n.actorInitials} size={compact ? 22 : 28} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: compact ? 11.5 : 13, fontWeight: 600, color: COLORS.ink }}>{n.title}</span>
+          {!n.read && (
+            <span
+              aria-label="Unread"
+              style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.accent, flexShrink: 0 }}
+            />
+          )}
+        </div>
+        <div style={{ fontSize: compact ? 11 : 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
+          {n.body}
+        </div>
+        {!compact && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
+            <span style={{
+              fontSize: 10.5, fontWeight: 600, letterSpacing: "0.04em",
+              textTransform: "uppercase", color: COLORS.inkDim,
+              display: "inline-flex", alignItems: "center", gap: 4,
+            }}>
+              <Icon name={KIND_ICON[n.kind]} size={10} stroke={1.8} />
+              {n.kind}
+            </span>
+            <span style={{ fontSize: 11, color: COLORS.inkDim }}>{n.ts}</span>
+          </div>
+        )}
+      </div>
+    </button>
+  );
+
+  const renderBatchItem = (b: BatchedNotif) => {
+    const isExpanded = expandedBatches.has(b.id);
+    return (
+      <div
+        key={b.id}
+        style={{
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 10,
+          overflow: "hidden",
+        }}
+      >
+        {/* Batch summary row */}
+        <button
+          type="button"
+          onClick={() => toggleBatch(b.id)}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 12px",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
+            fontFamily: FONTS.body,
+          }}
+        >
+          {/* Stacked avatar indicators */}
+          <div style={{ position: "relative", width: 36, height: 28, flexShrink: 0 }}>
+            {b.actors.slice(0, 2).map((actor, i) => (
+              <span
+                key={actor}
+                style={{
+                  position: "absolute",
+                  left: i * 10,
+                  top: 0,
+                  display: "inline-flex",
+                  width: 26, height: 26,
+                  borderRadius: "50%",
+                  background: COLORS.accent,
+                  color: "#fff",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "2px solid #fff",
+                }}
+              >
+                {actor.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+              </span>
+            ))}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{b.summary}</span>
+              <span style={{
+                display: "inline-flex", padding: "1px 6px", minWidth: 18, height: 18,
+                borderRadius: 999, background: COLORS.accent, color: "#fff",
+                fontSize: 10, fontWeight: 700, alignItems: "center", justifyContent: "center",
+              }}>
+                {b.count}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+              {b.ts} · tap to {isExpanded ? "collapse" : "expand"}
+            </div>
+          </div>
+
+          {/* Expand / collapse chevron */}
+          <span
+            aria-hidden
+            style={{
+              fontSize: 11,
+              color: COLORS.inkMuted,
+              transition: `transform ${TRANSITION.sm}`,
+              transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+              display: "inline-block",
+              flexShrink: 0,
+            }}
+          >
+            ▾
+          </span>
+        </button>
+
+        {/* Jump to thread CTA */}
+        {!isExpanded && (
+          <button
+            type="button"
+            onClick={() => openDrawer(b.targetDrawer, b.targetPayload)}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: "6px 12px",
+              borderTop: `1px solid ${COLORS.borderSoft}`,
+              background: "rgba(31,92,66,0.04)",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 600,
+              color: COLORS.accent,
+              textAlign: "left",
+            }}
+          >
+            Open thread →
+          </button>
+        )}
+
+        {/* Expanded individual items */}
+        {isExpanded && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              padding: "4px 8px 8px",
+              borderTop: `1px solid ${COLORS.borderSoft}`,
+              background: COLORS.surfaceAlt,
+            }}
+          >
+            {b.items.map((n) => renderSingleItem(n, true))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <DrawerShell
@@ -2865,7 +3179,8 @@ function NotificationsDrawer() {
       }
       footer={
         <>
-          <GhostButton onClick={closeDrawer}>Mark all read</GhostButton>
+          <GhostButton onClick={() => openDrawer("my-activity")}>Your activity</GhostButton>
+          <GhostButton onClick={() => toast("Marked all as read")}>Mark all read</GhostButton>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
         </>
       }
@@ -2902,78 +3217,21 @@ function NotificationsDrawer() {
         })}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {filtered.length === 0 && (
-          <div
-            style={{
-              padding: "24px 14px",
-              textAlign: "center",
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              color: COLORS.inkMuted,
-            }}
-          >
-            {filter === "action" ? "No items need your attention right now." : "Nothing here. Switch filter to see other items."}
-          </div>
+        {batched.length === 0 && (
+          <EmptyState
+            compact
+            icon="info"
+            title={filter === "action" ? "All clear" : "Nothing here"}
+            body={filter === "action"
+              ? "No items need your attention right now."
+              : "Switch to a different filter to see other notifications."}
+          />
         )}
-        {filtered.map((n) => (
-          <button
-            key={n.id}
-            onClick={() => openDrawer(n.targetDrawer, n.targetPayload)}
-            style={{
-              background: !n.read ? "#fff" : "rgba(11,11,13,0.015)",
-              border: `1px solid ${!n.read ? COLORS.borderSoft : COLORS.borderSoft}`,
-              borderRadius: 10,
-              padding: 12,
-              cursor: "pointer",
-              fontFamily: FONTS.body,
-              textAlign: "left",
-              display: "flex",
-              gap: 10,
-              alignItems: "flex-start",
-              position: "relative",
-            }}
-          >
-            <Avatar initials={n.actorInitials} size={28} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{n.title}</span>
-                {!n.read && (
-                  <span
-                    aria-label="Unread"
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: COLORS.accent,
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-              </div>
-              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
-                {n.body}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    textTransform: "uppercase",
-                    color: COLORS.inkDim,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <Icon name={KIND_ICON[n.kind]} size={10} stroke={1.8} />
-                  {n.kind}
-                </span>
-                <span style={{ fontSize: 11, color: COLORS.inkDim }}>{n.ts}</span>
-              </div>
-            </div>
-          </button>
-        ))}
+        {batched.map((item) =>
+          item.kind === "batch"
+            ? renderBatchItem(item)
+            : renderSingleItem(item as NotificationItem)
+        )}
       </div>
     </DrawerShell>
   );
@@ -3023,6 +3281,182 @@ function ActivityFeedDrawer({ kind }: { kind: "team" | "talent" }) {
             </div>
           </div>
         ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-11.7 — MyActivityDrawer — "Things you did" history
+// ════════════════════════════════════════════════════════════════════
+
+type MyAction = {
+  id: string;
+  icon: "mail" | "check" | "bolt" | "calendar" | "user" | "settings" | "archive" | "plus";
+  label: string;
+  sub?: string;
+  ts: string;
+  category: "message" | "inquiry" | "booking" | "roster" | "settings";
+};
+
+const MY_ACTIONS: MyAction[] = [
+  { id: "a1",  icon: "mail",     label: "Replied in Valentino SS26 thread",         sub: "Confirmed Kai Lin availability",           ts: "22m ago",  category: "message"  },
+  { id: "a2",  icon: "bolt",     label: "Sent counter-offer to Vogue Italia",        sub: "RI-202 · €12,400 for 2 talent",            ts: "2h ago",   category: "inquiry"  },
+  { id: "a3",  icon: "check",    label: "Approved Lina Park's profile changes",      sub: "3 new photos + measurements",              ts: "1h ago",   category: "roster"   },
+  { id: "a4",  icon: "plus",     label: "Added Tomás Navarro to the roster",         sub: "Freelance model · New face tier",          ts: "Yesterday", category: "roster"  },
+  { id: "a5",  icon: "calendar", label: "Confirmed booking BK-203",                  sub: "Bvlgari · Kai Lin · Rome · May 8",         ts: "Yesterday", category: "booking" },
+  { id: "a6",  icon: "mail",     label: "Sent inquiry to Casa Pero",                 sub: "RI-207 · E/W shoot · 2 talent",            ts: "2d ago",   category: "inquiry"  },
+  { id: "a7",  icon: "archive",  label: "Archived 4 expired inquiries",              sub: "RI-200, RI-198, RI-196, RI-193",           ts: "2d ago",   category: "inquiry"  },
+  { id: "a8",  icon: "settings", label: "Updated workspace branding",                sub: "Logo + accent color",                      ts: "3d ago",   category: "settings" },
+  { id: "a9",  icon: "user",     label: "Invited Andrés Lopez to the team",          sub: "Editor role",                              ts: "3d ago",   category: "roster"   },
+  { id: "a10", icon: "mail",     label: "Sent offer to Net-a-Porter",                sub: "RI-204 · Marta Reyes · €3,400",            ts: "4d ago",   category: "inquiry"  },
+  { id: "a11", icon: "check",    label: "Marked BK-198 as complete",                 sub: "Zara capsule · Kai Lin",                   ts: "5d ago",   category: "booking"  },
+  { id: "a12", icon: "plus",     label: "Created new shortlist for Prada",           sub: "8 talent shortlisted",                     ts: "6d ago",   category: "inquiry"  },
+];
+
+type ActivityCategory = MyAction["category"] | "all";
+
+function MyActivityDrawer() {
+  const { closeDrawer } = useProto();
+  const [category, setCategory] = useState<ActivityCategory>("all");
+
+  const CAT_OPTIONS: { key: ActivityCategory; label: string }[] = [
+    { key: "all",      label: "All"      },
+    { key: "message",  label: "Messages" },
+    { key: "inquiry",  label: "Inquiries" },
+    { key: "booking",  label: "Bookings"  },
+    { key: "roster",   label: "Roster"    },
+    { key: "settings", label: "Settings"  },
+  ];
+
+  const CAT_COLOR: Record<MyAction["category"], string> = {
+    message:  "rgba(79,70,229,0.12)",
+    inquiry:  "rgba(31,92,66,0.1)",
+    booking:  "rgba(46,125,91,0.1)",
+    roster:   "rgba(217,119,6,0.1)",
+    settings: "rgba(11,11,13,0.06)",
+  };
+  const CAT_FG: Record<MyAction["category"], string> = {
+    message:  "rgba(79,70,229,0.9)",
+    inquiry:  COLORS.accent,
+    booking:  "#1A6040",
+    roster:   "#92400E",
+    settings: COLORS.inkMuted,
+  };
+
+  const filtered = MY_ACTIONS.filter((a) => category === "all" || a.category === category);
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title="Your activity"
+      description="A log of actions you took — across messages, inquiries, bookings, and roster changes."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      {/* Category filter */}
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 14 }}>
+        {CAT_OPTIONS.map((opt) => {
+          const active = category === opt.key;
+          return (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setCategory(opt.key)}
+              style={{
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: active ? `1.5px solid ${COLORS.ink}` : `1px solid ${COLORS.border}`,
+                background: active ? COLORS.ink : "transparent",
+                color: active ? "#fff" : COLORS.inkMuted,
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                fontWeight: active ? 600 : 500,
+                cursor: "pointer",
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {filtered.map((action) => (
+          <div
+            key={action.id}
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              padding: "10px 12px",
+              borderRadius: 10,
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+            }}
+          >
+            {/* Category-tinted icon */}
+            <span
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: CAT_COLOR[action.category],
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                marginTop: 1,
+              }}
+            >
+              <Icon name={action.icon} size={14} color={CAT_FG[action.category]} stroke={1.8} />
+            </span>
+
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: COLORS.ink,
+                  lineHeight: 1.4,
+                }}
+              >
+                {action.label}
+              </div>
+              {action.sub && (
+                <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                  {action.sub}
+                </div>
+              )}
+            </div>
+
+            <span
+              style={{
+                fontFamily: FONTS.body,
+                fontSize: 10.5,
+                color: COLORS.inkDim,
+                flexShrink: 0,
+                marginTop: 2,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {action.ts}
+            </span>
+          </div>
+        ))}
+
+        {filtered.length === 0 && (
+          <div style={{
+            padding: "32px 20px",
+            textAlign: "center",
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            color: COLORS.inkMuted,
+          }}>
+            No {category} actions yet.
+          </div>
+        )}
       </div>
     </DrawerShell>
   );
@@ -3730,7 +4164,7 @@ function DangerZoneDrawer() {
           actionLabel="Delete workspace"
           confirmPhrase={TENANT.name}
           tone="red"
-          onConfirm={() => toast("This is a prototype — nothing was deleted")}
+          onConfirm={() => toast("No data was deleted — destructive actions are disabled here")}
         />
       </Section>
     </DrawerShell>
@@ -3762,7 +4196,7 @@ function ConfirmTypedAction({
   const palette =
     tone === "red"
       ? { fg: COLORS.red, bg: "rgba(176,48,58,0.06)", border: "rgba(176,48,58,0.30)", solid: COLORS.red }
-      : { fg: "#3A4651", bg: "rgba(82,96,109,0.08)", border: "rgba(82,96,109,0.30)", solid: "#52606D" };
+      : { fg: COLORS.amberDeep, bg: "rgba(82,96,109,0.08)", border: "rgba(82,96,109,0.30)", solid: COLORS.amber };
 
   if (!armed) {
     return (
@@ -4229,7 +4663,7 @@ function PlanCompareDrawer() {
               background: "#fff", color: COLORS.inkMuted,
               cursor: "pointer", display: "inline-flex",
               alignItems: "center", justifyContent: "center",
-              flexShrink: 0, transition: "border-color .12s, color .12s",
+              flexShrink: 0, transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
             }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }}
@@ -4268,7 +4702,7 @@ function PlanCompareDrawer() {
                     flexDirection: "column",
                     gap: 0,
                     position: "relative",
-                    transition: "border-color .15s, box-shadow .15s",
+                    transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
                   }}
                   onMouseEnter={(e) => {
                     if (!isCurrent) {
@@ -4366,7 +4800,7 @@ function PlanCompareDrawer() {
                         border: `1px solid ${COLORS.border}`,
                         borderRadius: 9, fontFamily: FONTS.body,
                         fontSize: 12.5, fontWeight: 500, cursor: "pointer",
-                        transition: "background .12s",
+                        transition: `background ${TRANSITION.micro}`,
                       }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
@@ -4386,7 +4820,7 @@ function PlanCompareDrawer() {
                         border: "none",
                         borderRadius: 9, fontFamily: FONTS.body,
                         fontSize: 12.5, fontWeight: 600, cursor: "pointer",
-                        transition: "opacity .12s, transform .1s",
+                        transition: `opacity ${TRANSITION.micro}, transform ${TRANSITION.micro}`,
                         boxShadow: `0 2px 12px ${tier.accentSoft}`,
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.88"; }}
@@ -4738,7 +5172,7 @@ function PayoutReceiverPickerDrawer() {
                   opacity: eligible ? 1 : 0.6,
                   textAlign: "left",
                   fontFamily: FONTS.body,
-                  transition: "border-color .12s",
+                  transition: `border-color ${TRANSITION.micro}`,
                 }}
               >
                 <Avatar initials={rec.initials} size={36} />
@@ -4988,5 +5422,319 @@ function BreakdownRow({
         {value}
       </span>
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-5.9 — Client Trust Detail Drawer
+// ════════════════════════════════════════════════════════════════════
+
+function ClientTrustDetailDrawer() {
+  const { state, closeDrawer, openDrawer } = useProto();
+  const open  = state.drawer.drawerId === "client-trust-detail";
+  const level = (state.drawer.payload?.level as string) ?? "basic";
+
+  const tiers = [
+    { id: "basic",    label: "Basic",    color: COLORS.inkMuted, bg: "rgba(11,11,13,0.04)",     badge: "—", requirements: ["Verified email", "Completed profile"], access: ["Browse public rosters", "Submit inquiries"] },
+    { id: "verified", label: "Verified", color: COLORS.green,       bg: "rgba(46,125,91,0.08)",    badge: "✓", requirements: ["Identity verification", "Phone confirmed"], access: ["Direct talent contact (if talent allows)", "Priority processing"] },
+    { id: "silver",   label: "Silver",   color: COLORS.amberDeep,       bg: COLORS.amberSoft,    badge: "◈", requirements: ["Verified identity", "1+ completed booking", "No disputes"], access: ["First-look on new availability", "Extended 72h holds"] },
+    { id: "gold",     label: "Gold",     color: "#7A5C00",       bg: "rgba(217,163,6,0.10)",    badge: "★", requirements: ["Verified identity", "Funded account", "3+ bookings", "5★ avg"], access: ["Dedicated coordinator", "VIP talent access", "Direct messaging all tiers"] },
+  ];
+  const currentIdx = tiers.findIndex((t) => t.id === level);
+  const current    = tiers[currentIdx] ?? tiers[0]!;
+  const next       = tiers[currentIdx + 1];
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Client Trust Ladder" description="Higher trust unlocks access opportunities — never pay-to-DM" defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ padding: "14px 16px", background: current.bg, border: `1px solid ${current.color}33`, borderLeft: `3px solid ${current.color}`, borderRadius: 10, fontFamily: FONTS.body }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <span style={{ fontSize: 18 }}>{current.badge}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: current.color }}>{current.label}</span>
+            <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase" as const, color: current.color }}>Current tier</span>
+          </div>
+          {current.access.map((a, i) => (
+            <div key={i} style={{ fontSize: 12.5, color: COLORS.inkMuted, display: "flex", gap: 8, marginBottom: 3 }}>
+              <span style={{ color: current.color, fontWeight: 700 }}>✓</span>{a}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {tiers.map((t, i) => {
+            const isCurrent = t.id === level;
+            const isPast    = i < currentIdx;
+            return (
+              <div key={t.id} style={{ display: "flex", gap: 12, padding: "12px 14px", background: isCurrent ? t.bg : isPast ? "rgba(11,11,13,0.02)" : "#fff", border: `1px solid ${isCurrent ? t.color + "33" : COLORS.borderSoft}`, borderRadius: 10, opacity: isPast ? 0.7 : 1, fontFamily: FONTS.body }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: isCurrent ? t.color : isPast ? COLORS.borderSoft : "rgba(11,11,13,0.04)", color: isCurrent || isPast ? "#fff" : COLORS.inkMuted, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                  {isPast ? "✓" : t.badge}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isCurrent ? t.color : COLORS.ink, marginBottom: 3 }}>{t.label}{isCurrent && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400, color: COLORS.inkMuted }}>— you are here</span>}</div>
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{t.requirements.join(" · ")}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {next && (
+          <div style={{ padding: "14px 16px", background: "rgba(11,11,13,0.02)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>Unlock {next.label}</div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>{next.requirements.join(", ")}</div>
+            <button type="button" onClick={() => openDrawer("kyc-verification")} style={{ padding: "8px 16px", background: COLORS.ink, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Start verification →
+            </button>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-5.1 — Escrow Detail Drawer
+// ════════════════════════════════════════════════════════════════════
+
+function EscrowDetailDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open  = state.drawer.drawerId === "escrow-detail";
+  const stage = (state.drawer.payload?.stage as string) ?? "held";
+
+  const steps = [
+    { id: "authorized", label: "Authorized", icon: "🔑", desc: "Payment method verified. Hold placed — no charge yet.",         done: ["held","released"].includes(stage), active: stage === "authorized" },
+    { id: "held",       label: "Held",       icon: "🔒", desc: "Funds locked in escrow. Released only after booking confirms.", done: stage === "released",                  active: stage === "held" },
+    { id: "released",   label: "Released",   icon: "✅", desc: "Shoot complete. Funds transferred to payout receiver.",          done: false,                                 active: stage === "released" },
+  ];
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Escrow Status" description="Payment held securely until shoot is confirmed complete" defaultSize="compact">
+      <div style={{ display: "flex", flexDirection: "column", gap: 0, fontFamily: FONTS.body }}>
+        {steps.map((s, i) => (
+          <div key={s.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: s.done ? COLORS.green : s.active ? COLORS.ink : "rgba(11,11,13,0.06)", color: s.done || s.active ? "#fff" : COLORS.inkDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: s.done ? 14 : 16, fontWeight: 700 }}>
+                {s.done ? "✓" : s.icon}
+              </div>
+              {i < steps.length - 1 && <div style={{ width: 2, height: 28, background: s.done ? COLORS.green : COLORS.borderSoft, margin: "4px 0" }} />}
+            </div>
+            <div style={{ flex: 1, paddingTop: 6, paddingBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: s.active ? 600 : 500, color: s.active || s.done ? COLORS.ink : COLORS.inkMuted, marginBottom: 2 }}>
+                {s.label}{s.active && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" as const, color: COLORS.green }}>Current</span>}
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>{s.desc}</div>
+            </div>
+          </div>
+        ))}
+        {stage === "held" && (
+          <div style={{ marginTop: 4, padding: "12px 14px", background: "rgba(46,125,91,0.06)", border: "1px solid rgba(46,125,91,0.18)", borderRadius: 10 }}>
+            <div style={{ fontSize: 12, color: COLORS.successDeep, fontWeight: 500, marginBottom: 8 }}>🔒 Funds are secured. Auto-released 24h after confirmed shoot date.</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={() => toast("Release triggered — payout processing")} style={{ padding: "7px 14px", background: COLORS.green, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Release now</button>
+              <button type="button" onClick={() => toast("Dispute opened")} style={{ padding: "7px 14px", background: "transparent", color: COLORS.red, border: "1px solid rgba(176,48,58,0.25)", borderRadius: 7, fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>Open dispute</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-5.3 Refund · WS-5.8 Dispute · WS-5.7 PayoutFailure
+// WS-5.10 KYC · WS-5.11 ProofOfFunds · WS-5.14 SubscriptionLifecycle
+// WS-11 NotificationDetail · WS-18 AI Assist drawers
+// ════════════════════════════════════════════════════════════════════
+
+function RefundFlowDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "refund-flow";
+  const [reason, setReason] = useState("");
+  const [amount, setAmount] = useState<"full"|"partial">("full");
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Request Refund" description="Reviewed within 24 hours" defaultSize="compact">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          {(["full","partial"] as const).map((t) => (
+            <button key={t} type="button" onClick={() => setAmount(t)} style={{ flex: 1, padding: "10px 0", border: `1px solid ${amount===t ? COLORS.ink : COLORS.borderSoft}`, background: amount===t ? COLORS.ink : "transparent", color: amount===t ? "#fff" : COLORS.ink, borderRadius: 8, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer", textTransform: "capitalize" as const }}>{t} refund</button>
+          ))}
+        </div>
+        <select value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 13, color: reason ? COLORS.ink : COLORS.inkMuted, background: "#fff" }}>
+          <option value="">Select reason…</option>
+          <option value="cancelled">Shoot cancelled by client</option>
+          <option value="no-show">Talent no-show</option>
+          <option value="force-majeure">Force majeure</option>
+          <option value="quality">Deliverables below standard</option>
+          <option value="duplicate">Billing error / duplicate</option>
+        </select>
+        <button type="button" disabled={!reason} onClick={() => { toast("Refund request submitted"); closeDrawer(); }} style={{ padding: "10px", background: reason ? COLORS.red : COLORS.borderSoft, border: "none", borderRadius: 8, color: reason ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: reason ? "pointer" : "default" }}>Submit request</button>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function DisputeFlowDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "dispute-flow";
+  const [step, setStep] = useState<1|2|3>(1);
+  const [type, setType] = useState("");
+  const types = [
+    { id: "no-show",  label: "Talent didn't show up" },
+    { id: "quality",  label: "Deliverables not as agreed" },
+    { id: "overcharge", label: "Charged incorrectly" },
+    { id: "cancellation", label: "Cancellation policy dispute" },
+  ];
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Open Dispute" description="Funds are frozen during review" defaultSize="half">
+      <div style={{ fontFamily: FONTS.body }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
+          {([1,2,3] as const).map((s) => (
+            <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: s < step ? COLORS.green : s === step ? COLORS.ink : "rgba(11,11,13,0.06)", color: s <= step ? "#fff" : COLORS.inkDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{s < step ? "✓" : s}</div>
+              <span style={{ fontSize: 12, color: s === step ? COLORS.ink : COLORS.inkMuted, fontWeight: s === step ? 600 : 400 }}>{s === 1 ? "Type" : s === 2 ? "Evidence" : "Review"}</span>
+              {s < 3 && <div style={{ width: 20, height: 1, background: COLORS.borderSoft }} />}
+            </div>
+          ))}
+        </div>
+        {step === 1 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{types.map((d) => (<button key={d.id} type="button" onClick={() => setType(d.id)} style={{ padding: "12px 14px", border: `1px solid ${type===d.id ? COLORS.ink : COLORS.borderSoft}`, background: type===d.id ? "rgba(11,11,13,0.04)" : "#fff", borderRadius: 9, textAlign: "left" as const, cursor: "pointer", fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{d.label}</button>))}<button type="button" disabled={!type} onClick={() => setStep(2)} style={{ marginTop: 8, padding: "10px", background: type ? COLORS.ink : COLORS.borderSoft, border: "none", borderRadius: 8, color: type ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: type ? "pointer" : "default" }}>Continue →</button></div>}
+        {step === 2 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => { toast("File picker"); setStep(3); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 28 }}>📎</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Upload evidence</div><div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>Photos, emails, contracts, call recordings</div></div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
+        {step === 3 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div style={{ padding: "14px", background: "rgba(176,48,58,0.05)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.6 }}><strong style={{ color: "#7A2026" }}>Opening a dispute freezes the escrow.</strong> Funds won't be released until resolved (2–5 business days).</div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(2)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => { toast("Dispute opened — escrow frozen"); closeDrawer(); }} style={{ flex: 1, padding: "10px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Confirm dispute</button></div></div>}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function KycVerificationDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "kyc-verification";
+  const [step, setStep] = useState<"intro"|"id"|"selfie"|"done">("intro");
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Identity Verification" description="Secure · Encrypted · ~3 minutes" defaultSize="compact">
+      <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 20 }}>
+        {step === "intro" && <>{[{icon:"🪪",title:"Government-issued ID",desc:"Passport, driving licence, or national ID"},{icon:"🤳",title:"Selfie with your ID",desc:"A clear photo of you holding your document"},{icon:"🔒",title:"Secure & private",desc:"Encrypted, deleted after verification"}].map((i) => (<div key={i.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}><span style={{ fontSize: 22 }}>{i.icon}</span><div><div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{i.title}</div><div style={{ fontSize: 12, color: COLORS.inkMuted }}>{i.desc}</div></div></div>))}<button type="button" onClick={() => setStep("id")} style={{ padding: "11px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Start verification →</button></>}
+        {step === "id" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => { toast("File picker — select ID document"); setStep("selfie"); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🪪</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Tap to upload or take a photo</div></div></div>}
+        {step === "selfie" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => setStep("done")} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🤳</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Selfie holding your ID</div><div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>Both your face and document must be clearly visible</div></div></div>}
+        {step === "done" && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, textAlign: "center" as const }}><span style={{ fontSize: 48 }}>✅</span><div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Submitted</div><div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Review within 24 hours. You'll be notified once verified.</div><button type="button" onClick={closeDrawer} style={{ padding: "10px 24px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button></div>}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ProofOfFundsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "proof-of-funds";
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Proof of Funds" description="Required for Silver and Gold trust tiers" defaultSize="compact">
+      <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Demonstrate available funds via bank link (instant) or wire deposit (1–3 business days).</div>
+        <button type="button" onClick={() => toast("Bank link — opens Plaid / TrueLayer")} style={{ padding: "12px 16px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" as const }}>🏦 Link bank account (instant)</button>
+        <button type="button" onClick={() => toast("Wire instructions sent to your email")} style={{ padding: "12px 16px", background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.ink, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" as const }}>💸 Wire deposit (1–3 days)</button>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function PayoutMethodFailureDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "payout-method-failure";
+  const reason = (state.drawer.payload?.reason as string) ?? "invalid_iban";
+  const msgs: Record<string,string> = { invalid_iban: "The IBAN appears invalid. Please check and re-enter.", expired_card: "Your payout card has expired.", bank_rejected: "Your bank rejected the transfer — the account may be closed.", suspicious: "This transfer was flagged. Our team will contact you within 24h." };
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Payout Failed" description="Action required to receive your payment" defaultSize="compact">
+      <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ padding: "12px 14px", background: "rgba(176,48,58,0.06)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 13, color: "#7A2026", lineHeight: 1.5 }}>⚠️ {msgs[reason] ?? "An error occurred."}</div>
+        <button type="button" onClick={() => toast("Payment method editor")} style={{ padding: "11px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Update payout method →</button>
+        <button type="button" onClick={() => toast("Support ticket opened")} style={{ padding: "10px", background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer" }}>Contact support</button>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function SubscriptionLifecycleDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open  = state.drawer.drawerId === "subscription-lifecycle";
+  const phase = (state.drawer.payload?.phase as string) ?? "active";
+  const phases: Record<string, { title: string; desc: string; cta: string; ctaColor: string }> = {
+    trial:     { title: "Trial ending soon",          desc: "Your trial ends in 3 days. Upgrade to keep access.",                              cta: "Upgrade now",    ctaColor: COLORS.ink },
+    active:    { title: "Studio · Active",             desc: "Renews June 14, 2026 · €59/month. All features active.",                         cta: "Manage plan",    ctaColor: COLORS.ink },
+    paused:    { title: "Plan paused",                desc: "Features are read-only. Resume any time — billing picks up from today.",          cta: "Resume plan",    ctaColor: COLORS.green },
+    cancelled: { title: "Plan cancelled",             desc: "Expires June 14. After that you lose Studio features.",                           cta: "Reactivate",     ctaColor: COLORS.green },
+    grace:     { title: "Payment failed — grace",     desc: "Couldn't charge your card. Update payment within 7 days to avoid restriction.",   cta: "Update payment", ctaColor: COLORS.red },
+  };
+  const c = phases[phase] ?? phases.active!;
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title={c.title} defaultSize="compact">
+      <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>{c.desc}</div>
+        <button type="button" onClick={() => toast(c.cta)} style={{ padding: "11px", background: c.ctaColor, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{c.cta}</button>
+        {phase === "active" && <button type="button" onClick={() => toast("Cancellation + win-back flow")} style={{ padding: "10px", background: "transparent", border: "none", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 12, cursor: "pointer" }}>Cancel subscription</button>}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function NotificationDetailDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "notification-detail";
+  const n = state.drawer.payload?.notification as Record<string,string> | undefined;
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Notification" defaultSize="compact">
+      <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>
+        {n?.body ?? "No additional detail available."}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function AiDraftAssistDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "ai-draft-assist";
+  const [prompt, setPrompt] = useState("");
+  const [result, setResult] = useState("");
+  const [loading, setLoading] = useState(false);
+  const DRAFTS: Record<string,string> = {
+    "nudge client": "Hi Joana! Quick nudge — the offer we sent expires in 24 hours. Happy to extend the deadline if you need more time. Let me know! — Sara",
+    "confirm date": "Hi team — confirming: May 6, full day at Estudio Roca, Madrid. Call time 8 AM. Please confirm receipt. Thanks! — Sara",
+    "decline":      "Hi Tomás, thank you for your interest. After reviewing the lineup we're going in a slightly different direction. We'll keep you in mind for future shoots. — Sara",
+  };
+  const generate = () => {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    setTimeout(() => {
+      const key = Object.keys(DRAFTS).find((k) => prompt.toLowerCase().includes(k));
+      setResult(DRAFTS[key ?? "nudge client"] ?? "Draft generated from context…");
+      setLoading(false);
+    }, 1100);
+  };
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="AI Draft Assist" description="Generate a first draft — you edit, then send" defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder='e.g. "nudge client about offer" or "confirm date with talent"' rows={3} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, resize: "none" as const, outline: "none", boxSizing: "border-box" as const }} />
+        <button type="button" onClick={generate} disabled={loading || !prompt.trim()} style={{ padding: "10px", background: prompt.trim() ? COLORS.ink : COLORS.borderSoft, border: "none", borderRadius: 8, color: prompt.trim() ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: prompt.trim() ? "pointer" : "default" }}>{loading ? "Drafting…" : "Generate draft"}</button>
+        {result && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, color: COLORS.inkMuted, marginBottom: 6 }}>Draft — edit before sending</div>
+            <textarea value={result} onChange={(e) => setResult(e.target.value)} rows={6} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(79,70,229,0.35)", fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, resize: "vertical" as const, outline: "none", background: "rgba(79,70,229,0.03)", boxSizing: "border-box" as const }} />
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button type="button" onClick={() => { toast("Draft copied to composer"); closeDrawer(); }} style={{ flex: 1, padding: "9px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Use draft →</button>
+              <button type="button" onClick={() => setResult("")} style={{ padding: "9px 14px", background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer" }}>Clear</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function AiSearchExplainDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open    = state.drawer.drawerId === "ai-search-explain";
+  const query   = (state.drawer.payload?.query as string) ?? "";
+  const results = (state.drawer.payload?.resultCount as number) ?? 0;
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Search interpretation" defaultSize="compact">
+      <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 14 }}>
+        {query && <div style={{ padding: "10px 12px", background: "rgba(11,11,13,0.03)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, fontSize: 13, color: COLORS.ink }}>&ldquo;{query}&rdquo;</div>}
+        <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Searched across name, agency, brief, status, and location. Found <strong style={{ color: COLORS.ink }}>{results} results</strong>. Try date ranges, status filters, or talent names for precision.</div>
+      </div>
+    </DrawerShell>
   );
 }

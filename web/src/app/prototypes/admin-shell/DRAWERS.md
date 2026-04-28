@@ -6,6 +6,11 @@
 > emits this from `_help.tsx` automatically. The registry shape is also
 > consumed by the future `/support/<slug>` pages, the in-app chat Q&A, and
 > the ticket-submission category routing.
+>
+> **For the bigger picture** — audit findings, execution plan, designer
+> handoff package — see [`ROADMAP.md`](./ROADMAP.md) in this directory.
+> Drawer rationalization (demote ~30 to popovers, promote ~5 to pages) is
+> tracked there as workstream WS-4.
 
 Each entry covers:
 - **Who** — the primary audience (drives the eyebrow chip in the in-app help panel)

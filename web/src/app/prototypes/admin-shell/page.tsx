@@ -29,7 +29,7 @@
 
 import { Component, Suspense, useEffect, useState, type ReactNode } from "react";
 import { ProtoProvider, useProto, COLORS, FONTS } from "./_state";
-import { ToastHost, BackToTop, OfflineBanner, ShortcutsModal } from "./_primitives";
+import { ToastHost, BackToTop, OfflineBanner, ShortcutsModal, FeedbackButton } from "./_primitives";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./_pages";
 import { DrawerRoot, UpgradeModal } from "./_drawers";
 import { CommandPalette } from "./_palette";
@@ -285,6 +285,42 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               animation-iteration-count: 1 !important;
               transition-duration: 0.01ms !important;
               scroll-behavior: auto !important;
+            }
+          }
+
+          /* WS-12.8 — Windows High Contrast / macOS Increase Contrast.
+             In forced-colors mode the browser substitutes system colors for
+             all custom colors. We:
+             1. Ensure all interactive elements have a visible border so they
+                still read as affordances without their background color.
+             2. Use ButtonText / LinkText / Highlight system color tokens
+                where a custom accent would otherwise be invisible.
+             3. Preserve StatusChip / badge borders so they remain legible
+                as colored boxes even when their background is stripped. */
+          @media (forced-colors: active) {
+            .tulala-shell button,
+            .tulala-shell a[href],
+            .tulala-shell [role="button"] {
+              forced-color-adjust: auto;
+            }
+            .tulala-shell [data-tulala-drawer-panel] {
+              border-left: 2px solid ButtonText !important;
+            }
+            .tulala-shell [data-tulala-app-topbar],
+            .tulala-shell [data-tulala-app-sidebar],
+            .tulala-shell [data-tulala-identity-bar] {
+              border-bottom: 1px solid ButtonText !important;
+              border-right: 1px solid ButtonText !important;
+            }
+            /* Chips and status pills: ensure border is visible */
+            .tulala-shell [data-tulala-chip],
+            .tulala-shell [data-tulala-status-pill] {
+              border: 1px solid ButtonText !important;
+              forced-color-adjust: none;
+            }
+            /* Toast: keep text legible */
+            .tulala-shell [data-tulala-toast-host] > * {
+              border: 1px solid ButtonText !important;
             }
           }
           /* ──────────────────────────────────────────────────────────────
@@ -1177,6 +1213,9 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
 
           {/* Floating "↑ Top" — appears after 600px of scroll. */}
           <BackToTop />
+
+          {/* WS-9.8 Feedback button — floating bottom-right */}
+          <FeedbackButton />
         </div>
     </>
   );

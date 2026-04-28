@@ -22,17 +22,29 @@
  *   - talent  → sees ONLY the group thread + their own line item + booking
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+
+/** Maps scrollBehavior() to Virtuoso's "smooth"|"auto" (no "instant"). */
+function vsb(): "smooth" | "auto" {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "auto"
+    : "smooth";
+}
 import { MentionTypeahead } from "./_wave2";
 import {
   AGENCY_RELIABILITY,
   COLORS,
   FONTS,
   INQUIRY_STAGE_META,
+  PAGE_META,
   PAYOUT_RECEIVER_KIND_LABEL,
   PAYOUT_STATUS_META,
+  RADIUS,
+  TRANSITION,
   REQUIREMENT_ROLE_META,
   RICH_INQUIRIES,
+  WORKSPACE_PAGES,
   describeSource,
   getPaymentSummary,
   getRichInquiry,
@@ -42,6 +54,7 @@ import {
   type RichInquiry,
   type ThreadMessage,
   type ThreadType,
+  type WorkspacePage,
 } from "./_state";
 import {
   Avatar,
@@ -57,6 +70,9 @@ import {
   SecondaryButton,
   StatDot,
   DrawerShell,
+  scrollBehavior,
+  useViewport,
+  type Attachment,
 } from "./_primitives";
 
 // ─── Public entry point ───────────────────────────────────────────
@@ -100,30 +116,440 @@ function povFromSurface(surface: string): InquiryWorkspacePov {
 }
 
 // ─── Body ────────────────────────────────────────────────────────
+//
+// WS-1.A — Responsive layout matrix:
+//
+//  phone   (<768px)  — vertical stack: StatusStrip → thread tabs →
+//                      [rail accordion] → stream → composer
+//  tablet  (768-1023px) — 2-col grid: messages | 320px rail
+//  desktop (1024-1279px) — same as tablet
+//  wide    (≥1280px) — 3-col grid (admin): private-stream |
+//                      group-stream | 260px rail
+//                      (client / talent keep 2-col)
 
 function WorkspaceBody({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
+  const viewport = useViewport();
+  const isPhone  = viewport === "phone";
+  const isWide   = viewport === "wide";
+  const dualPane = isWide && pov === "admin";
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16, height: "100%" }}>
-      <StatusStrip inquiry={inquiry} pov={pov} />
+    <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 8 : 16, height: "100%" }}>
+      <StatusStrip inquiry={inquiry} pov={pov} compact={isPhone} />
+
+      {isPhone ? (
+        /* ── Phone: stacked layout ── */
+        <PhoneWorkspaceLayout inquiry={inquiry} pov={pov} />
+      ) : (
+        /* ── Tablet / Desktop / Wide: grid layout ── */
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: dualPane
+              ? "minmax(0, 1fr) minmax(0, 1fr) 260px"
+              : "minmax(0, 1fr) 320px",
+            gap: 16,
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
+          {dualPane ? (
+            /* Wide admin: private + group side by side */
+            <>
+              <MessagingPanel inquiry={inquiry} pov={pov} forcedThread="private" />
+              <MessagingPanel inquiry={inquiry} pov={pov} forcedThread="group" />
+            </>
+          ) : (
+            <MessagingPanel inquiry={inquiry} pov={pov} />
+          )}
+          <Rail inquiry={inquiry} pov={pov} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Phone layout ────────────────────────────────────────────────
+//
+// Thread tabs across the top (horizontal scroller). A "Details"
+// toggle slides the Rail panels down in a compact accordion before
+// the message stream. The composer stays docked at the bottom of
+// the stream section.
+
+function PhoneWorkspaceLayout({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
+  const visible: ThreadType[] = useMemo(() => {
+    if (pov === "client") return ["private"];
+    if (pov === "talent") return ["group"];
+    return ["private", "group"];
+  }, [pov]);
+
+  const [active, setActive]     = useState<ThreadType>(visible.includes("private") ? "private" : "group");
+  const [railOpen, setRailOpen] = useState(false);
+  const [showFiles, setShowFiles] = useState(false); // WS-10.3
+
+  const labels: Record<ThreadType, string> = {
+    private: pov === "admin" ? "Client thread" : "With your coordinator",
+    group:   pov === "admin" ? "Talent group"  : "Booking team",
+  };
+  const unread: Record<ThreadType, number> = {
+    private: inquiry.unreadPrivate,
+    group:   inquiry.unreadGroup,
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      {/* ── Thread tabs ── */}
       <div
+        role="tablist"
+        aria-label="Message threads"
         style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) 320px",
-          gap: 16,
-          flex: 1,
-          minHeight: 0,
+          display: "flex",
+          overflowX: "auto",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          background: "#fff",
+          flexShrink: 0,
+          /* hide scrollbar while keeping scroll functional */
+          scrollbarWidth: "none",
         }}
       >
-        <MessagingPanel inquiry={inquiry} pov={pov} />
-        <Rail inquiry={inquiry} pov={pov} />
+        {visible.map((t) => {
+          const isActive = active === t && !showFiles;
+          return (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => { setActive(t); setShowFiles(false); }}
+              data-tulala-thread-tab={t}
+              style={{
+                flexShrink: 0,
+                background: "transparent",
+                border: "none",
+                padding: "0 16px",
+                height: 44,
+                fontFamily: FONTS.body,
+                fontSize: 14,
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? COLORS.ink : COLORS.inkMuted,
+                cursor: "pointer",
+                borderBottom: isActive ? `2px solid ${COLORS.ink}` : "2px solid transparent",
+                marginBottom: -1,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              {labels[t]}
+              {unread[t] > 0 && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    padding: "0 5px",
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: 999,
+                    background: COLORS.amber,
+                    color: "#fff",
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {unread[t]}
+                </span>
+              )}
+            </button>
+          );
+        })}
+
+        {/* WS-10.3 — Files tab (phone) */}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={showFiles}
+          data-tulala-workspace-files-tab
+          onClick={() => setShowFiles(true)}
+          style={{
+            flexShrink: 0,
+            background: "transparent",
+            border: "none",
+            padding: "0 16px",
+            height: 44,
+            fontFamily: FONTS.body,
+            fontSize: 14,
+            fontWeight: showFiles ? 600 : 500,
+            color: showFiles ? COLORS.ink : COLORS.inkMuted,
+            cursor: "pointer",
+            borderBottom: showFiles ? `2px solid ${COLORS.accent}` : "2px solid transparent",
+            marginBottom: -1,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          Files
+          <span style={{
+            display: "inline-flex", padding: "0 5px", minWidth: 18, height: 18,
+            borderRadius: 999, background: showFiles ? COLORS.accent : "rgba(11,11,13,0.08)",
+            color: showFiles ? "#fff" : COLORS.inkMuted,
+            fontSize: 10.5, fontWeight: 700, alignItems: "center", justifyContent: "center",
+          }}>
+            {WORKSPACE_FILES_COUNT}
+          </span>
+        </button>
+
+        {/* Details toggle — pushed right */}
+        <button
+          type="button"
+          onClick={() => setRailOpen((v) => !v)}
+          aria-expanded={railOpen}
+          data-tulala-phone-details-toggle
+          style={{
+            marginLeft: "auto",
+            flexShrink: 0,
+            background: "transparent",
+            border: "none",
+            padding: "0 14px",
+            height: 44,
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 500,
+            color: railOpen ? COLORS.ink : COLORS.inkMuted,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            borderBottom: railOpen ? `2px solid ${COLORS.ink}` : "2px solid transparent",
+            marginBottom: -1,
+          }}
+        >
+          Details
+          <span
+            aria-hidden
+            style={{
+              fontSize: 10,
+              transition: `transform ${TRANSITION.sm}`,
+              transform: railOpen ? "rotate(180deg)" : "rotate(0deg)",
+              display: "inline-block",
+            }}
+          >
+            ▾
+          </span>
+        </button>
       </div>
+
+      {/* ── Collapsible Rail accordion (hidden in files view) ── */}
+      {!showFiles && railOpen && (
+        <div
+          data-tulala-phone-rail
+          style={{
+            background: "rgba(11,11,13,0.02)",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+            maxHeight: 340,
+            overflowY: "auto",
+            flexShrink: 0,
+            padding: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <SummaryPanel inquiry={inquiry} />
+          {pov === "admin" && <CoordinatorPanel inquiry={inquiry} />}
+          <RequirementGroupsPanel inquiry={inquiry} pov={pov} />
+          <OfferPanel inquiry={inquiry} pov={pov} />
+          {(inquiry.bookingId || inquiry.stage === "approved") && (
+            <BookingPanel inquiry={inquiry} pov={pov} />
+          )}
+          <PaymentPanel inquiry={inquiry} pov={pov} />
+          <ActivityPanel inquiry={inquiry} />
+        </div>
+      )}
+
+      {/* WS-10.3 — Files panel */}
+      {showFiles && <WorkspaceFilesPanel inquiry={inquiry} pov={pov} />}
+
+      {/* ── Message stream + composer (phone variant) ── */}
+      {!showFiles && <PhoneMessagingStream inquiry={inquiry} pov={pov} active={active} />}
     </div>
+  );
+}
+
+// Slimmed-down message stream for phone — same logic as MessagingPanel
+// but without the thread-switcher chrome (handled by PhoneWorkspaceLayout).
+function PhoneMessagingStream({
+  inquiry,
+  pov,
+  active,
+}: {
+  inquiry: RichInquiry;
+  pov: InquiryWorkspacePov;
+  active: ThreadType;
+}) {
+  const { toast } = useProto();
+  const [draft, setDraft] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const messages = inquiry.messages.filter((m) => m.threadType === active);
+  const renderables = useMemo(() => buildMessageRenderables(messages), [messages]);
+
+  // WS-13.3 — VirtuosoHandle replaces HTMLDivElement streamRef.
+  const streamRef = useRef<VirtuosoHandle>(null);
+  const [showLatestPill, setShowLatestPill] = useState(false);
+
+  const send = () => {
+    if (!draft.trim()) return;
+    toast(`Message sent in ${active === "private" ? "client" : "group"} thread`);
+    setDraft("");
+  };
+
+  return (
+    <section
+      style={{
+        background: "#fff",
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      {/* Stream — WS-13.3: Virtuoso for large message threads */}
+      <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        {messages.length === 0 ? (
+          <div
+            role="log"
+            aria-live="polite"
+            aria-label="Message thread"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              color: COLORS.inkMuted,
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              textAlign: "center",
+              padding: "32px 16px",
+              gap: 6,
+            }}
+          >
+            <Icon name="mail" size={20} color={COLORS.inkDim} />
+            No messages yet — write the first one.
+          </div>
+        ) : (
+          <Virtuoso
+            ref={streamRef}
+            data-tulala-msg-stream
+            role="log"
+            aria-live="polite"
+            aria-label="Message thread"
+            aria-relevant="additions"
+            style={{ flex: 1 }}
+            data={renderables}
+            followOutput={(isAtBottom) => (isAtBottom ? vsb() : false)}
+            atBottomStateChange={(atBottom) => setShowLatestPill(!atBottom)}
+            itemContent={(_, r) => {
+              if (r.kind === "divider") return <div style={{ padding: "0 14px" }}><DateDivider day={r.day} /></div>;
+              if (r.kind === "system") return <div style={{ padding: "0 14px 10px" }}><SystemEventGroup messages={r.messages} /></div>;
+              return <div style={{ padding: "0 14px 10px" }}><MessageBubble message={r.message} pov={pov} /></div>;
+            }}
+          />
+        )}
+        {showLatestPill && (
+          <button
+            type="button"
+            data-tulala-msg-latest-pill
+            onClick={() => streamRef.current?.scrollToIndex({ index: "LAST", behavior: vsb() })}
+            aria-label="Scroll to latest messages"
+            style={{
+              position: "absolute",
+              right: 14,
+              bottom: 10,
+              padding: "7px 14px",
+              borderRadius: 999,
+              background: COLORS.ink,
+              color: "#fff",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 500,
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 4px 14px rgba(11,11,13,0.18)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 11 }}>↓</span>
+            Latest
+          </button>
+        )}
+      </div>
+
+      {/* Composer — phone-optimised (single-line + full-width send) */}
+      <div
+        style={{
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          padding: "10px 12px",
+          background: "rgba(11,11,13,0.015)",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <MentionTypeahead value={draft} onChange={setDraft} textareaRef={textareaRef} />
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={
+              active === "private"
+                ? pov === "client" ? "Send your coordinator a note…" : "Reply to client…"
+                : pov === "talent" ? "Reply to the team…" : "Message the talent…"
+            }
+            rows={2}
+            style={{
+              flex: 1,
+              padding: "9px 12px",
+              fontFamily: FONTS.body,
+              fontSize: 15,
+              color: COLORS.ink,
+              background: "#fff",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 8,
+              outline: "none",
+              resize: "none",
+              lineHeight: 1.5,
+              /* Prevent iOS zoom on focus (font-size >= 16px) */
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+            }}
+          />
+          <PrimaryButton onClick={send}>Send</PrimaryButton>
+        </div>
+        <div style={{ marginTop: 4, fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkDim }}>
+          {active === "private" ? "Visible to client + coordinator" : "Visible to coordinator + booked talent"}
+        </div>
+      </div>
+    </section>
   );
 }
 
 // ─── Status strip (sits between header and split view) ───────────
 
-function StatusStrip({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
+function StatusStrip({
+  inquiry,
+  pov,
+  compact = false,
+}: {
+  inquiry: RichInquiry;
+  pov: InquiryWorkspacePov;
+  compact?: boolean;
+}) {
   const meta = INQUIRY_STAGE_META[inquiry.stage];
   const nextLabel =
     inquiry.nextActionBy === "client"
@@ -134,7 +560,32 @@ function StatusStrip({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorks
           ? "Waiting on talent"
           : inquiry.nextActionBy === "ops"
             ? "Waiting on ops"
-            : "No-one — fully resolved";
+            : "Fully resolved";
+
+  if (compact) {
+    /* Phone — single row: dot + status label + spacer + next-action */
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 12px",
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          borderRadius: 10,
+          fontFamily: FONTS.body,
+          flexShrink: 0,
+        }}
+      >
+        <StatDot tone={meta.tone === "red" ? "red" : meta.tone} size={7} />
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{meta.label}</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{nextLabel}</span>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -146,6 +597,7 @@ function StatusStrip({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorks
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 12,
         fontFamily: FONTS.body,
+        flexShrink: 0,
       }}
     >
       <StatDot tone={meta.tone === "red" ? "red" : meta.tone} size={8} />
@@ -181,14 +633,14 @@ function InquiryStatusChip({ inquiry }: { inquiry: RichInquiry }) {
   const bgMap: Record<string, string> = {
     ink: "rgba(11,11,13,0.06)",
     amber: "rgba(82,96,109,0.12)",
-    green: "rgba(46,125,91,0.10)",
+    green: COLORS.successSoft,
     dim: "rgba(11,11,13,0.04)",
-    red: "rgba(176,48,58,0.10)",
+    red: COLORS.criticalSoft,
   };
   const fgMap: Record<string, string> = {
     ink: COLORS.ink,
-    amber: "#3A4651",
-    green: "#1F5C42",
+    amber: COLORS.amberDeep,
+    green: COLORS.successDeep,
     dim: COLORS.inkMuted,
     red: "#7A2026",
   };
@@ -216,37 +668,552 @@ function InquiryStatusChip({ inquiry }: { inquiry: RichInquiry }) {
 
 // ─── Messaging (thread switcher + stream + composer) ─────────────
 
-function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  // Talent only sees group; client only sees private; admin sees both.
+// ─── WS-1.B Message stream rhythm ─────────────────────────────────────
+//
+// Date dividers + system-event grouping + jump-to-latest pill. Without
+// these, a 50-message thread reads as a uniform scroll with no rhythm
+// and overwhelms the user (per ROADMAP §3.1.2).
+
+/**
+ * Parse the day prefix from a `ts` string ("Mon 14:32", "Today 09:15",
+ * "Yesterday 18:02"). Used to detect day-change boundaries for date
+ * dividers. Falls back to the whole string if no recognized prefix.
+ */
+function parseDayBucket(ts: string): string {
+  const day = ts.split(" ")[0]?.trim();
+  return day || ts;
+}
+
+/**
+ * Friendly day-divider label. "Today" / "Yesterday" stay as-is; weekday
+ * abbreviations get spelled out.
+ */
+const DAY_LABEL: Record<string, string> = {
+  Mon: "Monday", Tue: "Tuesday", Wed: "Wednesday", Thu: "Thursday",
+  Fri: "Friday", Sat: "Saturday", Sun: "Sunday",
+  Today: "Today", Yesterday: "Yesterday",
+};
+
+function DateDivider({ day }: { day: string }) {
+  const label = DAY_LABEL[day] ?? day;
+  return (
+    <div
+      data-tulala-msg-date-divider
+      role="separator"
+      aria-label={`Messages from ${label}`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        margin: "10px 0 4px",
+      }}
+    >
+      <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
+      <span
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 10.5,
+          fontWeight: 600,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          color: COLORS.inkDim,
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
+    </div>
+  );
+}
+
+/**
+ * Collapsible "N system updates" stripe. Renders 2+ consecutive system
+ * messages as a single line with a chevron; click expands to show each
+ * underlying message inline.
+ */
+function SystemEventGroup({ messages }: { messages: ThreadMessage[] }) {
+  const [open, setOpen] = useState(false);
+  if (messages.length === 1) {
+    // Single system event — render directly without group chrome.
+    return (
+      <div
+        data-tulala-msg-system
+        style={{
+          textAlign: "center",
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          color: COLORS.inkDim,
+          padding: "4px 0",
+        }}
+      >
+        {messages[0]!.body}
+      </div>
+    );
+  }
+  return (
+    <div
+      data-tulala-msg-system-group
+      style={{
+        margin: "4px 0",
+        background: "rgba(11,11,13,0.025)",
+        border: `1px dashed ${COLORS.borderSoft}`,
+        borderRadius: 8,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{
+          width: "100%",
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: "8px 12px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          color: COLORS.inkMuted,
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
+        onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
+      >
+        <span style={{ fontWeight: 500 }}>
+          {messages.length} system updates
+        </span>
+        <span aria-hidden style={{ fontSize: 10, transform: open ? "rotate(180deg)" : undefined, transition: `transform ${TRANSITION.sm}` }}>
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: "0 12px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
+          {messages.map((m) => (
+            <div
+              key={m.id}
+              style={{
+                fontSize: 11.5,
+                color: COLORS.inkMuted,
+                paddingLeft: 12,
+                borderLeft: `2px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <span style={{ color: COLORS.inkDim, marginRight: 6 }}>{m.ts}</span>
+              {m.body}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Walk the messages and produce a flat array of "renderables": either a
+ * date divider, a system-event group, an action banner, or a human message.
+ *
+ * - Date dividers go between consecutive messages whose day-bucket differs
+ * - requiresAction system events bypass grouping → coral action banner (WS-1.E)
+ * - Regular system events get coalesced when 2+ appear back-to-back
+ * - Human messages render individually
+ */
+type MessageRenderable =
+  | { kind: "divider"; key: string; day: string }
+  | { kind: "system";  key: string; messages: ThreadMessage[] }
+  | { kind: "action";  key: string; message: ThreadMessage }   // WS-1.E
+  | { kind: "human";   key: string; message: ThreadMessage };
+
+function buildMessageRenderables(messages: ThreadMessage[]): MessageRenderable[] {
+  const out: MessageRenderable[] = [];
+  let lastDay: string | null = null;
+  let systemBuffer: ThreadMessage[] = [];
+  const flushSystem = () => {
+    if (systemBuffer.length === 0) return;
+    out.push({ kind: "system", key: `sys-${systemBuffer[0]!.id}`, messages: systemBuffer });
+    systemBuffer = [];
+  };
+  for (const m of messages) {
+    const day = parseDayBucket(m.ts);
+    if (lastDay !== day) {
+      flushSystem();
+      out.push({ kind: "divider", key: `div-${day}-${m.id}`, day });
+      lastDay = day;
+    }
+    if (m.senderRole === "system") {
+      if (m.requiresAction) {
+        // WS-1.E — action messages bypass the group buffer; they render as
+        // coral inline-banners regardless of what surrounds them.
+        flushSystem();
+        out.push({ kind: "action", key: `action-${m.id}`, message: m });
+      } else {
+        systemBuffer.push(m);
+      }
+    } else {
+      flushSystem();
+      out.push({ kind: "human", key: `msg-${m.id}`, message: m });
+    }
+  }
+  flushSystem();
+  return out;
+}
+
+// ─── WS-1.E — Action banner ───────────────────────────────────────
+// Coral inline-banner for system messages that require immediate user
+// action (hold expiry, offer deadline, payment overdue, etc.).
+// Sits inline in the message stream, not the Rail, so it's impossible
+// to miss while reading the thread.
+
+function ActionBanner({ message, onDismiss }: { message: ThreadMessage; onDismiss: () => void }) {
+  const { toast } = useProto();
+  return (
+    <div
+      data-tulala-action-banner
+      role="alert"
+      style={{
+        display: "flex",
+        gap: 10,
+        alignItems: "flex-start",
+        padding: "10px 14px",
+        background: "rgba(176,48,58,0.07)",
+        border: "1px solid rgba(176,48,58,0.22)",
+        borderLeft: "3px solid #B0303A",
+        borderRadius: 8,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <span style={{ fontSize: 14, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>⚠️</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: "#7A2026", lineHeight: 1.4 }}>
+          {message.requiresActionLabel ?? message.body}
+        </div>
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{message.ts}</div>
+      </div>
+      <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={() => { toast(`Action: ${message.requiresActionCta ?? "Resolved"}`); onDismiss(); }}
+          style={{
+            padding: "5px 11px",
+            background: COLORS.red,
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 600,
+            cursor: "pointer",
+            letterSpacing: 0.2,
+          }}
+        >
+          {message.requiresActionCta ?? "Resolve →"}
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: "4px 6px",
+            color: COLORS.inkMuted,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            borderRadius: 4,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── WS-1.F.1 — Participant chips (group thread header) ───────────
+// Horizontal avatar-chip strip above the stream on group threads.
+// Click any chip to filter the stream to that participant's messages.
+// "All" chip clears the filter.
+
+function ParticipantChipStrip({
+  inquiry,
+  filter,
+  onFilter,
+}: {
+  inquiry: RichInquiry;
+  filter: string | null;
+  onFilter: (name: string | null) => void;
+}) {
+  const talents = inquiry.requirementGroups.flatMap((g) => g.talents);
+  if (talents.length === 0) return null;
+  return (
+    <div
+      data-tulala-participant-chips
+      style={{
+        display: "flex",
+        gap: 6,
+        overflowX: "auto",
+        scrollbarWidth: "none",
+        padding: "8px 14px 0",
+        flexShrink: 0,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => onFilter(null)}
+        style={{
+          flexShrink: 0,
+          padding: "3px 10px",
+          borderRadius: 999,
+          border: `1px solid ${filter === null ? COLORS.ink : COLORS.borderSoft}`,
+          background: filter === null ? COLORS.ink : "transparent",
+          color: filter === null ? "#fff" : COLORS.inkMuted,
+          fontFamily: FONTS.body,
+          fontSize: 11,
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        All
+      </button>
+      {talents.map((t) => {
+        const isActive = filter === t.name;
+        return (
+          <button
+            key={t.name}
+            type="button"
+            onClick={() => onFilter(isActive ? null : t.name)}
+            title={t.lastSaidSnippet ? `Last said: "${t.lastSaidSnippet}"` : t.name}
+            style={{
+              flexShrink: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "3px 10px 3px 4px",
+              borderRadius: 999,
+              border: `1px solid ${isActive ? COLORS.ink : COLORS.borderSoft}`,
+              background: isActive ? COLORS.ink : "transparent",
+              color: isActive ? "#fff" : COLORS.inkMuted,
+              fontFamily: FONTS.body,
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
+            }}
+          >
+            <span style={{ fontSize: 13 }}>{t.thumb}</span>
+            {t.name.split(" ")[0]}
+            {t.lastSaidTs && !isActive && (
+              <span style={{ fontSize: 9.5, opacity: 0.6, marginLeft: 2 }}>
+                {t.lastSaidTs.split(" ")[1]}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── WS-1.G.1 — Thread search bar ─────────────────────────────────
+// Slides down when `active`. Filters renderables to those whose body
+// contains the query. "/" in the composer textarea opens it.
+
+function ThreadSearchBar({
+  query,
+  onChange,
+  matchCount,
+  onClose,
+}: {
+  query: string;
+  onChange: (q: string) => void;
+  matchCount: number;
+  onClose: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  return (
+    <div
+      data-tulala-thread-search
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "6px 12px",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+        background: "rgba(11,11,13,0.02)",
+        flexShrink: 0,
+      }}
+    >
+      <span style={{ fontSize: 12, color: COLORS.inkDim }}>🔍</span>
+      <input
+        ref={inputRef}
+        type="search"
+        value={query}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search messages…"
+        style={{
+          flex: 1,
+          border: "none",
+          outline: "none",
+          background: "transparent",
+          fontFamily: FONTS.body,
+          fontSize: 13,
+          color: COLORS.ink,
+        }}
+        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+      />
+      {query.length > 0 && (
+        <span style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, flexShrink: 0 }}>
+          {matchCount} {matchCount === 1 ? "match" : "matches"}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close search"
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: "2px 4px",
+          color: COLORS.inkMuted,
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          fontSize: 13,
+          flexShrink: 0,
+          borderRadius: 4,
+        }}
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
+function MessagingPanel({
+  inquiry,
+  pov,
+  forcedThread,
+}: {
+  inquiry: RichInquiry;
+  pov: InquiryWorkspacePov;
+  forcedThread?: ThreadType;
+}) {
+  // WS-1.A — `forcedThread` is set in wide dual-pane mode (admin, ≥1280px)
+  // so each panel shows a single thread with no tab-switcher chrome.
   const visible: ThreadType[] = useMemo(() => {
+    if (forcedThread) return [forcedThread];
     if (pov === "client") return ["private"];
     if (pov === "talent") return ["group"];
     return ["private", "group"];
-  }, [pov]);
+  }, [pov, forcedThread]);
 
   const [active, setActive] = useState<ThreadType>(
-    visible.includes("private") ? "private" : "group",
+    forcedThread ?? (visible.includes("private") ? "private" : "group"),
   );
-  const [draft, setDraft] = useState("");
+
+  // WS-10.3 — Files tab visibility
+  const [showFiles, setShowFiles] = useState(false);
+
+  // WS-1.C.7 — per-thread draft auto-save to localStorage
+  const draftKey = `tulala-draft-${inquiry.id}-${active}`;
+  const [draft, setDraft] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem(draftKey) ?? "";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (draft) { localStorage.setItem(draftKey, draft); }
+    else        { localStorage.removeItem(draftKey); }
+  }, [draft, draftKey]);
+  // When the active thread changes, load its saved draft
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setDraft(localStorage.getItem(draftKey) ?? "");
+  }, [active, draftKey]);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useProto();
 
-  const messages = inquiry.messages.filter((m) => m.threadType === active);
+  // WS-1.D.1 — Typing indicators (mocked). After a message is sent the
+  // "other side" appears to start typing for ~2.5 s.
+  const [typingLabel, setTypingLabel] = useState<string | null>(null);
+  const TYPING_NAMES: Record<ThreadType, string> = {
+    private: inquiry.clientName.split(" ")[0] ?? inquiry.clientName,
+    group: inquiry.requirementGroups[0]?.talents[0]?.name.split(" ")[0] ?? "Talent",
+  };
+
+  // WS-1.E — dismissed action banners (session-only)
+  const [dismissedActions, setDismissedActions] = useState<Set<string>>(new Set());
+
+  // WS-1.F.1 — participant filter for group thread
+  const [participantFilter, setParticipantFilter] = useState<string | null>(null);
+
+  // WS-1.G.1 — inline thread search
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery]   = useState("");
+
+  const allMessages = inquiry.messages.filter((m) => m.threadType === active);
+
+  // Apply participant filter (group thread only)
+  const filteredMessages = useMemo(() => {
+    if (active !== "group" || !participantFilter) return allMessages;
+    return allMessages.filter(
+      (m) => m.senderRole === "system" || m.senderName === participantFilter,
+    );
+  }, [allMessages, active, participantFilter]);
+
+  // Apply search filter
+  const searchedMessages = useMemo(() => {
+    if (!searchActive || !searchQuery.trim()) return filteredMessages;
+    const q = searchQuery.toLowerCase();
+    return filteredMessages.filter((m) => m.body.toLowerCase().includes(q));
+  }, [filteredMessages, searchActive, searchQuery]);
+
+  const searchMatchCount = searchedMessages.length;
+
+  const renderables = useMemo(
+    () => buildMessageRenderables(searchedMessages),
+    [searchedMessages],
+  );
+
+  // WS-1.B.3 — "↓ Latest" floating pill; WS-13.3 — VirtuosoHandle
+  const streamRef = useRef<VirtuosoHandle>(null);
+  const [showLatestPill, setShowLatestPill] = useState(false);
+  const scrollToLatest = () => {
+    streamRef.current?.scrollToIndex({ index: "LAST", behavior: vsb() });
+  };
 
   const labels: Record<ThreadType, string> = {
     private: pov === "admin" ? "Client thread" : "With your coordinator",
-    group: pov === "admin" ? "Talent group" : "Booking team",
+    group:   pov === "admin" ? "Talent group"  : "Booking team",
   };
-
   const unread: Record<ThreadType, number> = {
     private: inquiry.unreadPrivate,
-    group: inquiry.unreadGroup,
+    group:   inquiry.unreadGroup,
+  };
+
+  // WS-1.C.1 — thread-context tinting
+  const THREAD_ACCENT: Record<ThreadType, string> = {
+    private: "rgba(79,70,229,0.55)",   // indigo — private / client
+    group:   "rgba(217,119,6,0.55)",   // amber  — group / talent
+  };
+  const THREAD_BG: Record<ThreadType, string> = {
+    private: "rgba(79,70,229,0.04)",
+    group:   "rgba(217,119,6,0.04)",
   };
 
   const send = () => {
     if (!draft.trim()) return;
     toast(`Message sent in ${active === "private" ? "client" : "group"} thread`);
     setDraft("");
+    localStorage.removeItem(draftKey);
+    // WS-1.D.1 — simulate the other side typing
+    const name = TYPING_NAMES[active];
+    setTypingLabel(`${name} is typing…`);
+    setTimeout(() => setTypingLabel(null), 2600);
   };
 
   return (
@@ -261,22 +1228,27 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
         overflow: "hidden",
       }}
     >
-      {/* Thread switcher */}
+      {/* ── Thread switcher (hidden when forcedThread is set — wide dual-pane) ── */}
       {visible.length > 1 && (
         <div
+          role="tablist"
+          aria-label="Message threads"
           style={{
             display: "flex",
+            alignItems: "center",
             borderBottom: `1px solid ${COLORS.borderSoft}`,
             padding: "0 6px",
-            gap: 0,
           }}
         >
           {visible.map((t) => {
-            const isActive = active === t;
+            const isActive = active === t && !showFiles;
             return (
               <button
                 key={t}
-                onClick={() => setActive(t)}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => { setActive(t); setShowFiles(false); setParticipantFilter(null); setSearchActive(false); setSearchQuery(""); }}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -285,10 +1257,8 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
                   fontSize: 13,
                   fontWeight: isActive ? 600 : 500,
                   color: isActive ? COLORS.ink : COLORS.inkMuted,
-                  letterSpacing: 0.1,
                   cursor: "pointer",
-                  borderBottom: isActive ? `2px solid ${COLORS.ink}` : "2px solid transparent",
-                  position: "relative",
+                  borderBottom: isActive ? `2px solid ${THREAD_ACCENT[t]}` : "2px solid transparent",
                   marginBottom: -1,
                 }}
               >
@@ -316,28 +1286,133 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
               </button>
             );
           })}
+
+          {/* WS-10.3 — Files tab */}
+          {!forcedThread && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={showFiles}
+              data-tulala-workspace-files-tab
+              onClick={() => setShowFiles(true)}
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: "12px 14px",
+                fontFamily: FONTS.body,
+                fontSize: 13,
+                fontWeight: showFiles ? 600 : 500,
+                color: showFiles ? COLORS.ink : COLORS.inkMuted,
+                cursor: "pointer",
+                borderBottom: showFiles ? `2px solid ${COLORS.accent}` : "2px solid transparent",
+                marginBottom: -1,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              Files
+              <span
+                style={{
+                  display: "inline-flex",
+                  padding: "0 5px",
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 999,
+                  background: showFiles ? COLORS.accent : "rgba(11,11,13,0.08)",
+                  color: showFiles ? "#fff" : COLORS.inkMuted,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {WORKSPACE_FILES_COUNT}
+              </span>
+            </button>
+          )}
+
+          {/* WS-1.B.4 — Mark read + WS-1.G.1 — search toggle (hidden in files view) */}
+          {!showFiles && (
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 0, marginRight: 4 }}>
+            <button
+              type="button"
+              onClick={() => { setSearchActive((v) => !v); setSearchQuery(""); }}
+              aria-label="Search thread"
+              title="Search (press / in composer)"
+              style={{
+                background: searchActive ? "rgba(11,11,13,0.06)" : "transparent",
+                border: "none",
+                padding: "6px 9px",
+                color: searchActive ? COLORS.ink : COLORS.inkMuted,
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 13,
+                borderRadius: 6,
+              }}
+            >
+              🔍
+            </button>
+            <button
+              type="button"
+              data-tulala-msg-mark-read
+              onClick={() => { if (unread[active] > 0) toast(`Marked ${labels[active]} as read`); }}
+              disabled={unread[active] === 0}
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: "6px 10px",
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                fontWeight: 500,
+                color: unread[active] === 0 ? COLORS.inkDim : COLORS.inkMuted,
+                cursor: unread[active] === 0 ? "default" : "pointer",
+                borderRadius: 6,
+              }}
+            >
+              Mark read
+            </button>
+          </div>
+          )}
         </div>
       )}
-      {visible.length === 1 && (
+
+      {/* WS-10.3 — Files panel (replaces stream + composer when active) */}
+      {showFiles && <WorkspaceFilesPanel inquiry={inquiry} pov={pov} />}
+
+      {/* Single-thread header (client / talent POV, or forced dual-pane) — hidden in files view */}
+      {!showFiles && (visible.length === 1 || forcedThread) && (
         <div
           style={{
-            padding: "12px 16px",
+            padding: "10px 14px",
             borderBottom: `1px solid ${COLORS.borderSoft}`,
+            background: THREAD_BG[forcedThread ?? active],
             fontFamily: FONTS.body,
             fontSize: 12.5,
             color: COLORS.inkMuted,
             display: "flex",
             alignItems: "center",
             gap: 8,
+            flexShrink: 0,
           }}
         >
-          <Icon name="mail" size={12} />
-          {labels[active]}
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: THREAD_ACCENT[forcedThread ?? active],
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontWeight: 600, color: COLORS.ink }}>
+            {labels[forcedThread ?? active]}
+          </span>
           {pov === "client" && (
             <>
               <Bullet />
               <span style={{ fontSize: 11.5, color: COLORS.inkDim }}>
-                Direct line to your coordinator. Talent and other clients don't see this.
+                Direct line to your coordinator. Talent can't see this.
               </span>
             </>
           )}
@@ -345,33 +1420,57 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
             <>
               <Bullet />
               <span style={{ fontSize: 11.5, color: COLORS.inkDim }}>
-                You and the other booked talent. The client doesn't see this.
+                You and the other booked talent. The client can't see this.
               </span>
             </>
           )}
+          <span style={{ flex: 1 }} />
+          {/* Search toggle for single-thread views */}
+          <button
+            type="button"
+            onClick={() => { setSearchActive((v) => !v); setSearchQuery(""); }}
+            style={{
+              background: "transparent", border: "none", cursor: "pointer",
+              color: COLORS.inkMuted, fontSize: 13, padding: "2px 4px", borderRadius: 4,
+            }}
+          >
+            🔍
+          </button>
         </div>
       )}
 
-      {/* Stream */}
-      <div
-        style={{
-          flex: 1,
-          minHeight: 320,
-          overflowY: "auto",
-          padding: 18,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-        }}
-      >
-        {messages.length === 0 && (
+      {/* WS-1.G.1 — Search bar (hidden in files view) */}
+      {!showFiles && searchActive && (
+        <ThreadSearchBar
+          query={searchQuery}
+          onChange={setSearchQuery}
+          matchCount={searchMatchCount}
+          onClose={() => { setSearchActive(false); setSearchQuery(""); }}
+        />
+      )}
+
+      {/* WS-1.F.1 — Participant chip strip (group thread only, hidden in files view) */}
+      {!showFiles && (active === "group" || forcedThread === "group") && (
+        <ParticipantChipStrip
+          inquiry={inquiry}
+          filter={participantFilter}
+          onFilter={setParticipantFilter}
+        />
+      )}
+
+      {/* ── Stream — WS-13.3: Virtuoso (hidden in files view) ── */}
+      {!showFiles && <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", minHeight: 300 }}>
+        {allMessages.length === 0 && !searchActive ? (
           <div
+            role="log"
+            aria-live="polite"
+            aria-label="Message thread"
             style={{
+              flex: 1,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              flex: 1,
               color: COLORS.inkMuted,
               fontFamily: FONTS.body,
               fontSize: 13,
@@ -381,33 +1480,176 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
             }}
           >
             <Icon name="mail" size={20} color={COLORS.inkDim} />
-            No messages here yet — write the first one.
+            No messages yet — write the first one.
+          </div>
+        ) : (
+          <Virtuoso
+            ref={streamRef}
+            data-tulala-msg-stream
+            role="log"
+            aria-live="polite"
+            aria-label="Message thread"
+            aria-relevant="additions"
+            style={{ flex: 1 }}
+            data={renderables}
+            followOutput={(isAtBottom) => (isAtBottom ? vsb() : false)}
+            atBottomStateChange={(atBottom) => setShowLatestPill(!atBottom)}
+            components={{
+              Footer: () => typingLabel ? (
+                <div
+                  data-tulala-typing-indicator
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontFamily: FONTS.body,
+                    fontSize: 12,
+                    color: COLORS.inkMuted,
+                    fontStyle: "italic",
+                    padding: "2px 18px 18px",
+                  }}
+                >
+                  <span style={{ display: "inline-flex", gap: 3 }}>
+                    {[0, 1, 2].map((i) => (
+                      <span
+                        key={i}
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: "50%",
+                          background: COLORS.inkDim,
+                          display: "inline-block",
+                          animation: `tulalaTypingDot 1.2s ${i * 0.2}s ease-in-out infinite`,
+                        }}
+                      />
+                    ))}
+                  </span>
+                  {typingLabel}
+                  <style>{`
+                    @keyframes tulalaTypingDot {
+                      0%,80%,100% { opacity: 0.3; transform: translateY(0); }
+                      40%         { opacity: 1;   transform: translateY(-3px); }
+                    }
+                  `}</style>
+                </div>
+              ) : null,
+            }}
+            itemContent={(_, r) => {
+              if (r.kind === "divider") return <div style={{ padding: "0 18px" }}><DateDivider day={r.day} /></div>;
+              if (r.kind === "system")  return <div style={{ padding: "0 18px 12px" }}><SystemEventGroup messages={r.messages} /></div>;
+              if (r.kind === "action") {
+                if (dismissedActions.has(r.message.id)) return null;
+                return (
+                  <div style={{ padding: "0 18px 12px" }}>
+                    <ActionBanner
+                      message={r.message}
+                      onDismiss={() => setDismissedActions((s) => new Set([...s, r.message.id]))}
+                    />
+                  </div>
+                );
+              }
+              return (
+                <div style={{ padding: "0 18px 12px" }}>
+                  <MessageBubble
+                    message={r.message}
+                    pov={pov}
+                    searchQuery={searchActive ? searchQuery : ""}
+                  />
+                </div>
+              );
+            }}
+          />
+        )}
+        {searchActive && searchQuery.length > 0 && searchedMessages.length === 0 && (
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: 0,
+            right: 0,
+            transform: "translateY(-50%)",
+            textAlign: "center",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.inkMuted,
+            padding: "32px 20px",
+            pointerEvents: "none",
+          }}>
+            No messages match &ldquo;{searchQuery}&rdquo;
           </div>
         )}
-        {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} pov={pov} />
-        ))}
-      </div>
 
-      {/* Composer */}
-      <div
+        {/* WS-1.B.3 — ↓ Latest pill */}
+        {showLatestPill && (
+          <button
+            type="button"
+            data-tulala-msg-latest-pill
+            onClick={scrollToLatest}
+            aria-label="Scroll to latest messages"
+            style={{
+              position: "absolute",
+              right: 18,
+              bottom: 14,
+              padding: "7px 14px",
+              borderRadius: 999,
+              background: COLORS.ink,
+              color: "#fff",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 500,
+              border: "none",
+              cursor: "pointer",
+              boxShadow: "0 6px 18px rgba(11,11,13,0.18)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 11 }}>↓</span>
+            Latest
+          </button>
+        )}
+      </div>}
+
+      {/* ── Composer (hidden in files view) ── */}
+      {!showFiles && <div
         style={{
           borderTop: `1px solid ${COLORS.borderSoft}`,
           padding: 14,
-          background: "rgba(11,11,13,0.015)",
+          background: THREAD_BG[active],
+          flexShrink: 0,
         }}
       >
+        {/* WS-1.C.2 — thread context caption */}
         <div
           style={{
+            fontFamily: FONTS.body,
+            fontSize: 11,
+            color: COLORS.inkMuted,
+            marginBottom: 6,
             display: "flex",
-            gap: 8,
-            alignItems: "flex-end",
-            position: "relative",
+            alignItems: "center",
+            gap: 6,
           }}
         >
-          {/* @-mention typeahead overlay — measures the textarea cursor
-              and floats above it. Picks insert the username at the
-              caret. Mock teammate list inside the primitive. */}
+          <span
+            style={{
+              display: "inline-block",
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: THREAD_ACCENT[active],
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontWeight: 500 }}>
+            Posting to: {labels[active]}
+          </span>
+          <Bullet />
+          <span style={{ color: COLORS.inkDim }}>
+            {active === "private" ? "Visible to client + coordinator" : "Visible to coordinator + booked talent"}
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", position: "relative" }}>
           <MentionTypeahead value={draft} onChange={setDraft} textareaRef={textareaRef} />
           <textarea
             ref={textareaRef}
@@ -415,12 +1657,8 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
             onChange={(e) => setDraft(e.target.value)}
             placeholder={
               active === "private"
-                ? pov === "client"
-                  ? "Send your coordinator a note…"
-                  : "Reply to the client…"
-                : pov === "talent"
-                  ? "Reply to the booking team…"
-                  : "Message the booked talent…"
+                ? pov === "client" ? "Send your coordinator a note…" : "Reply to the client…"
+                : pov === "talent" ? "Reply to the booking team…"   : "Message the booked talent…"
             }
             rows={2}
             style={{
@@ -430,17 +1668,18 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
               fontSize: 13.5,
               color: COLORS.ink,
               background: "#fff",
-              border: `1px solid ${COLORS.border}`,
+              /* WS-1.C.1 — tinted border matches active thread */
+              border: `1.5px solid ${draft.length > 0 ? THREAD_ACCENT[active] : COLORS.border}`,
               borderRadius: 8,
               outline: "none",
               resize: "none",
               lineHeight: 1.55,
+              transition: `border-color ${TRANSITION.sm}`,
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                send();
-              }
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+              // WS-1.G.1 — "/" opens thread search when composer is empty
+              if (e.key === "/" && !draft) { e.preventDefault(); setSearchActive(true); }
             }}
           />
           <PrimaryButton onClick={send}>Send</PrimaryButton>
@@ -449,36 +1688,59 @@ function MessagingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWo
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            marginTop: 6,
+            gap: 8,
+            marginTop: 5,
             fontFamily: FONTS.body,
-            fontSize: 11,
+            fontSize: 10.5,
             color: COLORS.inkDim,
           }}
         >
           <span>⌘ ↵ to send</span>
           <Bullet />
           <span>
-            Type <kbd
-              style={{
-                fontFamily: FONTS.mono,
-                fontSize: 10.5,
-                padding: "1px 5px",
-                borderRadius: 4,
-                background: "rgba(11,11,13,0.06)",
-                color: COLORS.ink,
-              }}
-            >/</kbd> for snippets
+            Type{" "}
+            <kbd style={{ fontFamily: FONTS.mono, fontSize: 10, padding: "1px 5px", borderRadius: 4, background: "rgba(11,11,13,0.06)", color: COLORS.ink }}>
+              /
+            </kbd>{" "}
+            to search
           </span>
-          <Bullet />
-          <span>{active === "private" ? "Visible to client + coordinator" : "Visible to coordinator + booked talent"}</span>
+          {draft.length > 0 && (
+            <>
+              <Bullet />
+              <span style={{ color: COLORS.inkMuted, fontStyle: "italic" }}>Draft auto-saved</span>
+            </>
+          )}
         </div>
-      </div>
+      </div>}
     </section>
   );
 }
 
-function MessageBubble({ message, pov }: { message: ThreadMessage; pov: InquiryWorkspacePov }) {
+// WS-1.G.1 — highlight matching text within a bubble body
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark style={{ background: "rgba(217,119,6,0.30)", color: "inherit", borderRadius: 2, padding: "0 1px" }}>
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
+function MessageBubble({
+  message,
+  pov,
+  searchQuery = "",
+}: {
+  message: ThreadMessage;
+  pov: InquiryWorkspacePov;
+  searchQuery?: string;
+}) {
   const isYou = Boolean(message.isYou);
   // T7: Coordinator messages get a distinct visual treatment in group thread
   const isCoordinator = message.senderRole === "coordinator" || message.senderRole === "admin";
@@ -533,7 +1795,7 @@ function MessageBubble({ message, pov }: { message: ThreadMessage; pov: InquiryW
               fontWeight: 600,
               letterSpacing: 0.4,
               textTransform: "uppercase",
-              color: "#3A4651",
+              color: COLORS.amberDeep,
               background: "rgba(82,96,109,0.12)",
               padding: "2px 6px",
               borderRadius: 4,
@@ -558,9 +1820,455 @@ function MessageBubble({ message, pov }: { message: ThreadMessage; pov: InquiryW
             whiteSpace: "pre-wrap",
           }}
         >
-          {message.body}
+          {/* WS-1.G.1 — highlight search match */}
+          <HighlightedText text={message.body} query={searchQuery} />
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── WS-10.3 — Workspace files panel ──────────────────────────────
+//
+// A dedicated "Files" tab inside the messaging panel that surfaces
+// every attachment shared across all threads of this inquiry, with
+// filter-by-type and per-file actions (preview / download).
+
+type WorkspaceFileEntry = Attachment & {
+  thread: "private" | "group";
+  senderName: string;
+  date: string;
+  /** WS-10.5 — version history. Files sharing the same versionGroup are revisions of each other. */
+  versionGroup?: string;
+  /** 1 = oldest, higher = newer. Latest = highest number in the group. */
+  version?: number;
+};
+
+// WS-10.5 — contract draft is versioned; v2 supersedes v1 (same group "contract-draft")
+const WORKSPACE_MOCK_FILES: WorkspaceFileEntry[] = [
+  { id: "f1",  name: "call-sheet-apr29.pdf",        kind: "pdf",   size: "120 KB", thread: "private", senderName: "Martina H.",    date: "Apr 25" },
+  { id: "f2",  name: "valentino-ss26-brief.pdf",     kind: "pdf",   size: "2.4 MB", thread: "private", senderName: "Valentino CD",  date: "Apr 23" },
+  { id: "f3",  name: "sofia-composite.jpg",          kind: "image", size: "880 KB", thread: "group",   senderName: "Martina H.",    date: "Apr 24" },
+  { id: "f4",  name: "lena-composite.jpg",           kind: "image", size: "760 KB", thread: "group",   senderName: "Martina H.",    date: "Apr 24" },
+  { id: "f5",  name: "contract-draft-v1.pdf",        kind: "pdf",   size: "95 KB",  thread: "private", senderName: "Martina H.",    date: "Apr 26", versionGroup: "contract-draft", version: 1 },
+  { id: "f6",  name: "contract-draft-v2.pdf",        kind: "pdf",   size: "97 KB",  thread: "private", senderName: "Valentino CD",  date: "Apr 27", versionGroup: "contract-draft", version: 2 },
+  { id: "f7",  name: "mood-board-paris.jpg",         kind: "image", size: "3.1 MB", thread: "private", senderName: "Valentino CD",  date: "Apr 23" },
+  { id: "f8",  name: "on-set-contact-list.pdf",      kind: "pdf",   size: "48 KB",  thread: "group",   senderName: "Martina H.",    date: "Apr 27" },
+];
+
+const WORKSPACE_FILES_COUNT = WORKSPACE_MOCK_FILES.length;
+
+type FilesFilter = "all" | "pdf" | "image" | "other";
+
+function WorkspaceFilesPanel({
+  inquiry,
+  pov,
+}: {
+  inquiry: RichInquiry;
+  pov: InquiryWorkspacePov;
+}) {
+  const { toast } = useProto();
+  const [filter, setFilter] = useState<FilesFilter>("all");
+  // WS-10.5 — track which version groups are expanded
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const toggleGroup = (g: string) =>
+    setExpandedGroups((s) => {
+      const next = new Set(s);
+      next.has(g) ? next.delete(g) : next.add(g);
+      return next;
+    });
+
+  const rawFiltered = WORKSPACE_MOCK_FILES.filter((f) => {
+    if (pov === "client" && f.thread !== "private") return false;
+    if (pov === "talent" && f.thread !== "group")   return false;
+    if (filter === "pdf")   return f.kind === "pdf";
+    if (filter === "image") return f.kind === "image";
+    if (filter === "other") return f.kind !== "pdf" && f.kind !== "image";
+    return true;
+  });
+
+  // WS-10.5 — De-duplicate versioned files: only the latest version of each group
+  // appears in the list by default; the full history is shown when expanded.
+  const versionGroups = new Map<string, WorkspaceFileEntry[]>();
+  for (const f of rawFiltered) {
+    if (f.versionGroup) {
+      const group = versionGroups.get(f.versionGroup) ?? [];
+      group.push(f);
+      versionGroups.set(f.versionGroup, group);
+    }
+  }
+  // Sort each group so highest version is last (= latest)
+  versionGroups.forEach((group) => group.sort((a, b) => (a.version ?? 0) - (b.version ?? 0)));
+
+  const filtered = rawFiltered.filter((f) => {
+    if (!f.versionGroup) return true; // unversioned — always show
+    const group = versionGroups.get(f.versionGroup)!;
+    const latest = group[group.length - 1];
+    return f.id === latest.id; // only show latest in default view
+  });
+
+  const FILTER_OPTIONS: { key: FilesFilter; label: string }[] = [
+    { key: "all",   label: "All files" },
+    { key: "pdf",   label: "PDFs" },
+    { key: "image", label: "Images" },
+    { key: "other", label: "Other" },
+  ];
+
+  const THREAD_LABEL: Record<"private" | "group", string> = {
+    private: pov === "admin" ? "Client thread" : "With coordinator",
+    group:   pov === "admin" ? "Talent group"  : "Booking team",
+  };
+  const THREAD_COLOR: Record<"private" | "group", string> = {
+    private: "rgba(79,70,229,0.7)",
+    group:   "rgba(217,119,6,0.7)",
+  };
+  const FILE_ICON: Record<string, string> = {
+    pdf: "📄", image: "🖼", video: "🎬", audio: "🎵", file: "📎",
+  };
+
+  return (
+    <div
+      data-tulala-workspace-files
+      style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}
+    >
+      {/* ── Header bar ── */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "10px 14px",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          background: "#fff",
+          flexShrink: 0,
+          flexWrap: "wrap",
+        }}
+      >
+        {/* Filter pills */}
+        <div style={{ display: "flex", gap: 4, flex: 1, flexWrap: "wrap" }}>
+          {FILTER_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setFilter(opt.key)}
+              style={{
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: filter === opt.key ? `1.5px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
+                background: filter === opt.key ? `rgba(31,92,66,0.08)` : "transparent",
+                color: filter === opt.key ? COLORS.accent : COLORS.inkMuted,
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                fontWeight: filter === opt.key ? 600 : 500,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {opt.label}
+              {opt.key === "all" && (
+                <span style={{ marginLeft: 5, opacity: 0.6 }}>{WORKSPACE_MOCK_FILES.length}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Download all */}
+        <button
+          type="button"
+          onClick={() => toast(`Preparing zip of ${WORKSPACE_MOCK_FILES.length} files…`)}
+          style={{
+            flexShrink: 0,
+            padding: "5px 10px",
+            borderRadius: 7,
+            border: `1px solid ${COLORS.border}`,
+            background: "transparent",
+            color: COLORS.inkMuted,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 500,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+          }}
+        >
+          <span aria-hidden>↓</span>
+          Download all
+        </button>
+      </div>
+
+      {/* ── File list ── */}
+      {filtered.length === 0 ? (
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            padding: "40px 20px",
+            fontFamily: FONTS.body,
+            color: COLORS.inkMuted,
+            fontSize: 13,
+            textAlign: "center",
+          }}
+        >
+          <span style={{ fontSize: 28 }}>📁</span>
+          <span>No {filter === "all" ? "" : filter + " "}files shared yet</span>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {filtered.map((file, i) => {
+            const vGroup = file.versionGroup
+              ? versionGroups.get(file.versionGroup)!
+              : null;
+            const isGroupExpanded = file.versionGroup ? expandedGroups.has(file.versionGroup) : false;
+            const olderVersions = vGroup ? vGroup.slice(0, vGroup.length - 1) : [];
+
+            return (
+              <div key={file.id}>
+                {/* ── Primary file row ── */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 14px",
+                    borderBottom: `1px solid ${COLORS.borderSoft}`,
+                    background: "#fff",
+                    transition: `background ${TRANSITION.micro}`,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surfaceAlt)}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+                >
+                  {/* File icon */}
+                  <span
+                    style={{
+                      fontSize: 22,
+                      flexShrink: 0,
+                      width: 36,
+                      height: 36,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: COLORS.surfaceAlt,
+                      borderRadius: 8,
+                    }}
+                  >
+                    {FILE_ICON[file.kind] ?? "📎"}
+                  </span>
+
+                  {/* File meta */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div
+                        style={{
+                          fontFamily: FONTS.body,
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          color: COLORS.ink,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {/* For versioned files, show display name without version suffix */}
+                        {file.versionGroup
+                          ? file.name.replace(/-v\d+(\.[^.]+)$/, "$1")
+                          : file.name}
+                      </div>
+                      {/* WS-10.5 — "v2" current-version badge */}
+                      {file.version !== undefined && (
+                        <span
+                          style={{
+                            padding: "1px 5px",
+                            borderRadius: 4,
+                            background: "rgba(31,92,66,0.1)",
+                            color: COLORS.accent,
+                            fontFamily: FONTS.body,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            flexShrink: 0,
+                          }}
+                        >
+                          v{file.version}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 5,
+                        marginTop: 2,
+                        fontFamily: FONTS.body,
+                        fontSize: 11,
+                        color: COLORS.inkMuted,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span>{file.size}</span>
+                      <span style={{ opacity: 0.4 }}>·</span>
+                      <span>{file.senderName}</span>
+                      <span style={{ opacity: 0.4 }}>·</span>
+                      <span>{file.date}</span>
+                      {pov === "admin" && (
+                        <>
+                          <span style={{ opacity: 0.4 }}>·</span>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                              padding: "1px 6px",
+                              borderRadius: 4,
+                              background: `${THREAD_COLOR[file.thread]}18`,
+                              color: THREAD_COLOR[file.thread],
+                              fontSize: 10,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {THREAD_LABEL[file.thread]}
+                          </span>
+                        </>
+                      )}
+                      {/* WS-10.5 — version history toggle */}
+                      {olderVersions.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(file.versionGroup!)}
+                          style={{
+                            background: "rgba(11,11,13,0.06)",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "1px 6px",
+                            borderRadius: 4,
+                            color: COLORS.inkMuted,
+                            fontFamily: FONTS.body,
+                            fontSize: 10,
+                            fontWeight: 600,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3,
+                          }}
+                        >
+                          {isGroupExpanded ? "▲" : "▼"} {olderVersions.length} older version{olderVersions.length > 1 ? "s" : ""}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                    {(file.kind === "image" || file.kind === "pdf") && (
+                      <button
+                        type="button"
+                        aria-label={`Preview ${file.name}`}
+                        onClick={() => toast(`Previewing ${file.name}`)}
+                        style={{
+                          background: "none", border: "none", cursor: "pointer",
+                          padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
+                          fontSize: 13,
+                        }}
+                      >
+                        👁
+                      </button>
+                    )}
+                    {/* WS-10.5 — "Replace file" for versioned files */}
+                    {file.versionGroup && pov === "admin" && (
+                      <button
+                        type="button"
+                        aria-label={`Replace ${file.name}`}
+                        onClick={() => toast(`Upload new version — prior v${file.version} kept in history`)}
+                        style={{
+                          background: "none", border: "none", cursor: "pointer",
+                          padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
+                          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 500,
+                        }}
+                      >
+                        Replace
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      aria-label={`Download ${file.name}`}
+                      onClick={() => toast(`Downloading ${file.name}`)}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        padding: "5px 7px", borderRadius: 6, color: COLORS.inkMuted,
+                        fontSize: 13,
+                      }}
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </div>
+
+                {/* WS-10.5 — Version history sub-list */}
+                {isGroupExpanded && olderVersions.map((oldFile) => (
+                  <div
+                    key={oldFile.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 14px 8px 56px",
+                      borderBottom: `1px solid ${COLORS.borderSoft}`,
+                      background: "rgba(11,11,13,0.02)",
+                    }}
+                  >
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>{FILE_ICON[oldFile.kind] ?? "📎"}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, color: COLORS.inkMuted }}>
+                          {oldFile.name}
+                        </span>
+                        <span style={{
+                          padding: "1px 5px", borderRadius: 4,
+                          background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+                          fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
+                        }}>
+                          v{oldFile.version}
+                        </span>
+                      </div>
+                      <div style={{ fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkDim, marginTop: 1 }}>
+                        {oldFile.size} · {oldFile.senderName} · {oldFile.date}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => toast(`Restoring v${oldFile.version} — current version archived`)}
+                        style={{
+                          background: "none", border: "none", cursor: "pointer",
+                          padding: "4px 8px", borderRadius: 6, color: COLORS.inkMuted,
+                          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 500,
+                        }}
+                      >
+                        Restore
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Download ${oldFile.name}`}
+                        onClick={() => toast(`Downloading ${oldFile.name}`)}
+                        style={{
+                          background: "none", border: "none", cursor: "pointer",
+                          padding: "4px 7px", borderRadius: 6, color: COLORS.inkMuted,
+                          fontSize: 13,
+                        }}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -579,6 +2287,9 @@ function Rail({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov
         paddingBottom: 4,
       }}
     >
+      {/* WS-1.D.3 — "Viewing now" badge (admin only — shows who else has
+          this inquiry open in real-time). Mocked for prototype. */}
+      {pov === "admin" && <ViewingNowBadge inquiry={inquiry} />}
       <SummaryPanel inquiry={inquiry} />
       {pov === "admin" && <CoordinatorPanel inquiry={inquiry} />}
       <RequirementGroupsPanel inquiry={inquiry} pov={pov} />
@@ -589,6 +2300,44 @@ function Rail({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov
       <PaymentPanel inquiry={inquiry} pov={pov} />
       <ActivityPanel inquiry={inquiry} />
     </aside>
+  );
+}
+
+// WS-1.D.3 — Viewing-now badge. In production this will be driven by a
+// Presence WebSocket channel keyed on inquiry id. For the prototype we
+// mock a single viewer derived from the coordinator assignment.
+function ViewingNowBadge({ inquiry }: { inquiry: RichInquiry }) {
+  if (!inquiry.coordinator) return null;
+  return (
+    <div
+      data-tulala-viewing-now
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "7px 12px",
+        background: "rgba(46,125,91,0.06)",
+        border: "1px solid rgba(46,125,91,0.18)",
+        borderRadius: 10,
+        fontFamily: FONTS.body,
+        fontSize: 11.5,
+        color: COLORS.successDeep,
+      }}
+    >
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          background: COLORS.green,
+          flexShrink: 0,
+          boxShadow: "0 0 0 2px rgba(46,125,91,0.25)",
+        }}
+      />
+      <Avatar initials={inquiry.coordinator.initials} size={18} tone="ink" />
+      <span style={{ fontWeight: 500 }}>{inquiry.coordinator.name}</span>
+      <span style={{ color: COLORS.green, fontWeight: 400 }}>viewing now</span>
+    </div>
   );
 }
 
@@ -795,9 +2544,9 @@ function CoordinatorPanel({ inquiry }: { inquiry: RichInquiry }) {
                       fontWeight: 600,
                       color:
                         s.label === "Cancellations" && rel.cancellations > 0
-                          ? "#B0303A"
+                          ? COLORS.red
                           : s.label === "On time" && rel.onTimeRate === 100
-                            ? "#2E7D5B"
+                            ? COLORS.green
                             : COLORS.ink,
                     }}
                   >
@@ -845,31 +2594,72 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
               }}
             />
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             {g.talents.map((t, ti) => (
-              <span
+              <div
                 key={ti}
                 title={`${t.name} · ${t.status}`}
                 style={{
-                  display: "inline-flex",
+                  display: "flex",
                   alignItems: "center",
-                  gap: 5,
-                  padding: "3px 7px 3px 4px",
+                  gap: 6,
+                  padding: "5px 8px",
                   background:
                     t.status === "accepted"
-                      ? "rgba(46,125,91,0.10)"
+                      ? "rgba(46,125,91,0.07)"
                       : t.status === "declined"
-                        ? "rgba(176,48,58,0.08)"
-                        : "rgba(11,11,13,0.04)",
-                  borderRadius: 999,
+                        ? "rgba(176,48,58,0.06)"
+                        : "rgba(11,11,13,0.03)",
+                  borderRadius: 8,
                   fontFamily: FONTS.body,
-                  fontSize: 11,
-                  color: t.status === "accepted" ? "#1F5C42" : t.status === "declined" ? "#7A2026" : COLORS.inkMuted,
+                  border: `1px solid ${
+                    t.status === "accepted" ? "rgba(46,125,91,0.18)"
+                    : t.status === "declined" ? "rgba(176,48,58,0.14)"
+                    : COLORS.borderSoft
+                  }`,
                 }}
               >
-                <span style={{ fontSize: 13 }}>{t.thumb}</span>
-                {t.name}
-              </span>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>{t.thumb}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: t.status === "accepted" ? COLORS.successDeep : t.status === "declined" ? "#7A2026" : COLORS.ink,
+                    }}
+                  >
+                    {t.name}
+                  </div>
+                  {/* WS-1.F.2 — last-said snippet */}
+                  {t.lastSaidSnippet && (
+                    <div
+                      style={{
+                        fontSize: 10.5,
+                        color: COLORS.inkMuted,
+                        marginTop: 1,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <span style={{ color: COLORS.inkDim }}>{t.lastSaidTs} — </span>
+                      &ldquo;{t.lastSaidSnippet}&rdquo;
+                    </div>
+                  )}
+                </div>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: 0.3,
+                    textTransform: "uppercase",
+                    color: t.status === "accepted" ? COLORS.successDeep : t.status === "declined" ? "#7A2026" : COLORS.inkMuted,
+                    flexShrink: 0,
+                  }}
+                >
+                  {t.status}
+                </span>
+              </div>
             ))}
           </div>
         </div>
@@ -1012,7 +2802,7 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
                       borderRadius: 6,
                       background: "rgba(46,125,91,0.12)",
                       border: "none",
-                      color: "#1F5C42",
+                      color: COLORS.successDeep,
                       fontFamily: FONTS.body,
                       fontSize: 11,
                       fontWeight: 600,
@@ -1155,12 +2945,12 @@ function ApprovalChip({
         : status === "superseded"
           ? "dim"
           : "amber";
-  const color = tone === "green" ? "#1F5C42" : tone === "red" ? "#7A2026" : tone === "dim" ? COLORS.inkMuted : "#3A4651";
+  const color = tone === "green" ? COLORS.successDeep : tone === "red" ? "#7A2026" : tone === "dim" ? COLORS.inkMuted : COLORS.amberDeep;
   const bg =
     tone === "green"
-      ? "rgba(46,125,91,0.10)"
+      ? COLORS.successSoft
       : tone === "red"
-        ? "rgba(176,48,58,0.10)"
+        ? COLORS.criticalSoft
         : tone === "dim"
           ? "rgba(11,11,13,0.04)"
           : "rgba(82,96,109,0.12)";
@@ -1192,6 +2982,60 @@ function ApprovalChip({
   );
 }
 
+// WS-12.3 — Dual timezone display helpers
+//
+// In production these will be derived from:
+//   - The workspace's default timezone (agency location)
+//   - The booking location's timezone (auto-resolved from location string + geocoding)
+//   - The talent's profile timezone
+// For the prototype we hard-code two example zones to show the UX.
+//
+const WORKSPACE_TZ = "Europe/Lisbon";     // agency local time
+const BOOKING_TZ   = "Europe/Paris";      // shoot location
+
+function DualTimeBadge({
+  callTime,
+  localLabel,
+  remoteLabel,
+}: {
+  callTime: string;  // e.g. "09:00"
+  localLabel: string;  // e.g. "09:00 LIS"
+  remoteLabel: string; // e.g. "10:00 PAR"
+}) {
+  return (
+    <div
+      data-tulala-tz-badge
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "4px 8px",
+        borderRadius: 7,
+        background: "rgba(79,70,229,0.06)",
+        border: "1px solid rgba(79,70,229,0.14)",
+        fontFamily: FONTS.body,
+        fontSize: 11,
+      }}
+    >
+      <Icon name="map-pin" size={10} color="rgba(79,70,229,0.7)" stroke={1.8} />
+      <span style={{ fontWeight: 600, color: "rgba(79,70,229,0.85)" }}>{localLabel}</span>
+      <span style={{ color: COLORS.inkDim }}>·</span>
+      <span style={{ color: COLORS.inkMuted }}>{remoteLabel}</span>
+      <span
+        style={{
+          fontSize: 9.5,
+          fontWeight: 600,
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+          color: COLORS.inkDim,
+        }}
+      >
+        (LOCATION)
+      </span>
+    </div>
+  );
+}
+
 function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
   const { toast } = useProto();
   if (inquiry.bookingId) {
@@ -1200,6 +3044,28 @@ function BookingPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWork
         <KvCompact label="ID" value={inquiry.bookingId} mono />
         <KvCompact label="Date" value={inquiry.date ?? "TBC"} />
         <KvCompact label="Location" value={inquiry.location ?? "TBC"} />
+
+        {/* WS-12.3 — Call time with dual TZ display */}
+        <div style={{ padding: "5px 0" }}>
+          <span style={{
+            fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+            letterSpacing: 1.2, textTransform: "uppercase", color: COLORS.inkMuted,
+            minWidth: 64, display: "inline-block",
+          }}>
+            Call time
+          </span>
+          <div style={{ marginTop: 4 }}>
+            <DualTimeBadge
+              callTime="09:00"
+              localLabel={`09:00 ${WORKSPACE_TZ.split("/")[1]?.slice(0, 3).toUpperCase()}`}
+              remoteLabel={`10:00 ${BOOKING_TZ.split("/")[1]?.slice(0, 3).toUpperCase()}`}
+            />
+            <div style={{ fontFamily: FONTS.body, fontSize: 10, color: COLORS.inkDim, marginTop: 4 }}>
+              Your time ({WORKSPACE_TZ}) · Shoot location ({BOOKING_TZ})
+            </div>
+          </div>
+        </div>
+
         <div style={{ marginTop: 10 }}>
           <SecondaryButton size="sm" onClick={() => toast("Booking detail — coming soon")}>Open booking →</SecondaryButton>
         </div>
@@ -1402,6 +3268,807 @@ function ActivityPanel({ inquiry }: { inquiry: RichInquiry }) {
         ))}
       </ul>
     </RailCard>
+  );
+}
+
+// ─── WS-7.1 Command Palette (Cmd-K) ──────────────────────────────────────────
+//
+// Global search + command launcher. Opens on Cmd-K (Mac) / Ctrl-K (Win/Linux)
+// or programmatically via `useCommandPalette()`.
+//
+// Sections:
+//   "quick"    — Quick actions (new inquiry, new booking, add talent)
+//   "pages"    — Navigate to a workspace page
+//   "inquiries"— Open a specific inquiry workspace
+//   "talent"   — Jump to a talent's profile drawer
+//   "settings" — Jump to settings sections
+//
+// Keyboard:
+//   ↑/↓        — move selection
+//   Enter       — execute selected
+//   Esc         — close
+//   Backspace (when input is empty) — close
+// ─────────────────────────────────────────────────────────────────────────────
+
+type CmdResultType = "quick" | "page" | "inquiry" | "talent" | "client" | "setting";
+
+type CmdResult = {
+  id:       string;
+  type:     CmdResultType;
+  label:    string;
+  sublabel?: string;
+  emoji?:   string;
+  kbd?:     string;       // keyboard shortcut hint
+  onSelect: () => void;
+};
+
+type CmdSection = {
+  id:      string;
+  title:   string;
+  items:   CmdResult[];
+};
+
+/** Filter a list of CmdResults by a query string (simple substring match). */
+function filterCmd(items: CmdResult[], q: string): CmdResult[] {
+  const lower = q.toLowerCase();
+  return items.filter(
+    (r) =>
+      r.label.toLowerCase().includes(lower) ||
+      (r.sublabel ?? "").toLowerCase().includes(lower)
+  );
+}
+
+/** Flatten sections into a single ordered array for keyboard navigation. */
+function flattenSections(sections: CmdSection[]): CmdResult[] {
+  return sections.flatMap((s) => s.items);
+}
+
+/** Controlled, data-driven command palette — for embedded use (e.g. sidebar shell).
+ *  The page-root standalone version is in `_palette.tsx`.
+ *  WS-7.1 */
+export function EmbeddedCommandPalette({
+  open,
+  onClose,
+}: {
+  open:    boolean;
+  onClose: () => void;
+}) {
+  const proto            = useProto();
+  const [query, setQuery] = useState("");
+  const [selIdx, setSelIdx] = useState(0);
+  const inputRef         = useRef<HTMLInputElement>(null);
+  const listRef          = useRef<HTMLUListElement>(null);
+
+  // Reset on open
+  useEffect(() => {
+    if (open) { setQuery(""); setSelIdx(0); inputRef.current?.focus(); }
+  }, [open]);
+
+  // ── Quick actions ────────────────────────────────────────────────
+  const quickActions: CmdResult[] = useMemo(() => [
+    {
+      id: "qa-new-inquiry",
+      type: "quick",
+      label: "New inquiry",
+      sublabel: "Start a fresh inquiry with a client",
+      emoji: "📋",
+      kbd: "N",
+      onSelect: () => { proto.openDrawer("new-inquiry"); onClose(); },
+    },
+    {
+      id: "qa-new-booking",
+      type: "quick",
+      label: "New booking",
+      sublabel: "Convert an approved inquiry to a booking",
+      emoji: "📅",
+      onSelect: () => { proto.openDrawer("new-booking"); onClose(); },
+    },
+    {
+      id: "qa-add-talent",
+      type: "quick",
+      label: "Add talent",
+      sublabel: "Invite a new talent to the roster",
+      emoji: "🎭",
+      onSelect: () => { proto.openDrawer("new-talent"); onClose(); },
+    },
+    {
+      id: "qa-today-pulse",
+      type: "quick",
+      label: "Today's pulse",
+      sublabel: "Overview of what needs attention today",
+      emoji: "📊",
+      kbd: "G then O",
+      onSelect: () => { proto.setPage("overview"); onClose(); },
+    },
+  ], [proto, onClose]);
+
+  // ── Page navigation ────────────────────────────────────────────────
+  const pageItems: CmdResult[] = useMemo(() =>
+    (WORKSPACE_PAGES as WorkspacePage[]).map((p) => {
+      const meta = PAGE_META[p];
+      return {
+        id:       `page-${p}`,
+        type:     "page" as const,
+        label:    `Go to ${meta?.label ?? p}`,
+        sublabel: meta?.description ?? "",
+        emoji:    "→",
+        onSelect: () => { proto.setPage(p); onClose(); },
+      };
+    }),
+  [proto, onClose]);
+
+  // ── Inquiry results ────────────────────────────────────────────────
+  const inquiryItems: CmdResult[] = useMemo(() =>
+    RICH_INQUIRIES.map((inq) => ({
+      id:       `inq-${inq.id}`,
+      type:     "inquiry" as const,
+      label:    inq.clientName,
+      sublabel: `${inq.brief} · ${INQUIRY_STAGE_META[inq.stage].label}`,
+      emoji:    "💬",
+      onSelect: () => {
+        proto.openDrawer("inquiry-workspace", { inquiryId: inq.id });
+        onClose();
+      },
+    })),
+  [proto, onClose]);
+
+  // ── Talent results (from inquiry rosters) ─────────────────────────
+  const talentItems: CmdResult[] = useMemo(() => {
+    const seen = new Set<string>();
+    const items: CmdResult[] = [];
+    for (const inq of RICH_INQUIRIES) {
+      for (const group of inq.requirementGroups) {
+        for (const talent of group.talents) {
+          // Use name as dedup key since talentId doesn't exist on the group shape
+          if (!seen.has(talent.name)) {
+            seen.add(talent.name);
+            items.push({
+              id:       `talent-${talent.name.replace(/\s+/g, "-").toLowerCase()}`,
+              type:     "talent",
+              label:    talent.name,
+              sublabel: group.role,
+              emoji:    talent.thumb ?? "🎭",
+              onSelect: () => {
+                proto.openDrawer("talent-profile");
+                onClose();
+              },
+            });
+          }
+        }
+      }
+    }
+    return items;
+  }, [proto, onClose]);
+
+  // ── Settings shortcuts ────────────────────────────────────────────
+  const settingItems: CmdResult[] = useMemo(() => [
+    { id: "s-branding",  type: "setting", label: "Workspace branding",   emoji: "🎨", onSelect: () => { proto.openDrawer("branding");  onClose(); } },
+    { id: "s-team",      type: "setting", label: "Manage team",          emoji: "👥", onSelect: () => { proto.openDrawer("team");      onClose(); } },
+    { id: "s-domain",    type: "setting", label: "Custom domain",        emoji: "🌐", onSelect: () => { proto.openDrawer("domain");    onClose(); } },
+    { id: "s-plan",      type: "setting", label: "Plan & billing",       emoji: "💳", onSelect: () => { proto.openDrawer("plan-billing"); onClose(); } },
+    { id: "s-api",       type: "setting", label: "API keys",             emoji: "🔑", onSelect: () => { proto.openDrawer("api-keys");  onClose(); } },
+    { id: "s-notifs",    type: "setting", label: "Notification prefs",   emoji: "🔔", onSelect: () => { proto.openDrawer("notifications-prefs"); onClose(); } },
+  ] as CmdResult[], [proto, onClose]);
+
+  // ── Build sections based on query ─────────────────────────────────
+  const sections: CmdSection[] = useMemo(() => {
+    const q = query.trim();
+    if (!q) {
+      // Empty state — show quick actions + recent inquiries
+      return [
+        { id: "quick", title: "Quick actions", items: quickActions },
+        { id: "pages",  title: "Navigate",      items: pageItems.slice(0, 4) },
+      ];
+    }
+    const result: CmdSection[] = [];
+    const fq = filterCmd(quickActions,  q); if (fq.length) result.push({ id: "quick",    title: "Actions",   items: fq });
+    const fi = filterCmd(inquiryItems,  q); if (fi.length) result.push({ id: "inquiries", title: "Inquiries", items: fi.slice(0, 5) });
+    const ft = filterCmd(talentItems,   q); if (ft.length) result.push({ id: "talent",    title: "Talent",    items: ft.slice(0, 5) });
+    const fp = filterCmd(pageItems,     q); if (fp.length) result.push({ id: "pages",     title: "Navigate",  items: fp });
+    const fs = filterCmd(settingItems,  q); if (fs.length) result.push({ id: "settings",  title: "Settings",  items: fs });
+    return result;
+  }, [query, quickActions, pageItems, inquiryItems, talentItems, settingItems]);
+
+  const flat    = useMemo(() => flattenSections(sections), [sections]);
+  const safeIdx = flat.length ? Math.min(selIdx, flat.length - 1) : -1;
+
+  // Scroll selected item into view
+  useEffect(() => {
+    if (safeIdx < 0 || !listRef.current) return;
+    const el = listRef.current.querySelectorAll<HTMLElement>("[data-cmd-item]")[safeIdx];
+    el?.scrollIntoView({ block: "nearest" });
+  }, [safeIdx]);
+
+  // Keyboard handler
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown") { e.preventDefault(); setSelIdx((i) => Math.min(i + 1, flat.length - 1)); }
+      if (e.key === "ArrowUp")   { e.preventDefault(); setSelIdx((i) => Math.max(i - 1, 0)); }
+      if (e.key === "Enter")     { e.preventDefault(); flat[safeIdx]?.onSelect(); }
+      if (e.key === "Escape")    { onClose(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, flat, safeIdx, onClose]);
+
+  if (!open) return null;
+
+  let globalIdx = 0; // rolling index across sections for selection highlighting
+
+  return (
+    <div
+      data-tulala-command-palette="overlay"
+      style={{
+        position:   "fixed",
+        inset:      0,
+        zIndex:     1200,
+        background: "rgba(0,0,0,0.45)",
+        display:    "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding:    "12vh 16px 0",
+      }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        data-tulala-command-palette="panel"
+        style={{
+          width:         640,
+          maxWidth:      "100%",
+          background:    COLORS.surface,
+          borderRadius:  RADIUS.xl,
+          boxShadow:     "0 24px 64px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.12)",
+          border:        `1px solid ${COLORS.border}`,
+          overflow:      "hidden",
+          display:       "flex",
+          flexDirection: "column",
+          maxHeight:     "70vh",
+        }}
+      >
+        {/* Search input */}
+        <div style={{
+          display:     "flex",
+          alignItems:  "center",
+          gap:         10,
+          padding:     "12px 16px",
+          borderBottom: `1px solid ${COLORS.border}`,
+          flexShrink:  0,
+        }}>
+          <Icon name="search" size={16} stroke={2} color={COLORS.inkMuted} />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setSelIdx(0); }}
+            placeholder="Search or jump to…"
+            style={{
+              flex:       1,
+              border:     "none",
+              outline:    "none",
+              background: "transparent",
+              fontFamily: FONTS.body,
+              fontSize:   15,
+              color:      COLORS.ink,
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Backspace" && query === "") { e.preventDefault(); onClose(); }
+            }}
+          />
+          <kbd style={{
+            fontSize:   11,
+            color:      COLORS.inkMuted,
+            background: COLORS.surfaceAlt,
+            border:     `1px solid ${COLORS.border}`,
+            borderRadius: 4,
+            padding:    "2px 6px",
+            fontFamily: FONTS.mono,
+          }}>
+            esc
+          </kbd>
+        </div>
+
+        {/* Results */}
+        <ul
+          ref={listRef}
+          role="listbox"
+          aria-label="Command palette results"
+          style={{
+            flex:      "1 1 auto",
+            overflowY: "auto",
+            margin:    0,
+            padding:   "6px 0",
+            listStyle: "none",
+          }}
+        >
+          {sections.length === 0 && (
+            <li style={{
+              padding:   "32px 16px",
+              textAlign: "center",
+              color:     COLORS.inkMuted,
+              fontFamily: FONTS.body,
+              fontSize:  13,
+            }}>
+              No results for &ldquo;{query}&rdquo;
+            </li>
+          )}
+          {sections.map((section) => (
+            <li key={section.id}>
+              <div style={{
+                padding:    "8px 16px 4px",
+                fontSize:   10,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color:      COLORS.inkDim,
+                fontFamily: FONTS.body,
+              }}>
+                {section.title}
+              </div>
+              <ul role="group" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {section.items.map((item) => {
+                  const idx     = globalIdx++;
+                  const isActive = idx === safeIdx;
+                  return (
+                    <li
+                      key={item.id}
+                      role="option"
+                      aria-selected={isActive}
+                      data-cmd-item
+                      onClick={item.onSelect}
+                      onMouseEnter={() => setSelIdx(idx)}
+                      style={{
+                        display:     "flex",
+                        alignItems:  "center",
+                        gap:         10,
+                        padding:     "8px 16px",
+                        cursor:      "pointer",
+                        background:  isActive ? COLORS.surfaceAlt : "transparent",
+                        borderRadius: 0,
+                        transition:  "background .08s",
+                      }}
+                    >
+                      {/* Icon / emoji */}
+                      <span style={{
+                        width:          28,
+                        height:         28,
+                        borderRadius:   RADIUS.sm,
+                        background:     isActive ? COLORS.card : COLORS.surfaceAlt,
+                        display:        "flex",
+                        alignItems:     "center",
+                        justifyContent: "center",
+                        fontSize:       14,
+                        flexShrink:     0,
+                        transition:     "background .08s",
+                      }}>
+                        {item.emoji ?? "→"}
+                      </span>
+
+                      {/* Text */}
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{
+                          display:    "block",
+                          fontSize:   13,
+                          fontWeight: 500,
+                          color:      COLORS.ink,
+                          fontFamily: FONTS.body,
+                        }}>
+                          {item.label}
+                        </span>
+                        {item.sublabel && (
+                          <span style={{
+                            display:    "block",
+                            fontSize:   11,
+                            color:      COLORS.inkMuted,
+                            fontFamily: FONTS.body,
+                            overflow:   "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}>
+                            {item.sublabel}
+                          </span>
+                        )}
+                      </span>
+
+                      {/* Keyboard shortcut hint */}
+                      {item.kbd && (
+                        <kbd style={{
+                          fontSize:   10,
+                          color:      COLORS.inkMuted,
+                          background: COLORS.surfaceAlt,
+                          border:     `1px solid ${COLORS.border}`,
+                          borderRadius: 4,
+                          padding:    "1px 5px",
+                          fontFamily: FONTS.mono,
+                          flexShrink: 0,
+                          whiteSpace: "nowrap",
+                        }}>
+                          {item.kbd}
+                        </kbd>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
+        </ul>
+
+        {/* Footer */}
+        <div style={{
+          display:      "flex",
+          alignItems:   "center",
+          gap:          12,
+          padding:      "8px 16px",
+          borderTop:    `1px solid ${COLORS.border}`,
+          flexShrink:   0,
+          fontSize:     11,
+          color:        COLORS.inkMuted,
+          fontFamily:   FONTS.body,
+        }}>
+          <span><kbd style={{ fontSize: 10 }}>↑↓</kbd> navigate</span>
+          <span><kbd style={{ fontSize: 10 }}>↵</kbd> open</span>
+          <span><kbd style={{ fontSize: 10 }}>esc</kbd> close</span>
+          <span style={{ marginLeft: "auto" }}>
+            Press <kbd style={{ fontSize: 10 }}>?</kbd> for keyboard shortcuts
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WS-7.4 / 7.5 Keyboard shortcut layer + help overlay ─────────────────────
+//
+// `useKeyboardLayer` registers global keyboard shortcuts for the workspace.
+//   j / k          → next / prev row in the active list
+//   e              → archive selected
+//   r              → reply (open private thread)
+//   c              → compose (new inquiry)
+//   g then i       → go to Messages
+//   g then c       → go to Calendar
+//   g then t       → go to Roster
+//   g then o       → go to Overview
+//   Cmd/Ctrl-K     → open Command Palette
+//   ?              → toggle shortcut cheatsheet
+//
+// Usage: call `useKeyboardLayer(handlers)` in the workspace shell.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type KeyboardLayerHandlers = {
+  onOpenPalette:  () => void;
+  onOpenHelp:     () => void;
+  onNavigate:     (page: WorkspacePage) => void;
+  onCompose?:     () => void;
+  /** Whether a drawer or modal is currently open (suppresses shortcuts). */
+  isModalOpen:    boolean;
+};
+
+export function useKeyboardLayer({
+  onOpenPalette,
+  onOpenHelp,
+  onNavigate,
+  onCompose,
+  isModalOpen,
+}: KeyboardLayerHandlers) {
+  const gPending = useRef(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const inInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable;
+
+      // Cmd/Ctrl-K always works (even in inputs)
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        onOpenPalette();
+        gPending.current = false;
+        return;
+      }
+
+      // All other shortcuts suppressed when typing or modal open
+      if (inInput || isModalOpen) { gPending.current = false; return; }
+
+      // G-prefixed navigation shortcuts
+      if (gPending.current) {
+        gPending.current = false;
+        e.preventDefault();
+        const map: Record<string, WorkspacePage> = {
+          i: "messages", o: "overview", c: "calendar", t: "roster",
+        };
+        if (map[e.key]) onNavigate(map[e.key] as WorkspacePage);
+        return;
+      }
+
+      if (e.key === "g") { gPending.current = true; return; }
+      if (e.key === "?") { onOpenHelp(); return; }
+      if (e.key === "c" && onCompose) { onCompose(); return; }
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      // Cancel pending G if any non-eligible key is pressed
+      if (e.key !== "g") gPending.current = false;
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup",   onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup",   onKeyUp);
+    };
+  }, [onOpenPalette, onOpenHelp, onNavigate, onCompose, isModalOpen]);
+}
+
+// ─── WS-7.5 Keyboard shortcut help overlay ───────────────────────────────────
+
+const SHORTCUT_GROUPS = [
+  {
+    title: "Navigation",
+    shortcuts: [
+      { keys: ["G", "O"],    label: "Go to Overview" },
+      { keys: ["G", "I"],    label: "Go to Messages" },
+      { keys: ["G", "C"],    label: "Go to Calendar" },
+      { keys: ["G", "T"],    label: "Go to Roster" },
+    ],
+  },
+  {
+    title: "Actions",
+    shortcuts: [
+      { keys: ["C"],         label: "New inquiry (compose)" },
+      { keys: ["⌘", "K"],   label: "Command palette" },
+      { keys: ["?"],         label: "Keyboard shortcuts" },
+    ],
+  },
+  {
+    title: "List navigation",
+    shortcuts: [
+      { keys: ["J"],         label: "Next item" },
+      { keys: ["K"],         label: "Previous item" },
+      { keys: ["E"],         label: "Archive selected" },
+      { keys: ["R"],         label: "Reply" },
+      { keys: ["⏎"],        label: "Open selected" },
+    ],
+  },
+  {
+    title: "Messaging",
+    shortcuts: [
+      { keys: ["/"],         label: "Search messages" },
+      { keys: ["Tab"],       label: "Switch thread (Private ↔ Group)" },
+      { keys: ["⌘", "⏎"], label: "Send message" },
+    ],
+  },
+];
+
+export function ShortcutHelpOverlay({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape" || e.key === "?") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      data-tulala-shortcut-overlay="overlay"
+      style={{
+        position:   "fixed",
+        inset:      0,
+        zIndex:     1200,
+        background: "rgba(0,0,0,0.5)",
+        display:    "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding:    16,
+      }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{
+          background:   COLORS.surface,
+          borderRadius: RADIUS.xl,
+          border:       `1px solid ${COLORS.border}`,
+          boxShadow:    "0 20px 60px rgba(0,0,0,0.2)",
+          width:        560,
+          maxWidth:     "100%",
+          maxHeight:    "80vh",
+          overflow:     "auto",
+          padding:      "20px 0",
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display:     "flex",
+          alignItems:  "center",
+          justifyContent: "space-between",
+          padding:     "0 20px 16px",
+          borderBottom: `1px solid ${COLORS.border}`,
+          marginBottom: 12,
+        }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+            Keyboard shortcuts
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: COLORS.inkMuted, fontSize: 18, lineHeight: 1,
+              padding: "2px 4px", borderRadius: RADIUS.sm,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Shortcut groups */}
+        <div style={{
+          display:             "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap:                 "20px 0",
+          padding:             "0 20px",
+        }}>
+          {SHORTCUT_GROUPS.map((group) => (
+            <div key={group.title}>
+              <div style={{
+                fontSize:      10,
+                fontWeight:    700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color:         COLORS.inkDim,
+                fontFamily:    FONTS.body,
+                marginBottom:  8,
+              }}>
+                {group.title}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {group.shortcuts.map((sc, i) => (
+                  <div key={i} style={{
+                    display:     "flex",
+                    alignItems:  "center",
+                    justifyContent: "space-between",
+                    gap:         8,
+                  }}>
+                    <span style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+                      {sc.label}
+                    </span>
+                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                      {sc.keys.map((k, ki) => (
+                        <kbd key={ki} style={{
+                          fontSize:     10,
+                          color:        COLORS.ink,
+                          background:   COLORS.surfaceAlt,
+                          border:       `1px solid ${COLORS.border}`,
+                          borderRadius: 4,
+                          padding:      "2px 6px",
+                          fontFamily:   FONTS.mono,
+                          minWidth:     22,
+                          textAlign:    "center",
+                        }}>
+                          {k}
+                        </kbd>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer hint */}
+        <div style={{
+          marginTop:   16,
+          padding:     "12px 20px 0",
+          borderTop:   `1px solid ${COLORS.border}`,
+          fontSize:    11,
+          color:       COLORS.inkMuted,
+          fontFamily:  FONTS.body,
+          textAlign:   "center",
+        }}>
+          Press <kbd style={{ fontSize: 10, padding: "1px 5px", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`, borderRadius: 3 }}>?</kbd> or <kbd style={{ fontSize: 10, padding: "1px 5px", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`, borderRadius: 3 }}>esc</kbd> to close
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WS-7.6 BulkActionBar ────────────────────────────────────────────────────
+//
+// Appears at the bottom of the screen when 2+ rows are selected.
+// Actions: Archive, Assign, Export, Clear selection.
+//
+// Usage:
+//   <BulkActionBar
+//     count={selectedIds.size}
+//     onArchive={handleBulkArchive}
+//     onAssign={handleBulkAssign}
+//     onExport={handleBulkExport}
+//     onClear={() => setSelectedIds(new Set())}
+//   />
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function BulkActionBar({
+  count,
+  onArchive,
+  onAssign,
+  onExport,
+  onClear,
+}: {
+  count:      number;
+  onArchive?: () => void;
+  onAssign?:  () => void;
+  onExport?:  () => void;
+  onClear?:   () => void;
+}) {
+  if (count < 2) return null;
+
+  const BTN: React.CSSProperties = {
+    display:      "inline-flex",
+    alignItems:   "center",
+    gap:          6,
+    padding:      "6px 14px",
+    borderRadius: RADIUS.md,
+    border:       "none",
+    fontFamily:   FONTS.body,
+    fontSize:     13,
+    fontWeight:   600,
+    cursor:       "pointer",
+    background:   "rgba(255,255,255,0.15)",
+    color:        "#fff",
+    transition:   `background ${TRANSITION.micro}`,
+  };
+
+  return (
+    <div
+      data-tulala-bulk-action-bar
+      style={{
+        position:    "fixed",
+        bottom:      20,
+        left:        "50%",
+        transform:   "translateX(-50%)",
+        zIndex:      900,
+        background:  COLORS.ink,
+        color:       "#fff",
+        borderRadius: RADIUS.xl,
+        boxShadow:   "0 12px 40px rgba(0,0,0,0.35)",
+        padding:     "10px 16px",
+        display:     "flex",
+        alignItems:  "center",
+        gap:         8,
+        animation:   "tulalaBulkBarIn .2s ease",
+        fontFamily:  FONTS.body,
+        fontSize:    13,
+        minWidth:    340,
+      }}
+    >
+      <style>{`@keyframes tulalaBulkBarIn { from { transform: translateX(-50%) translateY(12px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }`}</style>
+      <span style={{ fontWeight: 700, marginRight: 4 }}>{count} selected</span>
+      {onArchive && <button type="button" style={BTN} onClick={onArchive}>Archive</button>}
+      {onAssign  && <button type="button" style={BTN} onClick={onAssign}>Assign</button>}
+      {onExport  && <button type="button" style={BTN} onClick={onExport}>Export</button>}
+      <div style={{ flex: 1 }} />
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label="Clear selection"
+        style={{
+          background: "transparent", border: "none", cursor: "pointer",
+          color: "rgba(255,255,255,0.7)", fontSize: 16, padding: "2px 4px",
+        }}
+      >
+        ×
+      </button>
+    </div>
   );
 }
 

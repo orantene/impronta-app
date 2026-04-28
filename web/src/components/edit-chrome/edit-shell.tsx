@@ -40,6 +40,7 @@ import { NavigatorPanel } from "./navigator-panel";
 import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
+import { IframeBridgeParent } from "./iframe-bridge";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
@@ -185,6 +186,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     reportMutationError,
     locale,
     availableLocales,
+    pageSlug,
   } = useEditContext();
 
   // Phase A (2026-04-26) — convergence-plan §1 deep-link contract.
@@ -491,9 +493,15 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <DraftSavedToast />
         <CanvasLinkInterceptor />
         <FirstPaintTip />
+        <IframeBridgeParent />
       </div>
       {children}
-      <DeviceFrameStyle device={device} />
+      <DeviceFrameSurface
+        device={device}
+        pageSlug={pageSlug}
+        navigatorOpen={navigatorOpen}
+        inspectorOpen={!!selectedSectionId}
+      />
     </>
   );
 }
@@ -675,35 +683,114 @@ function MutationErrorToast() {
   );
 }
 
-function DeviceFrameStyle({ device }: { device: EditDevice }) {
+/**
+ * DeviceFrameSurface — Sprint 3 replacement for the body-width-clip
+ * device preview. Renders the storefront inside a real `<iframe>` whose
+ * viewport width matches the device (390 / 834 px), so:
+ *
+ *   - CSS @media queries fire on the actual viewport width;
+ *   - `position: fixed` / `position: sticky` elements anchor to the
+ *     iframe viewport (not the parent), eliminating the free-floating
+ *     headers / hero overlays the body-clip approach exposed;
+ *   - Tap targets, scroll behavior, and font scaling all match what
+ *     a real visitor on that device sees.
+ *
+ * Layout: when device != desktop, we hide the parent's storefront DOM
+ * via a CSS rule (`body > *:not([data-edit-chrome])` is set to
+ * `visibility: hidden`) and render an iframe-host overlay anchored to
+ * the editor chrome's content area (between navigator on the left and
+ * inspector dock on the right when those are open). The iframe loads
+ * the same URL with `?iframe=1` appended; EditChrome's iframe-mode
+ * branch (see `iframe-child.tsx`) renders the storefront DOM with its
+ * own minimal SelectionLayer + postMessage bridge.
+ *
+ * Selection sync: clicks inside the iframe set the iframe's local
+ * `selectedSectionId`, which IframeBridgeChild posts up to the parent.
+ * IframeBridgeParent (mounted alongside this component) updates the
+ * parent's EditContext, which drives the parent-side InspectorDock.
+ *
+ * Sprint 3 explicitly does NOT support drag-drop across the iframe
+ * boundary — that is Sprint 4+ work. The chip's drag handle still
+ * works inside the iframe (intra-frame reorder).
+ */
+function DeviceFrameSurface({
+  device,
+  pageSlug,
+  navigatorOpen,
+  inspectorOpen,
+}: {
+  device: EditDevice;
+  pageSlug?: string | null;
+  navigatorOpen: boolean;
+  inspectorOpen: boolean;
+}) {
   const width = DEVICE_WIDTHS[device];
   if (!width) return null;
-  // Mobile/tablet preview presentation.
-  //
-  // Important caveat documented for any future maintainer: a true device
-  // preview is impossible without an iframe whose viewport matches the
-  // device width. CSS @media queries fire on viewport width, not body
-  // width, AND any storefront content using `position: fixed` /
-  // `position: absolute` references the viewport, not the constrained
-  // body. So a 390px body in a 1280px viewport leaves fixed-position
-  // elements (sticky headers, hero overlays) free-floating outside the
-  // body box.
-  //
-  // The earlier, more aggressive treatment (dark backdrop, body shadow,
-  // approximate-width chip) made this floating-content issue visible
-  // because the dark gutter exposed the page chrome bleeding outside
-  // the body. Reverted to a minimal constraint: clip the body width and
-  // overflow, no backdrop change, no margin tricks. The mobile preview
-  // is approximate; the real fix is an iframe rewrite (queued as a
-  // structural follow-up, not in this pass).
+
+  const leftPad = navigatorOpen ? 280 : 22;
+  const rightPad = inspectorOpen ? 380 : 0;
+
+  // Build the iframe URL for the same page the operator is editing.
+  // We append `?iframe=1` so EditChrome on the iframe side mounts the
+  // headless IframeChild branch instead of the full editor shell.
+  // Resolved at render time (no SSR) because the URL is window-bound.
+  let iframeSrc = "/";
+  if (typeof window !== "undefined") {
+    const u = new URL(window.location.href);
+    u.searchParams.set("iframe", "1");
+    // Drop `?edit=1` from the iframe URL — the iframe doesn't need to
+    // re-trigger the enter-edit-mode action; the cookie is already set
+    // and travels with the same-origin request. Stripping it also keeps
+    // the EditPill's auto-enter from firing inside the iframe.
+    u.searchParams.delete("edit");
+    iframeSrc = u.pathname + u.search + u.hash;
+  }
+
   return (
-    <style>{`
-      body {
-        max-width: ${width}px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        overflow-x: hidden !important;
-      }
-    `}</style>
+    <>
+      {/* Hide the parent's storefront DOM and disable its interactivity;
+          keep the editor chrome and the iframe-host visible. */}
+      <style>{`
+        body > *:not([data-edit-chrome]):not([data-edit-iframe-host]) {
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
+      `}</style>
+      <div
+        data-edit-iframe-host
+        style={{
+          position: "fixed",
+          top: 54,
+          bottom: 0,
+          left: leftPad,
+          right: rightPad,
+          background: "#f3f0e8",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "center",
+          overflow: "auto",
+          padding: "24px 16px",
+          transition: "left 220ms cubic-bezier(0.32, 0.72, 0, 1), right 220ms cubic-bezier(0.32, 0.72, 0, 1)",
+          zIndex: 60,
+        }}
+      >
+        <iframe
+          key={`${device}:${pageSlug ?? "/"}`}
+          src={iframeSrc}
+          title={`${device} preview`}
+          style={{
+            width,
+            height: "calc(100vh - 54px - 48px)",
+            maxHeight: "calc(100vh - 54px - 48px)",
+            border: 0,
+            borderRadius: 16,
+            boxShadow:
+              "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
+            background: "white",
+            display: "block",
+          }}
+        />
+      </div>
+    </>
   );
 }

@@ -16,8 +16,8 @@
  *   ClientSettingsPage   — brand, team, billing
  */
 
-import { useState, type ReactNode } from "react";
-import { ClientOnboardingArc } from "./_wave2";
+import React, { useState, type ReactNode } from "react";
+import { ClientOnboardingArc, ClientFirstRunBanner } from "./_wave2";
 import { TalentMessagesPage } from "./_talent";
 import {
   AGENCY_RELIABILITY,
@@ -29,6 +29,8 @@ import {
   CLIENT_Q2_BUDGET,
   COLORS,
   DISCOVER_TALENT,
+  RADIUS,
+  TRANSITION,
   FONTS,
   INQUIRY_STAGE_META,
   MY_CLIENT_BRAND,
@@ -149,8 +151,8 @@ function ClientTopbar() {
             display: "inline-flex",
             alignItems: "center",
             gap: 6,
-            background: state.clientPlan === "free" ? "rgba(11,11,13,0.04)" : "rgba(46,125,91,0.10)",
-            color: state.clientPlan === "free" ? COLORS.inkMuted : "#1F5C42",
+            background: state.clientPlan === "free" ? "rgba(11,11,13,0.04)" : COLORS.successSoft,
+            color: state.clientPlan === "free" ? COLORS.inkMuted : COLORS.successDeep,
             padding: "3px 9px",
             borderRadius: 999,
             fontFamily: FONTS.body,
@@ -185,7 +187,7 @@ function ClientTopbar() {
                   letterSpacing: 0.1,
                   borderRadius: 7,
                   position: "relative",
-                  transition: "color .12s, background .12s",
+                  transition: `color ${TRANSITION.micro}, background ${TRANSITION.micro}`,
                 }}
                 onMouseEnter={(e) => {
                   if (!active) e.currentTarget.style.color = COLORS.ink;
@@ -208,7 +210,7 @@ function ClientTopbar() {
                     opacity: active ? 1 : 0,
                     transform: active ? "scaleX(1)" : "scaleX(0.4)",
                     transformOrigin: "center",
-                    transition: "opacity .18s ease, transform .25s cubic-bezier(.4,.0,.2,1)",
+                    transition: `opacity ${TRANSITION.md}, transform ${TRANSITION.drawer}`,
                     pointerEvents: "none",
                   }}
                 />
@@ -467,7 +469,7 @@ function BudgetStrip() {
               width: `${pct}%`,
               height: "100%",
               borderRadius: 999,
-              background: overBudget ? "#B0303A" : COLORS.ink,
+              background: overBudget ? COLORS.red : COLORS.ink,
             }}
           />
         </div>
@@ -532,6 +534,8 @@ function ClientTodayPage() {
         }
       />
       <ClientOnboardingArc />
+      {/* WS-9.3 — client first-run guidance banner */}
+      <ClientFirstRunBanner />
 
       <Grid cols="4">
         <StatusCard
@@ -843,7 +847,7 @@ function ClientInquiryRow({ inquiry, bordered }: { inquiry: RichInquiry; bordere
         cursor: "pointer",
         textAlign: "left",
         fontFamily: FONTS.body,
-        transition: "background .12s",
+        transition: `background ${TRANSITION.micro}`,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.background = "rgba(11,11,13,0.02)";
@@ -915,17 +919,17 @@ function ClientInquiryRow({ inquiry, bordered }: { inquiry: RichInquiry; bordere
           textTransform: "uppercase",
           background:
             meta.tone === "green"
-              ? "rgba(46,125,91,0.10)"
+              ? COLORS.successSoft
               : meta.tone === "amber"
                 ? "rgba(82,96,109,0.12)"
                 : meta.tone === "red"
-                  ? "rgba(176,48,58,0.10)"
+                  ? COLORS.criticalSoft
                   : "rgba(11,11,13,0.04)",
           color:
             meta.tone === "green"
-              ? "#1F5C42"
+              ? COLORS.successDeep
               : meta.tone === "amber"
-                ? "#3A4651"
+                ? COLORS.amberDeep
                 : meta.tone === "red"
                   ? "#7A2026"
                   : COLORS.inkMuted,
@@ -1068,7 +1072,7 @@ function DiscoverCard({ talent }: { talent: DiscoverTalent }) {
         cursor: "pointer",
         textAlign: "left",
         fontFamily: FONTS.body,
-        transition: "border-color .12s, box-shadow .12s",
+        transition: `border-color ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = COLORS.border;
@@ -1095,7 +1099,7 @@ function DiscoverCard({ talent }: { talent: DiscoverTalent }) {
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
           <span style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink }}>{talent.name}</span>
           {talent.available ? (
-            <span style={{ fontSize: 10.5, color: "#1F5C42", fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Available</span>
+            <span style={{ fontSize: 10.5, color: COLORS.successDeep, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>Available</span>
           ) : (
             <span style={{ fontSize: 10.5, color: COLORS.inkDim, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>On hold</span>
           )}
@@ -1215,11 +1219,11 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
             textTransform: "uppercase",
             background:
               m.tone === "green"
-                ? "rgba(46,125,91,0.10)"
+                ? COLORS.successSoft
                 : m.tone === "amber"
                   ? "rgba(82,96,109,0.12)"
                   : "rgba(11,11,13,0.04)",
-            color: m.tone === "green" ? "#1F5C42" : m.tone === "amber" ? "#3A4651" : COLORS.inkMuted,
+            color: m.tone === "green" ? COLORS.successDeep : m.tone === "amber" ? COLORS.amberDeep : COLORS.inkMuted,
           }}
         >
           {m.label}
@@ -1234,6 +1238,7 @@ function ShortlistCard({ shortlist }: { shortlist: Shortlist }) {
 // ════════════════════════════════════════════════════════════════════
 
 function ClientBookingsPage() {
+  const { openDrawer } = useProto();
   return (
     <>
       <PageHeader
@@ -1241,6 +1246,26 @@ function ClientBookingsPage() {
         title="Confirmed work"
         subtitle="Locked-in dates, talent, and contracts. Wraps and invoices live here."
       />
+
+      {/* WS-8.11 / WS-8.12 — Spend + budget quick-access tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
+        <StatusCard
+          label="Total spend YTD"
+          value="€23,000"
+          caption="View spend report →"
+          tone="ink"
+          icon="credit"
+          onClick={() => openDrawer("client-spend-report")}
+        />
+        <StatusCard
+          label="Q2 Budget"
+          value="46% used"
+          caption="⚠ Approaching 80% alert"
+          tone="amber"
+          onClick={() => openDrawer("client-budget")}
+        />
+      </div>
+
       <div
         style={{
           background: "#fff",
@@ -1341,11 +1366,11 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
           textTransform: "uppercase",
           background:
             m.tone === "green"
-              ? "rgba(46,125,91,0.10)"
+              ? COLORS.successSoft
               : m.tone === "amber"
                 ? "rgba(82,96,109,0.12)"
                 : "rgba(11,11,13,0.04)",
-          color: m.tone === "green" ? "#1F5C42" : m.tone === "amber" ? "#3A4651" : COLORS.inkMuted,
+          color: m.tone === "green" ? COLORS.successDeep : m.tone === "amber" ? COLORS.amberDeep : COLORS.inkMuted,
           flexShrink: 0,
         }}
       >
@@ -1362,15 +1387,15 @@ function ClientBookingRow({ booking }: { booking: ClientBooking }) {
             textTransform: "uppercase",
             background:
               pm.tone === "green"
-                ? "rgba(46,125,91,0.10)"
+                ? COLORS.successSoft
                 : pm.tone === "amber"
                   ? "rgba(82,96,109,0.12)"
                   : "rgba(11,11,13,0.04)",
             color:
               pm.tone === "green"
-                ? "#1F5C42"
+                ? COLORS.successDeep
                 : pm.tone === "amber"
-                  ? "#3A4651"
+                  ? COLORS.amberDeep
                   : COLORS.inkMuted,
             flexShrink: 0,
           }}
@@ -1673,14 +1698,14 @@ export function ClientShortlistDetailDrawer() {
               <div style={{ marginBottom: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
                   <span style={{ fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>On time</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "#1F5C42" }}>{rel.onTimeRate}%</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: COLORS.successDeep }}>{rel.onTimeRate}%</span>
                 </div>
                 <div style={{ height: 4, background: "rgba(11,11,13,0.06)", borderRadius: 999, overflow: "hidden" }}>
                   <div
                     style={{
                       width: barW,
                       height: "100%",
-                      background: rel.onTimeRate === 100 ? "#2E7D5B" : rel.onTimeRate > 80 ? COLORS.ink : "#B0303A",
+                      background: rel.onTimeRate === 100 ? COLORS.green : rel.onTimeRate > 80 ? COLORS.ink : COLORS.red,
                       borderRadius: 999,
                     }}
                   />
@@ -1689,7 +1714,7 @@ export function ClientShortlistDetailDrawer() {
               {/* Stats row */}
               <div style={{ display: "flex", gap: 16, fontSize: 11.5, color: COLORS.inkMuted }}>
                 <span>
-                  <span style={{ fontWeight: 600, color: rel.cancellations > 0 ? "#B0303A" : COLORS.ink }}>
+                  <span style={{ fontWeight: 600, color: rel.cancellations > 0 ? COLORS.red : COLORS.ink }}>
                     {rel.cancellations}
                   </span>{" "}
                   cancellations
@@ -1793,13 +1818,13 @@ export function ClientSendInquiryDrawer() {
             borderRadius: 10,
             border: `1px solid rgba(46,125,91,0.18)`,
             fontSize: 12.5,
-            color: "#1F5C42",
+            color: COLORS.successDeep,
             display: "flex",
             gap: 8,
             alignItems: "flex-start",
           }}
         >
-          <Icon name="info" size={12} color="#1F5C42" />
+          <Icon name="info" size={12} color={COLORS.successDeep} />
           <span>
             You'll get a private thread with your assigned coordinator. The talent are added to a separate group
             thread that you don't see — that way the agency handles logistics with their roster.
@@ -1810,7 +1835,25 @@ export function ClientSendInquiryDrawer() {
   );
 }
 
-function FieldGroup({ label, defaultValue, placeholder, textarea }: { label: string; defaultValue?: string; placeholder?: string; textarea?: boolean }) {
+function FieldGroup({
+  label, defaultValue, placeholder, textarea, onChange,
+}: {
+  label: string;
+  defaultValue?: string;
+  placeholder?: string;
+  textarea?: boolean;
+  onChange?: (v: string) => void;
+}) {
+  const sharedStyle: React.CSSProperties = {
+    padding: "9px 12px",
+    background: "#fff",
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 8,
+    fontFamily: FONTS.body,
+    fontSize: 13.5,
+    color: COLORS.ink,
+    outline: "none",
+  };
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontFamily: FONTS.body }}>
       <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, letterSpacing: 0.5, textTransform: "uppercase" }}>
@@ -1821,33 +1864,15 @@ function FieldGroup({ label, defaultValue, placeholder, textarea }: { label: str
           defaultValue={defaultValue}
           placeholder={placeholder}
           rows={3}
-          style={{
-            padding: "9px 12px",
-            background: "#fff",
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 8,
-            fontFamily: FONTS.body,
-            fontSize: 13.5,
-            color: COLORS.ink,
-            outline: "none",
-            resize: "none",
-            lineHeight: 1.55,
-          }}
+          onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+          style={{ ...sharedStyle, resize: "none", lineHeight: 1.55 }}
         />
       ) : (
         <input
           defaultValue={defaultValue}
           placeholder={placeholder}
-          style={{
-            padding: "9px 12px",
-            background: "#fff",
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 8,
-            fontFamily: FONTS.body,
-            fontSize: 13.5,
-            color: COLORS.ink,
-            outline: "none",
-          }}
+          onChange={onChange ? (e) => onChange(e.target.value) : undefined}
+          style={sharedStyle}
         />
       )}
     </label>
@@ -1887,29 +1912,91 @@ export function ClientInquiryDetailDrawer() {
   );
 }
 
+// WS-8.10  Counter-offer diff view — side-by-side current vs proposed
 export function ClientCounterOfferDrawer() {
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "client-counter-offer";
+  const [counterRate, setCounterRate] = useState("2200");
+  const [note, setNote] = useState("Budget is firm — can the agency hold rate within €2,200?");
+
+  const OFFER = {
+    rate:     "€2,500 / day",
+    duration: "2 days",
+    talent:   "Sofia R.",
+    dates:    "May 8–9, 2026",
+    agency:   "Acme Models",
+  };
+
+  const SIDE: React.CSSProperties = {
+    flex: 1, background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+    padding: "14px 16px", border: `1px solid ${COLORS.borderSoft}`,
+    fontFamily: FONTS.body, fontSize: 13,
+  };
+
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Counter offer"
-      description="Send a counter-rate or new terms back to your coordinator."
+      description="Review the agency's terms and send your counter below."
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={() => { toast("Counter sent"); closeDrawer(); }}>Send counter</PrimaryButton>
+          <PrimaryButton onClick={() => { toast("Counter sent to coordinator"); closeDrawer(); }}>Send counter</PrimaryButton>
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
-        <FieldGroup label="Counter rate" defaultValue="€2,200/day" placeholder="" />
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        {/* WS-8.10 Diff: Current offer vs Your counter */}
+        <div>
+          <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 10 }}>
+            Terms comparison
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {/* Agency offer */}
+            <div style={SIDE}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+                Agency offer
+              </div>
+              {Object.entries(OFFER).map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                  <span style={{ color: COLORS.inkMuted, textTransform: "capitalize" }}>{k}</span>
+                  <span style={{ fontWeight: 600, color: COLORS.ink }}>{v}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Your counter */}
+            <div style={{ ...SIDE, borderColor: COLORS.accent + "66", background: COLORS.accent + "08" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.accent, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+                Your counter
+              </div>
+              {Object.entries(OFFER).map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                  <span style={{ color: COLORS.inkMuted, textTransform: "capitalize" }}>{k}</span>
+                  <span style={{ fontWeight: 600, color: k === "rate" ? COLORS.accent : COLORS.ink }}>
+                    {k === "rate" ? (counterRate ? `€${counterRate} / day` : v) : v}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Edit counter rate */}
+        <FieldGroup
+          label="Counter rate (€ / day)"
+          defaultValue={counterRate}
+          placeholder="e.g. 2200"
+          onChange={(v) => setCounterRate(v)}
+        />
         <FieldGroup
           label="Note to coordinator"
-          defaultValue="Budget is firm — can the agency hold rate within €2,200?"
-          placeholder=""
+          defaultValue={note}
+          placeholder="Explain your counter…"
           textarea
+          onChange={(v) => setNote(v)}
         />
       </div>
     </DrawerShell>
@@ -2204,7 +2291,7 @@ export function ClientBrandSwitcherDrawer() {
               <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{b.industry}</div>
             </div>
             {b.id === MY_CLIENT_BRAND.id && (
-              <span style={{ fontSize: 10.5, color: "#1F5C42", fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>
+              <span style={{ fontSize: 10.5, color: COLORS.successDeep, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase" }}>
                 Current
               </span>
             )}
@@ -2215,45 +2302,132 @@ export function ClientBrandSwitcherDrawer() {
   );
 }
 
+// WS-8.8  Saved-search alerts — "Email me when matches" toggle per saved search
 export function ClientSavedSearchDrawer() {
   const { state, closeDrawer, toast } = useProto();
   const open = state.drawer.drawerId === "client-saved-search";
+
+  const INIT_SEARCHES = [
+    { id: "s1", name: "Madrid · 5′8″+ · Available May", count: 12, alert: true,  freq: "daily"  },
+    { id: "s2", name: "Acme Models — bridal",            count:  4, alert: false, freq: "weekly" },
+    { id: "s3", name: "Fitness · Female · Bilingual",    count:  7, alert: true,  freq: "daily"  },
+  ];
+  const [searches, setSearches] = useState(INIT_SEARCHES);
+
+  const toggle = (id: string) =>
+    setSearches((prev) => prev.map((s) => s.id === id ? { ...s, alert: !s.alert } : s));
+  const setFreq = (id: string, freq: string) =>
+    setSearches((prev) => prev.map((s) => s.id === id ? { ...s, freq } : s));
+
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Saved searches"
-      description="Save complex filters and get notified when matching talent become available."
+      description="Save complex filters and get notified when matching talent becomes available."
+      footer={
+        <PrimaryButton onClick={() => { toast("Alert preferences saved"); closeDrawer(); }}>
+          Save preferences
+        </PrimaryButton>
+      }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {[
-          { name: "Madrid · 5'8\"+ · Available May", count: 12 },
-          { name: "Acme Models — bridal", count: 4 },
-        ].map((s, i) => (
-          <button
-            key={i}
-            onClick={() => { toast(`Search "${s.name}" reopened`); closeDrawer(); }}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {searches.map((s) => (
+          <div
+            key={s.id}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "12px 14px",
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              cursor: "pointer",
-              textAlign: "left",
+              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: RADIUS.lg, overflow: "hidden",
               fontFamily: FONTS.body,
             }}
           >
-            <Icon name="search" size={14} color={COLORS.inkMuted} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{s.name}</div>
-              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{s.count} matches</div>
+            {/* Search row */}
+            <button
+              type="button"
+              onClick={() => { toast(`Search "${s.name}" reopened`); closeDrawer(); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "12px 14px", width: "100%",
+                background: "transparent", border: "none", cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <Icon name="search" size={14} color={COLORS.inkMuted} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{s.name}</div>
+                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{s.count} matches</div>
+              </div>
+              <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+            </button>
+
+            {/* Alert toggle row */}
+            <div
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "9px 14px", borderTop: `1px solid ${COLORS.borderSoft}`,
+                background: s.alert ? COLORS.accent + "06" : "transparent",
+              }}
+            >
+              {/* On/Off pill toggle */}
+              <button
+                type="button"
+                onClick={() => toggle(s.id)}
+                aria-pressed={s.alert}
+                style={{
+                  width: 36, height: 20, borderRadius: 999,
+                  background: s.alert ? COLORS.accent : COLORS.borderSoft,
+                  border: "none", cursor: "pointer", position: "relative",
+                  transition: "background .15s", flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    position: "absolute", top: 2,
+                    left: s.alert ? 18 : 2,
+                    width: 16, height: 16, borderRadius: "50%",
+                    background: "#fff",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.18)",
+                    transition: "left .15s",
+                  }}
+                />
+              </button>
+              <span style={{ fontSize: 12, color: s.alert ? COLORS.ink : COLORS.inkMuted, flex: 1 }}>
+                Email me when matches appear
+              </span>
+              {s.alert && (
+                <select
+                  value={s.freq}
+                  onChange={(e) => setFreq(s.id, e.target.value)}
+                  style={{
+                    fontSize: 11.5, padding: "2px 6px", borderRadius: 6,
+                    border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body,
+                    background: "#fff", color: COLORS.ink, cursor: "pointer",
+                  }}
+                >
+                  <option value="immediate">Immediately</option>
+                  <option value="daily">Daily digest</option>
+                  <option value="weekly">Weekly summary</option>
+                </select>
+              )}
             </div>
-            <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
-          </button>
+          </div>
         ))}
+
+        {/* Add new saved search CTA */}
+        <button
+          type="button"
+          onClick={() => { toast("Go to Discover to save a new search"); closeDrawer(); }}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 6, padding: "10px 14px",
+            background: "transparent", border: `1px dashed ${COLORS.border}`,
+            borderRadius: RADIUS.lg, cursor: "pointer",
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted,
+          }}
+        >
+          <Icon name="plus" size={13} color={COLORS.inkMuted} />
+          Save new search
+        </button>
       </div>
     </DrawerShell>
   );
@@ -2391,14 +2565,306 @@ export function ClientSettingsDrawer() {
                 textTransform: "uppercase",
                 padding: "2px 8px",
                 borderRadius: 999,
-                background: r.on ? "rgba(46,125,91,0.10)" : "rgba(11,11,13,0.04)",
-                color: r.on ? "#1F5C42" : COLORS.inkMuted,
+                background: r.on ? COLORS.successSoft : "rgba(11,11,13,0.04)",
+                color: r.on ? COLORS.successDeep : COLORS.inkMuted,
               }}
             >
               {r.on ? "On" : "Off"}
             </span>
           </div>
         ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-8.9  Client "My talent" page — repeat bookings dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MY_TALENT_DATA = [
+  { id: "t1", name: "Sofia R.",   thumb: "SR", bookings: 4, lastBooked: "Mar 2026", totalSpend: 9800,  agency: "Acme Models",    tags: ["editorial", "RTW"] },
+  { id: "t2", name: "Lena K.",    thumb: "LK", bookings: 2, lastBooked: "Feb 2026", totalSpend: 4600,  agency: "Blue Talent",    tags: ["campaign"] },
+  { id: "t3", name: "Marco F.",   thumb: "MF", bookings: 3, lastBooked: "Jan 2026", totalSpend: 6200,  agency: "Elite Madrid",   tags: ["lookbook", "e-comm"] },
+  { id: "t4", name: "Ana P.",     thumb: "AP", bookings: 1, lastBooked: "Dec 2025", totalSpend: 2400,  agency: "Acme Models",    tags: ["beauty"] },
+];
+
+export function ClientMyTalentDrawer() {
+  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "client-my-talent";
+  const [search, setSearch] = useState("");
+
+  const filtered = MY_TALENT_DATA.filter((t) =>
+    t.name.toLowerCase().includes(search.toLowerCase()) ||
+    t.agency.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="My talent"
+      description="Talent you've booked before — quick-rebook or start a new inquiry."
+    >
+      {/* Search */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: COLORS.surfaceAlt, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}>
+          <Icon name="search" size={13} color={COLORS.inkMuted} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or agency…"
+            style={{ flex: 1, background: "none", border: "none", fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none" }}
+          />
+        </div>
+      </div>
+
+      {/* Talent list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {filtered.map((t) => (
+          <div
+            key={t.id}
+            style={{
+              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: RADIUS.lg, padding: "14px 16px",
+              display: "flex", alignItems: "flex-start", gap: 12,
+              fontFamily: FONTS.body,
+            }}
+          >
+            <Avatar initials={t.thumb} size={38} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.ink }}>{t.name}</div>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 6 }}>{t.agency}</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {t.tags.map((tag) => (
+                  <span key={tag} style={{
+                    fontSize: 11, padding: "2px 7px", borderRadius: 999,
+                    background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                  }}>{tag}</span>
+                ))}
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted }}>{t.bookings}× booked</div>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted }}>€{t.totalSpend.toLocaleString()}</div>
+              <button
+                type="button"
+                onClick={() => { toast(`New inquiry for ${t.name}`); closeDrawer(); }}
+                style={{
+                  marginTop: 8, padding: "5px 12px",
+                  background: COLORS.accent, color: "#fff",
+                  border: "none", borderRadius: 999, cursor: "pointer",
+                  fontSize: 11.5, fontWeight: 700, fontFamily: FONTS.body,
+                }}
+              >
+                Rebook
+              </button>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "24px 0", color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13 }}>
+            No talent found
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-8.11  Client spend by talent / by agency — reporting drawer
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SPEND_BY_TALENT = [
+  { name: "Sofia R.",  amount: 9800,  pct: 100 },
+  { name: "Marco F.",  amount: 6200,  pct: 63  },
+  { name: "Lena K.",   amount: 4600,  pct: 47  },
+  { name: "Ana P.",    amount: 2400,  pct: 24  },
+];
+const SPEND_BY_AGENCY = [
+  { name: "Acme Models",  amount: 12200, pct: 100 },
+  { name: "Elite Madrid", amount: 6200,  pct: 51  },
+  { name: "Blue Talent",  amount: 4600,  pct: 38  },
+];
+
+export function ClientSpendReportDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "client-spend-report";
+  const [view, setView] = useState<"talent" | "agency">("talent");
+
+  const data = view === "talent" ? SPEND_BY_TALENT : SPEND_BY_AGENCY;
+  const total = data[0]?.amount ?? 0;
+
+  const BAR_TRACK: React.CSSProperties = {
+    flex: 1, height: 6, background: COLORS.surfaceAlt,
+    borderRadius: 999, overflow: "hidden",
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Spend report"
+      description="Year-to-date spend broken down by talent and agency."
+    >
+      {/* Toggle */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 16, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 4 }}>
+        {(["talent", "agency"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            style={{
+              flex: 1, padding: "6px 0", borderRadius: RADIUS.sm,
+              background: view === v ? "#fff" : "transparent",
+              border: "none", cursor: "pointer",
+              fontFamily: FONTS.body, fontSize: 13, fontWeight: view === v ? 700 : 400,
+              color: view === v ? COLORS.ink : COLORS.inkMuted,
+              boxShadow: view === v ? "0 1px 3px rgba(0,0,0,0.10)" : "none",
+              transition: "all .15s",
+            }}
+          >
+            By {v}
+          </button>
+        ))}
+      </div>
+
+      {/* Total */}
+      <div style={{ marginBottom: 16, padding: "12px 14px", background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, border: `1px solid ${COLORS.border}` }}>
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: FONTS.body }}>
+          Total YTD spend
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: COLORS.ink, fontFamily: FONTS.body, marginTop: 2 }}>
+          €{data.reduce((s, r) => s + r.amount, 0).toLocaleString()}
+        </div>
+      </div>
+
+      {/* Breakdown bars */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {data.map((r) => (
+          <div key={r.name} style={{ fontFamily: FONTS.body }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{r.name}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>€{r.amount.toLocaleString()}</span>
+            </div>
+            <div style={BAR_TRACK}>
+              <div style={{
+                height: "100%", width: `${r.pct}%`,
+                background: COLORS.accent, borderRadius: 999,
+                transition: "width .4s ease",
+              }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-8.12  Client budget tracking — set budget + spend alerts
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function ClientBudgetDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "client-budget";
+  const [budget, setBudget] = useState("50000");
+  const [alertAt, setAlertAt] = useState("80");
+
+  const spent = 23000;
+  const budgetNum = parseInt(budget, 10) || 50000;
+  const spentPct = Math.min(100, Math.round((spent / budgetNum) * 100));
+  const alertPct = parseInt(alertAt, 10) || 80;
+  const isNearLimit = spentPct >= alertPct;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Budget tracking"
+      description="Set a quarterly spend cap and get alerted before you hit it."
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={() => { toast("Budget settings saved"); closeDrawer(); }}>Save</PrimaryButton>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        {/* Live spend gauge */}
+        <div style={{ padding: "16px", background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, border: `1px solid ${isNearLimit ? "#D97706" + "44" : COLORS.border}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+            <div>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Q2 Spend</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink, marginTop: 1 }}>€{spent.toLocaleString()}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Budget</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink, marginTop: 1 }}>€{budgetNum.toLocaleString()}</div>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ height: 10, background: COLORS.border, borderRadius: 999, overflow: "hidden", position: "relative" }}>
+            {/* Alert threshold marker */}
+            <div style={{
+              position: "absolute", top: 0, bottom: 0,
+              left: `${alertPct}%`, width: 2,
+              background: "#D97706", zIndex: 1,
+            }} />
+            <div style={{
+              height: "100%", width: `${spentPct}%`,
+              background: isNearLimit ? "#D97706" : COLORS.accent,
+              borderRadius: 999, transition: "width .4s ease",
+            }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+            <span style={{ fontSize: 11, color: isNearLimit ? "#D97706" : COLORS.inkMuted }}>
+              {isNearLimit ? `⚠ ${spentPct}% used — near limit` : `${spentPct}% of budget used`}
+            </span>
+            <span style={{ fontSize: 11, color: COLORS.inkMuted }}>
+              €{(budgetNum - spent).toLocaleString()} remaining
+            </span>
+          </div>
+        </div>
+
+        {/* Budget input */}
+        <FieldGroup
+          label="Quarterly budget (€)"
+          defaultValue={budget}
+          placeholder="e.g. 50000"
+          onChange={(v) => setBudget(v)}
+        />
+
+        {/* Alert threshold */}
+        <div>
+          <label style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Alert me at (% of budget)
+          </label>
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            {["60", "70", "80", "90"].map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                onClick={() => setAlertAt(pct)}
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: RADIUS.md,
+                  border: `1px solid ${alertAt === pct ? COLORS.accent : COLORS.border}`,
+                  background: alertAt === pct ? COLORS.accent + "10" : "#fff",
+                  fontFamily: FONTS.body, fontSize: 13,
+                  fontWeight: alertAt === pct ? 700 : 400,
+                  color: alertAt === pct ? COLORS.accent : COLORS.ink,
+                  cursor: "pointer",
+                }}
+              >
+                {pct}%
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </DrawerShell>
   );

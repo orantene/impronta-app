@@ -1,11 +1,69 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+/**
+ * Tulala admin-shell prototype primitives.
+ *
+ * ─── data-tulala-* selector convention (WS-0.11) ─────────────────────
+ *
+ * Every interactive container in this prototype carries a stable
+ * `data-tulala-<name>` attribute so QA / e2e tests / future preview
+ * tools can target it without depending on classnames or DOM shape.
+ *
+ * Naming rules:
+ *   - lowercase, dash-separated, prefix is always `data-tulala-`
+ *   - the suffix names the THING, not the variant: `data-tulala-card`
+ *     not `data-tulala-primary-card`
+ *   - variant goes in the value: `data-tulala-card="primary"`
+ *   - one attribute per element; if you need multiple, create a
+ *     compound id (`data-tulala-drawer-help-panel`, not two attrs)
+ *
+ * Existing reserved names — DO NOT reuse for new components:
+ *   data-tulala-drawer-panel        — drawer outer aside
+ *   data-tulala-drawer-overlay      — drawer backdrop
+ *   data-tulala-drawer-body         — drawer scrollable body
+ *   data-tulala-drawer-footer       — drawer footer
+ *   data-tulala-drawer-size-toolbar — compact/half/full size group
+ *   data-tulala-drawer-help-panel   — slide-down help region
+ *   data-tulala-help-btn            — drawer toolbar ⓘ button
+ *   data-tulala-help-dot            — "unread help" pulse indicator
+ *   data-tulala-mobile-bottom-nav   — fixed mobile bottom navigation
+ *   data-tulala-page-back           — page-level back button
+ *   data-tulala-card                — card primitive (variant in value)
+ *   data-tulala-empty-state         — empty-state primitive
+ *   data-tulala-skeleton            — skeleton shimmer
+ *   data-tulala-confirm-dialog      — confirmation dialog modal
+ *   data-tulala-identity-bar        — top-of-page identity bar
+ *   data-tulala-modal-popover       — ModalPopover overlay (WS-4)
+ *   data-tulala-modal-popover-body  — ModalPopover scrollable body (WS-4)
+ *   data-tulala-stale-pill          — stale-data refresh pill (WS-6.6)
+ *   data-tulala-conflict-dialog     — conflict-resolution dialog (WS-6.8)
+ *   data-tulala-guided-tour         — GuidedTour spotlight (WS-9.7)
+ *
+ * When adding a new interactive container, add the attribute AND
+ * append it to this list. Never silently rename — downstream tests
+ * may depend on the existing name.
+ *
+ * See ROADMAP.md §7.2 for the full engineer convention list.
+ */
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import {
   CLIENT_TRUST_META,
   COLORS,
   ENTITY_TYPE_META,
   FONTS,
+  RADIUS,
+  TRANSITION,
   Z,
   useProto,
   PAYMENT_STATUS_META,
@@ -285,6 +343,530 @@ export function Icon({
         </svg>
       );
   }
+}
+
+// ─── WS-0 Foundation: hooks ──────────────────────────────────────────
+//
+// Per ROADMAP §4 WS-0, these are the primitives that all other
+// workstreams depend on. Keep them small, well-typed, SSR-safe.
+
+/**
+ * WS-0.1 — Viewport classification hook.
+ *
+ * Returns one of `phone | tablet | desktop | wide`. Breakpoints:
+ *   phone   < 768
+ *   tablet  768–1023
+ *   desktop 1024–1279
+ *   wide    ≥ 1280
+ *
+ * SSR-safe: returns `"desktop"` server-side / pre-mount, so HTML
+ * markup is stable. Client-side then refines on the first paint and
+ * tracks resizes thereafter (debounced 80ms — fast enough to feel
+ * instant, slow enough to skip resize-storm renders).
+ *
+ * Implementation note: uses `matchMedia` listeners rather than a
+ * resize event so we react only when the actual breakpoint changes
+ * rather than every pixel. Same hook used by DrawerShell, message
+ * stream, calendar, and bottom-nav.
+ */
+export type Viewport = "phone" | "tablet" | "desktop" | "wide";
+
+const VIEWPORT_QUERIES: Array<{ query: string; viewport: Viewport }> = [
+  { query: "(min-width: 1280px)", viewport: "wide" },
+  { query: "(min-width: 1024px)", viewport: "desktop" },
+  { query: "(min-width: 768px)", viewport: "tablet" },
+  { query: "(max-width: 767.98px)", viewport: "phone" },
+];
+
+function classifyViewport(): Viewport {
+  if (typeof window === "undefined" || !window.matchMedia) return "desktop";
+  for (const { query, viewport } of VIEWPORT_QUERIES) {
+    if (window.matchMedia(query).matches) return viewport;
+  }
+  return "desktop";
+}
+
+export function useViewport(): Viewport {
+  // useState lazy initializer reads matchMedia on first client render.
+  // Returns "desktop" during SSR — see file header comment.
+  const [vp, setVp] = useState<Viewport>(() => classifyViewport());
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    let timer: number | null = null;
+    const onChange = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        setVp(classifyViewport());
+        timer = null;
+      }, 80);
+    };
+    // Listen on every breakpoint query — any of them flipping
+    // means we need to re-classify.
+    const mqls = VIEWPORT_QUERIES.map(({ query }) => window.matchMedia(query));
+    mqls.forEach((mql) => mql.addEventListener("change", onChange));
+    // Reconcile once on mount in case state was stale.
+    onChange();
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      mqls.forEach((mql) => mql.removeEventListener("change", onChange));
+    };
+  }, []);
+  return vp;
+}
+
+/** Convenience helper: is the viewport at least the given size? */
+export function viewportAtLeast(current: Viewport, min: Viewport): boolean {
+  const order: Record<Viewport, number> = { phone: 0, tablet: 1, desktop: 2, wide: 3 };
+  return order[current] >= order[min];
+}
+
+/**
+ * WS-0.4 — Feature flag hook.
+ *
+ * Reads from URL `?flag=foo,bar,baz` plus a localStorage override at
+ * key `tulala-feature-flags-v1` (comma-separated). Either source
+ * activates the flag. Used to gate WS-1 chat redesign behind
+ * `?flag=messages-v2` etc.
+ *
+ * SSR-safe: returns false until mounted on the client.
+ */
+const FEATURE_FLAG_STORAGE_KEY = "tulala-feature-flags-v1";
+
+function readFlagSet(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  const set = new Set<string>();
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("flag");
+    if (fromUrl) fromUrl.split(",").map((s) => s.trim()).filter(Boolean).forEach((k) => set.add(k));
+  } catch {}
+  try {
+    const raw = window.localStorage.getItem(FEATURE_FLAG_STORAGE_KEY);
+    if (raw) raw.split(",").map((s) => s.trim()).filter(Boolean).forEach((k) => set.add(k));
+  } catch {}
+  return set;
+}
+
+export function useFeatureFlag(key: string): boolean {
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    setActive(readFlagSet().has(key));
+    const onStorage = () => setActive(readFlagSet().has(key));
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
+    }
+  }, [key]);
+  return active;
+}
+
+/** Dev/QA helper to flip a flag from the console. Not for prod use. */
+export function setFeatureFlag(key: string, on: boolean): void {
+  if (typeof window === "undefined") return;
+  const set = readFlagSet();
+  if (on) set.add(key);
+  else set.delete(key);
+  try {
+    window.localStorage.setItem(FEATURE_FLAG_STORAGE_KEY, [...set].join(","));
+    // Notify other tabs + this tab's listeners.
+    window.dispatchEvent(new StorageEvent("storage", { key: FEATURE_FLAG_STORAGE_KEY }));
+  } catch {}
+}
+
+// ─── WS-0.6 Typography primitives ────────────────────────────────────
+//
+// Single source of truth for headings + meta text. Replaces the
+// scattered inline-style `fontSize: 22, fontWeight: 500` instances
+// across pages/drawers. Migration is gradual (WS-16.x sweep) but new
+// surfaces use these from day 1.
+
+type TypographyProps = {
+  children: ReactNode;
+  /** Override color from semantic COLORS — defaults to ink. */
+  color?: string;
+  /** Pass through className for Tailwind users (we use inline-style here). */
+  className?: string;
+  /** Tighten line-height for dense layouts. */
+  tight?: boolean;
+  style?: CSSProperties;
+};
+
+export function H1({ children, color = COLORS.ink, tight, style }: TypographyProps) {
+  return (
+    <h1
+      style={{
+        fontFamily: FONTS.display,
+        fontSize: 28,
+        fontWeight: 500,
+        letterSpacing: -0.4,
+        color,
+        margin: 0,
+        lineHeight: tight ? 1.1 : 1.2,
+        ...style,
+      }}
+    >
+      {children}
+    </h1>
+  );
+}
+
+export function H2({ children, color = COLORS.ink, tight, style }: TypographyProps) {
+  return (
+    <h2
+      style={{
+        fontFamily: FONTS.display,
+        fontSize: 22,
+        fontWeight: 500,
+        letterSpacing: -0.3,
+        color,
+        margin: 0,
+        lineHeight: tight ? 1.15 : 1.25,
+        ...style,
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+export function H3({ children, color = COLORS.ink, tight, style }: TypographyProps) {
+  return (
+    <h3
+      style={{
+        fontFamily: FONTS.display,
+        fontSize: 17,
+        fontWeight: 500,
+        letterSpacing: -0.15,
+        color,
+        margin: 0,
+        lineHeight: tight ? 1.2 : 1.35,
+        ...style,
+      }}
+    >
+      {children}
+    </h3>
+  );
+}
+
+/** Small uppercase eyebrow above a heading. Sentence case kept lowercase
+ * — content code uppercases via `text-transform`. */
+export function Eyebrow({ children, color = COLORS.inkMuted, style }: TypographyProps) {
+  return (
+    <span
+      style={{
+        fontFamily: FONTS.body,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        color,
+        ...style,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Subordinate caption / meta line under a heading. */
+export function Caption({ children, color = COLORS.inkMuted, style }: TypographyProps) {
+  return (
+    <p
+      style={{
+        fontFamily: FONTS.body,
+        fontSize: 13,
+        fontWeight: 400,
+        color,
+        margin: 0,
+        lineHeight: 1.5,
+        ...style,
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+// ─── WS-0.2 Card primitive ───────────────────────────────────────────
+//
+// Three archetypes locked down. Replaces ad-hoc card-shaped divs.
+// Distinct from the older PrimaryCard/SecondaryCard/StatusCard set
+// further down in this file (which has its own `CardVariant` type
+// with a different value space). WS-16 polish will consolidate.
+//
+//   primary — white surface, thin border, gentle shadow on hover
+//   info    — soft brand-tinted surface; for infosheets / callouts
+//   quiet   — borderless, transparent — sits inside another surface
+
+export type CardKind = "primary" | "info" | "quiet";
+
+const CARD_STYLES: Record<CardKind, CSSProperties> = {
+  primary: {
+    background: "#fff",
+    border: `1px solid ${COLORS.borderSoft}`,
+    borderRadius: RADIUS.lg,
+    boxShadow: COLORS.shadow,
+    padding: 18,
+    transition: `border-color ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
+  },
+  info: {
+    background: COLORS.brandSoft,
+    border: `1px solid ${COLORS.brand}1a`,
+    borderRadius: RADIUS.lg,
+    padding: 16,
+  },
+  quiet: {
+    background: "transparent",
+    border: "none",
+    borderRadius: RADIUS.md,
+    padding: 12,
+  },
+};
+
+export function Card({
+  children,
+  variant = "primary",
+  interactive,
+  onClick,
+  style,
+  dataAttr,
+}: {
+  children: ReactNode;
+  variant?: CardKind;
+  /** Adds hover affordance (cursor pointer + lift on hover). */
+  interactive?: boolean;
+  onClick?: () => void;
+  style?: CSSProperties;
+  /** QA selector — written to `data-tulala-card`. */
+  dataAttr?: string;
+}) {
+  const base = CARD_STYLES[variant];
+  return (
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      data-tulala-card={dataAttr ?? variant}
+      style={{
+        ...base,
+        cursor: interactive || onClick ? "pointer" : undefined,
+        ...style,
+      }}
+      onMouseEnter={
+        interactive && variant === "primary"
+          ? (e) => {
+              e.currentTarget.style.borderColor = COLORS.border;
+              e.currentTarget.style.boxShadow = COLORS.shadowHover;
+            }
+          : undefined
+      }
+      onMouseLeave={
+        interactive && variant === "primary"
+          ? (e) => {
+              e.currentTarget.style.borderColor = COLORS.borderSoft;
+              e.currentTarget.style.boxShadow = COLORS.shadow;
+            }
+          : undefined
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
+// WS-0.3 EmptyState — already exists later in this file. Existing
+// shape (typed icon names + optional primary/secondary CTAs + tips)
+// is richer than what WS-0.3 specced; consolidation deferred to WS-16.
+
+// WS-0.7 Skeleton — already exists later in this file. Existing
+// shape is single-shape only; the multi-shape variant (text / circle
+// / block / row) called for in WS-0.7 is deferred to WS-16 polish so
+// we don't break existing call sites.
+
+// ─── WS-0.8 ConfirmDialog primitive ──────────────────────────────────
+//
+// Unified destructive-action confirmation. Used by: workspace delete,
+// account merge, contract void, refund, etc. With optional "type the
+// name to confirm" guard for high-stakes operations.
+
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  body,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  destructive,
+  typeNameToConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  body: ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  /** Styles confirm button as critical. */
+  destructive?: boolean;
+  /** If set, user must type this string before Confirm enables.
+   *  E.g. workspace name for the danger-zone delete flow. */
+  typeNameToConfirm?: string;
+}) {
+  const [typed, setTyped] = useState("");
+  const canConfirm = !typeNameToConfirm || typed === typeNameToConfirm;
+
+  useEffect(() => {
+    if (!open) {
+      setTyped("");
+      return;
+    }
+    lockScroll();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "Enter" && canConfirm) onConfirm();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      unlockScroll();
+    };
+  }, [open, canConfirm, onClose, onConfirm]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div
+        aria-hidden
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(11,11,13,0.32)",
+          zIndex: Z.modalBackdrop,
+        }}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tulala-confirm-title"
+        data-tulala-confirm-dialog
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "min(440px, 92vw)",
+          background: "#fff",
+          borderRadius: RADIUS.lg,
+          boxShadow: "0 30px 60px -20px rgba(11,11,13,0.45)",
+          padding: "22px 22px 18px",
+          zIndex: Z.modalPanel,
+          fontFamily: FONTS.body,
+        }}
+      >
+        <H3 style={{ marginBottom: 8 }}>
+          <span id="tulala-confirm-title">{title}</span>
+        </H3>
+        <div style={{ fontSize: 14, color: COLORS.inkMuted, lineHeight: 1.5, marginBottom: 14 }}>
+          {body}
+        </div>
+        {typeNameToConfirm && (
+          <div style={{ marginBottom: 14 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                color: COLORS.inkMuted,
+                marginBottom: 6,
+              }}
+            >
+              Type{" "}
+              <strong style={{ color: COLORS.ink, fontWeight: 600 }}>
+                {typeNameToConfirm}
+              </strong>{" "}
+              to confirm:
+            </label>
+            <input
+              type="text"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              autoFocus
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                fontSize: 14,
+                borderRadius: RADIUS.md,
+                border: `1px solid ${COLORS.border}`,
+                background: "#fff",
+                color: COLORS.ink,
+                fontFamily: FONTS.body,
+                outline: "none",
+              }}
+            />
+          </div>
+        )}
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "flex-end",
+            marginTop: 8,
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "8px 14px",
+              borderRadius: RADIUS.md,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff",
+              color: COLORS.inkMuted,
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!canConfirm}
+            style={{
+              padding: "8px 14px",
+              borderRadius: RADIUS.md,
+              border: "none",
+              background: destructive
+                ? canConfirm ? COLORS.critical : COLORS.criticalSoft
+                : canConfirm ? COLORS.brand : COLORS.brandSoft,
+              color: canConfirm ? "#fff" : COLORS.inkMuted,
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: canConfirm ? "pointer" : "not-allowed",
+              transition: `background ${TRANSITION.micro}`,
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </>
+  );
 }
 
 // ─── Atoms ───────────────────────────────────────────────────────────
@@ -1245,7 +1827,7 @@ function CardFrame({
         width: "100%",
         height: fullHeight ? "100%" : undefined,
         display: "block",
-        transition: "border-color .18s ease, transform .18s ease, box-shadow .18s ease",
+        transition: `border-color ${TRANSITION.sm}, transform ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
         outline: "none",
         font: "inherit",
         willChange: interactive ? "transform" : undefined,
@@ -2202,7 +2784,7 @@ function EmptyStateTip({
     textAlign: "left",
     fontFamily: FONTS.body,
     color: COLORS.ink,
-    transition: "border-color .12s, box-shadow .12s",
+    transition: `border-color ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
   };
   if (onClick) {
     return (
@@ -2596,7 +3178,7 @@ export function PrimaryButton({
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.38 : 1,
         letterSpacing: 0.1,
-        transition: "background .15s, transform .1s",
+        transition: `background ${TRANSITION.sm}, transform ${TRANSITION.micro}`,
       }}
       onMouseEnter={(e) => {
         if (!disabled) e.currentTarget.style.background = "#1d1d20";
@@ -2643,7 +3225,7 @@ export function SecondaryButton({
         borderRadius: 8,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.38 : 1,
-        transition: "border-color .15s, transform .1s",
+        transition: `border-color ${TRANSITION.sm}, transform ${TRANSITION.micro}`,
       }}
       onMouseEnter={(e) => {
         if (!disabled) e.currentTarget.style.borderColor = "rgba(11,11,13,0.28)";
@@ -2744,11 +3326,19 @@ export function DrawerShell({
   const [customWidth, setCustomWidth] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
   const panelRef = useRef<HTMLElement | null>(null);
+  // WS-12.6 — capture the focused element at the moment the drawer opens
+  // so we can return focus to it when the drawer closes (WCAG 2.4.3).
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   // Drawer back-stack: when a previous drawer is below in the chain we
   // render a small "← Back" anchor so users can pop instead of close-and-
   // reopen. Pulled directly from context — no per-drawer wiring needed.
   const proto = useProto();
   const previousDrawer = proto.drawerStack[proto.drawerStack.length - 1];
+  // WS-2.1 — drawer size toolbar (compact / half / full) is meaningless
+  // on phones because the panel auto-clamps to 96vw regardless. Hide
+  // it below 768px to recover header space + reduce noise.
+  const viewport = useViewport();
+  const showSizeToolbar = resizable && viewport !== "phone";
 
   // ── Help panel state ────────────────────────────────────────────
   // Auto-look up the help entry for the currently-open drawer. The
@@ -2782,18 +3372,28 @@ export function DrawerShell({
     }
   }, [open, defaultSize]);
 
-  // Auto-focus first interactive element when drawer opens (#28).
-  // RAF defers until the panel is visible (transition has started).
+  // WS-12.6 — auto-focus first interactive element when drawer opens (#28),
+  // and return focus to the trigger element when it closes (WCAG 2.4.3).
   useEffect(() => {
-    if (!open || !panelRef.current) return;
-    const raf = requestAnimationFrame(() => {
-      if (!panelRef.current) return;
-      const first = panelRef.current.querySelector<HTMLElement>(
-        'input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])',
-      );
-      first?.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(raf);
+    if (open) {
+      // Capture the element that had focus before the drawer opened.
+      returnFocusRef.current = document.activeElement as HTMLElement | null;
+      const raf = requestAnimationFrame(() => {
+        if (!panelRef.current) return;
+        const first = panelRef.current.querySelector<HTMLElement>(
+          'input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])',
+        );
+        first?.focus({ preventScroll: true });
+      });
+      return () => cancelAnimationFrame(raf);
+    } else {
+      // Drawer just closed — return focus to the trigger.
+      const target = returnFocusRef.current;
+      if (target && typeof target.focus === "function") {
+        requestAnimationFrame(() => target.focus({ preventScroll: true }));
+      }
+      returnFocusRef.current = null;
+    }
   }, [open]);
 
   useEffect(() => {
@@ -3132,7 +3732,7 @@ export function DrawerShell({
                     fontSize: 12,
                     marginRight: 4,
                     position: "relative",
-                    transition: "background .12s, color .12s, border-color .12s",
+                    transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}, border-color ${TRANSITION.micro}`,
                   }}
                   onMouseEnter={(e) => {
                     if (!helpOpen) {
@@ -3184,7 +3784,7 @@ export function DrawerShell({
               </Popover>
               </>
             )}
-            {resizable && (
+            {showSizeToolbar && (
               <div
                 data-tulala-drawer-size-toolbar
                 style={{
@@ -3235,7 +3835,7 @@ export function DrawerShell({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={`Close ${title}`}
               style={{
                 width: 32,
                 height: 32,
@@ -3543,7 +4143,7 @@ export function TextInput({
         overflow: "hidden",
         minHeight: 44,
         boxShadow: shadow,
-        transition: "border-color .15s, box-shadow .15s",
+        transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
       }}
     >
       {prefix && (
@@ -3670,7 +4270,7 @@ export function TextArea({
         resize: "vertical",
         lineHeight: 1.55,
         boxShadow: shadow,
-        transition: "border-color .15s, box-shadow .15s",
+        transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
       }}
     />
   );
@@ -3702,7 +4302,7 @@ export function Toggle({
         cursor: "pointer",
         padding: 0,
         flexShrink: 0,
-        transition: "background .15s",
+        transition: `background ${TRANSITION.sm}`,
       }}
     >
       <span
@@ -3754,8 +4354,53 @@ export function Divider({ label }: { label?: string }) {
 }
 
 // ─── Toast host ──────────────────────────────────────────────────────
+//
+// WS-6.1: Extended tone system.
+//   "default"  — dark/ink (generic success-ish)
+//   "success"  — dark green + check-circle
+//   "error"    — dark red + alert
+//   "warning"  — dark amber + alert
+//   "info"     — dark blue + info
+//
+// All tones share the same component; only background, shadow, icon,
+// and progress-bar colour change.
+
+export type ToastTone = "default" | "success" | "error" | "warning" | "info";
 
 const TOAST_LIFETIME_MS = 4500;
+
+const TOAST_THEME: Record<ToastTone, { bg: string; shadow: string; iconName: string; progressBg: string }> = {
+  default: {
+    bg:          COLORS.ink,
+    shadow:      "0 12px 30px -10px rgba(11,11,13,0.5)",
+    iconName:    "check",
+    progressBg:  "rgba(255,255,255,0.25)",
+  },
+  success: {
+    bg:          "#14462e",
+    shadow:      "0 12px 30px -10px rgba(20,70,46,0.55)",
+    iconName:    "check",
+    progressBg:  "rgba(52,211,153,0.45)",
+  },
+  error: {
+    bg:          "#5a1a1f",
+    shadow:      "0 12px 30px -10px rgba(120,30,40,0.55)",
+    iconName:    "alert",
+    progressBg:  "rgba(252,165,165,0.4)",
+  },
+  warning: {
+    bg:          "#5c3a00",
+    shadow:      "0 12px 30px -10px rgba(92,58,0,0.55)",
+    iconName:    "alert",
+    progressBg:  "rgba(253,224,71,0.4)",
+  },
+  info: {
+    bg:          "#0f2a4a",
+    shadow:      "0 12px 30px -10px rgba(15,42,74,0.55)",
+    iconName:    "info",
+    progressBg:  "rgba(147,197,253,0.4)",
+  },
+};
 
 /**
  * Per-toast row — owns its own auto-dismiss timer. Hover pauses the timer
@@ -3763,9 +4408,9 @@ const TOAST_LIFETIME_MS = 4500;
  * resumes from a fresh full window. Click dismisses immediately.
  */
 type ToastAction = { label: string; onClick: () => void };
-function ToastRow({ id, message, undo, action, tone, onDismiss }: { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: "default" | "error"; onDismiss?: (id: number) => void }) {
+function ToastRow({ id, message, undo, action, tone = "default", onDismiss }: { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: ToastTone; onDismiss?: (id: number) => void }) {
   const [paused, setPaused] = useState(false);
-  const isError = tone === "error";
+  const theme   = TOAST_THEME[tone];
   const lifetime = (undo || action) ? TOAST_LIFETIME_MS * 2 : TOAST_LIFETIME_MS;
   useEffect(() => {
     if (!onDismiss || paused) return;
@@ -3774,107 +4419,115 @@ function ToastRow({ id, message, undo, action, tone, onDismiss }: { id: number; 
   }, [id, onDismiss, paused, undo, action, lifetime]);
   return (
     <div
+      // WS-12.7 — error toasts use role="alert" (assertive) so screen readers
+      // announce them immediately; other tones use role="status" (polite).
+      role={tone === "error" ? "alert" : "status"}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       style={{
-        background: isError ? "#5a1a1f" : COLORS.ink,
-        color: "#fff",
-        padding: "10px 14px 0",
-        borderRadius: 10,
-        fontFamily: FONTS.body,
-        fontSize: 13,
-        boxShadow: isError ? "0 12px 30px -10px rgba(120,30,40,0.55)" : "0 12px 30px -10px rgba(11,11,13,0.5)",
-        display: "inline-flex",
+        background:    theme.bg,
+        color:         "#fff",
+        padding:       "10px 14px 0",
+        borderRadius:  10,
+        fontFamily:    FONTS.body,
+        fontSize:      13,
+        boxShadow:     theme.shadow,
+        display:       "inline-flex",
         flexDirection: "column",
-        gap: 0,
-        animation: "tulalaToastIn .18s ease",
+        gap:           0,
+        animation:     "tulalaToastIn .18s ease",
         pointerEvents: "auto",
-        textAlign: "left",
-        overflow: "hidden",
+        textAlign:     "left",
+        overflow:      "hidden",
+        minWidth:      220,
+        maxWidth:      360,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 10 }}>
-      <Icon name={isError ? "alert" : "check"} size={14} stroke={2} />
-      <span>{message}</span>
-      {undo && (
+        <Icon name={theme.iconName as Parameters<typeof Icon>[0]["name"]} size={14} stroke={2} />
+        <span style={{ flex: 1 }}>{message}</span>
+        {undo && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              undo();
+              onDismiss?.(id);
+            }}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              padding: "4px 10px",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              marginLeft: 4,
+              flexShrink: 0,
+            }}
+          >
+            Undo
+          </button>
+        )}
+        {action && !undo && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              action.onClick();
+              onDismiss?.(id);
+            }}
+            onFocus={() => setPaused(true)}
+            onBlur={() => setPaused(false)}
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              padding: "4px 10px",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              marginLeft: 4,
+              flexShrink: 0,
+            }}
+          >
+            {action.label}
+          </button>
+        )}
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            undo();
-            onDismiss?.(id);
-          }}
-          onFocus={() => setPaused(true)}
-          onBlur={() => setPaused(false)}
+          onClick={() => onDismiss?.(id)}
+          aria-label={`Dismiss: ${message}`}
           style={{
-            background: "rgba(255,255,255,0.15)",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            padding: "4px 10px",
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            marginLeft: 4,
+            background:  "transparent",
+            color:       "rgba(255,255,255,0.6)",
+            border:      "none",
+            padding:     0,
+            marginLeft:  (undo || action) ? 0 : "auto",
+            cursor:      "pointer",
+            display:     "inline-flex",
+            flexShrink:  0,
           }}
         >
-          Undo
+          <Icon name="x" size={11} stroke={2} />
         </button>
-      )}
-      {action && !undo && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            action.onClick();
-            onDismiss?.(id);
-          }}
-          onFocus={() => setPaused(true)}
-          onBlur={() => setPaused(false)}
-          style={{
-            background: isError ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.15)",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            padding: "4px 10px",
-            fontFamily: FONTS.body,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            marginLeft: 4,
-          }}
-        >
-          {action.label}
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => onDismiss?.(id)}
-        aria-label={`Dismiss: ${message}`}
-        style={{
-          background: "transparent",
-          color: "rgba(255,255,255,0.6)",
-          border: "none",
-          padding: 0,
-          marginLeft: (undo || action) ? 0 : "auto",
-          cursor: "pointer",
-          display: "inline-flex",
-        }}
-      >
-        <Icon name="x" size={11} stroke={2} />
-      </button>
       </div>
       {/* Progress bar — shrinks from 100% to 0 over the toast lifetime */}
       <div
         aria-hidden
         style={{
-          height: 2,
-          background: "rgba(255,255,255,0.25)",
-          borderRadius: 999,
-          width: "100%",
+          height:          2,
+          background:      theme.progressBg,
+          borderRadius:    999,
+          width:           "100%",
           transformOrigin: "left",
-          animation: `tulalaToastProgress ${lifetime}ms linear forwards`,
+          animation:       `tulalaToastProgress ${lifetime}ms linear forwards`,
           animationPlayState: paused ? "paused" : "running",
         }}
       />
@@ -3886,7 +4539,7 @@ export function ToastHost({
   toasts,
   onDismiss,
 }: {
-  toasts: { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: "default" | "error" }[];
+  toasts: { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: ToastTone }[];
   onDismiss?: (id: number) => void;
 }) {
   return (
@@ -4314,7 +4967,7 @@ export function BackToTop({ threshold = 600 }: { threshold?: number }) {
   return (
     <button
       type="button"
-      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      onClick={() => window.scrollTo({ top: 0, behavior: scrollBehavior() })}
       aria-label="Scroll to top"
       style={{
         position: "fixed",
@@ -4436,6 +5089,77 @@ export function useKeyboardListNav<T extends HTMLElement = HTMLElement>({
     return () => window.removeEventListener("keydown", onKey);
   }, [rows, onActivate, activeIdx]);
   return activeIdx;
+}
+
+// ─── useRovingTabindex ───────────────────────────────────────────────
+/**
+ * WS-12.6 — Roving-tabindex pattern for navigation lists and tab bars.
+ * Only ONE item has tabIndex=0 at a time; arrow keys move focus within
+ * the group; Tab exits the group entirely. This matches the ARIA
+ * Authoring Practices for "Toolbar" and "Navigation" composite widgets.
+ *
+ * Usage:
+ *   const containerRef = useRef<HTMLElement>(null);
+ *   useRovingTabindex(containerRef, '[data-nav-item]');
+ *
+ * The hook wires keydown handlers on the container element itself
+ * (not window) so it only fires when the nav group has focus.
+ */
+export function useRovingTabindex(
+  containerRef: React.RefObject<HTMLElement | null>,
+  itemSelector = "button, a[href], [role='tab']",
+  { orientation = "vertical" }: { orientation?: "horizontal" | "vertical" } = {},
+) {
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Initialise: direct roving items — must be inside this container,
+    // not nested inside a child sub-list, and not disabled.
+    const getItems = () =>
+      Array.from(el.querySelectorAll<HTMLElement>(itemSelector)).filter(
+        (item) => !item.hasAttribute("disabled"),
+      );
+
+    const init = () => {
+      const items = getItems();
+      items.forEach((item, i) => {
+        item.setAttribute("tabindex", i === 0 ? "0" : "-1");
+      });
+    };
+    init();
+
+    const onKey = (e: KeyboardEvent) => {
+      const prev = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
+      const next = orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
+      if (e.key !== prev && e.key !== next && e.key !== "Home" && e.key !== "End") return;
+
+      const items = getItems();
+      if (items.length === 0) return;
+      const active = document.activeElement as HTMLElement | null;
+      const idx = active ? items.indexOf(active) : -1;
+      if (idx === -1) return;
+
+      e.preventDefault();
+      let target = idx;
+      if (e.key === next) target = Math.min(idx + 1, items.length - 1);
+      else if (e.key === prev) target = Math.max(idx - 1, 0);
+      else if (e.key === "Home") target = 0;
+      else if (e.key === "End") target = items.length - 1;
+
+      items.forEach((item, i) => item.setAttribute("tabindex", i === target ? "0" : "-1"));
+      items[target]?.focus({ preventScroll: true });
+    };
+
+    el.addEventListener("keydown", onKey);
+    // Re-init when items are added/removed (e.g. plan gates change visible items)
+    const observer = new MutationObserver(init);
+    observer.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled"] });
+    return () => {
+      el.removeEventListener("keydown", onKey);
+      observer.disconnect();
+    };
+  }, [containerRef, itemSelector, orientation]);
 }
 
 // ─── BulkSelect ──────────────────────────────────────────────────────
@@ -5048,7 +5772,7 @@ export function FloatingFab({
         justifyContent: "center",
         boxShadow: "0 6px 24px rgba(15,79,62,0.36)",
         zIndex: 400,
-        transition: "transform .12s, box-shadow .12s",
+        transition: `transform ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
         fontFamily: FONTS.body,
         fontSize: 24,
         fontWeight: 300,
@@ -5201,6 +5925,1952 @@ export function PageSkeleton({ rows = 5 }: { rows?: number }) {
           <Skeleton height={22} width={70} radius={999} />
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── WS-2.7 FAB host + single-FAB system ─────────────────────────────
+//
+// Only one FAB may be visible at a time across the whole page.
+// `<FabHost>` is a React context provider. Each `<FloatingFab>` must be
+// wrapped inside a `<FabHost>`; on phone viewport the first registered
+// FAB wins (others are suppressed). On tablet/desktop FABs are hidden
+// entirely (the topbar Quick-create menu handles creates).
+//
+// Usage:
+//   <FabHost>
+//     <OverviewPage />  ← renders <FloatingFab> somewhere inside
+//   </FabHost>
+
+type FabSlot = { id: string; label: string; onClick: () => void };
+
+const FabContext = createContext<{
+  register:   (slot: FabSlot) => void;
+  unregister: (id: string) => void;
+  active:     FabSlot | null;
+} | null>(null);
+
+export function FabHost({ children }: { children: ReactNode }) {
+  const [slots, setSlots] = useState<FabSlot[]>([]);
+  const register   = useCallback((s: FabSlot) => setSlots((p) => [...p.filter((x) => x.id !== s.id), s]), []);
+  const unregister = useCallback((id: string)  => setSlots((p) => p.filter((x) => x.id !== id)), []);
+  const active     = slots[0] ?? null;
+  const viewport   = useViewport();
+  return (
+    <FabContext.Provider value={{ register, unregister, active }}>
+      {children}
+      {/* Render the single active FAB — phone only */}
+      {active && viewport === "phone" && (
+        <button
+          type="button"
+          aria-label={active.label}
+          onClick={active.onClick}
+          data-tulala-fab
+          style={{
+            position: "fixed",
+            right: 18,
+            bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            background: COLORS.accent,
+            color: "#fff",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 6px 24px rgba(15,79,62,0.36)",
+            zIndex: 400,
+            fontFamily: FONTS.body,
+            fontSize: 24,
+            fontWeight: 300,
+            lineHeight: 1,
+            transition: `transform ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.06)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+        >
+          +
+        </button>
+      )}
+    </FabContext.Provider>
+  );
+}
+
+/** Register a FAB slot inside a `<FabHost>`. Phone-only; no-ops on tablet+. */
+export function useFab(id: string, label: string, onClick: () => void) {
+  const ctx = useContext(FabContext);
+  useEffect(() => {
+    if (!ctx) return;
+    ctx.register({ id, label, onClick });
+    return () => ctx.unregister(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, label]);
+}
+
+// ─── WS-2.11 Sticky drawer save bar ──────────────────────────────────
+//
+// Auto-applied to long-form drawers. Sticks to the bottom of the drawer
+// body when the user has scrolled past the top of the form. Shows a
+// "Unsaved changes" label + Cancel + Save buttons. The `dirty` prop
+// controls visibility. On phone it always floats; on desktop it appears
+// when the save CTA has scrolled out of view.
+//
+// Usage inside a DrawerShell body:
+//   <StickyDrawerSaveBar dirty={isDirty} onCancel={reset} onSave={submit} />
+
+export function StickyDrawerSaveBar({
+  dirty,
+  saving = false,
+  onCancel,
+  onSave,
+  label = "Unsaved changes",
+  saveLabel = "Save changes",
+}: {
+  dirty: boolean;
+  saving?: boolean;
+  onCancel: () => void;
+  onSave: () => void;
+  label?: string;
+  saveLabel?: string;
+}) {
+  if (!dirty) return null;
+  return (
+    <div
+      data-tulala-sticky-save-bar
+      style={{
+        position: "sticky",
+        bottom: 0,
+        zIndex: 10,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 18px",
+        background: "rgba(255,255,255,0.96)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 -4px 16px rgba(11,11,13,0.06)",
+      }}
+    >
+      <span
+        style={{
+          flex: 1,
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          fontWeight: 500,
+          color: COLORS.inkMuted,
+        }}
+      >
+        {label}
+      </span>
+      <SecondaryButton size="sm" onClick={onCancel} disabled={saving}>
+        Cancel
+      </SecondaryButton>
+      <PrimaryButton size="sm" onClick={onSave} disabled={saving}>
+        {saving ? "Saving…" : saveLabel}
+      </PrimaryButton>
+    </div>
+  );
+}
+
+// ─── WS-6.2 Field error primitive ────────────────────────────────────
+//
+// Wraps a form field with a red border + aria-invalid + inline error
+// message. Pairs with any <input>, <textarea>, or <select>.
+//
+// Usage:
+//   <FieldError error={errors.email} id="email-err">
+//     <input aria-describedby="email-err" ... />
+//   </FieldError>
+
+export function FieldError({
+  error,
+  id,
+  children,
+}: {
+  error?: string;
+  id?: string;
+  children: ReactNode;
+}) {
+  const hasError = Boolean(error);
+  return (
+    <div
+      data-tulala-field-error={hasError ? "true" : undefined}
+      style={{ display: "flex", flexDirection: "column", gap: 4 }}
+    >
+      <div
+        style={{
+          outline: hasError ? "1.5px solid #B0303A" : undefined,
+          borderRadius: 8,
+        }}
+      >
+        {children}
+      </div>
+      {hasError && (
+        <span
+          id={id}
+          role="alert"
+          style={{
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: "#B0303A",
+            fontWeight: 500,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 12 }}>⚠</span>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── WS-6.3 Unsaved changes guard ────────────────────────────────────
+//
+// Wraps a drawer or page. When `dirty` is true, intercepts the close /
+// navigation action and shows a confirmation dialog. If the user
+// confirms ("Discard"), `onClose` fires; if they cancel they stay.
+//
+// Usage:
+//   <UnsavedChangesGuard dirty={isDirty} onClose={closeDrawer}>
+//     {content}
+//   </UnsavedChangesGuard>
+
+export function UnsavedChangesGuard({
+  dirty,
+  onClose,
+  children,
+}: {
+  dirty: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const handleClose = () => {
+    if (dirty) { setConfirming(true); }
+    else        { onClose(); }
+  };
+  return (
+    <>
+      {/* Clone child and inject overridden close handler */}
+      <div data-tulala-unsaved-guard onClick={(e) => e.stopPropagation()}>
+        {children}
+      </div>
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => { setConfirming(false); onClose(); }}
+        title="Discard unsaved changes?"
+        body="You have unsaved changes. If you leave now, they'll be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        destructive
+      />
+      {/* Expose a close handler the drawer can call — used via render prop pattern */}
+      {dirty && (
+        <button
+          type="button"
+          data-tulala-guard-close
+          onClick={handleClose}
+          style={{ display: "none" }}
+          aria-hidden
+        />
+      )}
+    </>
+  );
+}
+
+// ─── WS-4 ModalPopover primitive ────────────────────────────────────────────
+//
+// A lighter-weight overlay than a full drawer. Renders as a centered (or
+// anchor-relative) floating panel with a dim backdrop. Use for:
+//   – Quick-confirm / short-form interactions that don't warrant a drawer
+//   – Pickers, context-menus, and inline detail views
+//   – ~30 draw reclassifications in WS-4 (demotions from full drawers)
+//
+// API:
+//   <ModalPopover
+//     open={bool}
+//     onClose={fn}
+//     title="Optional header"
+//     size="sm" | "md" | "lg"          // default "md"
+//     closeOnBackdrop={bool}           // default true
+//     anchorRect={DOMRect}             // optional — position near anchor
+//     footer={<ReactNode>}             // optional — sticky bottom area
+//   >
+//     ...body...
+//   </ModalPopover>
+//
+// Keyboard: Esc closes. Focus trap: first focusable element on open.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ModalPopoverSize = "sm" | "md" | "lg";
+
+const POPOVER_WIDTH: Record<ModalPopoverSize, number> = {
+  sm: 320,
+  md: 480,
+  lg: 640,
+};
+
+/** Calculated position for an anchored popover. */
+function resolveAnchorPosition(
+  anchor: DOMRect,
+  popoverWidth: number,
+  popoverMaxHeight: number,
+): CSSProperties {
+  const vw = typeof window !== "undefined" ? window.innerWidth  : 1280;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const gap = 8; // px gap between anchor and popover
+
+  // Prefer below; if not enough room, go above
+  const spaceBelow = vh - anchor.bottom - gap;
+  const spaceAbove = anchor.top - gap;
+  const goBelow    = spaceBelow >= Math.min(popoverMaxHeight, 240) || spaceBelow >= spaceAbove;
+
+  // Align left edge with anchor; clamp to viewport
+  let left = anchor.left;
+  if (left + popoverWidth > vw - 8) left = vw - popoverWidth - 8;
+  if (left < 8) left = 8;
+
+  return goBelow
+    ? { top: anchor.bottom + gap, left }
+    : { bottom: vh - anchor.top + gap, left };
+}
+
+export function ModalPopover({
+  open,
+  onClose,
+  title,
+  size = "md",
+  closeOnBackdrop = true,
+  anchorRect,
+  footer,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  size?: ModalPopoverSize;
+  closeOnBackdrop?: boolean;
+  anchorRect?: DOMRect | null;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const width    = POPOVER_WIDTH[size];
+
+  // Close on Esc
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  // Focus first focusable child on open
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const el = panelRef.current.querySelector<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    el?.focus();
+  }, [open]);
+
+  if (!open) return null;
+
+  const isAnchored = !!anchorRect;
+  const anchorStyles: CSSProperties = isAnchored
+    ? resolveAnchorPosition(anchorRect!, width, 480)
+    : {};
+
+  // Overlay style — dim full viewport when not anchored
+  const overlayStyle: CSSProperties = {
+    position:        "fixed",
+    inset:           0,
+    zIndex:          1100,
+    display:         "flex",
+    alignItems:      isAnchored ? "flex-start" : "center",
+    justifyContent:  isAnchored ? "flex-start" : "center",
+    background:      isAnchored ? "transparent" : "rgba(0,0,0,0.35)",
+    padding:         isAnchored ? 0 : "24px 16px",
+  };
+
+  const panelStyle: CSSProperties = {
+    position:        isAnchored ? "fixed" : "relative",
+    width,
+    maxWidth:        "calc(100vw - 32px)",
+    maxHeight:       isAnchored ? 480 : "calc(100vh - 48px)",
+    background:      COLORS.surface,
+    borderRadius:    RADIUS.xl,
+    boxShadow:       "0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.10)",
+    border:          `1px solid ${COLORS.border}`,
+    display:         "flex",
+    flexDirection:   "column",
+    overflow:        "hidden",
+    ...anchorStyles,
+  };
+
+  return (
+    // Backdrop
+    <div
+      style={overlayStyle}
+      data-tulala-modal-popover="overlay"
+      onMouseDown={(e) => {
+        if (closeOnBackdrop && e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title ?? "Popover"}
+        data-tulala-modal-popover="panel"
+        style={panelStyle}
+      >
+        {/* Header */}
+        {title && (
+          <div
+            style={{
+              display:        "flex",
+              alignItems:     "center",
+              justifyContent: "space-between",
+              padding:        "14px 16px 12px",
+              borderBottom:   `1px solid ${COLORS.border}`,
+              flexShrink:     0,
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>
+              {title}
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              style={{
+                background: "none",
+                border:     "none",
+                cursor:     "pointer",
+                padding:    "2px 4px",
+                color:      COLORS.inkMuted,
+                fontSize:   18,
+                lineHeight: 1,
+                borderRadius: RADIUS.sm,
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Scrollable body */}
+        <div
+          data-tulala-modal-popover-body
+          style={{
+            flex:       "1 1 auto",
+            overflowY:  "auto",
+            padding:    "16px",
+          }}
+        >
+          {children}
+        </div>
+
+        {/* Optional footer */}
+        {footer && (
+          <div
+            style={{
+              flexShrink:  0,
+              padding:     "12px 16px",
+              borderTop:   `1px solid ${COLORS.border}`,
+              display:     "flex",
+              gap:         8,
+              justifyContent: "flex-end",
+            }}
+          >
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── WS-6.4 Optimistic UI rollback recipe ────────────────────────────────────
+//
+// `useOptimisticMutation` wraps a server mutation with:
+//   1. Immediate optimistic state application (no wait for server)
+//   2. Automatic rollback on failure (reverts to the pre-mutation value)
+//   3. `status` for visual feedback ("idle" | "pending" | "error")
+//   4. `retry` to re-run the last mutation without re-applying optimistic state
+//
+// Usage:
+//   const { display, status, mutate } = useOptimisticMutation({
+//     value: someState,
+//     onCommit: async (next) => {
+//       await api.update(next);    // the real server call
+//       setState(next);            // confirm after server agrees
+//     },
+//   });
+//
+//   // To mutate:
+//   await mutate(newValue);        // display = newValue immediately
+//                                  // on error: display rolls back to previous value
+//
+// Design decisions:
+//   - Does NOT call `setState` on rollback — caller's external state
+//     (the `value` prop) is the source of truth after rollback, since
+//     the failed `onCommit` never called setState.
+//   - The hook keeps its own `display` so rollback is instant (no
+//     waiting for a parent re-render).
+//   - `retry` calls `onCommit` again with the last attempted `next`
+//     value, without re-triggering the optimistic update (display is
+//     already showing the optimistic value from the failed attempt).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type OptimisticStatus = "idle" | "pending" | "error";
+
+export function useOptimisticMutation<T>({
+  value,
+  onCommit,
+  onRollback,
+}: {
+  /** Current confirmed value — what we show when idle or after rollback. */
+  value: T;
+  /**
+   * Async function that persists `next` to the server.
+   * If it throws, the mutation rolls back.
+   */
+  onCommit: (next: T) => Promise<void>;
+  /**
+   * Optional callback when a rollback happens — e.g. to fire an error
+   * toast or re-sync derived state.
+   */
+  onRollback?: (previous: T, error: unknown) => void;
+}): {
+  /** The value to render — optimistic during pending, rolled-back after error. */
+  display:  T;
+  /** "idle" → "pending" → "idle" (success) or "error" (failure). */
+  status:   OptimisticStatus;
+  /** Apply an optimistic update and fire `onCommit`. */
+  mutate:   (next: T) => Promise<void>;
+  /** Re-run the last failed mutation (no-op if status isn't "error"). */
+  retry:    () => Promise<void>;
+} {
+  const [display,  setDisplay]  = useState<T>(value);
+  const [status,   setStatus]   = useState<OptimisticStatus>("idle");
+  const lastAttempt = useRef<T>(value);
+
+  // Keep display in sync with confirmed value when idle (avoids stale display
+  // if parent updates the prop through an out-of-band channel).
+  useEffect(() => {
+    if (status === "idle") setDisplay(value);
+  }, [value, status]);
+
+  const run = useCallback(async (next: T, isRetry: boolean) => {
+    const previous = isRetry ? value : display;
+    if (!isRetry) {
+      lastAttempt.current = next;
+      setDisplay(next);      // optimistic
+    }
+    setStatus("pending");
+    try {
+      await onCommit(next);
+      setStatus("idle");
+    } catch (err) {
+      setDisplay(previous);  // rollback
+      setStatus("error");
+      onRollback?.(previous, err);
+    }
+  }, [value, display, onCommit, onRollback]);
+
+  const mutate = useCallback((next: T) => run(next, false), [run]);
+
+  const retry = useCallback(() => {
+    if (status !== "error") return Promise.resolve();
+    return run(lastAttempt.current, true);
+  }, [status, run]);
+
+  return { display, status, mutate, retry };
+}
+
+// ─── WS-6.5 Offline status hook ───────────────────────────────────────────────
+//
+// `useOnlineStatus` — reactive boolean, true when navigator.onLine.
+// Pair with the existing `<OfflineBanner>` in the workspace shell.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function useOnlineStatus(): boolean {
+  const [online, setOnline] = useState(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
+  useEffect(() => {
+    const up   = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online",  up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online",  up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
+  return online;
+}
+
+// ─── WS-6.7 AsyncButton — sending / failed / retry ───────────────────────────
+//
+// Drop-in replacement for a button that fires an async action.
+// Shows a spinner while pending, a retry state on failure.
+//
+// Usage:
+//   <AsyncButton onClick={async () => { await api.save(data); }}>
+//     Save changes
+//   </AsyncButton>
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function AsyncButton({
+  onClick,
+  children,
+  retryLabel = "Retry",
+  pendingLabel,
+  errorLabel,
+  disabled = false,
+  variant = "primary",
+  style: styleProp,
+}: {
+  onClick: () => Promise<void>;
+  children: ReactNode;
+  retryLabel?:   string;
+  pendingLabel?: string;
+  errorLabel?:   string;
+  disabled?:     boolean;
+  variant?:      "primary" | "secondary" | "danger";
+  style?:        CSSProperties;
+}) {
+  const [state, setState] = useState<"idle" | "pending" | "error">("idle");
+
+  const BASE: CSSProperties = {
+    display:       "inline-flex",
+    alignItems:    "center",
+    gap:           6,
+    padding:       "8px 16px",
+    borderRadius:  RADIUS.md,
+    border:        "none",
+    fontFamily:    FONTS.body,
+    fontSize:      13,
+    fontWeight:    600,
+    cursor:        (disabled || state === "pending") ? "not-allowed" : "pointer",
+    opacity:       (disabled || state === "pending") ? 0.65 : 1,
+    transition:    `background ${TRANSITION.sm}, opacity ${TRANSITION.sm}`,
+    ...styleProp,
+  };
+
+  const VARIANTS: Record<string, CSSProperties> = {
+    primary:   { background: COLORS.accent, color: "#fff" },
+    secondary: { background: COLORS.card,   color: COLORS.ink, border: `1px solid ${COLORS.border}` },
+    danger:    { background: "#dc2626",      color: "#fff" },
+  };
+
+  const ERROR_VARIANT: CSSProperties = { background: "#7f1d1d", color: "#fff" };
+
+  const handleClick = async () => {
+    if (disabled || state === "pending") return;
+    setState("pending");
+    try {
+      await onClick();
+      setState("idle");
+    } catch {
+      setState("error");
+    }
+  };
+
+  const label =
+    state === "pending" ? (pendingLabel ?? children) :
+    state === "error"   ? (errorLabel   ?? retryLabel)
+                        : children;
+
+  const variantStyle = state === "error" ? ERROR_VARIANT : VARIANTS[variant];
+
+  return (
+    <button
+      type="button"
+      disabled={disabled || state === "pending"}
+      onClick={handleClick}
+      style={{ ...BASE, ...variantStyle }}
+    >
+      {state === "pending" && (
+        <span
+          aria-hidden
+          style={{
+            width: 12, height: 12,
+            border: "2px solid rgba(255,255,255,0.35)",
+            borderTopColor: "#fff",
+            borderRadius: "50%",
+            animation: "tulalaSpinBtn .6s linear infinite",
+            flexShrink: 0,
+          }}
+        />
+      )}
+      {state === "error" && <span aria-hidden>↺</span>}
+      <span>{label}</span>
+      <style>{`@keyframes tulalaSpinBtn { to { transform: rotate(360deg); } }`}</style>
+    </button>
+  );
+}
+
+// ─── WS-9.7 GuidedTour primitive ─────────────────────────────────────────────
+//
+// Spotlight + tooltip step-by-step tour. Dismissible and resumable via
+// localStorage. Used for first-run onboarding flows and feature discovery.
+//
+// Architecture:
+//   - <GuidedTour> takes an ordered `steps` array and a `tourId`.
+//   - Each step targets a DOM element via a CSS selector (`target`).
+//   - A semi-transparent overlay dims the page; the target element
+//     is "spotlighted" by cutting a hole in the overlay.
+//   - A tooltip floats near the target with title, body, and Prev/Next.
+//   - `tourId` is written to localStorage on dismiss/complete so the
+//     tour doesn't re-appear on reload.
+//
+// Usage:
+//   <GuidedTour
+//     tourId="workspace-v1"
+//     steps={[
+//       { target: "[data-tulala-app-topbar]", title: "Your topbar", body: "Navigate between pages here." },
+//       { target: "[data-tulala-surface-main]", title: "Main area", body: "Your work lives here." },
+//     ]}
+//     onComplete={() => console.log("Tour done")}
+//   />
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type TourStep = {
+  /** CSS selector for the element to spotlight. If null, no spotlight. */
+  target: string | null;
+  title:  string;
+  body:   string;
+  /** Optional CTA label + handler inline with Next */
+  ctaLabel?: string;
+  onCta?:    () => void;
+};
+
+const TOUR_SEEN_PREFIX = "tulala-tour-seen-";
+
+export function GuidedTour({
+  tourId,
+  steps,
+  onComplete,
+  onDismiss,
+}: {
+  tourId:      string;
+  steps:       TourStep[];
+  onComplete?: () => void;
+  onDismiss?:  () => void;
+}) {
+  const [stepIdx, setStepIdx] = useState(0);
+  const [dismissed, setDismissed] = useState(() => {
+    try { return !!localStorage.getItem(TOUR_SEEN_PREFIX + tourId); } catch { return false; }
+  });
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const step = steps[stepIdx];
+
+  // Find target rect on step change
+  useEffect(() => {
+    if (!step?.target) { setRect(null); return; }
+    const el = document.querySelector(step.target);
+    setRect(el?.getBoundingClientRect() ?? null);
+  }, [stepIdx, step?.target]);
+
+  const finish = (complete: boolean) => {
+    try { localStorage.setItem(TOUR_SEEN_PREFIX + tourId, "1"); } catch {}
+    setDismissed(true);
+    if (complete) onComplete?.();
+    else          onDismiss?.();
+  };
+
+  if (dismissed || !step) return null;
+
+  const isLast = stepIdx === steps.length - 1;
+
+  // Tooltip positioning: below the spotlight by default; flip up if near bottom
+  const vw = typeof window !== "undefined" ? window.innerWidth  : 1280;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+  const TOOLTIP_W = 280;
+  let tipLeft = rect ? Math.min(rect.left, vw - TOOLTIP_W - 16) : (vw - TOOLTIP_W) / 2;
+  let tipTop  = rect ? rect.bottom + 12 : vh * 0.42;
+  if (rect && rect.bottom + 180 > vh) tipTop = rect.top - 180 - 12;
+
+  return (
+    <div
+      data-tulala-guided-tour={tourId}
+      style={{ position: "fixed", inset: 0, zIndex: 1300, pointerEvents: "none" }}
+    >
+      {/* Spotlight overlay — two rects: full viewport minus cutout */}
+      {rect ? (
+        <>
+          {/* Top strip */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: rect.top - 4, background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }} onClick={() => finish(false)} />
+          {/* Left strip */}
+          <div style={{ position: "absolute", top: rect.top - 4, left: 0, width: Math.max(0, rect.left - 4), height: rect.height + 8, background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }} onClick={() => finish(false)} />
+          {/* Right strip */}
+          <div style={{ position: "absolute", top: rect.top - 4, right: 0, left: rect.right + 4, height: rect.height + 8, background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }} onClick={() => finish(false)} />
+          {/* Bottom strip */}
+          <div style={{ position: "absolute", top: rect.bottom + 4, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }} onClick={() => finish(false)} />
+          {/* Spotlight ring */}
+          <div style={{
+            position: "absolute",
+            top:    rect.top    - 4,
+            left:   rect.left   - 4,
+            width:  rect.width  + 8,
+            height: rect.height + 8,
+            borderRadius: RADIUS.md,
+            boxShadow: `0 0 0 3px ${COLORS.accent}`,
+            pointerEvents: "none",
+          }} />
+        </>
+      ) : (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", pointerEvents: "auto" }} onClick={() => finish(false)} />
+      )}
+
+      {/* Tooltip */}
+      <div
+        style={{
+          position:      "fixed",
+          left:          tipLeft,
+          top:           tipTop,
+          width:         TOOLTIP_W,
+          background:    COLORS.surface,
+          borderRadius:  RADIUS.xl,
+          boxShadow:     "0 16px 48px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.10)",
+          border:        `1px solid ${COLORS.border}`,
+          padding:       "16px",
+          pointerEvents: "auto",
+          zIndex:        1301,
+        }}
+      >
+        {/* Step counter */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+            Step {stepIdx + 1} of {steps.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => finish(false)}
+            aria-label="Dismiss tour"
+            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.inkMuted, fontSize: 16, lineHeight: 1, padding: 0 }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, marginBottom: 4 }}>
+          {step.title}
+        </div>
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, lineHeight: 1.5, marginBottom: 14 }}>
+          {step.body}
+        </div>
+
+        {/* Progress dots */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+          {steps.map((_, i) => (
+            <div key={i} style={{
+              width:        i === stepIdx ? 16 : 5,
+              height:       5,
+              borderRadius: 999,
+              background:   i === stepIdx ? COLORS.accent : COLORS.border,
+              transition:   `width ${TRANSITION.sm}, background ${TRANSITION.sm}`,
+            }} />
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+          {stepIdx > 0 && (
+            <button type="button" onClick={() => setStepIdx((i) => i - 1)} style={{ background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: "5px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: COLORS.ink, fontFamily: FONTS.body }}>
+              Back
+            </button>
+          )}
+          {step.ctaLabel && step.onCta && (
+            <button type="button" onClick={() => { step.onCta!(); setStepIdx((i) => Math.min(i + 1, steps.length - 1)); }} style={{ background: COLORS.accentSoft, border: "none", borderRadius: RADIUS.md, padding: "5px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: COLORS.accent, fontFamily: FONTS.body }}>
+              {step.ctaLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => isLast ? finish(true) : setStepIdx((i) => i + 1)}
+            style={{ background: COLORS.ink, border: "none", borderRadius: RADIUS.md, padding: "5px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#fff", fontFamily: FONTS.body }}
+          >
+            {isLast ? "Done ✓" : "Next →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WS-9.8 App-wide FeedbackButton ─────────────────────────────────────────
+//
+// Floating "Tell us what's wrong with this page" button, anchored to the
+// bottom-right of the viewport. Clicking expands a mini form.
+// Persists feedback to console.log in prototype; real version POSTs to /api/feedback.
+//
+// Excluded from Storybook / screenshot tests via data-tulala-feedback-btn.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function FeedbackButton() {
+  const [open, setOpen]       = useState(false);
+  const [text, setText]       = useState("");
+  const [sent, setSent]       = useState(false);
+  const [tone, setTone]       = useState<"issue" | "idea" | "praise">("issue");
+
+  const TONE_LABELS = { issue: "🐛 Bug", idea: "💡 Idea", praise: "👏 Praise" };
+
+  const submit = () => {
+    if (!text.trim()) return;
+    // Prototype — just log; real impl POSTs to /api/feedback
+    console.log("[feedback]", { tone, text, page: typeof window !== "undefined" ? window.location.href : "" });
+    setSent(true);
+    setTimeout(() => { setSent(false); setText(""); setOpen(false); }, 1800);
+  };
+
+  return (
+    <div
+      data-tulala-feedback-btn
+      style={{
+        position: "fixed", bottom: 16, right: 16,
+        zIndex:   950,
+        display:  "flex", flexDirection: "column", alignItems: "flex-end", gap: 8,
+      }}
+    >
+      {/* Expanded form */}
+      {open && !sent && (
+        <div style={{
+          background:   COLORS.surface,
+          border:       `1px solid ${COLORS.border}`,
+          borderRadius: RADIUS.xl,
+          boxShadow:    "0 12px 40px rgba(0,0,0,0.15)",
+          padding:      "16px",
+          width:        240,
+          animation:    "tulalaFeedbackIn .18s ease",
+        }}>
+          <style>{`@keyframes tulalaFeedbackIn { from { transform: scale(.96) translateY(6px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }`}</style>
+
+          <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, marginBottom: 10 }}>
+            Send feedback
+          </div>
+
+          {/* Tone picker */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+            {(Object.keys(TONE_LABELS) as (keyof typeof TONE_LABELS)[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTone(t)}
+                style={{
+                  flex:         1, border: "none", borderRadius: RADIUS.sm,
+                  padding:      "4px 0", fontSize: 10, fontWeight: 600,
+                  cursor:       "pointer", fontFamily: FONTS.body,
+                  background:   tone === t ? COLORS.ink : COLORS.surfaceAlt,
+                  color:        tone === t ? "#fff" : COLORS.inkMuted,
+                  transition:   `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
+                }}
+              >
+                {TONE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+
+          {/* Text area */}
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="What's on your mind?"
+            rows={3}
+            style={{
+              width:        "100%",
+              border:       `1px solid ${COLORS.border}`,
+              borderRadius: RADIUS.md,
+              padding:      "8px 10px",
+              fontFamily:   FONTS.body,
+              fontSize:     12,
+              color:        COLORS.ink,
+              resize:       "none",
+              outline:      "none",
+              boxSizing:    "border-box",
+              marginBottom: 10,
+            }}
+          />
+
+          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+            <button type="button" onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!text.trim()}
+              style={{
+                background:   text.trim() ? COLORS.ink : COLORS.surfaceAlt,
+                color:        text.trim() ? "#fff" : COLORS.inkMuted,
+                border:       "none", borderRadius: RADIUS.md,
+                padding:      "5px 14px", fontSize: 12, fontWeight: 600,
+                cursor:       text.trim() ? "pointer" : "default",
+                fontFamily:   FONTS.body,
+              }}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sent confirmation */}
+      {sent && (
+        <div style={{ background: COLORS.ink, color: "#fff", borderRadius: RADIUS.lg, padding: "8px 14px", fontSize: 12, fontWeight: 600, fontFamily: FONTS.body }}>
+          ✓ Thanks for the feedback!
+        </div>
+      )}
+
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Send feedback"
+        style={{
+          width:        36, height: 36,
+          borderRadius: "50%",
+          background:   COLORS.ink,
+          color:        "#fff",
+          border:       "none",
+          cursor:       "pointer",
+          display:      "flex",
+          alignItems:   "center",
+          justifyContent: "center",
+          fontSize:     16,
+          boxShadow:    "0 4px 16px rgba(0,0,0,0.2)",
+          transition:   `transform ${TRANSITION.micro}`,
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.08)")}
+        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+      >
+        {open ? "×" : "💬"}
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-6.6  Stale-data detection — "Updated by Marco — refresh ↻" pill
+// ─────────────────────────────────────────────────────────────────────────────
+//
+//  data-tulala-stale-pill   — the refresh pill
+//
+// Usage:
+//   const { stale, touch, dismiss } = useStaleDetection("inquiries", 15_000);
+//   <StaleDataPill stale={stale} by="Marco" onRefresh={touch} onDismiss={dismiss} />
+
+export type StaleInfo = { stale: boolean; by: string; at: Date };
+
+/** Simulates a remote update from another user (prototype-only). */
+export function useStaleDetection(
+  surfaceId: string,
+  intervalMs = 20_000,
+): { stale: boolean; staleMeta: StaleInfo | null; touch: () => void; dismiss: () => void } {
+  const NAMES = ["Marco", "Sofia", "Lena", "Nico", "Ana"];
+  const [staleMeta, setStaleMeta] = useState<StaleInfo | null>(null);
+
+  // Simulate a remote update after intervalMs
+  useEffect(() => {
+    const tid = setTimeout(() => {
+      const by = NAMES[Math.floor(Math.random() * NAMES.length)];
+      setStaleMeta({ stale: true, by, at: new Date() });
+    }, intervalMs);
+    return () => clearTimeout(tid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surfaceId, intervalMs]);
+
+  const touch   = useCallback(() => setStaleMeta(null), []);
+  const dismiss = useCallback(() => setStaleMeta(null), []);
+
+  return { stale: !!staleMeta?.stale, staleMeta, touch, dismiss };
+}
+
+export function StaleDataPill({
+  stale,
+  by,
+  onRefresh,
+  onDismiss,
+}: {
+  stale:     boolean;
+  by?:       string;
+  onRefresh: () => void;
+  onDismiss: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (stale) setVisible(true);
+  }, [stale]);
+
+  if (!visible) return null;
+
+  return (
+    <div
+      data-tulala-stale-pill
+      role="status"
+      aria-live="polite"
+      style={{
+        display:      "inline-flex",
+        alignItems:   "center",
+        gap:          6,
+        background:   COLORS.surfaceAlt,
+        border:       `1px solid ${COLORS.border}`,
+        borderRadius: 999,
+        padding:      "4px 10px 4px 8px",
+        fontSize:     12,
+        color:        COLORS.ink,
+        fontFamily:   FONTS.body,
+        boxShadow:    "0 2px 8px rgba(0,0,0,0.08)",
+        animation:    "tulalaStaleIn .25s ease",
+      }}
+    >
+      <style>{`@keyframes tulalaStaleIn { from { opacity:0; transform: translateY(-4px); } to { opacity:1; transform: translateY(0); } }`}</style>
+      <span style={{ fontSize: 13 }}>↑</span>
+      <span>
+        {by ? <strong>{by}</strong> : "Someone"} made changes
+        {" — "}
+        <button
+          type="button"
+          onClick={() => { setVisible(false); onRefresh(); }}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: COLORS.accent, fontWeight: 700, fontSize: 12,
+            fontFamily: FONTS.body, padding: 0, textDecoration: "underline",
+          }}
+        >
+          refresh ↻
+        </button>
+      </span>
+      <button
+        type="button"
+        aria-label="Dismiss stale notice"
+        onClick={() => { setVisible(false); onDismiss(); }}
+        style={{
+          background: "none", border: "none", cursor: "pointer",
+          color: COLORS.inkMuted, fontSize: 14, lineHeight: 1,
+          marginLeft: 4, padding: 0,
+        }}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-6.8  Conflict-resolution dialog — two users edit; show diff; pick winner
+// ─────────────────────────────────────────────────────────────────────────────
+//
+//  data-tulala-conflict-dialog   — the modal wrapper
+//
+// Usage:
+//   <ConflictDialog
+//     open={hasConflict}
+//     field="Description"
+//     yourValue="Available weekends only"
+//     theirValue="Available Mon–Fri, 9am–6pm"
+//     theirAuthor="Marco"
+//     onKeepMine={() => resolve("mine")}
+//     onKeepTheirs={() => resolve("theirs")}
+//     onClose={() => setConflict(false)}
+//   />
+
+export function ConflictDialog({
+  open,
+  field,
+  yourValue,
+  theirValue,
+  theirAuthor = "Another user",
+  onKeepMine,
+  onKeepTheirs,
+  onClose,
+}: {
+  open:         boolean;
+  field:        string;
+  yourValue:    string;
+  theirValue:   string;
+  theirAuthor?: string;
+  onKeepMine:   () => void;
+  onKeepTheirs: () => void;
+  onClose:      () => void;
+}) {
+  // Esc to close
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const SIDE: CSSProperties = {
+    flex: 1, background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+    padding: "14px 16px", border: `1px solid ${COLORS.border}`, fontSize: 13,
+    color: COLORS.ink, fontFamily: FONTS.body, lineHeight: 1.55,
+  };
+  const PICK_BTN: CSSProperties = {
+    width: "100%", marginTop: 10, padding: "8px 0",
+    borderRadius: RADIUS.md, fontWeight: 700, fontSize: 13,
+    fontFamily: FONTS.body, cursor: "pointer", border: "none",
+    transition: `opacity ${TRANSITION.sm}`,
+  };
+
+  return (
+    <div
+      data-tulala-conflict-dialog
+      style={{
+        position: "fixed", inset: 0, zIndex: Z.modalPanel,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Conflict on ${field}`}
+        style={{
+          background:   COLORS.surface,
+          borderRadius: RADIUS.xl,
+          boxShadow:    "0 24px 80px rgba(0,0,0,0.24), 0 6px 24px rgba(0,0,0,0.12)",
+          border:       `1px solid ${COLORS.border}`,
+          padding:      "24px",
+          width:        "min(92vw, 620px)",
+          fontFamily:   FONTS.body,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.ink, marginBottom: 2 }}>
+              Edit conflict
+            </div>
+            <div style={{ fontSize: 13, color: COLORS.inkMuted }}>
+              <strong>{theirAuthor}</strong> also edited <em>{field}</em>. Choose which version to keep.
+            </div>
+          </div>
+          <button type="button" onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: COLORS.inkMuted, lineHeight: 1, padding: 0 }}>
+            ×
+          </button>
+        </div>
+
+        {/* Two-column diff */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {/* Your version */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 6 }}>
+              Your version
+            </div>
+            <div style={SIDE}>{yourValue}</div>
+            <button
+              type="button"
+              onClick={() => { onKeepMine(); onClose(); }}
+              style={{ ...PICK_BTN, background: COLORS.accent, color: "#fff" }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              Keep mine
+            </button>
+          </div>
+
+          {/* Their version */}
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 6 }}>
+              {theirAuthor}&rsquo;s version
+            </div>
+            <div style={{ ...SIDE, borderColor: COLORS.accent + "55" }}>{theirValue}</div>
+            <button
+              type="button"
+              onClick={() => { onKeepTheirs(); onClose(); }}
+              style={{ ...PICK_BTN, background: COLORS.surfaceAlt, color: COLORS.ink, border: `1px solid ${COLORS.border}` }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+            >
+              Keep {theirAuthor}&rsquo;s
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: 16, fontSize: 12, color: COLORS.inkMuted, textAlign: "center" }}>
+          Your changes will be discarded if you keep the other version.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-6.9  Empty states per surface — 12 pre-wired variants
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// All use the existing <EmptyState> primitive; each export is a thin wrapper
+// with surface-specific copy + icon.  The caller passes action callbacks.
+
+type EmptyVariantProps = {
+  onPrimary?: () => void;
+  onSecondary?: () => void;
+};
+
+export function InboxEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="mail"
+      title="Your inbox is clear"
+      body="No new messages waiting. Conversations about inquiries and bookings will appear here."
+      primaryLabel={onPrimary ? "Browse talent" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function InquiriesEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="search"
+      title="No inquiries yet"
+      body="Send your first inquiry to start the booking process. Responses typically arrive within 24 hours."
+      primaryLabel={onPrimary ? "New inquiry" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function BookingsEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="calendar"
+      title="No bookings yet"
+      body="Confirmed bookings appear here. Inquiries convert to bookings once both parties agree on terms."
+      primaryLabel={onPrimary ? "See inquiries" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function TalentRosterEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="team"
+      title="Your roster is empty"
+      body="Add talent to your workspace to manage inquiries, bookings, and performance from one place."
+      primaryLabel={onPrimary ? "Add talent" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function ClientsEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="user"
+      title="No clients yet"
+      body="Clients who book through your workspace will appear here along with their spend history."
+      primaryLabel={onPrimary ? "Share booking link" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function ShortlistsEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="sparkle"
+      title="No shortlists saved"
+      body="Shortlists let you group talent for a project and share them with collaborators for review."
+      primaryLabel={onPrimary ? "Browse talent" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function CalendarEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="calendar"
+      title="Nothing scheduled"
+      body="Confirmed bookings and set-call appointments will appear on your calendar automatically."
+      primaryLabel={onPrimary ? "View bookings" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function MessagesEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="mail"
+      title="No messages yet"
+      body="Start a conversation by sending an inquiry. All replies and notes will be threaded here."
+      primaryLabel={onPrimary ? "Compose" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function FilesEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="info"
+      title="No files attached"
+      body="Upload call sheets, contracts, or mood boards to keep everything linked to this project."
+      primaryLabel={onPrimary ? "Upload file" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+export function SearchEmptyState({ query }: { query?: string }) {
+  return (
+    <EmptyState
+      icon="search"
+      title={query ? `No results for "${query}"` : "No results"}
+      body="Try different keywords, or adjust your filters to broaden the search."
+    />
+  );
+}
+
+export function NotificationsEmptyState() {
+  return (
+    <EmptyState
+      icon="sparkle"
+      title="All caught up"
+      body="You're up to date. Notifications about activity across your workspace will appear here."
+    />
+  );
+}
+
+export function AgenciesEmptyState({ onPrimary }: EmptyVariantProps) {
+  return (
+    <EmptyState
+      icon="team"
+      title="Not represented by any agency"
+      body="When an agency adds you to their roster, they'll appear here. You can also request representation."
+      primaryLabel={onPrimary ? "Request representation" : undefined}
+      onPrimary={onPrimary}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-6.10  Skeleton states per surface — 8 most-used pages / drawers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function SkRow({ label = true, action = false }: { label?: boolean; action?: boolean }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${COLORS.border}` }}>
+      <Skeleton width={36} height={36} radius={18} />
+      <div style={{ flex: 1 }}>
+        {label && <Skeleton height={13} width="55%" style={{ marginBottom: 5 }} />}
+        <Skeleton height={11} width="35%" />
+      </div>
+      {action && <Skeleton height={28} width={72} radius={6} />}
+    </div>
+  );
+}
+
+/** Skeleton for the inbox/messages list */
+export function InboxSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div data-tulala-skeleton="inbox" style={{ padding: "0 16px" }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <SkRow key={i} label action={i === 0} />
+      ))}
+    </div>
+  );
+}
+
+/** Skeleton for the inquiries list */
+export function InquiriesSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div data-tulala-skeleton="inquiries" style={{ padding: "0 16px" }}>
+      <Skeleton height={32} width={220} radius={999} style={{ marginBottom: 12, marginTop: 4 }} />
+      {Array.from({ length: rows }).map((_, i) => (
+        <SkRow key={i} action />
+      ))}
+    </div>
+  );
+}
+
+/** Skeleton for the talent roster */
+export function TalentRosterSkeleton({ rows = 8 }: { rows?: number }) {
+  return (
+    <div data-tulala-skeleton="talent-roster" style={{ padding: "0 16px" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, marginTop: 4 }}>
+        <Skeleton height={32} width={120} radius={999} />
+        <Skeleton height={32} width={80}  radius={999} />
+        <Skeleton height={32} width={96}  radius={999} />
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <SkRow key={i} action />
+      ))}
+    </div>
+  );
+}
+
+/** Skeleton for a booking / inquiry detail drawer */
+export function DrawerDetailSkeleton() {
+  return (
+    <div data-tulala-skeleton="drawer-detail" style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Title area */}
+      <div>
+        <Skeleton height={9} width={60} style={{ marginBottom: 8 }} />
+        <Skeleton height={18} width="70%" style={{ marginBottom: 6 }} />
+        <Skeleton height={13} width="45%" />
+      </div>
+      <Skeleton height={1} width="100%" />
+      {/* Meta grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        {[80, 100, 120, 90, 110, 75].map((w, i) => (
+          <div key={i}>
+            <Skeleton height={9} width={w * 0.7} style={{ marginBottom: 5 }} />
+            <Skeleton height={13} width={w} />
+          </div>
+        ))}
+      </div>
+      <Skeleton height={1} width="100%" />
+      {/* Message threads */}
+      {[0, 1, 2].map((i) => (
+        <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <Skeleton width={28} height={28} radius={14} />
+          <div style={{ flex: 1 }}>
+            <Skeleton height={11} width="40%" style={{ marginBottom: 5 }} />
+            <Skeleton height={13} width="90%" style={{ marginBottom: 4 }} />
+            <Skeleton height={13} width="65%" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Skeleton for the calendar page */
+export function CalendarSkeleton() {
+  return (
+    <div data-tulala-skeleton="calendar" style={{ padding: "16px" }}>
+      {/* Month header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <Skeleton height={20} width={120} />
+        <div style={{ display: "flex", gap: 8 }}>
+          <Skeleton height={32} width={32} radius={8} />
+          <Skeleton height={32} width={32} radius={8} />
+        </div>
+      </div>
+      {/* Day-of-week labels */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 8 }}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <Skeleton key={i} height={10} width="80%" style={{ margin: "0 auto" }} />
+        ))}
+      </div>
+      {/* Calendar grid */}
+      {Array.from({ length: 5 }).map((_, row) => (
+        <div key={row} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+          {Array.from({ length: 7 }).map((_, col) => (
+            <Skeleton key={col} height={52} width="100%" radius={6} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Skeleton for an overview / dashboard page */
+export function OverviewSkeleton() {
+  return (
+    <div data-tulala-skeleton="overview" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Stat tiles row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "16px", border: `1px solid ${COLORS.border}` }}>
+            <Skeleton height={10} width="60%" style={{ marginBottom: 10 }} />
+            <Skeleton height={28} width="45%" style={{ marginBottom: 6 }} />
+            <Skeleton height={9}  width="40%" />
+          </div>
+        ))}
+      </div>
+      {/* Recent activity */}
+      <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "16px", border: `1px solid ${COLORS.border}` }}>
+        <Skeleton height={14} width={120} style={{ marginBottom: 14 }} />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <SkRow key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Skeleton for the talent Today page */
+export function TalentTodaySkeleton() {
+  return (
+    <div data-tulala-skeleton="talent-today" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Greeting */}
+      <div>
+        <Skeleton height={22} width="40%" style={{ marginBottom: 8 }} />
+        <Skeleton height={13} width="60%" />
+      </div>
+      {/* Checklist card */}
+      <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+        <Skeleton height={14} width={140} style={{ marginBottom: 12 }} />
+        {[80, 90, 75].map((w, i) => (
+          <div key={i} style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 10 }}>
+            <Skeleton width={16} height={16} radius={4} />
+            <Skeleton height={12} width={`${w}%`} />
+          </div>
+        ))}
+      </div>
+      {/* Week strip */}
+      <div style={{ display: "flex", gap: 8 }}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <Skeleton key={i} width={36} height={56} radius={8} style={{ flex: 1 }} />
+        ))}
+      </div>
+      {/* Earnings grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+          <Skeleton height={10} width="50%" style={{ marginBottom: 10 }} />
+          <Skeleton height={28} width="55%" style={{ marginBottom: 8 }} />
+          <Skeleton height={36} width="100%" radius={4} />
+        </div>
+        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: 16, border: `1px solid ${COLORS.border}` }}>
+          <Skeleton height={10} width="50%" style={{ marginBottom: 10 }} />
+          {[90, 70, 80].map((w, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <Skeleton height={11} width={`${w * 0.7}%`} />
+              <Skeleton height={11} width="20%" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Skeleton for the client discover/search page */
+export function DiscoverSkeleton({ cards = 9 }: { cards?: number }) {
+  return (
+    <div data-tulala-skeleton="discover" style={{ padding: "16px" }}>
+      {/* Search bar */}
+      <Skeleton height={40} width="100%" radius={999} style={{ marginBottom: 16 }} />
+      {/* Filter chips */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
+        {[60, 80, 70, 90, 65].map((w, i) => (
+          <Skeleton key={i} height={28} width={w} radius={999} />
+        ))}
+      </div>
+      {/* Card grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        {Array.from({ length: cards }).map((_, i) => (
+          <div key={i} style={{ borderRadius: RADIUS.lg, overflow: "hidden", border: `1px solid ${COLORS.border}` }}>
+            <Skeleton height={180} width="100%" radius={0} />
+            <div style={{ padding: "12px" }}>
+              <Skeleton height={14} width="65%" style={{ marginBottom: 6 }} />
+              <Skeleton height={11} width="45%" style={{ marginBottom: 8 }} />
+              <Skeleton height={24} width={80} radius={999} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-10.2  Inline file preview — PDF / image / video / audio in message threads
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type AttachmentKind = "image" | "pdf" | "video" | "audio" | "file";
+
+export type Attachment = {
+  id:       string;
+  name:     string;
+  kind:     AttachmentKind;
+  size:     string;
+  thumbUrl?: string;
+  /** Prototype: always undefined; real implementation loads actual URL */
+  previewUrl?: string;
+};
+
+const ATTACHMENT_ICON: Record<AttachmentKind, string> = {
+  image: "🖼",
+  pdf:   "📄",
+  video: "🎬",
+  audio: "🎵",
+  file:  "📎",
+};
+
+export function InlineFilePreview({
+  attachment,
+  onDownload,
+}: {
+  attachment:  Attachment;
+  onDownload?: (a: Attachment) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const isPreviewable = attachment.kind === "image" || attachment.kind === "pdf";
+
+  return (
+    <div
+      style={{
+        border:       `1px solid ${COLORS.border}`,
+        borderRadius: RADIUS.lg,
+        overflow:     "hidden",
+        background:   COLORS.surfaceAlt,
+        display:      "inline-flex",
+        flexDirection: "column",
+        maxWidth:     260,
+        fontFamily:   FONTS.body,
+      }}
+    >
+      {/* Image preview placeholder */}
+      {expanded && attachment.kind === "image" && (
+        <div style={{
+          width: "100%", height: 160,
+          background: "linear-gradient(135deg, #E0E7FF 0%, #F0FDF4 100%)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 40,
+        }}>
+          {ATTACHMENT_ICON.image}
+        </div>
+      )}
+
+      {/* Meta row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+        <span style={{ fontSize: 20, flexShrink: 0 }}>{ATTACHMENT_ICON[attachment.kind]}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 12.5, fontWeight: 600, color: COLORS.ink,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>
+            {attachment.name}
+          </div>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{attachment.size}</div>
+        </div>
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {isPreviewable && (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              aria-label={expanded ? "Collapse preview" : "Expand preview"}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: COLORS.inkMuted, fontSize: 13, padding: "2px 4px",
+              }}
+            >
+              {expanded ? "▲" : "▼"}
+            </button>
+          )}
+          {onDownload && (
+            <button
+              type="button"
+              onClick={() => onDownload(attachment)}
+              aria-label={`Download ${attachment.name}`}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: COLORS.inkMuted, fontSize: 13, padding: "2px 4px",
+              }}
+            >
+              ↓
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Renders a horizontal strip of up to N attachments in a message */
+export function AttachmentStrip({
+  attachments,
+  onDownload,
+}: {
+  attachments: Attachment[];
+  onDownload?: (a: Attachment) => void;
+}) {
+  if (!attachments.length) return null;
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+      {attachments.map((a) => (
+        <InlineFilePreview key={a.id} attachment={a} onDownload={onDownload} />
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-12.11  Reduced-motion hook (site-wide)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns true if the user has requested reduced motion.
+ * Use to guard any `animation:` or `transition:` inline style.
+ *
+ * Usage:
+ *   const prefersReducedMotion = useReducedMotion();
+ *   style={{ transition: prefersReducedMotion ? "none" : "opacity .2s" }}
+ */
+export function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+  return reduced;
+}
+
+/**
+ * WS-12.11 — Returns the appropriate ScrollBehavior for JS scroll calls.
+ * CSS transitions are handled by the global `@media (prefers-reduced-motion)`
+ * rule in page.tsx; this handles `scrollTo({ behavior })` calls that
+ * CSS cannot intercept.
+ *
+ * Usage:
+ *   element.scrollTo({ top: 0, behavior: scrollBehavior() });
+ */
+export function scrollBehavior(): ScrollBehavior {
+  if (typeof window === "undefined") return "smooth";
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "instant"
+    : "smooth";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WS-16.7  ActivityFeed primitive — replaces 5 ad-hoc timeline feeds
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ActivityEntry = {
+  id:        string;
+  /** Who / what triggered the event. */
+  actor:     string;
+  /** Short past-tense sentence. */
+  action:    string;
+  /** ISO date string or relative label. */
+  at:        string;
+  /** Optional: pill/chip label (stage, status, etc.) */
+  badge?:    string;
+  badgeTone?: "green" | "amber" | "red" | "blue" | "ink";
+  /** Optional secondary body — e.g. a quote or note. */
+  detail?:   string;
+  /** Optional icon name */
+  icon?:     "mail" | "calendar" | "user" | "sparkle" | "info" | "bolt";
+};
+
+const BADGE_COLORS: Record<NonNullable<ActivityEntry["badgeTone"]>, { bg: string; color: string }> = {
+  green: { bg: "rgba(16,185,129,0.10)", color: "#065F46" },
+  amber: { bg: "rgba(245,158,11,0.10)", color: "#92400E" },
+  red:   { bg: "rgba(220,38,38,0.10)",  color: "#991B1B" },
+  blue:  { bg: "rgba(59,130,246,0.10)", color: "#1E40AF" },
+  ink:   { bg: "rgba(11,11,13,0.06)",   color: "#1A1A2E"  },
+};
+
+export function ActivityFeed({
+  entries,
+  maxVisible = 8,
+  onSeeAll,
+  compact = false,
+}: {
+  entries:      ActivityEntry[];
+  maxVisible?:  number;
+  onSeeAll?:    () => void;
+  compact?:     boolean;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? entries : entries.slice(0, maxVisible);
+  const hasMore = entries.length > maxVisible && !showAll;
+
+  if (!entries.length) return null;
+
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: compact ? 0 : 2 }}>
+        {visible.map((entry, idx) => {
+          const badgeStyle = entry.badgeTone ? BADGE_COLORS[entry.badgeTone] : BADGE_COLORS.ink;
+          return (
+            <div
+              key={entry.id}
+              style={{
+                display:       "flex",
+                gap:           12,
+                padding:       compact ? "8px 0" : "10px 12px",
+                borderBottom:  idx < visible.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+                alignItems:    "flex-start",
+              }}
+            >
+              {/* Icon column */}
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%",
+                background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, marginTop: 1,
+              }}>
+                <Icon name={entry.icon ?? "bolt"} size={12} color={COLORS.inkMuted} />
+              </div>
+
+              {/* Content */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 700, fontSize: 12.5, color: COLORS.ink }}>{entry.actor}</span>
+                  <span style={{ fontSize: 12.5, color: COLORS.inkMuted }}>{entry.action}</span>
+                  {entry.badge && (
+                    <span style={{
+                      fontSize: 10.5, fontWeight: 700,
+                      padding: "1px 6px", borderRadius: 999,
+                      background: badgeStyle.bg, color: badgeStyle.color,
+                    }}>
+                      {entry.badge}
+                    </span>
+                  )}
+                </div>
+                {entry.detail && (
+                  <div style={{
+                    marginTop: 4, fontSize: 12, color: COLORS.inkMuted,
+                    lineHeight: 1.5, fontStyle: "italic",
+                  }}>
+                    &ldquo;{entry.detail}&rdquo;
+                  </div>
+                )}
+              </div>
+
+              {/* Timestamp */}
+              <span style={{ fontSize: 11, color: COLORS.inkMuted, flexShrink: 0, marginTop: 2 }}>
+                {entry.at}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {(hasMore || onSeeAll) && (
+        <button
+          type="button"
+          onClick={hasMore ? () => setShowAll(true) : onSeeAll}
+          style={{
+            marginTop: 8, background: "none", border: "none", cursor: "pointer",
+            fontSize: 12, color: COLORS.accent, fontFamily: FONTS.body, fontWeight: 600,
+            padding: "4px 0",
+          }}
+        >
+          {hasMore ? `Show ${entries.length - maxVisible} more` : "See full history →"}
+        </button>
+      )}
     </div>
   );
 }
