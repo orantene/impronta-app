@@ -248,6 +248,24 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
             <EmptyCanvasStarter />
           ) : (
             <>
+          {cmsHeroSlot && cmsHomepage?.snapshot ? (
+            // CMS-composed hero — rendered full-bleed at the top level of
+            // <main>, bypassing the legacy max-w-3xl centered wrapper that
+            // was designed for text-only heroes. The HeroComponent's
+            // background imagery and full-viewport height need edge-to-edge
+            // layout to work correctly.
+            //
+            // HeroSearch is intentionally omitted in this path: editorial CMS
+            // heroes carry their own CTAs; the utility search bar would
+            // visually break the full-bleed design and is unnecessary when
+            // explicit "Browse Talent" / "Get in Touch" CTAs are present.
+            <HomepageCmsSections
+              snapshot={cmsHomepage.snapshot}
+              tenantId={tenantId}
+              locale={locale}
+              onlySlot="hero"
+            />
+          ) : (
           <section
             className={
               lifestyleSlides
@@ -277,33 +295,19 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
                   : "relative w-full max-w-3xl text-center"
               }
             >
-              {cmsHeroSlot && cmsHomepage?.snapshot ? (
-                // CMS-composed hero (from published_homepage_snapshot).
-                // Storefront-search functionality is stitched back in below
-                // — it's platform behavior, not CMS content.
-                <HomepageCmsSections
-                  snapshot={cmsHomepage.snapshot}
-                  tenantId={tenantId}
-                  locale={locale}
-                  onlySlot="hero"
-                />
-              ) : (
-                <>
-                  <p className="font-display text-sm font-medium uppercase tracking-[0.35em] text-[var(--impronta-gold-dim)]">
-                    {heroKicker}
-                  </p>
-                  <h1 className="mt-6 font-display text-3xl font-normal leading-tight tracking-[0.06em] text-foreground sm:text-4xl md:text-5xl">
-                    {t("public.home.hero.titleBefore")}{" "}
-                    <span className="text-[var(--impronta-gold)]">
-                      {t("public.home.hero.titleHighlight")}
-                    </span>{" "}
-                    {t("public.home.hero.titleAfter")}
-                  </h1>
-                  <p className="mx-auto mt-6 max-w-xl text-base text-[var(--impronta-muted)] sm:text-lg">
-                    {t("public.home.hero.subtitle")}
-                  </p>
-                </>
-              )}
+              <p className="font-display text-sm font-medium uppercase tracking-[0.35em] text-[var(--impronta-gold-dim)]">
+                {heroKicker}
+              </p>
+              <h1 className="mt-6 font-display text-3xl font-normal leading-tight tracking-[0.06em] text-foreground sm:text-4xl md:text-5xl">
+                {t("public.home.hero.titleBefore")}{" "}
+                <span className="text-[var(--impronta-gold)]">
+                  {t("public.home.hero.titleHighlight")}
+                </span>{" "}
+                {t("public.home.hero.titleAfter")}
+              </h1>
+              <p className="mx-auto mt-6 max-w-xl text-base text-[var(--impronta-muted)] sm:text-lg">
+                {t("public.home.hero.subtitle")}
+              </p>
               <div className="mt-10">
                 <HeroSearch
                   copy={heroSearchCopy}
@@ -313,6 +317,7 @@ export async function AgencyHomeStorefront({ tenantId }: { tenantId: string }) {
               </div>
             </div>
           </section>
+          )}
 
           {/* M7.1 — CMS composition vs legacy hardcoded fallback.
            *
