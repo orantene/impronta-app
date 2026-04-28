@@ -153,11 +153,18 @@ export function NavigatorPanel() {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return flat;
-    return flat.filter(
-      (r) =>
-        r.ref.name.toLowerCase().includes(q) ||
-        r.ref.sectionTypeKey.toLowerCase().includes(q),
-    );
+    return flat.filter((r) => {
+      // T2-2 — search the cleaned display name, not the raw seeder string.
+      // Otherwise queries for "Classic starter" would match every starter
+      // section, polluting results with operator-invisible boilerplate.
+      const displayName = (
+        cleanSectionName(r.ref.name) || r.ref.name
+      ).toLowerCase();
+      return (
+        displayName.includes(q) ||
+        r.ref.sectionTypeKey.toLowerCase().includes(q)
+      );
+    });
   }, [flat, search]);
 
   // Phase 10 — heading hierarchy lint. Two modes:
@@ -712,7 +719,7 @@ export function NavigatorPanel() {
                       setSelectedSectionId(row.ref.sectionId);
                     }
                   }}
-                  title={row.ref.name}
+                  title={cleanSectionName(row.ref.name) || row.ref.name}
                   style={{
                     display: "flex",
                     alignItems: "center",

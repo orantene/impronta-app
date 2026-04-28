@@ -34,6 +34,7 @@ import {
   resolveCommentAction,
   type CommentRow,
 } from "@/lib/site-admin/edit-mode/comment-actions";
+import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { createClient } from "@/lib/supabase/client";
 
 import {
@@ -304,10 +305,14 @@ export function CommentsDrawer() {
   // bare UUID. Built off of `slots` because that's already loaded by
   // EditContext when chrome mounts.
   const sectionNameById = useMemo(() => {
+    // T2-2 — names stored in this map flow into the section header
+    // ("Section · Hero — new (Classic starter) d7b14f") and the comment
+    // metadata strip. Strip seeder suffixes once at map-build time so
+    // every consumer renders cleanly without per-callsite cleanup.
     const map = new Map<string, string>();
     for (const list of Object.values(slots)) {
       for (const ref of list) {
-        map.set(ref.sectionId, ref.name);
+        map.set(ref.sectionId, cleanSectionName(ref.name) || ref.name);
       }
     }
     return map;
@@ -525,7 +530,8 @@ export function CommentsDrawer() {
               <option value="">— pick a section —</option>
               {sectionOptions.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {/* T2-2 — strip seeder suffix from section options */}
+                  {cleanSectionName(s.name) || s.name}
                 </option>
               ))}
             </select>

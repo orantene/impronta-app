@@ -56,6 +56,7 @@ import {
   type Shortcut,
 } from "./kit";
 import { useEditContext, type EditDevice } from "./edit-context";
+import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
 // ── public surface ──────────────────────────────────────────────────────
@@ -207,7 +208,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         rows.push({
           id: `section:${ref.sectionId}`,
           group: "section",
-          label: ref.name,
+          // T2-2 — clean seeder suffix from palette labels
+          label: cleanSectionName(ref.name) || ref.name,
           meta: slotLabelByKey.get(def.key) ?? def.key,
           keywords: [ref.sectionTypeKey, "section", "go to"],
           icon: (
@@ -241,7 +243,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         rows.push({
           id: `section:${ref.sectionId}`,
           group: "section",
-          label: ref.name,
+          label: cleanSectionName(ref.name) || ref.name,
           meta: slotKey,
           keywords: [ref.sectionTypeKey, "section"],
           icon: (

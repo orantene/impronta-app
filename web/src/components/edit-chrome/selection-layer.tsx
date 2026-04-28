@@ -31,6 +31,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { useEditContext } from "./edit-context";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 
@@ -520,11 +521,15 @@ export function SelectionLayer() {
     drag.phase === "dragging" && drag.id === selectedSectionId;
 
   // Derived display values for the chip / ghost.
-  const sectionName =
+  // T2-2 — Strip seeder suffixes from raw DB names ("Hero — new (Classic
+  // starter) d7b14f") before they reach the operator. Clean string can
+  // legitimately be empty (when the raw name was nothing but suffix), so
+  // we coalesce through the type's humanized label as a final fallback.
+  const cleanedName =
     loadedSection?.id === selectedSectionId && loadedSection?.name
-      ? loadedSection.name
-      : null;
-  const chipLabel = sectionName ?? humanizeTypeKey(selectedTypeKey);
+      ? cleanSectionName(loadedSection.name)
+      : "";
+  const chipLabel = cleanedName || humanizeTypeKey(selectedTypeKey);
   const chipType = humanizeTypeKey(selectedTypeKey);
 
   return createPortal(
@@ -839,7 +844,8 @@ export function SelectionLayer() {
                 letterSpacing: "-0.005em",
               }}
             >
-              {drag.name ?? humanizeTypeKey(drag.typeKey)}
+              {(drag.name && cleanSectionName(drag.name)) ||
+                humanizeTypeKey(drag.typeKey)}
             </div>
             <div
               style={{
