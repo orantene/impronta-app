@@ -49,20 +49,12 @@ import {
 } from "./kit";
 import { useEditContext } from "./edit-context";
 import { PublishPreflight } from "./PublishPreflight";
+import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 
 const TITLE_MAX = 60;
 const DESC_MAX = 160;
 
-/** Strip seeder debug suffixes like "(Classic starter) d7b14f" from stored names. */
-function cleanSectionName(raw: string | null | undefined): string {
-  if (!raw) return "";
-  return (
-    raw
-      .replace(/\s*\([^)]*starter[^)]*\)\s*/gi, "")
-      .replace(/\s+[0-9a-f]{6,8}$/i, "")
-      .trim() || raw.trim()
-  );
-}
+// cleanSectionName imported from @/lib/site-admin/clean-section-name
 
 type PublishState =
   | { kind: "idle" }

@@ -25,6 +25,7 @@
 import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
+import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 
 export interface LandmarkFinding {
   severity: "high" | "med" | "low" | "ok";
@@ -112,7 +113,7 @@ export async function runAriaLandmarkCheck(): Promise<LandmarkCheckResult> {
         findings.push({
           severity: "med",
           category: "naming",
-          message: `Section "${r.name}" renders as an ARIA region but has no headline — screen readers will announce it without a label.`,
+          message: `"${cleanSectionName(r.name) || r.name}" has no headline — screen readers will announce this region without a label.`,
           sectionId: r.id,
           sectionTypeKey: r.section_type_key,
         });

@@ -48,6 +48,7 @@ import type {
   CompositionSectionRef,
   CompositionSlotDef,
 } from "@/lib/site-admin/edit-mode/composition-actions";
+import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
@@ -761,7 +762,7 @@ export function NavigatorPanel() {
                       textDecorationColor: CHROME.muted2,
                     }}
                   >
-                    {row.ref.name}
+                    {cleanSectionName(row.ref.name) || row.ref.name}
                   </span>
                   <VisibilityEye
                     selected={selected}

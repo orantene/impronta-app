@@ -20,6 +20,7 @@ import { requireStaff } from "@/lib/server/action-guards";
 import { requireTenantScope } from "@/lib/saas";
 import { listSectionsForStaff } from "@/lib/site-admin/server/sections-reads";
 import { runAriaLandmarkCheck } from "./aria-landmark-action";
+import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 
 export type PreflightSeverity = "error" | "warn";
 
@@ -118,7 +119,7 @@ export async function runPublishPreflight(): Promise<PreflightResult> {
               severity: "warn",
               category: "alt_text",
               sectionId: r.id,
-              message: `${r.name}: ${pair.urlPath} has no alt text.`,
+              message: `${cleanSectionName(r.name) || r.name}: missing alt text on ${pair.urlPath}.`,
             });
           }
         }
@@ -145,7 +146,7 @@ export async function runPublishPreflight(): Promise<PreflightResult> {
             severity: "warn",
             category: "alt_text",
             sectionId: r.id,
-            message: `${r.name}: ${missing} item${missing > 1 ? "s have" : " has"} an image without alt text.`,
+            message: `${cleanSectionName(r.name) || r.name}: ${missing} image${missing > 1 ? "s are" : " is"} missing alt text.`,
           });
         }
       }

@@ -48,6 +48,7 @@ import {
   DrawerBody,
   SectionTypeIcon,
 } from "./kit";
+import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
 
 type TabKey = "content" | "layout" | "style" | "responsive" | "motion";
 
@@ -67,15 +68,11 @@ function humanizeTypeKey(key: string | null | undefined): string {
     .join(" ");
 }
 
-/** Strip seeder debug suffixes like "(Classic starter) d7b14f" from stored names. */
+/** Returns null if raw is empty/null, otherwise strips seeder debug suffixes. */
 function cleanSectionName(raw: string | null | undefined): string | null {
   if (!raw) return null;
-  return (
-    raw
-      .replace(/\s*\([^)]*starter[^)]*\)\s*/gi, "")
-      .replace(/\s+[0-9a-f]{6,8}$/i, "")
-      .trim() || null
-  );
+  const cleaned = _cleanSectionName(raw);
+  return cleaned || null;
 }
 
 export function InspectorDock() {
