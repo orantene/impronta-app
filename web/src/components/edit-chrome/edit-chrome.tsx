@@ -60,6 +60,14 @@ interface EditChromeProps {
    *  locale switcher renders on first paint without waiting for the
    *  composition load round-trip. Empty array → no switcher. */
   availableLocales?: ReadonlyArray<string>;
+  /**
+   * T1-2 — server-prefetched composition snapshot. EditChromeMount loads
+   * this when editActive is true so EditProvider seeds its state from real
+   * data on first paint. Eliminates the "0 sections" flash that hits all
+   * three surfaces (navigator, canvas insert points, publish drawer) while
+   * the client-side action round-trips.
+   */
+  initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
 }
 
 export function EditChrome({
@@ -68,6 +76,7 @@ export function EditChrome({
   locale,
   pageSlug,
   availableLocales,
+  initialComposition,
 }: EditChromeProps) {
   // Always call useSearchParams unconditionally to keep hook order
   // stable; the EditPill branch ignores the subscription.
@@ -92,6 +101,7 @@ export function EditChrome({
         locale={locale}
         pageSlug={pageSlug}
         availableLocales={availableLocales}
+        initialComposition={initialComposition}
       />
     </>
   );

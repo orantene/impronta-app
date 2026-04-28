@@ -25,6 +25,10 @@
 import { headers } from "next/headers";
 import { requireStaff } from "@/lib/server/action-guards";
 import { getPublicHostContext } from "@/lib/saas/scope";
+import {
+  loadHomepageCompositionAction,
+  type CompositionData,
+} from "@/lib/site-admin/edit-mode/composition-actions";
 import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
 import { loadTenantLocaleSettings } from "@/lib/site-admin/server/locale-resolver";
 import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-locale";
@@ -123,6 +127,47 @@ export async function EditChromeMount() {
   // 3. First remaining segment is the slug; nothing left → homepage.
   const pageSlug = segs.length > 0 ? segs[0]! : null;
 
+  // T1-2 — Server-prefetch the composition when the editor is engaged.
+  //
+  // The audit's biggest first-paint trust issue: navigator says 0 sections,
+  // canvas insert points say 0 slots, publish drawer says 0 sections going
+  // live — all while the canvas is rendering a populated homepage. Cause:
+  // the EditProvider seeds state from empty defaults and only fetches via
+  // a client-side server-action call after mount. With this prefetch the
+  // provider's initial state is the real composition before React even
+  // hydrates, so all three surfaces are correct on first paint.
+  //
+  // We only prefetch when editActive is true. The idle EditPill and the
+  // PreviewPill don't render the navigator / drawers, so the data isn't
+  // needed and we'd just be paying a DB round-trip for nothing. The action
+  // itself does its own staff + tenant-scope guards (we already passed both
+  // above) so an unauthenticated path reaching this branch would still get
+  // a typed error result we ignore — we never throw on prefetch failure;
+  // the client-side fetch retry path is the safety net.
+  let initialComposition: CompositionData | null = null;
+  if (editActive) {
+    try {
+      const res = await loadHomepageCompositionAction({
+        locale: localeContext.locale,
+        pageSlug,
+      });
+      if (res.ok) {
+        initialComposition = res.data;
+      } else {
+        console.warn(
+          `[edit-mode] prefetch composition failed: ${res.error}`,
+        );
+      }
+    } catch (err) {
+      // Never let a prefetch failure break the editor — fall through to
+      // the legacy client-side load path. Logged for diagnostics only.
+      console.warn(
+        "[edit-mode] prefetch composition threw:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
   return (
     <EditChrome
       tenantId={ctx.tenantId}
@@ -130,6 +175,7 @@ export async function EditChromeMount() {
       locale={localeContext.locale}
       pageSlug={pageSlug}
       availableLocales={localeSettings.supportedLocales}
+      initialComposition={initialComposition}
     />
   );
 }

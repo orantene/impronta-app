@@ -432,6 +432,17 @@ interface EditProviderProps {
    *  topbar locale switcher renders on first paint. The composition load
    *  refreshes this once it lands; this prop just primes it. */
   initialAvailableLocales?: ReadonlyArray<string>;
+  /**
+   * T1-2 — server-prefetched composition snapshot. When EditChromeMount
+   * resolves the editor while staff is engaged, it loads the composition
+   * server-side and threads it here as the provider's initial state. The
+   * navigator, canvas, add-section drawer, and publish drawer all read
+   * from this context, so seeding it on the server eliminates the "0
+   * sections" first-paint window the audit flagged. Falls back to a
+   * client-side load when this prop is absent (legacy callers, error
+   * recovery, locale switch revalidation).
+   */
+  initialComposition?: CompositionData | null;
   children: ReactNode;
 }
 
@@ -440,6 +451,7 @@ export function EditProvider({
   locale = "en",
   pageSlug = null,
   initialAvailableLocales,
+  initialComposition = null,
   children,
 }: EditProviderProps) {
   const router = useRouter();
@@ -472,19 +484,37 @@ export function EditProvider({
   );
 
   // ── composition state ───────────────────────────────────────────────
-  const [compositionLoaded, setCompositionLoaded] = useState(false);
+  // T1-2 — seed state from the server-prefetched composition when present.
+  // EditChromeMount loads the composition server-side and threads it through
+  // EditChrome → EditShell → EditProvider. With the seed in place the
+  // navigator, canvas, add-section drawer, and publish drawer all render
+  // correct counts on first paint instead of flashing "0 sections" while
+  // the client-side action round-trips.
+  const [compositionLoaded, setCompositionLoaded] = useState(
+    initialComposition !== null,
+  );
   const [compositionLoading, setCompositionLoading] = useState(false);
   const [compositionError, setCompositionError] = useState<string | null>(null);
-  const [pageId, setPageId] = useState<string | null>(null);
-  const [pageVersion, setPageVersion] = useState<number | null>(null);
-  const [pageMetadata, setPageMetadata] = useState<PageMetadata | null>(null);
-  const [slots, setSlots] = useState<Record<string, CompositionSectionRef[]>>(
-    {},
+  const [pageId, setPageId] = useState<string | null>(
+    initialComposition?.pageId ?? null,
   );
-  const [slotDefs, setSlotDefs] = useState<CompositionSlotDef[]>([]);
-  const [library, setLibrary] = useState<CompositionLibraryEntry[]>([]);
+  const [pageVersion, setPageVersion] = useState<number | null>(
+    initialComposition?.pageVersion ?? null,
+  );
+  const [pageMetadata, setPageMetadata] = useState<PageMetadata | null>(
+    initialComposition?.metadata ?? null,
+  );
+  const [slots, setSlots] = useState<Record<string, CompositionSectionRef[]>>(
+    initialComposition?.slots ?? {},
+  );
+  const [slotDefs, setSlotDefs] = useState<CompositionSlotDef[]>(
+    initialComposition?.slotDefs ?? [],
+  );
+  const [library, setLibrary] = useState<CompositionLibraryEntry[]>(
+    initialComposition?.library ?? [],
+  );
   const [availableLocales, setAvailableLocales] = useState<ReadonlyArray<string>>(
-    initialAvailableLocales ?? [],
+    initialComposition?.availableLocales ?? initialAvailableLocales ?? [],
   );
 
   // history stacks. Capped so a long session doesn't leak memory — 50 deep
@@ -637,7 +667,11 @@ export function EditProvider({
 
   // Initial load: only once per provider lifetime. Subsequent reloads go
   // through refreshComposition on mutation conflicts or explicit refresh.
-  const initialLoadRef = useRef(false);
+  // T1-2 — when initialComposition is provided by the server (the common
+  // case after EditChromeMount prefetch), skip the client-side fetch
+  // entirely. The provider state is already correct from props; refetching
+  // would just produce the identical payload after a 100ms+ round-trip.
+  const initialLoadRef = useRef(initialComposition !== null);
   const lastLoadedLocaleRef = useRef<string>(locale);
   useEffect(() => {
     if (initialLoadRef.current) return;

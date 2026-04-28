@@ -61,6 +61,15 @@ interface EditShellProps {
    *  composition load round-trip. EditProvider keeps a local state copy
    *  that the composition response refreshes when it lands. */
   availableLocales?: ReadonlyArray<string>;
+  /**
+   * T1-2 — server-prefetched composition snapshot. EditChromeMount loads
+   * this server-side when the editor mounts engaged so the EditProvider
+   * seeds its state from real data instead of an empty initial value.
+   * Without this seed the navigator, canvas, and publish drawer all flash
+   * "0 sections" until the client-side fetch round-trips, which the audit
+   * called out as the biggest first-paint trust issue.
+   */
+  initialComposition?: import("@/lib/site-admin/edit-mode/composition-actions").CompositionData | null;
   children?: React.ReactNode;
 }
 
@@ -69,6 +78,7 @@ export function EditShell({
   locale,
   pageSlug,
   availableLocales,
+  initialComposition,
   children,
 }: EditShellProps) {
   return (
@@ -77,6 +87,7 @@ export function EditShell({
       locale={locale}
       pageSlug={pageSlug}
       initialAvailableLocales={availableLocales}
+      initialComposition={initialComposition}
     >
       <EditShellInner>{children}</EditShellInner>
     </EditProvider>
