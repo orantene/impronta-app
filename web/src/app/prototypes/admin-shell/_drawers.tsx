@@ -17,6 +17,10 @@ import {
   PAYMENT_STATUS_META,
   PAYMENT_SUMMARIES,
   WORKSPACE_PAYMENTS,
+  NOTIFICATIONS,
+  RICH_INQUIRIES,
+  getRichInquiry,
+  INQUIRY_STAGE_META,
   ROLE_META,
   TALENT_STATE_LABEL,
   TALENT_STATE_TONE,
@@ -31,6 +35,7 @@ import {
   meetsRole,
   useProto,
   type DrawerId,
+  type NotificationItem,
   type Plan,
   type Role,
   type PayoutReceiver,
@@ -221,6 +226,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <NewInquiryDrawer />;
     case "new-booking":
       return <NewBookingDrawer />;
+    case "day-detail":
+      return <DayDetailDrawer />;
     case "client-profile":
       return <ClientProfileDrawer />;
     case "today-pulse":
@@ -2322,6 +2329,177 @@ function NewInquiryDrawer() {
   );
 }
 
+// ─── Day detail ──────────────────────────────────────────────────────
+// Opened when clicking a calendar day cell. Shows all inquiries/bookings
+// scheduled on that date so the coordinator can drill in without leaving
+// the calendar view.
+function DayDetailDrawer() {
+  const { state, closeDrawer, openDrawer } = useProto();
+  const dateStr: string = (state.drawer.payload as { date?: string })?.date ?? "";
+
+  // Parse "YYYY-MM-DD" → human-readable label and month index
+  const parts = dateStr.split("-");
+  const displayLabel = dateStr
+    ? new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2])).toLocaleDateString(
+        "en-US", { weekday: "long", month: "long", day: "numeric" }
+      )
+    : "Selected day";
+
+  const displayMonth = dateStr ? parseInt(parts[1]) - 1 : -1;
+  const displayDay   = dateStr ? parseInt(parts[2]) : -1;
+
+  // Match RICH_INQUIRIES whose date spans this calendar day.
+  const MONTH_ABBR: Record<string, number> = {
+    Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
+  };
+  const dayInquiries = RICH_INQUIRIES.filter((inq) => {
+    if (!inq.date) return false;
+    const s = inq.date.replace(/^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat),?\s*/, "").trim();
+    const rangeM = s.match(/^([A-Z][a-z]{2})\s+(\d+)[–\-](\d+)/);
+    if (rangeM) {
+      if (MONTH_ABBR[rangeM[1]] !== displayMonth) return false;
+      return displayDay >= parseInt(rangeM[2]) && displayDay <= parseInt(rangeM[3]);
+    }
+    const singleM = s.match(/^([A-Z][a-z]{2})\s+(\d+)/);
+    return !!singleM && MONTH_ABBR[singleM[1]] === displayMonth && parseInt(singleM[2]) === displayDay;
+  });
+
+  const stageMeta = INQUIRY_STAGE_META;
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title={displayLabel}
+      description={
+        dayInquiries.length === 0
+          ? "No bookings or inquiries on this day."
+          : `${dayInquiries.length} ${dayInquiries.length === 1 ? "inquiry" : "inquiries"} scheduled.`
+      }
+      footer={
+        <>
+          <SecondaryButton onClick={() => openDrawer("new-booking")}>New booking</SecondaryButton>
+          <GhostButton onClick={closeDrawer}>Close</GhostButton>
+        </>
+      }
+    >
+      {dayInquiries.length === 0 ? (
+        <div
+          style={{
+            padding: "32px 16px",
+            textAlign: "center",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.inkMuted,
+          }}
+        >
+          Nothing scheduled for this day.
+          <br />
+          <button
+            type="button"
+            onClick={() => openDrawer("new-booking")}
+            style={{
+              marginTop: 12,
+              padding: "8px 16px",
+              background: COLORS.ink,
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Log a booking
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {dayInquiries.map((inq) => {
+            const sm = stageMeta[inq.stage];
+            return (
+              <button
+                key={inq.id}
+                type="button"
+                onClick={() => openDrawer("inquiry-workspace", { inquiryId: inq.id })}
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "flex-start",
+                  padding: "14px 16px",
+                  background: "#fff",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  textAlign: "left",
+                  transition: "border-color .12s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
+              >
+                <Avatar
+                  initials={inq.clientName.slice(0, 2).toUpperCase()}
+                  hashSeed={inq.clientName}
+                  size={36}
+                  tone="auto"
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+                      {inq.clientName}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        padding: "1px 7px",
+                        borderRadius: 999,
+                        background:
+                          sm.tone === "green" ? "rgba(46,125,91,0.1)"
+                          : sm.tone === "amber" ? "rgba(184,134,11,0.1)"
+                          : sm.tone === "red"   ? "rgba(192,57,43,0.08)"
+                          : "rgba(11,11,13,0.06)",
+                        color:
+                          sm.tone === "green" ? COLORS.green
+                          : sm.tone === "amber" ? COLORS.amber
+                          : sm.tone === "red"   ? "#c0392b"
+                          : COLORS.ink,
+                      }}
+                    >
+                      {sm.label}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginTop: 3 }}>
+                    {inq.brief}
+                  </div>
+                  {inq.location && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11.5, color: COLORS.inkDim }}>
+                      <Icon name="map-pin" size={11} stroke={1.7} color={COLORS.inkDim} />
+                      {inq.location}
+                    </div>
+                  )}
+                  {inq.requirementGroups.length > 0 && (
+                    <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {inq.requirementGroups.map((rg) => (
+                        <span key={rg.id} style={{ fontSize: 11, color: COLORS.inkMuted, background: COLORS.surfaceAlt, padding: "2px 8px", borderRadius: 5 }}>
+                          {rg.approved}/{rg.needed} {rg.role}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </DrawerShell>
+  );
+}
+
 function NewBookingDrawer() {
   const { closeDrawer } = useProto();
   const onSave = useSaveAndClose("Booking created");
@@ -2651,33 +2829,28 @@ function PipelineFilterDrawer({ filter }: { filter: "drafts" | "awaiting" | "con
 
 function NotificationsDrawer() {
   const { closeDrawer, openDrawer } = useProto();
-  const [filter, setFilter] = useState<"all" | "unread" | "mentions">("all");
-  // Mock list — in production reads from the events/notifications view.
-  // Wave 2 added a NotificationsPrefsDrawer; this drawer now links to
-  // it from the toolbar so users can adjust what reaches them.
-  const items: {
-    id: string;
-    icon: "mail" | "user" | "calendar" | "team";
-    title: string;
-    sub: string;
-    when: string;
-    drawer: DrawerId;
-    payload?: { id?: string };
-    unread?: boolean;
-    mention?: boolean;
-  }[] = [
-    { id: "n1", icon: "mail", title: "Vogue Italia replied to your offer", sub: "“Love it. Can we lock dates?”", when: "22m ago", drawer: "inquiry-peek", payload: { id: "iq1" }, unread: true, mention: true },
-    { id: "n2", icon: "user", title: "Lina Park submitted profile changes", sub: "Awaiting your approval.", when: "1h ago", drawer: "talent-profile", payload: { id: "t4" }, unread: true },
-    { id: "n3", icon: "calendar", title: "Bvlgari booking starts Thursday", sub: "Kai Lin · €8,200", when: "3h ago", drawer: "inquiry-peek", payload: { id: "iq6" } },
-    { id: "n4", icon: "team", title: "Andrés Lopez accepted invite", sub: "Now an editor on your team.", when: "1d ago", drawer: "team" },
-  ];
+  const [filter, setFilter] = useState<"all" | "unread" | "action">("all");
+
+  const KIND_ICON: Record<NotificationItem["kind"], "mail" | "user" | "calendar" | "credit" | "check" | "bolt" | "bell"> = {
+    message:  "mail",
+    offer:    "bolt",
+    booking:  "calendar",
+    payment:  "credit",
+    approval: "check",
+    system:   "bell",
+    profile:  "user",
+  };
+
+  const ACTION_KINDS: NotificationItem["kind"][] = ["message", "offer", "approval", "profile"];
+
+  const items = NOTIFICATIONS.filter((n) => n.surface === "workspace");
   const filtered = items.filter((n) => {
-    if (filter === "unread") return n.unread;
-    if (filter === "mentions") return n.mention;
+    if (filter === "unread") return !n.read;
+    if (filter === "action") return ACTION_KINDS.includes(n.kind) && !n.read;
     return true;
   });
-  const unreadCount = items.filter((n) => n.unread).length;
-  const mentionCount = items.filter((n) => n.mention).length;
+  const unreadCount = items.filter((n) => !n.read).length;
+  const actionCount = items.filter((n) => ACTION_KINDS.includes(n.kind) && !n.read).length;
 
   return (
     <DrawerShell
@@ -2700,9 +2873,9 @@ function NotificationsDrawer() {
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
         {(
           [
-            { id: "all", label: `All · ${items.length}` },
+            { id: "all",    label: `All · ${items.length}` },
             { id: "unread", label: `Unread · ${unreadCount}` },
-            { id: "mentions", label: `Mentions · ${mentionCount}` },
+            { id: "action", label: `Needs action · ${actionCount}` },
           ] as const
         ).map((f) => {
           const active = filter === f.id;
@@ -2739,16 +2912,16 @@ function NotificationsDrawer() {
               color: COLORS.inkMuted,
             }}
           >
-            Nothing here. Switch filter to see other items.
+            {filter === "action" ? "No items need your attention right now." : "Nothing here. Switch filter to see other items."}
           </div>
         )}
         {filtered.map((n) => (
           <button
             key={n.id}
-            onClick={() => openDrawer(n.drawer, n.payload)}
+            onClick={() => openDrawer(n.targetDrawer, n.targetPayload)}
             style={{
-              background: n.unread ? "#fff" : "rgba(11,11,13,0.015)",
-              border: `1px solid ${COLORS.borderSoft}`,
+              background: !n.read ? "#fff" : "rgba(11,11,13,0.015)",
+              border: `1px solid ${!n.read ? COLORS.borderSoft : COLORS.borderSoft}`,
               borderRadius: 10,
               padding: 12,
               cursor: "pointer",
@@ -2760,13 +2933,11 @@ function NotificationsDrawer() {
               position: "relative",
             }}
           >
-            <IconChip size={28}>
-              <Icon name={n.icon} size={13} stroke={1.7} />
-            </IconChip>
+            <Avatar initials={n.actorInitials} size={28} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{n.title}</span>
-                {n.unread && (
+                {!n.read && (
                   <span
                     aria-label="Unread"
                     style={{
@@ -2780,9 +2951,26 @@ function NotificationsDrawer() {
                 )}
               </div>
               <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>
-                {n.sub}
+                {n.body}
               </div>
-              <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 4 }}>{n.when}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5 }}>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: COLORS.inkDim,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Icon name={KIND_ICON[n.kind]} size={10} stroke={1.8} />
+                  {n.kind}
+                </span>
+                <span style={{ fontSize: 11, color: COLORS.inkDim }}>{n.ts}</span>
+              </div>
             </div>
           </button>
         ))}
@@ -3941,305 +4129,382 @@ function defaultUnlocks(plan: Plan): string[] {
 // decision, not buying features — this layout reflects that.
 // ════════════════════════════════════════════════════════════════════
 
+// ─── Plan tier visual config ─────────────────────────────────────────
+const PLAN_TIER_STYLE: Record<Plan, {
+  accent: string;
+  accentSoft: string;
+  accentText: string;
+  popular?: boolean;
+}> = {
+  free:    { accent: "#94a3b8",  accentSoft: "rgba(148,163,184,0.12)", accentText: "#475569" },
+  studio:  { accent: "#3b82f6",  accentSoft: "rgba(59,130,246,0.08)",  accentText: "#1d4ed8" },
+  agency:  { accent: "#0f4f3e",  accentSoft: "rgba(15,79,62,0.08)",    accentText: COLORS.accentDeep, popular: true },
+  network: { accent: "#7c3aed",  accentSoft: "rgba(124,58,237,0.08)", accentText: "#5b21b6" },
+};
+
 function PlanCompareDrawer() {
   const { state, closeDrawer, openUpgrade, toast } = useProto();
   const open = state.drawer.drawerId === "plan-compare";
   const currentPlan = state.plan;
-  // Tight grid: dimension column is fixed-narrow, plans share equally.
-  // Capped table width keeps cells readable at any viewport.
-  const gridTemplate = `180px repeat(${PLANS.length}, minmax(0, 1fr))`;
+
+  if (!open) return null;
 
   return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      width={920}
-      defaultSize="half"
-      title="Compare plans"
-      description="Find the dimension you're outgrowing — that's your next upgrade."
-      footer={
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={closeDrawer}
+        aria-hidden
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(11,11,13,0.52)",
+          zIndex: 800,
+          backdropFilter: "blur(2px)",
+          animation: "tulala-modal-in .18s ease",
+        }}
+      />
+
+      {/* Modal panel */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Compare plans"
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 801,
+          width: "min(96vw, 1080px)",
+          maxHeight: "88dvh",
+          background: "#fff",
+          borderRadius: 20,
+          boxShadow: "0 40px 100px -20px rgba(11,11,13,0.45), 0 0 0 1px rgba(11,11,13,0.06)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          animation: "tulala-plans-up .22s cubic-bezier(.34,1.4,.64,1)",
+        }}
+      >
+        <style>{`
+          @keyframes tulala-plans-up {
+            from { opacity: 0; transform: translate(-50%, calc(-50% + 20px)); }
+            to   { opacity: 1; transform: translate(-50%, -50%); }
+          }
+          @keyframes tulala-modal-in {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+          }
+        `}</style>
+
+        {/* ── Header ── */}
         <div
-          data-tulala-plan-compare-footer
           style={{
-            display: "grid",
-            gridTemplateColumns: gridTemplate,
-            gap: 0,
-            width: "100%",
-            alignItems: "center",
-            maxWidth: 1040,
-            margin: "0 auto",
+            padding: "28px 32px 20px",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 20,
+            background: "linear-gradient(180deg, rgba(11,11,13,0.02) 0%, #fff 100%)",
+            flexShrink: 0,
           }}
         >
-          <div style={{ fontSize: 11, color: COLORS.inkMuted }}>USD · ex tax</div>
-          {PLANS.map((plan) => {
-            const isCurrent = plan === currentPlan;
-            const isLower = PLAN_META[plan].rank < PLAN_META[currentPlan].rank;
-            return (
-              <div key={plan} style={{ padding: "0 4px" }}>
-                {isCurrent ? (
-                  <SecondaryButton size="sm" onClick={closeDrawer}>Your plan</SecondaryButton>
-                ) : isLower ? (
-                  <GhostButton
-                    size="sm"
-                    onClick={() =>
-                      toast(
-                        `Downgrade to ${PLAN_META[plan].label} runs through support — we'll review your roster and active inquiries first.`,
-                      )
-                    }
-                  >
-                    Downgrade
-                  </GhostButton>
-                ) : (
-                  <PrimaryButton
-                    size="sm"
-                    onClick={() => {
-                      closeDrawer();
-                      openUpgrade({
-                        feature: `Upgrade to ${PLAN_META[plan].label}`,
-                        why: PLAN_LADDER_HEADER[plan].idealFor,
-                        requiredPlan: plan,
-                      });
-                    }}
-                  >
-                    Upgrade
-                  </PrimaryButton>
-                )}
-              </div>
-            );
-          })}
+          <div>
+            <h2 style={{ fontFamily: FONTS.display, fontSize: 26, fontWeight: 500, letterSpacing: -0.4, color: COLORS.ink, margin: 0, lineHeight: 1.2 }}>
+              Choose your plan
+            </h2>
+            <p style={{ fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.inkMuted, margin: "6px 0 0", lineHeight: 1.5 }}>
+              Find the right fit for where your agency is headed. All plans include core messaging and the public roster.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={closeDrawer}
+            aria-label="Close"
+            style={{
+              width: 36, height: 36, borderRadius: 10,
+              border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff", color: COLORS.inkMuted,
+              cursor: "pointer", display: "inline-flex",
+              alignItems: "center", justifyContent: "center",
+              flexShrink: 0, transition: "border-color .12s, color .12s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }}
+          >
+            <Icon name="x" size={15} stroke={1.8} />
+          </button>
         </div>
-      }
-    >
-      {/* Cap the table width so cells stay readable on full-screen drawers
-          (was sprawling across 1700px+ viewports). */}
-      <div style={{ maxWidth: 1040, margin: "0 auto" }}>
-        {/* Sticky header row — drops the verbose intro and "ideal for"
-            subtitle. Each plan column is just price + label. The whole
-            "ideal for" / current-plan affordance moves into a hover tip
-            on the plan label itself. */}
-        <div
-          data-tulala-plan-compare-header
-          style={{
-            position: "sticky",
-            top: -20,
-            zIndex: 2,
-            margin: "-20px -22px 10px",
-            padding: "20px 22px 0",
-            background: COLORS.surface,
-          }}
-        >
+
+        {/* Scrollable body */}
+        <div style={{ overflowY: "auto", flex: 1 }}>
+
+          {/* ── Plan cards ── */}
           <div
-            data-tulala-plan-compare-grid
             style={{
               display: "grid",
-              gridTemplateColumns: gridTemplate,
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 10,
-              overflow: "hidden",
-              maxWidth: 1040,
-              margin: "0 auto",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 12,
+              padding: "24px 28px 20px",
             }}
           >
-            <div /> {/* leftmost empty cell — title goes nowhere; rows speak for themselves */}
             {PLANS.map((plan) => {
               const meta = PLAN_META[plan];
               const header = PLAN_LADDER_HEADER[plan];
+              const tier = PLAN_TIER_STYLE[plan];
               const isCurrent = plan === currentPlan;
+              const isLower = meta.rank < PLAN_META[currentPlan].rank;
               return (
                 <div
                   key={plan}
                   style={{
-                    padding: "12px 14px",
-                    borderLeft: `1px solid ${COLORS.borderSoft}`,
-                    // Quieter "current plan" tint — was the heavier
-                    // accentSoft tone, which read as branded too forest-y
-                    // throughout. A neutral 3% ink wash with a thin
-                    // accent top-bar is enough signal.
-                    background: isCurrent ? "rgba(11,11,13,0.03)" : "#fff",
+                    background: isCurrent ? tier.accentSoft : "#fff",
+                    border: `1.5px solid ${isCurrent ? tier.accent : COLORS.borderSoft}`,
+                    borderRadius: 14,
+                    padding: "20px 18px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0,
                     position: "relative",
+                    transition: "border-color .15s, box-shadow .15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isCurrent) {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = tier.accent;
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 20px ${tier.accentSoft}`;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isCurrent) {
+                      (e.currentTarget as HTMLDivElement).style.borderColor = COLORS.borderSoft;
+                      (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                    }
                   }}
                 >
-                  {isCurrent && (
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: 2,
-                        background: COLORS.accent,
-                      }}
-                    />
-                  )}
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      letterSpacing: 0.4,
-                      color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {isCurrent ? "Current" : meta.label}
-                    {/* Info icon → "ideal for" tooltip */}
-                    <Popover content={header.idealFor}>
-                      <button
-                        type="button"
-                        aria-label={`What ${meta.label} is for`}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: 14,
-                          height: 14,
-                          borderRadius: "50%",
-                          background: isCurrent ? "rgba(15,79,62,0.15)" : "rgba(11,11,13,0.06)",
-                          color: isCurrent ? COLORS.accentDeep : COLORS.inkMuted,
-                          fontSize: 9,
-                          fontWeight: 700,
-                          fontStyle: "italic",
-                          fontFamily: "Georgia, serif",
-                          cursor: "help",
-                          border: "none",
-                          padding: 0,
-                        }}
-                      >
-                        i
-                      </button>
-                    </Popover>
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: FONTS.display,
-                      fontSize: 20,
-                      fontWeight: 600,
-                      letterSpacing: -0.4,
-                      color: isCurrent ? COLORS.accentDeep : COLORS.ink,
-                      marginTop: 2,
-                      lineHeight: 1.1,
-                      fontVariantNumeric: "tabular-nums",
-                    }}
-                  >
-                    {header.price}
-                  </div>
-                  {!isCurrent && (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 500,
-                        color: COLORS.inkMuted,
-                        marginTop: 2,
-                      }}
-                    >
-                      {meta.label}
+                  {/* Top accent stripe */}
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: tier.accent, borderRadius: "14px 14px 0 0" }} />
+
+                  {/* Popular badge */}
+                  {tier.popular && !isCurrent && (
+                    <div style={{
+                      position: "absolute", top: -1, right: 14,
+                      background: tier.accent, color: "#fff",
+                      fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 700,
+                      letterSpacing: 0.6, textTransform: "uppercase",
+                      padding: "3px 8px", borderRadius: "0 0 7px 7px",
+                    }}>
+                      Most popular
                     </div>
+                  )}
+
+                  {/* Current plan indicator */}
+                  {isCurrent && (
+                    <div style={{
+                      position: "absolute", top: -1, right: 14,
+                      background: tier.accent, color: "#fff",
+                      fontFamily: FONTS.body, fontSize: 9.5, fontWeight: 700,
+                      letterSpacing: 0.6, textTransform: "uppercase",
+                      padding: "3px 8px", borderRadius: "0 0 7px 7px",
+                    }}>
+                      Current plan
+                    </div>
+                  )}
+
+                  {/* Plan name */}
+                  <div style={{
+                    fontFamily: FONTS.body, fontSize: 11, fontWeight: 700,
+                    letterSpacing: 0.8, textTransform: "uppercase",
+                    color: tier.accentText, marginTop: 12, marginBottom: 8,
+                  }}>
+                    {meta.label}
+                  </div>
+
+                  {/* Price */}
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 10 }}>
+                    <span style={{
+                      fontFamily: FONTS.display, fontSize: 32, fontWeight: 600,
+                      letterSpacing: -1, color: isCurrent ? tier.accentText : COLORS.ink,
+                      lineHeight: 1,
+                    }}>
+                      {header.price.replace("/mo", "")}
+                    </span>
+                    {header.price.includes("/mo") && (
+                      <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+                        /month
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Ideal for tagline */}
+                  <p style={{
+                    fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted,
+                    lineHeight: 1.5, margin: "0 0 16px", flexGrow: 1,
+                  }}>
+                    {header.idealFor}
+                  </p>
+
+                  {/* CTA button */}
+                  {isCurrent ? (
+                    <button type="button" disabled style={{
+                      width: "100%", padding: "9px 0",
+                      background: tier.accentSoft, color: tier.accentText,
+                      border: `1.5px solid ${tier.accent}`,
+                      borderRadius: 9, fontFamily: FONTS.body,
+                      fontSize: 12.5, fontWeight: 600, cursor: "default",
+                    }}>
+                      ✓ Your plan
+                    </button>
+                  ) : isLower ? (
+                    <button
+                      type="button"
+                      onClick={() => toast(`Downgrade to ${meta.label} runs through support — we'll review your roster first.`)}
+                      style={{
+                        width: "100%", padding: "9px 0",
+                        background: "transparent", color: COLORS.inkMuted,
+                        border: `1px solid ${COLORS.border}`,
+                        borderRadius: 9, fontFamily: FONTS.body,
+                        fontSize: 12.5, fontWeight: 500, cursor: "pointer",
+                        transition: "background .12s",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      Downgrade
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeDrawer();
+                        openUpgrade({ feature: `Upgrade to ${meta.label}`, why: header.idealFor, requiredPlan: plan });
+                      }}
+                      style={{
+                        width: "100%", padding: "9px 0",
+                        background: tier.accent, color: "#fff",
+                        border: "none",
+                        borderRadius: 9, fontFamily: FONTS.body,
+                        fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                        transition: "opacity .12s, transform .1s",
+                        boxShadow: `0 2px 12px ${tier.accentSoft}`,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.88"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
+                      onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.98)"; }}
+                      onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                    >
+                      Upgrade to {meta.label} →
+                    </button>
                   )}
                 </div>
               );
             })}
           </div>
-        </div>
 
-        {/* Comparison grid — dimension column is JUST the name + info icon.
-            The "why" explainer (was inline 2-line subtitle) is now a hover
-            tooltip on the icon. Cells are tight: 10px vertical padding. */}
-        <div
-          data-tulala-plan-compare-body
-          style={{
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 10,
-            overflow: "hidden",
-            fontFamily: FONTS.body,
-          }}
-        >
-          {PLAN_LADDER.map((row, idx) => (
-            <div
-              key={row.dimension}
-              data-tulala-plan-compare-grid
-              style={{
+          {/* ── Feature comparison table ── */}
+          <div style={{ padding: "0 28px 28px" }}>
+            <div style={{ fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 700, letterSpacing: 0.8, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 10 }}>
+              Feature breakdown
+            </div>
+            <div style={{ border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12, overflow: "hidden" }}>
+              {/* Column headers row */}
+              <div style={{
                 display: "grid",
-                gridTemplateColumns: gridTemplate,
-                borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
-                alignItems: "stretch",
-              }}
-            >
-              <div
-                style={{
-                  padding: "10px 14px",
-                  background: "rgba(11,11,13,0.02)",
-                  borderRight: `1px solid ${COLORS.borderSoft}`,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <span
+                gridTemplateColumns: `160px repeat(4, 1fr)`,
+                background: "rgba(11,11,13,0.02)",
+                borderBottom: `1px solid ${COLORS.borderSoft}`,
+              }}>
+                <div style={{ padding: "10px 14px" }} />
+                {PLANS.map((plan) => {
+                  const tier = PLAN_TIER_STYLE[plan];
+                  const isCurrent = plan === currentPlan;
+                  return (
+                    <div key={plan} style={{
+                      padding: "10px 14px",
+                      borderLeft: `1px solid ${COLORS.borderSoft}`,
+                      background: isCurrent ? tier.accentSoft : "transparent",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1,
+                    }}>
+                      <span style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: tier.accentText }}>
+                        {PLAN_META[plan].label}
+                      </span>
+                      <span style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 600, letterSpacing: -0.3, color: isCurrent ? tier.accentText : COLORS.ink }}>
+                        {PLAN_LADDER_HEADER[plan].price}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Rows */}
+              {PLAN_LADDER.map((row, idx) => (
+                <div
+                  key={row.dimension}
                   style={{
-                    fontSize: 12.5,
-                    fontWeight: 600,
-                    color: COLORS.ink,
-                    letterSpacing: -0.05,
+                    display: "grid",
+                    gridTemplateColumns: `160px repeat(4, 1fr)`,
+                    borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
+                    background: idx % 2 === 0 ? "#fff" : "rgba(11,11,13,0.01)",
                   }}
                 >
-                  {row.dimension}
-                </span>
-                <Popover content={row.why}>
-                  <button
-                    type="button"
-                    aria-label={`Why ${row.dimension} matters`}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 14,
-                      height: 14,
-                      borderRadius: "50%",
-                      background: "rgba(11,11,13,0.06)",
-                      color: COLORS.inkMuted,
-                      fontSize: 9,
-                      fontWeight: 700,
-                      fontStyle: "italic",
-                      fontFamily: "Georgia, serif",
-                      cursor: "help",
-                      border: "none",
-                      padding: 0,
-                    }}
-                  >
-                    i
-                  </button>
-                </Popover>
-              </div>
-              {PLANS.map((plan) => {
-                const isCurrent = plan === currentPlan;
-                return (
-                  <div
-                    key={plan}
-                    style={{
-                      padding: "10px 14px",
-                      fontSize: 12.5,
-                      fontWeight: isCurrent ? 500 : 400,
-                      color: COLORS.ink,
-                      borderLeft: `1px solid ${COLORS.borderSoft}`,
-                      // Same neutral wash as the column header above —
-                      // less branded than the previous accentSoft tint.
-                      background: isCurrent ? "rgba(11,11,13,0.025)" : "transparent",
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {row.values[plan]}
+                  {/* Dimension label */}
+                  <div style={{
+                    padding: "11px 14px",
+                    background: idx % 2 === 0 ? "rgba(11,11,13,0.015)" : "rgba(11,11,13,0.02)",
+                    borderRight: `1px solid ${COLORS.borderSoft}`,
+                    display: "flex", alignItems: "center", gap: 6,
+                  }}>
+                    <span style={{ fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, color: COLORS.ink, lineHeight: 1.3 }}>
+                      {row.dimension}
+                    </span>
+                    <Popover content={row.why}>
+                      <button type="button" aria-label={`Why ${row.dimension} matters`}
+                        style={{
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          width: 14, height: 14, borderRadius: "50%",
+                          background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+                          fontSize: 9, fontWeight: 700, fontStyle: "italic",
+                          fontFamily: "Georgia, serif", cursor: "help", border: "none", padding: 0,
+                        }}
+                      >i</button>
+                    </Popover>
                   </div>
-                );
-              })}
+
+                  {/* Plan values */}
+                  {PLANS.map((plan) => {
+                    const tier = PLAN_TIER_STYLE[plan];
+                    const isCurrent = plan === currentPlan;
+                    const val = row.values[plan];
+                    const isDash = val === "—";
+                    return (
+                      <div key={plan} style={{
+                        padding: "11px 14px",
+                        fontSize: 12,
+                        fontFamily: FONTS.body,
+                        fontWeight: isCurrent ? 500 : 400,
+                        color: isDash ? COLORS.inkDim : isCurrent ? tier.accentText : COLORS.ink,
+                        borderLeft: `1px solid ${COLORS.borderSoft}`,
+                        background: isCurrent ? `${tier.accentSoft}` : "transparent",
+                        lineHeight: 1.4,
+                      }}>
+                        {val}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-          ))}
+            {/* Tax note */}
+            <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 10, textAlign: "right" }}>
+              USD · ex tax · billed monthly or annually (20% off)
+            </div>
+          </div>
         </div>
       </div>
-    </DrawerShell>
+    </>
   );
 }
 

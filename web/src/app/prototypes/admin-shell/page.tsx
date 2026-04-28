@@ -27,18 +27,37 @@
  * Dev-handoff documentation lives at `web/docs/admin-redesign/dev-handoff.md`.
  */
 
-import { Suspense, useEffect, useState } from "react";
+import { Component, Suspense, useEffect, useState, type ReactNode } from "react";
 import { ProtoProvider, useProto, COLORS, FONTS } from "./_state";
-import { ToastHost, BackToTop } from "./_primitives";
+import { ToastHost, BackToTop, OfflineBanner, ShortcutsModal } from "./_primitives";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./_pages";
 import { DrawerRoot, UpgradeModal } from "./_drawers";
 import { CommandPalette } from "./_palette";
+import { MOCK_CONVERSATIONS } from "./_talent";
 
 // ─── Toast bridge (reads from context, passes to dumb host) ──────────
 
 function ToastBridge() {
   const { state, dismissToast } = useProto();
   return <ToastHost toasts={state.toasts} onDismiss={dismissToast} />;
+}
+
+/**
+ * Browser tab title reflects total unread count. e.g. "(3) Tulala" so
+ * the talent sees at a glance from another tab that something needs
+ * them. Reads talent-surface MOCK_CONVERSATIONS for the count.
+ */
+function TabTitleBridge() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const unread = MOCK_CONVERSATIONS.reduce((s, c) => s + (c.unreadCount || 0), 0);
+    const base = "Tulala";
+    document.title = unread > 0 ? `(${unread}) ${base}` : base;
+    return () => {
+      document.title = base;
+    };
+  }, []);
+  return null;
 }
 
 /**
@@ -69,22 +88,137 @@ function DevOnlyControlBar({ show }: { show: boolean }) {
 }
 
 
+// ─── Error boundary (#26) ─────────────────────────────────────────────
+// Catches render-time exceptions and shows a friendly fallback page.
+
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { caught: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { caught: null };
+  }
+  static getDerivedStateFromError(err: Error) {
+    return { caught: err };
+  }
+  render() {
+    if (this.state.caught) {
+      return (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "100vh",
+            gap: 16,
+            fontFamily: "system-ui, sans-serif",
+            padding: 32,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 40 }}>⚠️</div>
+          <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Something broke</h1>
+          <p style={{ fontSize: 14, color: "rgba(11,11,13,0.6)", margin: 0 }}>
+            {this.state.caught.message || "An unexpected error occurred."}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 8,
+              padding: "10px 22px",
+              background: "#0F4F3E",
+              color: "#fff",
+              border: "none",
+              borderRadius: 10,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Reload
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Page entry ──────────────────────────────────────────────────────
 
 export default function AdminShellPrototypePage() {
   return (
-    <Suspense fallback={null}>
-      <ProtoProvider>
-        <PrototypeRoot />
-      </ProtoProvider>
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={null}>
+        <ProtoProvider>
+          <PrototypeRoot />
+        </ProtoProvider>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
 function PrototypeRoot() {
-  const showDevBar = useDevControlBar();
+  const defaultShow = useDevControlBar();
+  const [showDevBar, setShowDevBar] = useState(defaultShow);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+
+  // Sync once the URL-param check resolves (runs after mount)
+  useEffect(() => { setShowDevBar(defaultShow); }, [defaultShow]);
+
+  // ⌘? / ? opens the keyboard shortcuts modal (#18)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inInput = target?.matches("input, textarea, select, [contenteditable]");
+      if (e.key === "?" && !inInput) setShortcutsOpen(true);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   return (
-    <ProtoProviderInnerOriginal showDevBar={showDevBar} />
+    <>
+      <ProtoProviderInnerOriginal showDevBar={showDevBar} />
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      {/* Floating toggle — always visible so users can reveal/hide the
+          prototype control bar without touching the URL. */}
+      <button
+        type="button"
+        title={showDevBar ? "Hide prototype controls" : "Show prototype controls"}
+        onClick={() => setShowDevBar((v) => !v)}
+        style={{
+          position: "fixed",
+          bottom: 18,
+          left: 18,
+          zIndex: 9999,
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: showDevBar ? "#1a1a1f" : "rgba(11,11,13,0.85)",
+          border: "1.5px solid rgba(255,255,255,0.14)",
+          color: "#fff",
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backdropFilter: "blur(8px)",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.28)",
+          transition: "background .15s, transform .1s",
+          fontFamily: "system-ui, sans-serif",
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: -0.3,
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.08)")}
+        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+      >
+        ⚙
+      </button>
+    </>
   );
 }
 
@@ -234,6 +368,43 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-app-topbar-nav] {
               display: none !important;
             }
+            /* Workspace sidebar shell — collapse 232px+1fr grid to single
+               column on mobile and hide the left rail. The bottom tab
+               bar replaces nav, same as topbar shell. */
+            .tulala-shell [data-tulala-workspace-grid] {
+              grid-template-columns: 1fr !important;
+            }
+            .tulala-shell [data-tulala-app-sidebar] {
+              display: none !important;
+            }
+            /* Workspace topbar — also drop nav-style chips inside. */
+            .tulala-shell [data-tulala-workspace-topbar] [data-tulala-app-topbar-nav] {
+              display: none !important;
+            }
+          }
+          /* Page-transition fade-up — used by both talent + workspace
+             routers. Lives at root scope so the keyframe is available
+             everywhere inside .tulala-shell. */
+          @keyframes tulala-page-fade {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [data-tulala-talent-page-anim],
+            [data-tulala-workspace-page-anim] {
+              animation: none !important;
+            }
+          }
+          @media (max-width: 720px) {
+            /* placeholder so the brace count remains correct after the
+               page-fade rules above. The next rule continues here. */
+            .tulala-shell [data-tulala-mobile-placeholder] { display: none; }
+            /* Workspace surface main padding tightens on mobile so cards
+               aren't squeezed by 28px of side gutters. */
+            .tulala-shell [data-tulala-workspace-grid] > main,
+            .tulala-shell [data-tulala-workspace-grid] [data-tulala-surface-main] {
+              padding: 14px 14px 60px !important;
+            }
             /* Show the mobile bottom tab bar */
             .tulala-shell [data-tulala-mobile-bottom-nav] {
               display: block !important;
@@ -243,9 +414,50 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-toast-host] {
               bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
             }
-            /* Pad surface main so its last item isn't hidden under the bar */
+            /* Pad surface main so its last item isn't hidden under the bar.
+               Also clamp side padding from desktop's 28px → 14px so cards
+               can use the full mobile viewport width. */
             .tulala-shell [data-tulala-surface-main] {
-              padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+              padding: 14px 14px calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+              max-width: 100% !important;
+              min-width: 0 !important;
+              box-sizing: border-box !important;
+              overflow-x: hidden !important;
+            }
+            /* Workspace topbar — hide nav chips inside (already covered by
+               data-tulala-app-topbar-nav rule above). Also: when the
+               topbar uses tenant-meta + entity-meta chips on desktop,
+               those collapse to icon-only on mobile. */
+            .tulala-shell [data-tulala-app-topbar-row] {
+              padding: 0 14px !important;
+            }
+            /* Cards / tiles wider than viewport collapse to 100%. Many
+               workspace dashboards use min-width: 280-360 on internal
+               cards which overflow at 375. */
+            .tulala-shell [data-tulala-surface-main] [style*="min-width: 280"],
+            .tulala-shell [data-tulala-surface-main] [style*="min-width: 320"],
+            .tulala-shell [data-tulala-surface-main] [style*="min-width: 360"],
+            .tulala-shell [data-tulala-surface-main] [style*="min-width: 400"] {
+              min-width: 0 !important;
+            }
+            /* Wide desktop grids (3-up, 4-up cards) collapse to 1 column.
+               Inline styles use grid-template-columns with explicit widths
+               or repeat(N, ...) — wildcard-target by setting !important. */
+            .tulala-shell [data-tulala-surface-main] [style*="grid-template-columns: repeat(3"],
+            .tulala-shell [data-tulala-surface-main] [style*="grid-template-columns: repeat(4"],
+            .tulala-shell [data-tulala-surface-main] [style*="grid-template-columns: 1fr 1fr 1fr"],
+            .tulala-shell [data-tulala-surface-main] [style*="grid-template-columns: 1fr 1fr 1fr 1fr"] {
+              grid-template-columns: 1fr !important;
+            }
+            /* 2-column grids → also 1 column at narrowest */
+            .tulala-shell [data-tulala-surface-main] [style*="grid-template-columns: 1fr 1fr"] {
+              grid-template-columns: 1fr !important;
+            }
+            /* Tables — let them scroll horizontally rather than overflow. */
+            .tulala-shell [data-tulala-surface-main] table {
+              display: block;
+              overflow-x: auto;
+              max-width: 100%;
             }
             .tulala-shell [data-tulala-app-topbar-right] {
               margin-left: auto !important;
@@ -357,8 +569,11 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               grid-template-columns: 1fr !important;
               border: none !important;
               border-radius: 0 !important;
-              height: calc(100vh - var(--proto-cbar, 50px) - 56px - 52px) !important;
-              max-height: calc(100vh - var(--proto-cbar, 50px) - 56px - 52px) !important;
+              /* 100dvh handles iOS dynamic URL bar; --proto-kb is set
+                 by a visualViewport listener so the shell shrinks when
+                 the soft keyboard opens (audit P0 — keyboard avoidance). */
+              height: calc(100dvh - var(--proto-cbar, 50px) - 56px - 52px - var(--proto-kb, 0px)) !important;
+              max-height: calc(100dvh - var(--proto-cbar, 50px) - 56px - 52px - var(--proto-kb, 0px)) !important;
               min-height: 0 !important;
             }
             .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-thread-pane],
@@ -372,6 +587,13 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
                by default — ensure thread pane spans full width when
                sidebar isn't collapsed yet via the toggle. */
             .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] {
+              grid-template-columns: 1fr !important;
+            }
+            /* Inner thread+info grid (1fr 320px desktop) collapses to a
+               single column at mobile — the info sidebar slides up as a
+               bottom sheet (position:fixed below) and shouldn't reserve
+               grid space. */
+            .tulala-shell [data-tulala-thread-grid] {
               grid-template-columns: 1fr !important;
             }
             /* Info sidebar at mobile = premium bottom sheet (not a
@@ -420,18 +642,23 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
                touch zones grown, attach popover spans full viewport
                width above the composer. */
             .tulala-shell [data-tulala-thread-pane] form input,
-            .tulala-shell [data-tulala-thread-pane] input[placeholder="Message…"] {
+            .tulala-shell [data-tulala-thread-pane] input[placeholder="Message…"],
+            .tulala-shell [data-tulala-thread-pane] textarea[placeholder="Message…"] {
               padding: 12px 0 !important;
-              font-size: 15px !important;
+              font-size: 16px !important; /* iOS won't auto-zoom on focus when ≥16 */
             }
-            /* Composer trigger buttons (attach +, smart ✨, voice 🎙️):
-               grow to 40px hit area for thumb comfort. */
+            /* Composer trigger buttons (attach +, voice 🎙️): grow to
+               40px hit area. Smart-replies ✨ toggle hides at mobile
+               per audit E4 — frees real estate, smart-replies still
+               accessible on tablet+. */
             .tulala-shell [data-tulala-thread-pane] [aria-label="Attach"],
-            .tulala-shell [data-tulala-thread-pane] [aria-label^="Hide smart"],
-            .tulala-shell [data-tulala-thread-pane] [aria-label^="Show smart"],
             .tulala-shell [data-tulala-thread-pane] [aria-label="Voice note"] {
               width: 40px !important;
               height: 40px !important;
+            }
+            .tulala-shell [data-tulala-thread-pane] [aria-label^="Hide smart"],
+            .tulala-shell [data-tulala-thread-pane] [aria-label^="Show smart"] {
+              display: none !important;
             }
             .tulala-shell [data-tulala-thread-pane] [aria-label="Send"] {
               width: 40px !important;
@@ -448,8 +675,11 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-thread-info-sidebar] > div:first-child {
               padding: 16px 18px 12px !important;
             }
-            /* Message bubbles: tighter padding at mobile, larger font
-               for readability over arm's length. */
+            /* Message bubbles: larger font for readability over arm's
+               length. Targets the rounded chat-bubble shapes used by
+               text messages (18px corners with one nub). */
+            .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 18px 18px 18px 6px"],
+            .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 18px 18px 6px 18px"],
             .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 16px 16px 4px 16px"],
             .tulala-shell [data-tulala-thread-pane] [style*="border-radius: 16px 16px 16px 4px"] {
               font-size: 14.5px !important;
@@ -471,6 +701,40 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
                (conversation rows) — NOT the header chips/filter pills. */
             .tulala-shell [data-tulala-list-pane] > div:nth-child(2) > button {
               min-height: 56px !important;
+            }
+            /* Audit P0-1 — filter chips become a horizontal scroll
+               strip on phone instead of wrapping to 2-3 rows that eat
+               list real estate. Edge-fade hints overflow. */
+            .tulala-shell [data-tulala-msg-filter-chips] {
+              flex-wrap: nowrap !important;
+              overflow-x: auto !important;
+              scroll-snap-type: x mandatory !important;
+              -webkit-overflow-scrolling: touch !important;
+              padding-bottom: 2px !important;
+              scrollbar-width: none !important;
+              mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%) !important;
+              -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 24px), transparent 100%) !important;
+            }
+            .tulala-shell [data-tulala-msg-filter-chips]::-webkit-scrollbar { display: none !important; }
+            .tulala-shell [data-tulala-msg-filter-chips] > button {
+              flex-shrink: 0 !important;
+              scroll-snap-align: start !important;
+            }
+            /* Audit P1-7 — bump conversation row typography above iOS
+               minimum (12px). Stage chip 9.5 → 10.5; preview/age 10.5/11
+               → 12; client name 13 → 14. */
+            .tulala-shell [data-tulala-conv-row-name] { font-size: 14px !important; }
+            .tulala-shell [data-tulala-conv-row-age] { font-size: 11.5px !important; }
+            .tulala-shell [data-tulala-conv-row-brief] { font-size: 12.5px !important; }
+            .tulala-shell [data-tulala-conv-row-preview] { font-size: 12px !important; }
+            .tulala-shell [data-tulala-conv-row-stage] { font-size: 10px !important; }
+            /* Audit P1-6 — trim thread header on phone. Hide the
+               in-thread search button + info-toggle (info still
+               reachable via the ⋯ menu / bottom-sheet swipe). */
+            .tulala-shell [data-tulala-thread-header] [aria-label="Search in thread"],
+            .tulala-shell [data-tulala-thread-header] [aria-label="Hide info panel"],
+            .tulala-shell [data-tulala-thread-header] [aria-label="Show info panel"] {
+              display: none !important;
             }
           }
           @keyframes tulala-sheet-up {
@@ -528,7 +792,9 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               display: none !important;
             }
             .tulala-shell [data-tulala-stat-strip] > * {
-              flex-basis: 45% !important;
+              /* Audit P1-12 — stack to 1-col on phone instead of 2+1
+                 leaving an awkward lone third item at full width. */
+              flex-basis: 100% !important;
               flex-grow: 1 !important;
             }
           }
@@ -596,24 +862,13 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
              Audit J1–J8 + section A/B/C/D/E/F/G/H/I improvements.
              Mobile-only @media rules; desktop styles untouched. */
 
-          /* Audit A2 + A7 — Mode toggle pill on mobile. The pill was
-             rendering at 38px tall in a 56px bar — too dominant. Tighten
-             button padding (vertical 6→4), shrink font slightly (12.5→
-             12), drop tablist padding 3→2 — total pill ~30px. Better
-             proportion in the bar; same touch area via tap-pad. */
+          /* Audit A2 — Mode toggle proportion at narrow widths.
+             Tighter button padding so the pill sits comfortably inside
+             the 56px identity bar at <720. Font also shrinks 12.5→12. */
           @media (max-width: 720px) {
-            .tulala-shell [data-tulala-identity-bar] [role="tablist"][aria-label="Switch between Talent and Workspace"] {
-              padding: 2px !important;
-            }
             .tulala-shell [data-tulala-identity-bar] [role="tablist"][aria-label="Switch between Talent and Workspace"] > button {
-              padding: 4px 10px !important;
+              padding: 0 10px !important;
               font-size: 12px !important;
-            }
-            .tulala-shell [data-tulala-identity-bar] [role="tablist"][aria-label="Switch between Talent and Workspace"] > span[aria-hidden] {
-              top: 2px !important;
-              bottom: 2px !important;
-              left: 2px !important;
-              width: calc(50% - 2px) !important;
             }
           }
 
@@ -656,12 +911,44 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               display: none !important;
             }
           }
+          /* Acting-as detail subline (€4.2k pending · 3 confirmed) hides
+             at narrow widths to keep the identity bar uncluttered. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-identity-bar] [data-tulala-acting-detail] {
+              display: none !important;
+            }
+          }
 
-          /* Audit E1 — Thread header overcrowded. Hide search + ⋯
-             at mobile; keep back, avatar, name+pill, info-toggle. */
+          /* Audit E1 — Thread header redesign for mobile. Hide search +
+             ⋯ (rare on phone, accessible via info panel). Trust chip
+             also hides — it's redundant in the header (lives in the
+             info sidebar). Brief truncates with ellipsis instead of
+             wrapping. Tighter gap, smaller stage pill. */
           @media (max-width: 720px) {
             .tulala-shell [data-tulala-thread-pane] [aria-label="Search in thread"],
             .tulala-shell [data-tulala-thread-pane] [aria-label="Thread options"] {
+              display: none !important;
+            }
+            .tulala-shell [data-tulala-thread-header] {
+              gap: 10px !important;
+              padding: 10px 14px !important;
+              align-items: center !important;
+            }
+            .tulala-shell [data-tulala-thread-header-titlerow] {
+              gap: 6px !important;
+            }
+            .tulala-shell [data-tulala-thread-header-trust] {
+              display: none !important;
+            }
+            .tulala-shell [data-tulala-thread-header-stage] {
+              font-size: 9px !important;
+              padding: 2px 5px !important;
+            }
+          }
+          /* Below 380px the stage pill drops too — only client name +
+             brief remain in the title block. */
+          @media (max-width: 380px) {
+            .tulala-shell [data-tulala-thread-header-stage] {
               display: none !important;
             }
           }
@@ -749,6 +1036,80 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               gap: 8px !important;
             }
           }
+          /* #1 — back button in page headers, mobile only */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-page-back] {
+              display: inline-flex !important;
+            }
+          }
+
+          /* #2 — tenant meta in avatar menu on mobile */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-tenant-meta-mobile] {
+              display: flex !important;
+            }
+          }
+
+          /* #4 FAB — show on mobile only */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-fab] {
+              display: inline-flex !important;
+            }
+          }
+
+          /* #13 — bottom tab label truncation at 320px. maxWidth 76 → 48
+             so 5 tabs fit on a 320px screen without overflow. */
+          @media (max-width: 340px) {
+            .tulala-shell [data-tulala-mobile-bottom-nav] button > span:last-child {
+              max-width: 48px !important;
+              font-size: 10px !important;
+            }
+          }
+
+          /* #15 — swipe-between-tabs: overscroll-x contain so accidental
+             horizontal flicks don't navigate the browser history. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-surface-main] {
+              overscroll-behavior-x: contain;
+            }
+          }
+
+          /* #16 — 44px tap-target floor on narrow icon buttons at mobile. */
+          @media (max-width: 720px) {
+            .tulala-shell button[style*="width: 28px"],
+            .tulala-shell button[style*="width: 26px"],
+            .tulala-shell button[style*="width: 24px"],
+            .tulala-shell button[style*="width: 32px"] {
+              min-width: 44px !important;
+              min-height: 44px !important;
+            }
+          }
+
+          /* #17 — pull-to-refresh: contain overscroll-y to prevent native
+             browser pull-to-refresh from firing accidentally inside the
+             prototype. Real PTR needs a JS touch handler. */
+          @media (max-width: 720px) {
+            .tulala-shell [data-tulala-surface-main] {
+              overscroll-behavior-y: contain;
+            }
+          }
+
+          /* #29 — ARIA live region pulse: a subtle opacity pulse when
+             data-tulala-updating="true" so sighted users notice the update. */
+          @keyframes tulalaLivePulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+          }
+          [aria-live="polite"][data-tulala-updating="true"] {
+            animation: tulalaLivePulse .5s ease 1;
+          }
+
+          /* #30 — keyboard focus style inside context menus. */
+          .tulala-shell [role="menu"] [role="menuitem"]:focus-visible {
+            background: rgba(15,79,62,0.08) !important;
+            outline: none !important;
+          }
+
           /* Print: strip the prototype chrome (dark ControlBar, drawer
              overlays, toast host, skip link) so the surface itself is what
              ends up on paper. */
@@ -803,6 +1164,10 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
 
           {/* Layered on top: toast stack (bottom-right) */}
           <ToastBridge />
+          <TabTitleBridge />
+
+          {/* Offline banner — fixed at top, asserts connection loss (#23) */}
+          <OfflineBanner />
 
           {/* Layered on top: command palette (⌘K / Ctrl+K) */}
           <CommandPalette />

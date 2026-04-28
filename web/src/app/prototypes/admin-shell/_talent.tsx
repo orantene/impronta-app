@@ -16,7 +16,7 @@
  *   plus ~15 talent drawer bodies dispatched from _drawers.tsx via talentDrawer()
  */
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   TalentAnalyticsCard,
   TalentFunnelCard,
@@ -492,24 +492,39 @@ function TalentTopbar() {
 
 function TalentRouter() {
   const { state } = useProto();
+  let page: ReactNode = null;
   switch (state.talentPage) {
     case "today":
-      return <TalentTodayPage />;
+      page = <TalentTodayPage />;
+      break;
     case "messages":
-      return <TalentMessagesPage />;
+      page = <TalentMessagesPage />;
+      break;
     case "profile":
-      return <MyProfilePage />;
+      page = <MyProfilePage />;
+      break;
     case "inbox":
-      return <InboxPage />;
+      page = <InboxPage />;
+      break;
     case "calendar":
-      return <CalendarPage />;
+      page = <CalendarPage />;
+      break;
     case "activity":
-      return <ActivityPage />;
+      page = <ActivityPage />;
+      break;
     case "reach":
-      return <ReachPage />;
+      page = <ReachPage />;
+      break;
     case "settings":
-      return <SettingsPage />;
+      page = <SettingsPage />;
+      break;
   }
+  return (
+    <div key={state.talentPage} data-tulala-talent-page-anim style={{ animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" }}>
+      <style>{`@keyframes tulala-page-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
+      {page}
+    </div>
+  );
 }
 
 // ─── Shared header ────────────────────────────────────────────────
@@ -2087,10 +2102,15 @@ function NeedsReplySection({
   onSeeAll: () => void;
 }) {
   const total = requests.length + inquiries.length;
-  // Single section card — same anatomy as every other Today section.
-  // The action-needed signal is carried by the per-row coral KindChip
-  // (OFFER / HOLD), not by an extra container-level edge marker. One
-  // signal per concept; the page reads as one unified rhythm.
+  const offerCount = requests.filter((r) => r.kind === "offer").length;
+  const holdCount = requests.filter((r) => r.kind === "hold").length;
+  const castingCount = requests.filter((r) => r.kind === "casting").length;
+  const subtitleParts = [
+    offerCount > 0 && `${offerCount} ${offerCount === 1 ? "offer" : "offers"}`,
+    holdCount  > 0 && `${holdCount} ${holdCount === 1 ? "hold" : "holds"}`,
+    castingCount > 0 && `${castingCount} ${castingCount === 1 ? "casting" : "castings"}`,
+    inquiries.length > 0 && `${inquiries.length} workspace`,
+  ].filter(Boolean).join(" · ");
   return (
     <section
       style={{
@@ -2103,7 +2123,7 @@ function NeedsReplySection({
     >
       <SectionHeader
         title="Needs your reply"
-        subtitle={`${total} waiting · sorted by urgency`}
+        subtitle={subtitleParts || `${total} waiting · sorted by urgency`}
         actionLabel="Open inbox →"
         onAction={onSeeAll}
       />
@@ -2155,11 +2175,11 @@ function RequestRow({
     request.ageHrs < 24 ? `${request.ageHrs}h ago` : `${Math.floor(request.ageHrs / 24)}d ago`;
   const ageColor =
     request.ageHrs >= 24
-      ? COLORS.coral
+      ? COLORS.coralDeep
       : request.ageHrs >= 12
         ? COLORS.coral
         : COLORS.inkDim;
-  const ageWeight = request.ageHrs >= 24 ? 600 : request.ageHrs >= 12 ? 500 : 400;
+  const ageWeight = request.ageHrs >= 24 ? 700 : request.ageHrs >= 12 ? 500 : 400;
   return (
     <button
       onClick={() => openDrawer("talent-offer-detail", { id: request.id })}
@@ -2230,7 +2250,9 @@ function RequestRow({
             )}
             {request.date}
             {request.date && request.amount && " · "}
-            {request.amount}
+            {request.amount && (
+              <span style={{ color: COLORS.ink, fontWeight: 500 }}>{request.amount}</span>
+            )}
           </span>
         </div>
       </div>
@@ -3855,7 +3877,7 @@ type Conversation = {
   };
 };
 
-const MOCK_CONVERSATIONS: Conversation[] = [
+export const MOCK_CONVERSATIONS: Conversation[] = [
   {
     id: "c1",
     client: "Mango",
@@ -4063,6 +4085,10 @@ const STAGE_META: Record<MsgStage, { label: string; tone: string; bg: string }> 
 function TalentMessagesFab() {
   const { state, setTalentPage } = useProto();
   const [overlayOpen, setOverlayOpen] = useState(false);
+  // Audit P1-10 — on phone, FAB navigates to the Messages route
+  // instead of opening a sheet over the same content. Two parallel
+  // entry points (FAB-overlay + page) created confusing IA on phone.
+  const isPhone = useIsPhone();
   if (state.talentPage === "messages") return null;
   const totalUnread = MOCK_CONVERSATIONS.reduce((s, c) => s + c.unreadCount, 0);
   return (
@@ -4070,7 +4096,10 @@ function TalentMessagesFab() {
       <button
         type="button"
         aria-label={`Messages · ${totalUnread} unread`}
-        onClick={() => setOverlayOpen(true)}
+        onClick={() => {
+          if (isPhone) setTalentPage("messages");
+          else setOverlayOpen(true);
+        }}
         style={{
           position: "fixed",
           bottom: "calc(20px + env(safe-area-inset-bottom, 0px))",
@@ -4246,7 +4275,53 @@ function MessagesOverlaySheet({
   );
 }
 
+/**
+ * Track soft-keyboard offset via visualViewport. The delta between the
+ * layout viewport and the visual viewport equals the keyboard height
+ * (plus any browser chrome shrink) — write it to a CSS variable so the
+ * messages-shell height calc can subtract it (audit P0-2). Mounted once
+ * by TalentMessagesPage; cleans up the var on unmount so it doesn't
+ * leak into other surfaces.
+ */
+function useKeyboardInset() {
+  useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!vv) return;
+    const root = document.documentElement;
+    const update = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      root.style.setProperty("--proto-kb", `${Math.round(inset)}px`);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      root.style.removeProperty("--proto-kb");
+    };
+  }, []);
+}
+
+/**
+ * Reactive phone-width media query. Used for behavior switches that
+ * can't be done in CSS (e.g. swap component returned, default state).
+ */
+function useIsPhone(breakpoint = 720) {
+  const [isPhone, setIsPhone] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    const update = () => setIsPhone(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [breakpoint]);
+  return isPhone;
+}
+
 export function TalentMessagesPage() {
+  useKeyboardInset();
   const [activeId, setActiveId] = useState<string>(MOCK_CONVERSATIONS[0]!.id);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "inquiry" | "hold" | "booked" | "past">("all");
@@ -4270,6 +4345,31 @@ export function TalentMessagesPage() {
     }
     return true;
   });
+
+  // j/k keyboard navigation across the inbox. Skips when the user is
+  // typing in an input/textarea/contentEditable so the shortcut doesn't
+  // hijack message composing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key !== "j" && e.key !== "k" && e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      if (filteredList.length === 0) return;
+      e.preventDefault();
+      const idx = filteredList.findIndex((c) => c.id === activeId);
+      const nextIdx = (e.key === "j" || e.key === "ArrowDown")
+        ? Math.min(filteredList.length - 1, idx + 1)
+        : Math.max(0, idx - 1);
+      const next = filteredList[nextIdx];
+      if (next) {
+        setActiveId(next.id);
+        setMobilePane("thread");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [filteredList, activeId]);
 
   const active = MOCK_CONVERSATIONS.find((c) => c.id === activeId) ?? MOCK_CONVERSATIONS[0]!;
   const messages = MOCK_THREAD[active.id] ?? [];
@@ -4391,7 +4491,7 @@ function ConversationList({
           />
         </div>
         {/* Filter chips */}
-        <div style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
+        <div data-tulala-msg-filter-chips style={{ display: "flex", gap: 4, marginTop: 8, flexWrap: "wrap" }}>
           {filterChips.map((f) => {
             const active = filter === f.id;
             return (
@@ -4420,9 +4520,34 @@ function ConversationList({
       {/* List */}
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {conversations.length === 0 ? (
-          <div style={{ padding: "32px 14px", textAlign: "center", color: COLORS.inkMuted, fontSize: 12 }}>
-            Nothing here. Try another filter.
-          </div>
+          filter === "unread" ? (
+            <EmptyState
+              icon="sparkle"
+              title="Inbox zero ✨"
+              body="Everything's been answered. Nothing waiting on you right now."
+              primaryLabel="Show all threads"
+              onPrimary={() => onFilterChange("all")}
+              compact
+            />
+          ) : search.trim() ? (
+            <EmptyState
+              icon="search"
+              title="No matches"
+              body={`Nothing for "${search.trim()}". Try fewer words.`}
+              primaryLabel="Clear search"
+              onPrimary={() => onSearchChange("")}
+              compact
+            />
+          ) : (
+            <EmptyState
+              icon="mail"
+              title="No threads here yet"
+              body="When clients reach out, conversations land here."
+              primaryLabel="Show all"
+              onPrimary={() => onFilterChange("all")}
+              compact
+            />
+          )
         ) : (
           conversations.map((c) => (
             <ConversationListRow
@@ -4438,6 +4563,10 @@ function ConversationList({
   );
 }
 
+/**
+ * Right-click / long-press context menu state for a conversation row.
+ * Module-level signal so only one menu is open at a time across rows.
+ */
 function ConversationListRow({
   conv,
   active,
@@ -4453,10 +4582,67 @@ function ConversationListRow({
     : conv.lastMessage.ageHrs < 24
       ? `${conv.lastMessage.ageHrs}h`
       : `${Math.floor(conv.lastMessage.ageHrs / 24)}d`;
+  const { toast } = useProto();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const longPressRef = useRef<number | null>(null);
+  // Audit P0-3 — when the long-press timer fires, the subsequent
+  // tap-release still triggers `onClick`, which would navigate AND
+  // open the menu. This flag suppresses the click for one cycle.
+  const longPressFiredRef = useRef(false);
+  // Audit P0-4 — clamp the menu position to the viewport so it can't
+  // open off-screen when a row near the bottom is long-pressed.
+  const positionMenu = (x: number, y: number) => {
+    const menuW = 240;
+    const menuH = 280;
+    const pad = 12;
+    const vw = typeof window !== "undefined" ? window.innerWidth : 360;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 640;
+    return {
+      x: Math.max(pad, Math.min(x, vw - menuW - pad)),
+      y: Math.max(pad, Math.min(y, vh - menuH - pad)),
+    };
+  };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest('[data-tulala-row-menu]')) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        if (longPressFiredRef.current) {
+          longPressFiredRef.current = false;
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        onClick();
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setMenuPos(positionMenu(e.clientX, e.clientY));
+        setMenuOpen(true);
+      }}
+      onTouchStart={(e) => {
+        if (longPressRef.current) window.clearTimeout(longPressRef.current);
+        const touch = e.touches[0];
+        longPressFiredRef.current = false;
+        longPressRef.current = window.setTimeout(() => {
+          longPressFiredRef.current = true;
+          if (touch) setMenuPos(positionMenu(touch.clientX, touch.clientY));
+          setMenuOpen(true);
+        }, 500);
+      }}
+      onTouchEnd={() => { if (longPressRef.current) window.clearTimeout(longPressRef.current); }}
+      onTouchCancel={() => { if (longPressRef.current) window.clearTimeout(longPressRef.current); }}
+      onTouchMove={() => { if (longPressRef.current) window.clearTimeout(longPressRef.current); }}
       style={{
         display: "flex",
         alignItems: "flex-start",
@@ -4472,6 +4658,13 @@ function ConversationListRow({
         textAlign: "left",
         fontFamily: FONTS.body,
         transition: "background .12s",
+        position: "relative",
+        // Audit P0-3 — suppress the iOS native touch-callout (copy/
+        // share popup) so long-press surfaces our context menu cleanly.
+        WebkitTouchCallout: "none",
+        WebkitUserSelect: "none",
+        userSelect: "none",
+        touchAction: "manipulation",
       }}
       onMouseEnter={(e) => {
         if (!active) e.currentTarget.style.background = "rgba(11,11,13,0.02)";
@@ -4486,18 +4679,19 @@ function ConversationListRow({
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: conv.unreadCount > 0 ? 600 : 500, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <span data-tulala-conv-row-name style={{ fontSize: 13, fontWeight: conv.unreadCount > 0 ? 600 : 500, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {conv.client}
           </span>
-          <span style={{ fontSize: 10.5, color: conv.unreadCount > 0 ? COLORS.ink : COLORS.inkDim, fontWeight: conv.unreadCount > 0 ? 600 : 400, flexShrink: 0 }}>
+          <span data-tulala-conv-row-age style={{ fontSize: 10.5, color: conv.unreadCount > 0 ? COLORS.ink : COLORS.inkDim, fontWeight: conv.unreadCount > 0 ? 600 : 400, flexShrink: 0 }}>
             {ageLabel}
           </span>
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div data-tulala-conv-row-brief style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {conv.brief}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
           <span
+            data-tulala-conv-row-stage
             style={{
               fontSize: 9.5,
               fontWeight: 700,
@@ -4511,10 +4705,26 @@ function ConversationListRow({
           >
             {stage.label}
           </span>
-          <span style={{ fontSize: 11, color: COLORS.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>
-            {conv.lastMessage.sender === "you" ? "You: " : ""}
-            {conv.lastMessage.preview}
-          </span>
+          {MOCK_DRAFTS[conv.id] ? (
+            <span data-tulala-conv-row-preview style={{
+              fontSize: 11,
+              fontStyle: "italic",
+              color: COLORS.coral,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              flex: 1,
+              minWidth: 0,
+            }}>
+              <span style={{ fontStyle: "normal", fontWeight: 600, marginRight: 4 }}>Draft:</span>
+              {MOCK_DRAFTS[conv.id]}
+            </span>
+          ) : (
+            <span data-tulala-conv-row-preview style={{ fontSize: 11, color: COLORS.inkMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1, minWidth: 0 }}>
+              {conv.lastMessage.sender === "you" ? "You: " : ""}
+              {conv.lastMessage.preview}
+            </span>
+          )}
           {conv.unreadCount > 0 && (
             <span
               style={{
@@ -4544,6 +4754,44 @@ function ConversationListRow({
           <ParticipantsStack participants={conv.participants} />
         )}
       </div>
+      {menuOpen && menuPos && (
+        <div
+          data-tulala-row-menu
+          role="menu"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            top: menuPos.y,
+            left: menuPos.x,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            boxShadow: "0 10px 30px rgba(11,11,13,0.18)",
+            padding: 6,
+            zIndex: 200,
+            minWidth: 220,
+            fontFamily: FONTS.body,
+            animation: "tulala-bubble-action-in .14s ease",
+          }}
+        >
+          <div style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: 0.6,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+            padding: "6px 10px 4px",
+          }}>Snooze</div>
+          <BubbleMenuItem icon="🕓" label="2 hours" onClick={() => { setMenuOpen(false); toast(`${conv.client} snoozed · returns in 2h`, { undo: () => toast("Snooze cancelled") }); }} />
+          <BubbleMenuItem icon="🌅" label="Tomorrow 9 AM" onClick={() => { setMenuOpen(false); toast(`${conv.client} snoozed · returns Tomorrow 9 AM`, { undo: () => toast("Snooze cancelled") }); }} />
+          <BubbleMenuItem icon="📆" label="Monday 9 AM" onClick={() => { setMenuOpen(false); toast(`${conv.client} snoozed · returns Monday 9 AM`, { undo: () => toast("Snooze cancelled") }); }} />
+          <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
+          <BubbleMenuItem icon="📌" label="Pin to top" onClick={() => { setMenuOpen(false); toast("Pinned to top"); }} />
+          <BubbleMenuItem icon="✓" label="Mark as read" onClick={() => { setMenuOpen(false); toast("Marked as read"); }} />
+          <BubbleMenuItem icon="📁" label="Archive" onClick={() => { setMenuOpen(false); toast("Archived", { undo: () => toast("Restored") }); }} />
+        </div>
+      )}
     </button>
   );
 }
@@ -4627,6 +4875,27 @@ function ParticipantsStack({ participants }: { participants: Participant[] }) {
   );
 }
 
+// Module-level cache of scroll positions per conversation id. Survives
+// conversation switches within the same mount of TalentMessagesPage so
+// reopening a thread lands you back where you left off.
+const __threadScrollMap = new Map<string, number>();
+
+// Mock unsent drafts per conversation id. In production this is server-
+// persisted (or local-storage-cached). Showing "Draft: …" on the inbox
+// row is a tiny UX win that prevents talent from forgetting half-written
+// replies. Keys must match Conversation.id.
+const MOCK_DRAFTS: Record<string, string> = {
+  "c4": "Sounds good, let me check…",
+};
+
+// Mock pre-existing reactions on specific message ids. Demonstrates the
+// reactions UX without requiring a real reactions store. Keys must match
+// Msg.id values from MOCK_THREAD.
+const MOCK_REACTIONS: Record<string, string[]> = {
+  "c1m4": ["👍"],
+  "c2m4": ["❤️", "🙏"],
+};
+
 function ConversationThread({
   conv,
   messages,
@@ -4642,8 +4911,38 @@ function ConversationThread({
   // top of the chat stays clean for the highlight; users open this
   // panel for full pinned info, files, action items, leader, etc.
   const [infoOpen, setInfoOpen] = useState(true);
+  // AI thread summary — collapsible card at top of the message stream.
+  // Default open for unread/active threads, collapsed for past/booked
+  // (less surface noise once the thread is locked in). Audit P1-9 —
+  // also default closed on phone where vertical space is precious.
+  const isPhone = useIsPhone();
+  const [summaryOpen, setSummaryOpen] = useState(!isReadOnly && !isLocked);
+  // Audit P1-9 — useIsPhone resolves on the next paint after mount, so
+  // sync the default once we know we're on phone (close it) without
+  // forcing closed if the user explicitly opened it later.
+  const phoneSyncedRef = useRef(false);
+  useEffect(() => {
+    if (isPhone && !phoneSyncedRef.current) {
+      phoneSyncedRef.current = true;
+      setSummaryOpen(false);
+    }
+  }, [isPhone]);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  // Restore scroll position when the open conversation changes. If no
+  // saved position exists, jump to bottom (most-recent-message focus).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const saved = __threadScrollMap.get(conv.id);
+    if (saved != null) {
+      el.scrollTop = saved;
+    } else {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [conv.id]);
   return (
     <div
+      data-tulala-thread-grid
       style={{
         display: "grid",
         gridTemplateColumns: infoOpen ? "1fr 320px" : "1fr",
@@ -4684,10 +4983,12 @@ function ConversationThread({
         {/* Message stream — warm cream background, day separators
             grouped via the renderer, breathable spacing. */}
         <div
+          ref={scrollRef}
+          onScroll={(e) => { __threadScrollMap.set(conv.id, e.currentTarget.scrollTop); }}
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "20px 24px 16px",
+            padding: "16px 24px 16px",
             display: "flex",
             flexDirection: "column",
             gap: 6,
@@ -4696,11 +4997,25 @@ function ConversationThread({
             backgroundImage: `radial-gradient(circle at 20% 0%, rgba(15,79,62,0.025), transparent 50%)`,
           }}
         >
-          {renderMessagesWithSeparators(messages, conv.stage, conv.leader.name.split(" ")[0]!)}
+          <AIThreadSummary conv={conv} open={summaryOpen} onToggle={() => setSummaryOpen((v) => !v)} />
+          {renderMessagesWithSeparators(messages, conv.stage, conv.leader.name.split(" ")[0]!, conv.unreadCount)}
         </div>
 
         {/* Composer */}
-        {!isReadOnly && <Composer conv={conv} isLocked={isLocked} />}
+        {!isReadOnly && (
+          <Composer
+            conv={conv}
+            isLocked={isLocked}
+            onAfterSend={() => {
+              // Audit P2-15 — auto-scroll to bottom after a message is
+              // sent so the user sees their own message land. Defer one
+              // frame so any DOM mutation from the send is flushed first.
+              const el = scrollRef.current;
+              if (!el) return;
+              requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+            }}
+          />
+        )}
       </section>
 
       {/* Right info sidebar — full pinned info + extras. Closes via the
@@ -4724,6 +5039,7 @@ function ThreadHeader({
   const stage = STAGE_META[conv.stage];
   return (
     <div
+      data-tulala-thread-header
       style={{
         display: "flex",
         alignItems: "center",
@@ -4765,10 +5081,13 @@ function ThreadHeader({
       )}
       <Avatar size={36} tone="auto" hashSeed={conv.client} initials={conv.clientInitials} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14.5, fontWeight: 600, color: COLORS.ink }}>{conv.client}</span>
-          <ClientTrustChip level={conv.clientTrust} />
+        <div data-tulala-thread-header-titlerow style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14.5, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{conv.client}</span>
+          <span data-tulala-thread-header-trust style={{ display: "inline-flex", flexShrink: 0 }}>
+            <ClientTrustChip level={conv.clientTrust} />
+          </span>
           <span
+            data-tulala-thread-header-stage
             style={{
               fontSize: 9.5,
               fontWeight: 700,
@@ -4778,12 +5097,13 @@ function ThreadHeader({
               borderRadius: 999,
               background: stage.bg,
               color: stage.tone,
+              flexShrink: 0,
             }}
           >
             {stage.label}
           </span>
         </div>
-        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+        <div data-tulala-thread-header-brief style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {conv.brief} {conv.date && `· ${conv.date}`}
         </div>
       </div>
@@ -4799,14 +5119,8 @@ function ThreadHeader({
         >
           <Icon name="search" size={13} color={COLORS.inkMuted} stroke={1.7} />
         </button>
-        <button
-          type="button"
-          title="Thread options"
-          aria-label="Thread options"
-          style={iconButtonSm}
-        >
-          <span style={{ fontFamily: FONTS.body, fontWeight: 700, color: COLORS.inkMuted, letterSpacing: 1 }}>···</span>
-        </button>
+        <ThreadOptionsMenu />
+
         {/* Info panel toggle — sidebar-icon glyph with active state */}
         <button
           type="button"
@@ -4844,6 +5158,72 @@ const iconButtonSm: CSSProperties = {
 };
 
 /**
+ * Thread options menu — the ⋯ button in the thread header. Houses
+ * thread-level actions: pin to top, mute, star/favorite, archive, block
+ * client. Local state seeds the toggles so the same menu shows the
+ * current state per session.
+ */
+function ThreadOptionsMenu() {
+  const { toast } = useProto();
+  const [open, setOpen] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [starred, setStarred] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest('[data-tulala-thread-options-menu]')) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        title="Thread options"
+        aria-label="Thread options"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        style={iconButtonSm}
+      >
+        <span style={{ fontFamily: FONTS.body, fontWeight: 700, color: COLORS.inkMuted, letterSpacing: 1 }}>···</span>
+      </button>
+      {open && (
+        <div
+          data-tulala-thread-options-menu
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "100%",
+            right: 0,
+            marginTop: 6,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            boxShadow: "0 10px 30px rgba(11,11,13,0.15)",
+            padding: 6,
+            zIndex: 30,
+            minWidth: 220,
+            fontFamily: FONTS.body,
+            animation: "tulala-bubble-action-in .14s ease",
+          }}
+        >
+          <BubbleMenuItem icon={starred ? "⭐" : "☆"} label={starred ? "Starred" : "Star thread"} onClick={() => { setStarred((v) => !v); toast(starred ? "Removed from starred" : "Pinned to starred"); setOpen(false); }} />
+          <BubbleMenuItem icon={muted ? "🔕" : "🔔"} label={muted ? "Muted · unmute" : "Mute notifications"} onClick={() => { setMuted((v) => !v); toast(muted ? "Notifications on" : "Notifications muted"); setOpen(false); }} />
+          <BubbleMenuItem icon="📌" label="Pin to top of inbox" onClick={() => { toast("Pinned to top"); setOpen(false); }} />
+          <BubbleMenuItem icon="📤" label="Export thread (PDF)" onClick={() => { toast("Generating PDF…"); setOpen(false); }} />
+          <BubbleMenuItem icon="📁" label="Archive thread" onClick={() => { toast("Archived", { undo: () => toast("Restored") }); setOpen(false); }} />
+          <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 4px" }} />
+          <BubbleMenuItem icon="⛔" label="Block client" onClick={() => { toast("Client blocked", { tone: "error", action: { label: "Undo", onClick: () => toast("Unblocked") } }); setOpen(false); }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Right-rail info sidebar — full pinned info + extras for the open
  * thread. Toggleable from the thread header. Stays clean at the top
  * of the chat (just the highlight); details on-demand here.
@@ -4869,9 +5249,53 @@ function ThreadInfoSidebar({
   onClose: () => void;
 }) {
   const { openDrawer, toast } = useProto();
+  const [infoTab, setInfoTab] = useState<"details" | "activity">("details");
+  // Audit P1-8 — actual swipe-down-to-dismiss for the mobile bottom
+  // sheet. The drag-pill rendered by CSS was previously cosmetic; now
+  // it's a real affordance. Tracks touch deltaY, translates the sheet,
+  // and dismisses past 80px or 30% sheet-height (whichever is smaller).
+  const sheetRef = useRef<HTMLElement | null>(null);
+  const dragStartY = useRef<number | null>(null);
+  const sheetHeightRef = useRef<number>(0);
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (!sheetRef.current) return;
+    // Only start a drag if the touch begins near the top of the sheet
+    // (within the drag-pill region) — touching deeper inside should
+    // scroll content, not drag the sheet.
+    const rect = sheetRef.current.getBoundingClientRect();
+    if (e.touches[0]!.clientY - rect.top > 28) return;
+    dragStartY.current = e.touches[0]!.clientY;
+    sheetHeightRef.current = rect.height;
+    sheetRef.current.style.transition = "none";
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (dragStartY.current == null || !sheetRef.current) return;
+    const dy = e.touches[0]!.clientY - dragStartY.current;
+    if (dy <= 0) return;
+    sheetRef.current.style.transform = `translateY(${dy}px)`;
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (dragStartY.current == null || !sheetRef.current) return;
+    const endY = e.changedTouches[0]?.clientY ?? dragStartY.current;
+    const dy = endY - dragStartY.current;
+    const threshold = Math.min(80, sheetHeightRef.current * 0.3);
+    sheetRef.current.style.transition = "transform .22s cubic-bezier(.4,.0,.2,1)";
+    if (dy > threshold) {
+      sheetRef.current.style.transform = `translateY(100%)`;
+      window.setTimeout(() => onClose(), 180);
+    } else {
+      sheetRef.current.style.transform = "translateY(0)";
+    }
+    dragStartY.current = null;
+  };
   return (
     <aside
+      ref={sheetRef as never}
       data-tulala-thread-info-sidebar
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchEnd}
       style={{
         borderLeft: `1px solid ${COLORS.borderSoft}`,
         background: "#fff",
@@ -4883,42 +5307,12 @@ function ThreadInfoSidebar({
     >
       <style>{`@keyframes tulala-info-fade { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }`}</style>
 
-      {/* Sidebar header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 10,
-          padding: "14px 16px",
-          borderBottom: `1px solid ${COLORS.borderSoft}`,
-        }}
-      >
-        <h3 style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 500, letterSpacing: -0.1, margin: 0, color: COLORS.ink }}>
-          Details
-        </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close info panel"
-          style={{
-            width: 26,
-            height: 26,
-            borderRadius: 6,
-            border: "none",
-            background: "transparent",
-            color: COLORS.inkMuted,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        >
-          <Icon name="x" size={12} />
-        </button>
-      </div>
+      {/* Sidebar header — Details / Activity tabs + close */}
+      <InfoSidebarHeader onClose={onClose} tab={infoTab} onTabChange={setInfoTab} />
+      {infoTab === "activity" ? (
+        <ThreadActivityTimeline conv={conv} />
+      ) : (
+      <>
 
       {/* Section: Schedule */}
       {(conv.pinned.schedule || conv.pinned.callTime || conv.date) && (
@@ -5127,7 +5521,148 @@ function ThreadInfoSidebar({
           </p>
         </div>
       )}
+      </>
+      )}
     </aside>
+  );
+}
+
+/**
+ * Info-sidebar header with Details / Activity tabs. The "Activity" tab
+ * shows a chronological log of stage transitions, status changes, and
+ * key actions on this thread — useful for quick handover or compliance.
+ */
+function InfoSidebarHeader({ onClose, tab, onTabChange }: {
+  onClose: () => void;
+  tab: "details" | "activity";
+  onTabChange: (t: "details" | "activity") => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+        padding: "10px 12px 0 16px",
+        borderBottom: `1px solid ${COLORS.borderSoft}`,
+      }}
+    >
+      <div role="tablist" aria-label="Info tabs" style={{ display: "inline-flex", gap: 0 }}>
+        {(["details", "activity"] as const).map((t) => {
+          const active = tab === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onTabChange(t)}
+              style={{
+                padding: "8px 4px 10px",
+                marginRight: 16,
+                background: "transparent",
+                border: "none",
+                borderBottom: active ? `2px solid ${COLORS.ink}` : "2px solid transparent",
+                color: active ? COLORS.ink : COLORS.inkMuted,
+                fontFamily: FONTS.display,
+                fontSize: 13.5,
+                fontWeight: active ? 500 : 400,
+                letterSpacing: -0.05,
+                cursor: "pointer",
+                textTransform: "capitalize",
+              }}
+            >
+              {t}
+            </button>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close info panel"
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: 6,
+          border: "none",
+          background: "transparent",
+          color: COLORS.inkMuted,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 4,
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+      >
+        <Icon name="x" size={12} />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Activity timeline — shows the lifecycle of this conversation as a
+ * timeline (stage transitions, calendar invites accepted, rates quoted,
+ * etc.). Mock seeded from the conversation messages — in production this
+ * would be a server-side activity log.
+ */
+function ThreadActivityTimeline({ conv }: { conv: Conversation }) {
+  // Mock activity events derived from the conv state. Real impl would
+  // query the activity_log table filtered by conversation_id.
+  const events = [
+    { ts: "Apr 22 · 10:14", actor: "system", icon: "📩", label: `Inquiry created by ${conv.client}` },
+    { ts: "Apr 23 · 09:00", actor: "coordinator", icon: "👤", label: "Sara assigned as coordinator" },
+    { ts: "Apr 24 · 14:32", actor: "coordinator", icon: "💸", label: "Rate quoted · €1,200/day" },
+    ...(conv.stage === "hold" || conv.stage === "booked" ? [
+      { ts: "Apr 26 · 09:00", actor: "system", icon: "📅", label: `Hold opened · ${conv.date ?? "TBD"}` },
+    ] : []),
+    ...(conv.stage === "booked" ? [
+      { ts: "Apr 27 · 11:18", actor: "client", icon: "✅", label: "Client confirmed booking" },
+      { ts: "Apr 27 · 11:20", actor: "system", icon: "📑", label: "Contract issued" },
+    ] : []),
+  ];
+  return (
+    <div style={{ padding: "16px 18px", fontFamily: FONTS.body }}>
+      <div style={{ position: "relative", paddingLeft: 22 }}>
+        <div style={{
+          position: "absolute",
+          top: 6,
+          bottom: 6,
+          left: 7,
+          width: 2,
+          background: COLORS.borderSoft,
+          borderRadius: 1,
+        }} />
+        {events.map((e, i) => (
+          <div key={i} style={{ position: "relative", paddingBottom: 14 }}>
+            <span aria-hidden style={{
+              position: "absolute",
+              left: -22,
+              top: 0,
+              width: 16,
+              height: 16,
+              borderRadius: 999,
+              background: "#fff",
+              border: `1.5px solid ${COLORS.borderSoft}`,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 9,
+            }}>{e.icon}</span>
+            <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>
+              {e.label}
+            </div>
+            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              {e.ts} · {e.actor}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -5239,26 +5774,28 @@ function RateChangeRequest({ currentValue }: { currentValue: string }) {
         </button>
         <button
           type="button"
+          disabled={!proposed.trim()}
           onClick={() => {
-            if (!proposed.trim()) {
-              toast("Add a proposed amount first");
-              return;
-            }
+            if (!proposed.trim()) return;
             toast(`Rate change request sent to coordinator · ${currentValue || "—"} → ${proposed}`);
             setOpen(false);
             setProposed("");
             setReason("");
           }}
+          aria-disabled={!proposed.trim()}
+          title={!proposed.trim() ? "Enter a proposed amount first" : ""}
           style={{
             padding: "5px 10px",
             background: COLORS.ink,
             border: "none",
             borderRadius: 6,
-            cursor: "pointer",
+            cursor: !proposed.trim() ? "not-allowed" : "pointer",
             fontFamily: FONTS.body,
             fontSize: 11.5,
             fontWeight: 600,
             color: "#fff",
+            opacity: !proposed.trim() ? 0.4 : 1,
+            transition: "opacity .15s, background .15s",
           }}
         >
           Send request
@@ -5312,16 +5849,37 @@ function InfoSection({
  * Premium message stream renderer. Groups by day and inserts subtle
  * date separators between blocks. Also handles consecutive-from-same-
  * sender visual grouping (tighter spacing, avatar only on first).
+ *
+ * The "New messages" divider appears before the (unreadCount)-th
+ * latest non-self message — matches WhatsApp/iMessage behaviour.
  */
-function renderMessagesWithSeparators(messages: Msg[], stage: MsgStage, typingName: string) {
+function renderMessagesWithSeparators(messages: Msg[], stage: MsgStage, typingName: string, unreadCount = 0) {
   const out: ReactNode[] = [];
   let lastDay: string | null = null;
   let lastSender: string | null = null;
+  // Compute the index of the first unread incoming message. We only
+  // count messages from non-self senders (client/coordinator); self
+  // messages don't toggle unread state.
+  let firstUnreadIdx = -1;
+  if (unreadCount > 0) {
+    const incoming: number[] = [];
+    messages.forEach((m, i) => {
+      const isSelf = "sender" in m && m.sender === "you";
+      if (!isSelf && m.kind !== "system") incoming.push(i);
+    });
+    if (incoming.length >= unreadCount) {
+      firstUnreadIdx = incoming[incoming.length - unreadCount]!;
+    }
+  }
   messages.forEach((m, i) => {
     const day = extractDay(m.ts);
     if (day !== lastDay) {
       out.push(<DaySeparator key={`sep-${i}`} label={day} />);
       lastDay = day;
+      lastSender = null;
+    }
+    if (i === firstUnreadIdx) {
+      out.push(<NewMessagesDivider key={`unread-${i}`} count={unreadCount} />);
       lastSender = null;
     }
     const senderId = m.kind === "system" || !("sender" in m) ? "system" : m.sender;
@@ -5333,6 +5891,141 @@ function renderMessagesWithSeparators(messages: Msg[], stage: MsgStage, typingNa
   });
   if (stage === "inquiry") out.push(<TypingIndicator key="typing" name={typingName} />);
   return out;
+}
+
+function NewMessagesDivider({ count }: { count: number }) {
+  return (
+    <div
+      role="separator"
+      aria-label={`${count} new messages`}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        margin: "8px 0 4px",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div style={{ flex: 1, height: 1, background: "rgba(194,106,69,0.30)" }} />
+      <span style={{
+        fontSize: 10.5,
+        fontWeight: 700,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        color: COLORS.coral,
+        background: "rgba(194,106,69,0.08)",
+        padding: "3px 9px",
+        borderRadius: 999,
+      }}>
+        New · {count}
+      </span>
+      <div style={{ flex: 1, height: 1, background: "rgba(194,106,69,0.30)" }} />
+    </div>
+  );
+}
+
+/**
+ * AI thread summary card — sticky-ish at top of the message stream.
+ * Collapsible. Synthesizes the current state of a thread in 1-3 lines
+ * so a returning talent doesn't have to scroll back through 40 messages
+ * to remember "where are we with Bvlgari".
+ *
+ * In production this would come from a server-side LLM digest of the
+ * thread; here we mock per-stage copy from the conversation metadata.
+ */
+function AIThreadSummary({ conv, open, onToggle }: { conv: Conversation; open: boolean; onToggle: () => void }) {
+  // Mock per-stage summary that pulls in real conv fields so the copy
+  // feels written, not templated. Date strings get a CET timezone
+  // suffix so cross-timezone talent know how the dates resolve.
+  const dateWithZone = conv.date ? `${conv.date} CET` : "";
+  const summary =
+    conv.stage === "booked"
+      ? `Booked · ${conv.brief}${dateWithZone ? ` · ${dateWithZone}` : ""}. Rate locked, transport agreed. Next: callsheet by Friday.`
+      : conv.stage === "hold"
+        ? `Holding ${dateWithZone || "dates"} for ${conv.brief}. Awaiting confirmation by client. ${conv.unreadCount > 0 ? `${conv.unreadCount} new from coordinator.` : ""}`
+        : conv.stage === "inquiry"
+          ? `Inquiry: ${conv.brief}. Coordinator collecting info. Rate not yet quoted.`
+          : `Past · ${conv.brief}. Archived for reference.`;
+  return (
+    <div
+      data-tulala-ai-summary
+      style={{
+        background: "linear-gradient(135deg, rgba(15,79,62,0.05) 0%, rgba(60,90,108,0.05) 100%)",
+        border: "1px solid rgba(15,79,62,0.15)",
+        borderRadius: 12,
+        padding: open ? "10px 12px" : "8px 12px",
+        marginBottom: 6,
+        fontFamily: FONTS.body,
+        transition: "all .18s ease",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        style={{
+          all: "unset",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          width: "100%",
+        }}
+      >
+        <span aria-hidden style={{
+          width: 22,
+          height: 22,
+          borderRadius: 999,
+          background: "rgba(15,79,62,0.15)",
+          color: "#0F4F3E",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 11,
+          fontWeight: 700,
+          flexShrink: 0,
+        }}>✨</span>
+        <span style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: 0.6,
+          textTransform: "uppercase",
+          color: "#0F4F3E",
+          flexShrink: 0,
+        }}>AI summary</span>
+        <span style={{
+          flex: 1,
+          fontSize: 12,
+          color: COLORS.inkMuted,
+          whiteSpace: open ? "normal" : "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          textAlign: "left",
+        }}>
+          {!open && summary}
+        </span>
+        <span aria-hidden style={{
+          fontSize: 10,
+          color: COLORS.inkMuted,
+          transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          transition: "transform .2s ease",
+          flexShrink: 0,
+        }}>▾</span>
+      </button>
+      {open && (
+        <div style={{
+          marginTop: 8,
+          paddingTop: 8,
+          borderTop: "1px solid rgba(15,79,62,0.10)",
+          fontSize: 13,
+          lineHeight: 1.5,
+          color: COLORS.ink,
+        }}>
+          {summary}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function extractDay(ts: string): string {
@@ -5459,8 +6152,511 @@ function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg; stage:
             {senderLabel}
           </div>
         )}
-        <ContentMessageBody msg={msg} fromYou={fromYou} isFirstOfGroup={isFirstOfGroup} />
+        <BubbleWithActions msg={msg} fromYou={fromYou}>
+          <ContentMessageBody msg={msg} fromYou={fromYou} isFirstOfGroup={isFirstOfGroup} />
+        </BubbleWithActions>
         <ReadReceiptRow msg={msg} fromYou={fromYou} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SendButtonWithSchedule — primary send + long-press menu offering
+ * "Schedule send" presets (Tomorrow 9am, Monday 9am, Custom). Right-click
+ * also opens the menu. Useful for talent in different timezones who don't
+ * want to ping coordinators at 11pm.
+ */
+function SendButtonWithSchedule({ disabled, onSend, onSchedule }: {
+  disabled: boolean;
+  onSend: () => void;
+  onSchedule: (when: string) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const longPressRef = useRef<number | null>(null);
+  const close = () => setMenuOpen(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest('[data-tulala-send-menu]')) return;
+      close();
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => { if (!disabled) onSend(); }}
+        onContextMenu={(e) => { e.preventDefault(); if (!disabled) setMenuOpen(true); }}
+        onTouchStart={() => {
+          if (longPressRef.current) window.clearTimeout(longPressRef.current);
+          longPressRef.current = window.setTimeout(() => { if (!disabled) setMenuOpen(true); }, 450);
+        }}
+        onTouchEnd={() => {
+          if (longPressRef.current) window.clearTimeout(longPressRef.current);
+        }}
+        onTouchCancel={() => {
+          if (longPressRef.current) window.clearTimeout(longPressRef.current);
+        }}
+        aria-label="Send"
+        title="Tap to send · long-press / right-click for schedule"
+        disabled={disabled}
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 999,
+          border: "none",
+          background: !disabled ? COLORS.ink : "rgba(11,11,13,0.06)",
+          color: !disabled ? "#fff" : COLORS.inkDim,
+          cursor: !disabled ? "pointer" : "not-allowed",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "background .12s",
+        }}
+      >
+        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13" />
+          <polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </svg>
+      </button>
+      {menuOpen && (
+        <div
+          data-tulala-send-menu
+          role="menu"
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 8px)",
+            right: 0,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            boxShadow: "0 10px 30px rgba(11,11,13,0.15)",
+            padding: 6,
+            zIndex: 30,
+            minWidth: 200,
+            fontFamily: FONTS.body,
+            animation: "tulala-bubble-action-in .14s ease",
+          }}
+        >
+          <div style={{
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: 0.6,
+            textTransform: "uppercase",
+            color: COLORS.inkMuted,
+            padding: "6px 10px 4px",
+          }}>Schedule send</div>
+          {[
+            { label: "Tomorrow · 9:00", value: "tomorrow at 9:00 AM" },
+            { label: "Monday · 9:00", value: "Monday at 9:00 AM" },
+            { label: "In 1 hour", value: "in 1 hour" },
+            { label: "Custom…", value: "custom time" },
+          ].map((opt) => (
+            <BubbleMenuItem
+              key={opt.label}
+              icon="🕓"
+              label={opt.label}
+              onClick={() => { onSchedule(opt.value); close(); }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * BubbleWithActions — wraps a chat bubble with hover/long-press actions:
+ *   - Hover (desktop): small ⋯ trigger appears on the bubble's far side
+ *   - Long-press (touch): same menu opens at the bubble
+ *   - Right-click (desktop): same menu (contextmenu)
+ *
+ * The menu offers a quick-reaction row (👍 ❤️ 😂 ⭐ ❓ 🙏) plus the
+ * standard chat actions: Reply, Copy, Pin, Translate, Forward, Schedule.
+ *
+ * Reactions render as small chips below the bubble. State is local to
+ * this component and seeded from MOCK_REACTIONS for demonstration.
+ */
+function BubbleWithActions({ msg, fromYou, children }: { msg: Msg; fromYou: boolean; children: ReactNode }) {
+  const { toast } = useProto();
+  const [hovered, setHovered] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [reactions, setReactions] = useState<string[]>(() => MOCK_REACTIONS[msg.id] ?? []);
+  const longPressRef = useRef<number | null>(null);
+  const close = () => setMenuOpen(false);
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('[data-tulala-bubble-menu]')) return;
+      close();
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
+  const onTouchStart = () => {
+    if (longPressRef.current) window.clearTimeout(longPressRef.current);
+    longPressRef.current = window.setTimeout(() => setMenuOpen(true), 450);
+  };
+  const cancelLongPress = () => {
+    if (longPressRef.current) window.clearTimeout(longPressRef.current);
+    longPressRef.current = null;
+  };
+  const addReaction = (e: string) => {
+    setReactions((prev) => prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]);
+    close();
+  };
+  const action = (label: string) => {
+    toast(label);
+    close();
+  };
+  return (
+    <div
+      style={{ position: "relative", display: "inline-flex", flexDirection: "column", gap: 4, alignItems: fromYou ? "flex-end" : "flex-start" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onContextMenu={(e) => { e.preventDefault(); setMenuOpen(true); }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={cancelLongPress}
+      onTouchCancel={cancelLongPress}
+      onTouchMove={cancelLongPress}
+    >
+      <div style={{ position: "relative" }}>
+        {children}
+        {hovered && !menuOpen && (
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Message actions"
+            style={{
+              position: "absolute",
+              top: -10,
+              [fromYou ? "left" : "right"]: -10,
+              width: 26,
+              height: 26,
+              borderRadius: 999,
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              boxShadow: "0 2px 6px rgba(11,11,13,0.10)",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 1,
+              color: COLORS.inkMuted,
+              animation: "tulala-bubble-action-in .12s ease",
+              zIndex: 5,
+            } as CSSProperties}
+          >
+            ···
+          </button>
+        )}
+      </div>
+      {reactions.length > 0 && (
+        <div style={{ display: "inline-flex", gap: 4, paddingRight: fromYou ? 0 : 4, paddingLeft: fromYou ? 4 : 0 }}>
+          {Array.from(new Set(reactions)).map((e) => {
+            const count = reactions.filter((r) => r === e).length;
+            return (
+              <button
+                key={e}
+                type="button"
+                onClick={() => addReaction(e)}
+                title="Toggle reaction"
+                style={{
+                  background: "#fff",
+                  border: `1px solid ${COLORS.borderSoft}`,
+                  borderRadius: 999,
+                  padding: "1px 6px 1px 5px",
+                  fontFamily: FONTS.body,
+                  fontSize: 11,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
+                  lineHeight: 1.2,
+                  boxShadow: "0 1px 2px rgba(11,11,13,0.04)",
+                }}
+              >
+                <span style={{ fontSize: 12 }}>{e}</span>
+                {count > 1 && <span style={{ color: COLORS.inkMuted }}>{count}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {menuOpen && (
+        <div
+          data-tulala-bubble-menu
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "100%",
+            [fromYou ? "right" : "left"]: 0,
+            marginTop: 6,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            boxShadow: "0 10px 30px rgba(11,11,13,0.15)",
+            padding: 6,
+            zIndex: 20,
+            minWidth: 200,
+            animation: "tulala-bubble-action-in .14s ease",
+          } as CSSProperties}
+        >
+          <style>{`
+            @keyframes tulala-bubble-action-in {
+              from { opacity: 0; transform: translateY(-4px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+          `}</style>
+          {/* Reaction row */}
+          <div style={{
+            display: "flex",
+            gap: 4,
+            padding: "4px 4px 6px",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+            marginBottom: 4,
+          }}>
+            {["👍", "❤️", "😂", "⭐", "❓", "🙏"].map((e) => (
+              <button
+                key={e}
+                type="button"
+                onClick={() => addReaction(e)}
+                aria-label={`React with ${e}`}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 18,
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "transform .12s ease, background .12s ease",
+                }}
+                onMouseEnter={(ev) => { ev.currentTarget.style.background = "rgba(11,11,13,0.05)"; ev.currentTarget.style.transform = "scale(1.15)"; }}
+                onMouseLeave={(ev) => { ev.currentTarget.style.background = "transparent"; ev.currentTarget.style.transform = "scale(1)"; }}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+          {/* Action menu */}
+          <BubbleMenuItem icon="↩" label="Reply" onClick={() => action("Reply quoted")} />
+          <BubbleMenuItem icon="📋" label="Copy" onClick={() => {
+            try {
+              if ("body" in msg && typeof msg.body === "string") navigator.clipboard?.writeText(msg.body);
+            } catch { /* noop */ }
+            action("Copied");
+          }} />
+          <BubbleMenuItem icon="📌" label="Pin" onClick={() => action("Pinned to thread top")} />
+          <BubbleMenuItem icon="🌐" label="Translate to English" onClick={() => action("Translating…")} />
+          <BubbleMenuItem icon="↗" label="Forward" onClick={() => action("Forward picker…")} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BubbleMenuItem({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      role="menuitem"
+      style={{
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 10px",
+        background: "transparent",
+        border: "none",
+        borderRadius: 8,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        fontSize: 13,
+        color: COLORS.ink,
+        textAlign: "left",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <span aria-hidden style={{ width: 18, textAlign: "center", fontSize: 13 }}>{icon}</span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+/**
+ * Premium voice-note bubble. Replaces the dotted-line waveform with a
+ * deterministic bar-pattern generated from the message id (so each
+ * voice note has a unique waveform shape, not a generic fill). Adds:
+ *   - Real ▶/❚❚ play toggle that animates a fake progress sweep
+ *   - 1×/1.5×/2× speed toggle (cycle on tap)
+ *   - Tappable scrub (clicking a bar jumps progress to that bar)
+ *   - Pulse animation while "playing"
+ */
+function VoiceNoteBubble({ msg, fromYou, bg, fg, border }: {
+  msg: Extract<Msg, { kind: "voice" }>;
+  fromYou: boolean;
+  bg: string;
+  fg: string;
+  border: string;
+}) {
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0); // 0..1
+  const [speed, setSpeed] = useState<1 | 1.5 | 2>(1);
+  // Generate 28 bar heights deterministically from the id so the
+  // waveform looks "voice-like" but stable across renders.
+  const bars = (() => {
+    const out: number[] = [];
+    let h = 0;
+    for (let i = 0; i < msg.id.length; i++) h = (h * 31 + msg.id.charCodeAt(i)) >>> 0;
+    for (let i = 0; i < 28; i++) {
+      h = (h * 1103515245 + 12345) & 0x7fffffff;
+      const v = ((h >> 16) % 100) / 100;
+      // Apply an envelope so beginning/end are quieter
+      const envelope = Math.sin((Math.PI * (i + 0.5)) / 28);
+      out.push(0.25 + 0.75 * v * envelope);
+    }
+    return out;
+  })();
+  // Fake play progress sweep
+  useEffect(() => {
+    if (!playing) return;
+    const start = performance.now();
+    const startProgress = progress >= 1 ? 0 : progress;
+    if (progress >= 1) setProgress(0);
+    const totalMs = (msg.durationSec * 1000) / speed;
+    let raf = 0;
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const p = startProgress + elapsed / totalMs;
+      if (p >= 1) {
+        setProgress(1);
+        setPlaying(false);
+        return;
+      }
+      setProgress(p);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, speed, msg.durationSec]);
+  const remaining = Math.max(0, msg.durationSec * (1 - progress));
+  const remainStr = `0:${Math.ceil(remaining).toString().padStart(2, "0")}`;
+  const activeColor = fromYou ? "rgba(255,255,255,0.95)" : "#0F4F3E";
+  const inactiveColor = fromYou ? "rgba(255,255,255,0.30)" : "rgba(11,11,13,0.20)";
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "9px 12px 9px 10px",
+        background: bg,
+        color: fg,
+        border,
+        borderRadius: 999,
+        minWidth: 240,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setPlaying((p) => !p)}
+        aria-label={playing ? "Pause voice note" : "Play voice note"}
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 999,
+          background: fromYou ? "rgba(255,255,255,0.18)" : "rgba(11,11,13,0.06)",
+          border: "none",
+          color: fg,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 12,
+          flexShrink: 0,
+        }}
+      >
+        {playing ? "❚❚" : "▶"}
+      </button>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+        <div
+          role="slider"
+          aria-label="Voice note progress"
+          aria-valuenow={Math.round(progress * 100)}
+          tabIndex={0}
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            setProgress(ratio);
+          }}
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            gap: 2,
+            height: 22,
+            cursor: "pointer",
+          }}
+        >
+          {bars.map((h, i) => {
+            const barProgress = (i + 1) / bars.length;
+            const isActive = barProgress <= progress;
+            return (
+              <span
+                key={i}
+                style={{
+                  flex: 1,
+                  height: `${Math.round(h * 100)}%`,
+                  background: isActive ? activeColor : inactiveColor,
+                  borderRadius: 1,
+                  transition: "background .12s ease",
+                }}
+              />
+            );
+          })}
+        </div>
+        {msg.transcript && (
+          <div style={{ fontSize: 10.5, opacity: 0.75, marginTop: 1, lineHeight: 1.4 }}>
+            "{msg.transcript}"
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+        <span style={{ fontSize: 11, opacity: 0.8, fontVariantNumeric: "tabular-nums" }}>
+          {remainStr}
+        </span>
+        <button
+          type="button"
+          onClick={() => setSpeed((s) => (s === 1 ? 1.5 : s === 1.5 ? 2 : 1))}
+          aria-label={`Playback speed ${speed}x — tap to change`}
+          style={{
+            padding: "1px 6px",
+            background: fromYou ? "rgba(255,255,255,0.15)" : "rgba(11,11,13,0.06)",
+            border: "none",
+            borderRadius: 999,
+            color: fg,
+            fontSize: 10,
+            fontWeight: 700,
+            fontVariantNumeric: "tabular-nums",
+            cursor: "pointer",
+            opacity: speed === 1 ? 0.7 : 1,
+          }}
+        >
+          {speed}×
+        </button>
       </div>
     </div>
   );
@@ -5522,30 +6718,57 @@ function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { msg: Msg;
             gap: 2,
           }}
         >
-          {Array.from({ length: Math.min(msg.count, 4) }).map((_, i) => (
-            <div
-              key={i}
-              style={{
-                aspectRatio: "4 / 3",
-                background: `linear-gradient(135deg, ${COLORS.surfaceAlt}, rgba(11,11,13,0.06))`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 22,
-                color: COLORS.inkMuted,
-              }}
-            >
-              🖼️
-            </div>
-          ))}
+          {(() => {
+            // Premium-feeling thumbnail mocks — pseudo-randomised gradient
+            // mood blocks per index so a 4-up grid feels like distinct
+            // images, not a wall of identical placeholders. Real product
+            // would render <img> with blurhash; this is the prototype-grade
+            // proxy that doesn't rely on emoji.
+            const moods = [
+              ["#3a4a5a", "#7a8d9a"],
+              ["#a08070", "#c9b39a"],
+              ["#5a6e58", "#a9b89a"],
+              ["#2a2f3c", "#5a5e72"],
+              ["#a0584a", "#c08a72"],
+              ["#3e3a52", "#7a6a8e"],
+            ];
+            return Array.from({ length: Math.min(msg.count, 4) }).map((_, i) => {
+              const [a, b] = moods[i % moods.length]!;
+              const lastVisible = i === Math.min(msg.count, 4) - 1 && msg.count > 4;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    aspectRatio: "4 / 3",
+                    background: `linear-gradient(135deg, ${a} 0%, ${b} 100%)`,
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                  aria-label={`Photo ${i + 1}`}
+                >
+                  {/* Subtle texture overlay so it reads as photo, not flat block */}
+                  <div style={{
+                    position: "absolute", inset: 0,
+                    background: "radial-gradient(120% 80% at 30% 20%, rgba(255,255,255,0.18) 0%, transparent 50%), radial-gradient(80% 60% at 80% 90%, rgba(0,0,0,0.18) 0%, transparent 60%)",
+                  }} />
+                  {lastVisible && (
+                    <div style={{
+                      position: "absolute", inset: 0,
+                      background: "rgba(0,0,0,0.45)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#fff", fontSize: 16, fontWeight: 600,
+                      fontFamily: FONTS.body, letterSpacing: 0.2,
+                    }}>
+                      +{msg.count - 3}
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          })()}
         </div>
         {msg.caption && (
           <div style={{ padding: "7px 14px", fontSize: 12.5, color: fg }}>{msg.caption}</div>
-        )}
-        {msg.count > 4 && (
-          <div style={{ padding: "5px 14px 8px", fontSize: 11, color: fromYou ? "rgba(255,255,255,0.7)" : COLORS.inkMuted }}>
-            +{msg.count - 4} more
-          </div>
         )}
       </div>
     );
@@ -5577,41 +6800,7 @@ function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { msg: Msg;
     );
   }
   if (msg.kind === "voice") {
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "9px 14px",
-          background: bg,
-          color: fg,
-          border,
-          borderRadius: 999,
-          minWidth: 220,
-        }}
-      >
-        <span style={{ fontSize: 16 }}>▶</span>
-        <div style={{ flex: 1 }}>
-          <div
-            aria-hidden
-            style={{
-              height: 20,
-              background: `repeating-linear-gradient(90deg, ${fromYou ? "rgba(255,255,255,0.4)" : COLORS.borderSoft} 0 2px, transparent 2px 5px)`,
-              borderRadius: 4,
-            }}
-          />
-          {msg.transcript && (
-            <div style={{ fontSize: 10.5, opacity: 0.75, marginTop: 4, lineHeight: 1.4 }}>
-              "{msg.transcript}"
-            </div>
-          )}
-        </div>
-        <span style={{ fontSize: 11, opacity: 0.7, fontVariantNumeric: "tabular-nums" }}>
-          0:{msg.durationSec.toString().padStart(2, "0")}
-        </span>
-      </div>
-    );
+    return <VoiceNoteBubble msg={msg} fromYou={fromYou} bg={bg} fg={fg} border={border} />;
   }
   if (msg.kind === "location") {
     return (
@@ -5657,12 +6846,25 @@ function ContentMessageBody({ msg, fromYou, isFirstOfGroup = true }: { msg: Msg;
 function ReadReceiptRow({ msg, fromYou }: { msg: Msg; fromYou: boolean }) {
   if (!fromYou || !("ts" in msg)) return null;
   const readBy = "readBy" in msg ? msg.readBy : undefined;
-  const checkmark = readBy && readBy.length > 0 ? "✓✓" : "✓";
-  const checkColor = readBy && readBy.length > 0 ? COLORS.green : COLORS.inkDim;
+  const isRead = !!(readBy && readBy.length > 0);
+  const checkmark = isRead ? "✓✓" : "✓";
+  const checkColor = isRead ? COLORS.green : COLORS.inkDim;
+  // Mock read-time — in real product this is when the recipient opened
+  // the thread. For prototype, derive a plausible time string from the
+  // sent ts so it reads consistently. e.g. "Read at 4:32pm"
+  const readAtLabel = isRead
+    ? `Read by ${readBy?.[0] ?? "client"}${readBy && readBy.length > 1 ? ` +${readBy.length - 1}` : ""} · ${msg.ts}`
+    : `Sent · ${msg.ts}`;
   return (
     <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, marginTop: 3, fontSize: 10.5, color: COLORS.inkMuted }}>
       <span>{msg.ts}</span>
-      <span style={{ color: checkColor, fontFamily: "monospace" }}>{checkmark}</span>
+      <span
+        title={readAtLabel}
+        aria-label={readAtLabel}
+        style={{ color: checkColor, fontFamily: "monospace", cursor: "help" }}
+      >
+        {checkmark}
+      </span>
     </div>
   );
 }
@@ -5697,7 +6899,22 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
           {!submitted && " Your reply goes private to the coordinator first — they negotiate with the client."}
         </div>
         {submitted ? (
-          <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.green }}>€{val} / day</div>
+          <>
+            <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.green }}>€{val} / day</div>
+            <div style={{
+              marginTop: 8,
+              paddingTop: 8,
+              borderTop: `1px solid ${COLORS.borderSoft}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 10.5,
+              color: COLORS.inkMuted,
+            }}>
+              <span style={{ color: COLORS.green, fontFamily: "monospace" }}>✓✓</span>
+              <span>Sent · Viewed by coordinator · Awaiting decision</span>
+            </div>
+          </>
         ) : (
           <div style={{ display: "flex", gap: 8 }}>
             <div
@@ -5779,13 +6996,36 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
     );
   }
   if (msg.kind === "calendar-invite") {
+    // Mock conflict detection — Bvlgari hold (May 18-20) overlaps with
+    // a fictional Mango shoot (May 18-19). The real implementation would
+    // query the calendar surface; this static check is enough for the
+    // prototype to demonstrate the conflict-warning UX.
+    const hasConflict = msg.date.includes("18") && msg.title.toLowerCase().includes("bvlgari");
     return (
-      <div style={{ background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
+      <div style={{ background: "#fff", border: `1px solid ${hasConflict ? "rgba(176,52,52,0.30)" : COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.indigo, marginBottom: 4 }}>
           📅 Calendar invite
         </div>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{msg.title}</div>
         <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{msg.date}</div>
+        {hasConflict && (
+          <div style={{
+            marginTop: 8,
+            padding: "6px 8px",
+            background: "rgba(176,52,52,0.06)",
+            border: "1px solid rgba(176,52,52,0.20)",
+            borderRadius: 8,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 6,
+            fontSize: 11.5,
+            color: "#902a2a",
+            lineHeight: 1.4,
+          }}>
+            <span aria-hidden style={{ fontSize: 12 }}>⚠</span>
+            <span><strong>Conflicts with Mango (May 18–19)</strong> · already on hold</span>
+          </div>
+        )}
         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
           <PrimaryButton size="sm" onClick={() => toast("Added to your calendar")}>Add</PrimaryButton>
           <SecondaryButton size="sm" onClick={() => toast("Declined")}>Decline</SecondaryButton>
@@ -5873,10 +7113,17 @@ function TypingIndicator({ name }: { name: string }) {
   );
 }
 
-function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean }) {
+function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocked: boolean; onAfterSend?: () => void }) {
   const { toast } = useProto();
   const [text, setText] = useState("");
   const [attachOpen, setAttachOpen] = useState(false);
+  // @mention (#33) — show a small autocomplete popup when the user
+  // types "@". Stub with mock teammates; real version queries the API.
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const MENTION_NAMES = ["Marta Reyes", "Kai Lin", "Tomás Navarro", "Lina Park"];
+  const mentionMatches = mentionQuery !== null
+    ? MENTION_NAMES.filter((n) => n.toLowerCase().startsWith(mentionQuery.toLowerCase()))
+    : [];
   // Smart replies are now opt-in via a ✨ toggle in the composer row,
   // not forced. Real-estate-respecting per design feedback.
   const [smartOpen, setSmartOpen] = useState(false);
@@ -5887,6 +7134,19 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
     : conv.stage === "inquiry"
       ? ["Yes, available", "Need more info", "Send rate via 💸 above"]
       : ["Holding 👍", "Sounds good", "Will confirm later today"];
+
+  // Quick-quote chips — when on inquiry/hold stages, prefilled rate
+  // suggestions from the talent's recent history. The chip inserts a
+  // rate sentence into the input, the talent edits as needed before
+  // sending. Mocked from a static "history" so the prototype shows the
+  // pattern without wiring a real rates API.
+  const quickQuotes = (conv.stage === "inquiry" || conv.stage === "hold")
+    ? [
+        { rate: "€1,200/day", note: `Last with ${conv.client}` },
+        { rate: "€950/day", note: "Last editorial" },
+        { rate: "€1,800/day", note: "Top this month" },
+      ]
+    : [];
 
   return (
     <div
@@ -5899,18 +7159,67 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
     >
       {/* Smart-reply chips — only visible when toggled on. Tap a chip
           to insert it into the input; tap again to refine. Hidden by
-          default so the composer doesn't take extra real estate. */}
+          default so the composer doesn't take extra real estate.
+          On rate-relevant stages, quick-quote chips appear above the
+          smart-replies — preset rates from talent history. */}
       {smartOpen && (
         <div
           style={{
             display: "flex",
+            flexDirection: "column",
             gap: 6,
             marginBottom: 8,
-            flexWrap: "wrap",
             animation: "tulala-smart-fade .18s ease",
           }}
         >
           <style>{`@keyframes tulala-smart-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          {quickQuotes.length > 0 && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: COLORS.inkMuted,
+                alignSelf: "center",
+                marginRight: 2,
+              }}>Quick quote</span>
+              {quickQuotes.map((q) => (
+                <button
+                  key={q.rate}
+                  type="button"
+                  onClick={() => { setText(`My rate is ${q.rate}, full usage included.`); setSmartOpen(false); }}
+                  title={q.note}
+                  style={{
+                    background: "rgba(15,79,62,0.06)",
+                    border: "1px solid rgba(15,79,62,0.18)",
+                    borderRadius: 999,
+                    padding: "4px 10px",
+                    cursor: "pointer",
+                    fontFamily: FONTS.body,
+                    fontSize: 11.5,
+                    color: "#0F4F3E",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  <span style={{ fontWeight: 600 }}>{q.rate}</span>
+                  <span style={{ opacity: 0.7, fontSize: 10.5 }}>· {q.note}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <span style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              color: COLORS.inkMuted,
+              alignSelf: "center",
+              marginRight: 2,
+            }}>Quick reply</span>
           {smartReplies.map((r) => (
             <button
               key={r}
@@ -5928,6 +7237,75 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
               }}
             >
               {r}
+            </button>
+          ))}
+          </div>
+        </div>
+      )}
+
+      {/* @mention popup (#33) */}
+      {mentionMatches.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 6px)",
+            left: 14,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(11,11,13,0.14)",
+            padding: 4,
+            zIndex: 30,
+            fontFamily: FONTS.body,
+            minWidth: 180,
+          }}
+        >
+          {mentionMatches.map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                const cursor = text.lastIndexOf("@");
+                setText(text.slice(0, cursor) + `@${name} `);
+                setMentionQuery(null);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                width: "100%",
+                padding: "7px 10px",
+                background: "transparent",
+                border: "none",
+                borderRadius: 7,
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: FONTS.body,
+                fontSize: 13,
+                color: COLORS.ink,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.accentSoft)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            >
+              <span
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: "50%",
+                  background: COLORS.surfaceAlt,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: COLORS.ink,
+                  flexShrink: 0,
+                }}
+              >
+                {name.split(" ").map((w) => w[0]).join("").slice(0, 2)}
+              </span>
+              {name}
             </button>
           ))}
         </div>
@@ -5988,20 +7366,55 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
         >
           ✨
         </button>
-        <input
-          type="text"
+        <textarea
+          rows={1}
           placeholder={isLocked ? "Locked thread — only chat allowed" : "Message…"}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            const v = e.target.value;
+            setText(v);
+            // @mention detection (#33) — find "@word" at cursor
+            const cursor = e.target.selectionStart ?? v.length;
+            const before = v.slice(0, cursor);
+            const match = before.match(/@(\w*)$/);
+            setMentionQuery(match ? match[1]! : null);
+            // Auto-grow up to ~5 rows then scroll. Reset before measuring.
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            const max = 5 * 20; // ~5 lines of 20px line-height
+            el.style.height = Math.min(el.scrollHeight, max) + "px";
+          }}
+          onFocus={(e) => {
+            // Mobile keyboard avoidance — bring composer above keyboard.
+            // Defer slightly so the keyboard is in view before scroll.
+            setTimeout(() => {
+              try { e.target.scrollIntoView({ block: "end", behavior: "smooth" }); } catch { /* noop */ }
+            }, 250);
+          }}
+          onKeyDown={(e) => {
+            // Enter sends, Shift+Enter inserts a newline (chat convention)
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (text.trim()) {
+                setText("");
+                e.currentTarget.style.height = "auto";
+                toast("Sent");
+              }
+            }
+          }}
           style={{
             flex: 1,
             background: "transparent",
             border: "none",
             outline: "none",
+            resize: "none",
             fontFamily: FONTS.body,
             fontSize: 13,
+            lineHeight: "20px",
             color: COLORS.ink,
             padding: "8px 0",
+            maxHeight: 100,
+            overflowY: "auto",
           }}
         />
         {/* Voice + send */}
@@ -6027,34 +7440,17 @@ function Composer({ conv, isLocked }: { conv: Conversation; isLocked: boolean })
             <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
           </svg>
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (!text.trim()) return;
-            toast("Message sent");
-            setText("");
-          }}
-          aria-label="Send"
-          disabled={!text.trim()}
-          style={{
-            width: 34,
-            height: 34,
-            borderRadius: 999,
-            border: "none",
-            background: text.trim() ? COLORS.ink : "rgba(11,11,13,0.06)",
-            color: text.trim() ? "#fff" : COLORS.inkDim,
-            cursor: text.trim() ? "pointer" : "not-allowed",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "background .12s",
-          }}
-        >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </button>
+        <SendButtonWithSchedule disabled={!text.trim()} onSend={() => {
+          if (!text.trim()) return;
+          toast("Message sent");
+          setText("");
+          onAfterSend?.();
+        }} onSchedule={(when) => {
+          if (!text.trim()) return;
+          toast(`Scheduled for ${when}`, { action: { label: "Cancel", onClick: () => toast("Schedule cancelled") } });
+          setText("");
+          onAfterSend?.();
+        }} />
       </div>
 
       {/* Attach menu — popover above composer on desktop, slides up
@@ -7295,12 +8691,17 @@ function CalendarMonthGrid() {
                     // A7: tone palette per mark kind
                     let bg = "rgba(11,11,13,0.05)";
                     let fg = COLORS.inkMuted;
+                    let pattern: string | undefined;
                     if (mark.kind === "booking") {
                       bg = "rgba(46,125,91,0.10)";
                       fg = "#1F5C42";
                     } else if (mark.kind === "pending") {
+                      // Hold/pending now uses a diagonal-stripe overlay so it
+                      // visually reads "soft commitment, not booked yet" at
+                      // a glance — distinct from solid confirmed bookings.
                       bg = COLORS.coralSoft;
                       fg = COLORS.coralDeep;
+                      pattern = `repeating-linear-gradient(135deg, ${COLORS.coralSoft} 0, ${COLORS.coralSoft} 4px, rgba(194,106,69,0.18) 4px, rgba(194,106,69,0.18) 6px)`;
                     } else if (mark.kind === "inquiry") {
                       bg = COLORS.indigoSoft;
                       fg = COLORS.indigoDeep;
@@ -7323,9 +8724,9 @@ function CalendarMonthGrid() {
                         }
                       }}
                       style={{
-                        background: bg,
+                        background: pattern ?? bg,
                         color: fg,
-                        border: "none",
+                        border: mark.kind === "pending" ? "1px dashed rgba(194,106,69,0.45)" : "none",
                         borderRadius: 5,
                         padding: "3px 6px",
                         cursor: "pointer",
@@ -7337,11 +8738,9 @@ function CalendarMonthGrid() {
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
-                        // Pending/inquiry render slightly ghosted to differentiate
-                        // from confirmed events.
-                        opacity: mark.kind === "pending" || mark.kind === "inquiry" ? 0.85 : 1,
+                        opacity: mark.kind === "inquiry" ? 0.85 : 1,
                       }}
-                      title={mark.label}
+                      title={mark.kind === "pending" ? `${mark.label} (pending hold — not yet confirmed)` : mark.label}
                     >
                       {mark.label}
                     </button>

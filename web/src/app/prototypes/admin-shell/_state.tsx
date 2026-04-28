@@ -185,6 +185,34 @@ export function relativeTime(date: Date | string | number, now: Date = new Date(
 }
 
 /**
+ * Canonical absolute date format. "15 Apr" in current year, "15 Apr 2024"
+ * otherwise. Use for shoot dates, deadlines, and any date that needs to
+ * be unambiguous rather than relative.
+ */
+export function fmtDate(date: Date | string | number, now: Date = new Date()): string {
+  const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: sameYear ? undefined : "numeric",
+  });
+}
+
+/**
+ * Canonical money format. Always EUR (€), no decimals for whole amounts.
+ * "€4,200" not "€4200.00" or "4.200 €".
+ */
+export function fmtMoney(amount: number): string {
+  return new Intl.NumberFormat("en-EU", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+/**
  * Pluralization helper. `pluralize(2, "draft", "drafts")` → "2 drafts",
  * `pluralize(1, "draft", "drafts")` → "1 draft". With `withNumber=false`,
  * returns just the noun. Used wherever a number-driven string previously
@@ -528,6 +556,7 @@ export type DrawerId =
   // — Shared messaging-first workspace ——————————————————————————————————
   | "inquiry-workspace"
   // — Wave-2 additions ——————————————————————————————————
+  | "day-detail"
   | "inbox-snippets"
   | "notifications-prefs"
   | "data-export"
@@ -1047,8 +1076,8 @@ export const RICH_INQUIRIES: RichInquiry[] = [
       {
         id: "m21",
         threadType: "private",
-        senderName: "Sara Bianchi",
-        senderInitials: "SB",
+        senderName: "Martina Greco",
+        senderInitials: "MG",
         senderRole: "client",
         body: "Reviewing the v2 offer with our producer — should have a decision by EOD.",
         ts: "Today 09:15",
@@ -1122,7 +1151,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         { version: 2, total: "€9,500", sentAt: "4d ago", note: "Client counter — added usage rights" },
       ],
     },
-    bookingId: null,
+    bookingId: "BK-203",
     messages: [
       {
         id: "m31",
@@ -1321,6 +1350,207 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         senderRole: "system",
         body: "Payout sent — €3,281 to Acme Models. Distribution handled off-platform.",
         ts: "Apr 11",
+      },
+    ],
+  },
+
+  // ── RI-206: submitted — just came in, no coordinator yet ─────────
+  {
+    id: "RI-206",
+    agencyName: "Acme Models",
+    clientName: "Valentino",
+    clientTrust: "gold",
+    brief: "SS26 campaign · 2 talent · 3 days",
+    date: "Apr 29",
+    location: "Paris · Rue du Faubourg",
+    source: { kind: "direct", domain: "acme-models.com" },
+    stage: "submitted",
+    ageDays: 0,
+    lastActivityHrs: 1,
+    repeatBookings: 0,
+    unreadPrivate: 1,
+    unreadGroup: 0,
+    nextActionBy: "coordinator",
+    requirementGroups: [
+      {
+        id: "rg-206-talent",
+        role: "talent",
+        needed: 2,
+        approved: 0,
+        talents: [],
+      },
+    ],
+    coordinator: null,
+    offer: null,
+    bookingId: null,
+    messages: [
+      {
+        id: "m61",
+        threadType: "private",
+        senderName: "Chiara Fontana",
+        senderInitials: "CF",
+        senderRole: "client",
+        body: "Hi — Valentino SS26, 3 days in Paris from Apr 29. We need 2 talents who can handle high-fashion editorial, ideally with runway experience. Budget is flexible for the right profiles.",
+        ts: "Today 08:30",
+      },
+      {
+        id: "m62",
+        threadType: "private",
+        senderName: "System",
+        senderInitials: "—",
+        senderRole: "system",
+        body: "Inquiry received. A coordinator has been notified and will respond within 2 hours.",
+        ts: "Today 08:31",
+      },
+    ],
+  },
+
+  // ── RI-207: rejected — turned down, schedule conflict ──────────────
+  {
+    id: "RI-207",
+    agencyName: "Acme Models",
+    clientName: "H&M",
+    clientTrust: "verified",
+    brief: "Online catalogue · 3 talent · 2 days",
+    date: "Apr 15",
+    location: "Stockholm · Studio Birk",
+    source: { kind: "marketplace", platform: "Tulala marketplace" },
+    stage: "rejected",
+    ageDays: 12,
+    lastActivityHrs: 288,
+    repeatBookings: 1,
+    unreadPrivate: 0,
+    unreadGroup: 0,
+    nextActionBy: null,
+    requirementGroups: [
+      {
+        id: "rg-207-talent",
+        role: "talent",
+        needed: 3,
+        approved: 0,
+        talents: [
+          { name: "Marta Reyes", thumb: "🌸", status: "declined" },
+          { name: "Zara Habib", thumb: "🌹", status: "declined" },
+        ],
+      },
+    ],
+    coordinator: {
+      id: "co-2",
+      name: "Daniel Ferrer",
+      initials: "DF",
+      email: "daniel@acme-models.com",
+      acceptedAt: "13d ago",
+      isPrimary: true,
+    },
+    offer: null,
+    bookingId: null,
+    messages: [
+      {
+        id: "m71",
+        threadType: "private",
+        senderName: "Karin Svensson",
+        senderInitials: "KS",
+        senderRole: "client",
+        body: "Hi — still interested in working together. Can we rebook for May?",
+        ts: "Apr 14 16:00",
+      },
+      {
+        id: "m72",
+        threadType: "private",
+        senderName: "Daniel Ferrer",
+        senderInitials: "DF",
+        senderRole: "coordinator",
+        body: "Unfortunately our roster is at full capacity for mid-April. The Apr 15 dates conflict with 4 confirmed shoots. Happy to revisit for May — shall I send you a few available windows?",
+        ts: "Apr 14 16:45",
+        isYou: true,
+      },
+      {
+        id: "m73",
+        threadType: "private",
+        senderName: "System",
+        senderInitials: "—",
+        senderRole: "system",
+        body: "Inquiry closed — declined by agency. Reason: schedule conflict.",
+        ts: "Apr 15 10:00",
+      },
+    ],
+  },
+
+  // ── RI-208: expired — client never replied to offer ────────────────
+  {
+    id: "RI-208",
+    agencyName: "Acme Models",
+    clientName: "Massimo Dutti",
+    clientTrust: "verified",
+    brief: "AW collection · 1 talent · 1 day",
+    date: "Apr 7",
+    location: "Madrid · Estudio Retiro",
+    source: { kind: "direct", domain: "acme-models.com" },
+    stage: "expired",
+    ageDays: 20,
+    lastActivityHrs: 480,
+    repeatBookings: 0,
+    unreadPrivate: 0,
+    unreadGroup: 0,
+    nextActionBy: null,
+    requirementGroups: [
+      {
+        id: "rg-208-talent",
+        role: "talent",
+        needed: 1,
+        approved: 1,
+        talents: [{ name: "Iris Volpe", thumb: "🌺", status: "accepted" }],
+      },
+    ],
+    coordinator: {
+      id: "co-1",
+      name: "Sara Bianchi",
+      initials: "SB",
+      email: "sara@acme-models.com",
+      acceptedAt: "22d ago",
+      isPrimary: true,
+    },
+    offer: {
+      id: "of-208-v1",
+      version: 1,
+      status: "sent",
+      total: "€2,400",
+      sentAt: "18d ago",
+      clientApproval: "pending",
+      lineItems: [
+        { talentName: "Iris Volpe", thumb: "🌺", role: "talent", fee: "€2,400", status: "accepted" },
+      ],
+    },
+    bookingId: null,
+    messages: [
+      {
+        id: "m81",
+        threadType: "private",
+        senderName: "Sara Bianchi",
+        senderInitials: "SB",
+        senderRole: "coordinator",
+        body: "Hi — attached the offer for Iris Volpe, 1 day at €2,400. Please confirm by Apr 5 so we can hold the date.",
+        ts: "Apr 3",
+        isYou: true,
+      },
+      {
+        id: "m82",
+        threadType: "private",
+        senderName: "Sara Bianchi",
+        senderInitials: "SB",
+        senderRole: "coordinator",
+        body: "Following up — the Apr 7 date is at risk if we don't hear back today. Happy to adjust the offer if needed.",
+        ts: "Apr 5",
+        isYou: true,
+      },
+      {
+        id: "m83",
+        threadType: "private",
+        senderName: "System",
+        senderInitials: "—",
+        senderRole: "system",
+        body: "Inquiry expired — no client response after 7-day window. Iris Volpe hold released.",
+        ts: "Apr 10",
       },
     ],
   },
@@ -2172,6 +2402,199 @@ export const WORKSPACE_PAYMENTS: WorkspacePaymentRow[] = [
     date: "Mar 22",
   },
 ];
+
+// ─── Notifications ───────────────────────────────────────────────────
+//
+// Structured notification log shared by both workspace and talent surfaces.
+// Production reads from a realtime channel; this mock drives the drawer UI
+// and the bell badge counts.
+
+export type NotificationKind =
+  | "message"    // new message in a thread
+  | "offer"      // offer sent or updated
+  | "booking"    // booking confirmed / updated
+  | "payment"    // payment status change
+  | "approval"   // talent or client approved something
+  | "system"     // automated platform event
+  | "profile";   // talent profile submitted changes
+
+export type NotificationItem = {
+  id: string;
+  kind: NotificationKind;
+  /** Which inquiry this notification relates to, if any. */
+  inquiryId?: string;
+  /** Which booking this notification relates to, if any. */
+  bookingId?: string;
+  title: string;
+  body: string;
+  ts: string;
+  read: boolean;
+  actorName: string;
+  actorInitials: string;
+  /** Surface: workspace admin or talent personal. */
+  surface: "workspace" | "talent";
+  /** DrawerId to open when this notification is clicked. */
+  targetDrawer: DrawerId;
+  /** Optional payload forwarded to the target drawer. */
+  targetPayload?: { id?: string; inquiryId?: string };
+};
+
+export const NOTIFICATIONS: NotificationItem[] = [
+  // ── Workspace notifications ──────────────────────────────────────
+  {
+    id: "wn1",
+    kind: "message",
+    inquiryId: "RI-202",
+    title: "Vogue Italia replied to the offer",
+    body: '"Reviewing the v2 offer with our producer — should have a decision by EOD."',
+    ts: "22m ago",
+    read: false,
+    actorName: "Martina Greco",
+    actorInitials: "MG",
+    surface: "workspace",
+    targetDrawer: "inquiry-workspace",
+    targetPayload: { inquiryId: "RI-202" },
+  },
+  {
+    id: "wn2",
+    kind: "approval",
+    inquiryId: "RI-203",
+    title: "Bvlgari approved the offer",
+    body: "All parties confirmed. Convert to booking and send the contract.",
+    ts: "2h ago",
+    read: false,
+    actorName: "Marco Conti",
+    actorInitials: "MC",
+    surface: "workspace",
+    targetDrawer: "inquiry-workspace",
+    targetPayload: { inquiryId: "RI-203" },
+  },
+  {
+    id: "wn3",
+    kind: "profile",
+    title: "Lina Park submitted profile changes",
+    body: "Updated measurements and 3 new photos. Awaiting your approval.",
+    ts: "1h ago",
+    read: false,
+    actorName: "Lina Park",
+    actorInitials: "LP",
+    surface: "workspace",
+    targetDrawer: "talent-profile",
+    targetPayload: { id: "t4" },
+  },
+  {
+    id: "wn4",
+    kind: "booking",
+    inquiryId: "RI-203",
+    bookingId: "BK-203",
+    title: "Bvlgari booking starts Thursday",
+    body: "Kai Lin · €8,200 · Rome · Cinecittà 7",
+    ts: "3h ago",
+    read: true,
+    actorName: "System",
+    actorInitials: "—",
+    surface: "workspace",
+    targetDrawer: "inquiry-workspace",
+    targetPayload: { inquiryId: "RI-203" },
+  },
+  {
+    id: "wn5",
+    kind: "system",
+    inquiryId: "RI-206",
+    title: "New inquiry from Valentino",
+    body: "SS26 campaign · 2 talent · 3 days · Apr 29. No coordinator assigned yet.",
+    ts: "Today 08:31",
+    read: false,
+    actorName: "System",
+    actorInitials: "—",
+    surface: "workspace",
+    targetDrawer: "inquiry-workspace",
+    targetPayload: { inquiryId: "RI-206" },
+  },
+  {
+    id: "wn6",
+    kind: "payment",
+    inquiryId: "RI-205",
+    bookingId: "BK-205",
+    title: "Payout sent — Net-a-Porter / Marta Reyes",
+    body: "€3,281 sent to Acme Models. BK-205 complete.",
+    ts: "Apr 11",
+    read: true,
+    actorName: "System",
+    actorInitials: "—",
+    surface: "workspace",
+    targetDrawer: "payment-detail",
+    targetPayload: { id: "BK-205" },
+  },
+  // ── Talent notifications (Marta Reyes) ────────────────────────────
+  {
+    id: "tn1",
+    kind: "offer",
+    inquiryId: "RI-201",
+    title: "New offer from Acme Models",
+    body: "Mango · Spring lookbook · Tue May 6 · €1,800. Please respond by tomorrow.",
+    ts: "5h ago",
+    read: false,
+    actorName: "Sara Bianchi",
+    actorInitials: "SB",
+    surface: "talent",
+    targetDrawer: "talent-offer-detail",
+    targetPayload: { id: "rq1" },
+  },
+  {
+    id: "tn2",
+    kind: "booking",
+    inquiryId: "RI-202",
+    bookingId: "bk2",
+    title: "Vogue Italia booking confirmed",
+    body: "May 14–15, Milan · Studio 5. Call time 07:00. Call sheet to follow.",
+    ts: "2d ago",
+    read: true,
+    actorName: "Daniel Ferrer",
+    actorInitials: "DF",
+    surface: "talent",
+    targetDrawer: "talent-booking-detail",
+    targetPayload: { id: "bk2" },
+  },
+  {
+    id: "tn3",
+    kind: "payment",
+    bookingId: "bk4",
+    title: "Payout received — Zara",
+    body: "€2,000 transferred via bank. Zara capsule lookbook, Mar 28.",
+    ts: "Apr 4",
+    read: true,
+    actorName: "System",
+    actorInitials: "—",
+    surface: "talent",
+    targetDrawer: "talent-closed-booking",
+    targetPayload: { id: "bk4" },
+  },
+  {
+    id: "tn4",
+    kind: "message",
+    inquiryId: "RI-201",
+    title: "Sara Bianchi sent a group message",
+    body: "Mango spring lookbook, Tue May 6 in Madrid. Estudio Roca, full day.",
+    ts: "Mon 17:05",
+    read: true,
+    actorName: "Sara Bianchi",
+    actorInitials: "SB",
+    surface: "talent",
+    targetDrawer: "talent-offer-detail",
+    targetPayload: { id: "rq1" },
+  },
+];
+
+/** Unread workspace notification count — derived from NOTIFICATIONS. */
+export const WORKSPACE_NOTIFICATION_COUNT = NOTIFICATIONS.filter(
+  (n) => n.surface === "workspace" && !n.read
+).length;
+
+/** Unread talent notification count — derived from NOTIFICATIONS. */
+export const TALENT_NOTIFICATION_COUNT = NOTIFICATIONS.filter(
+  (n) => n.surface === "talent" && !n.read
+).length;
 
 // ─── Workspace info ──────────────────────────────────────────────────
 
@@ -3129,25 +3552,28 @@ export type TalentRequest = {
   amount?: string;
   ageHrs: number;
   status: "needs-answer" | "viewed" | "accepted" | "declined" | "expired";
+  /** Cross-reference to RICH_INQUIRIES — same booking seen from the talent side. */
+  inquiryId?: string;
 };
 
 export const TALENT_REQUESTS: TalentRequest[] = [
-  { id: "rq1", kind: "offer", agency: "Acme Models", client: "Mango", clientTrust: "gold", brief: "Lookbook · spring capsule · 1 day", date: "Tue · May 6", amount: "€1,800", ageHrs: 5, status: "needs-answer" },
-  { id: "rq2", kind: "hold", agency: "Acme Models", client: "Bvlgari", clientTrust: "silver", brief: "Editorial · jewelry campaign", date: "May 18–20", amount: "€4,000–6,000", ageHrs: 18, status: "needs-answer" },
-  { id: "rq3", kind: "casting", agency: "Praline London", client: "Net-a-Porter", clientTrust: "silver", brief: "Casting call · video lookbook", date: "Apr 30", amount: "TBC", ageHrs: 36, status: "viewed" },
-  { id: "rq4", kind: "offer", agency: "Acme Models", client: "Vogue Italia", clientTrust: "gold", brief: "Editorial spread · 2 day shoot", date: "May 14–15", amount: "€3,200", ageHrs: 60, status: "accepted" },
+  { id: "rq1", kind: "offer",   agency: "Acme Models",    client: "Mango",          clientTrust: "gold",     brief: "Lookbook · spring capsule · 1 day",        date: "Tue · May 6",  amount: "€1,800",      ageHrs: 5,   status: "needs-answer", inquiryId: "RI-201" },
+  { id: "rq2", kind: "hold",    agency: "Acme Models",    client: "Bvlgari",         clientTrust: "silver",   brief: "Editorial · jewelry campaign",             date: "May 18–20",    amount: "€4,000–6,000", ageHrs: 18,  status: "needs-answer", inquiryId: "RI-203" },
+  { id: "rq3", kind: "casting", agency: "Praline London", client: "Net-a-Porter",    clientTrust: "silver",   brief: "Casting call · video lookbook",            date: "Apr 30",       amount: "TBC",          ageHrs: 36,  status: "viewed" },
+  { id: "rq4", kind: "offer",   agency: "Acme Models",    client: "Vogue Italia",    clientTrust: "gold",     brief: "Editorial spread · 2 day shoot",           date: "May 14–15",    amount: "€3,200",       ageHrs: 60,  status: "accepted",    inquiryId: "RI-202" },
   // Conflicted hold — overlaps with confirmed bk2 (Vogue Italia · May 14–15).
   // Surfaces the conflict-resolution UI on the calendar so Marta sees the
   // collision before either party expects her to commit.
-  { id: "rq5", kind: "hold", agency: "Acme Models", client: "Stella McCartney", clientTrust: "verified", brief: "Lookbook · single day", date: "May 14", amount: "€2,200", ageHrs: 4, status: "needs-answer" },
-  // Cancelled / fell-through inquiries — surface in the new "Cancelled"
-  // calendar filter alongside cancelled bookings.
-  { id: "rq6", kind: "casting", agency: "Acme Models", client: "H&M", clientTrust: "verified", brief: "Online catalogue · 3 talent shortlist", date: "Apr 24", amount: "€900", ageHrs: 96, status: "declined" },
-  { id: "rq7", kind: "hold", agency: "Praline London", client: "Topshop", clientTrust: "basic", brief: "Pop-up activation · weekend", date: "Apr 12", amount: "£600", ageHrs: 240, status: "expired" },
+  { id: "rq5", kind: "hold",    agency: "Acme Models",    client: "Stella McCartney", clientTrust: "verified", brief: "Lookbook · single day",                   date: "May 14",       amount: "€2,200",       ageHrs: 4,   status: "needs-answer" },
+  // Declined / fell-through inquiries — surface in the "Past" section.
+  { id: "rq6", kind: "casting", agency: "Acme Models",    client: "H&M",             clientTrust: "verified", brief: "Online catalogue · 3 talent shortlist",    date: "Apr 24",       amount: "€900",         ageHrs: 96,  status: "declined",    inquiryId: "RI-207" },
+  { id: "rq7", kind: "hold",    agency: "Praline London", client: "Topshop",         clientTrust: "basic",    brief: "Pop-up activation · weekend",              date: "Apr 12",       amount: "£600",         ageHrs: 240, status: "expired" },
 ];
 
 export type TalentBooking = {
   id: string;
+  /** Cross-reference to the workspace RICH_INQUIRIES booking that created this. */
+  inquiryId?: string;
   agency: string;
   client: string;
   brief: string;
@@ -3168,14 +3594,13 @@ export type TalentBooking = {
 };
 
 export const TALENT_BOOKINGS: TalentBooking[] = [
-  { id: "bk1", agency: "Acme Models", client: "Mango", brief: "Lookbook · spring capsule", startDate: "Tue, May 6", location: "Madrid · ESTUDIO ROCA", amount: "€1,800", status: "confirmed", call: "08:30" },
-  { id: "bk2", agency: "Acme Models", client: "Vogue Italia", brief: "Editorial spread", startDate: "May 14", endDate: "May 15", location: "Milan · Studio 5", amount: "€3,200", status: "confirmed", call: "07:00" },
-  { id: "bk3", agency: "Praline London", client: "Burberry", brief: "Lookbook", startDate: "Apr 18", location: "London · Hackney", amount: "£2,400", status: "wrapped", call: "—" },
-  { id: "bk4", agency: "Acme Models", client: "Zara", brief: "Capsule lookbook", startDate: "Mar 28", location: "Madrid", amount: "€2,000", status: "paid", call: "—" },
-  // Cancellation examples — surface in the new "Cancelled" filter on
-  // Calendar so the talent has a record of what fell through.
-  { id: "bk5", agency: "Acme Models", client: "Hugo Boss", brief: "AW campaign", startDate: "May 9", location: "Berlin · Studio Mitte", amount: "€2,400", status: "cancelled", call: "08:00", cancelledBy: "client", cancelReason: "Client postponed campaign · no kill fee due", cancelTiming: "3d before shoot" },
-  { id: "bk6", agency: "Praline London", client: "Selfridges", brief: "Editorial · summer spread", startDate: "Apr 22", location: "London · Studio 2C", amount: "£1,800", status: "cancelled", call: "—", cancelledBy: "talent", cancelReason: "Travel conflict · settled with hold-day fee", cancelTiming: "day before shoot" },
+  { id: "bk1", inquiryId: "RI-201", agency: "Acme Models",    client: "Mango",        brief: "Lookbook · spring capsule",     startDate: "Tue, May 6",         location: "Madrid · ESTUDIO ROCA",    amount: "€1,800", status: "confirmed", call: "08:30" },
+  { id: "bk2", inquiryId: "RI-202", agency: "Acme Models",    client: "Vogue Italia", brief: "Editorial spread",              startDate: "May 14", endDate: "May 15", location: "Milan · Studio 5",    amount: "€3,200", status: "confirmed", call: "07:00" },
+  { id: "bk3",                      agency: "Praline London", client: "Burberry",     brief: "Lookbook",                      startDate: "Apr 18",              location: "London · Hackney",          amount: "£2,400", status: "wrapped",   call: "—"    },
+  { id: "bk4",                      agency: "Acme Models",    client: "Zara",         brief: "Capsule lookbook",              startDate: "Mar 28",              location: "Madrid",                    amount: "€2,000", status: "paid",      call: "—"    },
+  // Cancellation examples — surface in the "Cancelled" calendar filter.
+  { id: "bk5",                      agency: "Acme Models",    client: "Hugo Boss",    brief: "AW campaign",                   startDate: "May 9",               location: "Berlin · Studio Mitte",     amount: "€2,400", status: "cancelled", call: "08:00", cancelledBy: "client", cancelReason: "Client postponed campaign · no kill fee due",   cancelTiming: "3d before shoot"   },
+  { id: "bk6",                      agency: "Praline London", client: "Selfridges",   brief: "Editorial · summer spread",     startDate: "Apr 22",              location: "London · Studio 2C",        amount: "£1,800", status: "cancelled", call: "—",    cancelledBy: "talent", cancelReason: "Travel conflict · settled with hold-day fee",    cancelTiming: "day before shoot"  },
 ];
 
 export type AvailabilityBlock = {
@@ -3713,14 +4138,26 @@ export type ClientInquiry = {
   stage: "draft" | "sent" | "agency-replied" | "talent-confirmed" | "negotiating" | "confirmed" | "declined";
   amount?: string;
   date?: string;
+  /**
+   * Cross-reference to the workspace RICH_INQUIRIES entry that matches
+   * this client-side inquiry. M:1 — a single rich inquiry can span
+   * multiple per-talent client inquiry rows.
+   */
+  inquiryId?: string;
 };
 
 export const CLIENT_INQUIRIES: ClientInquiry[] = [
-  { id: "ci1", shortlistName: "Spring lookbook", agency: "Acme Models", brief: "Marta Reyes · 1 day", ageDays: 1, stage: "agency-replied", amount: "€1,800", date: "Tue · May 6" },
-  { id: "ci2", shortlistName: "Spring lookbook", agency: "Acme Models", brief: "Tomás Navarro · 1 day", ageDays: 1, stage: "negotiating", amount: "€2,400", date: "Tue · May 6" },
-  { id: "ci3", shortlistName: "Press kit launch", agency: "Acme Models", brief: "Kai Lin · 2 day", ageDays: 5, stage: "confirmed", amount: "€3,200", date: "May 14–15" },
-  { id: "ci4", shortlistName: "Bridal capsule", agency: "Maison Sud", brief: "Léa Mercier · 1 day", ageDays: 0, stage: "draft" },
-  { id: "ci5", shortlistName: "Spring lookbook", agency: "Praline London", brief: "Yuna Park · 1 day", ageDays: 3, stage: "declined", amount: "£2,400" },
+  // ci1 + ci2 are per-talent line items from the same RI-201 (Mango spring lookbook).
+  { id: "ci1", shortlistName: "Spring lookbook", agency: "Acme Models",    brief: "Marta Reyes · 1 day",    ageDays: 1, stage: "agency-replied", amount: "€1,800", date: "Tue · May 6",  inquiryId: "RI-201" },
+  { id: "ci2", shortlistName: "Spring lookbook", agency: "Acme Models",    brief: "Tomás Navarro · 1 day",  ageDays: 1, stage: "negotiating",    amount: "€2,400", date: "Tue · May 6",  inquiryId: "RI-201" },
+  // ci3 maps to RI-203 (Bvlgari / Kai Lin). Client stage "confirmed" = workspace stage "approved" (both sides said yes).
+  { id: "ci3", shortlistName: "Press kit launch",agency: "Acme Models",    brief: "Kai Lin · 2 day",         ageDays: 5, stage: "confirmed",      amount: "€3,200", date: "May 14–15",    inquiryId: "RI-203" },
+  // ci4 is a fresh client-side draft with no workspace counterpart yet.
+  { id: "ci4", shortlistName: "Bridal capsule",  agency: "Maison Sud",      brief: "Léa Mercier · 1 day",    ageDays: 0, stage: "draft" },
+  // ci5 is a declined line item — Yuna Park turned down for the Spring lookbook.
+  { id: "ci5", shortlistName: "Spring lookbook", agency: "Praline London",  brief: "Yuna Park · 1 day",       ageDays: 3, stage: "declined",       amount: "£2,400",                       inquiryId: "RI-201" },
+  // ci6 — new inquiry just submitted to Valentino; workspace RI-206 = submitted stage.
+  { id: "ci6", shortlistName: "SS26 campaign",   agency: "Acme Models",     brief: "2 talent · 3 days",       ageDays: 0, stage: "sent",                             date: "Apr 29",      inquiryId: "RI-206" },
 ];
 
 export type ClientBookingPostStatus =
@@ -3743,12 +4180,17 @@ export type ClientBooking = {
   status: "confirmed" | "in-progress" | "wrapped" | "invoiced";
   /** Granular post-booking state — the production state machine lives here */
   postStatus: ClientBookingPostStatus;
+  /** Cross-reference to the workspace RICH_INQUIRIES booking. */
+  inquiryId?: string;
 };
 
 export const CLIENT_BOOKINGS: ClientBooking[] = [
-  { id: "cb1", shortlistName: "Spring lookbook", agency: "Acme Models", talent: "Marta Reyes", date: "Tue, May 6", location: "Madrid · Estudio Roca", amount: "€1,800", status: "confirmed", postStatus: "call-sheet-sent" },
-  { id: "cb2", shortlistName: "Press kit launch", agency: "Acme Models", talent: "Kai Lin", date: "May 14–15", location: "Milan · Studio 5", amount: "€3,200", status: "confirmed", postStatus: "contract-pending" },
-  { id: "cb3", shortlistName: "Winter '25", agency: "Acme Models", talent: "Tomás Navarro", date: "Feb 22, 2026", location: "Madrid", amount: "€2,400", status: "invoiced", postStatus: "paid" },
+  // cb1 → RI-201 (Mango spring lookbook, Marta Reyes's slot).
+  { id: "cb1", shortlistName: "Spring lookbook",  agency: "Acme Models", talent: "Marta Reyes",    date: "Tue, May 6",    location: "Madrid · Estudio Roca", amount: "€1,800", status: "confirmed", postStatus: "call-sheet-sent",  inquiryId: "RI-201" },
+  // cb2 → RI-203 (Bvlgari jewelry campaign, Kai Lin). Workspace stage "approved" = client postStatus "contract-pending".
+  { id: "cb2", shortlistName: "Press kit launch", agency: "Acme Models", talent: "Kai Lin",         date: "May 18–20",     location: "Rome · Cinecittà 7",    amount: "€8,200", status: "confirmed", postStatus: "contract-pending", inquiryId: "RI-203" },
+  // cb3 — closed booking, no open inquiry.
+  { id: "cb3", shortlistName: "Winter '25",        agency: "Acme Models", talent: "Tomás Navarro", date: "Feb 22, 2026",  location: "Madrid",                amount: "€2,400", status: "invoiced",  postStatus: "paid" },
 ];
 
 /** Client Q2 budget — for the budget-vs-actual strip (C15) */
@@ -3937,7 +4379,8 @@ export const PLATFORM_HQ_TEAM: TeamMember[] = [
 
 // ─── Provider ────────────────────────────────────────────────────────
 
-type Toast = { id: number; message: string; undo?: () => void };
+type ToastAction = { label: string; onClick: () => void };
+type Toast = { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: "default" | "error" };
 
 export type Impersonation = {
   tenantSlug: string;
@@ -4057,7 +4500,7 @@ type Ctx = {
   drawerStack: DrawerContext[];
   openUpgrade: (offer: Omit<UpgradeOffer, "open">) => void;
   closeUpgrade: () => void;
-  toast: (message: string, opts?: { undo?: () => void }) => void;
+  toast: (message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: "default" | "error" }) => void;
   dismissToast: (id: number) => void;
   completeTask: (id: string) => void;
 };
@@ -4268,12 +4711,12 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     setUpgrade({ open: false });
   }, []);
 
-  const toast = useCallback((message: string, opts?: { undo?: () => void }) => {
+  const toast = useCallback((message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: "default" | "error" }) => {
     const id = ++toastIdRef.current;
-    setToasts((prev) => [...prev, { id, message, undo: opts?.undo }]);
+    setToasts((prev) => [...prev, { id, message, undo: opts?.undo, action: opts?.action, tone: opts?.tone }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, opts?.undo ? 5000 : 2400); // undo toasts stay longer
+    }, (opts?.undo || opts?.action) ? 5000 : 2400); // actionable toasts stay longer
   }, []);
 
   const dismissToast = useCallback((id: number) => {
@@ -4455,7 +4898,7 @@ export const COLORS = {
 
   // Ink
   ink: "#0B0B0D",
-  inkMuted: "rgba(11,11,13,0.62)",
+  inkMuted: "rgba(11,11,13,0.72)",
   inkDim: "rgba(11,11,13,0.38)",
 
   // Borders — borderStrong is for hover/active card states

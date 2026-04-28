@@ -16,6 +16,9 @@ import {
   PLATFORM_PAGES,
   PLATFORM_PAGE_META,
   RICH_INQUIRIES,
+  NOTIFICATIONS,
+  WORKSPACE_NOTIFICATION_COUNT,
+  TALENT_NOTIFICATION_COUNT,
   ROLE_META,
   ROLES,
   SURFACE_META,
@@ -44,6 +47,9 @@ import {
   PAYOUT_STATUS_META,
   PLAN_FEE_META,
   getWorkspacePayout,
+  fmtDate,
+  fmtMoney,
+  relativeTime,
   type ClientPage,
   type EntityType,
   type InquirySource,
@@ -89,6 +95,13 @@ import {
   BulkSelectBar,
   BulkRowCheckbox,
   useKeyboardListNav,
+  FloatingFab,
+  ConfirmModal,
+  AutoSaveIndicator,
+  RetryCard,
+  ActivityFeedItem,
+  PageSkeleton,
+  RowSkeleton,
 } from "./_primitives";
 import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv } from "./_wave2";
 import { TalentSurface } from "./_talent";
@@ -391,12 +404,39 @@ function ToggleControl({
   );
 }
 
+// Time-aware greeting for the overview page header.
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+// Mock storefront analytics — centralised so the numbers aren't
+// scattered as magic literals across multiple render calls.
+const MOCK_STOREFRONT_STATS = { views7d: 284, viewsGrowth: "+18%" };
+const ME_EMAIL = "orantenemx@gmail.com";
+
+// Sidebar page icons — local map so PAGE_META stays lean.
+const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "arrow-right" | "team" | "user" | "globe" | "credit" | "settings"> = {
+  overview: "bolt",
+  inbox: "mail",
+  calendar: "calendar",
+  work: "arrow-right",
+  talent: "team",
+  clients: "user",
+  site: "globe",
+  billing: "credit",
+  workspace: "settings",
+};
+
 // ════════════════════════════════════════════════════════════════════
 // Workspace topbar (product chrome)
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar() {
   const { state, setPage, setWorkspaceLayout } = useProto();
+  const isSettingsActive = state.page === "workspace";
   const canCreate = meetsRole(state.role, "editor");
 
   return (
@@ -456,10 +496,10 @@ export function WorkspaceTopbar() {
                   aria-hidden
                   style={{
                     position: "absolute",
-                    bottom: -14,
+                    bottom: -1,
                     left: 8,
                     right: 8,
-                    height: 3,
+                    height: 2,
                     background: COLORS.ink,
                     borderRadius: 2,
                     opacity: active ? 1 : 0,
@@ -474,9 +514,30 @@ export function WorkspaceTopbar() {
           })}
         </nav>
 
-        {/* Right side — Quick create + sidebar layout toggle. */}
+        {/* Right side — Quick create + settings shortcut + sidebar layout toggle. */}
         <div data-tulala-app-topbar-right style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {canCreate && <QuickCreateMenu />}
+          <Popover content="Workspace settings">
+            <button
+              type="button"
+              onClick={() => setPage("workspace")}
+              aria-label="Workspace settings"
+              style={{
+                ...iconButtonStyle,
+                background: isSettingsActive ? COLORS.ink : "#fff",
+                color: isSettingsActive ? "#fff" : COLORS.inkMuted,
+                borderColor: isSettingsActive ? COLORS.ink : COLORS.borderSoft,
+              }}
+              onMouseEnter={(e) => {
+                if (!isSettingsActive) { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSettingsActive) { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }
+              }}
+            >
+              <Icon name="settings" size={13} stroke={1.7} />
+            </button>
+          </Popover>
           <Popover content="Switch to sidebar layout">
             <button
               type="button"
@@ -645,6 +706,8 @@ function QuickCreateMenu() {
       </button>
       {open && (
         <div
+          role="menu"
+          aria-label="Quick create"
           style={{
             position: "absolute",
             top: "calc(100% + 6px)",
@@ -674,6 +737,7 @@ function QuickCreateMenu() {
           {items.map((it) => (
             <button
               key={it.id}
+              role="menuitem"
               disabled={!it.canDo}
               onClick={() => {
                 openDrawer(it.drawer, it.id === "new-client" ? { id: "new" } : undefined);
@@ -759,7 +823,7 @@ function QuickCreateMenu() {
             }}
           >
             <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)" }}>
-              Press G then a key from anywhere — fake shortcut hint
+              Press G then a key from anywhere to quick-create
             </span>
           </div>
         </div>
@@ -781,8 +845,9 @@ function QuickCreateMenu() {
 // Single source of truth for cross-mode unread:
 // ════════════════════════════════════════════════════════════════════
 
-const TALENT_UNREAD = 4;     // Mock — production reads from realtime channel
-const WORKSPACE_UNREAD = 2;  // Mock — production reads from realtime channel
+// Derived from the real NOTIFICATIONS data — no more magic literals.
+const TALENT_UNREAD = TALENT_NOTIFICATION_COUNT;
+const WORKSPACE_UNREAD = WORKSPACE_NOTIFICATION_COUNT;
 
 export function TulalaIdentityBar() {
   const { state, openDrawer, flipMode, toast } = useProto();
@@ -802,13 +867,20 @@ export function TulalaIdentityBar() {
   const actingSubLabel = inWorkspace
     ? `${plan.charAt(0).toUpperCase() + plan.slice(1)} · ${entityType} · ${role.charAt(0).toUpperCase() + role.slice(1)}`
     : "Primary agency";
+  // Acting-as detail line — surfaces a secondary metric next to the
+  // workspace/agency name so the chip says more than just "Acme Models".
+  // Workspace shows pending receivables; talent shows confirmed bookings
+  // count for the active agency relationship. Mocked.
+  const actingDetail = inWorkspace
+    ? `${fmtMoney(4200)} pending · 3 confirmed`
+    : `3 confirmed · ${fmtMoney(4200)} YTD`;
   const onActingClick = () =>
     inWorkspace ? openDrawer("tenant-switcher") : openDrawer("talent-agency-relationship");
 
   // The notifications + help drawers are different on each side — the
   // bell opens the right one based on surface.
   const notificationsDrawerId = inWorkspace ? "notifications" : "talent-notifications";
-  const notificationsUnread = inWorkspace ? WORKSPACE_UNREAD + 1 : TALENT_UNREAD;
+  const notificationsUnread = inWorkspace ? WORKSPACE_UNREAD : TALENT_UNREAD;
 
   return (
     <header
@@ -919,6 +991,15 @@ export function TulalaIdentityBar() {
           <span
             data-tulala-acting-label
             style={{
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              minWidth: 0,
+              overflow: "hidden",
+              maxWidth: 180,
+            }}
+          >
+            <span style={{
               fontFamily: FONTS.body,
               fontSize: 13,
               fontWeight: 500,
@@ -927,10 +1008,20 @@ export function TulalaIdentityBar() {
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              maxWidth: 180,
-            }}
-          >
-            {actingLabel}
+              lineHeight: 1.15,
+            }}>{actingLabel}</span>
+            <span data-tulala-acting-detail style={{
+              fontFamily: FONTS.body,
+              fontSize: 10,
+              fontWeight: 500,
+              color: COLORS.inkMuted,
+              letterSpacing: 0,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              lineHeight: 1.1,
+              marginTop: 1,
+            }}>{actingDetail}</span>
           </span>
           <span
             aria-hidden
@@ -1005,7 +1096,7 @@ function AccountMenuTrigger({
   userInitials: string;
   children: ReactNode;
 }) {
-  const { toast } = useProto();
+  const { toast, state } = useProto();
   const [open, setOpen] = useState(false);
   // Close on outside click
   useEffect(() => {
@@ -1021,7 +1112,13 @@ function AccountMenuTrigger({
   }, [open]);
 
   return (
-    <div data-tulala-account-menu-root style={{ position: "relative" }}>
+    <div
+      data-tulala-account-menu-root
+      style={{ position: "relative" }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+      }}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -1080,7 +1177,31 @@ function AccountMenuTrigger({
               Signed in as
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{userName}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>orantenemx@gmail.com</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{ME_EMAIL}</div>
+            {/* Tenant meta — plan / role, shown on mobile where the identity
+                bar chips are hidden (#2) */}
+            {state.surface === "workspace" && (
+              <div
+                data-tulala-tenant-meta-mobile
+                style={{
+                  display: "none",
+                  marginTop: 8,
+                  padding: "6px 8px",
+                  background: COLORS.surfaceAlt,
+                  borderRadius: 7,
+                  fontSize: 11,
+                  color: COLORS.ink,
+                  fontWeight: 500,
+                  gap: 6,
+                }}
+              >
+                <span style={{ textTransform: "capitalize" }}>{PLAN_META[state.plan].label}</span>
+                <span style={{ color: COLORS.inkMuted }}>·</span>
+                <span style={{ textTransform: "capitalize" }}>{state.entityType}</span>
+                <span style={{ color: COLORS.inkMuted }}>·</span>
+                <span style={{ textTransform: "capitalize" }}>{state.role}</span>
+              </div>
+            )}
           </div>
 
           <AccountMenuItem
@@ -1142,8 +1263,10 @@ function AccountMenuItem({
         display: "flex",
         flexDirection: "column",
         alignItems: "flex-start",
+        justifyContent: "center",
         gap: 1,
         width: "100%",
+        minHeight: 36,
         padding: "8px 12px",
         background: "transparent",
         border: "none",
@@ -1227,41 +1350,25 @@ function ModeTogglePill({
   flipMode: () => void;
 }) {
   const inTalent = surface === "talent";
-  // Audit #5 — animated thumb slides between Talent and Workspace
-  // sides. Rocker-switch feel beats a hard background swap. The thumb
-  // is positioned via CSS variable so width measures naturally to the
-  // active label.
+  // Direct-background active state. The earlier absolute-thumb
+  // slide animation was visually unreliable (active pill appeared
+  // larger than its container at narrow widths). Reliable beats
+  // animated — both buttons render the same size, the active one
+  // just gets a real background fill.
   return (
     <div
-      role="tablist"
+      role="group"
       aria-label="Switch between Talent and Workspace"
       style={{
-        position: "relative",
         display: "inline-flex",
-        alignItems: "stretch",
+        alignItems: "center",
         background: "rgba(11,11,13,0.05)",
         borderRadius: 999,
         padding: 3,
         fontFamily: FONTS.body,
+        height: 32,
       }}
     >
-      {/* Sliding thumb — sized to half of the parent's content box. */}
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 3,
-          bottom: 3,
-          left: 3,
-          width: "calc(50% - 3px)",
-          transform: inTalent ? "translateX(0%)" : "translateX(100%)",
-          background: COLORS.ink,
-          borderRadius: 999,
-          transition: "transform .28s cubic-bezier(.4,.0,.2,1)",
-          pointerEvents: "none",
-          boxShadow: "0 1px 1px rgba(11,11,13,0.10)",
-        }}
-      />
       <ModeTogglePillButton
         active={inTalent}
         label="Talent"
@@ -1291,28 +1398,32 @@ function ModeTogglePillButton({
 }) {
   return (
     <button
-      role="tab"
-      aria-selected={active}
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
       style={{
-        background: "transparent",
+        background: active ? COLORS.ink : "transparent",
         color: active ? "#fff" : COLORS.inkMuted,
         border: "none",
         borderRadius: 999,
-        padding: "6px 14px",
+        // height matches container minus 6px padding (3+3) so the
+        // active background fills exactly the inner space without
+        // overflow.
+        height: 26,
+        padding: "0 14px",
         cursor: active ? "default" : "pointer",
         fontFamily: FONTS.body,
         fontSize: 12.5,
         fontWeight: active ? 600 : 500,
         letterSpacing: 0.1,
+        lineHeight: 1,
         display: "inline-flex",
         alignItems: "center",
         gap: 6,
-        position: "relative",
-        zIndex: 1,
-        transition: "color .28s",
+        transition: "background .2s ease, color .2s ease",
         flex: 1,
         justifyContent: "center",
+        boxShadow: active ? "0 1px 2px rgba(11,11,13,0.12)" : "none",
       }}
       onMouseEnter={(e) => {
         if (!active) e.currentTarget.style.color = COLORS.ink;
@@ -1393,10 +1504,8 @@ function IdentityBarIconButton({
           aria-hidden
           style={{
             position: "absolute",
-            // Tucked inside the button border so it doesn't clip the
-            // 56px identity bar at mobile.
-            top: 1,
-            right: 1,
+            top: -4,
+            right: -4,
             minWidth: 14,
             height: 14,
             padding: "0 3px",
@@ -1469,11 +1578,12 @@ export function WorkspaceShell() {
  * fixed-width sidebar on the left and the main column flexing.
  */
 function WorkspaceSidebarShell() {
-  const { state, setPage, openDrawer } = useProto();
+  const { state, setPage, openDrawer, setWorkspaceLayout } = useProto();
   const { role } = state;
   const canCreate = meetsRole(role, "editor");
   return (
     <div
+      data-tulala-workspace-grid
       style={{
         display: "grid",
         gridTemplateColumns: "232px 1fr",
@@ -1498,12 +1608,49 @@ function WorkspaceSidebarShell() {
           fontFamily: FONTS.body,
         }}
       >
+        {/* Tenant switcher (#3) — compact context chip at the top of the
+            sidebar. Clicking opens the tenant-switcher drawer. On multi-
+            workspace accounts this lists all workspaces; single-workspace
+            shows workspace info. */}
+        <button
+          type="button"
+          onClick={() => openDrawer("tenant-switcher")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            padding: "8px 10px",
+            background: COLORS.surfaceAlt,
+            border: "none",
+            borderRadius: 9,
+            cursor: "pointer",
+            width: "100%",
+            textAlign: "left",
+            fontFamily: FONTS.body,
+            transition: "background .12s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.accentSoft)}
+          onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.surfaceAlt)}
+        >
+          <Avatar initials={TENANT.name.slice(0, 2).toUpperCase()} size={26} tone="ink" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {TENANT.name}
+            </div>
+            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "capitalize" }}>
+              {state.plan} · {state.entityType}
+            </div>
+          </div>
+          <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+        </button>
+
         {/* Page nav — the one thing the sidebar owns. Tenant identity,
             mode toggle, bell/help all live in the persistent identity
             bar above. Clean. */}
         <nav aria-label="Workspace sections" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {WORKSPACE_PAGES.map((p) => {
             const active = state.page === p;
+            const iconName = PAGE_ICON[p];
             return (
               <button
                 key={p}
@@ -1539,7 +1686,8 @@ function WorkspaceSidebarShell() {
                   }
                 }}
               >
-                {PAGE_META[p].label}
+                {iconName && <Icon name={iconName} size={14} stroke={1.6} color={active ? COLORS.ink : COLORS.inkMuted} />}
+                {p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
               </button>
             );
           })}
@@ -1550,6 +1698,31 @@ function WorkspaceSidebarShell() {
         {canCreate && (
           <PrimaryButton onClick={() => openDrawer("new-inquiry")}>+ New inquiry</PrimaryButton>
         )}
+
+        {/* Switch back to topbar layout */}
+        <button
+          type="button"
+          onClick={() => setWorkspaceLayout("topbar")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 10px",
+            background: "transparent",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 7,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            transition: "border-color .12s, color .12s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }}
+        >
+          <Icon name="arrow-right" size={11} stroke={1.8} />
+          Topbar layout
+        </button>
       </aside>
 
       <main
@@ -1568,26 +1741,41 @@ function WorkspaceSidebarShell() {
 }
 
 function PageRouter({ page }: { page: WorkspacePage }) {
+  let body: React.ReactNode = null;
   switch (page) {
     case "overview":
-      return <OverviewPage />;
+      body = <OverviewPage />;
+      break;
     case "inbox":
-      return <UnifiedInboxPage />;
+      body = <UnifiedInboxPage />;
+      break;
     case "calendar":
-      return <CalendarPage />;
+      body = <CalendarPage />;
+      break;
     case "work":
-      return <WorkPage />;
+      body = <WorkPage />;
+      break;
     case "talent":
-      return <TalentPage />;
+      body = <TalentPage />;
+      break;
     case "clients":
-      return <ClientsPage />;
+      body = <ClientsPage />;
+      break;
     case "site":
-      return <SitePage />;
+      body = <SitePage />;
+      break;
     case "billing":
-      return <BillingPage />;
+      body = <BillingPage />;
+      break;
     case "workspace":
-      return <WorkspacePageView />;
+      body = <WorkspacePageView />;
+      break;
   }
+  return (
+    <div key={page} data-tulala-workspace-page-anim style={{ animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" }}>
+      {body}
+    </div>
+  );
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -1599,13 +1787,18 @@ function PageHeader({
   title,
   subtitle,
   actions,
+  onBack,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  /** Mobile-only back arrow (#1). Pass label for the previous context. */
+  onBack?: () => void;
 }) {
   return (
+    <>
+    <style>{`@media (max-width: 680px) { [data-tulala-page-back] { display: flex !important; } }`}</style>
     <div
       data-tulala-page-header
       style={{
@@ -1616,6 +1809,32 @@ function PageHeader({
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Back button: visible only on mobile via CSS (#1) */}
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            data-tulala-page-back
+            style={{
+              display: "none",
+              alignItems: "center",
+              gap: 4,
+              background: "transparent",
+              border: "none",
+              padding: "0 0 8px",
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 12,
+              fontWeight: 500,
+              color: COLORS.inkMuted,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
+          >
+            <span aria-hidden style={{ fontSize: 14 }}>←</span>
+            Back
+          </button>
+        )}
         {eyebrow && (
           <div style={{ marginBottom: 6 }}>
             <CapsLabel>{eyebrow}</CapsLabel>
@@ -1659,6 +1878,7 @@ function PageHeader({
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -1703,23 +1923,28 @@ function TodaysFocusCard({
   pendingClients,
   draftCount,
   nextBookingLabel,
+  oldestWaitDays,
   onOpen,
 }: {
   pendingClients: number;
   draftCount: number;
   nextBookingLabel: string | null;
+  oldestWaitDays: number;
   onOpen: () => void;
 }) {
   // Build a one-line action priority — most urgent thing wins.
   let title = "All caught up — nothing urgent today.";
-  let body = "Use the next quiet hour to refine a draft or chase a hold.";
+  let body = nextBookingLabel
+    ? `Next up: ${nextBookingLabel}. Use the quiet time to refine a draft or prep call sheets.`
+    : "Use the next quiet hour to refine a draft or chase a hold.";
   let primary: { label: string; onClick: () => void } | null = null;
   if (pendingClients > 0) {
-    title = `${pendingClients} ${pendingClients === 1 ? "inquiry is" : "inquiries are"} waiting on the client.`;
-    body = "Send a reminder, share polaroids, or close the offer.";
+    title = `${pendingClients} ${pendingClients === 1 ? "inquiry is" : "inquiries are"} waiting for a client decision.`;
+    const waitHint = oldestWaitDays >= 2 ? ` Oldest wait: ${oldestWaitDays}d — follow up before it goes cold.` : " Send a nudge or share polaroids to move it forward.";
+    body = `The ball is in their court.${waitHint}`;
     primary = { label: "Open today's pulse", onClick: onOpen };
   } else if (draftCount > 0) {
-    title = `${draftCount} ${draftCount === 1 ? "draft" : "drafts"} haven't been sent.`;
+    title = `${draftCount} ${draftCount === 1 ? "draft hasn't" : "drafts haven't"} been sent yet.`;
     body = "Finish the brief and send while the client's still warm.";
     primary = { label: "Open drafts", onClick: onOpen };
   }
@@ -1769,7 +1994,7 @@ function TodaysFocusCard({
         >
           Today's focus
         </div>
-        <h3
+        <h2
           style={{
             fontFamily: FONTS.display,
             fontSize: 18,
@@ -1781,7 +2006,7 @@ function TodaysFocusCard({
           }}
         >
           {title}
-        </h3>
+        </h2>
         <p style={{ fontSize: 12.5, color: COLORS.inkMuted, margin: "4px 0 0", lineHeight: 1.5 }}>
           {body}
           {nextBookingLabel && <span> · {nextBookingLabel}.</span>}
@@ -1806,16 +2031,21 @@ function OverviewPage() {
   }
 
   const inquiries = getInquiries(state.plan);
-  const draftCount = inquiries.filter((i) => i.stage === "draft" || i.stage === "hold").length;
-  const awaiting = inquiries.filter((i) => i.stage === "awaiting-client");
-  const confirmedThisWeek = inquiries.filter((i) => i.stage === "confirmed");
+  // Use RICH_INQUIRIES for accurate stage-based metrics — legacy getInquiries()
+  // uses an older 5-stage model that no longer maps to production stages.
+  const richInqs = RICH_INQUIRIES;
+  const draftCount = richInqs.filter((i) => i.stage === "draft").length;
+  const awaiting = richInqs.filter((i) => i.nextActionBy === "client");
+  const confirmedThisWeek = richInqs.filter(
+    (i) => i.stage === "booked" || i.stage === "approved",
+  );
 
   return (
     <>
       <PageHeader
-        eyebrow={`Good morning, Oran · ${TENANT.name}`}
-        title="Today"
-        subtitle="What needs your attention today."
+        eyebrow={`${greeting()}, ${MY_TALENT_PROFILE.name.split(" ")[0]} · ${TENANT.name}`}
+        title={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+        subtitle="Your workspace at a glance — what's moving, what's stuck, and what needs you."
         actions={
           canEdit && (
             <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
@@ -1831,7 +2061,8 @@ function OverviewPage() {
       <TodaysFocusCard
         pendingClients={awaiting.length}
         draftCount={draftCount}
-        nextBookingLabel={confirmedThisWeek[0]?.client ? `${confirmedThisWeek[0].client} starts tomorrow` : null}
+        nextBookingLabel={confirmedThisWeek[0]?.clientName ? `${confirmedThisWeek[0].clientName} starts soon` : null}
+        oldestWaitDays={awaiting.length > 0 ? Math.max(...awaiting.map((i) => i.ageDays)) : 0}
         onOpen={() => openDrawer("today-pulse")}
       />
 
@@ -1846,7 +2077,7 @@ function OverviewPage() {
         />
         <StatusCard
           label="Active inquiries"
-          value={inquiries.filter((i) => i.stage !== "archived").length}
+          value={richInqs.filter((i) => i.stage !== "rejected" && i.stage !== "expired").length}
           caption="across pipeline"
           tone="ink"
           onClick={() => openDrawer("pipeline")}
@@ -1860,9 +2091,9 @@ function OverviewPage() {
         />
         <StatusCard
           label="Profile views"
-          value="284"
-          caption="last 7 days · +18%"
-          tone="dim"
+          value={MOCK_STOREFRONT_STATS.views7d}
+          caption={`last 7 days · ${MOCK_STOREFRONT_STATS.viewsGrowth}`}
+          tone="ink"
           onClick={() => openDrawer("storefront-visibility")}
         />
       </Grid>
@@ -1873,16 +2104,16 @@ function OverviewPage() {
       <Grid cols="2">
         <PrimaryCard
           title="What needs you today"
-          description={`${pluralize(awaiting.length, "inquiry", "inquiries")} ${awaiting.length === 1 ? "is" : "are"} waiting on the client and ${pluralize(draftCount, "draft", "drafts")} ${draftCount === 1 ? "hasn't" : "haven't"} been sent.`}
+          description={`${pluralize(awaiting.length, "inquiry", "inquiries")} ${awaiting.length === 1 ? "is" : "are"} waiting for a client decision and ${pluralize(draftCount, "draft", "drafts")} ${draftCount === 1 ? "hasn't" : "haven't"} been sent.`}
           icon={<Icon name="bolt" size={14} stroke={1.7} />}
-          affordance="See what needs you"
+          affordance="Open focus list"
           meta={<>{pluralize(awaiting.length + draftCount, "item", "items", true)}</>}
           onClick={() => openDrawer("today-pulse")}
         />
         <PrimaryCard
           title="Workflow"
           description="Every inquiry, grouped by where it's stuck. See who's waiting on whom from first request to confirmed booking."
-          icon={<Icon name="bolt" size={14} stroke={1.7} />}
+          icon={<Icon name="arrow-right" size={14} stroke={1.7} />}
           affordance="Open workflow"
           meta={
             <>
@@ -1990,6 +2221,51 @@ function OverviewPage() {
           />
         </MoreWithSection>
       )}
+
+      {/* Tenant activity feed (#32) — recent workspace events */}
+      <div style={{ marginTop: 28 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 4,
+          }}
+        >
+          <h2
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 18,
+              fontWeight: 500,
+              color: COLORS.ink,
+              margin: 0,
+              letterSpacing: -0.2,
+            }}
+          >
+            Recent activity
+          </h2>
+          <GhostButton size="sm" onClick={() => toast("Activity feed (prototype)")}>View all</GhostButton>
+        </div>
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12,
+            padding: "0 18px",
+          }}
+        >
+          {[
+            { actor: "Oran Tene", action: "sent an offer to", target: "Vogue Italia", timestamp: relativeTime(Date.now() - 2 * 60_000), iconName: "mail" as const },
+            { actor: "Marta Reyes", action: "accepted hold for", target: "Bvlgari campaign", timestamp: relativeTime(Date.now() - 34 * 60_000), iconName: "check" as const },
+            { actor: "Kai Lin", action: "updated profile", target: "measurements + comp card", timestamp: relativeTime(Date.now() - 65 * 60_000), iconName: "user" as const },
+            { actor: "System", action: "auto-archived expired inquiry from", target: "H&M (6 weeks old)", timestamp: relativeTime(Date.now() - 3 * 60 * 60_000), iconName: "archive" as const },
+          ].map((ev, i, arr) => (
+            <div key={i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
+              <ActivityFeedItem {...ev} />
+            </div>
+          ))}
+        </div>
+      </div>
     </>
   );
 }
@@ -2093,6 +2369,7 @@ function OverviewFree() {
             return (
               <li key={task.id}>
                 <button
+                  type="button"
                   onClick={() => {
                     if (task.drawer) {
                       // Demo-inquiry step — open the prototype's rich inquiry workspace
@@ -2316,7 +2593,7 @@ function UnifiedInboxPage() {
   const { openDrawer, toast } = useProto();
   // Use RICH_INQUIRIES so we have nextActionBy / unread / lastActivityHrs.
   const inquiries = RICH_INQUIRIES;
-  const [filter, setFilter] = useState<"needs-me" | "all" | "mentions">("needs-me");
+  const [filter, setFilter] = useState<"needs-me" | "all" | "unread">("needs-me");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"recent" | "oldest" | "client">("recent");
   const [pagesShown, setPagesShown] = useState(1);
@@ -2330,7 +2607,7 @@ function UnifiedInboxPage() {
     .filter((i) => isOpen(i.stage))
     .filter((i) => {
       if (filter === "needs-me") return i.nextActionBy === "coordinator";
-      if (filter === "mentions") return i.unreadGroup > 0;
+      if (filter === "unread") return i.unreadGroup > 0;
       return true;
     })
     .filter((i) => {
@@ -2451,6 +2728,7 @@ function UnifiedInboxPage() {
         <div style={{ flex: 1, minWidth: 200 }}>
           <input
             type="text"
+            aria-label="Search inbox by client or brief"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by client or brief…"
@@ -2499,7 +2777,7 @@ function UnifiedInboxPage() {
           [
             { id: "needs-me", label: `Needs me · ${inquiries.filter((i) => i.nextActionBy === "coordinator").length}` },
             { id: "all", label: `All · ${inquiries.filter((i) => isOpen(i.stage)).length}` },
-            { id: "mentions", label: `Mentions · ${inquiries.filter((i) => i.unreadGroup > 0).length}` },
+            { id: "unread", label: `Unread · ${inquiries.filter((i) => isOpen(i.stage) && i.unreadGroup > 0).length}` },
           ] as const
         ).map((f) => {
           const active = filter === f.id;
@@ -2524,15 +2802,74 @@ function UnifiedInboxPage() {
             </button>
           );
         })}
+        {/* Saved searches (#31) — quick-access saved query chips */}
+        {[
+          { label: "Awaiting client reply", q: () => { setFilter("needs-me"); } },
+          { label: "Unread threads", q: () => { setFilter("unread"); } },
+        ].map(({ label, q }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={q}
+            style={{
+              padding: "6px 10px",
+              background: "transparent",
+              color: COLORS.inkMuted,
+              border: `1px dashed ${COLORS.border}`,
+              borderRadius: 999,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 500,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 10 }}>🔖</span>
+            {label}
+          </button>
+        ))}
+
+        {/* Clear all filters (#19) — visible when something non-default is active */}
+        {(filter !== "needs-me" || search.trim() || sort !== "recent") && (
+          <button
+            type="button"
+            onClick={() => { setFilter("needs-me" as const); setSearch(""); setSort("recent"); }}
+            style={{
+              padding: "6px 10px",
+              background: "transparent",
+              color: COLORS.inkMuted,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 999,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 500,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span aria-hidden>×</span> Clear
+          </button>
+        )}
       </div>
+
+      {matched.length > 0 && (filter !== "needs-me" || search.trim() || sort !== "recent") && (
+        <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginBottom: 8 }}>
+          Showing {matched.length} {matched.length === 1 ? "thread" : "threads"}
+          {search.trim() && ` matching "${search.trim()}"`}
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <EmptyState
           icon="mail"
-          title="Inbox zero"
-          body="Nothing waiting on you in this filter. Switch to All to see everything moving."
-          primaryLabel="Show all threads"
-          onPrimary={() => setFilter("all")}
+          title={search.trim() ? `No results for "${search.trim()}"` : "Inbox zero"}
+          body={search.trim() ? "Try a different search term or clear the query." : "Nothing waiting on you in this filter. Switch to All to see everything moving."}
+          primaryLabel={search.trim() ? "Clear search" : "Show all threads"}
+          onPrimary={() => { if (search.trim()) setSearch(""); else setFilter("all"); }}
         />
       ) : (
         <div
@@ -2614,8 +2951,24 @@ function UnifiedInboxPage() {
                         {inq.clientName}
                       </span>
                       <ClientTrustChip level={inq.clientTrust} compact />
+                      {inq.unreadPrivate > 0 && (
+                        <span
+                          title="Unread in private thread"
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            background: COLORS.amber,
+                            color: "#fff",
+                            padding: "1px 6px",
+                            borderRadius: 999,
+                          }}
+                        >
+                          {inq.unreadPrivate} private
+                        </span>
+                      )}
                       {inq.unreadGroup > 0 && (
                         <span
+                          title="Unread in group thread"
                           style={{
                             fontSize: 10,
                             fontWeight: 700,
@@ -2663,7 +3016,31 @@ function UnifiedInboxPage() {
                       {inq.nextActionBy && (
                         <>
                           <Bullet />
-                          <span>Waiting on {inq.nextActionBy}</span>
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: "1px 6px",
+                              borderRadius: 999,
+                              background:
+                                inq.nextActionBy === "coordinator"
+                                  ? COLORS.accentSoft
+                                  : inq.nextActionBy === "client"
+                                    ? "rgba(184,134,11,0.10)"
+                                    : "rgba(11,11,13,0.06)",
+                              color:
+                                inq.nextActionBy === "coordinator"
+                                  ? COLORS.accent
+                                  : inq.nextActionBy === "client"
+                                    ? COLORS.amber
+                                    : COLORS.ink,
+                            }}
+                          >
+                            {inq.nextActionBy === "coordinator" ? "Needs you"
+                              : inq.nextActionBy === "client"    ? "Awaiting client"
+                              : inq.nextActionBy === "talent"    ? "Awaiting talent"
+                              : `Awaiting ${inq.nextActionBy}`}
+                          </span>
                         </>
                       )}
                     </div>
@@ -2697,6 +3074,11 @@ function UnifiedInboxPage() {
         shown={rows.length}
         onMore={() => setPagesShown((p) => p + 1)}
       />
+      {/* FAB — new inquiry, mobile only (#4) */}
+      <FloatingFab
+        label="New inquiry"
+        onClick={() => openDrawer("new-inquiry")}
+      />
     </>
   );
 }
@@ -2709,32 +3091,76 @@ function UnifiedInboxPage() {
  * any bookings/holds on that day. Mock — real version reads from a
  * unified events feed.
  */
+// ─── Calendar date helpers ────────────────────────────────────────────
+// Parse inquiry/booking date strings into arrays of {day, inquiryId} for
+// the currently-displayed month. Handles formats the mock data uses:
+//   "Tue, May 6"  "May 14–15"  "May 18–20"  "Apr 10"  "Apr 29"
+const MONTH_ABBR: Record<string, number> = {
+  Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5,
+  Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
+};
+function parseInquiryDays(dateStr: string, displayMonth: number): number[] {
+  // Strip leading weekday prefix ("Tue, " / "Sat, ")
+  const s = dateStr.replace(/^(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat),?\s*/, "").trim();
+  // Range within a month: "May 14–15" or "May 18–20"
+  const rangeM = s.match(/^([A-Z][a-z]{2})\s+(\d+)[–\-](\d+)/);
+  if (rangeM) {
+    if (MONTH_ABBR[rangeM[1]] !== displayMonth) return [];
+    const from = parseInt(rangeM[2], 10);
+    const to   = parseInt(rangeM[3], 10);
+    return Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  }
+  // Single day: "Apr 10" or "May 6"
+  const singleM = s.match(/^([A-Z][a-z]{2})\s+(\d+)/);
+  if (singleM && MONTH_ABBR[singleM[1]] === displayMonth) {
+    return [parseInt(singleM[2], 10)];
+  }
+  return [];
+}
+
 function CalendarPage() {
   const { openDrawer } = useProto();
   const inquiries = RICH_INQUIRIES;
-  // Build a map of "YYYY-MM-DD" → events for the current month. Use
-  // today's month as the focus; navigation buttons are non-functional
-  // shells in the prototype.
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
+  const [displayYear, setDisplayYear] = useState(today.getFullYear());
+  const [displayMonth, setDisplayMonth] = useState(today.getMonth());
+  const year = displayYear;
+  const month = displayMonth;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstWeekday = new Date(year, month, 1).getDay(); // 0 = Sun
 
-  // Synthesize a few "events" by hashing inquiry ids onto days. Real
-  // hash (not `i * 5`) so events spread naturally across the month
-  // instead of clustering on days 1, 6, 11, 16, 21, 26.
-  const events: Record<number, { title: string; tone: "ink" | "green" | "amber" | "red" }[]> = {};
-  inquiries.slice(0, 12).forEach((inq) => {
-    let h = 5381;
-    for (let k = 0; k < inq.id.length; k++) h = ((h << 5) + h) + inq.id.charCodeAt(k);
-    const day = (Math.abs(h) % daysInMonth) + 1;
-    const tone = inq.stage === "booked" || inq.stage === "approved" ? "green" : inq.stage === "draft" ? "amber" : "ink";
-    events[day] = events[day] ?? [];
-    events[day].push({ title: `${inq.clientName} — ${inq.brief.slice(0, 18)}…`, tone });
+  // Build event map from real inquiry dates — no hash guessing.
+  const events: Record<number, { id: string; title: string; tone: "ink" | "green" | "amber" | "red" }[]> = {};
+  inquiries.forEach((inq) => {
+    if (!inq.date) return;
+    const days = parseInquiryDays(inq.date, month);
+    if (days.length === 0) return;
+    const tone =
+      inq.stage === "booked" || inq.stage === "approved" ? "green"
+      : inq.stage === "rejected" || inq.stage === "expired" ? "red"
+      : inq.stage === "submitted" ? "amber"
+      : "ink";
+    days.forEach((d) => {
+      events[d] = events[d] ?? [];
+      events[d].push({
+        id: inq.id,
+        title: `${inq.clientName} — ${inq.brief.slice(0, 20)}`,
+        tone,
+      });
+    });
   });
 
-  const monthLabel = today.toLocaleString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = new Date(year, month, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
+  const goToPrev = () => {
+    if (month === 0) { setDisplayMonth(11); setDisplayYear((y) => y - 1); }
+    else setDisplayMonth((m) => m - 1);
+  };
+  const goToNext = () => {
+    if (month === 11) { setDisplayMonth(0); setDisplayYear((y) => y + 1); }
+    else setDisplayMonth((m) => m + 1);
+  };
+  const goToToday = () => { setDisplayYear(today.getFullYear()); setDisplayMonth(today.getMonth()); };
 
   return (
     <>
@@ -2766,11 +3192,31 @@ function CalendarPage() {
             borderBottom: `1px solid ${COLORS.borderSoft}`,
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{monthLabel}</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{monthLabel}</div>
+            {/* Timezone display (#11) */}
+            <div
+              title="All times are local to the talent's shoot location. Adjust in Settings → Time zones."
+              style={{
+                fontSize: 10.5,
+                fontWeight: 500,
+                color: COLORS.inkMuted,
+                background: COLORS.surfaceAlt,
+                padding: "2px 6px",
+                borderRadius: 5,
+                cursor: "default",
+              }}
+            >
+              {Intl.DateTimeFormat().resolvedOptions().timeZone.replace("_", " ")} ·{" "}
+              {new Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
+                .formatToParts(new Date())
+                .find((p) => p.type === "timeZoneName")?.value ?? "local"}
+            </div>
+          </div>
           <div style={{ display: "flex", gap: 4 }}>
-            <CalendarNavBtn label="←" />
-            <CalendarNavBtn label="Today" />
-            <CalendarNavBtn label="→" />
+            <CalendarNavBtn label="prev" onClick={goToPrev} />
+            <CalendarNavBtn label="Today" onClick={goToToday} disabled={isCurrentMonth} />
+            <CalendarNavBtn label="next" onClick={goToNext} />
           </div>
         </div>
         <div
@@ -2798,6 +3244,8 @@ function CalendarPage() {
           ))}
         </div>
         <div
+          role="grid"
+          aria-label={`Calendar — ${monthLabel}`}
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
@@ -2805,18 +3253,22 @@ function CalendarPage() {
           }}
         >
           {Array.from({ length: firstWeekday }).map((_, i) => (
-            <div key={`pad-${i}`} style={{ background: "rgba(11,11,13,0.015)" }} />
+            <div key={`pad-${i}`} role="gridcell" aria-hidden style={{ background: "rgba(11,11,13,0.015)" }} />
           ))}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
             const dayEvents = events[day] ?? [];
             const isToday = day === today.getDate();
+            const isoDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const ariaLabel = `${monthLabel.split(" ")[0]} ${day}${dayEvents.length > 0 ? `, ${dayEvents.length} ${dayEvents.length === 1 ? "event" : "events"}` : ""}${isToday ? " (today)" : ""}`;
             return (
               <div
                 key={day}
                 role="gridcell"
                 aria-label={ariaLabel}
+                tabIndex={0}
+                onClick={() => openDrawer("day-detail", { date: isoDate })}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDrawer("day-detail", { date: isoDate }); } }}
                 style={{
                   padding: "8px 10px",
                   borderTop: `1px solid ${COLORS.borderSoft}`,
@@ -2824,43 +3276,60 @@ function CalendarPage() {
                   display: "flex",
                   flexDirection: "column",
                   gap: 4,
+                  cursor: "pointer",
+                  transition: "background .1s",
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 <div
                   style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: isToday ? 22 : "auto",
+                    height: isToday ? 22 : "auto",
+                    background: isToday ? COLORS.accent : "transparent",
+                    borderRadius: isToday ? 999 : 0,
                     fontSize: 12,
                     fontWeight: isToday ? 700 : 500,
-                    color: isToday ? COLORS.accent : COLORS.ink,
+                    color: isToday ? "#fff" : COLORS.ink,
                     fontVariantNumeric: "tabular-nums",
                   }}
                 >
                   {day}
                 </div>
                 {dayEvents.slice(0, 2).map((e, idx) => (
-                  <span
+                  <button
                     key={idx}
+                    type="button"
+                    onClick={(ev) => { ev.stopPropagation(); openDrawer("inquiry-workspace", { inquiryId: e.id }); }}
                     style={{
                       fontSize: 10.5,
-                      color: e.tone === "green" ? COLORS.green : e.tone === "amber" ? COLORS.amber : e.tone === "red" ? COLORS.red : COLORS.ink,
+                      color: e.tone === "green" ? COLORS.green : e.tone === "amber" ? COLORS.amber : e.tone === "red" ? "#c0392b" : COLORS.ink,
                       background:
-                        e.tone === "green"
-                          ? "rgba(46,125,91,0.08)"
-                          : e.tone === "amber"
-                            ? "rgba(82,96,109,0.08)"
-                            : "rgba(11,11,13,0.04)",
+                        e.tone === "green"  ? "rgba(46,125,91,0.09)"
+                        : e.tone === "amber" ? "rgba(184,134,11,0.10)"
+                        : e.tone === "red"   ? "rgba(192,57,43,0.08)"
+                        : "rgba(11,11,13,0.05)",
                       padding: "2px 6px",
                       borderRadius: 5,
+                      border: "none",
                       fontWeight: 500,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      cursor: "pointer",
+                      fontFamily: FONTS.body,
+                      textAlign: "left",
+                      width: "100%",
                     }}
                   >
                     {e.title}
-                  </span>
+                  </button>
                 ))}
                 {dayEvents.length > 2 && (
-                  <span style={{ fontSize: 10, color: COLORS.inkDim }}>
+                  <span style={{ fontSize: 10, color: COLORS.accent, fontWeight: 600 }}>
                     +{dayEvents.length - 2} more
                   </span>
                 )}
@@ -2873,22 +3342,45 @@ function CalendarPage() {
   );
 }
 
-function CalendarNavBtn({ label }: { label: string }) {
+function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?: () => void; disabled?: boolean }) {
+  const ariaLabel = label === "prev" ? "Previous month" : label === "next" ? "Next month" : label;
+  const content =
+    label === "prev" ? (
+      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 6l-6 6 6 6" />
+      </svg>
+    ) : label === "next" ? (
+      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+    ) : (
+      label
+    );
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
+      onClick={onClick}
+      disabled={disabled}
       style={{
-        padding: "5px 10px",
+        padding: label === "Today" ? "5px 10px" : "5px 8px",
         background: "transparent",
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 6,
-        cursor: "pointer",
+        cursor: disabled ? "default" : "pointer",
         fontFamily: FONTS.body,
         fontSize: 12,
-        color: COLORS.inkMuted,
+        color: disabled ? COLORS.inkDim : COLORS.inkMuted,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: "border-color .12s, color .12s",
+        opacity: disabled ? 0.5 : 1,
       }}
+      onMouseEnter={(e) => { if (!disabled) { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; } }}
+      onMouseLeave={(e) => { if (!disabled) { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; } }}
     >
-      {label}
+      {content}
     </button>
   );
 }
@@ -2931,8 +3423,8 @@ function WorkPage() {
         const bn = parseInt((b.amount ?? "0").replace(/[^\d]/g, "")) || 0;
         return bn - an;
       }
-      // mock: stable order; "oldest" reverses
-      return sort === "oldest" ? -1 : 1;
+      // mock: stable order; "oldest" reverses insertion order
+      return sort === "oldest" ? 1 : -1;
     });
 
   const exportCsv = () => {
@@ -2959,7 +3451,7 @@ function WorkPage() {
       <PageHeader
         eyebrow="Workflow"
         title="In-flight work"
-        subtitle="Every inquiry that hasn't closed yet, grouped by where it's stuck. Coordinators move things forward; admins watch the flow."
+        subtitle="Every open inquiry grouped by where it's stuck — from first brief to confirmed booking."
         actions={
           <>
             <GhostButton size="sm" onClick={exportCsv}>Export CSV</GhostButton>
@@ -2978,7 +3470,7 @@ function WorkPage() {
           label="Drafts & holds"
           value={drafts.length}
           caption="not yet sent"
-          tone="dim"
+          tone="amber"
           onClick={() => openDrawer("drafts-holds")}
         />
         <StatusCard
@@ -3009,24 +3501,33 @@ function WorkPage() {
             marginBottom: 12,
           }}
         >
-          <h2
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 20,
-              fontWeight: 500,
-              color: COLORS.ink,
-              margin: 0,
-              letterSpacing: -0.2,
-            }}
-          >
-            Active pipeline
-          </h2>
+          <div>
+            <h2
+              style={{
+                fontFamily: FONTS.display,
+                fontSize: 20,
+                fontWeight: 500,
+                color: COLORS.ink,
+                margin: 0,
+                letterSpacing: -0.2,
+              }}
+            >
+              Active pipeline
+            </h2>
+            {(search.trim() || sourceFilter !== "all" || sort !== "newest") && (
+              <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                {filteredInquiries.length} {filteredInquiries.length === 1 ? "result" : "results"}
+                {search.trim() && ` for "${search.trim()}"`}
+              </div>
+            )}
+          </div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <input
               type="text"
+              aria-label="Search pipeline by client or brief"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search…"
+              placeholder="Search client or brief…"
               style={{
                 padding: "7px 10px",
                 fontFamily: FONTS.body,
@@ -3060,6 +3561,28 @@ function WorkPage() {
               <option value="amount">Amount</option>
             </select>
             <SourceFilterChips value={sourceFilter} onChange={setSourceFilter} />
+            {(search.trim() || sort !== "newest" || sourceFilter !== "all") && (
+              <button
+                type="button"
+                onClick={() => { setSearch(""); setSort("newest"); setSourceFilter("all"); }}
+                style={{
+                  padding: "4px 10px",
+                  background: "transparent",
+                  color: COLORS.inkMuted,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span aria-hidden>×</span> Clear
+              </button>
+            )}
             <GhostButton onClick={() => openDrawer("filter-config")}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <Icon name="filter" size={12} stroke={1.7} />
@@ -3079,10 +3602,10 @@ function WorkPage() {
           {filteredInquiries.length === 0 && (
             <EmptyState
               icon="mail"
-              title="No inquiries from this source yet"
-              body="When a brief comes in via this channel, it'll show up here. You can also log one manually."
-              primaryLabel="New inquiry"
-              onPrimary={() => openDrawer("new-inquiry")}
+              title={search.trim() ? `No results for "${search.trim()}"` : "No inquiries match"}
+              body={search.trim() ? "Try a different search term or clear the query." : "When a brief comes in via this channel, it'll show up here. You can also log one manually."}
+              primaryLabel={search.trim() ? "Clear search" : "New inquiry"}
+              onPrimary={() => { if (search.trim()) setSearch(""); else openDrawer("new-inquiry"); }}
             />
           )}
           {filteredInquiries.length > 0 && (
@@ -3209,6 +3732,12 @@ function WorkPage() {
           />
         </MoreWithSection>
       )}
+      {canEdit && (
+        <FloatingFab
+          label="New inquiry"
+          onClick={() => openDrawer("new-inquiry")}
+        />
+      )}
     </>
   );
 }
@@ -3279,6 +3808,8 @@ function SourceFilterChips({
         return (
           <button
             key={o.v}
+            type="button"
+            aria-pressed={active}
             onClick={() => onChange(o.v)}
             style={{
               border: "none",
@@ -3422,7 +3953,7 @@ function FreeValuePanel() {
                     style={{
                       fontFamily: FONTS.mono,
                       fontSize: 11,
-                      color: near ? "#3A4651" : COLORS.inkMuted,
+                      color: near ? COLORS.amber : COLORS.inkMuted,
                       letterSpacing: 0.2,
                     }}
                   >
@@ -3441,7 +3972,7 @@ function FreeValuePanel() {
                       style={{
                         width: `${pct}%`,
                         height: "100%",
-                        background: near ? "#52606D" : COLORS.ink,
+                        background: near ? COLORS.amber : COLORS.ink,
                       }}
                     />
                   </div>
@@ -3559,9 +4090,18 @@ function TalentPage() {
             <GhostButton size="sm" onClick={exportCsv}>Export CSV</GhostButton>
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
-              <PrimaryButton onClick={() => openDrawer("new-talent")}>
-                {state.entityType === "hub" ? "Invite member" : "Add talent"}
-              </PrimaryButton>
+              <>
+                {/* Bulk import (#21) */}
+                <GhostButton
+                  size="sm"
+                  onClick={() => toast("Bulk import CSV — upload a .csv with name, email, city, height columns.")}
+                >
+                  Import CSV
+                </GhostButton>
+                <PrimaryButton onClick={() => openDrawer("new-talent")}>
+                  {state.entityType === "hub" ? "Invite member" : "Add talent"}
+                </PrimaryButton>
+              </>
             )}
           </>
         }
@@ -3655,6 +4195,7 @@ function TalentPage() {
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <input
               type="text"
+              aria-label="Search roster by name or city"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name / city…"
@@ -3692,6 +4233,28 @@ function TalentPage() {
               <option value="newest">Newest</option>
               <option value="state">State</option>
             </select>
+            {(search.trim() || stateFilter !== "all" || sort !== "name") && (
+              <button
+                type="button"
+                onClick={() => { setSearch(""); setStateFilter("all"); setSort("name"); }}
+                style={{
+                  padding: "4px 10px",
+                  background: "transparent",
+                  color: COLORS.inkMuted,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 999,
+                  cursor: "pointer",
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span aria-hidden>×</span> Clear
+              </button>
+            )}
             {state.plan === "agency" && (
               <GhostButton onClick={() => openDrawer("taxonomy")}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
@@ -3705,12 +4268,13 @@ function TalentPage() {
         {filteredRoster.length === 0 ? (
           <EmptyState
             icon="user"
-            title="No talent matches"
-            body="Try a different search or clear the state filter."
+            title={search.trim() ? `No results for "${search.trim()}"` : "No talent matches"}
+            body={search.trim() ? "Try a different name or city, or clear the search." : "Try a different search or clear the state filter."}
             primaryLabel="Clear filters"
             onPrimary={() => {
               setSearch("");
               setStateFilter("all");
+              setSort("name");
             }}
           />
         ) : (
@@ -3755,11 +4319,16 @@ function TalentPage() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 56,
                   position: "relative",
+                  overflow: "hidden",
                 }}
               >
-                {profile.thumb}
+                <Avatar
+                  initials={profile.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
+                  hashSeed={profile.name}
+                  size={72}
+                  tone="auto"
+                />
                 <div style={{ position: "absolute", bottom: 8, left: 8 }}>
                   <StateChip state={profile.state} label={TALENT_STATE_LABEL[profile.state]} />
                 </div>
@@ -3840,6 +4409,13 @@ function TalentPage() {
           />
         </MoreWithSection>
       )}
+      {/* FAB — add talent, mobile only (#4) */}
+      {canEdit && (
+        <FloatingFab
+          label={state.entityType === "hub" ? "Invite member" : "Add talent"}
+          onClick={() => openDrawer("new-talent")}
+        />
+      )}
     </>
   );
 }
@@ -3856,6 +4432,7 @@ function ClientsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant">("all");
   const [sort, setSort] = useState<"name" | "bookings" | "status">("name");
+  const [confirmArchive, setConfirmArchive] = useState<{ id: string; name: string } | null>(null);
 
   const filteredClients = clients
     .filter((c) => statusFilter === "all" || c.status === statusFilter)
@@ -3976,6 +4553,7 @@ function ClientsPage() {
       >
         <input
           type="text"
+          aria-label="Search clients by name or contact"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or contact…"
@@ -4012,6 +4590,28 @@ function ClientsPage() {
           <option value="bookings">Bookings</option>
           <option value="status">Status</option>
         </select>
+        {(search.trim() || statusFilter !== "all" || sort !== "name") && (
+          <button
+            type="button"
+            onClick={() => { setSearch(""); setStatusFilter("all"); setSort("name"); }}
+            style={{
+              padding: "7px 10px",
+              background: "transparent",
+              color: COLORS.inkMuted,
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 999,
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              fontWeight: 500,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <span aria-hidden>×</span> Clear
+          </button>
+        )}
       </div>
 
       <div
@@ -4028,7 +4628,7 @@ function ClientsPage() {
             gridTemplateColumns: "minmax(0,1.5fr) minmax(0,1.2fr) 80px 100px 60px",
             gap: 14,
             padding: "9px 18px",
-            background: "rgba(11,11,13,0.02)",
+            background: COLORS.surfaceAlt,
             borderBottom: `1px solid ${COLORS.borderSoft}`,
             fontFamily: FONTS.body,
             fontSize: 10.5,
@@ -4058,8 +4658,16 @@ function ClientsPage() {
           />
         )}
         {filteredClients.map((client, idx) => (
-          <button
+          <SwipeableRow
             key={client.id}
+            rightActions={[{
+              label: "Archive",
+              tone: "red",
+              onClick: () => setConfirmArchive({ id: client.id, name: client.name }),
+            }]}
+          >
+          <button
+            type="button"
             onClick={() => openDrawer("client-profile", { id: client.id })}
             style={{
               display: "grid",
@@ -4080,7 +4688,7 @@ function ClientsPage() {
             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-              <Avatar initials={client.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()} size={32} tone="warm" />
+              <Avatar initials={client.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()} size={32} tone="auto" hashSeed={client.name} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{client.name}</div>
                 <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{client.contact}</div>
@@ -4103,6 +4711,7 @@ function ClientsPage() {
               <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
             </div>
           </button>
+          </SwipeableRow>
         ))}
       </div>
 
@@ -4132,6 +4741,27 @@ function ClientsPage() {
           />
         </MoreWithSection>
       )}
+
+      {/* FAB — add client, mobile only (#4) */}
+      {canEdit && (
+        <FloatingFab
+          label="Add client"
+          onClick={() => openDrawer("client-profile", { id: "new" })}
+        />
+      )}
+
+      {/* Confirm modal — archive client (#8) */}
+      <ConfirmModal
+        open={confirmArchive !== null}
+        title="Archive client"
+        message={`Archive ${confirmArchive?.name ?? "this client"}? Their booking history is preserved — you can unarchive any time.`}
+        confirmLabel="Archive"
+        onConfirm={() => {
+          toast(`${confirmArchive?.name ?? "Client"} archived`);
+          setConfirmArchive(null);
+        }}
+        onCancel={() => setConfirmArchive(null)}
+      />
     </>
   );
 }
@@ -4161,8 +4791,8 @@ function SitePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Public site"
-        title="Your public site"
+        eyebrow="Public Site"
+        title="Site & roster"
         subtitle="Roster, site pages, and embeds — in one place."
         actions={
           <>
@@ -4216,7 +4846,7 @@ function SitePage() {
         />
         <PrimaryCard
           title="Branding"
-          description="Logo · Cormorant / Inter · #B8860B."
+          description="Logo · fonts · accent color"
           icon={<Icon name="palette" size={14} stroke={1.7} />}
           affordance="Edit branding"
           onClick={() => openDrawer("branding")}
@@ -4327,7 +4957,7 @@ function SitePage() {
         />
         <TierCard
           title="Posts"
-          description="4 published · 1 draft"
+          description="News, editorial, brand stories"
           icon="mail"
           requiredPlan="agency"
           currentPlan={state.plan}
@@ -4395,28 +5025,30 @@ function SitePage() {
         title="Multi-agency · hub"
         subtitle="Operate multiple agencies and push talent to cross-agency discovery."
         rightSlot={
-          <a
-            href="#contact"
-            onClick={(e) => {
-              e.preventDefault();
-              openUpgrade({
-                feature: "Network plan",
-                why: "Run multiple agency identities under one roof. Move roster across brands without losing history.",
-                requiredPlan: "network",
-              });
-            }}
+          <button
+            type="button"
+            onClick={() => openUpgrade({
+              feature: "Network plan",
+              why: "Run multiple agency identities under one roof. Move roster across brands without losing history.",
+              requiredPlan: "network",
+            })}
             style={{
               fontFamily: FONTS.body,
               fontSize: 12,
               color: COLORS.inkMuted,
-              textDecoration: "none",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
               gap: 5,
+              padding: 0,
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
           >
-            Contact <Icon name="arrow-right" size={11} />
-          </a>
+            Contact sales <Icon name="arrow-right" size={11} />
+          </button>
         }
       >
         <TierCard
@@ -4689,6 +5321,9 @@ function PlanLadderStrip() {
         return (
           <button
             key={item.plan}
+            type="button"
+            disabled={isReached && !isCurrent}
+            aria-disabled={isReached && !isCurrent}
             onClick={() => {
               if (isReached) return;
               openUpgrade({
@@ -4787,7 +5422,7 @@ function BillingPage() {
       <PageHeader
         eyebrow="Billing"
         title="Payments & payouts"
-        subtitle="Where money flows in this workspace — platform fee, payout receiver, recent activity."
+        subtitle="Platform fee, payout routing, and recent payment activity."
         actions={
           isOwner ? (
             <PrimaryButton onClick={() => openDrawer("plan-billing")}>
@@ -4854,17 +5489,13 @@ function BillingPage() {
             title="30-day volume"
             description={payout.recentVolume30d}
             affordance="See activity"
-            onClick={() => {
-              /* anchored below */
-            }}
+            onClick={() => { document.querySelector("[data-billing-activity]")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
           />
           <SecondaryCard
             title="Pending payouts"
             description={payout.pendingPayouts}
             affordance="See activity"
-            onClick={() => {
-              /* anchored below */
-            }}
+            onClick={() => { document.querySelector("[data-billing-activity]")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
           />
           <SecondaryCard
             title="Card acceptance"
@@ -4875,7 +5506,7 @@ function BillingPage() {
         </Grid>
       )}
 
-      <Divider label="Recent activity" />
+      <div data-billing-activity><Divider label="Recent activity" /></div>
 
       {isFree ? (
         <SecondaryCard
@@ -4937,45 +5568,57 @@ function BillingActivityTable() {
         <span>Status</span>
         <span style={{ textAlign: "right" }}>Date</span>
       </div>
-      {WORKSPACE_PAYMENTS.map((row) => (
-        <button
-          key={row.id}
-          type="button"
-          onClick={() => openDrawer("payment-detail", { id: row.id })}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr",
-            alignItems: "center",
-            gap: 0,
-            padding: "12px 16px",
-            background: "transparent",
-            border: "none",
-            borderTop: `1px solid ${COLORS.borderSoft}`,
-            width: "100%",
-            textAlign: "left",
-            cursor: "pointer",
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.ink,
-          }}
-        >
-          <span style={{ fontWeight: 600 }}>{row.ref}</span>
-          <span>
-            <div style={{ color: COLORS.ink }}>{row.client}</div>
-            <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{row.brief}</div>
-          </span>
-          <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.total}</span>
-          <span style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", color: COLORS.inkMuted }}>
-            {row.netPayout}
-            <div style={{ fontSize: 11, color: COLORS.inkDim }}>fee {row.fee}</div>
-          </span>
-          <span style={{ color: COLORS.inkMuted }}>{row.receiverName}</span>
-          <span>
-            <PaymentStatusChip status={row.status} />
-          </span>
-          <span style={{ textAlign: "right", color: COLORS.inkMuted, fontSize: 12 }}>{row.date}</span>
-        </button>
-      ))}
+      {WORKSPACE_PAYMENTS.map((row) => {
+        const [hovered, setHovered] = useState(false);
+        return (
+          <button
+            key={row.id}
+            type="button"
+            onClick={() => openDrawer("payment-detail", { id: row.id })}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1.4fr 1.6fr 1fr 1fr 1.2fr 1fr 0.6fr",
+              alignItems: "center",
+              gap: 0,
+              padding: "12px 16px",
+              background: hovered ? "rgba(11,11,13,0.025)" : "transparent",
+              border: "none",
+              borderTop: `1px solid ${COLORS.borderSoft}`,
+              width: "100%",
+              textAlign: "left",
+              cursor: "pointer",
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              color: COLORS.ink,
+              transition: "background .1s",
+            }}
+          >
+            <div style={{ fontWeight: 600 }}>{row.ref}</div>
+            <div>
+              <div style={{ color: COLORS.ink }}>{row.client}</div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{row.brief}</div>
+            </div>
+            <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.total}</div>
+            <div style={{ textAlign: "right", fontVariantNumeric: "tabular-nums", color: COLORS.inkMuted }}>
+              {row.netPayout}
+              <div style={{ fontSize: 11, color: COLORS.inkDim }}>fee {row.fee}</div>
+            </div>
+            <div style={{ color: COLORS.inkMuted }}>{row.receiverName}</div>
+            <div>
+              <PaymentStatusChip status={row.status} />
+            </div>
+            <div style={{ textAlign: "right", fontSize: 12 }}>
+              {hovered ? (
+                <span style={{ color: COLORS.accent, fontWeight: 600, fontSize: 11 }}>Details →</span>
+              ) : (
+                <span style={{ color: COLORS.inkMuted }}>{row.date}</span>
+              )}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -4989,6 +5632,12 @@ function WorkspacePageView() {
   const isOwner = state.role === "owner";
   const isAdmin = meetsRole(state.role, "admin");
   const isFree = state.plan === "free";
+  // Auto-save indicator (#6) — simulates a settings save 1.2s after mount
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  useEffect(() => {
+    const t = setTimeout(() => setSavedAt(new Date()), 1200);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <>
@@ -4996,6 +5645,7 @@ function WorkspacePageView() {
         eyebrow="Settings"
         title="Workspace settings"
         subtitle="Plan, team, branding, identity — the controls that shape who you are inside Tulala."
+        actions={<AutoSaveIndicator savedAt={savedAt} />}
       />
 
       <Grid cols="2">
@@ -5252,10 +5902,9 @@ export function MobileBottomNav() {
       }));
     }
     if (state.surface === "talent") {
-      // Mock per-tab unread counts so the bottom tabs show life. Real
-      // product reads from realtime channels.
+      // Per-tab unread badges — derived from real NOTIFICATIONS data.
       const TALENT_TAB_BADGE: Partial<Record<TalentPage, number>> = {
-        messages: 4,
+        messages: TALENT_NOTIFICATION_COUNT || undefined,
       };
       return TALENT_PAGES.map((p) => ({
         id: p,
@@ -5410,61 +6059,63 @@ function BottomTab({
     <button
       type="button"
       onClick={run}
+      className="tulala-bottom-tab"
       aria-current={active ? "page" : undefined}
       style={{
         flex: 1,
-        background: "transparent",
+        // Active: soft accent wash covers the whole tab (icon + label) —
+        //   no more "icon-only" half-button feel.
+        // Inactive: transparent base; hover/press adds a subtle wash so
+        //   it visibly behaves like a button.
+        background: active ? COLORS.accentSoft : "transparent",
         border: "none",
+        borderRadius: 14,
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 4,
-        padding: "8px 4px 6px",
-        color: active ? COLORS.ink : COLORS.inkMuted,
+        gap: 3,
+        padding: "9px 6px 8px",
+        margin: "5px 3px",
+        color: active ? COLORS.accentDeep : COLORS.inkMuted,
         fontFamily: FONTS.body,
         fontSize: 11,
         fontWeight: active ? 600 : 500,
+        letterSpacing: 0.05,
         position: "relative",
+        transition: "background .15s ease, color .15s ease",
       }}
     >
-      {/* Active indicator — pill background behind the icon for a
-          tactile "selected" feel. Subtle 24px tinted pill, ink color
-          icon when active, muted when not. */}
       <span
         aria-hidden
         style={{
+          position: "relative",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 38,
-          height: 24,
-          borderRadius: 999,
-          background: active ? COLORS.accent : "transparent",
-          color: active ? "#fff" : COLORS.inkMuted,
-          transition: "background .18s, color .18s",
-          position: "relative",
         }}
       >
-        <Icon name={icon} size={16} stroke={active ? 2 : 1.7} color={active ? "#fff" : COLORS.inkMuted} />
+        <Icon
+          name={icon}
+          size={20}
+          stroke={active ? 2 : 1.7}
+          color={active ? COLORS.accent : COLORS.inkMuted}
+        />
         {badge && badge > 0 && (
           <span
             aria-hidden
             style={{
               position: "absolute",
-              top: -3,
-              right: -4,
-              minWidth: 14,
-              height: 14,
+              top: -4,
+              right: -7,
+              minWidth: 16,
+              height: 16,
               padding: "0 4px",
               borderRadius: 999,
-              // When the tab is active, the pill is green; the badge needs
-              // a contrasting fill (coral). When inactive, the icon area
-              // is transparent so the badge can be brand-green.
-              background: active ? COLORS.coral : COLORS.accent,
+              background: COLORS.coral,
               color: "#fff",
-              fontSize: 9,
+              fontSize: 9.5,
               fontWeight: 700,
               lineHeight: 1,
               display: "inline-flex",
@@ -5478,7 +6129,7 @@ function BottomTab({
           </span>
         )}
       </span>
-      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 70 }}>
+      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 76 }}>
         {label}
       </span>
     </button>

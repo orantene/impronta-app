@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   CLIENT_TRUST_META,
   COLORS,
@@ -24,6 +24,26 @@ import {
   type Role,
   type TalentProfile,
 } from "./_state";
+import {
+  HelpPanel,
+  hasHelp,
+  hasOpenedHelp,
+  markHelpOpened,
+} from "./_help";
+
+// ─── Scroll-lock counter ─────────────────────────────────────────────
+// Tracks how many overlays (drawers + modals) are open so we only
+// release body scroll when ALL of them have closed. Prevents the bug
+// where closing drawer A releases scroll even though modal B is still open.
+let _overlayDepth = 0;
+function lockScroll() {
+  _overlayDepth++;
+  if (typeof document !== "undefined") document.body.style.overflow = "hidden";
+}
+function unlockScroll() {
+  _overlayDepth = Math.max(0, _overlayDepth - 1);
+  if (_overlayDepth === 0 && typeof document !== "undefined") document.body.style.overflow = "";
+}
 
 // ─── Inline icons (kept tiny + neutral) ──────────────────────────────
 
@@ -56,7 +76,12 @@ export function Icon({
     | "mail"
     | "bolt"
     | "circle"
-    | "map-pin";
+    | "alert"
+    | "star"
+    | "bell"
+    | "moon"
+    | "map-pin"
+    | "archive";
   size?: number;
   stroke?: number;
   color?: string;
@@ -224,6 +249,39 @@ export function Icon({
         <svg {...common}>
           <path d="M12 22s7-7.58 7-12a7 7 0 1 0-14 0c0 4.42 7 12 7 12z" />
           <circle cx="12" cy="10" r="2.5" />
+        </svg>
+      );
+    case "alert":
+      return (
+        <svg {...common}>
+          <path d="M12 3l10 17H2L12 3z" />
+          <path d="M12 10v4M12 17v.01" />
+        </svg>
+      );
+    case "star":
+      return (
+        <svg {...common}>
+          <path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.9L12 16.5 6.8 19.2l1-5.9L3.5 9.2l5.9-.9L12 3z" />
+        </svg>
+      );
+    case "bell":
+      return (
+        <svg {...common}>
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <path d="M10 21a2 2 0 0 0 4 0" />
+        </svg>
+      );
+    case "moon":
+      return (
+        <svg {...common}>
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+        </svg>
+      );
+    case "archive":
+      return (
+        <svg {...common}>
+          <path d="M3 6h18M5 6v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6M9 11h6" />
+          <rect x="3" y="3" width="18" height="4" rx="1" />
         </svg>
       );
   }
@@ -1831,6 +1889,8 @@ export function CapNudge({
   /** Optional override for the body copy. */
   message?: string;
 }) {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
   if (cap <= 0) return null;
   const ratio = current / cap;
   if (ratio < triggerAt) return null;
@@ -1916,6 +1976,27 @@ export function CapNudge({
         >
           {upgradeLabel}
           <Icon name="arrow-right" size={10} stroke={2} color="#fff" />
+        </button>
+      )}
+      {!blocking && (
+        <button
+          onClick={() => setDismissed(true)}
+          aria-label="Dismiss"
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 5,
+            border: "none",
+            background: "transparent",
+            color: COLORS.inkDim,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <Icon name="x" size={11} stroke={2} />
         </button>
       )}
     </div>
@@ -2338,7 +2419,8 @@ export function DatePicker({
         border: `1px solid ${COLORS.borderSoft}`,
         borderRadius: 8,
         padding: "0 10px",
-        height: 36,
+        height: 44,
+        minHeight: 44,
         fontFamily: FONTS.body,
       }}
     >
@@ -2349,7 +2431,6 @@ export function DatePicker({
         onChange={(e) => onChange?.(e.target.value)}
         min={min}
         max={max}
-        placeholder={placeholder}
         style={{
           flex: 1,
           padding: "0 0 0 8px",
@@ -2358,9 +2439,27 @@ export function DatePicker({
           background: "transparent",
           fontFamily: FONTS.body,
           fontSize: 13,
-          color: COLORS.ink,
+          color: value ? COLORS.ink : "transparent",
         }}
       />
+      {/* Placeholder overlay — native date inputs don't show placeholder text */}
+      {!value && (
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            left: 36,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            color: COLORS.inkMuted,
+          }}
+        >
+          {placeholder}
+        </span>
+      )}
     </div>
   );
 }
@@ -2495,16 +2594,19 @@ export function PrimaryButton({
         border: "1px solid transparent",
         borderRadius: 8,
         cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
+        opacity: disabled ? 0.38 : 1,
         letterSpacing: 0.1,
-        transition: "background .15s",
+        transition: "background .15s, transform .1s",
       }}
       onMouseEnter={(e) => {
         if (!disabled) e.currentTarget.style.background = "#1d1d20";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = COLORS.ink;
+        e.currentTarget.style.transform = "scale(1)";
       }}
+      onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = "scale(0.98)"; }}
+      onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
     >
       {children}
     </button>
@@ -2540,15 +2642,18 @@ export function SecondaryButton({
         border: `1px solid ${COLORS.border}`,
         borderRadius: 8,
         cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-        transition: "border-color .15s",
+        opacity: disabled ? 0.38 : 1,
+        transition: "border-color .15s, transform .1s",
       }}
       onMouseEnter={(e) => {
         if (!disabled) e.currentTarget.style.borderColor = "rgba(11,11,13,0.28)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = COLORS.border;
+        e.currentTarget.style.transform = "scale(1)";
       }}
+      onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = "scale(0.98)"; }}
+      onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
     >
       {children}
     </button>
@@ -2619,6 +2724,7 @@ export function DrawerShell({
   defaultSize = "compact",
   resizable = true,
   toolbar,
+  canClose = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -2631,6 +2737,8 @@ export function DrawerShell({
   resizable?: boolean;
   /** Optional extra header content (e.g., status chips) shown next to the title. */
   toolbar?: ReactNode;
+  /** When false, Esc shows a "save first" warning instead of closing. */
+  canClose?: boolean;
 }) {
   const [size, setSize] = useState<DrawerSize>(defaultSize);
   const [customWidth, setCustomWidth] = useState<number | null>(null);
@@ -2642,6 +2750,30 @@ export function DrawerShell({
   const proto = useProto();
   const previousDrawer = proto.drawerStack[proto.drawerStack.length - 1];
 
+  // ── Help panel state ────────────────────────────────────────────
+  // Auto-look up the help entry for the currently-open drawer. The
+  // ⓘ button only renders when an entry exists. Resets to closed
+  // every time the drawer changes.
+  const currentDrawerId = proto.state.drawer.drawerId;
+  const helpAvailable = hasHelp(currentDrawerId);
+  const helpPanelId = useId();
+  const [helpOpen, setHelpOpen] = useState(false);
+  // Tracks whether the user has ever opened help for this drawer in
+  // this session. Drives the small "new" dot on the icon.
+  const [helpSeen, setHelpSeen] = useState(() => hasOpenedHelp(currentDrawerId));
+  useEffect(() => {
+    setHelpOpen(false);
+    setHelpSeen(hasOpenedHelp(currentDrawerId));
+  }, [currentDrawerId]);
+  const toggleHelp = () => {
+    const next = !helpOpen;
+    setHelpOpen(next);
+    if (next && currentDrawerId) {
+      markHelpOpened(currentDrawerId);
+      setHelpSeen(true);
+    }
+  };
+
   // Reset size when drawer reopens (so a fullscreen leftover doesn't bleed in)
   useEffect(() => {
     if (open) {
@@ -2650,10 +2782,30 @@ export function DrawerShell({
     }
   }, [open, defaultSize]);
 
+  // Auto-focus first interactive element when drawer opens (#28).
+  // RAF defers until the panel is visible (transition has started).
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const raf = requestAnimationFrame(() => {
+      if (!panelRef.current) return;
+      const first = panelRef.current.querySelector<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])',
+      );
+      first?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        if (canClose) {
+          onClose();
+        } else {
+          proto.toast("Save your changes first, or click × to discard.");
+        }
+      }
       // Tab focus trap — keep keyboard focus inside the drawer panel so
       // users don't tab into the surface behind the backdrop.
       if (e.key === "Tab" && panelRef.current) {
@@ -2674,10 +2826,60 @@ export function DrawerShell({
       }
     };
     window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
+    lockScroll();
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      unlockScroll();
+    };
+  }, [open, onClose, canClose]);
+
+  // "?" key toggles the help panel — separate effect so scroll-lock
+  // dependencies stay stable. Skipped when the user is typing in an
+  // input/textarea/select.
+  useEffect(() => {
+    if (!open || !helpAvailable) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "?") return;
+      // Don't hijack Cmd+? (macOS Help menu), Ctrl+?, Alt+? — those
+      // belong to the browser/OS. Plain Shift+? (the natural way to
+      // type "?" on US layouts) is the only modifier we accept.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName ?? "";
+      const isTyping =
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        (target?.isContentEditable ?? false);
+      if (isTyping) return;
+      e.preventDefault();
+      toggleHelp();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, helpAvailable, toggleHelp]);
+
+  // Drag-to-dismiss on mobile (#14): a right-swipe ≥ 80px from the left
+  // edge closes the drawer. Works alongside the existing desktop resize.
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    let startX = 0;
+    let startY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      startX = e.touches[0]!.clientX;
+      startY = e.touches[0]!.clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0]!.clientX - startX;
+      const dy = Math.abs(e.changedTouches[0]!.clientY - startY);
+      if (dx > 80 && dy < 60) onClose();
+    };
+    const panel = panelRef.current;
+    panel.addEventListener("touchstart", onTouchStart, { passive: true });
+    panel.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      panel.removeEventListener("touchstart", onTouchStart);
+      panel.removeEventListener("touchend", onTouchEnd);
     };
   }, [open, onClose]);
 
@@ -2755,6 +2957,7 @@ export function DrawerShell({
             ? "none"
             : "transform .25s cubic-bezier(.4,.0,.2,1), width .2s cubic-bezier(.4,.0,.2,1)",
           boxShadow: open ? "0 30px 60px -20px rgba(11,11,13,0.45)" : "none",
+          paddingRight: "env(safe-area-inset-right, 0px)",
         }}
       >
         {/* drag handle on the left edge */}
@@ -2890,6 +3093,97 @@ export function DrawerShell({
                 </svg>
               </button>
             </Popover>
+            {/* Auto-rendered "What is this?" button — only shows when an
+                entry exists in the help registry. Pulls drawer id from
+                proto state so individual drawer components don't have
+                to wire anything. Press "?" to toggle without clicking. */}
+            {helpAvailable && (
+              <>
+                {/* Keyframe for the "unread help" indicator — emitted
+                    once per drawer-open here (vs. once per dot render
+                    if it lived inside the dot span). The reduced-
+                    motion override stops the animation entirely for
+                    users who request it; the dot stays visible (just
+                    static) so the affordance isn't lost.
+
+                    Also defines the keyboard focus-visible ring on the
+                    help button. Inline-style props can't express
+                    :focus-visible, so we co-locate the rule here. */}
+                <style>{`@keyframes tulalaHelpDotPulse { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2); } } @media (prefers-reduced-motion: reduce) { [data-tulala-help-dot] { animation: none !important; } } [data-tulala-help-btn]:focus-visible { outline: 2px solid ${COLORS.brand}; outline-offset: 2px; }`}</style>
+              <Popover content={helpOpen ? "Hide help · ?" : "About this view · ?"}>
+                <button
+                  type="button"
+                  data-tulala-help-btn
+                  aria-label={title ? `About: ${title}` : "About this view"}
+                  aria-controls={helpPanelId}
+                  aria-expanded={helpOpen}
+                  onClick={toggleHelp}
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    border: `1px solid ${helpOpen ? COLORS.border : COLORS.borderSoft}`,
+                    background: helpOpen ? COLORS.accentSoft : "#fff",
+                    color: helpOpen ? COLORS.accent : COLORS.inkMuted,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 12,
+                    marginRight: 4,
+                    position: "relative",
+                    transition: "background .12s, color .12s, border-color .12s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!helpOpen) {
+                      e.currentTarget.style.borderColor = COLORS.border;
+                      e.currentTarget.style.color = COLORS.ink;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!helpOpen) {
+                      e.currentTarget.style.borderColor = COLORS.borderSoft;
+                      e.currentTarget.style.color = COLORS.inkMuted;
+                    }
+                  }}
+                >
+                  <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4" />
+                    <path d="M12 8h.01" />
+                  </svg>
+                  {/* "Never opened in this session" indicator. Hides
+                      the moment the user clicks (markHelpOpened).
+                      Pulse runs 5 cycles (~9s) then settles into a
+                      steady dot — infinite pulse drains battery and
+                      trains people to tune it out. */}
+                  {!helpSeen && (
+                    <span
+                      aria-hidden
+                      data-tulala-help-dot
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        right: 2,
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        // Indigo = informational/system signal per the
+                        // semantic color memo. Coral is reserved for
+                        // "your move" actions and would dilute that
+                        // signal if we used it for "unread help".
+                        background: COLORS.indigo,
+                        boxShadow: "0 0 0 2px #fff",
+                        animation: "tulalaHelpDotPulse 1.8s ease-in-out 5",
+                        animationFillMode: "both",
+                        transformOrigin: "center",
+                      }}
+                    />
+                  )}
+                </button>
+              </Popover>
+              </>
+            )}
             {resizable && (
               <div
                 data-tulala-drawer-size-toolbar
@@ -2968,6 +3262,19 @@ export function DrawerShell({
             </button>
           </div>
         </header>
+        {/* Slide-down help panel — only renders when an entry exists in
+            the registry (helpAvailable gates the toolbar button). Lives
+            outside the scrollable body so it doesn't push the form off-
+            screen but stays attached to the header. */}
+        <HelpPanel
+          drawerId={currentDrawerId}
+          open={helpOpen}
+          panelId={helpPanelId}
+          onJumpTo={(id) => {
+            setHelpOpen(false);
+            proto.openDrawer(id);
+          }}
+        />
         <div
           data-tulala-drawer-body
           style={{
@@ -2983,6 +3290,7 @@ export function DrawerShell({
             data-tulala-drawer-footer
             style={{
               padding: "14px 22px",
+              paddingBottom: "calc(14px + env(safe-area-inset-bottom, 0px))",
               borderTop: `1px solid ${COLORS.borderSoft}`,
               background: "#fff",
               display: "flex",
@@ -3055,10 +3363,10 @@ export function ModalShell({
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
+    lockScroll();
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      unlockScroll();
     };
   }, [open, onClose]);
 
@@ -3159,17 +3467,21 @@ export function FieldRow({
       </div>
       {children}
       {error ? (
-        <span
-          role="alert"
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 11.5,
-            color: COLORS.red,
-            fontWeight: 500,
-          }}
-        >
-          {error}
-        </span>
+        <>
+          <style>{`@keyframes tulalaFieldError { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+          <span
+            role="alert"
+            style={{
+              fontFamily: FONTS.body,
+              fontSize: 11.5,
+              color: COLORS.red,
+              fontWeight: 500,
+              animation: "tulalaFieldError .18s ease",
+            }}
+          >
+            {error}
+          </span>
+        </>
       ) : hint ? (
         <span
           style={{
@@ -3195,6 +3507,8 @@ export function TextInput({
   type = "text",
   autoFocus,
   readOnly,
+  error,
+  maxLength,
 }: {
   defaultValue?: string;
   /** Controlled value. If provided, pair with `onChange`. */
@@ -3206,16 +3520,30 @@ export function TextInput({
   type?: "text" | "email" | "url";
   autoFocus?: boolean;
   readOnly?: boolean;
+  /** Marks the input invalid — red border + background tint. Pair with FieldRow `error` for the message. */
+  error?: boolean;
+  maxLength?: number;
 }) {
+  const [focused, setFocused] = useState(false);
+  const descId = useId();
+  const currentLen = value?.length ?? 0;
+  const showCount = maxLength !== undefined && currentLen >= Math.floor(maxLength * 0.75);
+  const borderColor = error ? COLORS.red : focused ? COLORS.inkDim : COLORS.border;
+  const shadow = error
+    ? (focused ? "0 0 0 3px rgba(200,40,40,0.15)" : "none")
+    : (focused ? "0 0 0 3px rgba(11,11,13,0.08)" : "none");
   return (
     <div
       style={{
         display: "flex",
         alignItems: "stretch",
-        background: "#fff",
-        border: `1px solid ${COLORS.border}`,
+        background: error ? "rgba(200,40,40,0.04)" : "#fff",
+        border: `1px solid ${borderColor}`,
         borderRadius: 8,
         overflow: "hidden",
+        minHeight: 44,
+        boxShadow: shadow,
+        transition: "border-color .15s, box-shadow .15s",
       }}
     >
       {prefix && (
@@ -3236,12 +3564,19 @@ export function TextInput({
       )}
       <input
         type={type}
+        inputMode={type === "email" ? "email" : undefined}
+        autoComplete={type === "email" ? "email" : undefined}
         defaultValue={value === undefined ? defaultValue : undefined}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
         autoFocus={autoFocus}
         readOnly={readOnly}
+        maxLength={maxLength}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={showCount ? descId : undefined}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         style={{
           flex: 1,
           padding: "9px 12px",
@@ -3251,9 +3586,27 @@ export function TextInput({
           background: "transparent",
           border: "none",
           outline: "none",
+          minHeight: 42,
         }}
       />
-      {suffix && (
+      {showCount && maxLength && (
+        <span
+          id={descId}
+          aria-live="polite"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "0 10px",
+            fontFamily: FONTS.body,
+            fontSize: 11,
+            color: currentLen >= maxLength ? COLORS.red : COLORS.inkMuted,
+            flexShrink: 0,
+          }}
+        >
+          {currentLen}/{maxLength}
+        </span>
+      )}
+      {suffix && !showCount && (
         <span
           style={{
             display: "inline-flex",
@@ -3279,6 +3632,7 @@ export function TextArea({
   onChange,
   placeholder,
   rows = 4,
+  error,
 }: {
   defaultValue?: string;
   /** Controlled value. Pair with onChange when supplied. */
@@ -3286,7 +3640,14 @@ export function TextArea({
   onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   placeholder?: string;
   rows?: number;
+  /** Marks the textarea invalid — red border + tint. Pair with FieldRow `error`. */
+  error?: boolean;
 }) {
+  const [focused, setFocused] = useState(false);
+  const borderColor = error ? COLORS.red : focused ? COLORS.inkDim : COLORS.border;
+  const shadow = error
+    ? (focused ? "0 0 0 3px rgba(200,40,40,0.15)" : "none")
+    : (focused ? "0 0 0 3px rgba(11,11,13,0.08)" : "none");
   return (
     <textarea
       defaultValue={value === undefined ? defaultValue : undefined}
@@ -3294,17 +3655,22 @@ export function TextArea({
       onChange={onChange}
       placeholder={placeholder}
       rows={rows}
+      aria-invalid={error ? true : undefined}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={{
         padding: "9px 12px",
         fontFamily: FONTS.body,
         fontSize: 13.5,
         color: COLORS.ink,
-        background: "#fff",
-        border: `1px solid ${COLORS.border}`,
+        background: error ? "rgba(200,40,40,0.04)" : "#fff",
+        border: `1px solid ${borderColor}`,
         borderRadius: 8,
         outline: "none",
         resize: "vertical",
         lineHeight: 1.55,
+        boxShadow: shadow,
+        transition: "border-color .15s, box-shadow .15s",
       }}
     />
   );
@@ -3325,7 +3691,7 @@ export function Toggle({
       onClick={() => onChange?.(!on)}
       role="switch"
       aria-checked={on}
-      aria-label={label}
+      aria-label={label ?? "Toggle switch"}
       style={{
         position: "relative",
         width: 36,
@@ -3360,6 +3726,8 @@ export function Divider({ label }: { label?: string }) {
   if (!label) {
     return (
       <div
+        role="separator"
+        aria-orientation="horizontal"
         style={{
           height: 1,
           background: COLORS.borderSoft,
@@ -3370,6 +3738,8 @@ export function Divider({ label }: { label?: string }) {
   }
   return (
     <div
+      role="separator"
+      aria-label={label}
       style={{
         display: "flex",
         alignItems: "center",
@@ -3378,7 +3748,7 @@ export function Divider({ label }: { label?: string }) {
       }}
     >
       <CapsLabel>{label}</CapsLabel>
-      <div style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
+      <div aria-hidden style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
     </div>
   );
 }
@@ -3392,35 +3762,39 @@ const TOAST_LIFETIME_MS = 4500;
  * (so reading a long-ish toast doesn't get interrupted), mouseleave
  * resumes from a fresh full window. Click dismisses immediately.
  */
-function ToastRow({ id, message, undo, onDismiss }: { id: number; message: string; undo?: () => void; onDismiss?: (id: number) => void }) {
+type ToastAction = { label: string; onClick: () => void };
+function ToastRow({ id, message, undo, action, tone, onDismiss }: { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: "default" | "error"; onDismiss?: (id: number) => void }) {
   const [paused, setPaused] = useState(false);
+  const isError = tone === "error";
+  const lifetime = (undo || action) ? TOAST_LIFETIME_MS * 2 : TOAST_LIFETIME_MS;
   useEffect(() => {
     if (!onDismiss || paused) return;
-    const lifetime = undo ? TOAST_LIFETIME_MS * 2 : TOAST_LIFETIME_MS;
     const handle = window.setTimeout(() => onDismiss(id), lifetime);
     return () => window.clearTimeout(handle);
-  }, [id, onDismiss, paused, undo]);
+  }, [id, onDismiss, paused, undo, action, lifetime]);
   return (
     <div
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       style={{
-        background: COLORS.ink,
+        background: isError ? "#5a1a1f" : COLORS.ink,
         color: "#fff",
-        padding: "10px 14px",
+        padding: "10px 14px 0",
         borderRadius: 10,
         fontFamily: FONTS.body,
         fontSize: 13,
-        boxShadow: "0 12px 30px -10px rgba(11,11,13,0.5)",
+        boxShadow: isError ? "0 12px 30px -10px rgba(120,30,40,0.55)" : "0 12px 30px -10px rgba(11,11,13,0.5)",
         display: "inline-flex",
-        alignItems: "center",
-        gap: 10,
+        flexDirection: "column",
+        gap: 0,
         animation: "tulalaToastIn .18s ease",
         pointerEvents: "auto",
         textAlign: "left",
+        overflow: "hidden",
       }}
     >
-      <Icon name="check" size={14} stroke={2} />
+      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 10 }}>
+      <Icon name={isError ? "alert" : "check"} size={14} stroke={2} />
       <span>{message}</span>
       {undo && (
         <button
@@ -3448,6 +3822,32 @@ function ToastRow({ id, message, undo, onDismiss }: { id: number; message: strin
           Undo
         </button>
       )}
+      {action && !undo && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            action.onClick();
+            onDismiss?.(id);
+          }}
+          onFocus={() => setPaused(true)}
+          onBlur={() => setPaused(false)}
+          style={{
+            background: isError ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.15)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            padding: "4px 10px",
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            marginLeft: 4,
+          }}
+        >
+          {action.label}
+        </button>
+      )}
       <button
         type="button"
         onClick={() => onDismiss?.(id)}
@@ -3457,13 +3857,27 @@ function ToastRow({ id, message, undo, onDismiss }: { id: number; message: strin
           color: "rgba(255,255,255,0.6)",
           border: "none",
           padding: 0,
-          marginLeft: undo ? 0 : "auto",
+          marginLeft: (undo || action) ? 0 : "auto",
           cursor: "pointer",
           display: "inline-flex",
         }}
       >
         <Icon name="x" size={11} stroke={2} />
       </button>
+      </div>
+      {/* Progress bar — shrinks from 100% to 0 over the toast lifetime */}
+      <div
+        aria-hidden
+        style={{
+          height: 2,
+          background: "rgba(255,255,255,0.25)",
+          borderRadius: 999,
+          width: "100%",
+          transformOrigin: "left",
+          animation: `tulalaToastProgress ${lifetime}ms linear forwards`,
+          animationPlayState: paused ? "paused" : "running",
+        }}
+      />
     </div>
   );
 }
@@ -3472,7 +3886,7 @@ export function ToastHost({
   toasts,
   onDismiss,
 }: {
-  toasts: { id: number; message: string; undo?: () => void }[];
+  toasts: { id: number; message: string; undo?: () => void; action?: ToastAction; tone?: "default" | "error" }[];
   onDismiss?: (id: number) => void;
 }) {
   return (
@@ -3499,12 +3913,16 @@ export function ToastHost({
       }}
     >
       {toasts.map((t) => (
-        <ToastRow key={t.id} id={t.id} message={t.message} undo={t.undo} onDismiss={onDismiss} />
+        <ToastRow key={t.id} id={t.id} message={t.message} undo={t.undo} action={t.action} tone={t.tone} onDismiss={onDismiss} />
       ))}
       <style>{`
         @keyframes tulalaToastIn {
           from { transform: translateY(8px); opacity: 0; }
           to   { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes tulalaToastProgress {
+          from { transform: scaleX(1); }
+          to   { transform: scaleX(0); }
         }
       `}</style>
     </div>
@@ -3548,6 +3966,8 @@ export function Avatar({
     { background: "rgba(82,96,109,0.10)", color: "#3A4651" },
     { background: COLORS.surfaceAlt, color: COLORS.ink },
     { background: "rgba(124,108,160,0.10)", color: "#4B3F66" },
+    { background: "rgba(180,100,60,0.09)", color: "#7A3D1A" },
+    { background: "rgba(40,100,160,0.09)", color: "#1A4A78" },
   ];
   const tones: Record<Exclude<typeof tone, "auto">, CSSProperties> = {
     neutral: { background: "rgba(11,11,13,0.06)", color: COLORS.ink },
@@ -3585,7 +4005,7 @@ export function Avatar({
         alignItems: "center",
         justifyContent: "center",
         fontFamily: FONTS.body,
-        fontSize: Math.round(size * 0.4),
+        fontSize: Math.round(size * 0.46),
         fontWeight: 600,
         letterSpacing: 0.3,
         flexShrink: 0,
@@ -3772,13 +4192,7 @@ export function SwipeableRow({
             users can't drag, so without this all actions were
             mouse/touch-only. */}
         {allActions.length > 0 && (
-          <span
-            style={{
-              position: "absolute",
-              top: 6,
-              right: 6,
-            }}
-          >
+          <>
             <button
               type="button"
               onClick={(e) => {
@@ -3789,6 +4203,9 @@ export function SwipeableRow({
               aria-expanded={menuOpen}
               aria-label="Row actions"
               style={{
+                position: "absolute",
+                top: 6,
+                right: 6,
                 width: 26,
                 height: 26,
                 borderRadius: 6,
@@ -3820,8 +4237,8 @@ export function SwipeableRow({
                 onBlur={() => setMenuOpen(false)}
                 style={{
                   position: "absolute",
-                  top: "calc(100% + 4px)",
-                  right: 0,
+                  top: 36,
+                  right: 6,
                   background: "#fff",
                   border: `1px solid ${COLORS.border}`,
                   borderRadius: 8,
@@ -3871,7 +4288,7 @@ export function SwipeableRow({
                 ))}
               </div>
             )}
-          </span>
+          </>
         )}
       </div>
     </div>
@@ -4166,8 +4583,11 @@ export function Popover({
   const measureAndOpen = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
+    const vw = typeof window !== "undefined" ? window.innerWidth : 9999;
+    const rawX = rect.left + rect.width / 2;
+    const clampedX = Math.max(148, Math.min(vw - 148, rawX));
     setCoords({
-      x: rect.left + rect.width / 2,
+      x: clampedX,
       y: placement === "top" ? rect.top : rect.bottom,
     });
     setOpen(true);
@@ -4229,7 +4649,7 @@ export function Popover({
             lineHeight: 1.4,
             padding: "6px 10px",
             borderRadius: 7,
-            whiteSpace: "nowrap",
+            whiteSpace: "normal",
             maxWidth: 280,
             boxShadow: "0 6px 18px rgba(11,11,13,0.18)",
             pointerEvents: "none",
@@ -4251,5 +4671,536 @@ export function Popover({
         </span>
       )}
     </span>
+  );
+}
+
+// ─── OfflineBanner (#23) ─────────────────────────────────────────────
+// Detects browser offline/online events and shows a sticky banner.
+
+export function OfflineBanner() {
+  const [offline, setOffline] = useState(
+    typeof navigator !== "undefined" ? !navigator.onLine : false,
+  );
+  const [retrying, setRetrying] = useState(false);
+
+  useEffect(() => {
+    const go = () => { setOffline(false); setRetrying(false); };
+    const gone = () => setOffline(true);
+    window.addEventListener("online", go);
+    window.addEventListener("offline", gone);
+    return () => { window.removeEventListener("online", go); window.removeEventListener("offline", gone); };
+  }, []);
+
+  if (!offline) return null;
+
+  return (
+    <div
+      role="status"
+      aria-live="assertive"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        background: COLORS.ink,
+        color: "#fff",
+        fontFamily: FONTS.body,
+        fontSize: 13,
+        fontWeight: 500,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        padding: "9px 16px",
+        zIndex: 9999,
+        animation: "tulala-page-fade .2s ease",
+      }}
+    >
+      <span aria-hidden style={{ width: 7, height: 7, borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
+      Connection lost · retrying…
+      <button
+        type="button"
+        onClick={() => { setRetrying(true); setTimeout(() => setRetrying(false), 1500); }}
+        style={{
+          marginLeft: 4,
+          background: "rgba(255,255,255,0.14)",
+          border: "none",
+          borderRadius: 6,
+          color: "#fff",
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          fontWeight: 600,
+          padding: "3px 10px",
+          cursor: "pointer",
+        }}
+      >
+        {retrying ? "Retrying…" : "Retry now"}
+      </button>
+    </div>
+  );
+}
+
+// ─── ConfirmModal (#8) ────────────────────────────────────────────────
+// Lightweight "Are you sure?" overlay for destructive actions.
+
+export function ConfirmModal({
+  open,
+  title,
+  message,
+  confirmLabel = "Delete",
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+  return (
+    <div
+      data-tulala-modal-overlay
+      onClick={onCancel}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(11,11,13,0.40)",
+        zIndex: 3000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={title}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: 16,
+          padding: "24px 24px 20px",
+          maxWidth: 360,
+          width: "100%",
+          fontFamily: FONTS.body,
+          boxShadow: "0 24px 60px rgba(11,11,13,0.28)",
+          animation: "tulala-page-fade .18s ease",
+        }}
+      >
+        <h2 style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 500, margin: "0 0 8px", color: COLORS.ink }}>
+          {title}
+        </h2>
+        <p style={{ fontSize: 14, color: COLORS.inkMuted, margin: "0 0 20px", lineHeight: 1.5 }}>
+          {message}
+        </p>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            autoFocus
+            onClick={onCancel}
+            style={{
+              padding: "8px 16px",
+              background: "transparent",
+              border: `1px solid ${COLORS.border}`,
+              borderRadius: 8,
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 500,
+              color: COLORS.ink,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            style={{
+              padding: "8px 16px",
+              background: COLORS.red,
+              border: "none",
+              borderRadius: 8,
+              fontFamily: FONTS.body,
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ShortcutsModal (#18) ────────────────────────────────────────────
+// ⌘? keyboard cheatsheet. Triggered by pressing ? anywhere in the app.
+
+const SHORTCUTS = [
+  { keys: ["⌘", "K"], label: "Command palette" },
+  { keys: ["⌘", "N"], label: "New inquiry" },
+  { keys: ["⌘", "F"], label: "Global search" },
+  { keys: ["⌘", "/"], label: "Toggle sidebar" },
+  { keys: ["G", "O"], label: "Go to Overview" },
+  { keys: ["G", "I"], label: "Go to Inbox" },
+  { keys: ["G", "C"], label: "Go to Calendar" },
+  { keys: ["G", "R"], label: "Go to Roster" },
+  { keys: ["J"], label: "Next item in list" },
+  { keys: ["K"], label: "Previous item in list" },
+  { keys: ["E"], label: "Mark as read / done" },
+  { keys: ["R"], label: "Reply" },
+  { keys: ["Esc"], label: "Close drawer / modal" },
+  { keys: ["?"], label: "This shortcuts panel" },
+];
+
+export function ShortcutsModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div
+      data-tulala-modal-overlay
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(11,11,13,0.36)",
+        zIndex: 3000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Keyboard shortcuts"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: 18,
+          padding: "22px 24px 20px",
+          maxWidth: 440,
+          width: "100%",
+          fontFamily: FONTS.body,
+          boxShadow: "0 24px 60px rgba(11,11,13,0.28)",
+          animation: "tulala-page-fade .18s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 20, fontWeight: 500, margin: 0, color: COLORS.ink }}>
+            Keyboard shortcuts
+          </h2>
+          <button
+            type="button"
+            autoFocus
+            onClick={onClose}
+            aria-label="Close"
+            style={{ background: "transparent", border: "none", cursor: "pointer", padding: 4, color: COLORS.inkMuted }}
+          >
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div style={{ display: "grid", gap: 2 }}>
+          {SHORTCUTS.map(({ keys, label }) => (
+            <div
+              key={label}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "7px 10px",
+                borderRadius: 8,
+              }}
+            >
+              <span style={{ fontSize: 13, color: COLORS.ink }}>{label}</span>
+              <span style={{ display: "inline-flex", gap: 4 }}>
+                {keys.map((k) => (
+                  <kbd
+                    key={k}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 26,
+                      height: 22,
+                      padding: "0 6px",
+                      background: COLORS.surfaceAlt,
+                      border: `1px solid ${COLORS.border}`,
+                      borderRadius: 5,
+                      fontFamily: FONTS.body,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: COLORS.ink,
+                    }}
+                  >
+                    {k}
+                  </kbd>
+                ))}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── AutoSaveIndicator (#6) ───────────────────────────────────────────
+// Displays "Saved X ago" or "Saving…" inside forms.
+
+export function AutoSaveIndicator({ savedAt }: { savedAt: Date | null }) {
+  const [label, setLabel] = useState("");
+
+  useEffect(() => {
+    if (!savedAt) return;
+    const update = () => {
+      const s = Math.round((Date.now() - savedAt.getTime()) / 1000);
+      if (s < 5) setLabel("Saved just now");
+      else if (s < 60) setLabel(`Saved ${s}s ago`);
+      else setLabel(`Saved ${Math.round(s / 60)}m ago`);
+    };
+    update();
+    const id = setInterval(update, 10_000);
+    return () => clearInterval(id);
+  }, [savedAt]);
+
+  if (!savedAt) return null;
+  return (
+    <span
+      aria-live="polite"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: 11.5,
+        color: COLORS.inkMuted,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+      {label}
+    </span>
+  );
+}
+
+// ─── FloatingFab (#4) ─────────────────────────────────────────────────
+// Fixed "+ New" action button for mobile list pages.
+
+export function FloatingFab({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      data-tulala-fab
+      style={{
+        position: "fixed",
+        right: 18,
+        bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+        width: 52,
+        height: 52,
+        borderRadius: "50%",
+        background: COLORS.accent,
+        color: "#fff",
+        border: "none",
+        cursor: "pointer",
+        display: "none",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 6px 24px rgba(15,79,62,0.36)",
+        zIndex: 400,
+        transition: "transform .12s, box-shadow .12s",
+        fontFamily: FONTS.body,
+        fontSize: 24,
+        fontWeight: 300,
+        lineHeight: 1,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.transform = "scale(1.06)";
+        e.currentTarget.style.boxShadow = "0 8px 28px rgba(15,79,62,0.44)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = "scale(1)";
+        e.currentTarget.style.boxShadow = "0 6px 24px rgba(15,79,62,0.36)";
+      }}
+    >
+      +
+    </button>
+  );
+}
+
+// ─── RetryCard (#24) ─────────────────────────────────────────────────
+// Shown when an async operation fails. Displays an error message +
+// a Retry button that calls the provided callback.
+
+export function RetryCard({
+  message = "Something went wrong loading this section.",
+  onRetry,
+}: {
+  message?: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "14px 18px",
+        background: "#fff",
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 10,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={COLORS.red} strokeWidth={2} strokeLinecap="round">
+        <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      </svg>
+      <span style={{ flex: 1, fontSize: 13, color: COLORS.ink }}>{message}</span>
+      <button
+        type="button"
+        onClick={onRetry}
+        style={{
+          padding: "6px 14px",
+          background: "transparent",
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 7,
+          fontFamily: FONTS.body,
+          fontSize: 12,
+          fontWeight: 600,
+          color: COLORS.ink,
+          cursor: "pointer",
+        }}
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
+// ─── ActivityFeedItem (#32) ───────────────────────────────────────────
+// A single event in a workspace-level or talent-level activity feed.
+
+export function ActivityFeedItem({
+  actor,
+  action,
+  target,
+  timestamp,
+  icon,
+  iconName,
+}: {
+  actor: string;
+  action: string;
+  target: string;
+  timestamp: string;
+  icon?: string;
+  iconName?: "mail" | "check" | "bolt" | "calendar" | "settings" | "user" | "team" | "archive" | "alert";
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        padding: "10px 0",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          background: COLORS.surfaceAlt,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontSize: 13,
+          color: COLORS.inkMuted,
+        }}
+        aria-hidden
+      >
+        {iconName ? <Icon name={iconName} size={13} stroke={1.7} color={COLORS.inkMuted} /> : (icon ?? "📋")}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>
+          <strong style={{ fontWeight: 600 }}>{actor}</strong>
+          {" "}{action}{" "}
+          <strong style={{ fontWeight: 500 }}>{target}</strong>
+        </div>
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{timestamp}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PageSkeleton (#25) ───────────────────────────────────────────────
+// Full-page skeleton shown while real data is loading. Three shimmer
+// rows mimic a card list layout.
+
+export function PageSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div aria-busy="true" aria-label="Loading…" style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "14px 0",
+            borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none",
+          }}
+        >
+          <Skeleton width={36} height={36} radius={18} />
+          <div style={{ flex: 1 }}>
+            <Skeleton height={13} width="60%" style={{ marginBottom: 6 }} />
+            <Skeleton height={11} width="40%" />
+          </div>
+          <Skeleton height={22} width={70} radius={999} />
+        </div>
+      ))}
+    </div>
   );
 }
