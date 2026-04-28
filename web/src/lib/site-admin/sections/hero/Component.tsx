@@ -19,6 +19,12 @@ import type { HeroV1, HeroSlide } from "./schema";
  * The component stays a React Server Component (no client JS) so the
  * storefront hero remains fully static. Interaction affordances (pause,
  * prev/next) belong in a future client-wrapped variant.
+ *
+ * Phase E (Final Batch 3) — exempt from head-only migration.
+ * This section has no eyebrow field. The headline is a page-level <h1>
+ * (not a section <h2>), so SectionHead would demote the heading level and
+ * break accessibility semantics. The @keyframes background slider system
+ * and --hero-slider-* CSS vars are preserved exactly as-is.
  */
 export function HeroComponent({ props }: SectionComponentProps<HeroV1>) {
   const {

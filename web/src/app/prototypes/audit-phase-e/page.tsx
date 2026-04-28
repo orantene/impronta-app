@@ -1,12 +1,12 @@
 /**
- * Phase E Batch 3 halfway — temporary audit composition page.
+ * Phase E Final Batch 3 — full audit composition page.
  *
  * Renders 1 Batch-1 section + 1 Batch-2 section + the 7 Batch-3 halfway
- * migrations + the Batch-2 cta_banner so the visual audit can compare
- * shared rhythm and section-specific signatures side-by-side on a real
- * tenant.
+ * migrations + all 9 Final Batch 3 sections + the Batch-2 cta_banner so
+ * the visual audit can compare shared rhythm and section-specific
+ * signatures side-by-side on a real tenant.
  *
- * THIS ROUTE IS TEMPORARY. Delete after Batch 3 closes and the device
+ * THIS ROUTE IS TEMPORARY. Delete after Phase E closes and the device
  * pass is done. Not linked from nav. `robots: noindex` to keep crawlers
  * out.
  *
@@ -32,6 +32,16 @@ import { VideoReelComponent } from "@/lib/site-admin/sections/video_reel/Compone
 import { BeforeAfterComponent } from "@/lib/site-admin/sections/before_after/Component";
 import { ScrollCarouselComponent } from "@/lib/site-admin/sections/scroll_carousel/Component";
 import { CtaBannerComponent } from "@/lib/site-admin/sections/cta_banner/Component";
+// Final Batch 3
+import { HeroComponent } from "@/lib/site-admin/sections/hero/Component";
+import { HeroSplitComponent } from "@/lib/site-admin/sections/hero_split/Component";
+import { LookbookComponent } from "@/lib/site-admin/sections/lookbook/Component";
+import { ImageOrbitComponent } from "@/lib/site-admin/sections/image_orbit/Component";
+import { LottieComponent } from "@/lib/site-admin/sections/lottie/Component";
+import { MapOverlayComponent } from "@/lib/site-admin/sections/map_overlay/Component";
+import { StickyScrollComponent } from "@/lib/site-admin/sections/sticky_scroll/Component";
+import { CodeSnippetComponent } from "@/lib/site-admin/sections/code_snippet/Component";
+import { BookingWidgetComponent } from "@/lib/site-admin/sections/booking_widget/Component";
 
 export const dynamic = "force-dynamic";
 
@@ -237,7 +247,186 @@ export default function AuditPhaseEPage() {
           }}
         />
 
-        {/* ── 10. cta_banner (Batch 2) ────────────────────────────────── */}
+        {/* ══════════════════════════════════════════════════════════════
+             FINAL BATCH 3 — 9 sections. Audit: head rhythm unified via
+             SectionHead. Hero sections: Phase E comment-only (h1 + no
+             eyebrow or split layout exempts them from SectionHead swap).
+            ══════════════════════════════════════════════════════════════ */}
+
+        {/* ── 10. hero (Final Batch 3 — exempt, no eyebrow, h1) ───────── */}
+        <HeroComponent
+          {...baseProps}
+          sectionId="audit-hero"
+          props={{
+            headline: "We exist to make the frame matter.",
+            subheadline: "An agency for editorial, commercial, and live talent — working where the light is right.",
+            primaryCta: { href: "#", label: "Start a project" },
+            secondaryCta: { href: "#", label: "See the roster" },
+            overlay: "aurora",
+            mood: "editorial",
+            presentation: {},
+          }}
+        />
+
+        {/* ── 11. hero_split (Final Batch 3 — partial, eyebrow aligned, h1) */}
+        <HeroSplitComponent
+          {...baseProps}
+          sectionId="audit-hs"
+          props={{
+            eyebrow: "The agency",
+            headline: "Editorial direction as a service.",
+            subheadline: "When the image matters as much as the product.",
+            primaryCta: { href: "#", label: "See the roster" },
+            imageUrl: IMG("1516726415686-3f4e4b37e93f"),
+            imageAlt: "Model in editorial setting",
+            side: "media-right",
+            variant: "asymmetric",
+            presentation: {},
+          }}
+        />
+
+        {/* ── 12. lookbook (Final Batch 3) ────────────────────────────── */}
+        <LookbookComponent
+          {...baseProps}
+          sectionId="audit-lb"
+          props={{
+            eyebrow: "Current work",
+            headline: "Recent pages.",
+            pages: [
+              { imageUrl: IMG("1509631179647-0848817b3705"), alt: "Lookbook page 1" },
+              { imageUrl: IMG("1469334031218-e382a71b716b"), alt: "Lookbook page 2" },
+              { imageUrl: IMG("1494790108377-be9c29b29330"), alt: "Lookbook page 3" },
+              { imageUrl: IMG("1517841905240-472988babdf9"), alt: "Lookbook page 4" },
+            ],
+            variant: "spread",
+            ratio: "3/4",
+            presentation: {},
+          }}
+        />
+
+        {/* ── 13. image_orbit (Final Batch 3) ─────────────────────────── */}
+        <ImageOrbitComponent
+          {...baseProps}
+          sectionId="audit-io"
+          props={{
+            eyebrow: "Signature talent",
+            headline: "One frame, many stories.",
+            imageUrl: IMG("1524504388-59ecd8b04dc9"),
+            imageAlt: "Talent editorial frame",
+            tags: [
+              { x: 22, y: 18, label: "Valentina M.", detail: "Editorial · Mexico City" },
+              { x: 68, y: 42, label: "Luna R.", detail: "Commercial · Tulum" },
+              { x: 40, y: 75, label: "Sofia A.", detail: "Live · Ibiza" },
+            ],
+            ratio: "4/3",
+            presentation: {},
+          }}
+        />
+
+        {/* ── 14. lottie (Final Batch 3) ──────────────────────────────── */}
+        <LottieComponent
+          {...baseProps}
+          sectionId="audit-lt"
+          props={{
+            eyebrow: "Process",
+            headline: "From brief to booking.",
+            caption: "A five-step flow, animated.",
+            src: "https://assets3.lottiefiles.com/packages/lf20_UJNc2t.json",
+            trigger: "autoplay",
+            loop: true,
+            speed: 1,
+            ratio: "1/1",
+            maxWidth: 480,
+            presentation: {},
+          }}
+        />
+
+        {/* ── 15. map_overlay (Final Batch 3) ─────────────────────────── */}
+        <MapOverlayComponent
+          {...baseProps}
+          sectionId="audit-mo"
+          props={{
+            eyebrow: "Basecamp",
+            headline: "Find us in Mexico City.",
+            mapEmbedUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3763.261673009805!2d-99.16584492378258!3d19.419443840765694!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d1ff3e5f6c9bfb%3A0x2af67c0b5e9e6b0!2sRoma%20Norte%2C%20Miguel%20Hidalgo%2C%20Ciudad%20de%20M%C3%A9xico%2C%20CDMX!5e0!3m2!1sen!2smx!4v1714000000000!5m2!1sen!2smx",
+            card: {
+              title: "Impronta Studio",
+              address: "Colonia Roma Norte, CDMX 06700",
+              hours: "Mon–Fri · 10:00 – 18:00",
+              body: "Walk-ins welcome on request.\n\nParking available on Orizaba.",
+            },
+            side: "card-right",
+            ratio: "16/9",
+            presentation: {},
+          }}
+        />
+
+        {/* ── 16. sticky_scroll (Final Batch 3) ───────────────────────── */}
+        <StickyScrollComponent
+          {...baseProps}
+          sectionId="audit-ss"
+          props={{
+            eyebrow: "How it works",
+            headline: "Three calls, one campaign.",
+            imageUrl: IMG("1554048612-994c4efbe79a"),
+            imageAlt: "On-set production moment",
+            blocks: [
+              { title: "The brief call", body: "Thirty minutes. We ask about the product, the budget, the deadline, and what 'right' looks like to you." },
+              { title: "The casting note", body: "Within 24 hours we return a short brief: who we have in mind, why, and a fee range.\n\nNo commitment at this stage." },
+              { title: "The shoot", body: "We handle the call sheet, the fixers, the permits, and the edit schedule so you can focus on the creative." },
+            ],
+            side: "media-left",
+            variant: "minimal",
+            presentation: {},
+          }}
+        />
+
+        {/* ── 17. code_snippet (Final Batch 3) ────────────────────────── */}
+        <CodeSnippetComponent
+          {...baseProps}
+          sectionId="audit-cs"
+          props={{
+            eyebrow: "Developer",
+            headline: "Integrate the roster API.",
+            filename: "roster.ts",
+            language: "typescript",
+            code: `import { createClient } from "@tulala/sdk";
+
+const client = createClient({ apiKey: process.env.TULALA_API_KEY });
+
+// Fetch all active talent for a tenant
+const roster = await client.talent.list({
+  tenantId: "00000000-0000-0000-0000-000000000001",
+  filters: { status: "active", category: "editorial" },
+});
+
+roster.items.forEach((talent) => {
+  console.log(talent.name, talent.rateRange);
+});`,
+            showLineNumbers: true,
+            showCopyButton: true,
+            variant: "dark",
+            presentation: {},
+          }}
+        />
+
+        {/* ── 18. booking_widget (Final Batch 3) ──────────────────────── */}
+        <BookingWidgetComponent
+          {...baseProps}
+          sectionId="audit-bw"
+          props={{
+            eyebrow: "Inquire",
+            headline: "Ready when you are.",
+            intro: "Use the calendar below or write to us directly — we reply within 24 hours.",
+            url: "https://calendly.com/impronta-models/consultation",
+            variant: "button",
+            buttonLabel: "Open booking calendar",
+            ratio: "4/3",
+            presentation: {},
+          }}
+        />
+
+        {/* ── 19. cta_banner (Batch 2) ────────────────────────────────── */}
         <CtaBannerComponent
           {...baseProps}
           sectionId="audit-cb"

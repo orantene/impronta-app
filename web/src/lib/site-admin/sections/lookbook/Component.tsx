@@ -1,3 +1,10 @@
+/**
+ * Phase E (Final Batch 3) — head-only migration.
+ * SectionHead replaces the bespoke site-lookbook__head / site-lookbook__headline
+ * pattern, unifying eyebrow + h2 rhythm. The spread-based 2-by-2 page layout
+ * and per-page figcaption are preserved exactly.
+ */
+import { SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -24,10 +31,11 @@ export function LookbookComponent({ props }: SectionComponentProps<LookbookV1>) 
     >
       <div className="site-lookbook__inner">
         {(eyebrow || headline) && (
-          <header className="site-lookbook__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? <h2 className="site-lookbook__headline">{renderInlineRich(headline)}</h2> : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div className="site-lookbook__pages">
           {pairs.map((pair, i) => (

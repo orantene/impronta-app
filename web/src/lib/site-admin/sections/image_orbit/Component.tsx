@@ -1,3 +1,10 @@
+/**
+ * Phase E (Final Batch 3) — head-only migration.
+ * SectionHead replaces the bespoke site-orbit__head / site-orbit__headline
+ * pattern, unifying eyebrow + h2 rhythm. The absolute-positioned hotspot
+ * tags (left: ${tag.x}%, top: ${tag.y}%) and orbit frame are preserved exactly.
+ */
+import { SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -14,10 +21,11 @@ export function ImageOrbitComponent({ props }: SectionComponentProps<ImageOrbitV
     >
       <div className="site-orbit__inner">
         {(eyebrow || headline) && (
-          <header className="site-orbit__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? <h2 className="site-orbit__headline">{renderInlineRich(headline)}</h2> : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div className="site-orbit__frame" style={{ aspectRatio: ratio }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

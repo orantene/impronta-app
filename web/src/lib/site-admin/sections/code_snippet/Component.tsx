@@ -1,3 +1,10 @@
+/**
+ * Phase E (Final Batch 3) — head-only migration.
+ * SectionHead replaces the bespoke site-snippet__head / site-snippet__headline
+ * pattern, unifying eyebrow + h2 rhythm. The line-number renderer, copy
+ * button, and inline dangerouslySetInnerHTML script are preserved exactly.
+ */
+import { SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -15,10 +22,11 @@ export function CodeSnippetComponent({ props }: SectionComponentProps<CodeSnippe
     >
       <div className="site-snippet__inner">
         {(eyebrow || headline) && (
-          <header className="site-snippet__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? <h2 className="site-snippet__headline">{renderInlineRich(headline)}</h2> : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div className="site-snippet__frame">
           {(filename || showCopyButton) && (

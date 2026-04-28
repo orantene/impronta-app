@@ -1,3 +1,10 @@
+/**
+ * Phase E (Final Batch 3) — head-only migration.
+ * SectionHead replaces the bespoke site-sticky-scroll__head / site-sticky-scroll__headline
+ * pattern, unifying eyebrow + h2 rhythm. The sticky image column, scrollable
+ * block articles, and \n\n body splitting are preserved exactly.
+ */
+import { SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -15,12 +22,11 @@ export function StickyScrollComponent({ props }: SectionComponentProps<StickyScr
     >
       <div className="site-sticky-scroll__inner">
         {(eyebrow || headline) && (
-          <header className="site-sticky-scroll__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-sticky-scroll__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div className="site-sticky-scroll__grid">
           <div className="site-sticky-scroll__media">

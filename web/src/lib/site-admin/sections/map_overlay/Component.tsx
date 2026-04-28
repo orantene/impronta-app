@@ -1,3 +1,12 @@
+/**
+ * Phase E (Final Batch 3) — head-only migration.
+ * Container + SectionHead replace the bespoke site-map__head / site-map__headline
+ * pattern. Container is required here because the head is a direct child of the
+ * section element (no __inner wrapper), and site-map__frame is deliberately
+ * full-bleed. The iframe, absolutely-positioned card overlay, and \n\n body
+ * splitting are preserved exactly.
+ */
+import { Container, SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -14,10 +23,13 @@ export function MapOverlayComponent({ props }: SectionComponentProps<MapOverlayV
       style={presentationInlineStyles(presentation)}
     >
       {(eyebrow || headline) && (
-        <header className="site-map__head">
-          {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-          {headline ? <h2 className="site-map__headline">{renderInlineRich(headline)}</h2> : null}
-        </header>
+        <Container width="standard">
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
+        </Container>
       )}
       <div className="site-map__frame" style={{ aspectRatio: ratio }}>
         <iframe

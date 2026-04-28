@@ -1,3 +1,11 @@
+/**
+ * Phase E (Final Batch 3) — head-only migration.
+ * SectionHead replaces the bespoke site-booking__head / site-booking__headline
+ * pattern, unifying eyebrow + h2 rhythm. The intro paragraph migrates to the
+ * SectionHead `intro` slot (site-prim-head__intro). The conditional iframe /
+ * button-link layout and frame sizing are preserved exactly.
+ */
+import { SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -14,11 +22,12 @@ export function BookingWidgetComponent({ props }: SectionComponentProps<BookingW
     >
       <div className="site-booking__inner">
         {(eyebrow || headline || intro) && (
-          <header className="site-booking__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? <h2 className="site-booking__headline">{renderInlineRich(headline)}</h2> : null}
-            {intro ? <p className="site-booking__intro">{intro}</p> : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+            intro={intro}
+          />
         )}
         {variant === "inline" ? (
           <div

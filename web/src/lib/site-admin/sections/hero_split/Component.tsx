@@ -1,3 +1,12 @@
+/**
+ * Phase E (Final Batch 3) — partial head alignment.
+ *
+ * The eyebrow already emits `site-eyebrow` — the same class SectionHead
+ * produces — so it is already phase-aligned. The headline is a page-level
+ * <h1> (hero semantics) inside the split-grid copy column; migrating it to
+ * SectionHead would impose an <h2> and collapse the split-grid layout.
+ * No SectionHead import needed: both head tokens are correct by class.
+ */
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";

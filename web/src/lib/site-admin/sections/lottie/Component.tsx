@@ -1,3 +1,4 @@
+import { SectionHead } from "../shared/section-primitives";
 import { presentationDataAttrs, presentationInlineStyles } from "../shared/presentation";
 import { renderInlineRich } from "../shared/rich-text";
 import type { SectionComponentProps } from "../types";
@@ -12,6 +13,11 @@ import type { LottieV1 } from "./schema";
  *
  * The custom element hydrates client-side. SSR renders a sized
  * placeholder so the layout doesn't shift.
+ *
+ * Phase E (Final Batch 3) — head-only migration.
+ * SectionHead replaces the bespoke site-lottie__head / site-lottie__headline
+ * pattern, unifying eyebrow + h2 rhythm. The lottie-player web-component,
+ * lazy script tag, and frame sizing are preserved exactly.
  */
 export function LottieComponent({ props }: SectionComponentProps<LottieV1>) {
   const {
@@ -35,12 +41,11 @@ export function LottieComponent({ props }: SectionComponentProps<LottieV1>) {
     >
       <div className="site-lottie__inner">
         {(eyebrow || headline) && (
-          <header className="site-lottie__head">
-            {eyebrow ? <span className="site-eyebrow">{eyebrow}</span> : null}
-            {headline ? (
-              <h2 className="site-lottie__headline">{renderInlineRich(headline)}</h2>
-            ) : null}
-          </header>
+          <SectionHead
+            align="center"
+            eyebrow={eyebrow}
+            headline={headline ? renderInlineRich(headline) : undefined}
+          />
         )}
         <div
           className="site-lottie__frame"
