@@ -212,9 +212,14 @@ function mapTriggerError(error: PostgrestError): Phase5Result<never> {
 }
 
 function bustHomepageTags(tenantId: string, pageId: string, locale: Locale): void {
-  revalidateTag(tagFor(tenantId, "homepage", { locale }));
-  revalidateTag(tagFor(tenantId, "pages", { id: pageId }));
-  revalidateTag(tagFor(tenantId, "pages-all"));
+  // T2-6 — Next.js 16 made revalidateTag's second arg required (cache
+  // profile). "default" matches the rest of the codebase (composition-
+  // actions, page-composer-action, site-shell-backfill-action all use
+  // it); switching to "max" would change semantics and split the
+  // convention.
+  revalidateTag(tagFor(tenantId, "homepage", { locale }), "default");
+  revalidateTag(tagFor(tenantId, "pages", { id: pageId }), "default");
+  revalidateTag(tagFor(tenantId, "pages-all"), "default");
 }
 
 async function insertHomepageRevision(
