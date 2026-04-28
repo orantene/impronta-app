@@ -2,13 +2,16 @@
  * EditChromeMount — server gate for the in-place editor.
  *
  * Rules:
- *   1. Only renders on tenant hosts (agency or hub); marketing/app/unknown
+ *   1. Only renders on storefront paths (/, /p/:slug, /:locale, /:locale/p/:slug).
+ *      Admin, auth, onboarding, talent-profile, and all other platform paths
+ *      return null immediately — the builder is storefront-only.
+ *   2. Only renders on tenant hosts (agency or hub); marketing/app/unknown
  *      hosts get nothing.
- *   2. Only renders for authenticated staff (super_admin or agency_staff).
+ *   3. Only renders for authenticated staff (super_admin or agency_staff).
  *      Talent / clients / unauthenticated visitors see nothing.
- *   3. Reads the edit cookie server-side to tell the client which mode to
+ *   4. Reads the edit cookie server-side to tell the client which mode to
  *      mount in (pill vs shell) — avoids a client flash from idle→engaged.
- *   4. Loads the tenant's published locales so the topbar locale switcher
+ *   5. Loads the tenant's published locales so the topbar locale switcher
  *      can render on first paint. Composition still fetches its own
  *      `availableLocales` for cache freshness, but threading it through as
  *      a prop means the switcher is correct *immediately* — independent
@@ -16,7 +19,7 @@
  *      editor mounts against.
  *
  * Import this from the root layout. It's safe on every path because it
- * short-circuits on hostless/anonymous requests.
+ * short-circuits on non-storefront and hostless/anonymous requests.
  */
 
 import { headers } from "next/headers";
@@ -28,7 +31,33 @@ import { resolveStorefrontLocale } from "@/lib/site-admin/server/storefront-loca
 import { ORIGINAL_PATHNAME_HEADER } from "@/i18n/request-locale";
 import { EditChrome } from "./edit-chrome";
 
+/**
+ * Path prefixes that are never storefronts — the builder must not mount here.
+ * Checked against the raw request pathname (before any rewrites).
+ */
+const NON_STOREFRONT_PREFIXES = [
+  "/admin",
+  "/login",
+  "/auth",
+  "/onboarding",
+  "/t/",       // talent public profiles
+  "/share/",   // share links
+  "/invite/",  // invite flows
+  "/api/",     // API routes (safety belt)
+  "/dev/",     // internal dev routes
+];
+
 export async function EditChromeMount() {
+  // Rule 1 — storefront-only. Read headers first (cheap) to skip all
+  // expensive DB calls on admin / auth / platform routes.
+  const reqHeaders = await headers();
+  const rawPathname = reqHeaders.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
+
+  const isNonStorefront = NON_STOREFRONT_PREFIXES.some(
+    (prefix) => rawPathname === prefix.replace(/\/$/, "") || rawPathname.startsWith(prefix),
+  );
+  if (isNonStorefront) return null;
+
   const ctx = await getPublicHostContext();
   if (ctx.kind !== "agency" && ctx.kind !== "hub") return null;
 
@@ -39,10 +68,9 @@ export async function EditChromeMount() {
   // Resolve the request's effective locale so the editor loads the matching
   // homepage row (composer used to expose this via the ?locale= query; the
   // in-place editor inherits the storefront's locale resolution instead).
-  const [localeContext, localeSettings, requestHeaders] = await Promise.all([
+  const [localeContext, localeSettings] = await Promise.all([
     resolveStorefrontLocale(),
     loadTenantLocaleSettings(ctx.tenantId),
-    headers(),
   ]);
 
   // Extract the page slug from the original request pathname so the editor
@@ -55,9 +83,9 @@ export async function EditChromeMount() {
   //   /en/p/about         → locale "en", slug "about"
   //   /es                 → locale "es", homepage (null)
   //   /about              → slug "about" (hypothetical direct route)
-  const rawPathname = requestHeaders.get(ORIGINAL_PATHNAME_HEADER) ?? "/";
+  // rawPathname is already resolved above.
   const supportedLocales = localeContext.settings.supportedLocales as ReadonlyArray<string>;
-  let segs = rawPathname.split("?")[0]!.split("/").filter(Boolean);
+  let segs = (rawPathname.split("?")[0] ?? "/").split("/").filter(Boolean);
   // 1. Strip optional locale prefix.
   if (segs.length > 0 && supportedLocales.includes(segs[0]!)) {
     segs = segs.slice(1);
