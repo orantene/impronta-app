@@ -457,11 +457,18 @@ export function PublishDrawer() {
             </Card>
 
             {/* ── What's going live ──────────────────────────────── */}
+            {/* T1-3 — header shows the FULL section count (primary + legacy)
+                so it matches the navigator. The audit caught this surface
+                showing fewer sections than the navigator listed because the
+                old `primaryCount` excluded legacy. Both counts are still
+                computed (used inside the card to label each group), but
+                the user-facing summary number is the one they see in the
+                sections panel. */}
             <Card>
               <CardHead
                 icon={<ChangesIcon />}
                 title="What's going live"
-                sub={`${summary.primaryCount} section${summary.primaryCount === 1 ? "" : "s"}`}
+                sub={`${summary.totalSections} section${summary.totalSections === 1 ? "" : "s"}`}
               />
               <CardBody padding="flush">
                 <ul
