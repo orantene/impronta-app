@@ -676,15 +676,17 @@ function TbTextBtn({
   onClick,
   disabled,
   title,
+  type = "button",
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   title?: string;
+  type?: "button" | "submit" | "reset";
 }) {
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -1216,7 +1218,7 @@ function ShareIconWithPopover({
 function ExitButton() {
   const { pending } = useFormStatus();
   return (
-    <TbTextBtn disabled={pending}>
+    <TbTextBtn type="submit" disabled={pending}>
       {pending ? "Exiting…" : "Exit"}
     </TbTextBtn>
   );
