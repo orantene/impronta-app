@@ -38,17 +38,32 @@ import { EditChrome } from "./edit-chrome";
 /**
  * Path prefixes that are never storefronts — the builder must not mount here.
  * Checked against the raw request pathname (before any rewrites).
+ *
+ * Important: tenant agency hosts (impronta.tulala.digital) ALLOW dashboard
+ * paths so members can run the workspace from their subdomain
+ * (`surface-allow-list.ts` AGENCY branch). That means /admin, /talent,
+ * /client all resolve on the agency host — which would also match the
+ * `agency` kind check in EditChromeMount and try to mount the editor on
+ * top of dashboard chrome. Every dashboard prefix MUST appear here.
  */
 const NON_STOREFRONT_PREFIXES = [
   "/admin",
+  "/talent",   // talent dashboard (NOT /t/<slug> public profile)
+  "/client",   // client dashboard
   "/login",
+  "/register",
   "/auth",
   "/onboarding",
+  "/account",  // account settings
   "/t/",       // talent public profiles
   "/share/",   // share links
   "/invite/",  // invite flows
   "/api/",     // API routes (safety belt)
   "/dev/",     // internal dev routes
+  "/prototypes/", // dev/staging prototype routes
+  "/update-password",
+  "/forgot-password",
+  "/waitlist",
 ];
 
 export async function EditChromeMount() {
