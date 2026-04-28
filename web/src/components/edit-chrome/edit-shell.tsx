@@ -584,76 +584,31 @@ function MutationErrorToast() {
 function DeviceFrameStyle({ device }: { device: EditDevice }) {
   const width = DEVICE_WIDTHS[device];
   if (!width) return null;
-  // T1-5 — Mobile/tablet preview presentation.
+  // Mobile/tablet preview presentation.
   //
-  // Audit finding: switching to Mobile produced "a narrow vertical strip
-  // with huge black side gutters and headline text wrapping into a
-  // stacked column." Two issues:
+  // Important caveat documented for any future maintainer: a true device
+  // preview is impossible without an iframe whose viewport matches the
+  // device width. CSS @media queries fire on viewport width, not body
+  // width, AND any storefront content using `position: fixed` /
+  // `position: absolute` references the viewport, not the constrained
+  // body. So a 390px body in a 1280px viewport leaves fixed-position
+  // elements (sticky headers, hero overlays) free-floating outside the
+  // body box.
   //
-  //  a) The page's html background bled through the gutters around the
-  //     constrained body. On a dark storefront theme (editorial-noir,
-  //     etc.) that meant black voids on either side.
-  //  b) The layout inside the constrained body still ran at the desktop
-  //     breakpoint. CSS @media queries fire on viewport width, not body
-  //     width, so a 390px body in a 1280px viewport reads as desktop
-  //     CSS squeezed into a column.
-  //
-  // (b) is the deeper problem and a true fix needs the storefront to
-  // render in an iframe whose own viewport matches the device width.
-  // That is a structural change (cross-frame selection / inserter /
-  // inline-editor wiring) and out of scope for this pass. What we do
-  // here addresses (a) and signals to the operator that this is an
-  // approximation:
-  //
-  //   1. Neutral preview backdrop on html so the gutters look like a
-  //      device frame, not a broken layout.
-  //   2. Top padding on body so the constrained viewport sits below
-  //      the editor topbar, not flush against it.
-  //   3. Hairline device-frame outline (border + shadow) so the
-  //      operator reads "phone preview," not "broken canvas."
-  //   4. A small width chip pinned to the html so the operator can
-  //      see exactly what width is being simulated — and an aria-
-  //      live hint that real-device testing is recommended.
+  // The earlier, more aggressive treatment (dark backdrop, body shadow,
+  // approximate-width chip) made this floating-content issue visible
+  // because the dark gutter exposed the page chrome bleeding outside
+  // the body. Reverted to a minimal constraint: clip the body width and
+  // overflow, no backdrop change, no margin tricks. The mobile preview
+  // is approximate; the real fix is an iframe rewrite (queued as a
+  // structural follow-up, not in this pass).
   return (
     <style>{`
-      html {
-        background: #2a2a30 !important;
-      }
       body {
         max-width: ${width}px !important;
         margin-left: auto !important;
         margin-right: auto !important;
-        margin-top: 24px !important;
-        margin-bottom: 24px !important;
-        border-radius: 18px !important;
-        overflow: hidden !important;
-        background: #ffffff !important;
-        box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.06),
-          0 0 0 8px rgba(255, 255, 255, 0.02),
-          0 30px 80px -30px rgba(0, 0, 0, 0.55),
-          0 8px 24px -12px rgba(0, 0, 0, 0.35) !important;
-      }
-      /* Device frame outline label — pinned to the editor top bar area
-         so it floats outside the simulated viewport. Uses a fixed
-         position so it never affects body layout. */
-      html::before {
-        content: "${width}px preview · approximate";
-        position: fixed;
-        top: 62px;
-        left: 50%;
-        transform: translateX(-50%);
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.55);
-        background: rgba(0, 0, 0, 0.3);
-        padding: 4px 10px;
-        border-radius: 999px;
-        pointer-events: none;
-        z-index: 50;
+        overflow-x: hidden !important;
       }
     `}</style>
   );
