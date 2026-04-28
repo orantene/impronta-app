@@ -22,7 +22,7 @@
  * regression against the composer, while the premium edits live on canvas.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   loadSectionForEditAction,
@@ -89,7 +89,28 @@ export function InspectorDock() {
     saving,
     setSaving,
     recordFieldEdit,
+    slots,
   } = useEditContext();
+
+  // T2-1 — Look up the selected section's name + type from the composition
+  // BEFORE the field-draft fetch resolves. The audit said the skeleton's
+  // "Loading…" title made the inspector look broken; we already know which
+  // section the operator clicked, so we can render its real name and the
+  // type's icon during the load window. Resolves to null when slots aren't
+  // ready yet (e.g., legacy callers without the T1-2 prefetch).
+  const skeletonHint = useMemo(() => {
+    if (!selectedSectionId) return null;
+    for (const entries of Object.values(slots)) {
+      const found = entries.find((e) => e.sectionId === selectedSectionId);
+      if (found) {
+        return {
+          name: cleanSectionName(found.name) || humanizeTypeKey(found.sectionTypeKey),
+          typeKey: found.sectionTypeKey,
+        };
+      }
+    }
+    return null;
+  }, [selectedSectionId, slots]);
 
   const [tab, setTab] = useState<TabKey>("content");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -395,12 +416,17 @@ export function InspectorDock() {
 
   const dockOpen = !!selectedSectionId;
 
+  // T2-1 — Use the skeleton hint (name + type known from slots) when the
+  // field-draft fetch hasn't resolved yet. Falls back to "Inspector" only
+  // when nothing is selected (genuine empty state).
   const sectionTitle = loadedSection
     ? (cleanSectionName(loadedSection.name) ||
         humanizeTypeKey(loadedSection.sectionTypeKey))
-    : selectedSectionId && loadingId
-      ? "Loading…"
-      : "Inspector";
+    : skeletonHint
+      ? skeletonHint.name
+      : selectedSectionId && loadingId
+        ? "Loading…"
+        : "Inspector";
 
   return (
     <Drawer
@@ -419,6 +445,8 @@ export function InspectorDock() {
               typeKey={loadedSection.sectionTypeKey}
               size={15}
             />
+          ) : skeletonHint ? (
+            <SectionTypeIcon typeKey={skeletonHint.typeKey} size={15} />
           ) : undefined
         }
         saveChip={
@@ -588,6 +616,11 @@ function EmptyState() {
  * + 4 form rows + a button) so the dock doesn't visibly jump on hand-off.
  * The shimmer is a single CSS-only `@keyframes` block scoped to the
  * skeleton so it doesn't leak.
+ *
+ * T2-1 polish: softer bar tint and a centered "Loading section…" label
+ * with a thin spinner so the operator reads "preparing" rather than
+ * "broken UI." The bars still hint at the layout (tabs / inputs /
+ * button) so the eventual paint doesn't jump.
  */
 function InspectorSkeleton() {
   return (
@@ -599,16 +632,48 @@ function InspectorSkeleton() {
     >
       <style>{`
         @keyframes inspector-skel-shimmer {
-          0%   { opacity: 0.55; }
-          50%  { opacity: 0.85; }
-          100% { opacity: 0.55; }
+          0%   { opacity: 0.5; }
+          50%  { opacity: 0.78; }
+          100% { opacity: 0.5; }
+        }
+        @keyframes inspector-skel-spin {
+          to { transform: rotate(360deg); }
         }
         .inspector-skel-bar {
           background: ${CHROME.line};
           border-radius: 6px;
           animation: inspector-skel-shimmer 1.4s ease-in-out infinite;
         }
+        .inspector-skel-spinner {
+          animation: inspector-skel-spin 0.85s linear infinite;
+        }
       `}</style>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "12px 14px 0",
+          fontSize: 11,
+          fontWeight: 500,
+          color: CHROME.muted,
+        }}
+      >
+        <svg
+          className="inspector-skel-spinner"
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          aria-hidden
+        >
+          <path d="M21 12a9 9 0 1 1-6.22-8.56" />
+        </svg>
+        <span>Loading section…</span>
+      </div>
       <div
         style={{
           borderBottom: `1px solid ${CHROME.line}`,
