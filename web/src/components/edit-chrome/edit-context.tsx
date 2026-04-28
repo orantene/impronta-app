@@ -194,6 +194,23 @@ export interface EditContextValue {
   openLibrary: (target: LibraryTarget) => void;
   closeLibrary: () => void;
 
+  // ── Sprint 3 inline section picker popover ──
+  /**
+   * Sprint 3 navigator/library merge — contextual popover anchored at an
+   * inline `+` insertion point. Replaces the modal library for the most
+   * common insertion path. The full `libraryTarget` modal is still
+   * available as the "Browse all sections…" fallback for search +
+   * advanced + discovery.
+   */
+  pickerPopover: {
+    target: LibraryTarget;
+    /** Anchor point in viewport coordinates (the `+` button center). */
+    x: number;
+    y: number;
+  } | null;
+  openPickerPopover: (target: LibraryTarget, x: number, y: number) => void;
+  closePickerPopover: () => void;
+
   // ── publish drawer ──
   publishOpen: boolean;
   openPublish: () => void;
@@ -539,6 +556,17 @@ export function EditProvider({
   const [libraryTarget, setLibraryTarget] = useState<LibraryTarget | null>(
     null,
   );
+
+  // Sprint 3 — section picker popover state. Anchored at the click site of
+  // an inline `+` insertion point (canvas overlay, navigator slot footer).
+  // Distinct from `libraryTarget` so the popover can dismiss without
+  // closing the full modal library, and the modal can be opened directly
+  // (Browse all) without going through the popover.
+  const [pickerPopover, setPickerPopover] = useState<{
+    target: LibraryTarget;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // publish drawer state
   const [publishOpen, setPublishOpen] = useState(false);
@@ -1151,6 +1179,18 @@ export function EditProvider({
   }, []);
   const closeLibrary = useCallback(() => setLibraryTarget(null), []);
 
+  // Sprint 3 — inline picker popover. The popover is the default
+  // affordance for inline `+` clicks; opening it always closes the full
+  // modal library (so the operator never sees both at once).
+  const openPickerPopover = useCallback(
+    (target: LibraryTarget, x: number, y: number) => {
+      setLibraryTarget(null);
+      setPickerPopover({ target, x, y });
+    },
+    [],
+  );
+  const closePickerPopover = useCallback(() => setPickerPopover(null), []);
+
   // The right-side drawers (Publish, Page Settings, Revisions) all anchor
   // to the same `right: 0` slot. Opening one mutexes out the others so
   // they never visually stack — picking up a new drawer means dismissing
@@ -1400,6 +1440,10 @@ export function EditProvider({
       openLibrary,
       closeLibrary,
 
+      pickerPopover,
+      openPickerPopover,
+      closePickerPopover,
+
       publishOpen,
       openPublish,
       closePublish,
@@ -1491,6 +1535,9 @@ export function EditProvider({
       libraryTarget,
       openLibrary,
       closeLibrary,
+      pickerPopover,
+      openPickerPopover,
+      closePickerPopover,
       publishOpen,
       openPublish,
       closePublish,

@@ -75,7 +75,7 @@ function readSectionsInOrder(): Array<{
 }
 
 export function CompositionInserters() {
-  const { openLibrary, compositionLoaded, slots } = useEditContext();
+  const { openPickerPopover, compositionLoaded, slots } = useEditContext();
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [zones, setZones] = useState<Zone[]>([]);
   const rafRef = useRef<number | null>(null);
@@ -191,12 +191,21 @@ export function CompositionInserters() {
           type="button"
           key={z.key}
           data-edit-overlay="inserter-btn"
-          onClick={() =>
-            openLibrary({
-              slotKey: z.slotKey,
-              insertAfterSortOrder: z.insertAfterSortOrder,
-            })
-          }
+          onClick={(e) => {
+            // Sprint 3 — anchor a contextual popover at the click site
+            // instead of opening the full modal library. Operator can
+            // still reach the modal via the popover's "Browse all
+            // sections…" footer link.
+            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+            openPickerPopover(
+              {
+                slotKey: z.slotKey,
+                insertAfterSortOrder: z.insertAfterSortOrder,
+              },
+              r.left + r.width / 2,
+              r.top + r.height / 2,
+            );
+          }}
           className="group pointer-events-auto absolute flex items-center justify-center"
           style={{
             top: z.top,

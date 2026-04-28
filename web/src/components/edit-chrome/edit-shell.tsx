@@ -41,6 +41,7 @@ import { ShortcutOverlay } from "./shortcut-overlay";
 import { TopBar } from "./topbar";
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { IframeBridgeParent } from "./iframe-bridge";
+import { SectionPickerPopover } from "./section-picker-popover";
 import { createShareLinkAction } from "@/lib/site-admin/share-link/share-actions";
 
 const DEVICE_WIDTHS: Record<EditDevice, number | null> = {
@@ -477,6 +478,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <NavigatorPanel />
         <InspectorDock />
         <CompositionLibraryOverlay />
+        <SectionPickerPopover />
         <PublishDrawer />
         <PageSettingsDrawer />
         <RevisionsDrawer />
