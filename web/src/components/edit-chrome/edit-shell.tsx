@@ -20,6 +20,7 @@
 
 import { useEffect, useRef } from "react";
 
+import { EditErrorBoundary } from "./edit-error-boundary";
 import { EditProvider, useEditContext, type EditDevice } from "./edit-context";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
@@ -82,15 +83,17 @@ export function EditShell({
   children,
 }: EditShellProps) {
   return (
-    <EditProvider
-      tenantId={tenantId}
-      locale={locale}
-      pageSlug={pageSlug}
-      initialAvailableLocales={availableLocales}
-      initialComposition={initialComposition}
-    >
-      <EditShellInner>{children}</EditShellInner>
-    </EditProvider>
+    <EditErrorBoundary>
+      <EditProvider
+        tenantId={tenantId}
+        locale={locale}
+        pageSlug={pageSlug}
+        initialAvailableLocales={availableLocales}
+        initialComposition={initialComposition}
+      >
+        <EditShellInner>{children}</EditShellInner>
+      </EditProvider>
+    </EditErrorBoundary>
   );
 }
 

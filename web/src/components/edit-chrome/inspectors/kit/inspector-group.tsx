@@ -82,33 +82,41 @@ export function InspectorGroup({
     );
   }
 
+  // T1-4 — InfoTip is rendered as a SIBLING of the toggle button, not as a
+  // child. InfoTip itself emits a <button>, and nesting a <button> inside
+  // another <button> is an HTML hydration error that surfaces in the
+  // Next.js dev overlay (the audit's "red 2 Issues badge" leak). Splitting
+  // them keeps the visual layout identical (flex row, same gap) but makes
+  // the DOM legal so React stops complaining.
   return (
     <section className="flex flex-col gap-2.5">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between text-left"
-        aria-expanded={open}
-      >
-        <span className="flex items-center gap-1.5">
-          <span className={titleCls}>{title}</span>
+      <div className="flex w-full items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex items-center gap-1.5 text-left"
+            aria-expanded={open}
+          >
+            <span className={titleCls}>{title}</span>
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`text-zinc-400 transition ${open ? "rotate-180" : ""}`}
+              aria-hidden
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
           {info ? <InfoTip label={info} /> : null}
-        </span>
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`text-zinc-400 transition ${open ? "rotate-180" : ""}`}
-          aria-hidden
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
+        </div>
+      </div>
       {open ? children : null}
     </section>
   );
