@@ -84,6 +84,16 @@ export function PreviewPill() {
     <>
       <PreviewChromeReset />
       <PreviewDeviceFrameStyle device={device} />
+      {/* T2-3 — Slim top banner that makes preview mode unmistakable.
+          Audit said "Preview as visitor kept me in essentially the
+          same shell context" — the bottom-right pill alone wasn't a
+          strong enough signal that the operator was in a different
+          mode. The banner pins to the top, uses a distinct accent
+          color (zinc-900 with a soft amber dot), and gives a one-line
+          recovery affordance. The body's existing padding-top:0 reset
+          means the public header still renders below this banner
+          without overlap. */}
+      <PreviewBanner />
       <div
         data-edit-preview-pill
         className="fixed bottom-[24px] right-[24px] z-[200] flex items-center gap-1 px-1.5 py-1.5"
@@ -116,6 +126,71 @@ export function PreviewPill() {
   );
 }
 
+/**
+ * Top-pinned banner shown the entire time preview mode is engaged.
+ * Single 28px strip, dark background so it reads as scaffolding rather
+ * than storefront UI. Includes a "Back to editing" affordance for
+ * operators who scroll past the bottom-right pill or use a small
+ * window where the pill might be obscured.
+ */
+function PreviewBanner() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const handleBack = () => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("preview");
+    router.replace(`${url.pathname}${url.search}${url.hash}`);
+  };
+  // Touch the params subscription so this banner reacts to URL flips
+  // even if the parent component memoizes its render. (Reading any
+  // value ties the banner to the search-params re-render cycle.)
+  void params;
+  return (
+    <div
+      data-edit-preview-banner
+      className="pointer-events-auto fixed inset-x-0 top-0 z-[195] flex items-center justify-center gap-3 px-4"
+      style={{
+        height: 28,
+        background: CHROME.ink,
+        color: "rgba(255, 255, 255, 0.86)",
+        fontSize: 11.5,
+        fontWeight: 500,
+        letterSpacing: "-0.005em",
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: "inline-block",
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: CHROME.amber,
+          boxShadow: "0 0 0 3px rgba(180, 83, 9, 0.18)",
+        }}
+      />
+      <span>Previewing as visitor</span>
+      <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+      <button
+        type="button"
+        onClick={handleBack}
+        className="cursor-pointer underline-offset-4 transition hover:underline"
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "rgba(255, 255, 255, 0.86)",
+          fontSize: 11.5,
+          fontWeight: 600,
+          padding: 0,
+        }}
+      >
+        Back to editing
+      </button>
+    </div>
+  );
+}
+
 // ── chrome reset ───────────────────────────────────────────────────────────
 
 /**
@@ -128,7 +203,9 @@ export function PreviewPill() {
 function PreviewChromeReset() {
   return (
     <style>{`
-      body { padding-top: 0 !important; }
+      /* T2-3 — body reserves 28px for the top "Previewing as visitor"
+         banner so the public header doesn't slide underneath it. */
+      body { padding-top: 28px !important; }
       header[data-public-header] { display: revert !important; }
       @media (min-width: 1024px) {
         body { padding-left: 0 !important; padding-right: 0 !important; }
