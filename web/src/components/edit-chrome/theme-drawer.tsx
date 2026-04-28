@@ -438,61 +438,92 @@ export function ThemeDrawer(): ReactElement | null {
     if (!snapshot || !draft) return;
     setBusy("saving");
     setError(null);
-    const res = await saveDesignDraftFromEditAction({
-      patch: draft,
-      expectedVersion: snapshot.version,
-    });
-    setBusy("idle");
-    if (!res.ok) {
-      setError(res.error);
-      // On version conflict, refresh the snapshot so the next save uses the
-      // authoritative version. The operator's working copy stays put — they
-      // can re-press Save.
-      if (res.code === "VERSION_CONFLICT") {
-        const fresh = await loadDesignAction();
-        if (fresh.ok) setSnapshot(fresh.snapshot);
+    // T3-1 — Outer try/catch ensures busy state is released even when an
+    // intermediate await rejects (network drop, server restart). Without
+    // it the drawer stays stuck on "saving" indefinitely.
+    try {
+      const res = await saveDesignDraftFromEditAction({
+        patch: draft,
+        expectedVersion: snapshot.version,
+      });
+      if (!res.ok) {
+        setError(res.error);
+        if (res.code === "VERSION_CONFLICT") {
+          const fresh = await loadDesignAction();
+          if (fresh.ok) setSnapshot(fresh.snapshot);
+        }
+        return;
       }
-      return;
+      setSnapshot((prev) =>
+        prev
+          ? {
+              ...prev,
+              themeDraft: { ...res.themeDraft },
+              version: res.version,
+            }
+          : prev,
+      );
+      // Keep the operator's working copy authoritative — `res.themeDraft`
+      // is the same map minus any registry defaults the server filtered
+      // out.
+      setDraft({ ...res.themeDraft, ...draft });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Network error — try again.",
+      );
+    } finally {
+      setBusy("idle");
     }
-    setSnapshot((prev) =>
-      prev
-        ? {
-            ...prev,
-            themeDraft: { ...res.themeDraft },
-            version: res.version,
-          }
-        : prev,
-    );
-    // Keep the operator's working copy authoritative — `res.themeDraft` is
-    // the same map minus any registry defaults the server filtered out.
-    setDraft({ ...res.themeDraft, ...draft });
   }, [snapshot, draft]);
 
   const handlePublish = useCallback(async () => {
     if (!snapshot) return;
     setBusy("publishing");
     setError(null);
-    // Save the working copy first if it diverges from the stored draft, so
-    // we publish what the operator sees.
-    if (dirty && draft) {
-      const saveRes = await saveDesignDraftFromEditAction({
-        patch: draft,
-        expectedVersion: snapshot.version,
-      });
-      if (!saveRes.ok) {
-        setError(saveRes.error);
-        setBusy("idle");
-        if (saveRes.code === "VERSION_CONFLICT") {
-          const fresh = await loadDesignAction();
-          if (fresh.ok) setSnapshot(fresh.snapshot);
+    // T3-1 — Wrapping the multi-step publish flow in try/catch ensures
+    // the busy state is released if any intermediate await rejects (e.g.
+    // network drop between save and publish). Without this the drawer
+    // sticks on "publishing" forever and the operator has no recovery.
+    try {
+      // Save the working copy first if it diverges from the stored draft,
+      // so we publish what the operator sees.
+      if (dirty && draft) {
+        const saveRes = await saveDesignDraftFromEditAction({
+          patch: draft,
+          expectedVersion: snapshot.version,
+        });
+        if (!saveRes.ok) {
+          setError(saveRes.error);
+          if (saveRes.code === "VERSION_CONFLICT") {
+            const fresh = await loadDesignAction();
+            if (fresh.ok) setSnapshot(fresh.snapshot);
+          }
+          return;
         }
+        const latestVersion = saveRes.version;
+        const pubRes = await publishDesignFromEditAction({
+          expectedVersion: latestVersion,
+        });
+        if (!pubRes.ok) {
+          setError(pubRes.error);
+          if (pubRes.code === "VERSION_CONFLICT") {
+            const fresh = await loadDesignAction();
+            if (fresh.ok) setSnapshot(fresh.snapshot);
+          }
+          return;
+        }
+        const fresh = await loadDesignAction();
+        if (fresh.ok) {
+          setSnapshot(fresh.snapshot);
+          setDraft({ ...fresh.snapshot.themeDraft });
+        }
+        router.refresh();
+        setConfirmingPublish(false);
         return;
       }
-      const latestVersion = saveRes.version;
       const pubRes = await publishDesignFromEditAction({
-        expectedVersion: latestVersion,
+        expectedVersion: snapshot.version,
       });
-      setBusy("idle");
       if (!pubRes.ok) {
         setError(pubRes.error);
         if (pubRes.code === "VERSION_CONFLICT") {
@@ -508,27 +539,13 @@ export function ThemeDrawer(): ReactElement | null {
       }
       router.refresh();
       setConfirmingPublish(false);
-      return;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Network error — try again.",
+      );
+    } finally {
+      setBusy("idle");
     }
-    const pubRes = await publishDesignFromEditAction({
-      expectedVersion: snapshot.version,
-    });
-    setBusy("idle");
-    if (!pubRes.ok) {
-      setError(pubRes.error);
-      if (pubRes.code === "VERSION_CONFLICT") {
-        const fresh = await loadDesignAction();
-        if (fresh.ok) setSnapshot(fresh.snapshot);
-      }
-      return;
-    }
-    const fresh = await loadDesignAction();
-    if (fresh.ok) {
-      setSnapshot(fresh.snapshot);
-      setDraft({ ...fresh.snapshot.themeDraft });
-    }
-    router.refresh();
-    setConfirmingPublish(false);
   }, [snapshot, draft, dirty, router]);
 
   const chipStatus =

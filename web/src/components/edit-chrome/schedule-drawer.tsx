@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
   cancelScheduledPublishAction,
   loadScheduledPublishAction,
@@ -183,7 +184,16 @@ export function ScheduleDrawer() {
       return;
     }
     setState({ kind: "saving" });
-    const res = await schedulePublishAction({ locale, publishAt: iso });
+    // T3-1 — safeAction prevents the state from getting stuck on "saving"
+    // if the network drops mid-call. Returns a typed error envelope the
+    // existing render path already handles.
+    const res = await safeAction(
+      () => schedulePublishAction({ locale, publishAt: iso }),
+      {
+        name: "schedulePublishAction",
+        fallback: { ok: false as const, error: "Network error — try again." },
+      },
+    );
     if (!res.ok) {
       setState({ kind: "error", message: res.error });
       return;
@@ -194,7 +204,13 @@ export function ScheduleDrawer() {
 
   const handleCancelSchedule = useCallback(async () => {
     setState({ kind: "saving" });
-    const res = await cancelScheduledPublishAction({ locale });
+    const res = await safeAction(
+      () => cancelScheduledPublishAction({ locale }),
+      {
+        name: "cancelScheduledPublishAction",
+        fallback: { ok: false as const, error: "Network error — try again." },
+      },
+    );
     if (!res.ok) {
       setState({ kind: "error", message: res.error });
       return;
