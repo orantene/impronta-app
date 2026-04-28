@@ -18,10 +18,11 @@
  * positions via MutationObserver + scroll/resize listeners.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { EditErrorBoundary } from "./edit-error-boundary";
 import { EditProvider, useEditContext, type EditDevice } from "./edit-context";
+import { CHROME_SHADOWS } from "./kit";
 import { SelectionLayer } from "./selection-layer";
 import { InspectorDock } from "./inspector-dock";
 import { CompositionInserters } from "./composition-inserter";
@@ -489,10 +490,103 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <MutationErrorToast />
         <DraftSavedToast />
         <CanvasLinkInterceptor />
+        <FirstPaintTip />
       </div>
       {children}
       <DeviceFrameStyle device={device} />
     </>
+  );
+}
+
+/**
+ * T2-4 — First-paint orientation tip.
+ *
+ * Audit said operators landing in the editor "had to click into the
+ * visible page for the builder to realize the composition existed" —
+ * the page reads more like a preview with admin controls than a
+ * directly editable surface. The inspector EmptyState only renders
+ * after a selection happens; before that, the canvas gives no overt
+ * signal that sections are clickable.
+ *
+ * This tip is a single slim chip pinned just under the topbar that
+ * tells the operator the one thing they need to know on first paint:
+ * "Click any section to edit it." It auto-dismisses on the first
+ * meaningful interaction (selection or section hover) so power users
+ * never see it twice in a session, and offers an explicit dismiss
+ * affordance for operators who'd rather start clean.
+ *
+ * Session-scoped — no persistent dismissal yet. The tip is meant for
+ * the moment of orientation, not as a permanent setting; it's fast to
+ * dismiss for repeat sessions, and will be replaced by an onboarding
+ * pass when one lands. Per-tenant storage would require tracking
+ * tenant scope here just for a tip, which isn't worth the wiring.
+ */
+function FirstPaintTip() {
+  const { selectedSectionId, hoveredSectionId } = useEditContext();
+  const [dismissed, setDismissed] = useState(false);
+  // Auto-dismiss on first interaction with a section.
+  useEffect(() => {
+    if (selectedSectionId || hoveredSectionId) setDismissed(true);
+  }, [selectedSectionId, hoveredSectionId]);
+  if (dismissed) return null;
+  return (
+    <div
+      data-edit-overlay="first-paint-tip"
+      className="pointer-events-auto fixed left-1/2 z-[88] flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2"
+      style={{
+        top: 70,
+        background: "rgba(11, 11, 13, 0.92)",
+        color: "rgba(255, 255, 255, 0.92)",
+        fontSize: 11.5,
+        fontWeight: 500,
+        letterSpacing: "-0.005em",
+        boxShadow: CHROME_SHADOWS.popover,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+      }}
+    >
+      <svg
+        width="13"
+        height="13"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+        style={{ opacity: 0.7 }}
+      >
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+      </svg>
+      <span>Click any section on the page to edit it</span>
+      <button
+        type="button"
+        onClick={() => setDismissed(true)}
+        aria-label="Dismiss tip"
+        className="ml-1 inline-flex size-[18px] items-center justify-center rounded-full transition hover:bg-white/15"
+        style={{
+          color: "rgba(255, 255, 255, 0.6)",
+          background: "transparent",
+          border: "none",
+        }}
+      >
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          aria-hidden
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
   );
 }
 
