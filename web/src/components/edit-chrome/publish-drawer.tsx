@@ -32,6 +32,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { publishHomepageFromEditModeAction } from "@/lib/site-admin/edit-mode/composition-actions";
+import { safeAction } from "@/lib/site-admin/edit-mode/safe-action";
 import {
   Card,
   CardAction,
@@ -243,14 +244,30 @@ export function PublishDrawer() {
   async function handlePublish() {
     if (pageVersion === null) return;
     setState({ kind: "publishing" });
-    const res = await publishHomepageFromEditModeAction({
-      locale,
-      // Pass pageId only for non-homepage pages (identified by non-null slug).
-      // Homepage always has a real cms_pages UUID but must route through the
-      // homepage publish path — passing null signals that path to the action.
-      pageId: pageSlug ? pageId : null,
-      expectedVersion: pageVersion,
-    });
+    // safeAction wrapper: if the dev server restarts mid-publish or the
+    // network drops, we get a graceful "Network error" toast instead of
+    // a stuck "Publishing…" pending state and a leaked Next.js overlay.
+    const res = await safeAction(
+      () =>
+        publishHomepageFromEditModeAction({
+          locale,
+          // Pass pageId only for non-homepage pages (identified by non-null
+          // slug). Homepage always has a real cms_pages UUID but must route
+          // through the homepage publish path — passing null signals that
+          // path to the action.
+          pageId: pageSlug ? pageId : null,
+          expectedVersion: pageVersion,
+        }),
+      {
+        name: "publishHomepageFromEditModeAction",
+        fallback: {
+          ok: false as const,
+          error:
+            "Network error — your changes are saved as a draft. Check your connection and try again.",
+          code: "network",
+        },
+      },
+    );
     if (res.ok) {
       setState({ kind: "success", publishedAt: res.publishedAt });
       await refreshComposition();

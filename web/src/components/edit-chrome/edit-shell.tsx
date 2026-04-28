@@ -213,6 +213,49 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // T0-1 — Server-action network failure resilience.
+  //
+  // Next.js invokes server actions over `fetch`. When the dev server
+  // restarts mid-request, a network drops, or an action call is aborted,
+  // the call rejects with `TypeError: Failed to fetch` from inside
+  // `fetchServerAction`. Without this listener that rejection bubbles
+  // into the Next.js dev overlay (T1-4), leaves the calling UI stuck on
+  // its pending state, and gives the operator no recourse.
+  //
+  // We surface those failures as a single transient toast through the
+  // existing mutation-error channel. Per-callsite `safeAction` wrappers
+  // still catch their own rejections (so they can render inline / keep
+  // the action's typed error envelope); this listener is the safety net
+  // for `<form action={serverAction}>` call sites that don't await the
+  // promise themselves (Exit form, EditPill, etc.).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function onRejection(e: PromiseRejectionEvent) {
+      const reason = e.reason;
+      const message =
+        reason instanceof Error
+          ? reason.message
+          : typeof reason === "string"
+          ? reason
+          : "";
+      if (!message) return;
+      const lower = message.toLowerCase();
+      // Only intercept network-shape errors. Real product errors flow
+      // through their typed result envelopes and are surfaced inline.
+      const isNetworkShape =
+        lower.includes("failed to fetch") ||
+        lower.includes("load failed") ||
+        lower.includes("network request failed");
+      if (!isNetworkShape) return;
+      e.preventDefault();
+      reportMutationError(
+        "Network error — your changes are saved as a draft. Check your connection and try again.",
+      );
+    }
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => window.removeEventListener("unhandledrejection", onRejection);
+  }, [reportMutationError]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const tgt = e.target as HTMLElement | null;
