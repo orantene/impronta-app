@@ -592,7 +592,12 @@ export function NavigatorPanel() {
                       gap: 7,
                       padding: "6px 8px",
                       borderRadius: CHROME_RADII.sm,
-                      background: selected ? CHROME.ink : "transparent",
+                      // QA-9 follow-on — site shell rows (Site header / Site
+                      // footer) used the same CHROME.ink the homepage rows
+                      // had before; verification caught this when Site header
+                      // selection rendered black-pill while Hero rendered
+                      // slate-pill in the same navigator. Same slate now.
+                      background: selected ? CHROME.accent : "transparent",
                       color: selected ? "#ffffff" : CHROME.text,
                       fontSize: 12,
                       fontWeight: selected ? 600 : 500,
