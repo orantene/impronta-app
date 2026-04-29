@@ -102,6 +102,13 @@ const APP_WORKSPACE_PREFIXES = [
   "/talent",
   "/onboarding",
   "/invite",
+  // QA-1 fix — bare `/account` server-redirects the actor to their
+  // role-scoped account page (/admin/account, /client/account, or
+  // /talent/account). Reachable wherever the role-scoped pages are
+  // reachable (agency + app hosts). Without this entry the surface
+  // allow-list 404s the request before Next routing can run the
+  // redirect, so the operator hits a blank "Not found" page.
+  "/account",
 ] as const;
 
 /**
