@@ -581,9 +581,16 @@ function FirstPaintTip() {
       data-edit-overlay="first-paint-tip"
       className="pointer-events-auto fixed left-1/2 z-[88] flex -translate-x-1/2 items-center gap-2 rounded-full px-3.5 py-2"
       style={{
+        // QA-8 partial — first-paint tip used to render as a near-black pill
+        // (rgba(11,11,13,0.92)) which on a dark-brand tenant added another
+        // void-tone surface to a screen that already feels chrome-dense at
+        // first paint. Tip now uses the editor's slate accent at 92% so it
+        // reads as the same operator-tool family as the chip + Publish CTA,
+        // and the operator absorbs it as one coherent voice instead of
+        // "another black floating thing."
         top: 70,
-        background: "rgba(11, 11, 13, 0.92)",
-        color: "rgba(255, 255, 255, 0.92)",
+        background: "rgba(42, 49, 71, 0.94)",
+        color: "rgba(255, 255, 255, 0.94)",
         fontSize: 11.5,
         fontWeight: 500,
         letterSpacing: "-0.005em",

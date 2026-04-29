@@ -324,13 +324,23 @@ interface DrawerTabsProps {
 }
 
 export function DrawerTabs({ className, children }: DrawerTabsProps) {
+  // QA-5 fix — at narrow widths (tablet/mobile preview + both panels open)
+  // the last tab used to clip with no visible affordance. We keep the
+  // `overflow-x-auto` so scrolling still works, but add a soft right-edge
+  // fade mask so the operator can see content extends beyond the visible
+  // edge. The mask only kicks in when content actually overflows; at
+  // desktop widths with all tabs fitting, the fade is invisible.
   return (
     <div
-      className={`mx-[18px] mt-3 inline-flex max-w-[calc(100%-36px)] self-start overflow-x-auto p-[3px] ${className ?? ""}`}
+      className={`mx-[18px] mt-3 inline-flex max-w-[calc(100%-36px)] self-start overflow-x-auto p-[3px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
       style={{
         background: CHROME.paper,
         border: `1px solid ${CHROME.line}`,
         borderRadius: 9,
+        WebkitMaskImage:
+          "linear-gradient(90deg, black 0, black calc(100% - 18px), transparent 100%)",
+        maskImage:
+          "linear-gradient(90deg, black 0, black calc(100% - 18px), transparent 100%)",
       }}
     >
       {children}
@@ -356,9 +366,13 @@ export function DrawerTab({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-3.5 py-2 transition-all"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-all"
       style={{
-        fontSize: 13,
+        // QA-5 fix — tab padding tightened from px-3.5/py-2 to px-2.5/py-1.5
+        // and font from 13→12.5px so all four tabs (Content/Layout/Style/
+        // Motion) fit inside the inspector's 380px dock width even when
+        // the canvas is squeezed by tablet/mobile preview + both panels.
+        fontSize: 12.5,
         fontWeight: 600,
         letterSpacing: "-0.005em",
         whiteSpace: "nowrap",

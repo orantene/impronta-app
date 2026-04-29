@@ -150,6 +150,32 @@ export function NavigatorPanel() {
     return out;
   }, [slotDefs, slots]);
 
+  // QA-4 fix — when two sections share the same cleaned display name (e.g.
+  // homepage with two `cta_banner` sections both seeded as "Final CTA — new"),
+  // the navigator used to render two rows with identical labels and no way
+  // to tell them apart while reordering. We pre-compute a sectionId →
+  // disambiguated label map: the first occurrence keeps the bare name,
+  // every later occurrence gains a "(N)" tail (count of prior occurrences).
+  // This is a display-only treatment; nothing else in the system uses these
+  // labels for identity.
+  const displayNameById = useMemo(() => {
+    const counts = new Map<string, number>();
+    const labels = new Map<string, string>();
+    for (const row of flat) {
+      const base = cleanSectionName(row.ref.name) || row.ref.name;
+      const seen = counts.get(base) ?? 0;
+      counts.set(base, seen + 1);
+      labels.set(row.ref.sectionId, seen === 0 ? base : `${base} (${seen + 1})`);
+    }
+    return labels;
+  }, [flat]);
+  const labelFor = useCallback(
+    (row: FlatRow) =>
+      displayNameById.get(row.ref.sectionId) ??
+      (cleanSectionName(row.ref.name) || row.ref.name),
+    [displayNameById],
+  );
+
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return flat;
@@ -213,12 +239,20 @@ export function NavigatorPanel() {
   const onDragStart = useCallback(
     (e: DragEvent<HTMLDivElement>, sectionId: string) => {
       setDraggingId(sectionId);
+      // QA-6 fix — promote the dragged row to selection so the inspector,
+      // canvas chip, and navigator all agree on the active section. The
+      // chip's startDrag (selection-layer.tsx) already does this; the
+      // navigator's drag handler used to leave selection bound to whatever
+      // the operator clicked last, so dragging Hero while Site header was
+      // selected left the inspector stuck on Site header even as Hero
+      // visually became the active drag source.
+      setSelectedSectionId(sectionId);
       e.dataTransfer.effectAllowed = "move";
       // We ignore dataTransfer payload — id is in component state — but
       // setting *something* keeps Firefox from cancelling the drag.
       e.dataTransfer.setData("text/plain", sectionId);
     },
-    [],
+    [setSelectedSectionId],
   );
 
   const onDragEnd = useCallback(() => {
@@ -719,14 +753,17 @@ export function NavigatorPanel() {
                       setSelectedSectionId(row.ref.sectionId);
                     }
                   }}
-                  title={cleanSectionName(row.ref.name) || row.ref.name}
+                  title={labelFor(row)}
                   style={{
                     display: "flex",
                     alignItems: "center",
                     gap: 7,
                     padding: "6px 8px",
                     borderRadius: CHROME_RADII.sm,
-                    background: selected ? CHROME.ink : "transparent",
+                    // QA-9 partial — selected row uses the editor's slate
+                    // accent so navigator selection matches the chip /
+                    // Publish CTA family instead of brand-black ink.
+                    background: selected ? CHROME.accent : "transparent",
                     color: selected ? "#ffffff" : hidden ? CHROME.muted2 : CHROME.text,
                     fontSize: 12,
                     fontWeight: selected ? 600 : 500,
@@ -769,7 +806,7 @@ export function NavigatorPanel() {
                       textDecorationColor: CHROME.muted2,
                     }}
                   >
-                    {cleanSectionName(row.ref.name) || row.ref.name}
+                    {labelFor(row)}
                   </span>
                   <VisibilityEye
                     selected={selected}

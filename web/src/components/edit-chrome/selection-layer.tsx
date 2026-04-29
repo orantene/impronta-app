@@ -754,20 +754,29 @@ export function SelectionLayer() {
                   );
                 }}
                 style={{
-                  width: 28,
+                  // QA-7 fix — the "+" insert button now ships an explicit
+                  // "Add" label beside the icon. The previous icon-only
+                  // 28×28 cell was indistinguishable from the drag grip
+                  // and required trial clicks to learn. Width grows to
+                  // ~58px which still keeps the rail compact (~92px total).
                   height: 28,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  gap: 4,
+                  padding: "0 9px 0 7px",
                   background: "transparent",
-                  color: "rgba(255,255,255,0.78)",
+                  color: "rgba(255,255,255,0.92)",
                   border: "none",
                   cursor: "pointer",
                   transition: "background 100ms",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.01em",
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLElement).style.background =
-                    "rgba(255,255,255,0.10)";
+                    "rgba(54,63,89,0.55)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLElement).style.background =
@@ -788,6 +797,7 @@ export function SelectionLayer() {
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
+                <span>Add</span>
               </button>
             </div>
           ) : null}
