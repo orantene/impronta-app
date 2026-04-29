@@ -59,6 +59,7 @@ import {
   buildHeadingOutline,
   buildStructuralHeadingOutline,
   lintHeadingOutline,
+  type HeadingNode,
 } from "@/lib/site-admin/a11y/heading-hierarchy";
 
 const PANEL_WIDTH = 280;
@@ -89,6 +90,13 @@ export function NavigatorPanel() {
 
   const [search, setSearch] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  // Sprint 4 — outline mode toggle. The default "sections" view is the
+  // existing flat list (Site shell + Homepage groups). The "outline" view
+  // re-renders the section list as a heading hierarchy (H1 / H2 / H3
+  // indented by level), reusing the headingProbe data the navigator
+  // already loads for the lint badge. Toggling is local to the navigator —
+  // it doesn't change selection or any persisted state.
+  const [viewMode, setViewMode] = useState<"sections" | "outline">("sections");
 
   // Phase B.2.C — shell sections (header / footer) live on a different
   // page row than the homepage, so they're not in the EditProvider's
@@ -256,6 +264,27 @@ export function NavigatorPanel() {
       );
     });
   }, [flat, search, displayNameById]);
+
+  // Sprint 4 — outline mode data. Builds the operator-facing heading
+  // tree from the same flat + headingProbe combo the lint already uses.
+  // Each node carries level/text/sectionId/typeKey so a click on an
+  // outline row promotes that section to selection (matching the flat
+  // list behaviour). Sections without a heading (site_header, marquee,
+  // anchor_nav, etc.) are excluded by `buildHeadingOutline` itself —
+  // operators see only the page's heading skeleton, not chrome rows.
+  const outlineNodes = useMemo<HeadingNode[]>(() => {
+    if (flat.length === 0) return [];
+    const propBased = flat.map((r) => ({
+      sectionId: r.ref.sectionId,
+      sectionTypeKey: r.ref.sectionTypeKey,
+      props: {
+        headline: headingProbe?.[r.ref.sectionId] ?? "",
+        eyebrow: headingProbe?.[r.ref.sectionId] ?? "",
+        title: headingProbe?.[r.ref.sectionId] ?? "",
+      },
+    }));
+    return buildHeadingOutline(propBased);
+  }, [flat, headingProbe]);
 
   const headingIssues = useMemo(() => {
     const flatLite = flat.map((r) => ({
@@ -498,6 +527,56 @@ export function NavigatorPanel() {
             </svg>
           </button>
         </div>
+        {/* Sprint 4 — view-mode toggle. Sections (flat list, default) ↔
+         *  Outline (heading hierarchy view). Sits between the navigator
+         *  header and the search bar so it's discoverable but doesn't
+         *  steal vertical space when the operator isn't using it.
+         *  Search remains scoped to the current view. */}
+        <div
+          role="radiogroup"
+          aria-label="Navigator view mode"
+          style={{
+            display: "inline-flex",
+            alignSelf: "stretch",
+            background: CHROME.paper,
+            border: `1px solid ${CHROME.line}`,
+            borderRadius: CHROME_RADII.sm,
+            padding: 2,
+            marginBottom: 6,
+          }}
+        >
+          {(["sections", "outline"] as const).map((mode) => {
+            const active = viewMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setViewMode(mode)}
+                style={{
+                  flex: 1,
+                  padding: "4px 8px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "-0.005em",
+                  textTransform: "capitalize",
+                  cursor: "pointer",
+                  border: "none",
+                  borderRadius: 4,
+                  background: active ? CHROME.surface : "transparent",
+                  color: active ? CHROME.ink : CHROME.muted,
+                  boxShadow: active
+                    ? "0 1px 2px rgba(0,0,0,0.06)"
+                    : "none",
+                  transition: "background 100ms, color 100ms",
+                }}
+              >
+                {mode}
+              </button>
+            );
+          })}
+        </div>
         <div style={{ position: "relative" }}>
           <svg
             width="12"
@@ -525,7 +604,7 @@ export function NavigatorPanel() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search sections…"
+            placeholder={viewMode === "outline" ? "Search headings…" : "Search sections…"}
             style={{
               width: "100%",
               padding: "6px 8px 6px 28px",
@@ -552,13 +631,27 @@ export function NavigatorPanel() {
 
       {/* Tree */}
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 6px" }}>
+        {/* Sprint 4 — outline view branch. When the operator toggles to
+         *  "Outline", we replace the flat sections tree with a heading
+         *  hierarchy. Each row is indented by heading level, prefixed
+         *  with an "H1" / "H2" / "H3" badge, and clicking selects the
+         *  underlying section the same way the flat list does. The
+         *  outline reuses headingProbe — no new fetch. */}
+        {viewMode === "outline" ? (
+          <OutlineTree
+            nodes={outlineNodes}
+            selectedSectionId={selectedSectionId}
+            onSelect={setSelectedSectionId}
+            search={search}
+          />
+        ) : null}
         {/* Phase B.2.C — Site shell group. Renders above the page root
          *  whenever the snapshot shell is engaged (shellRows non-empty).
          *  Selecting a row here behaves identically to clicking the
          *  rendered header/footer on the canvas — same setSelectedSectionId,
          *  same downstream inspector + save flow. No special shell mental
          *  model. */}
-        {shellRows.length > 0 ? (
+        {viewMode === "sections" && shellRows.length > 0 ? (
           <div style={{ marginBottom: 6 }}>
             <div
               style={{
@@ -680,7 +773,10 @@ export function NavigatorPanel() {
           </div>
         ) : null}
 
-        {/* Page root */}
+        {/* Page root + lint badge + section list — only rendered in
+         *  "sections" view; outline mode has its own tree above. */}
+        {viewMode === "sections" ? (
+        <>
         <div
           style={{
             display: "flex",
@@ -866,6 +962,8 @@ export function NavigatorPanel() {
             );
           })}
         </div>
+        </>
+        ) : null}
       </div>
 
       {/* Footer — Page settings + Theme shortcuts */}
@@ -1099,3 +1197,157 @@ function FooterShortcut({
     </button>
   );
 }
+
+/**
+ * Sprint 4 — OutlineTree
+ *
+ * Heading-hierarchy view for the navigator. Reuses the headingProbe data
+ * the navigator already loads for the lint badge — no new fetches. Renders
+ * each heading as an indented row prefixed with an "H1" / "H2" / "H3"
+ * badge. Click selects the underlying section the same way the flat list
+ * does.
+ *
+ * Search filters by heading text (case-insensitive). Empty page or all-
+ * empty headings shows an explanatory empty state.
+ *
+ * Sections without a heading (site_header, site_footer, marquee,
+ * anchor_nav, etc.) are intentionally absent — outline mode is for the
+ * *content* skeleton, not the page chrome. Operators who need to select
+ * those sections switch back to the flat "Sections" view.
+ */
+function OutlineTree({
+  nodes,
+  selectedSectionId,
+  onSelect,
+  search,
+}: {
+  nodes: ReadonlyArray<HeadingNode>;
+  selectedSectionId: string | null;
+  onSelect: (id: string) => void;
+  search: string;
+}) {
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? nodes.filter((n) => n.text.toLowerCase().includes(q))
+    : nodes;
+
+  if (nodes.length === 0) {
+    return (
+      <div
+        style={{
+          padding: "10px 8px",
+          fontSize: 11.5,
+          color: CHROME.muted2,
+          fontStyle: "italic",
+        }}
+      >
+        No headings yet. Add a hero or content section to start the outline.
+      </div>
+    );
+  }
+
+  if (filtered.length === 0 && q) {
+    return (
+      <div
+        style={{
+          padding: "10px 8px",
+          fontSize: 11.5,
+          color: CHROME.muted2,
+          fontStyle: "italic",
+        }}
+      >
+        No headings match &ldquo;{search}&rdquo;.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+      }}
+    >
+      {filtered.map((node, idx) => {
+        const selected = node.sectionId === selectedSectionId;
+        // Indent by level. H1 = no indent (the page root). H2 = 14px.
+        // H3 = 28px. Cap at H6 visually but the renderer schema doesn't
+        // produce >H2 today.
+        const indentPx = Math.max(0, (node.level - 1) * 14);
+        return (
+          <button
+            key={`${node.sectionId}-${idx}`}
+            type="button"
+            onClick={() => onSelect(node.sectionId)}
+            title={node.text}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 8px 6px 8px",
+              paddingLeft: 8 + indentPx,
+              borderRadius: CHROME_RADII.sm,
+              background: selected ? CHROME.accent : "transparent",
+              color: selected ? "#ffffff" : CHROME.text,
+              fontSize: 12,
+              fontWeight: selected ? 600 : 500,
+              border: "none",
+              cursor: "pointer",
+              textAlign: "left",
+              transition: "background 80ms ease, color 80ms ease",
+              width: "100%",
+            }}
+            onMouseEnter={(e) => {
+              if (!selected) {
+                e.currentTarget.style.background = "rgba(24,24,27,0.04)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!selected) {
+                e.currentTarget.style.background = "transparent";
+              }
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                flexShrink: 0,
+                fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                padding: "1px 5px",
+                borderRadius: 3,
+                background: selected
+                  ? "rgba(255,255,255,0.18)"
+                  : node.level === 1
+                    ? "rgba(180, 83, 9, 0.10)" // amber tint for the page H1
+                    : CHROME.paper2,
+                color: selected
+                  ? "rgba(255,255,255,0.92)"
+                  : node.level === 1
+                    ? CHROME.amber
+                    : CHROME.muted,
+              }}
+            >
+              H{node.level}
+            </span>
+            <span
+              style={{
+                flex: 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                letterSpacing: "-0.005em",
+              }}
+            >
+              {node.text}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
