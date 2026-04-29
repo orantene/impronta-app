@@ -727,31 +727,66 @@ function DeviceFrameSurface({
   inspectorOpen: boolean;
 }) {
   const width = DEVICE_WIDTHS[device];
+  // Sprint 3.x — scale-fit logic. The iframe's INTERNAL viewport must
+  // be the device width (390/834 px) so the storefront's `@media`
+  // queries fire at the right breakpoint. But when the editor itself
+  // is loaded on a small screen (e.g., a phone hitting the deployed
+  // editor URL), 834 px is wider than the available container — the
+  // iframe overflowed off the right edge. Fix: render the iframe at
+  // device width and apply `transform: scale(N)` where N shrinks it
+  // to fit the host's available width. CSS @media still fires at the
+  // device width because that's the iframe's own viewport; the
+  // operator just sees a smaller visual.
+  //
+  // Reads viewport dimensions via window.innerWidth on mount + on
+  // resize. Falls back to a generous default during SSR.
+  const [hostSize, setHostSize] = useState<{ w: number; h: number } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () =>
+      setHostSize({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
   if (!width) return null;
 
-  const leftPad = navigatorOpen ? 280 : 22;
-  const rightPad = inspectorOpen ? 380 : 0;
+  // Padding rules — large gutters on desktop where the navigator + inspector
+  // can be open; tight on phone where neither is mounted (their wrappers
+  // carry `max-lg:hidden`, see NavigatorPanel + InspectorDock).
+  const isPhone = (hostSize?.w ?? 1280) < 1024;
+  const leftPad = isPhone ? 8 : navigatorOpen ? 280 : 22;
+  const rightPad = isPhone ? 8 : inspectorOpen ? 380 : 0;
+  const verticalPad = isPhone ? 12 : 24;
+
+  // Available iframe footprint inside the host gutter.
+  const containerWidth = (hostSize?.w ?? 1280) - leftPad - rightPad - 32;
+  const containerHeight =
+    (hostSize?.h ?? 800) - 54 /* topbar */ - verticalPad * 2;
+
+  // Scale factor: shrink to fit; never enlarge above 1.
+  const scale = Math.min(1, containerWidth / width);
+
+  // Display footprint after scaling — used to size the host's flex
+  // child so the layout reserves the visually-shrunk dimensions, not
+  // the pre-transform ones.
+  const displayedW = width * scale;
+  const displayedH = Math.max(0, containerHeight);
 
   // Build the iframe URL for the same page the operator is editing.
-  // We append `?iframe=1` so EditChrome on the iframe side mounts the
-  // headless IframeChild branch instead of the full editor shell.
-  // Resolved at render time (no SSR) because the URL is window-bound.
   let iframeSrc = "/";
   if (typeof window !== "undefined") {
     const u = new URL(window.location.href);
     u.searchParams.set("iframe", "1");
-    // Drop `?edit=1` from the iframe URL — the iframe doesn't need to
-    // re-trigger the enter-edit-mode action; the cookie is already set
-    // and travels with the same-origin request. Stripping it also keeps
-    // the EditPill's auto-enter from firing inside the iframe.
     u.searchParams.delete("edit");
     iframeSrc = u.pathname + u.search + u.hash;
   }
 
   return (
     <>
-      {/* Hide the parent's storefront DOM and disable its interactivity;
-          keep the editor chrome and the iframe-host visible. */}
       <style>{`
         body > *:not([data-edit-chrome]):not([data-edit-iframe-host]) {
           visibility: hidden !important;
@@ -770,28 +805,44 @@ function DeviceFrameSurface({
           display: "flex",
           alignItems: "flex-start",
           justifyContent: "center",
-          overflow: "auto",
-          padding: "24px 16px",
-          transition: "left 220ms cubic-bezier(0.32, 0.72, 0, 1), right 220ms cubic-bezier(0.32, 0.72, 0, 1)",
+          overflow: "hidden",
+          padding: `${verticalPad}px 16px`,
+          transition:
+            "left 220ms cubic-bezier(0.32, 0.72, 0, 1), right 220ms cubic-bezier(0.32, 0.72, 0, 1)",
           zIndex: 60,
         }}
       >
-        <iframe
-          key={`${device}:${pageSlug ?? "/"}`}
-          src={iframeSrc}
-          title={`${device} preview`}
+        {/* Wrapper sized to the displayed (post-scale) dimensions so the
+            flex layout reserves the right footprint and the iframe
+            stays centered within its container. The iframe inside is
+            sized at the true device width and scaled down via
+            transform — preserving the internal viewport so storefront
+            @media queries fire at the device width. */}
+        <div
           style={{
-            width,
-            height: "calc(100vh - 54px - 48px)",
-            maxHeight: "calc(100vh - 54px - 48px)",
-            border: 0,
-            borderRadius: 16,
-            boxShadow:
-              "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
-            background: "white",
-            display: "block",
+            width: displayedW,
+            height: displayedH / scale * scale, // = displayedH; lints want clarity
+            position: "relative",
           }}
-        />
+        >
+          <iframe
+            key={`${device}:${pageSlug ?? "/"}`}
+            src={iframeSrc}
+            title={`${device} preview`}
+            style={{
+              width,
+              height: displayedH / scale,
+              border: 0,
+              borderRadius: 16,
+              boxShadow:
+                "0 24px 64px -16px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(24,24,27,0.08)",
+              background: "white",
+              display: "block",
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+            }}
+          />
+        </div>
       </div>
     </>
   );

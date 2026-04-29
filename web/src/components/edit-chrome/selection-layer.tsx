@@ -568,6 +568,24 @@ export function SelectionLayer() {
   }
   const isHidden = selectedVisibility === "hidden";
 
+  // Sprint 3.x — when device != desktop the parent body's storefront
+  // content is hidden (DeviceFrameSurface CSS) and the canvas is the
+  // iframe. The parent's hover ring / rail / selection chip would
+  // render at PARENT-document coordinates of the (hidden) sections,
+  // visually leaking onto the iframe area. Suppress all parent-side
+  // selection chrome when the iframe is active — the iframe has its
+  // own SelectionLayer that draws ring/chip at the right coordinates
+  // inside its own viewport. Drag-related overlays (drop indicator,
+  // drag ghost) remain rendered for completeness, though Sprint 3
+  // doesn't support cross-frame drag.
+  const isIframeActive = device !== "desktop";
+  if (isIframeActive) {
+    return createPortal(
+      <div data-edit-overlay className="pointer-events-none absolute inset-0" />,
+      portalEl,
+    );
+  }
+
   return createPortal(
     <div data-edit-overlay className="pointer-events-none absolute inset-0">
       {/* ── Hover ring + per-section left-corner rail ───────────────

@@ -178,13 +178,34 @@ export function IframeBridgeChild() {
 /**
  * Mounted in EditShell when device != desktop. Listens for messages
  * from the child iframe and dispatches into the parent's EditContext
- * so the InspectorDock + chip selection chrome stay in sync.
+ * so the InspectorDock + chip selection chrome stay in sync. Also
+ * forwards selection changes the OTHER direction — when the operator
+ * picked a section on desktop and then switched to tablet/mobile, the
+ * iframe needs to know to highlight + scroll to that section.
  */
 export function IframeBridgeParent() {
   const {
+    selectedSectionId,
     setSelectedSectionId,
     setHoveredSectionId,
+    device,
   } = useEditContext();
+
+  // Track the last selection we POSTED to the iframe so we don't echo
+  // a child-originated selection back as a parent-driven setSelection
+  // (which would loop). Also track iframe-ready handshake.
+  const lastPostedSelectionRef = useRef<string | null | undefined>(undefined);
+  const iframeReadyRef = useRef(false);
+
+  // Helper: post to the iframe's contentWindow if it's mounted.
+  function postToIframe(msg: BridgeMessage) {
+    if (typeof document === "undefined") return;
+    const iframe = document.querySelector<HTMLIFrameElement>(
+      "[data-edit-iframe-host] iframe",
+    );
+    if (!iframe || !iframe.contentWindow) return;
+    iframe.contentWindow.postMessage(msg, window.location.origin);
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -195,6 +216,9 @@ export function IframeBridgeParent() {
       const msg = e.data;
 
       if (msg.type === "editor:sectionClicked") {
+        // Mark this as the last "known" selection so our outbound
+        // selection effect doesn't echo it back to the iframe.
+        lastPostedSelectionRef.current = msg.sectionId;
         setSelectedSectionId(msg.sectionId);
         return;
       }
@@ -204,17 +228,63 @@ export function IframeBridgeParent() {
         return;
       }
 
-      // editor:ready — Sprint 3 just acknowledges receipt. Future
-      // sprints might use this to flush a queue of pending parent →
-      // child commands that arrived before the iframe hydrated.
       if (msg.type === "editor:ready") {
+        // Sprint 3.x — handshake. Once the iframe announces ready, push
+        // the parent's current selection so the iframe highlights the
+        // section the operator was working on before switching device.
+        // Also auto-scroll the iframe so that section is visible.
+        iframeReadyRef.current = true;
+        if (selectedSectionId) {
+          lastPostedSelectionRef.current = selectedSectionId;
+          postToIframe({
+            type: "editor:setSelection",
+            sectionId: selectedSectionId,
+          });
+          postToIframe({
+            type: "editor:scrollToSection",
+            sectionId: selectedSectionId,
+          });
+        }
         return;
       }
     }
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setSelectedSectionId, setHoveredSectionId]);
+
+  // Sprint 3.x — when the parent's selection changes (e.g. operator
+  // picked a section in the navigator while iframe is up), push it
+  // into the iframe so the ring + chip render at the iframe-local
+  // coordinates of that section, and scroll it into view.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!iframeReadyRef.current) return;
+    // Skip when our local state was just updated FROM an iframe message
+    // (lastPostedSelectionRef was synced in onMessage).
+    if (lastPostedSelectionRef.current === selectedSectionId) return;
+    lastPostedSelectionRef.current = selectedSectionId;
+    postToIframe({
+      type: "editor:setSelection",
+      sectionId: selectedSectionId,
+    });
+    if (selectedSectionId) {
+      postToIframe({
+        type: "editor:scrollToSection",
+        sectionId: selectedSectionId,
+      });
+    }
+  }, [selectedSectionId]);
+
+  // When the device toggle flips back to desktop the iframe unmounts;
+  // reset the ready handshake so the next mount re-syncs cleanly.
+  useEffect(() => {
+    if (device === "desktop") {
+      iframeReadyRef.current = false;
+      lastPostedSelectionRef.current = undefined;
+    }
+  }, [device]);
 
   return null;
 }
