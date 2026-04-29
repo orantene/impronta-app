@@ -78,7 +78,7 @@ export function CtaDuoEditor({
       {/* Primary CTA — filled look */}
       <div className="rounded-lg border border-zinc-200 bg-white p-2.5">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#2a3147] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
             Primary
           </span>
           <button

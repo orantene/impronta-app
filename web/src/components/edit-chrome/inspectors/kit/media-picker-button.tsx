@@ -97,7 +97,7 @@ export function MediaPickerButton({
   return (
     <div className="flex flex-col gap-2">
       <div
-        className="relative overflow-hidden rounded-md border border-zinc-200 bg-zinc-900"
+        className="relative overflow-hidden rounded-md border border-zinc-200 bg-zinc-100"
         style={{ aspectRatio: aspect }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}

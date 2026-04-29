@@ -125,8 +125,8 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
             onClick={() => setFilter(c)}
             className={`rounded-md px-2 py-0.5 text-[10px] ${
               filter === c
-                ? "bg-zinc-900 text-white"
-                : "bg-muted text-muted-foreground hover:bg-muted/70"
+                ? "border border-zinc-300 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                : "border border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
             }`}
           >
             {c === "all" ? "All" : CATEGORY_LABEL[c]}

@@ -48,15 +48,15 @@ export function BlueprintPicker<T extends Record<string, unknown>>({
               }}
               className={`flex flex-col items-start gap-1 rounded-md border p-2 text-left transition ${
                 isApplied
-                  ? "border-zinc-900 bg-zinc-900 text-white"
-                  : "border-border/60 bg-background hover:border-zinc-900"
+                  ? "border-zinc-300 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                  : "border-border/60 bg-background hover:border-zinc-400"
               }`}
               title={bp.description}
             >
-              <span className={`text-[11px] font-semibold ${isApplied ? "text-white" : "text-foreground"}`}>
+              <span className={`text-[11px] font-semibold ${isApplied ? "text-zinc-900" : "text-foreground"}`}>
                 {bp.label}
               </span>
-              <span className={`line-clamp-2 text-[10px] leading-snug ${isApplied ? "text-white/80" : "text-muted-foreground"}`}>
+              <span className={`line-clamp-2 text-[10px] leading-snug ${isApplied ? "text-zinc-600" : "text-muted-foreground"}`}>
                 {bp.description}
               </span>
             </button>

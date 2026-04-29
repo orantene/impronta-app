@@ -422,9 +422,14 @@ export function StylePanel({
                 onClick={() => setOrToggleP("dividerTop", opt.value)}
                 className="flex flex-col items-center justify-center gap-1.5 rounded-md py-2 transition-all"
                 style={{
+                  // Sprint 3.2.1 — active divider option uses the same
+                  // soft white-pill+hairline+shadow pattern as the rest
+                  // of the inspector's selected-chip family. Was using
+                  // CHROME.ink for the active border, which created yet
+                  // another "ring of black" inside the same drawer.
                   background: active ? CHROME.surface : CHROME.paper,
                   border: active
-                    ? `1px solid ${CHROME.ink}`
+                    ? `1px solid ${CHROME.lineStrong}`
                     : `1px solid ${CHROME.line}`,
                   boxShadow: active
                     ? "0 1px 3px rgba(0,0,0,0.08)"

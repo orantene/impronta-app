@@ -127,7 +127,7 @@ export function AiRewriteButton({
               type="button"
               disabled={pending || !instruction.trim()}
               onClick={() => trigger(instruction)}
-              className="rounded-md border border-zinc-900 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-md border border-[#2a3147] bg-[#2a3147] px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-[#363f59] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? "Thinking…" : "Rewrite"}
             </button>

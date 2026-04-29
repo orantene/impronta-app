@@ -541,7 +541,7 @@ function DrawerBodyInner({
                         </span>
                       ) : null}
                       {isAdvanced ? (
-                        <span className="absolute left-2 top-2 rounded-full bg-zinc-900/80 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white">
+                        <span className="absolute left-2 top-2 rounded-full bg-[#2a3147]/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white">
                           Advanced
                         </span>
                       ) : null}
@@ -588,7 +588,7 @@ function Tab({ active, onClick, label, count, mobile }: TabProps) {
       onClick={onClick}
       className={
         active
-          ? `inline-flex items-center gap-1 rounded-full bg-zinc-900 ${sizing} font-medium text-white`
+          ? `inline-flex items-center gap-1 rounded-full bg-[#2a3147] ${sizing} font-medium text-white`
           : `inline-flex items-center gap-1 rounded-full bg-zinc-100 ${sizing} font-medium text-zinc-600 hover:bg-zinc-200 active:bg-zinc-200`
       }
     >

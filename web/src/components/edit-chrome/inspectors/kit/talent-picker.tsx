@@ -182,7 +182,7 @@ export function TalentPicker({
               <span
                 aria-hidden
                 className="inline-block size-1.5 rounded-full"
-                style={{ background: CHROME.ink }}
+                style={{ background: CHROME.muted2 }}
               />
               Pick talent
             </span>
@@ -212,7 +212,7 @@ export function TalentPicker({
             <button
               type="button"
               onClick={confirm}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800"
+              className="rounded-md bg-[#2a3147] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#363f59]"
             >
               Done
             </button>

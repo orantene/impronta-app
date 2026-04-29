@@ -444,7 +444,9 @@ export function ColorPickerPopover({
             fontSize: 11,
             fontWeight: 600,
             color: "#fff",
-            background: CHROME.ink,
+            // Sprint 3.2.1 — primary CTA matches the editor's slate
+            // accent family rather than brand-black ink.
+            background: CHROME.accent,
             border: "none",
             borderRadius: 6,
             cursor: "pointer",

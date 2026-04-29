@@ -37,6 +37,22 @@ export const KIT = {
     "rounded-md border border-dashed border-zinc-300 px-3 py-1.5 text-[12px] font-medium text-zinc-500 transition hover:border-zinc-400 hover:text-zinc-700",
   subtleButton:
     "rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-[12px] font-medium text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900",
+  // Sprint 3.2.1 — primary inspector CTA (AI Translate / AI Rewrite submit,
+  // talent-picker confirm, etc.) shares the slate accent family with the
+  // topbar Publish split-button so every "primary action" in the editor
+  // reads as one consistent voice. Replaces the previous bg-zinc-900 black
+  // pill which collided visually with the tenant's brand-black storefront.
   primaryButton:
-    "inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50",
+    "inline-flex items-center gap-1.5 rounded-md bg-[#2a3147] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#363f59] disabled:cursor-not-allowed disabled:opacity-50",
+  // Sprint 3.2.1 — selected-chip pattern for loose enum/option pickers
+  // (ZodSchemaForm enums, category-grid kind switch). Matches LinkPicker's
+  // TAB_ON pattern: soft muted pill with dark text + hairline border. The
+  // previous `border-zinc-900 bg-zinc-900 text-white` solid-black pill was
+  // the loudest non-prototype offender — multiple stacked black chips per
+  // panel — and contradicted the cream/white-pill active treatment used
+  // by every other tab/chip group in the same drawer.
+  enumChipOn:
+    "rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-xs font-medium text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]",
+  enumChipOff:
+    "rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-500 transition hover:bg-white hover:text-zinc-700",
 } as const;

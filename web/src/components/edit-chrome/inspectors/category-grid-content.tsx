@@ -391,7 +391,7 @@ function IconPicker({
         onClick={() => onChange(null)}
         className={`flex aspect-square items-center justify-center rounded-md border text-[10px] font-medium transition ${
           value === null
-            ? "border-zinc-900 bg-zinc-900 text-white"
+            ? "border-zinc-300 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
             : "border-zinc-200 bg-white text-zinc-400 hover:border-zinc-400"
         }`}
         title="No icon"
@@ -408,14 +408,14 @@ function IconPicker({
             title={CATEGORY_ICON_LABEL[key]}
             className={`flex aspect-square items-center justify-center rounded-md border transition ${
               active
-                ? "border-zinc-900 bg-zinc-900 text-white"
+                ? "border-zinc-300 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                 : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
             }`}
           >
             <CategoryIconGlyph
               icon={key}
               size={14}
-              className={active ? "text-white" : "text-zinc-600"}
+              className={active ? "text-zinc-900" : "text-zinc-600"}
             />
           </button>
         );

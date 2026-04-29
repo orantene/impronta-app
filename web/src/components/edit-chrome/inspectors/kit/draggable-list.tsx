@@ -154,7 +154,7 @@ export function DraggableList<T>({
             {showIndicator ? (
               <div
                 aria-hidden
-                className="pointer-events-none absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-zinc-900"
+                className="pointer-events-none absolute -top-1 left-0 right-0 h-0.5 rounded-full bg-[#2a3147]"
               />
             ) : null}
             {children(item, i, makeHandleProps(i))}
@@ -163,7 +163,7 @@ export function DraggableList<T>({
       })}
       {/* Tail indicator — drop past the last row. */}
       {dragIndex !== null && dropIndex === items.length ? (
-        <li data-drag-tail aria-hidden className="h-0.5 rounded-full bg-zinc-900" />
+        <li data-drag-tail aria-hidden className="h-0.5 rounded-full bg-[#2a3147]" />
       ) : null}
     </ol>
   );

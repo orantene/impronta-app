@@ -344,11 +344,22 @@ function FieldNode({
                     key={o}
                     type="button"
                     onClick={() => onChange(o)}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${
+                    /*
+                     * Sprint 3.2.1 — operator-neutral active state.
+                     * Was `border-zinc-900 bg-zinc-900 text-white` — every
+                     * Speed/Direction/Separator/Variant enum chip rendered
+                     * as a solid black pill, stacking ~4 black pills per
+                     * panel and clashing with the cream/white-pill active
+                     * treatment used by LinkPicker tabs and DrawerTabs in
+                     * the same drawer. Now: soft white pill + hairline +
+                     * subtle shadow to match the prototype's selected-chip
+                     * pattern across the whole inspector.
+                     */
+                    className={
                       active
-                        ? "border-zinc-900 bg-zinc-900 text-white"
-                        : "border-border/60 bg-background text-foreground hover:bg-muted/50"
-                    }`}
+                        ? "rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-xs font-medium text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                        : "rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-500 transition hover:bg-white hover:text-zinc-700"
+                    }
                   >
                     {humanizeEnumValue(o)}
                   </button>
