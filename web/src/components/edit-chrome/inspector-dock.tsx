@@ -552,6 +552,13 @@ export function InspectorDock() {
     >
       <DrawerHead
         title={sectionTitle}
+        meta={
+          loadedSection
+            ? humanizeTypeKey(loadedSection.sectionTypeKey)
+            : skeletonHint
+              ? humanizeTypeKey(skeletonHint.typeKey)
+              : undefined
+        }
         icon={
           loadedSection ? (
             <SectionTypeIcon

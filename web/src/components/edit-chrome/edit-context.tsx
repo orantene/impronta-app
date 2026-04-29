@@ -101,9 +101,28 @@ export interface EditContextValue {
    *  this to target the correct page. */
   pageId: string | null;
 
-  /** Section the inspector is operating on. Null → "Select a section". */
+  /** Section the inspector is operating on. Null → "Select a section".
+   *
+   *  Sprint 4 — calling this with a new id ALSO clears the multi-set
+   *  below (plain click semantics). Modifier-aware setters
+   *  (`extendSelection`, `toggleSelection`) preserve it. */
   selectedSectionId: string | null;
   setSelectedSectionId: (id: string | null) => void;
+
+  /** Sprint 4 — multi-select.
+   *
+   *  Sections the operator extended selection to via shift-click or cmd/
+   *  ctrl-click. Full selection is `[selectedSectionId, ...additional]`
+   *  (with nulls filtered). The inspector always binds to
+   *  `selectedSectionId` only — multi-select is for BULK actions
+   *  (move/duplicate/hide/delete), not multi-edit. */
+  additionalSelectedIds: ReadonlySet<string>;
+  /** Add a section to the multi-set without unseating the primary. Shift-click. */
+  extendSelection: (id: string) => void;
+  /** Toggle a section in/out of the multi-set. Cmd-click. */
+  toggleSelection: (id: string) => void;
+  /** All currently-selected section ids (primary first, then additional). */
+  getAllSelectedIds: () => string[];
 
   /** Section under the cursor, for hover outline. */
   hoveredSectionId: string | null;
@@ -167,6 +186,17 @@ export interface EditContextValue {
   duplicateSection: (
     sectionId: string,
   ) => Promise<{ ok: boolean; error?: string; newSectionId?: string }>;
+  /**
+   * Sprint 4 — operator-facing rename. Updates a section's stored `name`
+   * field (used by navigator + chip + inspector when no headline is
+   * available). Loads the section's current props, calls
+   * `saveSectionDraftAction` with the new name, refreshes composition.
+   * Empty/whitespace names are rejected — the caller should validate.
+   */
+  renameSection: (
+    sectionId: string,
+    newName: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
 
   // ── history ──
   canUndo: boolean;
@@ -474,9 +504,82 @@ export function EditProvider({
   const router = useRouter();
 
   // ── inspector state ─────────────────────────────────────────────────
-  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(
+  const [selectedSectionId, setSelectedSectionIdRaw] = useState<string | null>(
     null,
   );
+  // Sprint 4 — multi-select set. Sections the operator added via shift-
+  // click or cmd-click ALONGSIDE the primary `selectedSectionId`. Always
+  // excludes the primary id (the union is `[primary, ...additional]`).
+  const [additionalSelectedIds, setAdditionalSelectedIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+
+  // Plain setter used by canvas click, navigator click without modifiers,
+  // and the chip's selection forwarding. Always clears the multi-set.
+  const setSelectedSectionId = useCallback(
+    (id: string | null) => {
+      setSelectedSectionIdRaw(id);
+      setAdditionalSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+    },
+    [],
+  );
+
+  // Shift-click extension. If no primary, the new id BECOMES primary.
+  // If new id matches primary, no-op. Otherwise add to the multi-set.
+  const extendSelection = useCallback((id: string) => {
+    setSelectedSectionIdRaw((prevPrimary) => {
+      if (prevPrimary === null) return id;
+      if (prevPrimary === id) return prevPrimary;
+      setAdditionalSelectedIds((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      return prevPrimary;
+    });
+  }, []);
+
+  // Cmd/Ctrl-click toggle. Removes if present in the multi-set; if it's
+  // the primary, demotes (clears primary, leaves multi alone); else
+  // adds to multi-set.
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedSectionIdRaw((prevPrimary) => {
+      if (prevPrimary === id) {
+        // Toggling off the primary. If multi has entries, promote one to
+        // primary so the inspector still has something to bind to.
+        let promoted: string | null = null;
+        setAdditionalSelectedIds((prev) => {
+          if (prev.size === 0) return prev;
+          const arr = Array.from(prev);
+          promoted = arr[0]!;
+          const next = new Set(prev);
+          next.delete(promoted);
+          return next;
+        });
+        return promoted;
+      }
+      // Primary is something else (or null). Toggle id in/out of multi-set.
+      setAdditionalSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else if (prevPrimary !== null) next.add(id);
+        return next;
+      });
+      // If primary was null, promote the toggled id to primary.
+      return prevPrimary === null ? id : prevPrimary;
+    });
+  }, []);
+
+  const getAllSelectedIds = useCallback(() => {
+    const out: string[] = [];
+    if (selectedSectionId) out.push(selectedSectionId);
+    for (const id of additionalSelectedIds) {
+      if (id !== selectedSectionId) out.push(id);
+    }
+    return out;
+  }, [selectedSectionId, additionalSelectedIds]);
+
   const [hoveredSectionId, setHoveredSectionId] = useState<string | null>(null);
   const [device, setDevice] = useState<EditDevice>("desktop");
   const [dirty, setDirty] = useState(false);
@@ -1110,6 +1213,55 @@ export function EditProvider({
     [selectedSectionId, router],
   );
 
+  // Sprint 4 — rename a section's stored `name`. Used by the navigator
+  // double-click-to-rename flow. Loads the section, sends a save with
+  // the existing props + new name, refreshes composition so the
+  // navigator picks up the new label. Empty trimmed names are rejected
+  // here as a safety net even though the caller normally validates.
+  const renameSection = useCallback(
+    async (
+      sectionId: string,
+      newName: string,
+    ): Promise<{ ok: boolean; error?: string }> => {
+      const trimmed = newName.trim();
+      if (!trimmed) {
+        return { ok: false, error: "Name cannot be empty." };
+      }
+      const loaded = await loadSectionForEditAction(sectionId);
+      if (!loaded.ok) {
+        return { ok: false, error: loaded.error };
+      }
+      // No-op if unchanged.
+      if (loaded.section.name === trimmed) return { ok: true };
+      setSaving(true);
+      const save = await saveSectionDraftAction({
+        id: sectionId,
+        sectionTypeKey: loaded.section.sectionTypeKey,
+        schemaVersion: loaded.section.schemaVersion,
+        name: trimmed,
+        props: loaded.section.props,
+        expectedVersion: loaded.section.version,
+      });
+      setSaving(false);
+      if (!save.ok) {
+        setMutationError(save.error);
+        return { ok: false, error: save.error };
+      }
+      if (selectedSectionId === sectionId) {
+        setLoadedSection({
+          ...loaded.section,
+          version: save.version,
+          name: trimmed,
+        });
+      }
+      // Refresh composition so the navigator/chip pick up the new name.
+      await refreshComposition();
+      router.refresh();
+      return { ok: true };
+    },
+    [selectedSectionId, router],
+  );
+
   const undo = useCallback(async () => {
     if (past.length === 0) return;
     const entry = past[past.length - 1]!;
@@ -1400,6 +1552,10 @@ export function EditProvider({
       pageId,
       selectedSectionId,
       setSelectedSectionId,
+      additionalSelectedIds,
+      extendSelection,
+      toggleSelection,
+      getAllSelectedIds,
       hoveredSectionId,
       setHoveredSectionId,
       device,
@@ -1429,6 +1585,7 @@ export function EditProvider({
       moveSection,
       moveSectionTo,
       duplicateSection,
+      renameSection,
 
       canUndo: past.length > 0,
       canRedo: future.length > 0,
@@ -1505,6 +1662,11 @@ export function EditProvider({
       pageSlug,
       pageId,
       selectedSectionId,
+      additionalSelectedIds,
+      extendSelection,
+      toggleSelection,
+      getAllSelectedIds,
+      setSelectedSectionId,
       hoveredSectionId,
       device,
       dirty,
@@ -1527,6 +1689,7 @@ export function EditProvider({
       moveSection,
       moveSectionTo,
       duplicateSection,
+      renameSection,
       past.length,
       future.length,
       undo,

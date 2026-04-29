@@ -77,6 +77,10 @@ export function NavigatorPanel() {
   const {
     selectedSectionId,
     setSelectedSectionId,
+    additionalSelectedIds,
+    extendSelection,
+    toggleSelection,
+    renameSection,
     slots,
     slotDefs,
     pageMetadata,
@@ -90,6 +94,9 @@ export function NavigatorPanel() {
 
   const [search, setSearch] = useState("");
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  // Sprint 4 — inline rename. When `renamingId` is set, that row's label
+  // is replaced by an editable input. Enter commits, Escape cancels.
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   // Sprint 4 — outline mode toggle. The default "sections" view is the
   // existing flat list (Site shell + Homepage groups). The "outline" view
   // re-renders the section list as a heading hierarchy (H1 / H2 / H3
@@ -302,6 +309,25 @@ export function NavigatorPanel() {
     }
     return lintHeadingOutline(buildStructuralHeadingOutline(flatLite));
   }, [flat, headingProbe]);
+
+  // Sprint 4 — modifier-aware click handler shared by navigator rows.
+  // Plain click → primary selection (clears multi). Shift → extend.
+  // Cmd/Ctrl → toggle in/out of selection. Same rules apply on canvas
+  // section clicks (selection-layer.tsx).
+  const handleRowSelect = useCallback(
+    (sectionId: string, e: React.MouseEvent | React.KeyboardEvent) => {
+      if (e.shiftKey) {
+        extendSelection(sectionId);
+        return;
+      }
+      if (e.metaKey || e.ctrlKey) {
+        toggleSelection(sectionId);
+        return;
+      }
+      setSelectedSectionId(sectionId);
+    },
+    [extendSelection, toggleSelection, setSelectedSectionId],
+  );
 
   const onDragStart = useCallback(
     (e: DragEvent<HTMLDivElement>, sectionId: string) => {
@@ -863,7 +889,9 @@ export function NavigatorPanel() {
             </div>
           )}
           {visible.map((row) => {
-            const selected = selectedSectionId === row.ref.sectionId;
+            const isPrimary = selectedSectionId === row.ref.sectionId;
+            const isAdditional = additionalSelectedIds.has(row.ref.sectionId);
+            const selected = isPrimary || isAdditional;
             const isDragging = draggingId === row.ref.sectionId;
             const showDropLineAbove =
               draggingId && dropAt === row.flatIndex && !isDragging;
@@ -883,13 +911,13 @@ export function NavigatorPanel() {
                   onDragStart={(e) => onDragStart(e, row.ref.sectionId)}
                   onDragEnd={onDragEnd}
                   onDragOver={(e) => onRowDragOver(e, row.flatIndex)}
-                  onClick={() => setSelectedSectionId(row.ref.sectionId)}
+                  onClick={(e) => handleRowSelect(row.ref.sectionId, e)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      setSelectedSectionId(row.ref.sectionId);
+                      handleRowSelect(row.ref.sectionId, e);
                     }
                   }}
                   title={labelFor(row)}
@@ -902,7 +930,16 @@ export function NavigatorPanel() {
                     // QA-9 partial — selected row uses the editor's slate
                     // accent so navigator selection matches the chip /
                     // Publish CTA family instead of brand-black ink.
-                    background: selected ? CHROME.accent : "transparent",
+                    //
+                    // Sprint 4 — additional-selected rows (shift/cmd-clicked)
+                    // get a slightly translucent slate so the operator can
+                    // see the multi-set at a glance while still recognising
+                    // the primary as the focused one.
+                    background: isPrimary
+                      ? CHROME.accent
+                      : isAdditional
+                        ? "rgba(42, 49, 71, 0.65)"
+                        : "transparent",
                     color: selected ? "#ffffff" : hidden ? CHROME.muted2 : CHROME.text,
                     fontSize: 12,
                     fontWeight: selected ? 600 : 500,
@@ -934,19 +971,40 @@ export function NavigatorPanel() {
                       opacity: selected ? 0.85 : 0.65,
                     }}
                   />
-                  <span
-                    style={{
-                      flex: 1,
-                      letterSpacing: "-0.005em",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      textDecoration: hidden ? "line-through" : "none",
-                      textDecorationColor: CHROME.muted2,
-                    }}
-                  >
-                    {labelFor(row)}
-                  </span>
+                  {renamingId === row.ref.sectionId ? (
+                    <RenameInput
+                      initial={labelFor(row)}
+                      onCommit={async (next) => {
+                        const trimmed = next.trim();
+                        if (trimmed) {
+                          await renameSection(row.ref.sectionId, trimmed);
+                        }
+                        setRenamingId(null);
+                      }}
+                      onCancel={() => setRenamingId(null)}
+                      selected={selected}
+                    />
+                  ) : (
+                    <span
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setRenamingId(row.ref.sectionId);
+                      }}
+                      title={`Double-click to rename · ${labelFor(row)}`}
+                      style={{
+                        flex: 1,
+                        letterSpacing: "-0.005em",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        textDecoration: hidden ? "line-through" : "none",
+                        textDecorationColor: CHROME.muted2,
+                        cursor: "text",
+                      }}
+                    >
+                      {labelFor(row)}
+                    </span>
+                  )}
                   <VisibilityEye
                     selected={selected}
                     visibility={visibility}
@@ -1348,6 +1406,78 @@ function OutlineTree({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * Sprint 4 — RenameInput
+ *
+ * Inline text input that takes over a navigator row's label cell during
+ * double-click rename. Auto-focuses + selects on mount so the operator
+ * can type immediately. Enter commits, Escape cancels, blur commits
+ * (Webflow / Notion convention — operator clicks elsewhere = save).
+ */
+function RenameInput({
+  initial,
+  onCommit,
+  onCancel,
+  selected,
+}: {
+  initial: string;
+  onCommit: (next: string) => void | Promise<void>;
+  onCancel: () => void;
+  selected: boolean;
+}) {
+  const [value, setValue] = useState(initial);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }, []);
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void onCommit(value);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
+      onBlur={() => {
+        // Commit on blur — Notion / Webflow convention. Caller handles
+        // empty / unchanged values gracefully.
+        void onCommit(value);
+      }}
+      style={{
+        flex: 1,
+        minWidth: 0,
+        padding: "1px 6px",
+        fontSize: 12,
+        fontFamily: "inherit",
+        fontWeight: selected ? 600 : 500,
+        color: selected ? "#ffffff" : CHROME.text,
+        background: selected
+          ? "rgba(255,255,255,0.12)"
+          : CHROME.surface,
+        border: `1px solid ${selected ? "rgba(255,255,255,0.30)" : CHROME.lineStrong}`,
+        borderRadius: 4,
+        outline: "none",
+        letterSpacing: "-0.005em",
+      }}
+    />
   );
 }
 

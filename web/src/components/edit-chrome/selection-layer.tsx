@@ -149,6 +149,10 @@ export function SelectionLayer() {
   const {
     selectedSectionId,
     setSelectedSectionId,
+    additionalSelectedIds,
+    extendSelection,
+    toggleSelection,
+    getAllSelectedIds,
     hoveredSectionId,
     setHoveredSectionId,
     device,
@@ -233,6 +237,35 @@ export function SelectionLayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSectionId, hoveredSectionId]);
 
+  // Sprint 4 — auto-scroll the canvas to the selected section when it's
+  // off-screen. Triggered any time `selectedSectionId` changes (typically
+  // from a navigator click or a cmd-K target). We bail when the section
+  // is already "comfortably" visible (its rect intersects the viewport's
+  // safe band) so re-clicking the currently-visible section doesn't
+  // jolt the page. `behavior: smooth` matches the chip's anim feel.
+  useEffect(() => {
+    if (!selectedSectionId || typeof window === "undefined") return;
+    const el = document.querySelector<HTMLElement>(
+      `[data-cms-section][data-section-id="${CSS.escape(selectedSectionId)}"]`,
+    );
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+    // Treat the section as "comfortably visible" when its top is below
+    // the topbar (54px) AND the section's bottom is above the viewport
+    // bottom OR the section is taller than the viewport but at least
+    // partially in the upper half.
+    const TOPBAR = 54;
+    const SAFE_TOP = TOPBAR + 24;
+    const SAFE_BOTTOM = vh - 24;
+    const fullyVisible =
+      r.top >= SAFE_TOP && r.bottom <= SAFE_BOTTOM;
+    const tallButHeaderVisible =
+      r.height > vh - TOPBAR && r.top >= SAFE_TOP - 4 && r.top <= SAFE_TOP + 200;
+    if (fullyVisible || tallButHeaderVisible) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [selectedSectionId]);
+
   useEffect(() => {
     scheduleRectRecompute();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -268,7 +301,16 @@ export function SelectionLayer() {
       // Intercept link/button navigation so editors don't accidentally leave.
       e.preventDefault();
       e.stopPropagation();
-      setSelectedSectionId(id);
+      // Sprint 4 — modifier-aware selection on canvas, mirrors the
+      // navigator's row click handler. Shift extends, Cmd/Ctrl toggles,
+      // plain click sets primary and clears multi.
+      if (e.shiftKey) {
+        extendSelection(id);
+      } else if (e.metaKey || e.ctrlKey) {
+        toggleSelection(id);
+      } else {
+        setSelectedSectionId(id);
+      }
     }
     function onScrollOrResize() {
       // Mark scrolling active — suppresses hover-ring position transition.
@@ -819,6 +861,42 @@ export function SelectionLayer() {
         </>
       ) : null}
 
+      {/* Sprint 4 — additional-selection rings. Render a quieter ring
+       *  on every section in the multi-set (the primary keeps the full
+       *  dual-tone ring + chip below). We compute rects synchronously
+       *  from the DOM at render time — they don't need to track scroll
+       *  with rAF the same way the primary does because multi-select is
+       *  typically used for a quick burst of bulk action and the
+       *  operator's eye is on the chip's count badge, not on every
+       *  ring's pixel-perfect tracking. */}
+      {Array.from(additionalSelectedIds).map((id) => {
+        if (id === selectedSectionId) return null;
+        const el =
+          typeof document === "undefined"
+            ? null
+            : document.querySelector<HTMLElement>(
+                `[data-cms-section][data-section-id="${CSS.escape(id)}"]`,
+              );
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return (
+          <div
+            key={`add-${id}`}
+            style={{
+              position: "fixed",
+              top: r.top,
+              left: r.left,
+              width: r.width,
+              height: r.height,
+              borderRadius: 6,
+              boxShadow: `inset 0 0 0 1px rgba(255,255,255,0.50), 0 0 0 2px rgba(42, 49, 71, 0.85), 0 0 0 6px rgba(42, 49, 71, 0.10)`,
+              pointerEvents: "none",
+              transition: "box-shadow 120ms",
+            }}
+          />
+        );
+      })}
+
       {/* ── Selection ring ────────────────────────────────────────── */}
       {selectedRect ? (
         <>
@@ -934,6 +1012,32 @@ export function SelectionLayer() {
                 {chipLabel}
               </span>
 
+              {/* Sprint 4 — multi-select count badge. Renders only when the
+               *  multi-set has any entries beyond the primary. Reads as
+               *  "+N more selected — bulk actions apply to all". */}
+              {additionalSelectedIds.size > 0 ? (
+                <span
+                  aria-label={`${additionalSelectedIds.size + 1} sections selected`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    height: 18,
+                    padding: "0 7px",
+                    marginLeft: 2,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.02em",
+                    color: "white",
+                    background: "rgba(42, 49, 71, 0.95)",
+                    borderRadius: 999,
+                    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)",
+                    flexShrink: 0,
+                  }}
+                >
+                  +{additionalSelectedIds.size}
+                </span>
+              ) : null}
+
               {/* Divider + type label */}
               <span
                 style={{
@@ -965,11 +1069,19 @@ export function SelectionLayer() {
               </span>
             </div>
 
-            {/* Toolbar buttons */}
+            {/* Toolbar buttons.
+             *
+             * Sprint 4 — when the multi-set has additional ids, every
+             * action fans out across all selected sections (primary +
+             * additional). Move up/down still operate one-at-a-time on
+             * the primary because order is fragile during a bulk move
+             * (top-down vs bottom-up changes outcome). Duplicate / Hide /
+             * Delete fan out cleanly. */}
             <ChipToolBar
               disabled={saving}
               confirmRemove={confirmRemove}
               isHidden={isHidden}
+              multiCount={additionalSelectedIds.size}
               onMoveUp={() => {
                 if (!selectedSectionId) return;
                 void moveSection(selectedSectionId, "up");
@@ -979,24 +1091,36 @@ export function SelectionLayer() {
                 void moveSection(selectedSectionId, "down");
               }}
               onToggleHide={() => {
-                if (!selectedSectionId) return;
-                void setSectionVisibility(
-                  selectedSectionId,
-                  isHidden ? "always" : "hidden",
-                );
+                const ids = getAllSelectedIds();
+                if (ids.length === 0) return;
+                const next = isHidden ? "always" : "hidden";
+                for (const id of ids) {
+                  void setSectionVisibility(id, next);
+                }
               }}
               onDuplicate={() => {
-                if (!selectedSectionId) return;
-                void duplicateSection(selectedSectionId).then((res) => {
-                  if (res.ok && res.newSectionId) {
-                    setSelectedSectionId(res.newSectionId);
+                const ids = getAllSelectedIds();
+                if (ids.length === 0) return;
+                // Fire all duplicate actions in parallel; promote the
+                // first new id to primary so the inspector follows the
+                // operator's intent. The multi-set clears as a side
+                // effect of setSelectedSectionId.
+                const promises = ids.map((id) => duplicateSection(id));
+                void Promise.all(promises).then((results) => {
+                  const firstNew = results.find(
+                    (r) => r.ok && r.newSectionId,
+                  );
+                  if (firstNew && "newSectionId" in firstNew && firstNew.newSectionId) {
+                    setSelectedSectionId(firstNew.newSectionId);
                   }
                 });
               }}
               onRemoveTrigger={() => setConfirmRemove(true)}
               onRemoveConfirm={() => {
-                if (!selectedSectionId) return;
-                void removeSection(selectedSectionId).then(() => {
+                const ids = getAllSelectedIds();
+                if (ids.length === 0) return;
+                const promises = ids.map((id) => removeSection(id));
+                void Promise.all(promises).then(() => {
                   setConfirmRemove(false);
                   setSelectedSectionId(null);
                 });
@@ -1160,6 +1284,7 @@ function ChipToolBar({
   disabled,
   confirmRemove,
   isHidden,
+  multiCount = 0,
   onMoveUp,
   onMoveDown,
   onToggleHide,
@@ -1171,6 +1296,10 @@ function ChipToolBar({
   disabled: boolean;
   confirmRemove: boolean;
   isHidden: boolean;
+  /** Sprint 4 — number of ADDITIONAL sections in the multi-select.
+   *  When > 0 the Remove confirm copy reads "Remove N+1?" so the
+   *  operator sees the bulk scope before committing. */
+  multiCount?: number;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggleHide: () => void;
@@ -1180,6 +1309,9 @@ function ChipToolBar({
   onRemoveCancel: () => void;
 }) {
   if (confirmRemove) {
+    const totalToRemove = multiCount + 1;
+    const removeLabel =
+      totalToRemove > 1 ? `Remove ${totalToRemove}?` : "Remove?";
     return (
       <div style={{ display: "inline-flex", height: "100%", alignItems: "stretch" }}>
         <button
@@ -1200,7 +1332,7 @@ function ChipToolBar({
             cursor: "pointer",
           }}
         >
-          Remove?
+          {removeLabel}
         </button>
         <button
           type="button"
