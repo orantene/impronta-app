@@ -49,6 +49,7 @@ import type {
   CompositionSlotDef,
 } from "@/lib/site-admin/edit-mode/composition-actions";
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 import type { SectionVisibility as SectionVisibilityT } from "@/lib/site-admin/edit-mode/section-actions";
 
 import { useEditContext } from "./edit-context";
@@ -150,49 +151,6 @@ export function NavigatorPanel() {
     return out;
   }, [slotDefs, slots]);
 
-  // QA-4 fix — when two sections share the same cleaned display name (e.g.
-  // homepage with two `cta_banner` sections both seeded as "Final CTA — new"),
-  // the navigator used to render two rows with identical labels and no way
-  // to tell them apart while reordering. We pre-compute a sectionId →
-  // disambiguated label map: the first occurrence keeps the bare name,
-  // every later occurrence gains a "(N)" tail (count of prior occurrences).
-  // This is a display-only treatment; nothing else in the system uses these
-  // labels for identity.
-  const displayNameById = useMemo(() => {
-    const counts = new Map<string, number>();
-    const labels = new Map<string, string>();
-    for (const row of flat) {
-      const base = cleanSectionName(row.ref.name) || row.ref.name;
-      const seen = counts.get(base) ?? 0;
-      counts.set(base, seen + 1);
-      labels.set(row.ref.sectionId, seen === 0 ? base : `${base} (${seen + 1})`);
-    }
-    return labels;
-  }, [flat]);
-  const labelFor = useCallback(
-    (row: FlatRow) =>
-      displayNameById.get(row.ref.sectionId) ??
-      (cleanSectionName(row.ref.name) || row.ref.name),
-    [displayNameById],
-  );
-
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return flat;
-    return flat.filter((r) => {
-      // T2-2 — search the cleaned display name, not the raw seeder string.
-      // Otherwise queries for "Classic starter" would match every starter
-      // section, polluting results with operator-invisible boilerplate.
-      const displayName = (
-        cleanSectionName(r.ref.name) || r.ref.name
-      ).toLowerCase();
-      return (
-        displayName.includes(q) ||
-        r.ref.sectionTypeKey.toLowerCase().includes(q)
-      );
-    });
-  }, [flat, search]);
-
   // Phase 10 — heading hierarchy lint. Two modes:
   //   - Structural (default, instant): infers from section types alone.
   //   - Props-aware (after lazy fetch): fills in actual headline text so
@@ -200,6 +158,10 @@ export function NavigatorPanel() {
   //     false "skipped level" warnings from configured-but-empty sections).
   // The fetch fires once when the navigator opens and re-fires when the
   // section list changes shape (id set diff).
+  //
+  // QA-2 reuse — the same probe is now also the source for content-
+  // derived display names below. One round-trip serves both lint and
+  // navigator labels; no extra fetch added.
   const [headingProbe, setHeadingProbe] = useState<
     Record<string, string> | null
   >(null);
@@ -218,6 +180,76 @@ export function NavigatorPanel() {
       cancelled = true;
     };
   }, [navigatorOpen, flatIdsKey, flat.length]);
+
+  // QA-4 fix — when two sections share the same display name (e.g. homepage
+  // with two `cta_banner` sections both seeded as "Final CTA — new"), the
+  // navigator used to render two rows with identical labels and no way to
+  // tell them apart while reordering. We pre-compute a sectionId →
+  // disambiguated label map: the first occurrence keeps the bare name,
+  // every later occurrence gains a "(N)" tail (count of prior occurrences).
+  // This is a display-only treatment; nothing else in the system uses these
+  // labels for identity.
+  //
+  // QA-2 fix — the same memo also folds in `headingProbe` (loaded
+  // asynchronously above). When a section has a substantive headline like
+  // "A short list, always on call.", we surface that as the navigator label
+  // instead of the seeder default ("Featured professionals — new"). Operators
+  // identify sections visually by their headline, so the editor's name should
+  // match. Sections without a headline (site_header, marquee, etc.) keep the
+  // cleanSectionName fallback. The disambiguator runs AFTER resolution so
+  // two sections with identical headlines still get "(2)" / "(3)".
+  const displayNameById = useMemo(() => {
+    const counts = new Map<string, number>();
+    const labels = new Map<string, string>();
+    for (const row of flat) {
+      const base = sectionDisplayName({
+        typeKey: row.ref.sectionTypeKey,
+        rawName: row.ref.name,
+        headline: headingProbe?.[row.ref.sectionId] ?? null,
+      });
+      const seen = counts.get(base) ?? 0;
+      counts.set(base, seen + 1);
+      labels.set(row.ref.sectionId, seen === 0 ? base : `${base} (${seen + 1})`);
+    }
+    return labels;
+  }, [flat, headingProbe]);
+  const labelFor = useCallback(
+    (row: FlatRow) =>
+      displayNameById.get(row.ref.sectionId) ??
+      sectionDisplayName({
+        typeKey: row.ref.sectionTypeKey,
+        rawName: row.ref.name,
+      }),
+    [displayNameById],
+  );
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return flat;
+    return flat.filter((r) => {
+      // T2-2 — search the cleaned display name, not the raw seeder string.
+      // Otherwise queries for "Classic starter" would match every starter
+      // section, polluting results with operator-invisible boilerplate.
+      //
+      // QA-2 follow-on — content-derived display names mean the visible
+      // label can be a headline string. We search across BOTH the
+      // headline AND the cleaned stored name so an operator hunting for
+      // "Featured talent" still matches a section the navigator is
+      // labelling as "A short list, always on call." Otherwise the
+      // search bar would silently miss sections by type/intent label.
+      const cleanedName = (
+        cleanSectionName(r.ref.name) || r.ref.name
+      ).toLowerCase();
+      const probedHeadline = (
+        displayNameById.get(r.ref.sectionId) ?? ""
+      ).toLowerCase();
+      return (
+        cleanedName.includes(q) ||
+        probedHeadline.includes(q) ||
+        r.ref.sectionTypeKey.toLowerCase().includes(q)
+      );
+    });
+  }, [flat, search, displayNameById]);
 
   const headingIssues = useMemo(() => {
     const flatLite = flat.map((r) => ({

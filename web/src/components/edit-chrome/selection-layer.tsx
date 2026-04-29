@@ -32,6 +32,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import {
+  resolveSectionHeadlineFromProps,
+  sectionDisplayName,
+} from "@/lib/site-admin/section-display-name";
 import { useEditContext } from "./edit-context";
 import { CHROME } from "./kit/tokens";
 import { SectionTypeIcon } from "./kit/section-type-icon";
@@ -557,15 +561,26 @@ export function SelectionLayer() {
     drag.phase === "dragging" && drag.id === selectedSectionId;
 
   // Derived display values for the chip / ghost.
-  // T2-2 — Strip seeder suffixes from raw DB names ("Hero — new (Classic
-  // starter) d7b14f") before they reach the operator. Clean string can
-  // legitimately be empty (when the raw name was nothing but suffix), so
-  // we coalesce through the type's humanized label as a final fallback.
-  const cleanedName =
-    loadedSection?.id === selectedSectionId && loadedSection?.name
-      ? cleanSectionName(loadedSection.name)
-      : "";
-  const chipLabel = cleanedName || humanizeTypeKey(selectedTypeKey);
+  //
+  // QA-2 fix — chip label now mirrors the navigator's content-derived rule:
+  // when the selected section has a substantive headline in its props
+  // ("A short list, always on call."), the chip surfaces that string so
+  // the chip and the canvas agree on what the operator is editing. Falls
+  // through to cleanSectionName(loadedSection.name) when no headline is
+  // available, then to the humanized type key as final safety net. This
+  // matches `sectionDisplayName` used by navigator-panel.tsx.
+  const loadedProps =
+    loadedSection?.id === selectedSectionId
+      ? ((loadedSection?.props ?? null) as Record<string, unknown> | null)
+      : null;
+  const chipLabel =
+    loadedSection?.id === selectedSectionId
+      ? sectionDisplayName({
+          typeKey: selectedTypeKey,
+          rawName: loadedSection?.name ?? null,
+          headline: resolveSectionHeadlineFromProps(selectedTypeKey, loadedProps),
+        }) || humanizeTypeKey(selectedTypeKey)
+      : humanizeTypeKey(selectedTypeKey);
   const chipType = humanizeTypeKey(selectedTypeKey);
 
   // 2026-04-28 — Look up the selected section's visibility flag from the
@@ -1100,8 +1115,18 @@ export function SelectionLayer() {
                 letterSpacing: "-0.005em",
               }}
             >
-              {(drag.name && cleanSectionName(drag.name)) ||
-                humanizeTypeKey(drag.typeKey)}
+              {/* QA-2 — drag ghost uses the same content-derived label as
+               * the selection chip so the two pieces of UI agree. drag.name
+               * was captured at drag-start; we don't know the props at
+               * dispatch time, so we use chipLabel (which already factors
+               * in the loaded section's headline) when the dragged id
+               * matches selection (it always does — startDrag promotes
+               * selection). Falls through to cleanSectionName + type key
+               * if not. */}
+              {drag.id === selectedSectionId
+                ? chipLabel
+                : (drag.name && cleanSectionName(drag.name)) ||
+                  humanizeTypeKey(drag.typeKey)}
             </div>
             <div
               style={{
