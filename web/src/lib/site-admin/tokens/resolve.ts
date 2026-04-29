@@ -162,6 +162,11 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "template.profile-layout-family": "data-token-template-profile-layout-family",
   // M8 shell + badge + profile controls
   "shell.logo-variant": "data-token-shell-logo-variant",
+  // Step 4 of header foundation pass — model expansion
+  "shell.header-brand-layout": "data-token-shell-header-brand-layout",
+  "shell.header-nav-alignment": "data-token-shell-header-nav-alignment",
+  "shell.header-cta-placement": "data-token-shell-header-cta-placement",
+  "shell.header-mobile-cta-placement": "data-token-shell-header-mobile-cta-placement",
   "motion.stagger-preset": "data-token-motion-stagger-preset",
   "directory.card.show-destination-ready-ribbon":
     "data-token-card-ribbon",

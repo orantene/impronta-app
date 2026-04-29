@@ -48,6 +48,9 @@ interface Props {
   pathnameWithoutLocale: string;
   /** Brand label used as the menu's accessible title. */
   brandLabel: string;
+  /** When set, renders a primary CTA button at the top of the menu body. */
+  ctaLabel?: string | null;
+  ctaHref?: string | null;
   /** Slot for trailing utility content (saved, account etc.) inside the menu. */
   utilityContent?: ReactNode;
   /** Localized copy for the trigger button's screen-reader label. */
@@ -60,6 +63,8 @@ export function PublicHeaderMobileMenu({
   locale,
   pathnameWithoutLocale,
   brandLabel,
+  ctaLabel,
+  ctaHref,
   utilityContent,
   openMenuLabel = "Open menu",
   closeMenuLabel = "Close menu",
@@ -132,6 +137,15 @@ export function PublicHeaderMobileMenu({
             </Dialog.Close>
           </div>
 
+          {ctaLabel && ctaHref ? (
+            <Link
+              href={ctaHref}
+              onClick={() => setOpen(false)}
+              className="inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              {ctaLabel}
+            </Link>
+          ) : null}
           {navLinks.length > 0 ? (
             <nav
               aria-label="Site links"

@@ -87,6 +87,84 @@ export async function PublicHeader() {
     inquiryTooltipWithShortlist: t("public.header.directoryInquiryTooltipWithShortlist"),
   };
 
+  // ── Step-4 token reads ───────────────────────────────────────────────
+  // These four shell tokens shape the bar layout, brand position, and
+  // CTA visibility. Token values come from agency_branding.theme_json
+  // (already loaded above); each value MUST produce a visible difference
+  // in the rendered DOM — that's the contract that justified adding them
+  // to the registry.
+  const themeJson = (branding?.theme_json ?? {}) as Record<string, unknown>;
+  const tokenString = (key: string, fallback: string): string => {
+    const v = themeJson[key];
+    return typeof v === "string" && v.length > 0 ? v : fallback;
+  };
+  const brandLayout = tokenString(
+    "shell.header-brand-layout",
+    "inline",
+  ) as "inline" | "stacked" | "logo-only" | "text-only";
+  const navAlignment = tokenString(
+    "shell.header-nav-alignment",
+    "left",
+  ) as "left" | "center" | "right" | "split-around-logo";
+  const ctaPlacement = tokenString(
+    "shell.header-cta-placement",
+    "right",
+  ) as "right" | "inside-menu-only" | "both" | "hidden";
+  const mobileCtaPlacement = tokenString(
+    "shell.header-mobile-cta-placement",
+    "outside",
+  ) as "outside" | "inside" | "both" | "hidden";
+
+  // CTA pulled from identity (single source). Renders only when both
+  // label and href are present and the placement token allows it.
+  const ctaLabel = identity?.primary_cta_label?.trim() || null;
+  const ctaHref = identity?.primary_cta_href?.trim() || null;
+  const hasCta = Boolean(ctaLabel && ctaHref);
+  const showCtaInDesktopBar =
+    hasCta && (ctaPlacement === "right" || ctaPlacement === "both");
+  const showCtaInMobileBar =
+    hasCta &&
+    (mobileCtaPlacement === "outside" || mobileCtaPlacement === "both");
+  const showCtaInMobileMenu =
+    hasCta &&
+    (ctaPlacement === "inside-menu-only" ||
+      ctaPlacement === "both" ||
+      mobileCtaPlacement === "inside" ||
+      mobileCtaPlacement === "both");
+
+  // Nav distribution per alignment. The brand always lives in the
+  // center grid column; the nav links fan out to the appropriate
+  // columns. `split-around-logo` divides links roughly in half so
+  // longer menus still balance visually.
+  const halfPoint = Math.ceil(cmsHeaderLinks.length / 2);
+  const navInLeftCol =
+    navAlignment === "left"
+      ? cmsHeaderLinks
+      : navAlignment === "split-around-logo"
+        ? cmsHeaderLinks.slice(0, halfPoint)
+        : [];
+  const navInCenterCol =
+    navAlignment === "center" ? cmsHeaderLinks : [];
+  const navInRightCol =
+    navAlignment === "right"
+      ? cmsHeaderLinks
+      : navAlignment === "split-around-logo"
+        ? cmsHeaderLinks.slice(halfPoint)
+        : [];
+
+  // Brand link className varies per layout.
+  const brandLinkClass = [
+    // Common: focus ring, color transition.
+    "font-display group flex min-w-0 whitespace-nowrap font-medium uppercase tracking-[0.16em] text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    // Layout-specific: stacked is column; the others are row.
+    brandLayout === "stacked"
+      ? "flex-col items-center justify-center gap-1 text-[0.6rem] sm:text-[0.7rem] lg:text-[0.8rem]"
+      : "items-center justify-center gap-2 text-[0.7rem] sm:text-base sm:tracking-[0.2em] lg:text-lg xl:text-xl",
+  ].join(" ");
+  const showBrandMark =
+    brandMarkSvg && brandLayout !== "text-only";
+  const showBrandText = brandLayout !== "logo-only";
+
   return (
     <header
       data-public-header
@@ -97,7 +175,11 @@ export async function PublicHeader() {
       // header tokens from doing anything visible until 2026-04-29.
       className="public-header sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md"
     >
-      <div className="relative grid h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:h-[4.25rem] sm:gap-3 sm:px-6 lg:px-8">
+      <div
+        data-token-brand-layout={brandLayout}
+        data-token-nav-alignment={navAlignment}
+        className="relative grid h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:h-[4.25rem] sm:gap-3 sm:px-6 lg:px-8"
+      >
         <div className="flex items-center justify-start gap-1 sm:gap-2">
           {/* Mobile hamburger — visible <md only. Mounts the mobile
            *  menu drawer keyed off the shell.mobile-nav-variant token. */}
@@ -106,6 +188,8 @@ export async function PublicHeader() {
             locale={locale}
             pathnameWithoutLocale={pathnameWithoutLocale}
             brandLabel={brandLabel}
+            ctaLabel={showCtaInMobileMenu ? ctaLabel : null}
+            ctaHref={showCtaInMobileMenu ? ctaHref : null}
             openMenuLabel={t("public.header.openMenuAria")}
             closeMenuLabel={t("public.header.closeMenuAria")}
           />
@@ -117,12 +201,12 @@ export async function PublicHeader() {
               <Search className="size-5" />
             </Link>
           </Button>
-          {cmsHeaderLinks.length > 0 ? (
+          {navInLeftCol.length > 0 ? (
             <nav
-              className="hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
+              className="public-header__nav public-header__nav--left hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
               aria-label="Site links"
             >
-              {cmsHeaderLinks.map((l) => (
+              {navInLeftCol.map((l) => (
                 <Link
                   key={`${l.href}:${l.label}`}
                   href={l.href}
@@ -135,21 +219,84 @@ export async function PublicHeader() {
           ) : null}
         </div>
 
-        <Link
-          href={withLocalePath("/", locale)}
-          className="font-display flex min-w-0 items-center justify-center gap-2 whitespace-nowrap text-[0.7rem] font-medium uppercase tracking-[0.16em] text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:text-base sm:tracking-[0.2em] lg:text-lg xl:text-xl"
-        >
-          {brandMarkSvg ? (
-            <span
-              aria-hidden
-              className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-primary sm:h-6 sm:w-6 [&>svg]:h-full [&>svg]:w-full"
-              dangerouslySetInnerHTML={{ __html: brandMarkSvg }}
-            />
-          ) : null}
-          <span className="truncate">{brandLabel}</span>
-        </Link>
+        {navInCenterCol.length > 0 ? (
+          // Center alignment: brand sits at the start of the center
+          // column with the nav fanning out to its right. Keeps the brand
+          // visible while honoring the operator's "centered nav" intent.
+          <div className="flex min-w-0 items-center justify-center gap-3 sm:gap-5">
+            <Link href={withLocalePath("/", locale)} className={brandLinkClass}>
+              {showBrandMark ? (
+                <span
+                  aria-hidden
+                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-primary sm:h-6 sm:w-6 [&>svg]:h-full [&>svg]:w-full"
+                  dangerouslySetInnerHTML={{ __html: brandMarkSvg! }}
+                />
+              ) : null}
+              {showBrandText ? (
+                <span className="truncate">{brandLabel}</span>
+              ) : null}
+            </Link>
+            <nav
+              className="public-header__nav public-header__nav--center hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
+              aria-label="Site links"
+            >
+              {navInCenterCol.map((l) => (
+                <Link
+                  key={`${l.href}:${l.label}`}
+                  href={l.href}
+                  className="shrink-0 whitespace-nowrap text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        ) : (
+          <Link href={withLocalePath("/", locale)} className={brandLinkClass}>
+            {showBrandMark ? (
+              <span
+                aria-hidden
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-primary sm:h-6 sm:w-6 [&>svg]:h-full [&>svg]:w-full"
+                dangerouslySetInnerHTML={{ __html: brandMarkSvg! }}
+              />
+            ) : null}
+            {showBrandText ? (
+              <span className="truncate">{brandLabel}</span>
+            ) : null}
+          </Link>
+        )}
 
         <div className="flex items-center justify-end gap-0.5 sm:gap-1">
+          {navInRightCol.length > 0 ? (
+            <nav
+              className="public-header__nav public-header__nav--right mr-2 hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
+              aria-label="Site links"
+            >
+              {navInRightCol.map((l) => (
+                <Link
+                  key={`${l.href}:${l.label}`}
+                  href={l.href}
+                  className="shrink-0 whitespace-nowrap text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
+                >
+                  {l.label}
+                </Link>
+              ))}
+            </nav>
+          ) : null}
+          {showCtaInDesktopBar ? (
+            <Button
+              size="sm"
+              className={`mr-1 hidden md:inline-flex ${showCtaInMobileBar ? "sm:inline-flex" : ""}`}
+              asChild
+            >
+              <Link href={ctaHref!}>{ctaLabel!}</Link>
+            </Button>
+          ) : null}
+          {showCtaInMobileBar && !showCtaInDesktopBar ? (
+            <Button size="sm" className="mr-1 inline-flex md:hidden" asChild>
+              <Link href={ctaHref!}>{ctaLabel!}</Link>
+            </Button>
+          ) : null}
           <PublicLanguageToggle
             className="mr-1 hidden sm:flex"
             activeLocale={locale}

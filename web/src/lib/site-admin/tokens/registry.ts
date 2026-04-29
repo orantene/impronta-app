@@ -499,6 +499,55 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "`muse-split` is the Muse Bridal lockup (name + kicker). `wordmark` = single brand line. `monogram` = compact symbol-first.",
   },
+
+  // ── Header layout (Step 4 of the header foundation pass) ────────────
+  // Each token below MUST produce a visible, testable difference in the
+  // live header. Token CSS rules live in token-presets.css under
+  // §"Header layout"; renderer changes in <PublicHeader />.
+  "shell.header-brand-layout": {
+    key: "shell.header-brand-layout",
+    label: "Brand layout",
+    scope: "shell",
+    agencyConfigurable: true,
+    validator: z.enum(["logo-only", "text-only", "inline", "stacked"]),
+    defaultValue: "inline",
+    group: "Site shell",
+    description:
+      "`inline` = mark + text on one line (default). `stacked` = mark above text. `logo-only` and `text-only` hide the other half.",
+  },
+  "shell.header-nav-alignment": {
+    key: "shell.header-nav-alignment",
+    label: "Nav alignment",
+    scope: "shell",
+    agencyConfigurable: true,
+    validator: z.enum(["left", "center", "right", "split-around-logo"]),
+    defaultValue: "left",
+    group: "Site shell",
+    description:
+      "Where the inline desktop nav sits in the bar. `split-around-logo` puts half the links on each side of the brand.",
+  },
+  "shell.header-cta-placement": {
+    key: "shell.header-cta-placement",
+    label: "CTA placement (desktop)",
+    scope: "shell",
+    agencyConfigurable: true,
+    validator: z.enum(["right", "inside-menu-only", "both", "hidden"]),
+    defaultValue: "right",
+    group: "Site shell",
+    description:
+      "Renders identity.primary_cta_label / primary_cta_href when set. `right` shows it in the bar; `inside-menu-only` only inside mobile menu; `both` everywhere; `hidden` never.",
+  },
+  "shell.header-mobile-cta-placement": {
+    key: "shell.header-mobile-cta-placement",
+    label: "CTA placement (mobile)",
+    scope: "shell",
+    agencyConfigurable: true,
+    validator: z.enum(["outside", "inside", "both", "hidden"]),
+    defaultValue: "outside",
+    group: "Site shell",
+    description:
+      "Mobile-specific override. `outside` keeps the CTA in the top bar; `inside` moves it into the hamburger menu only; `both` shows both; `hidden` never.",
+  },
   "motion.stagger-preset": {
     key: "motion.stagger-preset",
     label: "Reveal stagger",

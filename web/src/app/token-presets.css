@@ -1997,6 +1997,28 @@ html[data-token-shell-mobile-nav-variant="sheet-bottom"]
   background: var(--token-color-surface-raised, #ffffff);
 }
 
+/* ---------------------------------------------------------------------------
+ * Header brand-layout — drives the brand link's flex direction + which
+ * children render. The renderer handles `logo-only` / `text-only` by
+ * conditionally mounting; CSS handles spacing/alignment for stacked.
+ * ------------------------------------------------------------------------- */
+html[data-token-shell-header-brand-layout="stacked"] .public-header [data-token-brand-layout="stacked"] {
+  /* Slightly increase the row height so the stacked mark + label can
+   * breathe without crowding the bar's vertical rhythm. */
+  --public-header-row-height: 4.75rem;
+}
+html[data-token-shell-header-brand-layout="stacked"] .public-header > div {
+  height: 4.75rem;
+}
+@media (min-width: 640px) {
+  html[data-token-shell-header-brand-layout="stacked"] .public-header > div {
+    height: 5.25rem;
+  }
+}
+
+/* Logo-only / text-only are pure DOM concerns — the renderer omits the
+ * other half. No CSS rule needed beyond the declared default. */
+
 /* Footer variants — reserved for future renderer component. Currently the
  * existing footer renders unchanged. */
 
