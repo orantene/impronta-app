@@ -443,8 +443,45 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
       {/* data-edit-chrome marks all editor UI so CanvasLinkInterceptor can
           exclude these links (locale switcher, page picker, admin nav) from
           its canvas-link block. display:contents is invisible to layout so
-          fixed-position chrome children keep their viewport positioning. */}
-      <div data-edit-chrome style={{ display: "contents" }}>
+          fixed-position chrome children keep their viewport positioning.
+
+          Sprint 3.2 — editor isolation. The storefront body sets shadcn
+          semantic CSS vars (--background, --popover, --card, --input, etc.)
+          to whatever the tenant theme dictates. On a black-brand tenant
+          that means our inspector / drawer / popover surfaces inherit
+          near-black backgrounds even though the editor never asked for
+          that. Custom properties cascade through display:contents, so
+          overriding them inline here resets the entire editor chrome to
+          a neutral operator palette while leaving the storefront children
+          (which live OUTSIDE this div, see `{children}` below) untouched. */}
+      <div
+        data-edit-chrome
+        style={{
+          display: "contents",
+          // Surfaces / containers
+          ["--background" as string]: "#ffffff",
+          ["--foreground" as string]: "#18181b",
+          ["--card" as string]: "#ffffff",
+          ["--card-foreground" as string]: "#18181b",
+          ["--popover" as string]: "#ffffff",
+          ["--popover-foreground" as string]: "#18181b",
+          // Inputs / borders
+          ["--input" as string]: "rgba(24,24,27,0.10)",
+          ["--border" as string]: "rgba(24,24,27,0.10)",
+          ["--ring" as string]: "rgba(58,123,255,0.45)",
+          // Muted / secondary
+          ["--muted" as string]: "#f4f4f5",
+          ["--muted-foreground" as string]: "#6b6b73",
+          ["--secondary" as string]: "#f4f4f5",
+          ["--secondary-foreground" as string]: "#18181b",
+          ["--accent" as string]: "rgba(24,24,27,0.06)",
+          ["--accent-foreground" as string]: "#18181b",
+          // Primary stays neutral here so any chrome that leans on
+          // `bg-primary` doesn't suddenly turn into the brand color.
+          ["--primary" as string]: "#18181b",
+          ["--primary-foreground" as string]: "#fafafa",
+        }}
+      >
         <TopBar
           device={device}
           setDevice={setDevice}

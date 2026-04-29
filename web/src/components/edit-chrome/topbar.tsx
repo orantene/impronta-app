@@ -751,9 +751,14 @@ function PublishSplitButton({
         className="inline-flex items-stretch overflow-hidden rounded-[8px]"
         style={{
           height: 36,
-          background: CHROME.ink,
+          // Sprint 3.2 — primary CTA uses the operator-chrome slate accent
+          // instead of CHROME.ink. Black-brand tenants no longer end up
+          // with a Publish button that disappears into the storefront, and
+          // the slate reads as a calm, premium primary action distinct
+          // from the blue we reserve for drop indicators / focus rings.
+          background: `linear-gradient(180deg, ${CHROME.accent2} 0%, ${CHROME.accent} 100%)`,
           boxShadow:
-            "0 1px 2px rgba(0,0,0,0.10), inset 0 0 0 1px rgba(255,255,255,0.10)",
+            "0 1px 2px rgba(15,19,32,0.20), inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.10)",
         }}
       >
         <button
@@ -1195,9 +1200,12 @@ function MoreMenu({
                         padding: "7px 0",
                         fontSize: 12,
                         fontWeight: 500,
-                        background: active ? CHROME.ink : CHROME.paper,
+                        // Sprint 3.2 — radio-active uses the slate accent
+                        // family rather than brand-black ink, keeping the
+                        // active state distinguishable on black tenants.
+                        background: active ? CHROME.accent : CHROME.paper,
                         color: active ? "#fff" : CHROME.text,
-                        border: `1px solid ${active ? CHROME.ink : CHROME.line}`,
+                        border: `1px solid ${active ? CHROME.accent : CHROME.line}`,
                         borderRadius: 6,
                         letterSpacing: "-0.005em",
                       }}
@@ -1219,8 +1227,9 @@ function MoreMenu({
                   fontSize: 12.5,
                   fontWeight: 600,
                   color: "#fff",
-                  background: CHROME.ink,
-                  border: `1px solid ${CHROME.ink}`,
+                  // Sprint 3.2 — secondary primary uses slate accent.
+                  background: CHROME.accent,
+                  border: `1px solid ${CHROME.accent}`,
                   borderRadius: 6,
                   letterSpacing: "-0.005em",
                 }}

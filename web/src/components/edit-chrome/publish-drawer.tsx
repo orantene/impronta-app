@@ -823,13 +823,18 @@ export function PublishDrawer() {
                   fontSize: 12,
                   fontWeight: 600,
                   color: "#fff",
-                  background: publishDisabled ? CHROME.muted2 : CHROME.ink,
+                  // Sprint 3.2 — Publish CTA uses slate accent so the
+                  // drawer's primary action matches the topbar's Publish
+                  // split-button instead of competing with brand-black.
+                  background: publishDisabled
+                    ? CHROME.muted2
+                    : `linear-gradient(180deg, ${CHROME.accent2} 0%, ${CHROME.accent} 100%)`,
                   border: "none",
                   borderRadius: 7,
                   cursor: publishDisabled ? "not-allowed" : "pointer",
                   boxShadow: publishDisabled
                     ? "none"
-                    : "0 1px 2px rgba(0,0,0,0.10)",
+                    : "0 1px 2px rgba(15,19,32,0.20), inset 0 0 0 1px rgba(255,255,255,0.10)",
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,

@@ -462,7 +462,9 @@ function Eyebrow({ children }: { children: ReactNode }) {
       <span
         aria-hidden
         className="inline-block size-1.5 rounded-full"
-        style={{ background: CHROME.ink }}
+        // Sprint 3.2 — eyebrow dot tones down to muted so it reads as a
+        // section marker rather than a punctuation chip.
+        style={{ background: CHROME.muted2 }}
       />
       {children}
     </div>

@@ -63,6 +63,21 @@ export const CHROME = {
   muted2: "#8b8b93", // closer to muted (was #9b9ba3)
   muted3: "#b8b8c0", // soft disabled
 
+  // ── Operator chrome (chip / rail / drag-ghost / publish hero) ────────
+  // Warm graphite — reads as "tool", not "void". Deliberately NOT
+  // pure-black so we don't bleed the tenant brand (which may itself be
+  // pure black) into the editor's chrome surfaces. Used wherever a dark
+  // floating control needs to feel premium and operator-grade.
+  chipInk: "#1f1f24",
+  chipInkDeep: "#16171a",
+  // ── Editor accent (primary CTA, active tab) ──────────────────────────
+  // Slate — neutral premium. Distinct from the brand-black tenant uses,
+  // distinct from the blue we reserve for drop indicators / focus rings.
+  // Hover variant lifts ~12% in lightness.
+  accent: "#2a3147",
+  accent2: "#363f59",
+  accentInk: "#0f1320",
+
   // Canvas (storefront body bg, e.g. Editorial Noir)
   canvasDark: "#0a0a0a",
 

@@ -33,6 +33,7 @@ import { createPortal } from "react-dom";
 
 import { cleanSectionName } from "@/lib/site-admin/clean-section-name";
 import { useEditContext } from "./edit-context";
+import { CHROME } from "./kit/tokens";
 import { SectionTypeIcon } from "./kit/section-type-icon";
 
 interface Rect {
@@ -75,11 +76,26 @@ const HOVER_STROKE = "rgba(11,11,13,0.45)";
 const BLUE = "#2c5fdb";
 const BLUE_RGB = "58,123,255";
 
-// Chip gradient matches mockup `.chip` background.
+// ── Operator-chrome surfaces (Sprint 3.2) ─────────────────────────────────
+//
+// The chip / rail / drag-ghost used to be near-black gradients
+// (rgba(11,11,13,0.97) → rgba(24,24,27,0.97)). On a black-brand tenant
+// every operator surface ended up indistinguishable from the storefront,
+// and the editor read as "void on void." We retired pure-ink for chrome
+// and switched to a warm graphite that signals "this is a tool, not the
+// site." CHROME.chipInk / chipInkDeep are the single source of truth so
+// chip + rail + drag-ghost stay visually unified.
 const CHIP_BG =
-  "linear-gradient(180deg, rgba(24,24,27,0.97), rgba(11,11,13,0.97))";
+  `linear-gradient(180deg, ${CHROME.chipInk} 0%, ${CHROME.chipInkDeep} 100%)`;
+// Slight downstep of the chip for the smaller rail — same surface family,
+// quieter weight so the rail reads as "secondary affordance" beside the
+// chip rather than a duplicate pill.
+const RAIL_BG =
+  `linear-gradient(180deg, rgba(31,31,36,0.94) 0%, rgba(22,23,26,0.94) 100%)`;
 const CHIP_SHADOW =
-  "0 12px 32px -8px rgba(0,0,0,0.45), 0 2px 6px -2px rgba(0,0,0,0.20), inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.18)";
+  "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)";
+const RAIL_SHADOW =
+  "0 8px 22px -8px rgba(0,0,0,0.32), 0 1px 3px rgba(0,0,0,0.16), inset 0 0 0 1px rgba(255,255,255,0.07), inset 0 1px 0 rgba(255,255,255,0.10)";
 
 interface DropTarget {
   slotKey: string;
@@ -624,20 +640,23 @@ export function SelectionLayer() {
                 : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
             }}
           />
-          {/* Per-section left-corner control rail. */}
+          {/* Per-section left-corner control rail. Uses RAIL_BG/SHADOW
+           * (a quieter sibling of CHIP_BG) so the rail reads as a
+           * "secondary affordance" attached to the section, not a second
+           * full-weight chip competing with the selection chip. */}
           {drag.phase === "idle" ? (
             <div
               style={{
                 position: "fixed",
                 top: Math.max(hoverRect.top + 8, 62),
                 left: hoverRect.left + 8,
-                height: 30,
+                height: 28,
                 display: "inline-flex",
                 alignItems: "stretch",
-                background: CHIP_BG,
+                background: RAIL_BG,
                 color: "white",
-                borderRadius: 8,
-                boxShadow: CHIP_SHADOW,
+                borderRadius: 7,
+                boxShadow: RAIL_SHADOW,
                 backdropFilter: "blur(12px)",
                 WebkitBackdropFilter: "blur(12px)",
                 overflow: "hidden",
@@ -660,13 +679,13 @@ export function SelectionLayer() {
                   startDrag(e, hoveredSectionId);
                 }}
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 28,
+                  height: 28,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   background: "transparent",
-                  color: "rgba(255,255,255,0.85)",
+                  color: "rgba(255,255,255,0.78)",
                   border: "none",
                   cursor: "grab",
                   touchAction: "none",
@@ -735,13 +754,13 @@ export function SelectionLayer() {
                   );
                 }}
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 28,
+                  height: 28,
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   background: "transparent",
-                  color: "rgba(255,255,255,0.85)",
+                  color: "rgba(255,255,255,0.78)",
                   border: "none",
                   cursor: "pointer",
                   transition: "background 100ms",
@@ -1029,13 +1048,12 @@ export function SelectionLayer() {
             pointerEvents: "none",
             zIndex: 100,
             transform: "rotate(-1deg)",
-            background:
-              "linear-gradient(180deg, rgba(24,24,27,0.97), rgba(11,11,13,0.97))",
+            background: CHIP_BG,
             color: "white",
             padding: "12px 16px",
             borderRadius: 12,
             boxShadow:
-              "0 24px 56px -12px rgba(0,0,0,0.50), 0 4px 12px -2px rgba(0,0,0,0.30), inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.18)",
+              "0 24px 56px -12px rgba(0,0,0,0.42), 0 4px 12px -2px rgba(0,0,0,0.24), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)",
             display: "flex",
             alignItems: "center",
             gap: 12,
