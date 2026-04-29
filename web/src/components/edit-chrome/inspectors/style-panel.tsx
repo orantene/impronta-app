@@ -282,11 +282,12 @@ export function StylePanel({
                 height: 30,
                 fontSize: 12,
                 fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                background: CHROME.surface2,
-                border: `1px solid ${CHROME.lineMid}`,
-                borderRadius: 6,
+                background: "#faf9f6",
+                border: "1px solid #e5e0d5",
+                borderRadius: 7,
                 color: CHROME.ink,
                 outline: "none",
+                transition: "border-color 150ms, box-shadow 150ms",
               }}
             />
           </div>
@@ -380,13 +381,14 @@ export function StylePanel({
               fontSize: 11.5,
               lineHeight: 1.45,
               fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              background: CHROME.surface2,
-              border: `1px solid ${CHROME.lineMid}`,
-              borderRadius: 6,
+              background: "#faf9f6",
+              border: "1px solid #e5e0d5",
+              borderRadius: 7,
               color: CHROME.ink,
               outline: "none",
               resize: "vertical",
               minHeight: 110,
+              transition: "border-color 150ms, box-shadow 150ms",
             }}
           />
           <span className={HINT}>
@@ -494,11 +496,12 @@ export function StylePanel({
               height: 30,
               fontSize: 12,
               fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              background: CHROME.surface2,
-              border: `1px solid ${CHROME.lineMid}`,
-              borderRadius: 6,
+              background: "#faf9f6",
+              border: "1px solid #e5e0d5",
+              borderRadius: 7,
               color: CHROME.ink,
               outline: "none",
+              transition: "border-color 150ms, box-shadow 150ms",
             }}
           />
         </div>
@@ -518,11 +521,12 @@ export function StylePanel({
               height: 30,
               fontSize: 12,
               fontFamily: "ui-monospace, SFMono-Regular, monospace",
-              background: CHROME.surface2,
-              border: `1px solid ${CHROME.lineMid}`,
-              borderRadius: 6,
+              background: "#faf9f6",
+              border: "1px solid #e5e0d5",
+              borderRadius: 7,
               color: CHROME.ink,
               outline: "none",
+              transition: "border-color 150ms, box-shadow 150ms",
             }}
           />
         </div>

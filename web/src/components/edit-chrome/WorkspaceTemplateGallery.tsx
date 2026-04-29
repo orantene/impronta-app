@@ -170,7 +170,7 @@ export function WorkspaceTemplateGallery({
                 type="button"
                 onClick={handleSave}
                 disabled={pending || !name.trim()}
-                className="rounded-md border border-zinc-900 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                className="rounded-md border border-[#3d4f7c] bg-[#3d4f7c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#4a5e94] disabled:opacity-50"
               >
                 {pending ? "…" : "Save"}
               </button>
@@ -183,14 +183,14 @@ export function WorkspaceTemplateGallery({
           <button
             type="button"
             onClick={() => toggleScope("private")}
-            className={`rounded-md px-2 py-0.5 text-[10px] ${scope === "private" ? "bg-zinc-900 text-white" : "border border-border/60 hover:bg-muted/50"}`}
+            className={`rounded-md px-2 py-0.5 text-[10px] ${scope === "private" ? "bg-[#3d4f7c] text-white" : "border border-border/60 hover:bg-muted/50"}`}
           >
             My workspace
           </button>
           <button
             type="button"
             onClick={() => toggleScope("all")}
-            className={`rounded-md px-2 py-0.5 text-[10px] ${scope === "all" ? "bg-zinc-900 text-white" : "border border-border/60 hover:bg-muted/50"}`}
+            className={`rounded-md px-2 py-0.5 text-[10px] ${scope === "all" ? "bg-[#3d4f7c] text-white" : "border border-border/60 hover:bg-muted/50"}`}
             title="Includes platform-promoted templates from other workspaces"
           >
             Marketplace
@@ -239,7 +239,7 @@ export function WorkspaceTemplateGallery({
                   type="button"
                   onClick={() => handleApply(t.id, t.name)}
                   disabled={pending}
-                  className="rounded-md border border-zinc-900 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                  className="rounded-md border border-[#3d4f7c] bg-[#3d4f7c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#4a5e94] disabled:opacity-50"
                 >
                   Apply
                 </button>

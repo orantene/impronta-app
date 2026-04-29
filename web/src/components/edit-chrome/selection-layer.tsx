@@ -69,11 +69,11 @@ function humanizeTypeKey(key: string | null | undefined): string {
 // ── Design tokens (from mockup --select-* variables) ──────────────────────
 // White inset + ink outset + soft halo. Same values as the spec's
 // `.ring-selected` and `.ring-hover` CSS classes.
-const SELECT_OUTER = "rgba(11,11,13,0.95)";
-const SELECT_HALO = "rgba(11,11,13,0.10)";
-const SELECT_INSET = "rgba(255,255,255,0.70)";
+const SELECT_OUTER = CHROME.selectOuter;
+const SELECT_HALO = CHROME.selectHalo;
+const SELECT_INSET = CHROME.selectInset;
 const HOVER_INSET = "rgba(255,255,255,0.40)";
-const HOVER_STROKE = "rgba(11,11,13,0.45)";
+const HOVER_STROKE = "rgba(36,41,66,0.45)";
 
 // Blue (#2c5fdb) used only for drop indicators — matches mockup var(--blue)
 // end-cap dots use the 58,123,255 lighter shade for the glow.
@@ -95,7 +95,7 @@ const CHIP_BG =
 // quieter weight so the rail reads as "secondary affordance" beside the
 // chip rather than a duplicate pill.
 const RAIL_BG =
-  `linear-gradient(180deg, rgba(31,31,36,0.94) 0%, rgba(22,23,26,0.94) 100%)`;
+  `linear-gradient(180deg, rgba(36,41,66,0.94) 0%, rgba(26,31,53,0.94) 100%)`;
 const CHIP_SHADOW =
   "0 12px 32px -8px rgba(0,0,0,0.38), 0 2px 6px -2px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.14)";
 const RAIL_SHADOW =
@@ -911,10 +911,10 @@ export function SelectionLayer() {
               // Dual-tone: white inset 1px, ink outset 2px, soft outer halo 8px.
               // Uses box-shadow so inset + outset coexist without a second element.
               boxShadow: isDragging
-                ? `0 0 0 2px rgba(11,11,13,0.30)`
+                ? `0 0 0 2px rgba(36,41,66,0.30)`
                 : `inset 0 0 0 1px ${SELECT_INSET}, 0 0 0 2px ${SELECT_OUTER}, 0 0 0 8px ${SELECT_HALO}`,
               outline: isDragging
-                ? "2px dashed rgba(11,11,13,0.35)"
+                ? "2px dashed rgba(36,41,66,0.35)"
                 : "none",
               outlineOffset: isDragging ? 4 : 0,
               // Source section desaturates while being dragged.

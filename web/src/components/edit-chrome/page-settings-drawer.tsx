@@ -762,7 +762,7 @@ export function PageSettingsDrawer() {
                 fontSize: 12,
                 fontWeight: 600,
                 color: "#fff",
-                background: !dirty || submitting ? CHROME.muted2 : CHROME.ink,
+                background: !dirty || submitting ? CHROME.muted2 : CHROME.accent,
                 border: "none",
                 borderRadius: 7,
                 cursor:
@@ -868,7 +868,7 @@ function SocialPreview({
           aspectRatio: "1.91 / 1",
           background: imageUrl
             ? `url(${JSON.stringify(imageUrl)}) center/cover no-repeat`
-            : "linear-gradient(135deg, #2a2a2a, #0a0a0a)",
+            : "linear-gradient(135deg, #242942, #1a1f35)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

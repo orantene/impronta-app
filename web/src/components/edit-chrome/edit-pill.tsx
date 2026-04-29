@@ -122,7 +122,7 @@ function EntryProgressBar({ autoEnter }: { autoEnter: boolean }) {
     <div
       aria-hidden
       className="pointer-events-none fixed inset-x-0 top-0 z-[200] h-[2px] overflow-hidden"
-      style={{ background: "rgba(11, 11, 13, 0.06)" }}
+      style={{ background: "rgba(61, 79, 124, 0.08)" }}
     >
       <style>{`
         @keyframes entry-progress-glide {
@@ -135,7 +135,7 @@ function EntryProgressBar({ autoEnter }: { autoEnter: boolean }) {
         className="h-full w-1/3"
         style={{
           background:
-            "linear-gradient(90deg, transparent, rgba(11,11,13,0.85) 50%, transparent)",
+            "linear-gradient(90deg, transparent, rgba(61,79,124,0.80) 50%, transparent)",
           animation: "entry-progress-glide 1.1s ease-in-out infinite",
         }}
       />
@@ -155,7 +155,7 @@ function EditPillButton({ autoEnter }: { autoEnter: boolean }) {
       type="submit"
       disabled={showPending}
       aria-busy={showPending}
-      className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-black/10 bg-zinc-950 px-4 py-2.5 text-sm font-medium text-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.45)] transition hover:bg-zinc-800 disabled:opacity-60 data-[pending=true]:opacity-60"
+      className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-indigo-400/20 bg-[#3d4f7c] px-4 py-2.5 text-sm font-medium text-white shadow-[0_10px_30px_-8px_rgba(61,79,124,0.45)] transition hover:bg-[#4a5e94] disabled:opacity-60 data-[pending=true]:opacity-60"
       data-pending={showPending}
       aria-label={showPending ? "Entering edit mode" : "Edit this page"}
     >

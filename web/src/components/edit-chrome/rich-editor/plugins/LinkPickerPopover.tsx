@@ -89,16 +89,16 @@ export function LinkPickerPopover({ anchor, tenantId, onClose }: Props) {
         width: POPOVER_W,
         zIndex: 140,
       }}
-      className="rounded-lg border border-zinc-200 bg-white p-3 shadow-2xl"
+      className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 shadow-2xl"
     >
       <div className="flex items-center justify-between pb-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="text-xs font-medium uppercase tracking-wide text-stone-400">
           Link target
         </span>
         <button
           type="button"
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-stone-400 hover:text-stone-700"
           aria-label="Close"
         >
           ✕
@@ -112,7 +112,7 @@ export function LinkPickerPopover({ anchor, tenantId, onClose }: Props) {
       <div className="mt-3 flex items-center justify-between gap-2">
         <button
           type="button"
-          className="rounded-md border border-zinc-200 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+          className="rounded-lg border border-[#e5e0d5] px-2 py-1 text-xs text-stone-400 hover:text-stone-700 transition-colors"
           onClick={() => apply("")}
           title="Remove the link"
         >
@@ -120,7 +120,7 @@ export function LinkPickerPopover({ anchor, tenantId, onClose }: Props) {
         </button>
         <button
           type="button"
-          className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
+          className="rounded-md bg-[#3d4f7c] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#4a5e94]"
           onClick={() => apply(draft)}
         >
           Apply

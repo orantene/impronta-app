@@ -41,7 +41,7 @@ export function InspectorItemRow({
 }: InspectorItemRowProps) {
   return (
     <div
-      className={`flex items-center gap-2.5 rounded-lg border border-zinc-200 bg-white px-2 py-2 transition hover:border-zinc-300 ${className ?? ""}`}
+      className={`flex items-center gap-2.5 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-2 transition hover:border-stone-300 ${className ?? ""}`}
     >
       {handleProps ? (
         <button
@@ -69,7 +69,7 @@ export function InspectorItemRow({
       ) : null}
 
       {thumb ? (
-        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 text-zinc-500">
+        <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#e5e0d5] bg-[#faf9f6] text-stone-500">
           {thumb}
         </div>
       ) : null}

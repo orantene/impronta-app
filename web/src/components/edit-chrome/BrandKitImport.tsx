@@ -129,14 +129,14 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="self-start rounded-md border border-border/60 bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-muted/50"
+        className="self-start rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-white hover:border-stone-300 transition-colors"
       >
         {open ? "Hide brand-kit import" : "Import brand kit (JSON)"}
       </button>
       {open ? (
-        <div className="flex flex-col gap-2 rounded-md border border-border/60 bg-muted/20 p-3">
+        <div className="flex flex-col gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/40 p-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <label className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
               Or extract from a website URL
             </label>
             <div className="flex items-center gap-1">
@@ -145,14 +145,14 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
-                className="flex-1 rounded-md border border-border/60 bg-background px-2 py-1 text-xs"
+                className="flex-1 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1.5 text-[12px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
                 disabled={extractPending}
               />
               <button
                 type="button"
                 onClick={handleExtract}
                 disabled={extractPending || !url.trim()}
-                className="rounded-md border border-border/60 bg-background px-2 py-1 text-[10px] font-medium hover:bg-muted/50 disabled:opacity-50"
+                className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[10px] font-medium text-stone-600 hover:bg-white hover:border-stone-300 disabled:opacity-50 transition-colors"
               >
                 {extractPending ? "…" : "Extract"}
               </button>
@@ -171,7 +171,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
               setError(null);
             }}
             placeholder={SUGGESTED_FORMAT}
-            className="w-full rounded-md border border-border/60 bg-background px-2 py-1.5 font-mono text-[11px]"
+            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2 font-mono text-[11px] text-stone-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
             spellCheck={false}
           />
           <div className="flex items-center justify-between">
@@ -184,7 +184,7 @@ export function BrandKitImport({ onApply }: Props): ReactElement {
               type="button"
               onClick={handleApply}
               disabled={!raw.trim()}
-              className="rounded-md border border-zinc-900 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-md border border-[#3d4f7c] bg-[#3d4f7c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#4a5e94] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Apply to draft
             </button>

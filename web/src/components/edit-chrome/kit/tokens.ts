@@ -64,27 +64,31 @@ export const CHROME = {
   muted3: "#b8b8c0", // soft disabled
 
   // ── Operator chrome (chip / rail / drag-ghost / publish hero) ────────
-  // Warm graphite — reads as "tool", not "void". Deliberately NOT
-  // pure-black so we don't bleed the tenant brand (which may itself be
-  // pure black) into the editor's chrome surfaces. Used wherever a dark
-  // floating control needs to feel premium and operator-grade.
-  chipInk: "#1f1f24",
-  chipInkDeep: "#16171a",
+  // Deep indigo-tinted graphite — reads as "tool", not "void".
+  // Deliberately warm so floating controls feel cohesive with the
+  // indigo accent buttons. 2026-04-29: shifted from pure graphite
+  // to indigo-inflected dark to tie the chrome story together.
+  chipInk: "#242942",
+  chipInkDeep: "#1a1f35",
   // ── Editor accent (primary CTA, active tab) ──────────────────────────
-  // Slate — neutral premium. Distinct from the brand-black tenant uses,
-  // distinct from the blue we reserve for drop indicators / focus rings.
-  // Hover variant lifts ~12% in lightness.
-  accent: "#2a3147",
-  accent2: "#363f59",
-  accentInk: "#0f1320",
+  // Deep indigo — reads as "premium editorial tool", not "black
+  // internal button." Distinct from tenant brand-black. Hover
+  // variant lifts ~10% in lightness; the gradient gives CTAs a
+  // tactile, gem-like feel. 2026-04-29: moved from dark navy
+  // (#2a3147) to a true indigo that introduces color into the
+  // chrome without feeling garish.
+  accent: "#3d4f7c",
+  accent2: "#4a5e94",
+  accentInk: "#2b3a66",
 
   // Canvas (storefront body bg, e.g. Editorial Noir)
   canvasDark: "#0a0a0a",
 
-  // Selection ink (canvas ring)
-  selectOuter: "rgba(11, 11, 13, 0.95)",
-  selectInset: "rgba(255, 255, 255, 0.7)",
-  selectHalo: "rgba(11, 11, 13, 0.10)",
+  // Selection ink (canvas ring) — indigo-inflected so the selection
+  // ring feels like part of the accent family, not a black outline.
+  selectOuter: "rgba(36, 41, 66, 0.92)",
+  selectInset: "rgba(255, 255, 255, 0.75)",
+  selectHalo: "rgba(61, 79, 124, 0.12)",
 
   // ── Status accents (canonical 4: blue/green/amber/rose) ──────
   blue: "#2c5fdb",

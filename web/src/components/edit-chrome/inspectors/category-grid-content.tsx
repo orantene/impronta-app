@@ -331,7 +331,7 @@ function CategoryRow({
       </InspectorItemRow>
 
       {expanded ? (
-        <div className="ml-9 flex flex-col gap-3 rounded-md border border-zinc-100 bg-zinc-50/50 p-3">
+        <div className="ml-9 flex flex-col gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/50 p-3">
           <div className={KIT.field}>
             <label className={KIT.label}>Tagline</label>
             <input
@@ -389,10 +389,10 @@ function IconPicker({
       <button
         type="button"
         onClick={() => onChange(null)}
-        className={`flex aspect-square items-center justify-center rounded-md border text-[10px] font-medium transition ${
+        className={`flex aspect-square items-center justify-center rounded-lg border text-[10px] font-medium transition ${
           value === null
-            ? "border-zinc-300 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-            : "border-zinc-200 bg-white text-zinc-400 hover:border-zinc-400"
+            ? "border-indigo-200 bg-indigo-50 text-indigo-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+            : "border-[#e5e0d5] bg-[#faf9f6] text-stone-400 hover:border-stone-300"
         }`}
         title="No icon"
       >
@@ -406,10 +406,10 @@ function IconPicker({
             type="button"
             onClick={() => onChange(key)}
             title={CATEGORY_ICON_LABEL[key]}
-            className={`flex aspect-square items-center justify-center rounded-md border transition ${
+            className={`flex aspect-square items-center justify-center rounded-lg border transition ${
               active
-                ? "border-zinc-300 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
+                ? "border-indigo-200 bg-indigo-50 text-indigo-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                : "border-[#e5e0d5] bg-[#faf9f6] text-stone-600 hover:border-stone-300"
             }`}
           >
             <CategoryIconGlyph

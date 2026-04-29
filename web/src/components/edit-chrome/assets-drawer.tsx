@@ -999,7 +999,7 @@ function primaryBtnStyle(disabled: boolean) {
     fontSize: 12,
     fontWeight: 600,
     color: "#fff",
-    background: disabled ? CHROME.muted2 : CHROME.ink,
+    background: disabled ? CHROME.muted2 : CHROME.accent,
     border: "none",
     borderRadius: 7,
     cursor: disabled ? "not-allowed" : "pointer",

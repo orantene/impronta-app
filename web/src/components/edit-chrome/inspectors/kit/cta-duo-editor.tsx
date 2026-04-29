@@ -76,9 +76,9 @@ export function CtaDuoEditor({
   return (
     <div className="flex flex-col gap-3">
       {/* Primary CTA — filled look */}
-      <div className="rounded-lg border border-zinc-200 bg-white p-2.5">
+      <div className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-2.5">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#2a3147] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#3d4f7c] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
             Primary
           </span>
           <button
@@ -110,9 +110,9 @@ export function CtaDuoEditor({
       </div>
 
       {showSecondary || secondary ? (
-        <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/40 p-2.5">
+        <div className="rounded-lg border border-dashed border-[#e5e0d5] bg-[#faf9f6]/60 p-2.5">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e5e0d5] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-stone-600">
               Secondary
             </span>
             <div className="flex items-center gap-2">

@@ -170,7 +170,7 @@ export function EmptyCanvasStarter() {
                 key={tile.slug}
                 action={dispatch}
                 onSubmit={() => setPendingSlug(tile.slug)}
-                className="group flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-zinc-900 hover:shadow-md"
+                className="group flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 text-left transition hover:border-indigo-300 hover:shadow-md"
               >
                 <input type="hidden" name="recipeSlug" value={tile.slug} />
                 <div className="overflow-hidden rounded-md bg-zinc-50 p-2">
@@ -193,7 +193,7 @@ export function EmptyCanvasStarter() {
                 <button
                   type="submit"
                   disabled={pending}
-                  className="mt-auto inline-flex items-center justify-center rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-auto inline-flex items-center justify-center rounded-md bg-[#3d4f7c] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#4a5e94] disabled:cursor-not-allowed disabled:opacity-50"
                   title={`Seed ${tile.sections} sections from the ${tile.label} starter into a fresh draft composition.`}
                 >
                   {busy ? "Applying…" : "Start with this"}

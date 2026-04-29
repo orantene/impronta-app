@@ -238,8 +238,8 @@ function VoiceSlot({
     <div
       className={`rounded-xl border p-3.5 flex flex-col gap-3 transition ${
         isEmpty
-          ? "border-zinc-200 bg-zinc-50/80"
-          : "border-zinc-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+          ? "border-[#e5e0d5] bg-[#faf9f6]/80"
+          : "border-[#e5e0d5] bg-[#faf9f6] shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
       }`}
     >
       {/* Slot header: label badge + accent swatch row */}
@@ -270,7 +270,7 @@ function VoiceSlot({
                 }
                 className={`size-5 rounded-full border-2 transition hover:scale-110 ${
                   active
-                    ? "border-zinc-900 scale-110"
+                    ? "border-indigo-400 scale-110"
                     : "border-zinc-200 hover:border-zinc-400"
                 }`}
                 style={style}

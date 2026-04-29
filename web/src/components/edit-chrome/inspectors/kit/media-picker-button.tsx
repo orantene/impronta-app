@@ -74,7 +74,7 @@ export function MediaPickerButton({
           <button
             type="button"
             onClick={() => setUrlMode((v) => !v)}
-            className="rounded-md border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-900"
+            className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2.5 py-1 text-[11px] font-medium text-stone-600 transition hover:bg-white hover:text-stone-800 hover:border-stone-300"
           >
             {urlMode ? "Hide URL" : "Paste URL"}
           </button>
@@ -83,7 +83,7 @@ export function MediaPickerButton({
           <input
             type="url"
             placeholder="https://…"
-            className="w-full rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
+            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2.5 py-1.5 text-xs text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
             onBlur={(e) => {
               const v = e.target.value.trim();
               if (v) onChange(v);

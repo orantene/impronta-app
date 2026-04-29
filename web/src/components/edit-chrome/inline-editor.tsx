@@ -320,7 +320,7 @@ export function InlineEditor() {
             left: imgHover.rect.right - 110,
             zIndex: 115,
           }}
-          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-zinc-900/95 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg backdrop-blur transition hover:bg-zinc-800"
+          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-[#242942]/95 px-3 py-1.5 text-[11px] font-medium text-white shadow-lg backdrop-blur transition hover:bg-[#2e3452]"
         >
           <svg
             width="12"
@@ -354,7 +354,7 @@ export function InlineEditor() {
           className={`pointer-events-auto rounded-md px-3 py-2 text-xs font-medium shadow-lg ${
             banner.kind === "error"
               ? "bg-amber-50 text-amber-800 border border-amber-200"
-              : "bg-[#2a3147] text-white"
+              : "bg-[#3d4f7c] text-white"
           }`}
         >
           {banner.text}

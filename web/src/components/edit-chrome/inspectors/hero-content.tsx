@@ -215,7 +215,7 @@ export function HeroContentInspector({
               {slides.map((slide, i) => (
                 <li
                   key={i}
-                  className="rounded-md border border-zinc-200 bg-zinc-50/60 p-2.5 text-xs"
+                  className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/60 p-2.5 text-xs"
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <span className="font-semibold text-zinc-600">

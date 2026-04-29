@@ -473,7 +473,7 @@ function primaryBtnStyle(disabled: boolean): React.CSSProperties {
     fontSize: 10.5,
     fontWeight: 600,
     color: "#fff",
-    background: disabled ? CHROME.muted2 : CHROME.ink,
+    background: disabled ? CHROME.muted2 : CHROME.accent,
     border: "none",
     borderRadius: 6,
     cursor: disabled ? "wait" : "pointer",

@@ -107,7 +107,7 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
   return (
     <div
       data-edit-overlay="media-picker"
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-[#242942]/60 p-6 backdrop-blur-sm"
       role="dialog"
       aria-label="Media library"
       onClick={(e) => {
@@ -140,7 +140,7 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
               type="button"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-md bg-[#3d4f7c] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#4a5e94] disabled:opacity-60"
             >
               {uploading ? "Uploading…" : "Upload"}
             </button>
@@ -168,7 +168,7 @@ export function MediaPickerDialog({ tenantId, open, onPick, onClose }: Props) {
                   <button
                     type="button"
                     onClick={() => onPick(m.publicUrl)}
-                    className="flex w-full flex-col gap-1 overflow-hidden rounded-lg border border-zinc-200 bg-white p-1 text-left transition hover:border-zinc-900 hover:shadow-md"
+                    className="flex w-full flex-col gap-1 overflow-hidden rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-1 text-left transition hover:border-indigo-400 hover:shadow-md"
                   >
                     <span
                       className="aspect-[3/4] w-full overflow-hidden rounded-md bg-zinc-100 bg-cover bg-center"

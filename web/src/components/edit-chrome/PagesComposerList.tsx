@@ -119,7 +119,7 @@ export function PagesComposerList(): ReactElement {
                     type="button"
                     onClick={() => handlePublish(p)}
                     disabled={pending}
-                    className="rounded-md border border-zinc-900 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                    className="rounded-md border border-[#3d4f7c] bg-[#3d4f7c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#4a5e94] disabled:opacity-50"
                   >
                     Publish draft
                   </button>

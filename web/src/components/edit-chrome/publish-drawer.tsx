@@ -135,15 +135,15 @@ function ChevronDown({ flipped }: { flipped?: boolean }) {
 function miniInputStyle(): React.CSSProperties {
   return {
     width: "100%",
-    background: CHROME.surface,
-    border: `1px solid ${CHROME.lineMid}`,
+    background: "#faf9f6",
+    border: "1px solid #e5e0d5",
     borderRadius: 7,
     padding: "8px 10px",
     fontSize: 13,
     lineHeight: 1.4,
     color: CHROME.ink,
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)",
     outline: "none",
+    transition: "border-color 150ms, box-shadow 150ms",
   };
 }
 
@@ -875,7 +875,7 @@ function PreviewThumb() {
         width: 140,
         height: 88,
         borderRadius: 8,
-        background: "linear-gradient(180deg,#18181b,#0a0a0a)",
+        background: "linear-gradient(180deg,#242942,#1a1f35)",
         overflow: "hidden",
         border: `1px solid ${CHROME.lineMid}`,
         boxShadow: "0 4px 10px -4px rgba(0,0,0,0.30)",
@@ -936,7 +936,7 @@ function StatLine({
   const palette =
     tone === "blue"
       ? { bg: CHROME.blue, fg: "#fff" }
-      : { bg: CHROME.ink, fg: "#fff" };
+      : { bg: CHROME.accent, fg: "#fff" };
   return (
     <div
       style={{

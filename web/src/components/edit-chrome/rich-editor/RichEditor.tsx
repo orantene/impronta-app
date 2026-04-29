@@ -123,9 +123,9 @@ export function RichEditor({
   const inputClass =
     className ??
     [
-      "w-full rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm",
+      "w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2 text-[13px] text-stone-800",
       variant === "multi" ? "min-h-[80px]" : "",
-      "outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/40",
+      "outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/15 focus-visible:border-indigo-300 transition-colors",
       "whitespace-pre-wrap break-words",
     ]
       .filter(Boolean)
@@ -141,7 +141,7 @@ export function RichEditor({
                 aria-label={ariaLabel ?? "Rich text editor"}
                 aria-placeholder={placeholder}
                 placeholder={
-                  <div className="pointer-events-none absolute left-2 top-1.5 text-sm text-muted-foreground/70">
+                  <div className="pointer-events-none absolute left-3 top-2 text-[13px] text-stone-400">
                     {placeholder}
                   </div>
                 }

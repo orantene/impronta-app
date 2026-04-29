@@ -520,10 +520,11 @@ export function CommentsDrawer() {
                 width: "100%",
                 padding: "6px 8px",
                 fontSize: 12,
-                border: `1px solid ${CHROME.lineMid}`,
-                borderRadius: 6,
-                background: CHROME.surface,
+                border: "1px solid #e5e0d5",
+                borderRadius: 7,
+                background: "#faf9f6",
                 color: CHROME.ink,
+                transition: "border-color 150ms, box-shadow 150ms",
               }}
             >
               <option value="">— pick a section —</option>
@@ -548,12 +549,12 @@ export function CommentsDrawer() {
               fontFamily: "inherit",
               lineHeight: 1.4,
               resize: "vertical",
-              border: `1px solid ${CHROME.lineMid}`,
-              borderRadius: 8,
-              background: CHROME.surface,
+              border: "1px solid #e5e0d5",
+              borderRadius: 7,
+              background: "#faf9f6",
               color: CHROME.ink,
               outline: "none",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)",
+              transition: "border-color 150ms, box-shadow 150ms",
             }}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
@@ -586,8 +587,8 @@ export function CommentsDrawer() {
                 fontSize: 12,
                 fontWeight: 600,
                 color: "white",
-                background: CHROME.ink,
-                border: `1px solid ${CHROME.ink}`,
+                background: CHROME.accent,
+                border: `1px solid ${CHROME.accent}`,
                 borderRadius: 6,
                 cursor:
                   submitting ||
@@ -783,8 +784,8 @@ function ThreadCard({
                 fontSize: 11,
                 fontWeight: 600,
                 color: "white",
-                background: CHROME.ink,
-                border: `1px solid ${CHROME.ink}`,
+                background: CHROME.accent,
+                border: `1px solid ${CHROME.accent}`,
                 borderRadius: 6,
                 cursor:
                   replySubmitting || replyBody.trim().length === 0
@@ -946,8 +947,8 @@ function CommentBubble({
                 fontSize: 11,
                 fontWeight: 600,
                 color: "white",
-                background: CHROME.ink,
-                border: `1px solid ${CHROME.ink}`,
+                background: CHROME.accent,
+                border: `1px solid ${CHROME.accent}`,
                 borderRadius: 6,
                 cursor:
                   editSubmitting || editBody.trim().length === 0

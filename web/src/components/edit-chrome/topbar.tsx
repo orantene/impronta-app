@@ -170,8 +170,10 @@ function BrandMark() {
         style={{
           width: 26,
           height: 26,
-          background: CHROME.ink,
-          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.10)",
+          // 2026-04-29 — brand mark uses the indigo accent gradient,
+          // not ink-black. Ties the mark to the accent family.
+          background: `linear-gradient(135deg, ${CHROME.accent2} 0%, ${CHROME.accent} 100%)`,
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.15), 0 1px 3px rgba(0,0,0,0.12)",
         }}
         aria-hidden
       >
@@ -354,6 +356,7 @@ function PagePicker({
           {/* ── Add new page ── */}
           <Link
             href="/admin/site-settings/pages/new"
+            target="_blank"
             role="menuitem"
             className="flex cursor-pointer items-center gap-[8px] rounded-[6px] px-[10px] py-[7px] no-underline transition-colors"
             style={{ color: CHROME.blue }}

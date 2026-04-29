@@ -115,7 +115,7 @@ function GalleryTileRow({
              
             autoFocus
             type="text"
-            className="w-full rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-[11px] focus:border-zinc-400 focus:outline-none"
+            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
             value={item.alt ?? ""}
             maxLength={160}
             placeholder="Describe this image…"
@@ -218,7 +218,7 @@ const VARIANT_CHIPS: ReadonlyArray<ChipOption<VariantKey>> = [
 
 function EmptyTray() {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-zinc-300 py-10 text-center">
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[#e5e0d5] py-10 text-center">
       <svg
         width="28"
         height="28"

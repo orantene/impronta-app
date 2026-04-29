@@ -207,7 +207,7 @@ export function CtaBannerContentInspector({
                   onClick={() => update({ bandTone: t.value })}
                   className={`flex flex-col items-stretch gap-1.5 rounded-lg border p-1.5 text-left transition ${
                     active
-                      ? "border-zinc-900 shadow-[0_0_0_1px_rgba(24,24,27,0.9)]"
+                      ? "border-indigo-400 shadow-[0_0_0_1px_rgba(61,79,124,0.4)]"
                       : "border-zinc-200 hover:border-zinc-400"
                   }`}
                 >

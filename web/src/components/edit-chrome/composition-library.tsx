@@ -282,7 +282,7 @@ export function CompositionLibraryOverlay() {
                 ? "No sections available"
                 : `Search ${totalSearchable} section type${totalSearchable === 1 ? "" : "s"} — gallery, hero, cta, testimonials…`
             }
-            className="w-full rounded-md border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+            className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-9 pr-3 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
           />
         </div>
 
@@ -328,7 +328,7 @@ export function CompositionLibraryOverlay() {
                 type="checkbox"
                 checked={showAdvanced}
                 onChange={(e) => setShowAdvanced(e.target.checked)}
-                className="h-3 w-3 cursor-pointer accent-zinc-900"
+                className="h-3 w-3 cursor-pointer accent-indigo-600"
               />
               <span>Show advanced sections</span>
             </label>
@@ -344,7 +344,7 @@ export function CompositionLibraryOverlay() {
               type="checkbox"
               checked={showAdvanced}
               onChange={(e) => setShowAdvanced(e.target.checked)}
-              className="h-4 w-4 cursor-pointer accent-zinc-900"
+              className="h-4 w-4 cursor-pointer accent-indigo-600"
             />
           </label>
         ) : null}
@@ -412,7 +412,7 @@ export function CompositionLibraryOverlay() {
     >
       {/* Scrim */}
       <div
-        className="absolute inset-0 bg-zinc-900/40 transition-opacity duration-200"
+        className="absolute inset-0 bg-[#242942]/40 transition-opacity duration-200"
         style={{ opacity: drawerOpen ? 1 : 0 }}
         onClick={closeLibrary}
       />
@@ -522,7 +522,7 @@ function DrawerBodyInner({
                     type="button"
                     disabled={busyTypeKey !== null}
                     onClick={() => void handlePick(entry.typeKey)}
-                    className="group flex flex-col items-stretch gap-2 rounded-lg border border-zinc-200 bg-white p-3 text-left transition hover:-translate-y-px hover:border-zinc-900 hover:shadow-md disabled:opacity-50 disabled:hover:border-zinc-200 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                    className="group flex flex-col items-stretch gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3 text-left transition hover:-translate-y-px hover:border-indigo-300 hover:shadow-md disabled:opacity-50 disabled:hover:border-[#e5e0d5] disabled:hover:translate-y-0 disabled:hover:shadow-none"
                   >
                     <div className="relative overflow-hidden rounded-md bg-zinc-50 p-2">
                       <SectionWire
@@ -541,7 +541,7 @@ function DrawerBodyInner({
                         </span>
                       ) : null}
                       {isAdvanced ? (
-                        <span className="absolute left-2 top-2 rounded-full bg-[#2a3147]/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white">
+                        <span className="absolute left-2 top-2 rounded-full bg-[#3d4f7c]/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white">
                           Advanced
                         </span>
                       ) : null}
@@ -588,7 +588,7 @@ function Tab({ active, onClick, label, count, mobile }: TabProps) {
       onClick={onClick}
       className={
         active
-          ? `inline-flex items-center gap-1 rounded-full bg-[#2a3147] ${sizing} font-medium text-white`
+          ? `inline-flex items-center gap-1 rounded-full bg-[#3d4f7c] ${sizing} font-medium text-white`
           : `inline-flex items-center gap-1 rounded-full bg-zinc-100 ${sizing} font-medium text-zinc-600 hover:bg-zinc-200 active:bg-zinc-200`
       }
     >

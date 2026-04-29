@@ -142,7 +142,7 @@ export function ToolbarPlugin({ onRequestLink }: Props) {
         opacity: 1,
         transform: "translateY(0)",
       }}
-      className="pointer-events-auto inline-flex items-center gap-0.5 rounded-full border border-zinc-800 bg-zinc-900/95 px-1.5 py-1 text-white shadow-xl backdrop-blur"
+      className="pointer-events-auto inline-flex items-center gap-0.5 rounded-full border border-[#2e3452] bg-[#242942]/95 px-1.5 py-1 text-white shadow-xl backdrop-blur"
     >
       <ToolbarButton
         active={state.isBold}

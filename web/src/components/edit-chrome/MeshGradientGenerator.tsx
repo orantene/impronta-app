@@ -56,7 +56,7 @@ export function MeshGradientGenerator({ onApply }: Props): ReactElement {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
         Mesh gradient generator
       </div>
       <div
@@ -70,20 +70,20 @@ export function MeshGradientGenerator({ onApply }: Props): ReactElement {
         aria-label="Mesh gradient preview"
       />
       <div className="flex items-center gap-2">
-        <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Base</label>
+        <label className="text-[10px] uppercase tracking-wide text-stone-400">Base</label>
         <input
           type="color"
           value={baseColor}
           onChange={(e) => setBaseColor(e.target.value)}
-          className="h-6 w-8 rounded border border-border/60"
+          className="h-6 w-8 rounded-lg border border-[#e5e0d5]"
         />
-        <span className="font-mono text-[11px] text-muted-foreground">{baseColor}</span>
+        <span className="font-mono text-[11px] text-stone-400">{baseColor}</span>
         <div className="ml-auto flex items-center gap-1">
           <button
             type="button"
             onClick={() => stops.length < 5 && setStops([...stops, { x: 50, y: 50, color: "#cccccc", size: 45 }])}
             disabled={stops.length >= 5}
-            className="rounded-md border border-border/60 px-2 py-0.5 text-[10px] disabled:opacity-50"
+            className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] text-stone-600 hover:bg-white hover:border-stone-300 disabled:opacity-50 transition-colors"
           >
             + Stop
           </button>
@@ -91,7 +91,7 @@ export function MeshGradientGenerator({ onApply }: Props): ReactElement {
             type="button"
             onClick={() => stops.length > 2 && setStops(stops.slice(0, -1))}
             disabled={stops.length <= 2}
-            className="rounded-md border border-border/60 px-2 py-0.5 text-[10px] disabled:opacity-50"
+            className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-0.5 text-[10px] text-stone-600 hover:bg-white hover:border-stone-300 disabled:opacity-50 transition-colors"
           >
             − Stop
           </button>
@@ -100,28 +100,28 @@ export function MeshGradientGenerator({ onApply }: Props): ReactElement {
       <div className="flex flex-col gap-1.5">
         {stops.map((s, i) => (
           <div key={i} className="grid grid-cols-[20px_60px_60px_1fr_24px] items-center gap-2 text-[11px]">
-            <span className="text-muted-foreground">#{i + 1}</span>
+            <span className="text-stone-400">#{i + 1}</span>
             <label className="flex items-center gap-1">
               x
-              <input type="number" min={0} max={100} value={s.x} onChange={(e) => patch(i, { x: Number(e.target.value) })} className="w-12 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-[11px]" />
+              <input type="number" min={0} max={100} value={s.x} onChange={(e) => patch(i, { x: Number(e.target.value) })} className="w-12 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-1.5 py-0.5 text-[11px] text-stone-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors" />
             </label>
             <label className="flex items-center gap-1">
               y
-              <input type="number" min={0} max={100} value={s.y} onChange={(e) => patch(i, { y: Number(e.target.value) })} className="w-12 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-[11px]" />
+              <input type="number" min={0} max={100} value={s.y} onChange={(e) => patch(i, { y: Number(e.target.value) })} className="w-12 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-1.5 py-0.5 text-[11px] text-stone-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors" />
             </label>
             <div className="flex items-center gap-1">
-              <input type="color" value={s.color} onChange={(e) => patch(i, { color: e.target.value })} className="h-5 w-7 rounded border border-border/60" />
-              <span className="font-mono text-[10px] text-muted-foreground">{s.color}</span>
+              <input type="color" value={s.color} onChange={(e) => patch(i, { color: e.target.value })} className="h-5 w-7 rounded-lg border border-[#e5e0d5]" />
+              <span className="font-mono text-[10px] text-stone-400">{s.color}</span>
             </div>
-            <input type="number" min={10} max={100} value={s.size} onChange={(e) => patch(i, { size: Number(e.target.value) })} className="w-12 rounded-md border border-border/60 bg-background px-1.5 py-0.5 text-[11px]" title="size %" />
+            <input type="number" min={10} max={100} value={s.size} onChange={(e) => patch(i, { size: Number(e.target.value) })} className="w-12 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-1.5 py-0.5 text-[11px] text-stone-800 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors" title="size %" />
           </div>
         ))}
       </div>
       <details>
-        <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <summary className="cursor-pointer text-[10px] font-semibold uppercase tracking-wide text-stone-400">
           CSS output
         </summary>
-        <pre className="mt-1 overflow-x-auto rounded-md bg-muted/30 p-2 text-[10px]">
+        <pre className="mt-1 overflow-x-auto rounded-lg bg-[#faf9f6]/60 border border-[#e5e0d5] p-2 text-[10px]">
           {css}
         </pre>
       </details>
@@ -129,7 +129,7 @@ export function MeshGradientGenerator({ onApply }: Props): ReactElement {
         <button
           type="button"
           onClick={() => onApply(css)}
-          className="self-end rounded-md border border-zinc-900 bg-zinc-900 px-2 py-1 text-[10px] font-semibold text-white hover:bg-zinc-800"
+          className="self-end rounded-md border border-[#3d4f7c] bg-[#3d4f7c] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#4a5e94]"
         >
           Apply
         </button>

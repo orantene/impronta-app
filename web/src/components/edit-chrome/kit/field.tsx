@@ -72,13 +72,13 @@ export function FieldLabel({
       htmlFor={htmlFor}
       className={`flex items-center gap-1.5 ${className ?? ""}`}
       style={{
-        // 2026-04-28 — Field labels dropped uppercase + caps-tracking.
-        // Sentence-case 12px, weight 600, normal tracking. Reads as
-        // "label," not "1990s admin tool eyebrow."
+        // 2026-04-29 — Labels use warm stone tone, not ink-black.
+        // Reads as "editorial field label," not "bold black heading
+        // competing with the section title."
         fontSize: 12,
         fontWeight: 600,
         letterSpacing: "-0.005em",
-        color: CHROME.ink,
+        color: "#57534e", // stone-600 — warm, not cold zinc
         marginBottom: 6,
       }}
     >

@@ -280,11 +280,11 @@ export function ScheduleDrawer() {
               fontSize: 14,
               lineHeight: 1.4,
               color: CHROME.ink,
-              background: CHROME.surface,
-              border: `1px solid ${CHROME.lineMid}`,
-              borderRadius: 8,
+              background: "#faf9f6",
+              border: "1px solid #e5e0d5",
+              borderRadius: 7,
               outline: "none",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5)",
+              transition: "border-color 150ms, box-shadow 150ms",
             }}
           />
           <p
@@ -390,8 +390,8 @@ export function ScheduleDrawer() {
                 fontSize: 13,
                 fontWeight: 600,
                 color: "white",
-                background: CHROME.ink,
-                border: `1px solid ${CHROME.ink}`,
+                background: CHROME.accent,
+                border: `1px solid ${CHROME.accent}`,
                 borderRadius: 8,
                 cursor: isSaving || !pickerValue ? "not-allowed" : "pointer",
                 opacity: isSaving || !pickerValue ? 0.6 : 1,

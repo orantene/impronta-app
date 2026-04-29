@@ -104,14 +104,14 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
           Google Fonts — {slot}
         </span>
         {current ? (
           <button
             type="button"
             onClick={() => onChange("")}
-            className="rounded-md px-2 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/50"
+            className="rounded-lg px-2 py-0.5 text-[10px] text-stone-400 hover:bg-[#faf9f6] hover:text-stone-600 transition-colors"
           >
             Reset
           </button>
@@ -123,10 +123,10 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
             key={c}
             type="button"
             onClick={() => setFilter(c)}
-            className={`rounded-md px-2 py-0.5 text-[10px] ${
+            className={`rounded-lg px-2 py-0.5 text-[10px] ${
               filter === c
-                ? "border border-zinc-300 bg-white text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
-                : "border border-transparent bg-muted text-muted-foreground hover:bg-muted/70"
+                ? "border border-indigo-200 bg-indigo-50 text-indigo-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                : "border border-[#e5e0d5] bg-[#faf9f6] text-stone-500 hover:bg-white hover:text-stone-700 hover:border-stone-300"
             }`}
           >
             {c === "all" ? "All" : CATEGORY_LABEL[c]}
@@ -135,18 +135,18 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
         <input
           type="text"
           placeholder="Search…"
-          className="ml-auto w-32 rounded-md border border-border/60 bg-background px-2 py-0.5 text-[11px]"
+          className="ml-auto w-32 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1 text-[11px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
       <div
-        className="grid max-h-64 grid-cols-2 gap-1.5 overflow-y-auto rounded-md border border-border/60 bg-muted/20 p-1.5"
+        className="grid max-h-64 grid-cols-2 gap-1.5 overflow-y-auto rounded-lg border border-[#e5e0d5] bg-[#faf9f6]/40 p-1.5"
       >
         {[...grouped.entries()].flatMap(([cat, items]) => [
           <div
             key={`h-${cat}`}
-            className="col-span-2 px-1 pt-1 text-[10px] uppercase tracking-wide text-muted-foreground"
+            className="col-span-2 px-1 pt-1 text-[10px] uppercase tracking-wide text-stone-400"
           >
             {CATEGORY_LABEL[cat]}
           </div>,
@@ -163,7 +163,7 @@ export function GoogleFontPicker({ slot, value, onChange }: GoogleFontPickerProp
           )),
         ])}
         {grouped.size === 0 ? (
-          <div className="col-span-2 p-4 text-center text-[11px] text-muted-foreground">
+          <div className="col-span-2 p-4 text-center text-[11px] text-stone-400">
             No fonts match.
           </div>
         ) : null}
@@ -186,14 +186,14 @@ function FontTile({
       type="button"
       onClick={onPick}
       style={{ fontFamily: `"${font.family}", ${fallbackFor(font.category)}` }}
-      className={`flex flex-col items-start rounded-md border px-2 py-1.5 text-left transition ${
+      className={`flex flex-col items-start rounded-lg border px-2 py-1.5 text-left transition ${
         selected
-          ? "border-zinc-900 bg-white"
-          : "border-border/40 bg-background hover:border-border"
+          ? "border-indigo-400 bg-indigo-50"
+          : "border-[#e5e0d5] bg-[#faf9f6] hover:border-stone-300"
       }`}
     >
-      <span className="text-[14px] leading-tight">{font.family}</span>
-      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">
+      <span className="text-[14px] leading-tight text-stone-800">{font.family}</span>
+      <span className="text-[9px] uppercase tracking-wide text-stone-400">
         Aa Bb 0123
       </span>
     </button>

@@ -90,6 +90,7 @@ export function NavigatorPanel() {
     navigatorOpen,
     toggleNavigator,
     setSectionVisibility,
+    openLibrary,
   } = useEditContext();
 
   const [search, setSearch] = useState("");
@@ -841,6 +842,59 @@ export function NavigatorPanel() {
           >
             · {flat.length} section{flat.length === 1 ? "" : "s"}
           </span>
+          <button
+            type="button"
+            title="Add a section"
+            aria-label="Add a section"
+            onClick={() => {
+              const firstSlot = slotDefs[0]?.key ?? "body";
+              openLibrary({
+                slotKey: firstSlot,
+                insertAfterSortOrder: null,
+              });
+            }}
+            style={{
+              marginLeft: "auto",
+              width: 22,
+              height: 22,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "transparent",
+              border: `1px solid ${CHROME.line}`,
+              borderRadius: 5,
+              cursor: "pointer",
+              color: CHROME.muted,
+              transition: "background 100ms, color 100ms, border-color 100ms",
+            }}
+            onMouseEnter={(e) => {
+              const t = e.currentTarget;
+              t.style.background = CHROME.accent;
+              t.style.color = "#fff";
+              t.style.borderColor = CHROME.accent;
+            }}
+            onMouseLeave={(e) => {
+              const t = e.currentTarget;
+              t.style.background = "transparent";
+              t.style.color = CHROME.muted;
+              t.style.borderColor = CHROME.line;
+            }}
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
         </div>
 
         {/* Phase 10 — heading hierarchy lint badge. */}
@@ -880,12 +934,63 @@ export function NavigatorPanel() {
           {visible.length === 0 && !search.trim() && (
             <div
               style={{
-                padding: "10px 8px",
-                fontSize: 11.5,
-                color: CHROME.muted2,
+                padding: "12px 8px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
               }}
             >
-              No sections yet.
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: CHROME.muted2,
+                }}
+              >
+                No sections yet.
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  // Find the first slot (usually "body") and open the
+                  // section picker for it.
+                  const firstSlot = slotDefs[0]?.key ?? "body";
+                  openLibrary({
+                    slotKey: firstSlot,
+                    insertAfterSortOrder: null,
+                  });
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  padding: "7px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#fff",
+                  background: CHROME.accent,
+                  border: "none",
+                  borderRadius: 7,
+                  cursor: "pointer",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.10)",
+                }}
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add section
+              </button>
             </div>
           )}
           {visible.map((row) => {

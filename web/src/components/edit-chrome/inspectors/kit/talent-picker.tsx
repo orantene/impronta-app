@@ -152,7 +152,7 @@ export function TalentPicker({
   return (
     <div
       data-edit-overlay="talent-picker"
-      className="fixed inset-0 z-[130] flex items-start justify-center bg-black/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[130] flex items-start justify-center bg-[#242942]/40 p-4 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
@@ -194,7 +194,7 @@ export function TalentPicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by name or code…"
-                className="w-full rounded-md border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                className="w-full rounded-lg border border-[#e5e0d5] bg-[#faf9f6] py-2 pl-8 pr-3 text-[13px] text-stone-800 placeholder:text-stone-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/15 transition-colors"
               />
             </div>
           </div>
@@ -205,14 +205,14 @@ export function TalentPicker({
             <button
               type="button"
               onClick={onCancel}
-              className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+              className="rounded-lg border border-[#e5e0d5] bg-white px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-[#faf9f6] hover:border-stone-300"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={confirm}
-              className="rounded-md bg-[#2a3147] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#363f59]"
+              className="rounded-md bg-[#3d4f7c] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#4a5e94]"
             >
               Done
             </button>
@@ -332,7 +332,7 @@ function HitTile({
       type="button"
       onClick={onAdd}
       disabled={disabled}
-      className="group flex flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-2 text-left transition hover:border-zinc-900 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-zinc-200 disabled:hover:shadow-none"
+      className="group flex flex-col gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-2 text-left transition hover:border-indigo-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-[#e5e0d5] disabled:hover:shadow-none"
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-md bg-zinc-100">
         {hit.thumbnailUrl ? (
