@@ -235,18 +235,24 @@ export function NavigatorPanel() {
       // label can be a headline string. We search across BOTH the
       // headline AND the cleaned stored name so an operator hunting for
       // "Featured talent" still matches a section the navigator is
-      // labelling as "A short list, always on call." Otherwise the
-      // search bar would silently miss sections by type/intent label.
+      // labelling as "A short list, always on call." We also match the
+      // humanized type key ("featured talent") not the raw underscore
+      // form ("featured_talent") — verification caught that "featured
+      // talent" returned zero results because the literal type key
+      // contains an underscore the operator never sees.
       const cleanedName = (
         cleanSectionName(r.ref.name) || r.ref.name
       ).toLowerCase();
       const probedHeadline = (
         displayNameById.get(r.ref.sectionId) ?? ""
       ).toLowerCase();
+      const typeKey = r.ref.sectionTypeKey.toLowerCase();
+      const typeKeyHumanized = typeKey.replace(/_/g, " ");
       return (
         cleanedName.includes(q) ||
         probedHeadline.includes(q) ||
-        r.ref.sectionTypeKey.toLowerCase().includes(q)
+        typeKey.includes(q) ||
+        typeKeyHumanized.includes(q)
       );
     });
   }, [flat, search, displayNameById]);

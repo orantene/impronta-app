@@ -49,6 +49,7 @@ import {
   SectionTypeIcon,
 } from "./kit";
 import { cleanSectionName as _cleanSectionName } from "@/lib/site-admin/clean-section-name";
+import { sectionDisplayName } from "@/lib/site-admin/section-display-name";
 
 type TabKey = "content" | "layout" | "style" | "responsive" | "motion";
 
@@ -496,9 +497,18 @@ export function InspectorDock() {
   // T2-1 — Use the skeleton hint (name + type known from slots) when the
   // field-draft fetch hasn't resolved yet. Falls back to "Inspector" only
   // when nothing is selected (genuine empty state).
+  //
+  // QA-2 follow-on — inspector dock title now uses the same content-
+  // derived resolver as navigator + chip. Verification on prod caught the
+  // dock still rendering "Featured professionals — new" while the chip
+  // and navigator already showed "A short list, always on call." Three
+  // surfaces, one rule.
   const sectionTitle = loadedSection
-    ? (cleanSectionName(loadedSection.name) ||
-        humanizeTypeKey(loadedSection.sectionTypeKey))
+    ? (sectionDisplayName({
+        typeKey: loadedSection.sectionTypeKey,
+        rawName: loadedSection.name,
+        props: loadedSection.props as Record<string, unknown> | null,
+      }) || humanizeTypeKey(loadedSection.sectionTypeKey))
     : skeletonHint
       ? skeletonHint.name
       : selectedSectionId && loadingId
