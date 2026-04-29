@@ -36,6 +36,7 @@ import { createPortal } from "react-dom";
 
 import { useEditContext } from "./edit-context";
 import { CHROME, SectionTypeIcon } from "./kit";
+import { getSuggestedSections } from "@/lib/site-admin/smart-section-recommendations";
 
 const POPOVER_WIDTH = 340;
 const POPOVER_MAX_HEIGHT = 460;
@@ -47,6 +48,7 @@ export function SectionPickerPopover() {
     closePickerPopover,
     openLibrary,
     slotDefs,
+    slots,
     library,
     insertSection,
   } = useEditContext();
@@ -106,6 +108,41 @@ export function SectionPickerPopover() {
       return true;
     });
   }, [pickerPopover, slotDef, library]);
+
+  // Sprint 4 — smart recommendations. Given the section types already
+  // on the page, surface up to 3 likely-next picks at the top of the
+  // popover. Falls back gracefully when the page is empty (suggests
+  // hero) or when the slot's allow-list excludes all suggestions.
+  const suggested = useMemo(() => {
+    if (!pickerPopover) return [];
+    const currentTypes: string[] = [];
+    for (const entries of Object.values(slots)) {
+      for (const e of entries) currentTypes.push(e.sectionTypeKey);
+    }
+    const allowed = slotDef?.allowedSectionTypes
+      ? new Set(slotDef.allowedSectionTypes)
+      : null;
+    const suggestions = getSuggestedSections(currentTypes, 3);
+    // Map suggested type keys → library entries (so we render the
+    // same icon + label + description as the full list). Drop any
+    // that aren't in `items` (e.g., not in the slot's allow-list, or
+    // not a default-library entry).
+    const itemsByKey = new Map(items.map((it) => [it.typeKey, it]));
+    return suggestions
+      .map((typeKey) => itemsByKey.get(typeKey))
+      .filter((entry): entry is NonNullable<typeof entry> => {
+        if (!entry) return false;
+        if (allowed && !allowed.has(entry.typeKey)) return false;
+        return true;
+      });
+  }, [pickerPopover, slots, items, slotDef]);
+
+  // Suggested-type keys for de-duplicating the "All sections" group
+  // below. We don't want a section to appear twice in the same picker.
+  const suggestedTypeKeys = useMemo(
+    () => new Set(suggested.map((s) => s.typeKey)),
+    [suggested],
+  );
 
   // Position: prefer below the trigger, flip above when clamped, clamp
   // horizontally to the viewport.
@@ -227,7 +264,154 @@ export function SectionPickerPopover() {
             No section types available for this slot.
           </div>
         ) : (
-          items.map((entry) => {
+          <>
+            {/* Sprint 4 — Suggested group. Hidden when no suggestions
+             *  resolve (rare — only when the slot's allow-list excludes
+             *  every recommendation). Heuristic lives in
+             *  smart-section-recommendations.ts; this surface only
+             *  renders the result. */}
+            {suggested.length > 0 ? (
+              <>
+                <div
+                  style={{
+                    padding: "8px 12px 4px",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.10em",
+                    textTransform: "uppercase",
+                    color: CHROME.muted,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                    style={{ color: CHROME.amber }}
+                  >
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                  Suggested
+                </div>
+                {suggested.map((entry) => {
+                  const isBusy = busyTypeKey === entry.typeKey;
+                  return (
+                    <button
+                      key={`sug-${entry.typeKey}`}
+                      type="button"
+                      disabled={busyTypeKey !== null}
+                      onClick={() => void handlePick(entry.typeKey)}
+                      className="cursor-pointer"
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                        width: "100%",
+                        padding: "10px 10px",
+                        background: "transparent",
+                        border: "none",
+                        borderRadius: 8,
+                        textAlign: "left",
+                        transition: "background 120ms",
+                        opacity: busyTypeKey && !isBusy ? 0.5 : 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.background =
+                          CHROME.paper2;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.background =
+                          "transparent";
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 7,
+                          background: "rgba(180, 83, 9, 0.10)",
+                          color: CHROME.amber,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                        aria-hidden
+                      >
+                        <SectionTypeIcon typeKey={entry.typeKey} size={16} />
+                      </span>
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: CHROME.ink,
+                            letterSpacing: "-0.005em",
+                          }}
+                        >
+                          {entry.label}
+                          {isBusy ? (
+                            <span
+                              style={{ fontSize: 11, fontWeight: 500, color: CHROME.muted }}
+                            >
+                              adding…
+                            </span>
+                          ) : null}
+                        </span>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 11.5,
+                            color: CHROME.muted,
+                            marginTop: 1,
+                            lineHeight: 1.4,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {entry.description}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+                <div
+                  aria-hidden
+                  style={{
+                    height: 1,
+                    background: CHROME.line,
+                    margin: "6px 6px",
+                  }}
+                />
+                <div
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.10em",
+                    textTransform: "uppercase",
+                    color: CHROME.muted,
+                  }}
+                >
+                  All sections
+                </div>
+              </>
+            ) : null}
+            {items
+              .filter((entry) => !suggestedTypeKeys.has(entry.typeKey))
+              .map((entry) => {
             const isBusy = busyTypeKey === entry.typeKey;
             return (
               <button
@@ -312,7 +496,8 @@ export function SectionPickerPopover() {
                 </span>
               </button>
             );
-          })
+          })}
+          </>
         )}
       </div>
 
