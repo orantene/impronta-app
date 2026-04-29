@@ -174,6 +174,13 @@ export async function PublicHeader() {
       // rule silently fails to match — which is what kept the wired
       // header tokens from doing anything visible until 2026-04-29.
       className="public-header sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md"
+      // SSR initial state for the transparent-on-hero rule. The sensor
+      // (mounted at the bottom of this header) flips this to "false"
+      // once the user scrolls past the threshold. We MUST render this
+      // attribute on the server to avoid a hydration mismatch — the
+      // sensor used to set it via inline script before React hydrated,
+      // which React 18+ treats as a tree-hydration error.
+      data-over-hero="true"
     >
       <div
         data-token-brand-layout={brandLayout}

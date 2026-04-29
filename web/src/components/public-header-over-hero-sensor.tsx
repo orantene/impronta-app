@@ -21,11 +21,16 @@
  *     page wants a different threshold (e.g. a tall full-bleed hero),
  *     the prop is overridable.
  *
- * SSR behavior: we set `data-over-hero="true"` synchronously on first
- * paint via the inline script tag, so the transparent state is visible
- * during hydration on pages that mount over a hero. Pages without a
- * hero (e.g. /directory) don't render this component, so the attribute
- * stays unset and the rule never matches.
+ * SSR behavior: <PublicHeader> renders the `<header>` element with
+ * `data-over-hero="true"` already set, so the transparent state is
+ * applied during the initial paint without flicker. This sensor's
+ * effect runs after hydration and only ever WRITES the attribute
+ * (never reads) — so no hydration mismatch.
+ *
+ * (Earlier revision of this file used an inline script tag that wrote
+ * the attribute before React hydrated; that produced a tree-hydration
+ * mismatch warning in React 18+. The SSR-attribute approach replaces
+ * it.)
  */
 
 import { useEffect } from "react";
@@ -58,16 +63,8 @@ export function PublicHeaderOverHeroSensor({ threshold = 80 }: Props) {
     };
   }, [threshold]);
 
-  // Inline script sets the attribute synchronously on first paint so the
-  // transparent state survives hydration without a flash of opaque-then-
-  // transparent. The script reads the same threshold via a data attribute
-  // because module-level state isn't accessible from the inline string.
-  return (
-    <script
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{
-        __html: `(function(){var h=document.querySelector('[data-public-header]');if(!h)return;h.setAttribute('data-over-hero', window.scrollY < ${threshold} ? 'true' : 'false');})();`,
-      }}
-    />
-  );
+  // Sensor runs purely as a client effect — no DOM output. The header's
+  // `data-over-hero` attribute is rendered on the server (default
+  // "true"); this effect just keeps it in sync with scroll position.
+  return null;
 }
