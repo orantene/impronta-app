@@ -12,6 +12,8 @@
     },
     "header": {
       "searchTalentAria": "Search talent",
+      "openMenuAria": "Open menu",
+      "closeMenuAria": "Close menu",
       "signOutAria": "Sign out",
       "dashboard": "Dashboard",
       "setup": "Setup",

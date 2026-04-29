@@ -5,6 +5,7 @@ import { signOut } from "@/app/auth/actions";
 import { AccountMenu } from "@/components/account-menu";
 import { PublicLanguageToggle } from "@/components/public-language-toggle";
 import { PublicHeaderDiscoveryTools } from "@/components/public-header-discovery-tools";
+import { PublicHeaderMobileMenu } from "@/components/public-header-mobile-menu";
 import { PublicHeaderOverHeroSensor } from "@/components/public-header-over-hero-sensor";
 import {
   getRequestLocale,
@@ -98,6 +99,16 @@ export async function PublicHeader() {
     >
       <div className="relative grid h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:h-[4.25rem] sm:gap-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-start gap-1 sm:gap-2">
+          {/* Mobile hamburger — visible <md only. Mounts the mobile
+           *  menu drawer keyed off the shell.mobile-nav-variant token. */}
+          <PublicHeaderMobileMenu
+            navLinks={cmsHeaderLinks}
+            locale={locale}
+            pathnameWithoutLocale={pathnameWithoutLocale}
+            brandLabel={brandLabel}
+            openMenuLabel={t("public.header.openMenuAria")}
+            closeMenuLabel={t("public.header.closeMenuAria")}
+          />
           <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link
               href={withLocalePath("/directory", locale)}

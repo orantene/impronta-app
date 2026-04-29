@@ -12,6 +12,8 @@
     },
     "header": {
       "searchTalentAria": "Buscar talento",
+      "openMenuAria": "Abrir menú",
+      "closeMenuAria": "Cerrar menú",
       "signOutAria": "Cerrar sesión",
       "dashboard": "Panel",
       "setup": "Configuración",

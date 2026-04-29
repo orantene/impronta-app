@@ -1975,6 +1975,28 @@ html[data-token-shell-header-transparent-on-hero="on"] .public-header {
     border-bottom-color 200ms ease;
 }
 
+/* Mobile-nav-variant — surface treatment for the in-dialog content.
+ * The animation + position is owned by the component (see the variant
+ * classes in public-header-mobile-menu.tsx), so this layer only adjusts
+ * surface tone and typography that's appropriate per pattern. */
+html[data-token-shell-mobile-nav-variant="full-screen-fade"]
+  .public-header-menu {
+  background: var(--token-color-surface, #fffdfa);
+  /* Editorial: bigger, calmer type. Targets only this variant so the
+   * default drawer-right keeps its compact list. */
+  font-size: 1.0625rem;
+}
+html[data-token-shell-mobile-nav-variant="full-screen-fade"]
+  .public-header-menu nav a {
+  padding-block: 1rem;
+  font-size: 1.125rem;
+}
+html[data-token-shell-mobile-nav-variant="sheet-bottom"]
+  .public-header-menu {
+  /* Bottom-sheet pattern reads well with a slightly raised surface. */
+  background: var(--token-color-surface-raised, #ffffff);
+}
+
 /* Footer variants — reserved for future renderer component. Currently the
  * existing footer renders unchanged. */
 
