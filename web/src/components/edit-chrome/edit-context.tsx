@@ -52,6 +52,10 @@ import {
   type SectionVisibility,
 } from "@/lib/site-admin/edit-mode/section-actions";
 import { restoreHomepageRevisionAction } from "@/lib/site-admin/edit-mode/revisions-actions";
+import type {
+  DispatchResult,
+  EditorMutation,
+} from "@/lib/site-admin/edit-mode/editor-mutations";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
 
@@ -837,6 +841,274 @@ export function EditProvider({
   }, [slots, pageMetadata]);
 
   /**
+   * Sprint 5 — canonical EditorStore dispatcher.
+   *
+   * Single entry point for every operator-driven mutation. Routes
+   * `composition.*` kinds through the existing snapshot-transform
+   * pipeline (`dispatchMutation` below) and `section.*` kinds through
+   * per-section actions with consistent optimistic + reconcile +
+   * revert semantics.
+   *
+   * Per the Sprint 5 charter:
+   *   - Server action signatures are NOT renormalized globally; each
+   *     action keeps its current shape and we project results into the
+   *     unified `DispatchResult` envelope at THIS boundary only.
+   *   - Undo/redo snapshot shape is unchanged — composition mutations
+   *     wrap the same CompositionSnapshot transforms that already
+   *     populate past/future.
+   *   - The existing public surface (`removeSection`, `moveSectionTo`,
+   *     `setSectionVisibility`, `renameSection`, `applyFieldEdit`,
+   *     `insertSection`, `duplicateSection`) becomes a thin wrapper
+   *     around `dispatch()` so call sites don't have to change.
+   *
+   * Migration is incremental — section.* mutations land first
+   * (visibility, rename, applyFieldEdit), then composition.* gets
+   * folded in. Until that's complete, kinds not handled here fall
+   * through to the legacy bespoke functions.
+   */
+  const dispatch = useCallback(
+    async (mutation: EditorMutation): Promise<DispatchResult> => {
+      switch (mutation.kind) {
+        case "section.setVisibility": {
+          // Optimistic local state update + revert closure. We snapshot
+          // the previous visibility from the slots state via a
+          // synchronous functional setSlots so React's state is the
+          // source of truth (not a stale closure read).
+          let previousVisibility: SectionVisibility | undefined;
+          setSlots((prev) => {
+            const next: Record<string, CompositionSectionRef[]> = {};
+            for (const [slotKey, entries] of Object.entries(prev)) {
+              next[slotKey] = entries.map((e) => {
+                if (e.sectionId !== mutation.sectionId) return e;
+                previousVisibility = e.visibility;
+                return { ...e, visibility: mutation.visibility };
+              });
+            }
+            return next;
+          });
+          const result = await setSectionVisibilityAction({
+            sectionId: mutation.sectionId,
+            visibility: mutation.visibility,
+          });
+          if (!result.ok) {
+            // Revert.
+            if (previousVisibility !== undefined) {
+              const revertTo = previousVisibility;
+              setSlots((prev) => {
+                const next: Record<string, CompositionSectionRef[]> = {};
+                for (const [slotKey, entries] of Object.entries(prev)) {
+                  next[slotKey] = entries.map((e) =>
+                    e.sectionId === mutation.sectionId
+                      ? { ...e, visibility: revertTo }
+                      : e,
+                  );
+                }
+                return next;
+              });
+            }
+            setMutationError(result.error);
+            return { ok: false, error: result.error };
+          }
+          // Storefront DOM cache bust — fire-and-forget.
+          router.refresh();
+          return { ok: true };
+        }
+
+        case "section.applyFieldEdit": {
+          // Drop the redundant section-load round-trip when the
+          // section's record is already in `loadedSection` (the
+          // common autosave case — operator types in the inspector,
+          // which has just been loaded). c5d141b first introduced
+          // this win; Sprint 5 keeps it under the unified dispatcher.
+          let snapshot: {
+            sectionTypeKey: string;
+            schemaVersion: number;
+            name: string;
+            version: number;
+          } | null = null;
+          if (
+            loadedSection !== null &&
+            loadedSection.id === mutation.sectionId &&
+            typeof loadedSection.version === "number"
+          ) {
+            snapshot = {
+              sectionTypeKey: loadedSection.sectionTypeKey,
+              schemaVersion: loadedSection.schemaVersion,
+              name: loadedSection.name,
+              version: loadedSection.version,
+            };
+          } else {
+            const loaded = await loadSectionForEditAction(mutation.sectionId);
+            if (!loaded.ok) {
+              return { ok: false, error: loaded.error };
+            }
+            snapshot = {
+              sectionTypeKey: loaded.section.sectionTypeKey,
+              schemaVersion: loaded.section.schemaVersion,
+              name: loaded.section.name,
+              version: loaded.section.version,
+            };
+          }
+          setSaving(true);
+          const save = await saveSectionDraftAction({
+            id: mutation.sectionId,
+            sectionTypeKey: snapshot.sectionTypeKey,
+            schemaVersion: snapshot.schemaVersion,
+            name: snapshot.name,
+            props: mutation.props,
+            expectedVersion: snapshot.version,
+          });
+          setSaving(false);
+          if (!save.ok) {
+            setMutationError(save.error);
+            return { ok: false, error: save.error, code: save.code };
+          }
+          if (
+            selectedSectionId === mutation.sectionId &&
+            loadedSection !== null
+          ) {
+            setLoadedSection({
+              ...loadedSection,
+              version: save.version,
+              props: mutation.props,
+            });
+            setDraftPropsState({ ...mutation.props });
+            setDirty(false);
+          }
+          router.refresh();
+          return { ok: true };
+        }
+
+        case "section.rename": {
+          const trimmed = mutation.newName.trim();
+          if (!trimmed) {
+            return { ok: false, error: "Name cannot be empty." };
+          }
+          // Snapshot the section's current state — preferring local
+          // `loadedSection` when it matches (the common case: operator
+          // is renaming the currently-selected section), falling back
+          // to a server load only when the target is some other
+          // section (rare — e.g. bulk rename via cmd-K).
+          let snapshot: {
+            sectionTypeKey: string;
+            schemaVersion: number;
+            currentName: string;
+            version: number;
+            props: Record<string, unknown>;
+          } | null = null;
+          if (
+            loadedSection !== null &&
+            loadedSection.id === mutation.sectionId &&
+            typeof loadedSection.version === "number"
+          ) {
+            snapshot = {
+              sectionTypeKey: loadedSection.sectionTypeKey,
+              schemaVersion: loadedSection.schemaVersion,
+              currentName: loadedSection.name,
+              version: loadedSection.version,
+              props: loadedSection.props as Record<string, unknown>,
+            };
+          } else {
+            const loaded = await loadSectionForEditAction(mutation.sectionId);
+            if (!loaded.ok) {
+              return { ok: false, error: loaded.error };
+            }
+            snapshot = {
+              sectionTypeKey: loaded.section.sectionTypeKey,
+              schemaVersion: loaded.section.schemaVersion,
+              currentName: loaded.section.name,
+              version: loaded.section.version,
+              props: loaded.section.props as Record<string, unknown>,
+            };
+          }
+          if (snapshot.currentName === trimmed) return { ok: true };
+
+          // Optimistic: update both the slot reference (navigator
+          // label uses ref.name) and loadedSection (chip + inspector
+          // title use loadedSection.name). Snapshot the previous
+          // values so we can revert on save failure.
+          const previousLoadedAtStart =
+            loadedSection !== null && loadedSection.id === mutation.sectionId
+              ? loadedSection
+              : null;
+          const previousName = snapshot.currentName;
+          setSlots((prev) => {
+            const next: Record<string, CompositionSectionRef[]> = {};
+            for (const [slotKey, entries] of Object.entries(prev)) {
+              next[slotKey] = entries.map((e) =>
+                e.sectionId === mutation.sectionId
+                  ? { ...e, name: trimmed }
+                  : e,
+              );
+            }
+            return next;
+          });
+          if (previousLoadedAtStart !== null) {
+            setLoadedSection({ ...previousLoadedAtStart, name: trimmed });
+          }
+
+          setSaving(true);
+          const save = await saveSectionDraftAction({
+            id: mutation.sectionId,
+            sectionTypeKey: snapshot.sectionTypeKey,
+            schemaVersion: snapshot.schemaVersion,
+            name: trimmed,
+            props: snapshot.props,
+            expectedVersion: snapshot.version,
+          });
+          setSaving(false);
+          if (!save.ok) {
+            // Revert both layers — restore previous name on the slot
+            // ref + restore the loadedSection record entirely.
+            setSlots((prev) => {
+              const reverted: Record<string, CompositionSectionRef[]> = {};
+              for (const [slotKey, entries] of Object.entries(prev)) {
+                reverted[slotKey] = entries.map((e) =>
+                  e.sectionId === mutation.sectionId
+                    ? { ...e, name: previousName }
+                    : e,
+                );
+              }
+              return reverted;
+            });
+            if (previousLoadedAtStart !== null) {
+              setLoadedSection(previousLoadedAtStart);
+            }
+            setMutationError(save.error);
+            return { ok: false, error: save.error, code: save.code };
+          }
+          // Reconcile version on the loaded record. Slots already
+          // reflect the optimistic name.
+          if (
+            selectedSectionId === mutation.sectionId &&
+            loadedSection !== null
+          ) {
+            setLoadedSection((prev) =>
+              prev && prev.id === mutation.sectionId
+                ? { ...prev, name: trimmed, version: save.version }
+                : prev,
+            );
+          }
+          router.refresh();
+          return { ok: true };
+        }
+
+        // Other section + composition kinds: not yet routed through
+        // the dispatcher. Caller falls back to the legacy bespoke
+        // functions (insertSection, removeSection, moveSection*,
+        // duplicateSection).
+        default:
+          return {
+            ok: false,
+            error: `dispatch: kind ${(mutation as EditorMutation).kind} not yet routed`,
+            code: "NOT_ROUTED",
+          };
+      }
+    },
+    [router, loadedSection, selectedSectionId],
+  );
+
+  /**
    * Run a snapshot-producing mutation. Captures pre-state onto the history
    * stack, clears the redo stack, applies the optimistic slots/metadata
    * locally, then saves via CAS. On conflict or server error, rolls back.
@@ -1181,122 +1453,34 @@ export function EditProvider({
    * section is currently selected in the inspector, sync local state
    * so the UI doesn't stale-read.
    */
+  // Sprint 5 — applyFieldEdit now routes through dispatch. The bespoke
+  // optimistic + reconcile logic (load-or-cache, save, version bump)
+  // lives in dispatch's section.applyFieldEdit branch. Caller signature
+  // (sectionId + props, void return) is unchanged.
   const applyFieldEdit = useCallback(
     async (sectionId: string, props: Record<string, unknown>) => {
-      // Sprint 5 — drop the redundant loadSectionForEditAction round-trip.
-      // Inspector edits target the currently-selected section; its full
-      // record is already in `loadedSection` (loaded once when the
-      // section was selected). The previous flow round-tripped a full
-      // section load BEFORE every save, doubling perceived autosave
-      // latency. We now consume local state for sectionTypeKey /
-      // schemaVersion / name / version and only fall through to the
-      // server load when local state is missing or stale (rare —
-      // typically only when applyFieldEdit is called for a section
-      // that's not the selected one).
-      const isLocallyKnown =
-        loadedSection !== null &&
-        loadedSection.id === sectionId &&
-        // Strict version check — if the cached version is older than
-        // the latest known, defer to a server load to avoid CAS errors.
-        typeof loadedSection.version === "number";
-      let snapshot: {
-        sectionTypeKey: string;
-        schemaVersion: number;
-        name: string;
-        version: number;
-      } | null = null;
-      if (isLocallyKnown && loadedSection) {
-        snapshot = {
-          sectionTypeKey: loadedSection.sectionTypeKey,
-          schemaVersion: loadedSection.schemaVersion,
-          name: loadedSection.name,
-          version: loadedSection.version,
-        };
-      } else {
-        const loaded = await loadSectionForEditAction(sectionId);
-        if (!loaded.ok) return;
-        snapshot = {
-          sectionTypeKey: loaded.section.sectionTypeKey,
-          schemaVersion: loaded.section.schemaVersion,
-          name: loaded.section.name,
-          version: loaded.section.version,
-        };
-      }
-      setSaving(true);
-      const save = await saveSectionDraftAction({
-        id: sectionId,
-        sectionTypeKey: snapshot.sectionTypeKey,
-        schemaVersion: snapshot.schemaVersion,
-        name: snapshot.name,
-        props,
-        expectedVersion: snapshot.version,
-      });
-      setSaving(false);
-      if (!save.ok) {
-        setMutationError(save.error);
-        return;
-      }
-      if (selectedSectionId === sectionId && loadedSection) {
-        setLoadedSection({
-          ...loadedSection,
-          version: save.version,
-          props,
-        });
-        setDraftPropsState({ ...props });
-        setDirty(false);
-      }
-      router.refresh();
+      await dispatch({ kind: "section.applyFieldEdit", sectionId, props });
     },
-    [selectedSectionId, loadedSection, router],
+    [dispatch],
   );
 
-  // Sprint 4 — rename a section's stored `name`. Used by the navigator
-  // double-click-to-rename flow. Loads the section, sends a save with
-  // the existing props + new name, refreshes composition so the
-  // navigator picks up the new label. Empty trimmed names are rejected
-  // here as a safety net even though the caller normally validates.
+  // Sprint 5 — renameSection now routes through dispatch. The bespoke
+  // load → save → optimistic-name-update → revert-on-error logic lives
+  // in dispatch's section.rename branch. Caller signature is unchanged
+  // so the navigator double-click-to-rename flow doesn't move.
   const renameSection = useCallback(
     async (
       sectionId: string,
       newName: string,
     ): Promise<{ ok: boolean; error?: string }> => {
-      const trimmed = newName.trim();
-      if (!trimmed) {
-        return { ok: false, error: "Name cannot be empty." };
-      }
-      const loaded = await loadSectionForEditAction(sectionId);
-      if (!loaded.ok) {
-        return { ok: false, error: loaded.error };
-      }
-      // No-op if unchanged.
-      if (loaded.section.name === trimmed) return { ok: true };
-      setSaving(true);
-      const save = await saveSectionDraftAction({
-        id: sectionId,
-        sectionTypeKey: loaded.section.sectionTypeKey,
-        schemaVersion: loaded.section.schemaVersion,
-        name: trimmed,
-        props: loaded.section.props,
-        expectedVersion: loaded.section.version,
+      const result = await dispatch({
+        kind: "section.rename",
+        sectionId,
+        newName,
       });
-      setSaving(false);
-      if (!save.ok) {
-        setMutationError(save.error);
-        return { ok: false, error: save.error };
-      }
-      if (selectedSectionId === sectionId) {
-        setLoadedSection({
-          ...loaded.section,
-          version: save.version,
-          name: trimmed,
-        });
-      }
-      // Refresh composition so the navigator/chip pick up the new name.
-      await refreshComposition();
-      router.refresh();
-      return { ok: true };
+      return result.ok ? { ok: true } : { ok: false, error: result.error };
     },
-    [selectedSectionId, router],
+    [dispatch],
   );
 
   const undo = useCallback(async () => {
@@ -1520,58 +1704,25 @@ export function EditProvider({
     [pageVersion, locale, refreshComposition, router],
   );
 
-  // Sprint 5 — optimistic visibility toggle. Hide / Show used to round-
-  // trip the action + a full composition reload (~700ms) before the
-  // navigator + canvas reflected the new state. With multi-select Hide
-  // All this compounds (3 sections × 700ms = stutter). Now we update
-  // local slot state synchronously, fire the action in the background,
-  // revert on error. The action itself still cache-busts the storefront
-  // server-side; we keep the router.refresh() call so the storefront
-  // DOM swaps `data-section-visibility` mid-session, but skip the
-  // explicit refreshComposition() — local state is already authoritative.
+  // Sprint 5 — public setSectionVisibility now routes through the
+  // canonical dispatch(). The optimistic + revert + storefront-refresh
+  // logic lives in dispatch's section.setVisibility branch. Call
+  // signature is unchanged so consumers (selection-layer chip,
+  // navigator visibility eye, multi-select bulk Hide All) don't move.
   const setSectionVisibility = useCallback<
     EditContextValue["setSectionVisibility"]
   >(
     async (sectionId, visibility) => {
-      // Snapshot the previous visibility for revert-on-error.
-      let previousVisibility: typeof visibility | undefined;
-      setSlots((prev) => {
-        const next: typeof prev = {};
-        for (const [slotKey, entries] of Object.entries(prev)) {
-          next[slotKey] = entries.map((e) => {
-            if (e.sectionId !== sectionId) return e;
-            previousVisibility = e.visibility;
-            return { ...e, visibility };
-          });
-        }
-        return next;
-      });
-      const result = await setSectionVisibilityAction({
+      const result = await dispatch({
+        kind: "section.setVisibility",
         sectionId,
         visibility,
       });
-      if (!result.ok) {
-        // Revert local state.
-        if (previousVisibility !== undefined) {
-          const revertTo = previousVisibility;
-          setSlots((prev) => {
-            const next: typeof prev = {};
-            for (const [slotKey, entries] of Object.entries(prev)) {
-              next[slotKey] = entries.map((e) =>
-                e.sectionId === sectionId ? { ...e, visibility: revertTo } : e,
-              );
-            }
-            return next;
-          });
-        }
-        setMutationError(result.error);
-        return { ok: false, error: result.error };
-      }
-      // Storefront DOM cache bust — fire-and-forget, don't block.
-      router.refresh();
-      return { ok: true };
+      return result.ok
+        ? { ok: true }
+        : { ok: false, error: result.error };
     },
-    [router],
+    [dispatch],
   );
 
   const savePageMetadata = useCallback<EditContextValue["savePageMetadata"]>(
