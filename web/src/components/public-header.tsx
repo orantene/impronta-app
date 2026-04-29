@@ -27,6 +27,8 @@ import { getPublicHostContext } from "@/lib/saas";
 import { loadPublicBranding, loadPublicIdentity } from "@/lib/site-admin/server/reads";
 import { sanitizeBrandMarkSvg } from "@/lib/site-admin/sanitize-svg";
 import { PLATFORM_BRAND } from "@/lib/platform/brand";
+import { isEditModeActiveForTenant } from "@/lib/site-admin/edit-mode/is-active";
+import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 
 export async function PublicHeader() {
   const locale = await getRequestLocale();
@@ -74,6 +76,13 @@ export async function PublicHeader() {
   const brandMarkSvg = brandMarkRaw
     ? (sanitizeBrandMarkSvg(brandMarkRaw).svg ?? null)
     : null;
+
+  // Edit-mode flag determines whether the header gets selection
+  // markers. Loaded once per request; cheap (it just reads the
+  // edit-mode cookie). Off-tenant requests fall through to false.
+  const editActive = tenantIdForIdentity
+    ? await isEditModeActiveForTenant(tenantIdForIdentity)
+    : false;
 
   const directoryHeaderCopy = {
     shortlistAria: t("public.header.directoryShortlistAria"),
@@ -165,7 +174,11 @@ export async function PublicHeader() {
     brandMarkSvg && brandLayout !== "text-only";
   const showBrandText = brandLayout !== "logo-only";
 
-  return (
+  // Selection wrapper for in-canvas editing. Only mounts when edit
+  // mode is active so the public storefront stays clean. The selection
+  // layer queries `[data-cms-section]`; the inspector dock matches the
+  // synthetic section id to dispatch to <SiteHeaderInspector>.
+  const renderedHeader = (
     <header
       data-public-header
       // `public-header` is the CSS hook the design-token system targets
@@ -378,5 +391,26 @@ export async function PublicHeader() {
        *  No-op when that token is "off" (default) — the rule won't match. */}
       <PublicHeaderOverHeroSensor />
     </header>
+  );
+
+  if (!editActive) {
+    return renderedHeader;
+  }
+
+  // Edit mode: wrap the header in `[data-cms-section]` so the
+  // selection layer detects clicks. The synthetic ID short-circuits
+  // the inspector dock's section-load path and routes to
+  // <SiteHeaderInspector>. Wrapper must NOT introduce a stacking
+  // context (no transform, no overflow, no z-index) — the header's
+  // sticky positioning relies on the body being its scroll context.
+  return (
+    <div
+      data-cms-section=""
+      data-section-id={SITE_HEADER_SELECTION_ID}
+      data-section-type-key="site_header"
+      data-slot-key="header"
+    >
+      {renderedHeader}
+    </div>
   );
 }

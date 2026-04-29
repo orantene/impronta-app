@@ -32,6 +32,8 @@ import { SECTION_EDITOR_REGISTRY } from "@/lib/site-admin/sections/registry-edit
 import type { LoadedSection } from "./edit-context";
 import { useEditContext } from "./edit-context";
 import { ContentTab } from "./inspectors/content-dispatch";
+import { SiteHeaderInspector } from "./inspectors/site-header/SiteHeaderInspector";
+import { SITE_HEADER_SELECTION_ID } from "@/lib/site-admin/site-header/selection-id";
 import { LayoutPanel } from "./inspectors/layout-panel";
 import { StylePanel } from "./inspectors/style-panel";
 import { ResponsivePanel } from "./inspectors/responsive-panel";
@@ -161,10 +163,16 @@ export function InspectorDock() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // ---- early-branch for the synthetic site-header selection -----------------
+  // The header isn't a real cms_page_sections row — it's a synthesized
+  // selection target that maps to <SiteHeaderInspector>. Skip the
+  // standard load + tab dispatch when this id is selected.
+  const isSiteHeaderSelected = selectedSectionId === SITE_HEADER_SELECTION_ID;
+
   // ---- load section whenever selectedSectionId changes --------------------
   useEffect(() => {
     let cancelled = false;
-    if (!selectedSectionId) {
+    if (!selectedSectionId || isSiteHeaderSelected) {
       setLoadedSection(null);
       setDraftProps(null);
       setDirty(false);
@@ -551,16 +559,20 @@ export function InspectorDock() {
       testId="inspector-dock"
     >
       <DrawerHead
-        title={sectionTitle}
+        title={isSiteHeaderSelected ? "Site header" : sectionTitle}
         meta={
-          loadedSection
-            ? humanizeTypeKey(loadedSection.sectionTypeKey)
-            : skeletonHint
-              ? humanizeTypeKey(skeletonHint.typeKey)
-              : undefined
+          isSiteHeaderSelected
+            ? "Foundational drawer — Brand · Nav · Layout · Mobile · Behavior · Style"
+            : loadedSection
+              ? humanizeTypeKey(loadedSection.sectionTypeKey)
+              : skeletonHint
+                ? humanizeTypeKey(skeletonHint.typeKey)
+                : undefined
         }
         icon={
-          loadedSection ? (
+          isSiteHeaderSelected ? (
+            <SiteHeaderHeadIcon />
+          ) : loadedSection ? (
             <SectionTypeIcon
               typeKey={loadedSection.sectionTypeKey}
               size={15}
@@ -581,6 +593,8 @@ export function InspectorDock() {
 
       {!selectedSectionId ? (
         <EmptyState />
+      ) : isSiteHeaderSelected ? (
+        <SiteHeaderInspector tenantId={tenantId} />
       ) : loadError ? (
         <div
           className="flex-1 overflow-y-auto px-4 py-6 text-xs"
@@ -851,5 +865,32 @@ function InspectorSkeleton() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Small glyph for the site-header head icon — a calm horizontal bar
+ * with three dots, signalling "the header lives here". Uses currentColor
+ * so it tracks the drawer head's text color without extra wiring.
+ */
+function SiteHeaderHeadIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="15"
+      height="15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="2" y="3.5" width="12" height="4" rx="1" />
+      <circle cx="11.5" cy="5.5" r="0.6" fill="currentColor" />
+      <circle cx="13" cy="5.5" r="0.6" fill="currentColor" />
+      <line x1="2" y1="11" x2="9" y2="11" />
+      <line x1="2" y1="13" x2="6" y2="13" />
+    </svg>
   );
 }
