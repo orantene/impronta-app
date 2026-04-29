@@ -55,6 +55,7 @@ import { restoreHomepageRevisionAction } from "@/lib/site-admin/edit-mode/revisi
 import type {
   DispatchResult,
   EditorMutation,
+  InsertTarget,
 } from "@/lib/site-admin/edit-mode/editor-mutations";
 
 export type EditDevice = "desktop" | "tablet" | "mobile";
@@ -866,16 +867,37 @@ export function EditProvider({
    * folded in. Until that's complete, kinds not handled here fall
    * through to the legacy bespoke functions.
    */
-  // dispatchMutation is declared below this block, but we need to call
-  // it from dispatch's composition.* branches. Using a ref avoids the
-  // temporal-dead-zone bug (calling dispatchMutation before it's
-  // declared in the function-component body) without restructuring
-  // the file. The ref is populated by the useEffect immediately after
-  // dispatchMutation's declaration.
+  // dispatchMutation + moveSectionTo + insertSection + duplicateSection
+  // are all declared below this block, but we need to call them from
+  // dispatch's composition.* branches. Refs avoid the temporal-dead-zone
+  // bug (calling them before they're declared in the function-component
+  // body) without restructuring the file. The refs are populated
+  // synchronously on every render below the function declarations.
   const dispatchMutationRef = useRef<
     | ((
         compute: (prev: CompositionSnapshot) => CompositionSnapshot | null,
       ) => Promise<{ ok: boolean; error?: string }>)
+    | null
+  >(null);
+  const moveSectionToRef = useRef<
+    | ((
+        sectionId: string,
+        targetSlotKey: string,
+        targetSortOrder: number,
+      ) => Promise<{ ok: boolean; error?: string }>)
+    | null
+  >(null);
+  const insertSectionRef = useRef<
+    | ((
+        target: InsertTarget,
+        sectionTypeKey: string,
+      ) => Promise<{ ok: boolean; error?: string; newSectionId?: string }>)
+    | null
+  >(null);
+  const duplicateSectionRef = useRef<
+    | ((
+        sectionId: string,
+      ) => Promise<{ ok: boolean; error?: string; newSectionId?: string }>)
     | null
   >(null);
 
@@ -1147,12 +1169,48 @@ export function EditProvider({
             : { ok: false, error: result.error ?? "Save failed" };
         }
 
-        // composition.insert / composition.duplicate keep their bespoke
-        // server-call paths (need to splice in the new server-generated
-        // section id from the response). They will route through
-        // dispatch in the next slice — for now, NOT_ROUTED falls through
-        // to the legacy bespoke functions which the public API
-        // (insertSection, duplicateSection) still wraps.
+        case "composition.move": {
+          // Delegates to the standalone moveSectionTo helper (same-slot
+          // index-adjustment edge cases live there). Ref pattern
+          // breaks the temporal-dead-zone (moveSectionTo declared
+          // below dispatch in the file).
+          const fn = moveSectionToRef.current;
+          if (!fn) return { ok: false, error: "Dispatcher not ready" };
+          const result = await fn(
+            mutation.sectionId,
+            mutation.targetSlotKey,
+            mutation.targetSortOrder,
+          );
+          return result.ok
+            ? { ok: true }
+            : { ok: false, error: result.error ?? "Move failed" };
+        }
+
+        case "composition.insert": {
+          // Delegates to insertSection — the bespoke flow that splices
+          // the server-generated section id into local slots. Surfaces
+          // newSectionId on the unified DispatchResult envelope so the
+          // chip / picker can promote the new section to selection.
+          const fn = insertSectionRef.current;
+          if (!fn) return { ok: false, error: "Dispatcher not ready" };
+          const result = await fn(mutation.target, mutation.sectionTypeKey);
+          return result.ok
+            ? { ok: true, data: { newSectionId: result.newSectionId } }
+            : { ok: false, error: result.error ?? "Insert failed" };
+        }
+
+        case "composition.duplicate": {
+          // Delegates to duplicateSection — same shape as insert
+          // (server-generated id, splice into slots, surface
+          // newSectionId).
+          const fn = duplicateSectionRef.current;
+          if (!fn) return { ok: false, error: "Dispatcher not ready" };
+          const result = await fn(mutation.sectionId);
+          return result.ok
+            ? { ok: true, data: { newSectionId: result.newSectionId } }
+            : { ok: false, error: result.error ?? "Duplicate failed" };
+        }
+
         default:
           return {
             ok: false,
@@ -1288,6 +1346,8 @@ export function EditProvider({
     [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
   );
 
+  insertSectionRef.current = insertSection;
+
   // ── remove ─────────────────────────────────────────────────────────
   // Sprint 5 — routes through dispatch() (composition.remove case
   // delegates back to dispatchMutation via the ref). Public signature
@@ -1370,6 +1430,8 @@ export function EditProvider({
     [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
   );
 
+  duplicateSectionRef.current = duplicateSection;
+
   // ── move to explicit slot + position ──────────────────────────────
   const moveSectionTo = useCallback<EditContextValue["moveSectionTo"]>(
     async (sectionId, targetSlotKey, targetSortOrder) => {
@@ -1440,6 +1502,8 @@ export function EditProvider({
     },
     [dispatchMutation],
   );
+
+  moveSectionToRef.current = moveSectionTo;
 
   // ── move up/down (thin wrapper over moveSectionTo) ────────────────
   const moveSection = useCallback<EditContextValue["moveSection"]>(
