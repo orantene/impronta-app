@@ -137,6 +137,7 @@ export function SelectionLayer() {
     removeSection,
     duplicateSection,
     setSectionVisibility,
+    openPickerPopover,
     saving,
     loadedSection,
     slots,
@@ -486,31 +487,48 @@ export function SelectionLayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag]);
 
-  const startDrag = (e: React.PointerEvent<HTMLElement>) => {
-    if (!selectedSectionId || !selectedRect) return;
-    // Locate source slot + sortOrder from DOM attrs.
+  /**
+   * Sprint 3.1 — drag start now accepts an optional explicit section
+   * identifier so the per-section hover rail's grip can initiate a drag
+   * without first selecting the section. When `sectionId` is omitted we
+   * fall back to the selection-driven path used by the chip's grip
+   * (existing behaviour).
+   */
+  const startDrag = (
+    e: React.PointerEvent<HTMLElement>,
+    sectionId?: string,
+  ) => {
+    const id = sectionId ?? selectedSectionId;
+    if (!id) return;
     const el = document.querySelector<HTMLElement>(
-      `[data-cms-section][data-section-id="${CSS.escape(selectedSectionId)}"]`,
+      `[data-cms-section][data-section-id="${CSS.escape(id)}"]`,
     );
     if (!el) return;
     const slot = el.getAttribute("data-slot-key");
     const order = Number(el.getAttribute("data-sort-order") ?? "");
     if (!slot || !Number.isFinite(order)) return;
+    const typeKey = el.getAttribute("data-section-type-key") ?? null;
+    const sourceRect = sectionId
+      ? rectOf(el)
+      : (selectedRect ?? rectOf(el));
     const name =
-      loadedSection?.id === selectedSectionId
-        ? (loadedSection?.name ?? null)
-        : null;
+      loadedSection?.id === id ? (loadedSection?.name ?? null) : null;
+    // Promote the dragged section to selection so the inspector follows
+    // the operator's intent (and so the drag-end re-renders the chip).
+    if (sectionId && sectionId !== selectedSectionId) {
+      setSelectedSectionId(sectionId);
+    }
     setDrag({
       phase: "armed",
-      id: selectedSectionId,
+      id,
       slot,
       sortOrder: order,
-      typeKey: selectedTypeKey,
+      typeKey: sectionId ? typeKey : selectedTypeKey,
       name,
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      sourceRect: selectedRect,
+      sourceRect,
     });
   };
 
@@ -552,7 +570,25 @@ export function SelectionLayer() {
 
   return createPortal(
     <div data-edit-overlay className="pointer-events-none absolute inset-0">
-      {/* ── Hover ring ────────────────────────────────────────────── */}
+      {/* ── Hover ring + per-section left-corner rail ───────────────
+       *
+       * Sprint 3.1 — replaces the between-section "+" bars (composition-
+       * inserter.tsx is now a no-op) with a per-section affordance:
+       * a small chip-style pill at the section's top-left corner.
+       * Same dark gradient + blur as the selection chip so the visual
+       * language stays unified. Two controls:
+       *
+       *   - drag grip → `startDrag(e, hoveredSectionId)` (lifts section
+       *     to selection and arms the existing reorder flow)
+       *   - `+` button → `openPickerPopover` anchored at the rail with
+       *     target = insert AFTER (sortOrder = -1, i.e., prepend at
+       *     this slot — matching the legacy "insert above this section"
+       *     intent the between-section bars conveyed)
+       *
+       * Hover-revealed via `showHover`. Hidden when the section is
+       * already selected (the chip with full toolbar takes over).
+       * Hidden during drag.
+       */}
       {showHover ? (
         <>
           <div
@@ -565,46 +601,159 @@ export function SelectionLayer() {
               borderRadius: 6,
               boxShadow: `inset 0 0 0 1px ${HOVER_INSET}, 0 0 0 1px ${HOVER_STROKE}`,
               pointerEvents: "none",
-              // Suppress position transition while scrolling so the ring
-              // tracks the element instantly instead of animating over 80ms.
               transition: isScrollingRef.current
                 ? "none"
                 : "top 80ms linear, left 80ms linear, width 80ms linear, height 80ms linear",
             }}
           />
-          {/* T3-4 — "Click to edit" hover hint pinned to the ring's top-
-              right. Sets up the direct-manipulation mental model the
-              audit asked for: the operator reads the affordance before
-              they click, not after. Today clicking opens the inspector;
-              when inline text editing lands the same chip can swap to
-              "Double-click to edit text" without changing the position
-              or layer. */}
-          <div
-            style={{
-              position: "fixed",
-              top: Math.max(hoverRect.top - 24, 8),
-              left: Math.min(
-                hoverRect.left + hoverRect.width - 88,
-                window.innerWidth - 100,
-              ),
-              padding: "3px 8px",
-              borderRadius: 999,
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.92)",
-              background: "rgba(11,11,13,0.92)",
-              pointerEvents: "none",
-              whiteSpace: "nowrap",
-              boxShadow: "0 4px 12px -4px rgba(0,0,0,0.35)",
-              transition: isScrollingRef.current
-                ? "none"
-                : "top 80ms linear, left 80ms linear",
-            }}
-          >
-            Click to edit
-          </div>
+          {/* Per-section left-corner control rail. */}
+          {drag.phase === "idle" ? (
+            <div
+              style={{
+                position: "fixed",
+                top: Math.max(hoverRect.top + 8, 62),
+                left: hoverRect.left + 8,
+                height: 30,
+                display: "inline-flex",
+                alignItems: "stretch",
+                background: CHIP_BG,
+                color: "white",
+                borderRadius: 8,
+                boxShadow: CHIP_SHADOW,
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                overflow: "hidden",
+                zIndex: 88,
+                pointerEvents: "auto",
+                fontFamily:
+                  'ui-sans-serif, "SF Pro Text", system-ui, -apple-system, sans-serif',
+                userSelect: "none",
+                transition: isScrollingRef.current
+                  ? "opacity 80ms"
+                  : "top 80ms linear, left 80ms linear, opacity 80ms",
+              }}
+            >
+              <button
+                type="button"
+                aria-label="Drag to reorder section"
+                title="Drag to reorder"
+                onPointerDown={(e) => {
+                  if (!hoveredSectionId) return;
+                  startDrag(e, hoveredSectionId);
+                }}
+                style={{
+                  width: 30,
+                  height: 30,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.85)",
+                  border: "none",
+                  cursor: "grab",
+                  touchAction: "none",
+                  transition: "background 100ms",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background =
+                    "rgba(255,255,255,0.10)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background =
+                    "transparent";
+                }}
+              >
+                <svg
+                  width="11"
+                  height="14"
+                  viewBox="0 0 9 14"
+                  fill="currentColor"
+                  aria-hidden
+                >
+                  <circle cx="2" cy="2" r="1" />
+                  <circle cx="7" cy="2" r="1" />
+                  <circle cx="2" cy="7" r="1" />
+                  <circle cx="7" cy="7" r="1" />
+                  <circle cx="2" cy="12" r="1" />
+                  <circle cx="7" cy="12" r="1" />
+                </svg>
+              </button>
+              <span
+                aria-hidden
+                style={{
+                  width: 1,
+                  background: "rgba(255,255,255,0.16)",
+                  alignSelf: "stretch",
+                  margin: "5px 0",
+                }}
+              />
+              <button
+                type="button"
+                aria-label="Add a section above this one"
+                title="Add section here"
+                onClick={(e) => {
+                  if (!hoveredSectionId) return;
+                  // Compute the target: same slot, insert before this section.
+                  // `insertAfterSortOrder` of (this.sortOrder - 1) puts the new
+                  // section in the slot BEFORE the hovered one (the existing
+                  // save op normalises sort orders).
+                  const el = document.querySelector<HTMLElement>(
+                    `[data-cms-section][data-section-id="${CSS.escape(hoveredSectionId)}"]`,
+                  );
+                  if (!el) return;
+                  const slot = el.getAttribute("data-slot-key");
+                  const order = Number(
+                    el.getAttribute("data-sort-order") ?? "",
+                  );
+                  if (!slot || !Number.isFinite(order)) return;
+                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  openPickerPopover(
+                    {
+                      slotKey: slot,
+                      insertAfterSortOrder: order - 1,
+                    },
+                    r.left + r.width / 2,
+                    r.top + r.height / 2,
+                  );
+                }}
+                style={{
+                  width: 30,
+                  height: 30,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.85)",
+                  border: "none",
+                  cursor: "pointer",
+                  transition: "background 100ms",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background =
+                    "rgba(255,255,255,0.10)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background =
+                    "transparent";
+                }}
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+            </div>
+          ) : null}
         </>
       ) : null}
 
