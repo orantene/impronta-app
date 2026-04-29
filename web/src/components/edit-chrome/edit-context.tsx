@@ -1183,25 +1183,62 @@ export function EditProvider({
    */
   const applyFieldEdit = useCallback(
     async (sectionId: string, props: Record<string, unknown>) => {
-      const loaded = await loadSectionForEditAction(sectionId);
-      if (!loaded.ok) return;
+      // Sprint 5 — drop the redundant loadSectionForEditAction round-trip.
+      // Inspector edits target the currently-selected section; its full
+      // record is already in `loadedSection` (loaded once when the
+      // section was selected). The previous flow round-tripped a full
+      // section load BEFORE every save, doubling perceived autosave
+      // latency. We now consume local state for sectionTypeKey /
+      // schemaVersion / name / version and only fall through to the
+      // server load when local state is missing or stale (rare —
+      // typically only when applyFieldEdit is called for a section
+      // that's not the selected one).
+      const isLocallyKnown =
+        loadedSection !== null &&
+        loadedSection.id === sectionId &&
+        // Strict version check — if the cached version is older than
+        // the latest known, defer to a server load to avoid CAS errors.
+        typeof loadedSection.version === "number";
+      let snapshot: {
+        sectionTypeKey: string;
+        schemaVersion: number;
+        name: string;
+        version: number;
+      } | null = null;
+      if (isLocallyKnown && loadedSection) {
+        snapshot = {
+          sectionTypeKey: loadedSection.sectionTypeKey,
+          schemaVersion: loadedSection.schemaVersion,
+          name: loadedSection.name,
+          version: loadedSection.version,
+        };
+      } else {
+        const loaded = await loadSectionForEditAction(sectionId);
+        if (!loaded.ok) return;
+        snapshot = {
+          sectionTypeKey: loaded.section.sectionTypeKey,
+          schemaVersion: loaded.section.schemaVersion,
+          name: loaded.section.name,
+          version: loaded.section.version,
+        };
+      }
       setSaving(true);
       const save = await saveSectionDraftAction({
         id: sectionId,
-        sectionTypeKey: loaded.section.sectionTypeKey,
-        schemaVersion: loaded.section.schemaVersion,
-        name: loaded.section.name,
+        sectionTypeKey: snapshot.sectionTypeKey,
+        schemaVersion: snapshot.schemaVersion,
+        name: snapshot.name,
         props,
-        expectedVersion: loaded.section.version,
+        expectedVersion: snapshot.version,
       });
       setSaving(false);
       if (!save.ok) {
         setMutationError(save.error);
         return;
       }
-      if (selectedSectionId === sectionId) {
+      if (selectedSectionId === sectionId && loadedSection) {
         setLoadedSection({
-          ...loaded.section,
+          ...loadedSection,
           version: save.version,
           props,
         });
@@ -1210,7 +1247,7 @@ export function EditProvider({
       }
       router.refresh();
     },
-    [selectedSectionId, router],
+    [selectedSectionId, loadedSection, router],
   );
 
   // Sprint 4 — rename a section's stored `name`. Used by the navigator
@@ -1483,27 +1520,58 @@ export function EditProvider({
     [pageVersion, locale, refreshComposition, router],
   );
 
+  // Sprint 5 — optimistic visibility toggle. Hide / Show used to round-
+  // trip the action + a full composition reload (~700ms) before the
+  // navigator + canvas reflected the new state. With multi-select Hide
+  // All this compounds (3 sections × 700ms = stutter). Now we update
+  // local slot state synchronously, fire the action in the background,
+  // revert on error. The action itself still cache-busts the storefront
+  // server-side; we keep the router.refresh() call so the storefront
+  // DOM swaps `data-section-visibility` mid-session, but skip the
+  // explicit refreshComposition() — local state is already authoritative.
   const setSectionVisibility = useCallback<
     EditContextValue["setSectionVisibility"]
   >(
     async (sectionId, visibility) => {
+      // Snapshot the previous visibility for revert-on-error.
+      let previousVisibility: typeof visibility | undefined;
+      setSlots((prev) => {
+        const next: typeof prev = {};
+        for (const [slotKey, entries] of Object.entries(prev)) {
+          next[slotKey] = entries.map((e) => {
+            if (e.sectionId !== sectionId) return e;
+            previousVisibility = e.visibility;
+            return { ...e, visibility };
+          });
+        }
+        return next;
+      });
       const result = await setSectionVisibilityAction({
         sectionId,
         visibility,
       });
       if (!result.ok) {
+        // Revert local state.
+        if (previousVisibility !== undefined) {
+          const revertTo = previousVisibility;
+          setSlots((prev) => {
+            const next: typeof prev = {};
+            for (const [slotKey, entries] of Object.entries(prev)) {
+              next[slotKey] = entries.map((e) =>
+                e.sectionId === sectionId ? { ...e, visibility: revertTo } : e,
+              );
+            }
+            return next;
+          });
+        }
         setMutationError(result.error);
         return { ok: false, error: result.error };
       }
-      // Refresh composition so the navigator + canvas observe the new
-      // presentation.visibility on the next render. router.refresh() also
-      // triggers downstream cache busts so the storefront DOM reflects
-      // visibility:hidden mid-session.
-      await refreshComposition();
+      // Storefront DOM cache bust — fire-and-forget, don't block.
       router.refresh();
       return { ok: true };
     },
-    [refreshComposition, router],
+    [router],
   );
 
   const savePageMetadata = useCallback<EditContextValue["savePageMetadata"]>(
