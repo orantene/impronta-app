@@ -5,6 +5,7 @@ import { signOut } from "@/app/auth/actions";
 import { AccountMenu } from "@/components/account-menu";
 import { PublicLanguageToggle } from "@/components/public-language-toggle";
 import { PublicHeaderDiscoveryTools } from "@/components/public-header-discovery-tools";
+import { PublicHeaderOverHeroSensor } from "@/components/public-header-over-hero-sensor";
 import {
   getRequestLocale,
   ORIGINAL_PATHNAME_HEADER,
@@ -88,7 +89,12 @@ export async function PublicHeader() {
   return (
     <header
       data-public-header
-      className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md"
+      // `public-header` is the CSS hook the design-token system targets
+      // (see web/src/app/token-presets.css §"Shell variants"). Without it,
+      // every `html[data-token-shell-header-variant="…"] .public-header`
+      // rule silently fails to match — which is what kept the wired
+      // header tokens from doing anything visible until 2026-04-29.
+      className="public-header sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md"
     >
       <div className="relative grid h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:h-[4.25rem] sm:gap-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-start gap-1 sm:gap-2">
@@ -202,6 +208,10 @@ export async function PublicHeader() {
           )}
         </div>
       </div>
+      {/* Sensor sets `data-over-hero` on this header so the
+       *  `shell.header-transparent-on-hero="on"` token rule can fire.
+       *  No-op when that token is "off" (default) — the rule won't match. */}
+      <PublicHeaderOverHeroSensor />
     </header>
   );
 }

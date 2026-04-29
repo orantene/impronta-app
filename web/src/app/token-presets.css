@@ -1930,9 +1930,12 @@ html[data-token-card-chips-max="5"] [data-card-chip]:nth-child(n + 6) { display:
 /* ---------------------------------------------------------------------------
  * Shell variants — drive header/footer chrome.
  *
- * The public-header / public-cms-footer components read these attrs from
- * their root and swap class modifiers. Ship these now so data is wired even
- * if component variants are introduced incrementally.
+ * The public-header / public-cms-footer components carry `.public-header` /
+ * `.public-cms-footer` so these rules can target them. Variants ship in
+ * waves: classic-solid is the default and intentionally has no rule (the
+ * component's own classes ARE the classic style); editorial-sticky and
+ * espresso-column override; centered-editorial and minimal land with the
+ * Step 4 model expansion.
  * ------------------------------------------------------------------------- */
 html[data-token-shell-header-variant="editorial-sticky"] .public-header {
   backdrop-filter: blur(14px);
@@ -1945,10 +1948,31 @@ html[data-token-shell-header-variant="espresso-column"] .public-header {
   color: #f6f1ea;
   border-bottom: 1px solid rgba(246, 241, 234, 0.12);
 }
+
+/* Sticky toggle. Default token value is "on" — header sticks to viewport
+ * top via the component's `sticky` Tailwind class. When the operator
+ * picks "off", we override `position` so the header scrolls with the
+ * page. The component still renders identically; only positioning
+ * changes. */
+html[data-token-shell-header-sticky="off"] .public-header {
+  position: static;
+}
+
+/* Transparent-on-hero. `data-over-hero` is set by the
+ * <PublicHeaderOverHeroSensor> client component — it flips to "false"
+ * once the user scrolls past the threshold (default 80px). The token
+ * value gates whether the rule applies at all. */
 html[data-token-shell-header-transparent-on-hero="on"] .public-header[data-over-hero="true"] {
   background: transparent;
   color: #fff;
   border-bottom-color: transparent;
+}
+html[data-token-shell-header-transparent-on-hero="on"] .public-header {
+  /* When the sensor hasn't yet reported (SSR initial paint, or sensor
+   * removed), fall through to the component's own background so the
+   * header stays legible. */
+  transition: background-color 200ms ease, color 200ms ease,
+    border-bottom-color 200ms ease;
 }
 
 /* Footer variants — reserved for future renderer component. Currently the
