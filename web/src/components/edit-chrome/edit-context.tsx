@@ -866,6 +866,19 @@ export function EditProvider({
    * folded in. Until that's complete, kinds not handled here fall
    * through to the legacy bespoke functions.
    */
+  // dispatchMutation is declared below this block, but we need to call
+  // it from dispatch's composition.* branches. Using a ref avoids the
+  // temporal-dead-zone bug (calling dispatchMutation before it's
+  // declared in the function-component body) without restructuring
+  // the file. The ref is populated by the useEffect immediately after
+  // dispatchMutation's declaration.
+  const dispatchMutationRef = useRef<
+    | ((
+        compute: (prev: CompositionSnapshot) => CompositionSnapshot | null,
+      ) => Promise<{ ok: boolean; error?: string }>)
+    | null
+  >(null);
+
   const dispatch = useCallback(
     async (mutation: EditorMutation): Promise<DispatchResult> => {
       switch (mutation.kind) {
@@ -1093,10 +1106,53 @@ export function EditProvider({
           return { ok: true };
         }
 
-        // Other section + composition kinds: not yet routed through
-        // the dispatcher. Caller falls back to the legacy bespoke
-        // functions (insertSection, removeSection, moveSection*,
-        // duplicateSection).
+        case "composition.remove": {
+          // Snapshot transform: filter out the section, renumber
+          // remaining sortOrders. Routes through dispatchMutation
+          // for the optimistic+CAS+history pattern (unchanged from
+          // the previous bespoke removeSection).
+          const targetId = mutation.sectionId;
+          const dm = dispatchMutationRef.current;
+          if (!dm) return { ok: false, error: "Dispatcher not ready" };
+          const result = await dm((prev) => {
+            const nextSlots: Record<string, CompositionSectionRef[]> = {};
+            let removed = false;
+            for (const [slotKey, entries] of Object.entries(prev.slots)) {
+              const kept = entries.filter((e) => e.sectionId !== targetId);
+              if (kept.length !== entries.length) removed = true;
+              nextSlots[slotKey] = kept.map((e, i) => ({ ...e, sortOrder: i }));
+            }
+            if (!removed) return null;
+            return { slots: nextSlots, metadata: prev.metadata };
+          });
+          return result.ok
+            ? { ok: true }
+            : { ok: false, error: result.error ?? "Remove failed" };
+        }
+
+        case "composition.metadata": {
+          const { metadata } = mutation;
+          const dm = dispatchMutationRef.current;
+          if (!dm) return { ok: false, error: "Dispatcher not ready" };
+          const result = await dm((prev) => ({
+            ...prev,
+            // Mutation type uses `Record<string, unknown>` to keep the
+            // editor-mutations.ts boundary decoupled from PageMetadata.
+            // Cast at the dispatcher (the boundary) per the Sprint 5
+            // charter — server actions are not normalized globally.
+            metadata: metadata as unknown as typeof prev.metadata,
+          }));
+          return result.ok
+            ? { ok: true }
+            : { ok: false, error: result.error ?? "Save failed" };
+        }
+
+        // composition.insert / composition.duplicate keep their bespoke
+        // server-call paths (need to splice in the new server-generated
+        // section id from the response). They will route through
+        // dispatch in the next slice — for now, NOT_ROUTED falls through
+        // to the legacy bespoke functions which the public API
+        // (insertSection, duplicateSection) still wraps.
         default:
           return {
             ok: false,
@@ -1159,6 +1215,11 @@ export function EditProvider({
     },
     [pageVersion, currentSnapshot, locale, pageId, refreshComposition, router, capHistory],
   );
+
+  // Populate the ref dispatch() reads via — synchronous on every render
+  // so dispatch's composition.* branches always see the freshest
+  // dispatchMutation closure.
+  dispatchMutationRef.current = dispatchMutation;
 
   // ── insert ─────────────────────────────────────────────────────────
   const insertSection = useCallback<EditContextValue["insertSection"]>(
@@ -1228,23 +1289,15 @@ export function EditProvider({
   );
 
   // ── remove ─────────────────────────────────────────────────────────
+  // Sprint 5 — routes through dispatch() (composition.remove case
+  // delegates back to dispatchMutation via the ref). Public signature
+  // unchanged for the chip toolbar / multi-select bulk remove.
   const removeSection = useCallback<EditContextValue["removeSection"]>(
     async (sectionId) => {
-      return dispatchMutation((prev) => {
-        const nextSlots: Record<string, CompositionSectionRef[]> = {};
-        let removed = false;
-        for (const [slotKey, entries] of Object.entries(prev.slots)) {
-          const kept = entries.filter((e) => e.sectionId !== sectionId);
-          if (kept.length !== entries.length) removed = true;
-          // Renumber to keep sortOrder dense; save schema allows gaps but
-          // keeps comparisons cleaner.
-          nextSlots[slotKey] = kept.map((e, i) => ({ ...e, sortOrder: i }));
-        }
-        if (!removed) return null;
-        return { slots: nextSlots, metadata: prev.metadata };
-      });
+      const result = await dispatch({ kind: "composition.remove", sectionId });
+      return result.ok ? { ok: true } : { ok: false, error: result.error };
     },
-    [dispatchMutation],
+    [dispatch],
   );
 
   // ── duplicate ──────────────────────────────────────────────────────
@@ -1725,11 +1778,23 @@ export function EditProvider({
     [dispatch],
   );
 
+  // Sprint 5 — savePageMetadata routes through dispatch's
+  // composition.metadata case (delegates to dispatchMutation via ref).
   const savePageMetadata = useCallback<EditContextValue["savePageMetadata"]>(
     async (metadata) => {
-      return dispatchMutation((prev) => ({ ...prev, metadata }));
+      // Boundary cast — editor-mutations.ts decouples from PageMetadata
+      // shape so the mutation type module stays free of edit-context
+      // imports. dispatch() recasts to PageMetadata when calling
+      // dispatchMutation.
+      const result = await dispatch({
+        kind: "composition.metadata",
+        metadata: metadata as unknown as Record<string, unknown>,
+      });
+      return result.ok
+        ? { ok: true }
+        : { ok: false, error: result.error ?? "Save failed" };
     },
-    [dispatchMutation],
+    [dispatch],
   );
 
   /**
