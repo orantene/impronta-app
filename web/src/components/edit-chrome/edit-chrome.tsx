@@ -138,7 +138,10 @@ export function EditChrome({
         body { padding-top: 54px !important; }
         /* padding-right on lg is managed client-side by BodyPaddingController
            in EditShell so it can animate in/out with the inspector dock. */
-        header[data-public-header] { display: none !important; }
+        /* Keep the storefront header visible below the 54px edit topbar so
+           operators can see their nav while editing. The header is sticky
+           top-0 by default; offset it to sit below the topbar. */
+        header[data-public-header] { top: 54px !important; }
       `}</style>
       <EditShell
         tenantId={tenantId}

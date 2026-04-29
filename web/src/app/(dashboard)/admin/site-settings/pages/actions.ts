@@ -500,3 +500,147 @@ export async function endPagePreviewAction(
     return { ok: false, error: CLIENT_ERROR.update };
   }
 }
+
+// ---- list pages for picker -----------------------------------------------
+
+export type PagePickerItem = {
+  id: string;
+  title: string;
+  slug: string;
+  status: "draft" | "published" | "archived";
+};
+
+/**
+ * Returns a flat list of non-archived pages for the active tenant.
+ * Used by the editor topbar PagePicker component — called directly
+ * from a client component (no FormData needed).
+ */
+export async function listPagesForPickerAction(): Promise<
+  { ok: true; pages: PagePickerItem[] } | { ok: false; error: string }
+> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "No workspace." };
+
+  const { data, error } = await auth.supabase
+    .from("cms_pages")
+    .select("id, title, slug, status")
+    .eq("tenant_id", scope.tenantId)
+    .neq("status", "archived")
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    logServerError("site-admin/pages/list-for-picker", error);
+    return { ok: false, error: "Failed to load pages." };
+  }
+
+  return { ok: true, pages: (data ?? []) as PagePickerItem[] };
+}
+
+// ---- duplicate page -------------------------------------------------------
+
+/**
+ * Duplicate an existing page. Creates a new draft with the same body
+ * and hero content, appending "-copy" (with a counter for uniqueness)
+ * to the slug and "(Copy)" to the title. The duplicate always starts
+ * as `draft` and is excluded from the sitemap until the operator opts
+ * it in.
+ *
+ * Called directly from the PagePicker client component (no FormData).
+ */
+export async function duplicatePageAction(
+  sourceId: string,
+): Promise<{ ok: true; id: string; slug: string } | { ok: false; error: string }> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "No workspace." };
+
+  // Fetch source page
+  const { data: source, error: fetchErr } = await auth.supabase
+    .from("cms_pages")
+    .select(
+      "id, locale, slug, title, template_key, template_schema_version, body, hero, noindex",
+    )
+    .eq("id", sourceId)
+    .eq("tenant_id", scope.tenantId)
+    .single<{
+      id: string;
+      locale: string;
+      slug: string;
+      title: string;
+      template_key: string;
+      template_schema_version: number;
+      body: string;
+      hero: Record<string, unknown>;
+      noindex: boolean;
+    }>();
+
+  if (fetchErr || !source) {
+    return { ok: false, error: "Source page not found." };
+  }
+
+  // Build a unique slug: try "{slug}-copy", then "{slug}-copy-2", etc.
+  const base = (source.slug || "page") + "-copy";
+  let slug = base;
+  for (let i = 2; i <= 20; i++) {
+    const { data: existing } = await auth.supabase
+      .from("cms_pages")
+      .select("id")
+      .eq("tenant_id", scope.tenantId)
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!existing) break;
+    slug = `${base}-${i}`;
+    if (i === 20) slug = `${base}-${Date.now().toString(36)}`;
+  }
+
+  // Extract safe hero fields (pageHeroSchema is strict — unknown keys fail).
+  const srcHero = (source.hero ?? {}) as Record<string, unknown>;
+  const hero: { title?: string; subtitle?: string; eyebrow?: string } = {};
+  if (typeof srcHero.title === "string") hero.title = srcHero.title;
+  if (typeof srcHero.subtitle === "string") hero.subtitle = srcHero.subtitle;
+  if (typeof srcHero.eyebrow === "string") hero.eyebrow = srcHero.eyebrow;
+
+  const parsed = pageUpsertSchema.safeParse({
+    id: null,
+    tenantId: scope.tenantId,
+    locale: source.locale,
+    slug,
+    // Duplicates always use the agency-selectable template; the source may
+    // be a system page (homepage) whose key is not agency-selectable.
+    templateKey: "standard_page",
+    templateSchemaVersion: source.template_schema_version,
+    title: `${source.title} (Copy)`,
+    body: source.body ?? "",
+    hero,
+    metaTitle: null,
+    metaDescription: null,
+    ogTitle: null,
+    ogDescription: null,
+    ogImageMediaAssetId: null,
+    noindex: source.noindex,
+    includeInSitemap: false, // excluded until operator opts in
+    canonicalUrl: null,
+    expectedVersion: 0,
+  });
+
+  if (!parsed.success) {
+    const msg = parsed.error.issues[0]?.message ?? "Validation failed.";
+    return { ok: false, error: `Could not build duplicate: ${msg}` };
+  }
+
+  try {
+    const result = await upsertPage(auth.supabase, {
+      tenantId: scope.tenantId,
+      values: parsed.data,
+      actorProfileId: auth.user.id,
+    });
+    if (!result.ok) return { ok: false, error: result.message ?? "Duplicate failed." };
+    return { ok: true, id: result.data.id, slug };
+  } catch (error) {
+    logServerError("site-admin/pages/duplicate", error);
+    return { ok: false, error: CLIENT_ERROR.update };
+  }
+}

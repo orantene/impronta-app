@@ -23,6 +23,11 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { exitEditModeAction } from "@/lib/site-admin/edit-mode/server";
 import { localeMetadata } from "@/i18n/config";
+import {
+  listPagesForPickerAction,
+  duplicatePageAction,
+  type PagePickerItem,
+} from "@/app/(dashboard)/admin/site-settings/pages/actions";
 import type { EditDevice } from "./edit-context";
 import { CHROME } from "./kit";
 
@@ -193,24 +198,86 @@ function BrandMark() {
  * that will host the full picker — for now it makes the button do
  * something instead of being an inert visual.
  */
-function PagePicker({ title }: { title: string }) {
+function PagePicker({
+  title,
+  pageId: currentPageId,
+  dirty,
+}: {
+  title: string;
+  pageId?: string | null;
+  dirty?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const [pages, setPages] = useState<PagePickerItem[] | null>(null);
+  const [loadingPages, setLoadingPages] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [fetchErr, setFetchErr] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Reset page list when popover closes so it always re-fetches on next open
+  // (picks up pages created/renamed in another tab or from Manage pages).
+  useEffect(() => {
+    if (!open) {
+      setPages(null);
+      setFetchErr(null);
+    }
+  }, [open]);
+
+  // Lazy-fetch when opened.
+  useEffect(() => {
+    if (!open || pages !== null || loadingPages) return;
+    setLoadingPages(true);
+    listPagesForPickerAction()
+      .then((result) => {
+        if (result.ok) setPages(result.pages);
+        else {
+          setFetchErr(result.error);
+          setPages([]);
+        }
+      })
+      .catch(() => {
+        setFetchErr("Failed to load pages.");
+        setPages([]);
+      })
+      .finally(() => setLoadingPages(false));
+  }, [open, pages, loadingPages]);
 
   // Outside-click dismiss — same pattern as PublishSplitButton.
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
       const target = e.target as HTMLElement;
-      if (!target.closest("[data-page-picker]")) {
-        setOpen(false);
-      }
+      if (!target.closest("[data-page-picker]")) setOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
+  function navToPage(slug: string) {
+    if (dirty && !confirm("You have unsaved changes. Leave this page?")) return;
+    setOpen(false);
+    router.push(slug === "" ? "/?edit=1" : `/${slug}?edit=1`);
+  }
+
+  async function handleDuplicate(sourceId: string) {
+    setDuplicatingId(sourceId);
+    try {
+      const result = await duplicatePageAction(sourceId);
+      if (result.ok) {
+        setOpen(false);
+        router.push(`/admin/site-settings/pages/${result.id}`);
+      } else {
+        setPages(null); // re-fetch on next open
+        setFetchErr(result.error);
+      }
+    } finally {
+      setDuplicatingId(null);
+    }
+  }
+
   return (
     <div className="relative shrink-0" data-page-picker>
+      {/* ── Trigger ── */}
       <button
         type="button"
         title="Switch page"
@@ -241,12 +308,7 @@ function PagePicker({ title }: { title: string }) {
       >
         <span
           className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
-          style={{
-            width: 18,
-            height: 18,
-            background: CHROME.paper2,
-            color: CHROME.muted,
-          }}
+          style={{ width: 18, height: 18, background: CHROME.paper2, color: CHROME.muted }}
           aria-hidden
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -267,7 +329,7 @@ function PagePicker({ title }: { title: string }) {
       {open ? (
         <div
           role="menu"
-          className="absolute left-0 top-[42px] z-[120] min-w-[260px] rounded-[10px] p-[6px]"
+          className="absolute left-0 top-[42px] z-[120] min-w-[280px] rounded-[10px] p-[6px]"
           style={{
             background: CHROME.surface,
             border: `1px solid ${CHROME.line}`,
@@ -275,6 +337,7 @@ function PagePicker({ title }: { title: string }) {
               "0 24px 64px -16px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(24,24,27,0.07)",
           }}
         >
+          {/* ── Header ── */}
           <div
             style={{
               padding: "6px 10px 4px",
@@ -287,29 +350,188 @@ function PagePicker({ title }: { title: string }) {
           >
             Pages
           </div>
-          <div
-            role="menuitemradio"
-            aria-checked
-            className="flex cursor-default items-center gap-[8px] rounded-[6px] px-[10px] py-[7px]"
-            style={{ background: CHROME.paper2, color: CHROME.ink }}
+
+          {/* ── Add new page ── */}
+          <Link
+            href="/admin/site-settings/pages/new"
+            role="menuitem"
+            className="flex cursor-pointer items-center gap-[8px] rounded-[6px] px-[10px] py-[7px] no-underline transition-colors"
+            style={{ color: CHROME.blue }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = CHROME.blueBg;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+            }}
+            onClick={() => setOpen(false)}
           >
             <span
               className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
-              style={{ width: 18, height: 18, background: CHROME.surface, color: CHROME.muted }}
+              style={{ width: 18, height: 18, background: CHROME.blueBg, color: CHROME.blue }}
               aria-hidden
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </span>
             <span className="flex-1 font-semibold tracking-[-0.005em]" style={{ fontSize: 12.5 }}>
-              {title || "Homepage"}
+              Add new page
             </span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={CHROME.green} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
+          </Link>
+
+          {/* ── Divider ── */}
+          <div aria-hidden style={{ height: 1, background: CHROME.line, margin: "6px 2px" }} />
+
+          {/* ── Loading / error / empty states ── */}
+          {loadingPages && (
+            <div className="px-[10px] py-[8px]" style={{ fontSize: 12, color: CHROME.muted }}>
+              Loading…
+            </div>
+          )}
+          {fetchErr && !loadingPages && (
+            <div className="px-[10px] py-[8px]" style={{ fontSize: 12, color: CHROME.rose }}>
+              {fetchErr}
+            </div>
+          )}
+          {pages && pages.length === 0 && !loadingPages && !fetchErr && (
+            <div className="px-[10px] py-[8px]" style={{ fontSize: 12, color: CHROME.muted }}>
+              No pages yet.
+            </div>
+          )}
+
+          {/* ── Page list ── */}
+          {pages &&
+            pages.map((page) => {
+              const isCurrent = page.id === currentPageId;
+              const isDuplicating = duplicatingId === page.id;
+              return (
+                <div
+                  key={page.id}
+                  role="menuitemradio"
+                  aria-checked={isCurrent}
+                  className="group flex items-center gap-[2px] rounded-[6px] px-[4px] py-[2px] transition-colors"
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = CHROME.paper2;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = isCurrent
+                      ? CHROME.paper2
+                      : "transparent";
+                  }}
+                  style={{ background: isCurrent ? CHROME.paper2 : "transparent" }}
+                >
+                  {/* Nav button (spans most of the row) */}
+                  <button
+                    type="button"
+                    className="flex flex-1 items-center gap-[8px] rounded-[4px] py-[5px] pl-[6px]"
+                    style={{
+                      fontSize: 12.5,
+                      color: CHROME.ink,
+                      cursor: isCurrent ? "default" : "pointer",
+                      background: "transparent",
+                      border: "none",
+                    }}
+                    onClick={() => {
+                      if (!isCurrent) navToPage(page.slug);
+                    }}
+                    disabled={isCurrent}
+                  >
+                    <span
+                      className="inline-flex shrink-0 items-center justify-center rounded-[4px]"
+                      style={{
+                        width: 18,
+                        height: 18,
+                        background: CHROME.surface,
+                        color: CHROME.muted,
+                      }}
+                      aria-hidden
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                    </span>
+                    <span
+                      className="flex-1 truncate text-left font-medium tracking-[-0.005em]"
+                      style={{ maxWidth: 148 }}
+                    >
+                      {page.title}
+                    </span>
+                    {page.status === "draft" && (
+                      <span
+                        className="shrink-0 rounded-[3px] px-[5px] py-[1px] text-[9px] font-semibold uppercase tracking-[0.05em]"
+                        style={{
+                          background: CHROME.amberBg,
+                          color: CHROME.amber,
+                          border: `1px solid ${CHROME.amberLine}`,
+                        }}
+                      >
+                        Draft
+                      </span>
+                    )}
+                    {isCurrent && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={CHROME.green} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Edit icon — navigate to this page in the editor */}
+                  <button
+                    type="button"
+                    title={`Edit "${page.title}"`}
+                    className="inline-flex shrink-0 items-center justify-center rounded-[5px] opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ width: 24, height: 24, color: CHROME.muted }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = CHROME.ink;
+                      (e.currentTarget as HTMLElement).style.background = CHROME.paper3;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = CHROME.muted;
+                      (e.currentTarget as HTMLElement).style.background = "transparent";
+                    }}
+                    onClick={() => navToPage(page.slug)}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+
+                  {/* Duplicate icon */}
+                  <button
+                    type="button"
+                    title={`Duplicate "${page.title}"`}
+                    disabled={isDuplicating}
+                    className="inline-flex shrink-0 items-center justify-center rounded-[5px] opacity-0 transition-opacity group-hover:opacity-100"
+                    style={{ width: 24, height: 24, color: CHROME.muted }}
+                    onClick={() => void handleDuplicate(page.id)}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = CHROME.ink;
+                      (e.currentTarget as HTMLElement).style.background = CHROME.paper3;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.color = CHROME.muted;
+                      (e.currentTarget as HTMLElement).style.background = "transparent";
+                    }}
+                  >
+                    {isDuplicating ? (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin" aria-hidden>
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                      </svg>
+                    ) : (
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+
+          {/* ── Footer: Manage pages link ── */}
           <div aria-hidden style={{ height: 1, background: CHROME.line, margin: "6px 2px" }} />
           <Link
             href="/admin/site-settings/pages"
@@ -1397,6 +1619,9 @@ export interface TopBarProps {
     ttlSeconds?: number;
   }) => Promise<string | null>;
   pageTitle?: string;
+  /** The DB id of the page currently open in the editor. Used by PagePicker
+   *  to highlight the active row in the full page list. */
+  pageId?: string | null;
   /** The locale the editor is currently bound to. Drives the locale-switcher
    *  pill's active state. Optional — single-locale tenants render no pill. */
   activeLocale?: string;
@@ -1437,6 +1662,7 @@ export function TopBar({
   onSaveDraft,
   onShare,
   pageTitle,
+  pageId,
   activeLocale,
   availableLocales = [],
 }: TopBarProps) {
@@ -1485,7 +1711,7 @@ export function TopBar({
       {/* ── Left cluster ── */}
       <BrandMark />
       <TbDivider />
-      <PagePicker title={pageTitle ?? "Homepage"} />
+      <PagePicker title={pageTitle ?? "Homepage"} pageId={pageId} dirty={dirty} />
       {activeLocale && availableLocales.length > 1 ? (
         <LocaleSwitcher
           activeLocale={activeLocale}

@@ -172,7 +172,30 @@ export async function middleware(request: NextRequest) {
   const canonicalPath = isNonDefaultLocalePrefixedPath(pathname, langSettings)
     ? stripNonDefaultLocalePrefix(pathname, langSettings)
     : pathname;
-  if (!isPathAllowedForHostKind(hostContext.kind, canonicalPath)) {
+
+  // CMS clean-URL rewrite (agency storefronts only). Any single-segment
+  // path on an agency host that is NOT in the explicit allow-list gets
+  // rewritten internally to /p/{slug}. The CMS page catch-all at
+  // (public)/p/[[...slug]]/page.tsx renders it with the standard
+  // storefront shell (PublicHeader, footer). This gives CMS pages
+  // created in the editor clean root URLs (/contact, /about, /faq)
+  // without maintaining an explicit prefix entry for every slug. Paths
+  // that don't correspond to a published CMS page will 404 from the
+  // catch-all route, not from the middleware.
+  let cmsSlugRewrite: string | null = null;
+  if (
+    hostContext.kind === "agency" &&
+    !isPathAllowedForHostKind("agency", canonicalPath)
+  ) {
+    const slugMatch = canonicalPath.match(
+      /^\/([a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)$/,
+    );
+    if (slugMatch) {
+      cmsSlugRewrite = `/p/${slugMatch[1]}`;
+    }
+  }
+
+  if (!cmsSlugRewrite && !isPathAllowedForHostKind(hostContext.kind, canonicalPath)) {
     return new NextResponse("Not found", {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8" },
@@ -305,6 +328,15 @@ export async function middleware(request: NextRequest) {
     pathnameForAuth = nextUrl.pathname;
   }
 
+  // Apply CMS clean-URL rewrite — map the slug portion to /p/{slug}
+  // so Next.js routes to the CMS page catch-all. ORIGINAL_PATHNAME_HEADER
+  // (set above) still contains the browser-facing URL, so EditChromeMount
+  // extracts the correct page slug from the clean URL.
+  if (cmsSlugRewrite) {
+    nextUrl.pathname = cmsSlugRewrite;
+    pathnameForAuth = cmsSlugRewrite;
+  }
+
   const innerRequest = new NextRequest(nextUrl, {
     headers: requestHeaders,
     method: request.method,
@@ -320,7 +352,7 @@ export async function middleware(request: NextRequest) {
     return sessionRes;
   }
 
-  if (shouldRewriteLocalePublicPath(originalPathname, langSettings)) {
+  if (shouldRewriteLocalePublicPath(originalPathname, langSettings) || cmsSlugRewrite) {
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = pathnameForAuth;
 

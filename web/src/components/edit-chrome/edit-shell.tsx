@@ -177,6 +177,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     closeShortcutOverlay,
     saveDraft,
     pageMetadata,
+    pageId,
     selectedSectionId,
     setSelectedSectionId,
     duplicateSection,
@@ -501,6 +502,7 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           onSaveDraft={() => void saveDraft()}
           onShare={(opts) => handleShareClick(opts, reportMutationError)}
           pageTitle={pageMetadata?.title ?? undefined}
+          pageId={pageId}
           activeLocale={locale}
           availableLocales={availableLocales}
         />

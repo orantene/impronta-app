@@ -83,7 +83,9 @@ const AGENCY_STOREFRONT_PREFIXES = [
   "/p",
   "/posts",
   "/models",
-  "/contact",
+  // `/contact` removed — CMS clean-URL rewrite in middleware.ts maps
+  // single-segment paths to /p/{slug} so any CMS page slug gets a clean
+  // root URL without maintaining an explicit entry here.
   // Phase 9 — operator-issued share links. Token-gated viewer that
   // renders a frozen homepage revision snapshot to an unauthenticated
   // visitor. Tenant scope is enforced inside the route handler via the
