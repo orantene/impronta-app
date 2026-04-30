@@ -203,6 +203,18 @@ These documents are binding product logic. Code, schema, or copy that conflicts 
   - 10 capability keys reserved in `lib/access/capabilities.ts`.
   - Reserved tables (deferred migrations): `booking_transactions`, `payout_accounts`. Reserved column on future `plans` table: `platform_fee_basis_points`.
 
+- [`docs/page-builder-invariants.md`](docs/page-builder-invariants.md) — **Binding constraints** for the SaaS / dashboard refactor (Track B.5) and any future shell, surface, or inspector work. Subsystem reality, not product direction. Establishes:
+  - **Token registry** (`web/src/lib/site-admin/tokens/registry.ts`) is the only door for design knobs. Never write `agency_branding.theme_json` directly.
+  - **Cache-tag helper** (`web/src/lib/site-admin/cache-tags.ts`) is the only path for cache invalidation; bare-string tags are ESLint-banned. New SaaS surfaces register here.
+  - **Multi-tenant CAS** on `agency_branding` / `agency_business_identity` / `cms_navigation_items` / `cms_sections` — `expectedVersion` round-trip + `VERSION_CONFLICT` refetch. New operator-edited tables follow the same protocol.
+  - **The canvas IS the public storefront, in edit mode.** No separate preview iframe. New shell wraps; it does not replace.
+  - **Inspector IA**: site-header is 3 tabs (Brand / Layout / Navigation); section inspectors are 5 tabs (Content / Layout / Style / Responsive / Motion). Convergence requires coordination.
+  - **Inspector kit primitives** are shared (`web/src/components/edit-chrome/inspectors/kit/`). New inspectors compose; never re-style fields ad-hoc.
+  - **Public storefront CSS hooks** (`.public-header`, `.public-cms-footer`, `[data-cms-section]`, `[data-section-id]`, `[data-section-type-key]`, `data-token-*`) are load-bearing — preserve verbatim or migrate `token-presets.css` in lockstep.
+  - **Free-form values pattern** (color tokens just shipped): `z.string().max(64)` validator → CSS variable → fallback chain. The precedent for any "operator can pick anything" knob.
+
+When working on the dashboard restructure (Track B.5), any new inspector surface, any new operator-editable knob, or any cache-invalidating mutation — read this doc first.
+
 - [`docs/client-trust-and-contact-controls.md`](docs/client-trust-and-contact-controls.md) — Client trust ladder + talent contact preferences + inquiry-send gating. Establishes:
   - **Four-tier trust ladder:** Basic (default) / Verified (verification + small fee) / Silver (verified + funded balance) / Gold (highest trust signal).
   - **Trust = derived field** from underlying signals (`verified_at`, `funded_balance_cents`, super_admin override). Evaluator runs in code so rules can evolve without migrations.

@@ -689,7 +689,16 @@ These are scheduled for after the dashboard restructure (Track B.5) lands the ca
 
 ---
 
-## 15. Reference
+## 15. Page-builder integration
+
+When v1 payment surfaces wire into the dashboard, they consume the existing UI conventions per [`page-builder-invariants.md`](page-builder-invariants.md):
+
+- **Receiver-selection drawer, payment-status panel, fee breakdown row** all compose inspector kit primitives (`KIT.input`, `KIT.label`, `InspectorGroup`, etc.). Don't re-style fields ad-hoc — the visual rhythm propagates.
+- **`booking_transactions` and `payout_accounts`** carry `version` columns; their save actions follow the CAS protocol (reference: `web/src/lib/site-admin/server/sections.ts`).
+- **Cache-tag entries** for `payment` / `payout` / `booking-detail` surfaces are added to `cache-tags.ts` when those reads need invalidation. The `tagFor` helper is the only path; bare-string tags are banned.
+- **Updating `inquiry_events` to add `booking_id`** doesn't require new cache-tag work (events are typically read on-demand, not cached). But payment-state-driven UI surfaces (booking detail, talent earnings view) cache via `unstable_cache` — they pair with `updateTag` calls in payment server actions.
+
+## 16. Reference
 
 This doc is the canonical source. Code, schema, or copy that conflicts must be raised as a Decision-Log amendment before being changed.
 

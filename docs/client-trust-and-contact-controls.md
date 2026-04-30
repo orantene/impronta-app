@@ -457,7 +457,17 @@ These migrations land when the prototype's trust + contact-controls surfaces are
 
 ---
 
-## 14. Reference
+## 14. Page-builder integration
+
+The trust-badge and contact-controls UI surfaces consume the existing UI conventions per [`page-builder-invariants.md`](page-builder-invariants.md):
+
+- **Trust badges on inquiry rows / detail headers / client account drawer** are presentation components; they consume color tokens from the registry (`registry.ts`). Tier-color choices (Basic gray / Verified blue / Silver / Gold) are tokens, not inline styles.
+- **Talent contact-preferences settings page** composes inspector kit primitives — the four per-tier toggles are `VisualChipGroup`-style controls; the explainer copy uses `InspectorGroup` / kit label primitives.
+- **`talent_contact_preferences`** carries a `version` column when added; saves follow the CAS protocol.
+- **`client_trust_state`** is system-derived; CAS not strictly needed, but cache-tag invalidation matters — when the trust evaluator promotes a client (e.g., funded → silver), every cached view of that client (badges in inboxes, account drawers) needs `updateTag('storefront' / 'client-trust' tags)`. Add the `client-trust` surface entry to `cache-tags.ts`.
+- **`inquiries.client_trust_level_at_send`** is denormalized for inbox filtering. UI components reading it don't need new cache tags — the inquiry's existing tag covers it.
+
+## 15. Reference
 
 This doc is the canonical source for this direction. Code, schema, or copy that conflicts must be raised as a Decision-Log amendment before being changed.
 

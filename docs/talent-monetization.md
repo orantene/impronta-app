@@ -535,7 +535,17 @@ Smaller decisions still pending; not blockers for any current work.
 
 ---
 
-## 16. Reference
+## 16. Page-builder integration
+
+The premium talent-page templates (Pro / Portfolio) consume the existing page-builder subsystem at `web/src/components/edit-chrome/`. The invariants in [`page-builder-invariants.md`](page-builder-invariants.md) are binding here:
+
+- **All theming for premium-page templates goes through the token registry** (`lib/site-admin/tokens/registry.ts`). New "premium-only" knobs (e.g., portfolio-grid-column-count, hero-video-aspect-ratio) get registry entries with `agencyConfigurable: true` + Zod validators. Plan-tier gating layers on top via the access module's `plan_capabilities` (Track C); the registry doesn't fork by audience.
+- **Talent-page editor** (`/talent/page` and related) composes inspector kit primitives (`InspectorGroup`, `KIT.input`, `KIT.label`, `VisualChipGroup`, `ColorRow`). Don't re-style fields ad-hoc.
+- **The `/t/<slug>` route is a public storefront render** in this subsystem's terms. The canvas-is-storefront rule applies: edit mode is a flag on the same render, not a separate iframe. Talent's "Edit page" CTA navigates to `/t/<slug>` in edit mode where edit-chrome takes over.
+- **CAS** applies to any new operator-edited talent-page tables (e.g., a future `talent_page_config` if the data outgrows `agency_branding` + `cms_sections`). `version` column + `expectedVersion` round-trip + `VERSION_CONFLICT` refetch.
+- **Cache-tag entries** for talent-page surfaces (e.g., `talent-page`) are added to `cache-tags.ts` when needed. Bare-string tags are banned.
+
+## 17. Reference
 
 This doc is the canonical source for this direction. Code, schema, or copy that conflicts must be raised as a Decision-Log amendment before being changed.
 
