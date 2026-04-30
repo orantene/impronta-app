@@ -51,26 +51,28 @@ import type {
 
 import { BrandTab } from "./tabs/BrandTab";
 import { LayoutTab } from "./tabs/LayoutTab";
-import { MobileTab } from "./tabs/MobileTab";
-import { BehaviorTab } from "./tabs/BehaviorTab";
 import { NavigationTab } from "./tabs/NavigationTab";
-import { StyleTab } from "./tabs/StyleTab";
 
-type TabKey =
-  | "brand"
-  | "navigation"
-  | "layout"
-  | "mobile"
-  | "behavior"
-  | "style";
+// 2026-04-30 — Tab IA reduction (6 → 3).
+//
+// The previous "Brand / Navigation / Layout / Mobile / Behavior / Style"
+// split forced operators to tab-hop while editing one logical thing.
+// Choosing brand colors meant leaving Brand. Picking a mobile menu
+// variant meant leaving Layout. The Style tab was especially
+// confusing — colors are a per-context decision (brand colors live
+// with brand; surface colors live with the bar's layout), not a
+// separate page.
+//
+// New IA mirrors how operators actually think:
+//   - Brand: identity + visuals + colors + typography (the "who" of the bar)
+//   - Layout: composition + surface + mobile + behavior (the "how" of the bar)
+//   - Navigation: links list (its own surface — it's a list editor)
+type TabKey = "brand" | "navigation" | "layout";
 
 const TAB_DEFS: Array<{ key: TabKey; label: string }> = [
   { key: "brand", label: "Brand" },
-  { key: "navigation", label: "Navigation" },
   { key: "layout", label: "Layout" },
-  { key: "mobile", label: "Mobile" },
-  { key: "behavior", label: "Behavior" },
-  { key: "style", label: "Style" },
+  { key: "navigation", label: "Navigation" },
 ];
 
 export type SaveStatus =
@@ -178,11 +180,19 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlightRef = useRef<Promise<void> | null>(null);
 
-  const scheduleFlush = useCallback(() => {
+  // Two debounce windows:
+  //   - 450ms for text inputs (brand label, tagline, href). Long enough
+  //     that a typing burst coalesces into one save, short enough that
+  //     pausing to think still flushes promptly.
+  //   - 80ms for chip clicks (token changes). Each click is a discrete
+  //     "I want this design" intent — there's nothing to coalesce, and
+  //     the operator wants the live preview to update on demand. Any
+  //     longer than ~100ms reads as "lag."
+  const scheduleFlush = useCallback((delay: number = 450) => {
     if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
     flushTimerRef.current = setTimeout(() => {
       void flush();
-    }, 450);
+    }, delay);
   }, []);
 
   const flush = useCallback(async () => {
@@ -235,9 +245,10 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
             );
             triggerRefresh = true;
           } else if (kind === "token") {
+            const tokenPayload = entry.payload as Record<string, string>;
             const res = await saveHeaderTokenAction({
               expectedVersion: entry.expectedVersion,
-              patch: entry.payload as Record<string, string>,
+              patch: tokenPayload,
             });
             if (!res.ok) throw new Error(res.error);
             setConfig((prev) =>
@@ -252,8 +263,35 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
                   }
                 : prev,
             );
-            // Tokens render via CSS — no refresh needed; the optimistic
-            // <html> mutation already shows the change.
+            // 2026-04-30 — Selective refresh.
+            //
+            // Most "shell" tokens drive SERVER-RENDERED JSX structure
+            // — `shell.header-nav-alignment` re-shapes which grid
+            // column the nav lives in; `shell.header-cta-placement`
+            // toggles whether the CTA <Button> renders at all;
+            // `shell.header-brand-position` moves the brand between
+            // columns. Those need a `router.refresh()`.
+            //
+            // BUT: the free-form color tokens (`shell.header-bg`,
+            // `-text`, `-border`) are pure CSS variables — `enqueueToken`
+            // already wrote them to `<html>` and the live `<header>`
+            // node optimistically. The page is already painted with
+            // the new color the moment the operator clicked. Calling
+            // router.refresh() on top of that does no useful work and
+            // adds ~500ms of dev-server latency (full page re-render +
+            // re-fetch of branding via uncached supabase).
+            //
+            // So: refresh only when the saved patch contains at least
+            // one structural (non-color) token.
+            const COLOR_ONLY_KEYS = new Set([
+              "shell.header-bg",
+              "shell.header-text",
+              "shell.header-border",
+            ]);
+            const hasStructural = Object.keys(tokenPayload).some(
+              (k) => !COLOR_ONLY_KEYS.has(k),
+            );
+            if (hasStructural) triggerRefresh = true;
           } else if (kind === "navigation") {
             const navPayload = entry.payload as {
               locale: string;
@@ -334,6 +372,34 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
       // before the server roundtrip lands.
       const attr = `data-token-${key.replace(/\./g, "-")}`;
       document.documentElement.setAttribute(attr, value);
+      // 2026-04-30 — Color tokens (free-form CSS values) also need the
+      // matching CSS custom property set on <html> so the storefront's
+      // existing `var(--token-shell-header-bg, …)` rules light up
+      // optimistically, exactly the way they will after the server
+      // refresh re-projects via `designTokensToCssVars()`. Without this
+      // the inspector's chip would change instantly, but the canvas's
+      // header would only update after the server round-trip.
+      const COLOR_TOKEN_VARS: Record<string, string> = {
+        "shell.header-bg": "--token-shell-header-bg",
+        "shell.header-text": "--token-shell-header-text",
+        "shell.header-border": "--token-shell-header-border",
+      };
+      const cssVar = COLOR_TOKEN_VARS[key];
+      if (cssVar) {
+        if (value) {
+          document.documentElement.style.setProperty(cssVar, value);
+        } else {
+          document.documentElement.style.removeProperty(cssVar);
+        }
+        // The token-presets.css selector is `[style*="--token-shell-header-bg"]`
+        // on the <header> element itself (not inherited from <html>). Mirror
+        // the var onto the live header DOM node so the rule fires immediately.
+        const headerEl = document.querySelector<HTMLElement>("[data-public-header]");
+        if (headerEl) {
+          if (value) headerEl.style.setProperty(cssVar, value);
+          else headerEl.style.removeProperty(cssVar);
+        }
+      }
 
       const existing = queueRef.current.get("token");
       queueRef.current.set("token", {
@@ -353,7 +419,11 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
             }
           : prev,
       );
-      scheduleFlush();
+      // Chip clicks are discrete intents — fire instantly. 0ms
+      // coalesces a double-click into the same setTimeout tick (still
+      // one save) but never adds perceived latency. The operator's
+      // mental model is "click = it happens"; any wait reads as lag.
+      scheduleFlush(0);
     },
     [config, scheduleFlush],
   );
@@ -527,9 +597,14 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
 
   return (
     <>
+      {/* Tab strip — the active underline IS the strip's bottom border, no
+       *  separate divider needed. `min-w-0` on this row prevents the
+       *  flexbox-default `min-width: auto` from being inferred from the
+       *  tabs' content, which is the bug that pushed the inspector body
+       *  past the dock's right edge when the tabs needed to scroll. */}
       <div
-        className="flex items-center justify-between gap-2"
-        style={{ borderBottom: `1px solid ${CHROME.line}`, paddingBottom: 10 }}
+        className="flex min-w-0 items-end justify-between gap-2 pr-3"
+        style={{ borderBottom: `1px solid ${CHROME.line}` }}
       >
         <DrawerTabs>
           {TAB_DEFS.map((t) => (
@@ -544,20 +619,22 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
         </DrawerTabs>
         <UndoButton hasUndo={hasUndo} onUndo={handleUndo} />
       </div>
-      <DrawerBody padding="14px 14px 32px">
+      <DrawerBody
+        padding="14px 14px 32px"
+        // Belt + braces — even if a card or input does try to render
+        // wider than the dock (long unbreakable URL, fixed-width
+        // chip), `overflow-x: hidden` clips it inside the panel
+        // instead of bleeding off the page. `min-w-0` on the inner
+        // wrapper lets flex children shrink properly inside.
+        className="[&>*]:min-w-0 overflow-x-hidden"
+      >
         <SaveBanner status={status} />
         {tab === "brand" ? (
           <BrandTab config={config} patch={patch} tenantId={tenantId} />
         ) : tab === "navigation" ? (
           <NavigationTab config={config} patch={patch} />
-        ) : tab === "layout" ? (
-          <LayoutTab config={config} patch={patch} />
-        ) : tab === "mobile" ? (
-          <MobileTab config={config} patch={patch} />
-        ) : tab === "behavior" ? (
-          <BehaviorTab config={config} patch={patch} />
         ) : (
-          <StyleTab config={config} patch={patch} />
+          <LayoutTab config={config} patch={patch} />
         )}
       </DrawerBody>
     </>

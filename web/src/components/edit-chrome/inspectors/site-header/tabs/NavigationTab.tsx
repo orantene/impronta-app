@@ -162,38 +162,40 @@ function NavRow({
   }
 
   return (
-    // 2027 list-item pattern (à la Linear / Framer / Notion):
-    //   - No per-row card border. Whitespace + a soft hover wash define
-    //     the row.
-    //   - Single horizontal line: drag · label · href · actions.
-    //   - Label and href inputs are borderless, transparent-bg, blend
-    //     into the row until focused.
-    //   - Action icons (eye, trash) hide until row hover/focus-within.
-    //   - Hidden-link state (visibility=false) softens text + dims the
-    //     row, no decorative dashes.
+    // Row reads as a real "cell" — subtle white card on the warm
+    // drawer paper, soft ring on hover (signals interactivity), strong
+    // ring on focus-within (signals "I'm being edited"). Drag handle
+    // and actions stay visible at low opacity so the row never looks
+    // like static text; they brighten on hover.
     <div
-      className={`group/row relative flex items-center gap-2 rounded-md px-2 py-1 transition-colors duration-150 hover:bg-[#faf9f6] focus-within:bg-[#faf9f6] ${
-        row.visible ? "" : "opacity-55"
+      className={`group/row relative flex items-center gap-1.5 rounded-md bg-white/55 px-1.5 py-1 ring-1 ring-transparent transition-[background-color,box-shadow] duration-150 hover:bg-white hover:ring-stone-200/80 focus-within:bg-white focus-within:ring-indigo-300/60 ${
+        row.visible ? "" : "opacity-60"
       }`}
     >
-      {/* Drag handle — left rail. Larger hit target (28px), prominent on
-       *  hover so the affordance is obvious. */}
+      {/* Drag handle — has to read as "grippable" at rest, not as a
+       *  decorative dot pattern. Stronger color (stone-500 instead of
+       *  the previous near-invisible stone-300/60), full opacity at
+       *  rest, and a subtle paper-tinted hover background that makes
+       *  the hit zone visible the moment the operator's mouse
+       *  enters. Cursor flips to grabbing while a drag is active. */}
       <button
         type="button"
         aria-label="Drag to reorder"
-        title="Drag"
+        title="Drag to reorder"
         {...handleProps}
-        className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded text-stone-300 transition-colors duration-150 hover:bg-stone-100 hover:text-stone-700 active:cursor-grabbing"
+        className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded-md bg-transparent text-stone-500 transition-[color,background-color] duration-150 hover:bg-stone-100 hover:text-stone-900 active:cursor-grabbing active:bg-stone-200/70"
       >
         <DragGlyph />
       </button>
 
-      {/* Inputs column. Label is the primary visual; href sits below it
-       *  one font-size smaller, monospaced, dim — secondary metadata. */}
+      {/* Inputs column. Each input has a faint hover/focus background
+       *  so it visibly claims its cell — operator never has to guess
+       *  where to click. Both label and href use the same treatment so
+       *  they read as peer editable surfaces. */}
       <div className="flex min-w-0 flex-1 flex-col gap-0">
         <input
           type="text"
-          className="w-full rounded-sm border-0 bg-transparent px-1 py-0.5 text-[13px] font-medium text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-indigo-300/40 focus:bg-white"
+          className="w-full cursor-text rounded-sm border-0 bg-transparent px-1.5 py-0.5 text-[13px] font-medium text-stone-800 placeholder:text-stone-400 transition-colors duration-150 hover:bg-stone-50 focus:bg-stone-50 focus:outline-none"
           placeholder="Link label"
           value={labelDraft}
           maxLength={60}
@@ -214,10 +216,8 @@ function NavRow({
         />
         <input
           type="text"
-          className={`w-full rounded-sm border-0 bg-transparent px-1 py-0 font-mono text-[10.5px] focus:outline-none focus:ring-1 focus:bg-white ${
-            hrefWarn
-              ? "text-amber-700 focus:ring-amber-400/40"
-              : "text-stone-400 focus:ring-indigo-300/40"
+          className={`w-full cursor-text rounded-sm border-0 bg-transparent px-1.5 py-0 font-mono text-[10.5px] transition-colors duration-150 hover:bg-stone-50 focus:bg-stone-50 focus:outline-none ${
+            hrefWarn ? "text-amber-700" : "text-stone-400"
           }`}
           placeholder="/path or https://…"
           value={hrefDraft}
@@ -240,15 +240,17 @@ function NavRow({
         />
       </div>
 
-      {/* Action cluster — hide until row hover/focus. Smaller hit
-       *  targets (24px) so the row stays compact. */}
-      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
+      {/* Action cluster — visible at low opacity always so the row never
+       *  reads as inert; brightens on row hover, full color on
+       *  individual button hover. Premium-builder rule: a list row
+       *  always shows what actions it supports. */}
+      <div className="flex shrink-0 items-center gap-0.5 opacity-40 transition-opacity duration-150 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
         <button
           type="button"
           onClick={() => onChange({ visible: !row.visible })}
           aria-label={row.visible ? "Hide link" : "Show link"}
           title={row.visible ? "Hide" : "Show"}
-          className="inline-flex size-6 items-center justify-center rounded text-stone-400 transition-colors duration-150 hover:bg-white hover:text-stone-700"
+          className="inline-flex size-6 items-center justify-center rounded text-stone-400 transition-colors duration-150 hover:bg-stone-100 hover:text-stone-700"
         >
           {row.visible ? <EyeGlyph /> : <EyeOffGlyph />}
         </button>
@@ -298,14 +300,21 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 // ── glyphs ───────────────────────────────────────────────────────────
 
 function DragGlyph() {
+  // 6-dot grip — Lucide / Phosphor pattern. The previous version
+  // used 12×12 viewport with r=1.6 dots, which rendered as tiny
+  // tick-marks at 12 device px. Bumped to a 14px render box with
+  // r=2 dots and tighter rows (cy 5/12/19) so the pattern reads
+  // as "rails to grab", not "dust on the input". Stays at currentColor
+  // so the parent button's color cascade (stone-500 → stone-900 on
+  // hover) drives the contrast.
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <circle cx="9" cy="6" r="1.6" />
-      <circle cx="15" cy="6" r="1.6" />
-      <circle cx="9" cy="12" r="1.6" />
-      <circle cx="15" cy="12" r="1.6" />
-      <circle cx="9" cy="18" r="1.6" />
-      <circle cx="15" cy="18" r="1.6" />
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <circle cx="9" cy="5" r="2" />
+      <circle cx="15" cy="5" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="15" cy="12" r="2" />
+      <circle cx="9" cy="19" r="2" />
+      <circle cx="15" cy="19" r="2" />
     </svg>
   );
 }

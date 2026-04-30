@@ -22,7 +22,15 @@
  * regression against the composer, while the premium edits live on canvas.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { useRouter } from "next/navigation";
 
 import {
   loadSectionForEditAction,
@@ -245,6 +253,19 @@ export function InspectorDock() {
     latestLoadedRef.current = loadedSection;
   }, [loadedSection]);
 
+  // 2026-04-30 — Router + transition for post-save canvas refresh.
+  //
+  // Why: section content (e.g. CTA Banner variant, Hero layout) is rendered
+  // SERVER-SIDE from the saved DB row. When the operator clicks "Split"
+  // and we save successfully, the inspector chip's local state flips to
+  // active, but the canvas keeps showing the previous layout because no
+  // one ever told the React tree to re-fetch. `router.refresh()` triggers
+  // a server re-render through the existing `revalidateTag` boundaries
+  // that `upsertSection` already busted on save — so the canvas
+  // structurally updates within ~150ms of the save landing.
+  const router = useRouter();
+  const [, startRefreshTransition] = useTransition();
+
   useEffect(() => {
     if (!dirty) return;
     if (!loadedSection || !draftProps) return;
@@ -302,6 +323,15 @@ export function InspectorDock() {
           pre: preProps,
           post: snapshot,
         });
+        // Server-rendered canvas re-renders ONLY after a router.refresh.
+        // Without this, clicking a layout chip ("Split", "Overlay") flips
+        // the inspector's chip-active state but leaves the canvas showing
+        // the previous variant — the operator clicks and "nothing
+        // happens." `upsertSection` already busted the section + sections-all
+        // cache tags, so this refresh hits fresh data immediately.
+        startRefreshTransition(() => {
+          router.refresh();
+        });
         return;
       }
       if (result.code === "VERSION_CONFLICT") {
@@ -328,7 +358,13 @@ export function InspectorDock() {
         return;
       }
       setSaveError(result.error);
-    }, 450);
+    }, 120);
+    // 120ms (was 450ms). Discrete clicks (variant chips, alignment
+    // toggles, layout selectors) need to feel instant; the operator
+    // is clicking around to compare designs and a half-second
+    // pre-save delay reads as broken. Text-burst typing still
+    // coalesces because each keystroke restarts the timer — natural
+    // word-boundary pauses are ≥120ms.
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -608,7 +644,8 @@ export function InspectorDock() {
         <>
           {visibleTabs.length > 1 ? (
             <div
-              style={{ borderBottom: `1px solid ${CHROME.line}`, paddingBottom: 10 }}
+              className="flex min-w-0 items-end"
+              style={{ borderBottom: `1px solid ${CHROME.line}` }}
             >
               <DrawerTabs>
                 {TABS.filter((t) => visibleTabs.includes(t.key)).map((t) => (
@@ -624,7 +661,7 @@ export function InspectorDock() {
             </div>
           ) : null}
 
-          <DrawerBody padding="14px 14px 32px">
+          <DrawerBody padding="14px 14px 32px" className="overflow-x-hidden">
             {saveError ? (
               <div
                 className="mb-3 rounded-lg px-3 py-2.5 text-[11.5px]"

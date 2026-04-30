@@ -52,6 +52,11 @@ export function StyleTab({ config, patch }: Props) {
   const primary = config.branding.primaryColor ?? "";
   const accent = config.branding.accentColor ?? "";
   const bgMode = config.branding.themeJson["background.mode"] ?? "plain";
+  // 2026-04-30 — Open color customization. Empty string = "follow the
+  // active background-mode default" (no override applied).
+  const headerBg = config.branding.themeJson["shell.header-bg"] ?? "";
+  const headerText = config.branding.themeJson["shell.header-text"] ?? "";
+  const headerBorder = config.branding.themeJson["shell.header-border"] ?? "";
   const fontPreset = config.branding.fontPreset ?? "default";
 
   return (
@@ -76,8 +81,34 @@ export function StyleTab({ config, patch }: Props) {
       </InspectorGroup>
 
       <InspectorGroup
+        title="Header surface"
+        info="Override the header bar's bg / text / hairline with any CSS color (hex, rgba, hsla, oklch). Leave empty to follow the page background mode below."
+      >
+        <ColorRow
+          label="Background"
+          hint="The header bar's surface color. Wins against the variant + page mode."
+          value={headerBg}
+          onChange={(v) => patch.patchToken("shell.header-bg", v)}
+        />
+        <div className="h-2" />
+        <ColorRow
+          label="Text"
+          hint="Brand label, nav links, utility icons. Works with any header background."
+          value={headerText}
+          onChange={(v) => patch.patchToken("shell.header-text", v)}
+        />
+        <div className="h-2" />
+        <ColorRow
+          label="Hairline"
+          hint="Bottom border tone. A subtle line for warmth, or transparent for a clean float."
+          value={headerBorder}
+          onChange={(v) => patch.patchToken("shell.header-border", v)}
+        />
+      </InspectorGroup>
+
+      <InspectorGroup
         title="Page background"
-        info="Sets the canvas the header sits on. Pick the mood; each mode is a curated treatment."
+        info="The canvas the header sits on. Use a curated mode, or leave it and customize the header surface above."
       >
         <div className="grid grid-cols-2 gap-2">
           {BACKGROUND_MODES.map((opt) => {

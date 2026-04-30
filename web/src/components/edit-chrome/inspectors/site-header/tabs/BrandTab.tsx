@@ -1,24 +1,26 @@
 "use client";
 
 /**
- * Brand tab — Step 5b reference implementation.
+ * Brand tab — the WHO of the header bar.
  *
- * What this tab covers:
- *   - Brand text label (writes identity.public_name)
- *   - Tagline (writes identity.tagline)
- *   - Logo (writes branding.logo_media_asset_id via existing MediaPicker)
- *   - Brand layout (writes shell.header-brand-layout token; optimistic)
+ * Holds everything an operator thinks of as "this is my brand":
+ *   - Identity (label, tagline, primary CTA inputs live here too)
+ *   - Logo
+ *   - Brand layout (mark + text lockup style)
+ *   - Brand colors (primary, accent — the brand palette)
+ *   - Typography preset
  *
- * Why it exists in this shape:
- *   These four fields are what an operator thinks of as "the brand
- *   block". They sit together because they're judged together — the
- *   operator switches between Inline / Stacked / Logo-only by looking
- *   at all of them at once.
+ * 2026-04-30 IA pass — these used to be split between Brand and a
+ * separate "Style" tab, which forced operators to tab-hop while
+ * editing one logical concept ("what does my brand look like?").
+ * Colors live HERE because they're brand-level decisions; surface
+ * colors (header bg/text/border) live in Layout because they're
+ * about the bar, not the brand.
  *
- * Quality bar (Step 5 instruction): visual chips for layout, calm
- * spacing, helper microcopy that explains WHEN to pick each option,
- * not just WHAT it does. Reuses the unified KIT.input system from the
- * inspector kit so the inputs match every other drawer in the editor.
+ * Visual contract (matches CTA Banner / Hero inspectors):
+ *   InspectorGroup → KIT.field → KIT.label + KIT.input. No bespoke
+ *   group chrome. Helper microcopy lives in the InspectorGroup info-tip
+ *   so the field surface stays calm.
  */
 
 import { useEffect, useState } from "react";
@@ -30,7 +32,11 @@ import {
   BrandLayoutThumb_LogoOnly,
   BrandLayoutThumb_Stacked,
   BrandLayoutThumb_TextOnly,
+  BrandPositionThumb_Center,
+  BrandPositionThumb_Left,
+  BrandPositionThumb_Right,
 } from "../thumbnails";
+import { ColorRow } from "../shared/ColorRow";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
@@ -39,6 +45,27 @@ interface Props {
   patch: SiteHeaderPatch;
   tenantId: string;
 }
+
+const POSITION_OPTIONS = [
+  {
+    value: "left" as const,
+    label: "Left",
+    helper: "Brand on the left, nav and CTA flow rightward. Classic editorial.",
+    Thumb: BrandPositionThumb_Left,
+  },
+  {
+    value: "center" as const,
+    label: "Center",
+    helper: "Centered brand. Reads as boutique / fashion-forward.",
+    Thumb: BrandPositionThumb_Center,
+  },
+  {
+    value: "right" as const,
+    label: "Right",
+    helper: "Brand on the right. Rare; for type-forward studios with a strong wordmark.",
+    Thumb: BrandPositionThumb_Right,
+  },
+];
 
 const LAYOUT_OPTIONS = [
   {
@@ -68,7 +95,10 @@ const LAYOUT_OPTIONS = [
 ];
 
 export function BrandTab({ config, patch, tenantId }: Props) {
-  const layout = config.branding.themeJson["shell.header-brand-layout"] ?? "inline";
+  const layout =
+    config.branding.themeJson["shell.header-brand-layout"] ?? "inline";
+  const position =
+    config.branding.themeJson["shell.header-brand-position"] ?? "left";
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,33 +106,31 @@ export function BrandTab({ config, patch, tenantId }: Props) {
         title="Brand text"
         info="Shown in the header bar, tabs, browser title, and OpenGraph defaults."
       >
-        <FieldLabel hint="The name visitors see at the top of the page.">
-          Brand label
-        </FieldLabel>
-        <input
-          type="text"
-          className={KIT.input}
-          placeholder="e.g. Impronta"
-          maxLength={120}
-          value={config.identity.publicName}
-          onChange={(e) => patch.patchIdentity({ publicName: e.target.value })}
-        />
+        <div className={KIT.field}>
+          <label className={KIT.label}>Brand label</label>
+          <input
+            type="text"
+            className={KIT.input}
+            placeholder="e.g. Impronta"
+            maxLength={120}
+            value={config.identity.publicName}
+            onChange={(e) => patch.patchIdentity({ publicName: e.target.value })}
+          />
+        </div>
 
-        <div className="h-2" />
-
-        <FieldLabel hint="One short line under the brand. Optional. Often skipped on minimal sites.">
-          Tagline
-        </FieldLabel>
-        <input
-          type="text"
-          className={KIT.input}
-          placeholder="Optional — e.g. Models &amp; image agency"
-          maxLength={160}
-          value={config.identity.tagline ?? ""}
-          onChange={(e) =>
-            patch.patchIdentity({ tagline: e.target.value || null })
-          }
-        />
+        <div className={KIT.field}>
+          <label className={KIT.label}>Tagline</label>
+          <input
+            type="text"
+            className={KIT.input}
+            placeholder="Optional — e.g. Models & image agency"
+            maxLength={160}
+            value={config.identity.tagline ?? ""}
+            onChange={(e) =>
+              patch.patchIdentity({ tagline: e.target.value || null })
+            }
+          />
+        </div>
       </InspectorGroup>
 
       <InspectorGroup
@@ -117,17 +145,19 @@ export function BrandTab({ config, patch, tenantId }: Props) {
       </InspectorGroup>
 
       <InspectorGroup
-        title="Brand layout"
-        info="How the mark and text sit together in the header."
+        title="Brand position"
+        info="Where the brand anchors in the header bar. Independent of the lockup style below."
       >
-        <div className="grid grid-cols-2 gap-2">
-          {LAYOUT_OPTIONS.map((opt) => {
-            const active = layout === opt.value;
+        <div className="grid grid-cols-3 gap-2">
+          {POSITION_OPTIONS.map((opt) => {
+            const active = position === opt.value;
             return (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => patch.patchToken("shell.header-brand-layout", opt.value)}
+                onClick={() =>
+                  patch.patchToken("shell.header-brand-position", opt.value)
+                }
                 title={`${opt.label} — ${opt.helper}`}
                 aria-label={opt.label}
                 className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
@@ -149,21 +179,89 @@ export function BrandTab({ config, patch, tenantId }: Props) {
           })}
         </div>
       </InspectorGroup>
-    </div>
-  );
-}
 
-function FieldLabel({
-  children,
-  hint,
-}: {
-  children: React.ReactNode;
-  hint?: string;
-}) {
-  return (
-    <div className="mb-1.5 flex flex-col gap-0.5">
-      <span className={KIT.label}>{children}</span>
-      {hint ? <span className={KIT.hint}>{hint}</span> : null}
+      <InspectorGroup
+        title="Brand layout"
+        info="How the mark and text sit together in the header."
+      >
+        <div className="grid grid-cols-2 gap-2">
+          {LAYOUT_OPTIONS.map((opt) => {
+            const active = layout === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() =>
+                  patch.patchToken("shell.header-brand-layout", opt.value)
+                }
+                title={`${opt.label} — ${opt.helper}`}
+                aria-label={opt.label}
+                className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
+                  active
+                    ? "border-indigo-300 bg-indigo-50"
+                    : "border-transparent bg-[#faf9f6] hover:border-[#e5e0d5] hover:bg-white"
+                }`}
+              >
+                <span className="flex items-center justify-center rounded-md bg-white py-1.5">
+                  <opt.Thumb />
+                </span>
+                <span
+                  className={`px-0.5 text-[11.5px] font-medium ${active ? "text-indigo-700" : "text-stone-700"}`}
+                >
+                  {opt.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </InspectorGroup>
+
+      <InspectorGroup
+        title="Brand colors"
+        info="Primary drives the CTA button + active states across the site. Accent is the gold/highlight register — small chips, link underlines, dividers."
+      >
+        <ColorRow
+          label="Primary"
+          hint="The CTA button and active selection."
+          value={config.branding.primaryColor ?? ""}
+          onChange={(hex) =>
+            patch.patchBranding({ primaryColor: hex || null })
+          }
+        />
+        <div className="h-2" />
+        <ColorRow
+          label="Accent"
+          hint="Secondary highlight — gold-line dividers, link underlines."
+          value={config.branding.accentColor ?? ""}
+          onChange={(hex) =>
+            patch.patchBranding({ accentColor: hex || null })
+          }
+        />
+      </InspectorGroup>
+
+      <InspectorGroup
+        title="Typography"
+        info="The brand's font preset. Header type follows it; full Google Fonts picker is one click away in design settings."
+      >
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 transition-[border-color] duration-150 hover:border-[#e5e0d5]">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10.5px] uppercase tracking-wider text-stone-400">
+              Current preset
+            </span>
+            <span className="text-[13px] font-semibold text-stone-800">
+              {config.branding.fontPreset || "default"}
+            </span>
+          </div>
+          <a
+            href="/admin/site-settings/design"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11.5px] font-medium text-indigo-600 transition-colors hover:text-indigo-800"
+          >
+            Change in design →
+          </a>
+        </div>
+      </InspectorGroup>
     </div>
   );
 }
@@ -199,8 +297,7 @@ function LogoField({
         if (cancelled) return;
         if (res.ok && body.ok && Array.isArray(body.items)) {
           const found = body.items.find(
-            (m: { id: string; publicUrl: string }) =>
-              m.id === currentAssetId,
+            (m: { id: string; publicUrl: string }) => m.id === currentAssetId,
           );
           setPreviewUrl(found?.publicUrl ?? null);
         }

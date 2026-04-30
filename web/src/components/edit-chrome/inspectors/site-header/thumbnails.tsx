@@ -100,6 +100,42 @@ function HeaderBrandDot({ cx = 40 }: { cx?: number }) {
   return <rect x={cx - 4} y="17" width="8" height="6" rx="1" className={STYLES.ink} />;
 }
 
+// ── BRAND POSITION ──────────────────────────────────────────────────────
+// Where the logo + label anchors in the bar — independent of nav.
+
+export function BrandPositionThumb_Left() {
+  return (
+    <svg viewBox={VB} className="h-9 w-[72px]" aria-hidden>
+      <HeaderFrame />
+      <HeaderSearch />
+      <HeaderBrandDot cx={14} />
+      <HeaderUtilities />
+    </svg>
+  );
+}
+
+export function BrandPositionThumb_Center() {
+  return (
+    <svg viewBox={VB} className="h-9 w-[72px]" aria-hidden>
+      <HeaderFrame />
+      <HeaderSearch />
+      <HeaderBrandDot cx={40} />
+      <HeaderUtilities />
+    </svg>
+  );
+}
+
+export function BrandPositionThumb_Right() {
+  return (
+    <svg viewBox={VB} className="h-9 w-[72px]" aria-hidden>
+      <HeaderFrame />
+      <HeaderSearch />
+      <HeaderBrandDot cx={56} />
+      <HeaderUtilities />
+    </svg>
+  );
+}
+
 export function NavAlignThumb_Left() {
   return (
     <svg viewBox={VB} className="h-9 w-[72px]" aria-hidden>

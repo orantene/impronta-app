@@ -1,23 +1,23 @@
 "use client";
 
 /**
- * Layout tab — desktop-side composition of the header bar.
+ * Layout tab — the HOW of the header bar.
  *
- * Three token-driven decisions live here:
- *   - Header style       (shell.header-variant)
- *   - Nav alignment      (shell.header-nav-alignment)
- *   - CTA placement      (shell.header-cta-placement)
+ * 2026-04-30 — Tab IA reduction landed here. Old tabs Mobile / Behavior /
+ * Style folded in as collapsible sub-sections, so the operator never
+ * leaves Layout while making layout-and-surface decisions.
  *
- * Each control is a chip group with a mini-mockup so operators see what
- * they're picking before they pick it — that's the "visual decision-
- * making" rule from the Step 5 quality bar.
+ * Sequence (matches operator decision order):
+ *   1. Composition       — nav alignment, CTA placement, header style
+ *   2. Surface           — bg / text / hairline (free-form colors), page mode
+ *   3. Mobile            — mobile menu variant, mobile CTA placement
+ *   4. Behavior          — sticky, transparent-on-hero
  *
- * All three controls write to theme_json via patchToken — the optimistic
- * `<html data-token-*>` mutation flips the live header instantly while
- * the autosave queue persists. No router.refresh().
+ * The "Brand position" chip moved to the Brand tab where it belongs
+ * (it's a brand-level decision that happens to express through layout).
  */
 
-import { InspectorGroup } from "../../kit";
+import { InspectorGroup, KIT } from "../../kit";
 import {
   CtaPlacementThumb_Both,
   CtaPlacementThumb_Hidden,
@@ -28,11 +28,15 @@ import {
   HeaderVariantThumb_EditorialSticky,
   HeaderVariantThumb_Espresso,
   HeaderVariantThumb_Minimal,
+  MobileNavThumb_DrawerRight,
+  MobileNavThumb_FullScreen,
+  MobileNavThumb_SheetBottom,
   NavAlignThumb_Center,
   NavAlignThumb_Left,
   NavAlignThumb_Right,
   NavAlignThumb_Split,
 } from "../thumbnails";
+import { ColorRow } from "../shared/ColorRow";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 import type { ComponentType } from "react";
@@ -131,9 +135,73 @@ const CTA_PLACEMENT_OPTIONS: ChipDef<string>[] = [
   {
     value: "hidden",
     label: "Hidden",
-    helper: "Don’t show a CTA. Useful for editorial / portfolio sites.",
+    helper: "Don't show a CTA. Useful for editorial / portfolio sites.",
     Thumb: CtaPlacementThumb_Hidden,
   },
+];
+
+const MOBILE_NAV_OPTIONS: ChipDef<string>[] = [
+  {
+    value: "drawer-right",
+    label: "Drawer",
+    helper: "Slides in from the right. Classic mobile pattern.",
+    Thumb: MobileNavThumb_DrawerRight,
+  },
+  {
+    value: "sheet-bottom",
+    label: "Sheet",
+    helper: "Slides up from below. Modern app feel.",
+    Thumb: MobileNavThumb_SheetBottom,
+  },
+  {
+    value: "full-screen-fade",
+    label: "Full-screen",
+    helper: "Covers the page. Editorial, immersive.",
+    Thumb: MobileNavThumb_FullScreen,
+  },
+];
+
+const MOBILE_CTA_OPTIONS: ChipDef<string>[] = [
+  {
+    value: "outside",
+    label: "In bar",
+    helper: "CTA stays visible in the mobile top bar.",
+    Thumb: CtaPlacementThumb_Right,
+  },
+  {
+    value: "inside",
+    label: "Inside menu",
+    helper: "CTA only inside the hamburger menu.",
+    Thumb: CtaPlacementThumb_InsideMenuOnly,
+  },
+  {
+    value: "both",
+    label: "Both",
+    helper: "Visible in the bar and in the menu.",
+    Thumb: CtaPlacementThumb_Both,
+  },
+  {
+    value: "hidden",
+    label: "Hidden",
+    helper: "Don't show a CTA on mobile.",
+    Thumb: CtaPlacementThumb_Hidden,
+  },
+];
+
+const BACKGROUND_MODES: Array<{
+  value: string;
+  label: string;
+  helper: string;
+  swatch: string;
+}> = [
+  { value: "plain", label: "Plain", helper: "Solid neutral. The safest default.", swatch: "#fafaf9" },
+  { value: "editorial-ivory", label: "Ivory", helper: "Warm cream canvas. Boutique editorial feel.", swatch: "#f6f1ea" },
+  { value: "editorial-noir", label: "Noir", helper: "Black canvas, gold serif type. Couture register.", swatch: "#1a1714" },
+  { value: "champagne-gradient", label: "Champagne", helper: "Soft gold-to-ivory gradient. Wedding / lifestyle.", swatch: "linear-gradient(135deg,#f6e8c8,#fdf6e7)" },
+  { value: "aurora", label: "Aurora", helper: "Subtle radial glow. Energetic, modern.", swatch: "radial-gradient(circle at 30% 20%, #d6b8e8, transparent 70%)" },
+  { value: "mesh-blush", label: "Mesh blush", helper: "Soft blush mesh. Romantic, feminine.", swatch: "radial-gradient(circle at 30% 30%, #f4c2c2, #fff 80%)" },
+  { value: "mesh-noir", label: "Mesh noir", helper: "Dark mesh with subtle warmth. Premium night.", swatch: "radial-gradient(circle at 70% 30%, #3a2a2a, #1a1a1a 80%)" },
+  { value: "noise-texture", label: "Texture", helper: "Subtle paper grain. Tactile, considered.", swatch: "#e8e3d8" },
 ];
 
 export function LayoutTab({ config, patch }: Props) {
@@ -143,21 +211,21 @@ export function LayoutTab({ config, patch }: Props) {
     config.branding.themeJson["shell.header-nav-alignment"] ?? "left";
   const ctaPlacement =
     config.branding.themeJson["shell.header-cta-placement"] ?? "right";
+  const mobileNav =
+    config.branding.themeJson["shell.mobile-nav-variant"] ?? "drawer-right";
+  const mobileCta =
+    config.branding.themeJson["shell.header-mobile-cta-placement"] ?? "outside";
+  const sticky = config.branding.themeJson["shell.header-sticky"] ?? "on";
+  const transparent =
+    config.branding.themeJson["shell.header-transparent-on-hero"] ?? "off";
+  const bgMode = config.branding.themeJson["background.mode"] ?? "plain";
+  const headerBg = config.branding.themeJson["shell.header-bg"] ?? "";
+  const headerText = config.branding.themeJson["shell.header-text"] ?? "";
+  const headerBorder = config.branding.themeJson["shell.header-border"] ?? "";
 
   return (
     <div className="flex flex-col gap-6">
-      <InspectorGroup
-        title="Header style"
-        info="The overall visual treatment of the bar."
-      >
-        <ChipGrid
-          options={HEADER_VARIANT_OPTIONS}
-          value={variant}
-          onChange={(v) => patch.patchToken("shell.header-variant", v)}
-          columns={2}
-        />
-      </InspectorGroup>
-
+      {/* ── 1. Composition ─────────────────────────────────────── */}
       <InspectorGroup
         title="Nav alignment"
         info="Where the inline links sit on desktop. Mobile keeps them inside the hamburger menu regardless."
@@ -181,6 +249,136 @@ export function LayoutTab({ config, patch }: Props) {
           columns={2}
         />
         <CtaIdentityHint config={config} />
+      </InspectorGroup>
+
+      <InspectorGroup
+        title="Header style"
+        info="Overall visual treatment of the bar. Try one — colors below let you customize from there."
+      >
+        <ChipGrid
+          options={HEADER_VARIANT_OPTIONS}
+          value={variant}
+          onChange={(v) => patch.patchToken("shell.header-variant", v)}
+          columns={2}
+        />
+      </InspectorGroup>
+
+      {/* ── 2. Surface ─────────────────────────────────────────── */}
+      <InspectorGroup
+        title="Header surface"
+        info="Override the bar's bg / text / hairline with any CSS color (hex, rgba, hsla, oklch). Empty = follow the page background mode below."
+      >
+        <ColorRow
+          label="Background"
+          hint="The header bar's surface color. Wins against the variant + page mode."
+          value={headerBg}
+          onChange={(v) => patch.patchToken("shell.header-bg", v)}
+        />
+        <div className="h-2" />
+        <ColorRow
+          label="Text"
+          hint="Brand label, nav links, utility icons."
+          value={headerText}
+          onChange={(v) => patch.patchToken("shell.header-text", v)}
+        />
+        <div className="h-2" />
+        <ColorRow
+          label="Hairline"
+          hint="Bottom border tone. Subtle line, or transparent for clean float."
+          value={headerBorder}
+          onChange={(v) => patch.patchToken("shell.header-border", v)}
+        />
+      </InspectorGroup>
+
+      <InspectorGroup
+        title="Page background"
+        info="The canvas the header sits on. A curated mood — or leave it and customize the surface above."
+      >
+        <div className="grid grid-cols-2 gap-2">
+          {BACKGROUND_MODES.map((opt) => {
+            const active = bgMode === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => patch.patchToken("background.mode", opt.value)}
+                title={`${opt.label} — ${opt.helper}`}
+                aria-label={opt.label}
+                className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
+                  active
+                    ? "border-indigo-300 bg-indigo-50"
+                    : "border-transparent bg-[#faf9f6] hover:border-[#e5e0d5] hover:bg-white"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className="block h-9 rounded-md border border-stone-200/60"
+                  style={{ background: opt.swatch }}
+                />
+                <span
+                  className={`px-0.5 text-[11.5px] font-medium ${active ? "text-indigo-700" : "text-stone-700"}`}
+                >
+                  {opt.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </InspectorGroup>
+
+      {/* ── 3. Mobile ──────────────────────────────────────────── */}
+      <InspectorGroup
+        title="Mobile menu"
+        info="How the navigation reveals on mobile when a visitor taps the hamburger."
+        collapsible
+        storageKey="site-header:mobile"
+      >
+        <ChipGrid
+          options={MOBILE_NAV_OPTIONS}
+          value={mobileNav}
+          onChange={(v) => patch.patchToken("shell.mobile-nav-variant", v)}
+          columns={3}
+        />
+        <div className="h-3" />
+        <span className={KIT.label}>CTA on mobile</span>
+        <div className="h-1.5" />
+        <ChipGrid
+          options={MOBILE_CTA_OPTIONS}
+          value={mobileCta}
+          onChange={(v) =>
+            patch.patchToken("shell.header-mobile-cta-placement", v)
+          }
+          columns={2}
+        />
+      </InspectorGroup>
+
+      {/* ── 4. Behavior ────────────────────────────────────────── */}
+      <InspectorGroup
+        title="Behavior"
+        info="Scroll + interaction. Sticky pins the bar; transparent-on-hero pairs with full-bleed heroes."
+        collapsible
+        storageKey="site-header:behavior"
+      >
+        <ToggleRow
+          label="Pin header to viewport"
+          hint="On keeps the bar accessible while reading."
+          checked={sticky === "on"}
+          onChange={(v) =>
+            patch.patchToken("shell.header-sticky", v ? "on" : "off")
+          }
+        />
+        <div className="h-2" />
+        <ToggleRow
+          label="Transparent on hero, solid on scroll"
+          hint="Pairs with full-bleed hero images."
+          checked={transparent === "on"}
+          onChange={(v) =>
+            patch.patchToken(
+              "shell.header-transparent-on-hero",
+              v ? "on" : "off",
+            )
+          }
+        />
       </InspectorGroup>
     </div>
   );
@@ -228,6 +426,63 @@ function ChipGrid({
         );
       })}
     </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 transition-[border-color,background-color] duration-150 hover:border-[#e5e0d5] hover:bg-white">
+      <span className="flex flex-col gap-0.5">
+        <span className="text-[12.5px] font-medium text-stone-800">{label}</span>
+        {hint ? (
+          <span className="text-[10.5px] leading-snug text-stone-500">{hint}</span>
+        ) : null}
+      </span>
+      <span
+        role="switch"
+        aria-checked={checked}
+        className={`relative inline-flex size-[22px] shrink-0 items-center justify-center rounded-md border transition ${
+          checked
+            ? "border-indigo-400 bg-indigo-500 text-white"
+            : "border-stone-300 bg-white text-stone-400"
+        }`}
+        onClick={(e) => {
+          e.preventDefault();
+          onChange(!checked);
+        }}
+      >
+        {checked ? (
+          <svg
+            viewBox="0 0 16 16"
+            width="12"
+            height="12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m3 8 3 3 7-7" />
+          </svg>
+        ) : null}
+      </span>
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+    </label>
   );
 }
 

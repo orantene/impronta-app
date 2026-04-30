@@ -515,6 +515,17 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     description:
       "`inline` = mark + text on one line (default). `stacked` = mark above text. `logo-only` and `text-only` hide the other half.",
   },
+  "shell.header-brand-position": {
+    key: "shell.header-brand-position",
+    label: "Brand position",
+    scope: "shell",
+    agencyConfigurable: true,
+    validator: z.enum(["left", "center", "right"]),
+    defaultValue: "left",
+    group: "Site shell",
+    description:
+      "Where the brand (logo + text) anchors in the header bar. `left` is the default; `center` reads as boutique editorial; `right` is rare but useful for type-forward brands. Independent of brand layout (inline / stacked / mark-only / text-only).",
+  },
   "shell.header-nav-alignment": {
     key: "shell.header-nav-alignment",
     label: "Nav alignment",
@@ -525,6 +536,42 @@ export const TOKEN_REGISTRY: Record<string, TokenSpec> = {
     group: "Site shell",
     description:
       "Where the inline desktop nav sits in the bar. `split-around-logo` puts half the links on each side of the brand.",
+  },
+  // 2026-04-30 — Open color customization. Free-form CSS color values
+  // (hex / rgba / hsla / oklch) so operators aren't trapped in a curated
+  // palette. Empty string = inherit from the active background mode.
+  "shell.header-bg": {
+    key: "shell.header-bg",
+    label: "Header background",
+    scope: "shell",
+    agencyConfigurable: true,
+    validator: z.string().max(64),
+    defaultValue: "",
+    group: "Site shell",
+    description:
+      "Free-form CSS color for the header surface. Hex, rgba, hsla, or oklch. Leave empty to follow the active background mode.",
+  },
+  "shell.header-text": {
+    key: "shell.header-text",
+    label: "Header text",
+    scope: "shell",
+    agencyConfigurable: true,
+    validator: z.string().max(64),
+    defaultValue: "",
+    group: "Site shell",
+    description:
+      "Free-form CSS color for header text + nav links. Leave empty to follow the page foreground.",
+  },
+  "shell.header-border": {
+    key: "shell.header-border",
+    label: "Header hairline",
+    scope: "shell",
+    agencyConfigurable: true,
+    validator: z.string().max(64),
+    defaultValue: "",
+    group: "Site shell",
+    description:
+      "Free-form CSS color for the bottom hairline. Leave empty to follow the active border tone.",
   },
   "shell.header-cta-placement": {
     key: "shell.header-cta-placement",

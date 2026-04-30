@@ -316,7 +316,20 @@ function ToolButton({
   );
 }
 
-// ── DrawerTabs / DrawerTab (pill-style segmented tab bar) ───────────────────
+// ── DrawerTabs / DrawerTab ─────────────────────────────────────────────────
+//
+// 2026-04-30 — Modernization pass. Old pill-segmented bar (with a
+// raised-card active state) read as a small "settings panel" widget,
+// not a primary builder navigator. Replaced with a flush underline-
+// indicator pattern (Linear / Vercel / Stripe / Framer): tabs are
+// plain text labels, the active one carries a 1.5px ink-tone underline
+// flush with the bottom border. No card, no segmented bg, no shadow —
+// the interaction surface IS the canvas/header line below.
+//
+// The whole strip is given `min-w-0 overflow-x-auto` so it never
+// pushes the dock wider than its width — the right-edge "broken" look
+// the operator reported was from cards inheriting overflow when a tab
+// label wrapped (e.g. "Navigation" on a narrow dock).
 
 interface DrawerTabsProps {
   className?: string;
@@ -324,24 +337,10 @@ interface DrawerTabsProps {
 }
 
 export function DrawerTabs({ className, children }: DrawerTabsProps) {
-  // QA-5 fix — at narrow widths (tablet/mobile preview + both panels open)
-  // the last tab used to clip with no visible affordance. We keep the
-  // `overflow-x-auto` so scrolling still works, but add a soft right-edge
-  // fade mask so the operator can see content extends beyond the visible
-  // edge. The mask only kicks in when content actually overflows; at
-  // desktop widths with all tabs fitting, the fade is invisible.
   return (
     <div
-      className={`mx-[18px] mt-3 inline-flex max-w-[calc(100%-36px)] self-start overflow-x-auto p-[3px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
-      style={{
-        background: CHROME.paper,
-        border: `1px solid ${CHROME.line}`,
-        borderRadius: 9,
-        WebkitMaskImage:
-          "linear-gradient(90deg, black 0, black calc(100% - 18px), transparent 100%)",
-        maskImage:
-          "linear-gradient(90deg, black 0, black calc(100% - 18px), transparent 100%)",
-      }}
+      role="tablist"
+      className={`flex min-w-0 items-stretch gap-5 overflow-x-auto px-[18px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${className ?? ""}`}
     >
       {children}
     </div>
@@ -362,40 +361,50 @@ export function DrawerTab({
   onClick,
   children,
 }: DrawerTabProps) {
+  // The active underline is rendered as a child <span> rather than a
+  // border so we can tune thickness, offset, and animation
+  // independently of the parent's box model. The 2px height + slight
+  // negative bottom margin tucks it under the strip's hairline so
+  // there's no double-line moiré.
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 transition-all"
+      className="group relative inline-flex shrink-0 items-center gap-1.5 bg-transparent px-0.5 pb-2.5 pt-2 transition-colors"
       style={{
-        // QA-5 fix — tab padding tightened from px-3.5/py-2 to px-2.5/py-1.5
-        // and font from 13→12.5px so all four tabs (Content/Layout/Style/
-        // Motion) fit inside the inspector's 380px dock width even when
-        // the canvas is squeezed by tablet/mobile preview + both panels.
-        fontSize: 12.5,
-        fontWeight: 600,
+        fontSize: 13,
+        fontWeight: active ? 600 : 500,
         letterSpacing: "-0.005em",
         whiteSpace: "nowrap",
         cursor: "pointer",
         border: "none",
-        background: active ? CHROME.surface : "transparent",
         color: active ? CHROME.ink : CHROME.muted,
-        boxShadow: active
-          ? "0 1px 3px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.04)"
-          : "none",
+      }}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.color = CHROME.ink;
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.color = CHROME.muted;
       }}
     >
       {children}
       {dot ? (
         <span
           aria-hidden
-          className="inline-block size-1 rounded-full"
-          style={{
-            background: CHROME.blue,
-            boxShadow: `0 0 0 1px ${CHROME.surface}`,
-          }}
+          className="inline-block size-1.5 rounded-full"
+          style={{ background: CHROME.blue }}
         />
       ) : null}
+      <span
+        aria-hidden
+        className="absolute inset-x-0 -bottom-px h-[1.5px] rounded-full transition-[opacity,background-color] duration-150"
+        style={{
+          background: active ? CHROME.ink : "transparent",
+          opacity: active ? 1 : 0,
+        }}
+      />
     </button>
   );
 }

@@ -1958,6 +1958,31 @@ html[data-token-shell-header-sticky="off"] .public-header {
   position: static;
 }
 
+/* ---------------------------------------------------------------------------
+ * Open color customization — `shell.header-bg` / `-text` / `-border`.
+ *
+ * The renderer (public-header.tsx) projects these tokens as inline CSS
+ * custom properties on the <header> element ONLY when the operator has
+ * set a non-empty value. The `var(--name)` here resolves to the
+ * operator-chosen color; the absence of the var means the rule does not
+ * apply at all (the empty-fallback `unset` form below makes this safe).
+ *
+ * These overrides intentionally win against the `header-variant` and
+ * `background.mode` presets — the operator chose a custom color, so
+ * curated palettes shouldn't fight them.
+ * ------------------------------------------------------------------------- */
+.public-header[style*="--token-shell-header-bg"] {
+  background: var(--token-shell-header-bg) !important;
+}
+.public-header[style*="--token-shell-header-text"],
+.public-header[style*="--token-shell-header-text"] a,
+.public-header[style*="--token-shell-header-text"] nav a {
+  color: var(--token-shell-header-text) !important;
+}
+.public-header[style*="--token-shell-header-border"] {
+  border-bottom-color: var(--token-shell-header-border) !important;
+}
+
 /* Transparent-on-hero. `data-over-hero` is set by the
  * <PublicHeaderOverHeroSensor> client component — it flips to "false"
  * once the user scrolls past the threshold (default 80px). The token

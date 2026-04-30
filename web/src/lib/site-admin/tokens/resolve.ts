@@ -107,6 +107,13 @@ const COLOR_VAR_NAMES: Readonly<Record<string, string>> = {
   "typography.h5-size": "--token-typography-h5-size",
   "typography.h6-size": "--token-typography-h6-size",
   "typography.body-size": "--token-typography-body-size",
+  // 2026-04-30 — Header surface color overrides. Operators write any CSS
+  // color (hex / rgba / hsla / oklch) and `.public-header` consumes via
+  // `var(--token-shell-header-bg, …)` etc. with a fallback chain to the
+  // active background-mode default.
+  "shell.header-bg": "--token-shell-header-bg",
+  "shell.header-text": "--token-shell-header-text",
+  "shell.header-border": "--token-shell-header-border",
 };
 
 /**
@@ -164,9 +171,13 @@ const DATA_ATTR_NAMES: Readonly<Record<string, string>> = {
   "shell.logo-variant": "data-token-shell-logo-variant",
   // Step 4 of header foundation pass — model expansion
   "shell.header-brand-layout": "data-token-shell-header-brand-layout",
+  "shell.header-brand-position": "data-token-shell-header-brand-position",
   "shell.header-nav-alignment": "data-token-shell-header-nav-alignment",
   "shell.header-cta-placement": "data-token-shell-header-cta-placement",
   "shell.header-mobile-cta-placement": "data-token-shell-header-mobile-cta-placement",
+  // NOTE: free-form color tokens (`shell.header-bg`, `shell.header-text`,
+  // `shell.header-border`) project into COLOR_VAR_NAMES below, not data
+  // attributes. CSS rules in token-presets.css consume them as CSS vars.
   "motion.stagger-preset": "data-token-motion-stagger-preset",
   "directory.card.show-destination-ready-ribbon":
     "data-token-card-ribbon",

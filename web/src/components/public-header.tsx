@@ -111,6 +111,15 @@ export async function PublicHeader() {
     "shell.header-brand-layout",
     "inline",
   ) as "inline" | "stacked" | "logo-only" | "text-only";
+  // 2026-04-30 — Brand position is now a first-class control,
+  // independent of brand layout. Operators want the logo on the left
+  // (default editorial), centered (boutique), or right (rare type-
+  // forward layouts). Older theme rows without this token fall back to
+  // "left" so existing storefronts don't visually drift on deploy.
+  const brandPosition = tokenString(
+    "shell.header-brand-position",
+    "left",
+  ) as "left" | "center" | "right";
   const navAlignment = tokenString(
     "shell.header-nav-alignment",
     "left",
@@ -123,6 +132,18 @@ export async function PublicHeader() {
     "shell.header-mobile-cta-placement",
     "outside",
   ) as "outside" | "inside" | "both" | "hidden";
+
+  // 2026-04-30 — Free-form header surface colors. Project as CSS custom
+  // properties on the <header> element; CSS in token-presets.css uses
+  // them with a fallback chain (`var(--token-shell-header-bg, …)`) so
+  // an unset value falls back to the active background-mode default.
+  const headerBg = tokenString("shell.header-bg", "");
+  const headerText = tokenString("shell.header-text", "");
+  const headerBorder = tokenString("shell.header-border", "");
+  const headerStyleVars: React.CSSProperties = {};
+  if (headerBg) (headerStyleVars as Record<string, string>)["--token-shell-header-bg"] = headerBg;
+  if (headerText) (headerStyleVars as Record<string, string>)["--token-shell-header-text"] = headerText;
+  if (headerBorder) (headerStyleVars as Record<string, string>)["--token-shell-header-border"] = headerBorder;
 
   // CTA pulled from identity (single source). Renders only when both
   // label and href are present and the placement token allows it.
@@ -174,6 +195,38 @@ export async function PublicHeader() {
     brandMarkSvg && brandLayout !== "text-only";
   const showBrandText = brandLayout !== "logo-only";
 
+  // Reusable brand element — composed once so the three columns can
+  // each conditionally drop it in based on `brand-position` without
+  // duplicating the logo + label markup.
+  const brandLink = (
+    <Link
+      href={withLocalePath("/", locale)}
+      className={brandLinkClass}
+      data-brand-slot
+    >
+      {showBrandMark ? (
+        <span
+          aria-hidden
+          className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-primary sm:h-6 sm:w-6 [&>svg]:h-full [&>svg]:w-full"
+          dangerouslySetInnerHTML={{ __html: brandMarkSvg! }}
+        />
+      ) : null}
+      {showBrandText ? (
+        <span className="truncate">{brandLabel}</span>
+      ) : null}
+    </Link>
+  );
+
+  // Resolved column placement — the operator chose where the brand
+  // anchors via `shell.header-brand-position`. `split-around-logo` nav
+  // implicitly demands a centered brand (the literal split is around
+  // the logo); we honor that by forcing center when nav is split.
+  const effectiveBrandPosition: "left" | "center" | "right" =
+    navAlignment === "split-around-logo" ? "center" : brandPosition;
+  const brandInLeftCol = effectiveBrandPosition === "left";
+  const brandInCenterCol = effectiveBrandPosition === "center";
+  const brandInRightCol = effectiveBrandPosition === "right";
+
   // Selection wrapper for in-canvas editing. Only mounts when edit
   // mode is active so the public storefront stays clean. The selection
   // layer queries `[data-cms-section]`; the inspector dock matches the
@@ -194,6 +247,11 @@ export async function PublicHeader() {
       // sensor used to set it via inline script before React hydrated,
       // which React 18+ treats as a tree-hydration error.
       data-over-hero="true"
+      // Custom color CSS vars — empty unless the operator set
+      // `shell.header-bg` / `-text` / `-border` in the Style tab. CSS
+      // in token-presets.css consumes these with `var(…, fallback)`.
+      style={headerStyleVars}
+      data-brand-position={effectiveBrandPosition}
     >
       <div
         data-token-brand-layout={brandLayout}
@@ -221,6 +279,9 @@ export async function PublicHeader() {
               <Search className="size-5" />
             </Link>
           </Button>
+          {brandInLeftCol ? (
+            <span className="ml-1 hidden md:inline-flex">{brandLink}</span>
+          ) : null}
           {navInLeftCol.length > 0 ? (
             <nav
               className="public-header__nav public-header__nav--left hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
@@ -239,23 +300,24 @@ export async function PublicHeader() {
           ) : null}
         </div>
 
-        {navInCenterCol.length > 0 ? (
-          // Center alignment: brand sits at the start of the center
-          // column with the nav fanning out to its right. Keeps the brand
-          // visible while honoring the operator's "centered nav" intent.
-          <div className="flex min-w-0 items-center justify-center gap-3 sm:gap-5">
-            <Link href={withLocalePath("/", locale)} className={brandLinkClass}>
-              {showBrandMark ? (
-                <span
-                  aria-hidden
-                  className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-primary sm:h-6 sm:w-6 [&>svg]:h-full [&>svg]:w-full"
-                  dangerouslySetInnerHTML={{ __html: brandMarkSvg! }}
-                />
-              ) : null}
-              {showBrandText ? (
-                <span className="truncate">{brandLabel}</span>
-              ) : null}
-            </Link>
+        {/* Center column.
+         *  - On mobile (<md), the brand always lives here so it's never
+         *    pushed off-screen by the hamburger / search / utility cluster.
+         *  - On desktop, the brand only renders here when
+         *    `brand-position=center` (split-nav forces this regardless).
+         *  - Nav links here only when `nav-alignment=center`.
+         *  - The wrapper is always present so the 1fr middle column
+         *    keeps its width and the right column doesn't slide left. */}
+        <div className="flex min-w-0 items-center justify-center gap-3 sm:gap-5">
+          {/* Desktop brand (when centered) */}
+          {brandInCenterCol ? (
+            <span className="hidden md:inline-flex">{brandLink}</span>
+          ) : null}
+          {/* Mobile brand fallback — always visible <md, regardless of
+           *  the chosen brand-position, so the bar never reads "where's
+           *  the logo" on a phone. */}
+          <span className="md:hidden">{brandLink}</span>
+          {navInCenterCol.length > 0 ? (
             <nav
               className="public-header__nav public-header__nav--center hidden min-w-0 items-center gap-2 overflow-x-auto md:flex lg:gap-3"
               aria-label="Site links"
@@ -270,21 +332,8 @@ export async function PublicHeader() {
                 </Link>
               ))}
             </nav>
-          </div>
-        ) : (
-          <Link href={withLocalePath("/", locale)} className={brandLinkClass}>
-            {showBrandMark ? (
-              <span
-                aria-hidden
-                className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-primary sm:h-6 sm:w-6 [&>svg]:h-full [&>svg]:w-full"
-                dangerouslySetInnerHTML={{ __html: brandMarkSvg! }}
-              />
-            ) : null}
-            {showBrandText ? (
-              <span className="truncate">{brandLabel}</span>
-            ) : null}
-          </Link>
-        )}
+          ) : null}
+        </div>
 
         <div className="flex items-center justify-end gap-0.5 sm:gap-1">
           {navInRightCol.length > 0 ? (
@@ -302,6 +351,9 @@ export async function PublicHeader() {
                 </Link>
               ))}
             </nav>
+          ) : null}
+          {brandInRightCol ? (
+            <span className="mr-2 hidden md:inline-flex">{brandLink}</span>
           ) : null}
           {showCtaInDesktopBar ? (
             <Button
