@@ -68,7 +68,13 @@ type BridgeMessage =
   | { type: "editor:ready" }
   // parent → child
   | { type: "editor:setSelection"; sectionId: string | null }
-  | { type: "editor:scrollToSection"; sectionId: string };
+  | { type: "editor:scrollToSection"; sectionId: string }
+  // parent → child — Preview toggle on the topbar. When previewing is
+  // true the iframe should unmount its own SelectionLayer +
+  // CanvasLinkInterceptor and set body[data-edit-preview="1"] so its
+  // local affordances hide. The iframe has an independent EditContext
+  // so we sync it explicitly rather than rely on a shared store.
+  | { type: "editor:setPreviewing"; previewing: boolean };
 
 const BRIDGE_NAMESPACE = "editor:";
 
@@ -91,6 +97,7 @@ export function IframeBridgeChild() {
     selectedSectionId,
     setSelectedSectionId,
     hoveredSectionId,
+    setPreviewing,
   } = useEditContext();
   // Track the last value we posted so we don't echo back a parent-
   // originated update as a "child clicked" event (which would loop).
@@ -154,11 +161,16 @@ export function IframeBridgeChild() {
         }
         return;
       }
+
+      if (msg.type === "editor:setPreviewing") {
+        setPreviewing(msg.previewing);
+        return;
+      }
     }
 
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [setSelectedSectionId]);
+  }, [setSelectedSectionId, setPreviewing]);
 
   // Announce readiness exactly once on mount.
   useEffect(() => {
@@ -189,6 +201,7 @@ export function IframeBridgeParent() {
     setSelectedSectionId,
     setHoveredSectionId,
     device,
+    previewing,
   } = useEditContext();
 
   // Track the last selection we POSTED to the iframe so we don't echo
@@ -234,6 +247,9 @@ export function IframeBridgeParent() {
         // section the operator was working on before switching device.
         // Also auto-scroll the iframe so that section is visible.
         iframeReadyRef.current = true;
+        // Sync the Preview toggle FIRST so the iframe doesn't briefly
+        // show editing chrome before suppressing it.
+        postToIframe({ type: "editor:setPreviewing", previewing });
         if (selectedSectionId) {
           lastPostedSelectionRef.current = selectedSectionId;
           postToIframe({
@@ -276,6 +292,16 @@ export function IframeBridgeParent() {
       });
     }
   }, [selectedSectionId]);
+
+  // Push Preview toggle changes into the iframe so its local
+  // SelectionLayer + CanvasLinkInterceptor can unmount in lockstep
+  // with the parent. Suppression is symmetric: when the operator flips
+  // the topbar pill, both sides hide affordances simultaneously.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!iframeReadyRef.current) return;
+    postToIframe({ type: "editor:setPreviewing", previewing });
+  }, [previewing]);
 
   // When the device toggle flips back to desktop the iframe unmounts;
   // reset the ready handshake so the next mount re-syncs cleanly.

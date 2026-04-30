@@ -37,7 +37,7 @@
 
 import { CanvasLinkInterceptor } from "./canvas-link-interceptor";
 import { EditErrorBoundary } from "./edit-error-boundary";
-import { EditProvider } from "./edit-context";
+import { EditProvider, useEditContext } from "./edit-context";
 import { IframeBridgeChild } from "./iframe-bridge";
 import { SelectionLayer } from "./selection-layer";
 
@@ -85,11 +85,31 @@ export function IframeChild({
             className="pointer-events-none fixed inset-0 z-[70]"
             aria-hidden
           />
-          <SelectionLayer />
-          <CanvasLinkInterceptor />
+          <IframeChromeOrPreview />
           <IframeBridgeChild />
         </div>
       </EditProvider>
     </EditErrorBoundary>
+  );
+}
+
+/**
+ * Inside the iframe, mount selection + link-interception chrome
+ * unless the parent has flipped Preview on. The iframe's local
+ * EditContext receives the previewing state via the bridge
+ * (editor:setPreviewing message), and this component reads it to
+ * decide whether to mount or hide.
+ *
+ * Lives outside <IframeChild> so it sits inside the EditProvider tree
+ * (where useEditContext is allowed).
+ */
+function IframeChromeOrPreview() {
+  const { previewing } = useEditContext();
+  if (previewing) return null;
+  return (
+    <>
+      <SelectionLayer />
+      <CanvasLinkInterceptor />
+    </>
   );
 }
