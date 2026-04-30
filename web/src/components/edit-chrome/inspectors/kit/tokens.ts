@@ -45,6 +45,21 @@ export const KIT = {
     "w-full resize-y rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2 text-[13px] leading-snug text-stone-800 placeholder:text-stone-400 hover:border-[#e5e0d5] focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/25 transition-[border-color,box-shadow,background-color] duration-150",
   field: "flex flex-col gap-1.5",
   row: "flex items-center gap-2",
+
+  /**
+   * Padding scale — three sizes, used consistently across the inspector
+   * so spacing rhythms read as intentional rather than ad-hoc. Pick by
+   * intent, not by px:
+   *   pad.tight  — chip tiles, small inline pills
+   *   pad.field  — input fields, toggle rows, color swatches
+   *   pad.card   — content cards, banners, popovers
+   * Using these (rather than scattering px-3 py-2 / px-2.5 py-1.5 /
+   * px-3 py-2.5 / px-2 py-1.5 ad-hoc) keeps the inspector visually on
+   * one rhythm.
+   */
+  padTight: "px-2 py-1.5",
+  padField: "px-3 py-2",
+  padCard: "px-3 py-2.5",
   ghostButton:
     "rounded-lg border border-dashed border-stone-300 px-3 py-1.5 text-[12px] font-medium text-stone-500 transition active:scale-[0.98] hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50/50",
   subtleButton:

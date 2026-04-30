@@ -30,6 +30,7 @@ import {
   KIT,
   type DragHandleProps,
 } from "../../kit";
+import { validateHref } from "../href-validation";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
@@ -51,7 +52,6 @@ interface RowState {
 
 export function NavigationTab({ config, patch }: Props) {
   const items = config.navigation.items;
-  const locale = config.navigation.locale;
 
   // Helper: convert local row state → action input shape.
   function toInput(rows: RowState[]) {
@@ -102,8 +102,6 @@ export function NavigationTab({ config, patch }: Props) {
         title="Header navigation"
         info="The text links that appear in the header bar and inside the mobile menu. Drag to reorder. Changes save and publish on each edit."
       >
-        <LocaleHint locale={locale} />
-
         {items.length === 0 ? (
           <EmptyState onAdd={onAdd} />
         ) : (
@@ -204,26 +202,15 @@ function NavRow({
             }
           }}
         />
-        <input
-          type="text"
-          className={`${KIT.input} py-1 text-[11px] font-mono text-stone-500`}
-          placeholder="/path or https://…"
-          value={hrefDraft}
-          maxLength={500}
-          onChange={(e) => setHrefDraft(e.target.value)}
-          onBlur={() => {
+        <HrefInput
+          draft={hrefDraft}
+          setDraft={setHrefDraft}
+          onCommit={() => {
             if (hrefDraft.trim() !== row.href) {
               onChange({ href: hrefDraft.trim() || row.href });
             }
           }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.currentTarget.blur();
-            } else if (e.key === "Escape") {
-              setHrefDraft(row.href);
-              e.currentTarget.blur();
-            }
-          }}
+          onCancel={() => setHrefDraft(row.href)}
         />
       </div>
 
@@ -255,6 +242,62 @@ function NavRow({
   );
 }
 
+/**
+ * HrefInput — text field that runs the href through validateHref() on
+ * every change. Idle state is the standard input chrome; once the
+ * operator types something that doesn't recognize cleanly (no leading
+ * slash, malformed scheme, etc), the input picks up an amber accent
+ * line under the field with a single line of microcopy explaining
+ * what looks off.
+ *
+ * Validation never blocks save — premium UX rule: the inspector
+ * persists what the operator typed; the warning is guidance, not a
+ * gate. The storefront's link-resolver handles the "broken link"
+ * surface separately.
+ */
+function HrefInput({
+  draft,
+  setDraft,
+  onCommit,
+  onCancel,
+}: {
+  draft: string;
+  setDraft: (next: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+}) {
+  const v = validateHref(draft);
+  const warn = v.kind === "warn";
+  return (
+    <div className="flex flex-col gap-0.5">
+      <input
+        type="text"
+        className={`${KIT.input} py-1 text-[11px] font-mono text-stone-500 ${
+          warn ? "border-amber-300 hover:border-amber-400 focus:border-amber-400 focus:ring-amber-400/25" : ""
+        }`}
+        placeholder="/path or https://…"
+        value={draft}
+        maxLength={500}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={onCommit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
+          } else if (e.key === "Escape") {
+            onCancel();
+            e.currentTarget.blur();
+          }
+        }}
+      />
+      {warn ? (
+        <span className="px-1 text-[10px] leading-snug text-amber-700/85">
+          {v.message}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[#e5e0d5] bg-[#faf9f6]/60 px-4 py-10 text-center">
@@ -282,18 +325,6 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   );
 }
 
-function LocaleHint({ locale }: { locale: string }) {
-  return (
-    <div className="-mt-1 mb-1 flex items-center gap-2 text-[10.5px] text-stone-400">
-      <span aria-hidden className="inline-block size-1 rounded-full bg-stone-300" />
-      <span>
-        Editing the{" "}
-        <span className="font-mono font-semibold text-stone-500">{locale}</span>{" "}
-        menu. Multi-locale switching arrives in the next pass.
-      </span>
-    </div>
-  );
-}
 
 
 // ── glyphs ───────────────────────────────────────────────────────────

@@ -562,7 +562,7 @@ export function InspectorDock() {
         title={isSiteHeaderSelected ? "Site header" : sectionTitle}
         meta={
           isSiteHeaderSelected
-            ? "Foundational drawer — Brand · Nav · Layout · Mobile · Behavior · Style"
+            ? undefined
             : loadedSection
               ? humanizeTypeKey(loadedSection.sectionTypeKey)
               : skeletonHint

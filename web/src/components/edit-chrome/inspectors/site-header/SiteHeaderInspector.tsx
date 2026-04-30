@@ -110,6 +110,25 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
   const [, startTransition] = useTransition();
   const router = useRouter();
 
+  // ── Undo (single-step) ───────────────────────────────────────────────
+  // We snapshot the config BEFORE each patch lands, store it in a ref,
+  // and surface an "Undo" button in the drawer head whenever a snapshot
+  // is available. Click → replay the snapshot's values via the same
+  // patch functions, then clear the ref. Premium-builder rule:
+  // operators expect to recover from a misclick without paging back
+  // through the canvas.
+  const undoSnapshotRef = useRef<SiteHeaderConfig | null>(null);
+  const [hasUndo, setHasUndo] = useState(false);
+  const captureUndo = useCallback(() => {
+    if (!config) return;
+    undoSnapshotRef.current = config;
+    setHasUndo(true);
+  }, [config]);
+  const clearUndo = useCallback(() => {
+    undoSnapshotRef.current = null;
+    setHasUndo(false);
+  }, []);
+
   // Auto-dismiss the "Saved" indicator after 1.5s. The "Saving…" state
   // stays visible the whole time the action is in flight; once it
   // settles we acknowledge briefly, then return the inspector to its
@@ -358,6 +377,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
 
   const patch: SiteHeaderPatch = {
     patchIdentity: (input) => {
+      captureUndo();
       // Optimistic local update so inputs stay snappy.
       setConfig((prev) =>
         prev ? { ...prev, identity: { ...prev.identity, ...mapIdentityInput(input) } } : prev,
@@ -365,13 +385,18 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
       enqueueIdentity(input);
     },
     patchBranding: (input) => {
+      captureUndo();
       setConfig((prev) =>
         prev ? { ...prev, branding: { ...prev.branding, ...mapBrandingInput(input) } } : prev,
       );
       enqueueBranding(input);
     },
-    patchToken: enqueueToken,
+    patchToken: (key, value) => {
+      captureUndo();
+      enqueueToken(key, value);
+    },
     patchNavigation: (items) => {
+      captureUndo();
       // Optimistic: render the new list immediately, even before the
       // server persists. Items without ids stay locally-keyed; the
       // server's response replaces them with real ids on settle.
@@ -396,6 +421,83 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
       enqueueNavigation(items);
     },
   };
+
+  // Undo handler — rebuilds the previous config via the same patch
+  // bus. We touch ALL kinds so a single click rolls back whichever
+  // table was last edited; the patch functions internally diff and
+  // skip no-op writes.
+  const handleUndo = useCallback(() => {
+    const snap = undoSnapshotRef.current;
+    if (!snap || !config) return;
+    // Don't capture another undo while we're replaying the rollback.
+    undoSnapshotRef.current = null;
+    setHasUndo(false);
+
+    // Identity rollback
+    if (
+      snap.identity.publicName !== config.identity.publicName ||
+      snap.identity.tagline !== config.identity.tagline ||
+      snap.identity.primaryCtaLabel !== config.identity.primaryCtaLabel ||
+      snap.identity.primaryCtaHref !== config.identity.primaryCtaHref
+    ) {
+      setConfig((prev) => (prev ? { ...prev, identity: snap.identity } : prev));
+      enqueueIdentity({
+        publicName: snap.identity.publicName,
+        tagline: snap.identity.tagline,
+        primaryCtaLabel: snap.identity.primaryCtaLabel,
+        primaryCtaHref: snap.identity.primaryCtaHref,
+      });
+    }
+
+    // Branding rollback (logo/mark/colors/font + theme tokens)
+    if (
+      snap.branding.logoMediaAssetId !== config.branding.logoMediaAssetId ||
+      snap.branding.brandMarkSvg !== config.branding.brandMarkSvg ||
+      snap.branding.primaryColor !== config.branding.primaryColor ||
+      snap.branding.accentColor !== config.branding.accentColor ||
+      snap.branding.fontPreset !== config.branding.fontPreset
+    ) {
+      setConfig((prev) => (prev ? { ...prev, branding: snap.branding } : prev));
+      enqueueBranding({
+        logoMediaAssetId: snap.branding.logoMediaAssetId,
+        brandMarkSvg: snap.branding.brandMarkSvg,
+        primaryColor: snap.branding.primaryColor,
+        accentColor: snap.branding.accentColor,
+        fontPreset: snap.branding.fontPreset,
+      });
+    }
+
+    // Theme-token rollback — diff each shell.* / background.* token.
+    const tokenDiff: Record<string, string> = {};
+    const allKeys = new Set([
+      ...Object.keys(snap.branding.themeJson),
+      ...Object.keys(config.branding.themeJson),
+    ]);
+    for (const key of allKeys) {
+      const snapVal = snap.branding.themeJson[key];
+      const curVal = config.branding.themeJson[key];
+      if (snapVal !== curVal && snapVal !== undefined) {
+        tokenDiff[key] = snapVal;
+      }
+    }
+    if (Object.keys(tokenDiff).length > 0) {
+      setConfig((prev) =>
+        prev
+          ? {
+              ...prev,
+              branding: {
+                ...prev.branding,
+                themeJson: { ...prev.branding.themeJson, ...tokenDiff },
+              },
+            }
+          : prev,
+      );
+      // Apply each token via enqueueToken so optimistic <html> attrs flip
+      for (const [key, value] of Object.entries(tokenDiff)) {
+        enqueueToken(key, value);
+      }
+    }
+  }, [config, enqueueIdentity, enqueueBranding, enqueueToken]);
 
   // Render.
   if (loadError) {
@@ -425,7 +527,10 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
 
   return (
     <>
-      <div style={{ borderBottom: `1px solid ${CHROME.line}`, paddingBottom: 10 }}>
+      <div
+        className="flex items-center justify-between gap-2"
+        style={{ borderBottom: `1px solid ${CHROME.line}`, paddingBottom: 10 }}
+      >
         <DrawerTabs>
           {TAB_DEFS.map((t) => (
             <DrawerTab
@@ -437,6 +542,7 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
             </DrawerTab>
           ))}
         </DrawerTabs>
+        <UndoButton hasUndo={hasUndo} onUndo={handleUndo} />
       </div>
       <DrawerBody padding="14px 14px 32px">
         <SaveBanner status={status} />
@@ -490,6 +596,50 @@ function mapBrandingInput(input: {
   if (input.accentColor !== undefined) out.accentColor = input.accentColor;
   if (input.fontPreset !== undefined) out.fontPreset = input.fontPreset;
   return out;
+}
+
+/**
+ * Single-step undo pill, mounted next to the tab bar. Disabled when
+ * there's nothing to roll back. Single-step is intentional: deeper
+ * history is a separate concern and operators rarely need more than
+ * one step of "wait, that wasn't right" recovery in a drawer.
+ */
+function UndoButton({
+  hasUndo,
+  onUndo,
+}: {
+  hasUndo: boolean;
+  onUndo: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onUndo}
+      disabled={!hasUndo}
+      title={hasUndo ? "Undo last change" : "Nothing to undo"}
+      aria-label="Undo last change"
+      className={`mr-2 inline-flex size-7 shrink-0 items-center justify-center rounded-md transition-[opacity,background-color] duration-150 active:scale-[0.96] ${
+        hasUndo
+          ? "text-stone-500 hover:bg-[#faf9f6] hover:text-stone-800"
+          : "pointer-events-none opacity-30"
+      }`}
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M3 7v6h6" />
+        <path d="M21 17a9 9 0 0 0-15-6.7L3 13" />
+      </svg>
+    </button>
+  );
 }
 
 function SaveBanner({ status }: { status: SaveStatus }) {
