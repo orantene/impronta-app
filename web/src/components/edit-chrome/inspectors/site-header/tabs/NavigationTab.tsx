@@ -30,7 +30,6 @@ import {
   KIT,
   type DragHandleProps,
 } from "../../kit";
-import { GroupDescription } from "../tab-helpers";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
@@ -99,11 +98,10 @@ export function NavigationTab({ config, patch }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <InspectorGroup title="Header navigation">
-        <GroupDescription>
-          The text links that appear in the header bar (and inside the mobile
-          menu). Drag to reorder. Changes save and publish on each edit.
-        </GroupDescription>
+      <InspectorGroup
+        title="Header navigation"
+        info="The text links that appear in the header bar and inside the mobile menu. Drag to reorder. Changes save and publish on each edit."
+      >
         <LocaleHint locale={locale} />
 
         {items.length === 0 ? (
@@ -136,25 +134,6 @@ export function NavigationTab({ config, patch }: Props) {
         )}
       </InspectorGroup>
 
-      <InspectorGroup
-        title="Coming next pass"
-        advanced
-        collapsible
-        storageKey="header:nav:next-pass"
-      >
-        <GroupDescription>
-          Inline UX that lands once the next session: locale switching for
-          multi-language sites, and submenu support for nested links.
-        </GroupDescription>
-        <NextPassRow
-          label="Locale switcher"
-          hint="Edit en + es independently from the same drawer."
-        />
-        <NextPassRow
-          label="Submenu support"
-          hint="Two-level nav for sites that need it. Hidden by default."
-        />
-      </InspectorGroup>
     </div>
   );
 }
@@ -316,19 +295,6 @@ function LocaleHint({ locale }: { locale: string }) {
   );
 }
 
-function NextPassRow({ label, hint }: { label: string; hint: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3 rounded-md border border-dashed border-[#e5e0d5] bg-white px-3 py-2.5">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[12px] font-medium text-stone-600">{label}</span>
-        <span className="text-[10.5px] text-stone-400">{hint}</span>
-      </div>
-      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-stone-500">
-        Next pass
-      </span>
-    </div>
-  );
-}
 
 // ── glyphs ───────────────────────────────────────────────────────────
 

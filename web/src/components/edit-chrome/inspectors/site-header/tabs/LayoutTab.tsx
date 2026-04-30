@@ -18,7 +18,6 @@
  */
 
 import { InspectorGroup } from "../../kit";
-import { GroupDescription } from "../tab-helpers";
 import {
   CtaPlacementThumb_Both,
   CtaPlacementThumb_Hidden,
@@ -147,10 +146,10 @@ export function LayoutTab({ config, patch }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <InspectorGroup title="Header style">
-        <GroupDescription>
-          The overall visual treatment of the bar.
-        </GroupDescription>
+      <InspectorGroup
+        title="Header style"
+        info="The overall visual treatment of the bar."
+      >
         <ChipGrid
           options={HEADER_VARIANT_OPTIONS}
           value={variant}
@@ -159,11 +158,10 @@ export function LayoutTab({ config, patch }: Props) {
         />
       </InspectorGroup>
 
-      <InspectorGroup title="Nav alignment">
-        <GroupDescription>
-          Where the inline links sit on desktop. Mobile keeps them inside the
-          hamburger menu regardless of this choice.
-        </GroupDescription>
+      <InspectorGroup
+        title="Nav alignment"
+        info="Where the inline links sit on desktop. Mobile keeps them inside the hamburger menu regardless."
+      >
         <ChipGrid
           options={NAV_ALIGN_OPTIONS}
           value={navAlign}
@@ -172,11 +170,10 @@ export function LayoutTab({ config, patch }: Props) {
         />
       </InspectorGroup>
 
-      <InspectorGroup title="CTA placement">
-        <GroupDescription>
-          Renders the brand’s primary call-to-action button. Picks up its label
-          and link from Brand → Primary CTA.
-        </GroupDescription>
+      <InspectorGroup
+        title="CTA placement"
+        info="Renders the brand's primary call-to-action button. Picks up its label and link from Brand → Primary CTA."
+      >
         <ChipGrid
           options={CTA_PLACEMENT_OPTIONS}
           value={ctaPlacement}
@@ -209,24 +206,23 @@ function ChipGrid({
             key={opt.value}
             type="button"
             onClick={() => onChange(opt.value)}
-            className={`group flex flex-col items-stretch gap-2 rounded-lg border p-2.5 text-left transition ${
+            // Helper text moves to native title — appears on hover
+            // without occupying every chip's vertical real estate.
+            title={`${opt.label} — ${opt.helper}`}
+            aria-label={opt.label}
+            className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
               active
-                ? "border-indigo-300 bg-indigo-50/40 shadow-[0_0_0_1px_rgba(99,102,241,0.15)]"
-                : "border-[#e5e0d5] bg-[#faf9f6] hover:border-stone-300 hover:bg-white"
+                ? "border-indigo-300 bg-indigo-50"
+                : "border-transparent bg-[#faf9f6] hover:border-[#e5e0d5] hover:bg-white"
             }`}
           >
             <span className="flex items-center justify-center rounded-md bg-white py-1.5">
               <opt.Thumb />
             </span>
-            <span className="flex flex-col gap-0.5 px-0.5">
-              <span
-                className={`text-[12px] font-semibold ${active ? "text-indigo-700" : "text-stone-700"}`}
-              >
-                {opt.label}
-              </span>
-              <span className="text-[10.5px] leading-snug text-stone-500">
-                {opt.helper}
-              </span>
+            <span
+              className={`px-0.5 text-[11.5px] font-medium ${active ? "text-indigo-700" : "text-stone-700"}`}
+            >
+              {opt.label}
             </span>
           </button>
         );

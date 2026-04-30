@@ -24,7 +24,6 @@
 import { useState } from "react";
 
 import { InspectorGroup, KIT } from "../../kit";
-import { GroupDescription } from "../tab-helpers";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
@@ -57,12 +56,10 @@ export function StyleTab({ config, patch }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <InspectorGroup title="Brand colors">
-        <GroupDescription>
-          Primary drives buttons + active states. Accent is the gold/highlight
-          register. Both flow through the design-token system.
-        </GroupDescription>
-
+      <InspectorGroup
+        title="Brand colors"
+        info="Primary drives buttons + active states. Accent is the gold/highlight register."
+      >
         <ColorRow
           label="Primary"
           hint="Main brand hue. Used by the CTA button and active selection."
@@ -78,11 +75,10 @@ export function StyleTab({ config, patch }: Props) {
         />
       </InspectorGroup>
 
-      <InspectorGroup title="Page background">
-        <GroupDescription>
-          Sets the canvas the header sits on. Pick the mood, not the pixel —
-          each mode is a curated treatment.
-        </GroupDescription>
+      <InspectorGroup
+        title="Page background"
+        info="Sets the canvas the header sits on. Pick the mood; each mode is a curated treatment."
+      >
         <div className="grid grid-cols-2 gap-2">
           {BACKGROUND_MODES.map((opt) => {
             const active = bgMode === opt.value;
@@ -91,10 +87,12 @@ export function StyleTab({ config, patch }: Props) {
                 key={opt.value}
                 type="button"
                 onClick={() => patch.patchToken("background.mode", opt.value)}
-                className={`group flex flex-col items-stretch gap-2 rounded-lg border p-2.5 text-left transition ${
+                title={`${opt.label} — ${opt.helper}`}
+                aria-label={opt.label}
+                className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
                   active
-                    ? "border-indigo-300 bg-indigo-50/40 shadow-[0_0_0_1px_rgba(99,102,241,0.15)]"
-                    : "border-[#e5e0d5] bg-[#faf9f6] hover:border-stone-300 hover:bg-white"
+                    ? "border-indigo-300 bg-indigo-50"
+                    : "border-transparent bg-[#faf9f6] hover:border-[#e5e0d5] hover:bg-white"
                 }`}
               >
                 <span
@@ -102,15 +100,10 @@ export function StyleTab({ config, patch }: Props) {
                   className="block h-9 rounded-md border border-stone-200/60"
                   style={{ background: opt.swatch }}
                 />
-                <span className="flex flex-col gap-0.5 px-0.5">
-                  <span
-                    className={`text-[12px] font-semibold ${active ? "text-indigo-700" : "text-stone-700"}`}
-                  >
-                    {opt.label}
-                  </span>
-                  <span className="text-[10.5px] leading-snug text-stone-500">
-                    {opt.helper}
-                  </span>
+                <span
+                  className={`px-0.5 text-[11.5px] font-medium ${active ? "text-indigo-700" : "text-stone-700"}`}
+                >
+                  {opt.label}
                 </span>
               </button>
             );
@@ -118,13 +111,11 @@ export function StyleTab({ config, patch }: Props) {
         </div>
       </InspectorGroup>
 
-      <InspectorGroup title="Typography">
-        <GroupDescription>
-          Header type follows the site-wide font preset. The full Google Fonts
-          picker stays in design settings for now — bringing it inline is the
-          next pass.
-        </GroupDescription>
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2.5">
+      <InspectorGroup
+        title="Typography"
+        info="Header type follows the site-wide font preset. Full Google Fonts picker is in design settings."
+      >
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 transition-[border-color] duration-150 hover:border-[#e5e0d5]">
           <div className="flex flex-col gap-0.5">
             <span className="text-[10.5px] uppercase tracking-wider text-stone-400">
               Current preset

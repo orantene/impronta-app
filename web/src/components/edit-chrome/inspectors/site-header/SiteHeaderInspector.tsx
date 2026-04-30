@@ -110,6 +110,19 @@ export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
   const [, startTransition] = useTransition();
   const router = useRouter();
 
+  // Auto-dismiss the "Saved" indicator after 1.5s. The "Saving…" state
+  // stays visible the whole time the action is in flight; once it
+  // settles we acknowledge briefly, then return the inspector to its
+  // calm idle state. Premium UX rule: status messages don't camp on
+  // the screen after they're no longer relevant.
+  useEffect(() => {
+    if (status.kind !== "saved") return;
+    const t = setTimeout(() => {
+      setStatus((s) => (s.kind === "saved" ? { kind: "idle" } : s));
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [status]);
+
   // Initial load.
   useEffect(() => {
     let cancelled = false;
@@ -480,26 +493,30 @@ function mapBrandingInput(input: {
 }
 
 function SaveBanner({ status }: { status: SaveStatus }) {
-  if (status.kind === "saving") {
-    return (
-      <div className="mb-3 flex items-center gap-2 text-[11px] text-stone-500">
-        <span className="inline-block size-1.5 animate-pulse rounded-full bg-indigo-400" />
-        Saving…
-      </div>
-    );
-  }
-  if (status.kind === "saved") {
-    return (
-      <div className="mb-3 flex items-center gap-2 text-[11px] text-emerald-700">
-        <span className="inline-block size-1.5 rounded-full bg-emerald-500" />
-        Saved
-      </div>
-    );
-  }
+  // Errors keep the bordered red treatment — they're the only state
+  // worth "stopping the operator." Saving / Saved are inline status
+  // dots, not banners.
   if (status.kind === "error") {
     return (
       <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
         {status.message}
+      </div>
+    );
+  }
+  if (status.kind === "saving" || status.kind === "saved") {
+    const saving = status.kind === "saving";
+    return (
+      <div
+        className={`mb-3 flex items-center gap-2 text-[10.5px] transition-opacity duration-200 ${
+          saving ? "text-stone-400" : "text-emerald-700/70"
+        }`}
+      >
+        <span
+          className={`inline-block size-1.5 rounded-full ${
+            saving ? "animate-pulse bg-indigo-400" : "bg-emerald-500"
+          }`}
+        />
+        {saving ? "Saving…" : "Saved"}
       </div>
     );
   }

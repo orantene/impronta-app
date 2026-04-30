@@ -25,7 +25,6 @@ import { useEffect, useState } from "react";
 
 import { InspectorGroup, KIT } from "../../kit";
 import { MediaPicker } from "@/lib/site-admin/sections/shared/MediaPicker";
-import { GroupDescription } from "../tab-helpers";
 import {
   BrandLayoutThumb_Inline,
   BrandLayoutThumb_LogoOnly,
@@ -73,10 +72,10 @@ export function BrandTab({ config, patch, tenantId }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <InspectorGroup title="Brand text">
-        <GroupDescription>
-          Shown in the header bar, tabs, browser title, and OpenGraph defaults.
-        </GroupDescription>
+      <InspectorGroup
+        title="Brand text"
+        info="Shown in the header bar, tabs, browser title, and OpenGraph defaults."
+      >
         <FieldLabel hint="The name visitors see at the top of the page.">
           Brand label
         </FieldLabel>
@@ -106,10 +105,10 @@ export function BrandTab({ config, patch, tenantId }: Props) {
         />
       </InspectorGroup>
 
-      <InspectorGroup title="Logo">
-        <GroupDescription>
-          Square mark, 60×60 minimum. SVG preferred so it stays crisp on retina.
-        </GroupDescription>
+      <InspectorGroup
+        title="Logo"
+        info="Square mark, 60×60 minimum. SVG preferred so it stays crisp on retina."
+      >
         <LogoField
           tenantId={tenantId}
           currentAssetId={config.branding.logoMediaAssetId}
@@ -117,10 +116,10 @@ export function BrandTab({ config, patch, tenantId }: Props) {
         />
       </InspectorGroup>
 
-      <InspectorGroup title="Brand layout">
-        <GroupDescription>
-          How the mark and text sit together in the header.
-        </GroupDescription>
+      <InspectorGroup
+        title="Brand layout"
+        info="How the mark and text sit together in the header."
+      >
         <div className="grid grid-cols-2 gap-2">
           {LAYOUT_OPTIONS.map((opt) => {
             const active = layout === opt.value;
@@ -129,24 +128,21 @@ export function BrandTab({ config, patch, tenantId }: Props) {
                 key={opt.value}
                 type="button"
                 onClick={() => patch.patchToken("shell.header-brand-layout", opt.value)}
-                className={`group flex flex-col items-stretch gap-2 rounded-lg border p-2.5 text-left transition ${
+                title={`${opt.label} — ${opt.helper}`}
+                aria-label={opt.label}
+                className={`group flex flex-col items-stretch gap-1.5 rounded-lg border p-2 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.98] ${
                   active
-                    ? "border-indigo-300 bg-indigo-50/40 shadow-[0_0_0_1px_rgba(99,102,241,0.15)]"
-                    : "border-[#e5e0d5] bg-[#faf9f6] hover:border-stone-300 hover:bg-white"
+                    ? "border-indigo-300 bg-indigo-50"
+                    : "border-transparent bg-[#faf9f6] hover:border-[#e5e0d5] hover:bg-white"
                 }`}
               >
                 <span className="flex items-center justify-center rounded-md bg-white py-1.5">
                   <opt.Thumb />
                 </span>
-                <span className="flex flex-col gap-0.5 px-0.5">
-                  <span
-                    className={`text-[12px] font-semibold ${active ? "text-indigo-700" : "text-stone-700"}`}
-                  >
-                    {opt.label}
-                  </span>
-                  <span className="text-[10.5px] leading-snug text-stone-500">
-                    {opt.helper}
-                  </span>
+                <span
+                  className={`px-0.5 text-[11.5px] font-medium ${active ? "text-indigo-700" : "text-stone-700"}`}
+                >
+                  {opt.label}
                 </span>
               </button>
             );

@@ -14,7 +14,6 @@
  */
 
 import { InspectorGroup } from "../../kit";
-import { GroupDescription, NextPassRow } from "../tab-helpers";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
 import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
@@ -30,13 +29,13 @@ export function BehaviorTab({ config, patch }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <InspectorGroup title="Sticky">
-        <GroupDescription>
-          Whether the header stays pinned to the top as the visitor scrolls.
-        </GroupDescription>
+      <InspectorGroup
+        title="Sticky"
+        info="Whether the header stays pinned to the top as the visitor scrolls."
+      >
         <ToggleRow
           label="Pin header to viewport"
-          hint="On is the default — keeps the bar (and CTA) accessible while reading. Off makes the header scroll away with the page."
+          hint="On keeps the bar accessible while reading."
           checked={sticky === "on"}
           onChange={(v) =>
             patch.patchToken("shell.header-sticky", v ? "on" : "off")
@@ -44,14 +43,13 @@ export function BehaviorTab({ config, patch }: Props) {
         />
       </InspectorGroup>
 
-      <InspectorGroup title="Transparent over hero">
-        <GroupDescription>
-          Header reads as transparent while the visitor is over the first hero
-          section, then turns solid as they scroll past it.
-        </GroupDescription>
+      <InspectorGroup
+        title="Transparent over hero"
+        info="Header reads transparent over the first hero section, turns solid as the visitor scrolls past it. Works best with full-bleed heroes."
+      >
         <ToggleRow
           label="Transparent on hero, solid on scroll"
-          hint="Works well with full-bleed hero images. Off keeps the header opaque the whole way down — safer for sites without a hero."
+          hint="Pairs with full-bleed hero images."
           checked={transparent === "on"}
           onChange={(v) =>
             patch.patchToken(
@@ -59,21 +57,6 @@ export function BehaviorTab({ config, patch }: Props) {
               v ? "on" : "off",
             )
           }
-        />
-      </InspectorGroup>
-
-      <InspectorGroup title="Coming next pass" advanced collapsible storageKey="header:behavior:next-pass">
-        <GroupDescription>
-          Smaller knobs that operators rarely need but should be reachable.
-        </GroupDescription>
-        <NextPassRow label="Scroll threshold" hint="When the over-hero state flips. Default 80px." />
-        <NextPassRow
-          label="Mobile-only sticky"
-          hint="Different sticky decision for desktop vs mobile."
-        />
-        <NextPassRow
-          label="Solid background opacity"
-          hint="How much the bar darkens once it crosses the threshold."
         />
       </InspectorGroup>
     </div>
@@ -92,7 +75,7 @@ function ToggleRow({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2.5 transition hover:border-stone-300 hover:bg-white">
+    <label className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-transparent bg-[#faf9f6] px-3 py-2.5 transition-[border-color,background-color] duration-150 hover:border-[#e5e0d5] hover:bg-white">
       <span className="flex flex-col gap-0.5">
         <span className="text-[12.5px] font-medium text-stone-800">{label}</span>
         {hint ? (

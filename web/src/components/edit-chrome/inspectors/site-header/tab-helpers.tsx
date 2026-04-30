@@ -1,47 +1,43 @@
 "use client";
 
 /**
- * Small primitives shared across SiteHeaderInspector tabs. Kept light;
- * the goal is consistency of helper microcopy + dashed "next pass"
- * placeholder rows, not a parallel kit.
+ * Phase 1 premium-restraint pass:
+ *   - GroupDescription was always-on microcopy under every group title.
+ *     Replaced by passing the same copy as `info` on InspectorGroup,
+ *     which renders an info-tip glyph next to the title and reveals
+ *     the description on hover. Reclaims ~40% of vertical real estate
+ *     and removes 12+ lines of always-visible microcopy.
+ *   - NextPassRow placeholder rows were removed entirely. The roadmap
+ *     lives in commit messages and source comments, not in the shipped
+ *     UI. They were reading as "incomplete product," not "thoughtful
+ *     roadmap" — premium UX ships only what works and keeps placeholders
+ *     out of the operator's eye.
+ *
+ * The file remains so existing imports keep working through the
+ * deprecation, but both helpers below are now no-ops you can delete in
+ * the next pass.
  */
 
 import type { ReactNode } from "react";
 
 /**
- * Visible group description — paragraph of helper text that explains
- * WHEN to use the group's controls. Goes inside <InspectorGroup> as
- * the first child so it sits between the title and the controls.
+ * @deprecated Pass the description as `info` on <InspectorGroup> instead.
+ * Renders nothing.
  */
-export function GroupDescription({ children }: { children: ReactNode }) {
-  return (
-    <p className="-mt-0.5 mb-2 text-[11px] leading-snug text-stone-500">
-      {children}
-    </p>
-  );
+export function GroupDescription({ children: _ }: { children: ReactNode }) {
+  return null;
 }
 
 /**
- * Dashed placeholder row used in tabs that have controls coming in a
- * later session. Honest about what's not yet implemented; reads as a
- * deliberate roadmap, not as a half-built input.
+ * @deprecated Removed from shipped UI. Roadmap notes belong in source
+ * comments, not in the UI tree.
  */
 export function NextPassRow({
-  label,
-  hint,
+  label: _label,
+  hint: _hint,
 }: {
   label: string;
   hint: string;
 }) {
-  return (
-    <div className="flex items-start justify-between gap-3 rounded-md border border-dashed border-[#e5e0d5] bg-white px-3 py-2.5">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[12px] font-medium text-stone-600">{label}</span>
-        <span className="text-[10.5px] text-stone-400">{hint}</span>
-      </div>
-      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-stone-500">
-        Next pass
-      </span>
-    </div>
-  );
+  return null;
 }
