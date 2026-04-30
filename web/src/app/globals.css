@@ -1069,3 +1069,14 @@ html[data-public-font-preset="editorial"] {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Preview toggle — when the operator flips the Preview pill in the topbar,
+ * EditContext sets body[data-edit-preview="1"] and any DOM marked with
+ * `data-edit-affordance` is hidden. The component's hover/show logic stays
+ * intact (it just fails to paint). Returning to edit mode clears the
+ * attribute and the affordances reappear.
+ * ------------------------------------------------------------------------- */
+body[data-edit-preview="1"] [data-edit-affordance] {
+  display: none !important;
+}
+

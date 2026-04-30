@@ -114,6 +114,16 @@ export interface EditContextValue {
   selectedSectionId: string | null;
   setSelectedSectionId: (id: string | null) => void;
 
+  /** Preview toggle — when true, ALL editing chrome (selection rings,
+   *  hover pills, drag toolbars, link interceptor) is suppressed so the
+   *  operator can interact with the live page exactly as a visitor
+   *  would. Different from `?preview=1` URL mode (which renders draft
+   *  content for logged-out visitors); this is an in-edit-mode flag
+   *  that toggles the chrome on/off. Drawer state is preserved so the
+   *  operator can flip back and continue editing. */
+  previewing: boolean;
+  setPreviewing: (next: boolean) => void;
+
   /** Sprint 4 — multi-select.
    *
    *  Sections the operator extended selection to via shift-click or cmd/
@@ -512,6 +522,30 @@ export function EditProvider({
   const [selectedSectionId, setSelectedSectionIdRaw] = useState<string | null>(
     null,
   );
+
+  // ── preview toggle ──────────────────────────────────────────────────
+  // Mirrors to body[data-edit-preview="1"] so server-rendered
+  // affordances (e.g. <PublicHeader>'s "Edit header" pill) can hide
+  // themselves via pure CSS without round-tripping through React state.
+  const [previewing, setPreviewingRaw] = useState<boolean>(false);
+  const setPreviewing = useCallback((next: boolean) => {
+    setPreviewingRaw(next);
+    // Clear any active selection — the inspector dock would obscure
+    // the page area the operator is trying to test. Drawer state stays
+    // available; flipping back to edit mode shows it again.
+    if (next) setSelectedSectionIdRaw(null);
+  }, []);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (previewing) {
+      document.body.dataset.editPreview = "1";
+    } else {
+      delete document.body.dataset.editPreview;
+    }
+    return () => {
+      if (typeof document !== "undefined") delete document.body.dataset.editPreview;
+    };
+  }, [previewing]);
   // Sprint 4 — multi-select set. Sections the operator added via shift-
   // click or cmd-click ALONGSIDE the primary `selectedSectionId`. Always
   // excludes the primary id (the union is `[primary, ...additional]`).
@@ -1900,6 +1934,8 @@ export function EditProvider({
       pageId,
       selectedSectionId,
       setSelectedSectionId,
+      previewing,
+      setPreviewing,
       additionalSelectedIds,
       extendSelection,
       toggleSelection,
@@ -2010,6 +2046,8 @@ export function EditProvider({
       pageSlug,
       pageId,
       selectedSectionId,
+      previewing,
+      setPreviewing,
       additionalSelectedIds,
       extendSelection,
       toggleSelection,

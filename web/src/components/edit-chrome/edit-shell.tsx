@@ -155,6 +155,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
     openAssets,
     openSchedule,
     openComments,
+    previewing,
+    setPreviewing,
     closePublish,
     closePageSettings,
     closeRevisions,
@@ -486,6 +488,8 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         <TopBar
           device={device}
           setDevice={setDevice}
+          previewing={previewing}
+          setPreviewing={setPreviewing}
           dirty={dirty}
           saving={saving}
           canUndo={canUndo}
@@ -511,7 +515,12 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
           className="pointer-events-none fixed inset-0 top-[54px] z-[70]"
           aria-hidden
         />
-        <SelectionLayer />
+        {/* Preview toggle suppression — when the operator clicks the
+         *  Preview pill in the topbar, all interaction-blocking + visual
+         *  affordance layers unmount so the page behaves like it would
+         *  for a real visitor. SelectionLayer owns the hover ring,
+         *  drag toolbar chip, and click-selection capture. */}
+        {!previewing ? <SelectionLayer /> : null}
         <CompositionInserters />
         <InlineEditor />
         <NavigatorPanel />
@@ -532,7 +541,9 @@ function EditShellInner({ children }: { children?: React.ReactNode }) {
         />
         <MutationErrorToast />
         <DraftSavedToast />
-        <CanvasLinkInterceptor />
+        {/* Preview toggle: when on, links navigate normally so the
+         *  operator can test menus, anchors, and click targets. */}
+        {!previewing ? <CanvasLinkInterceptor /> : null}
         <FirstPaintTip />
         <IframeBridgeParent />
       </div>

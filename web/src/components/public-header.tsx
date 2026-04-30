@@ -419,6 +419,11 @@ export async function PublicHeader() {
       {renderedHeader}
       <span
         aria-hidden
+        // body[data-edit-preview="1"] is set by EditContext when the
+        // operator flips the Preview toggle on the topbar; the rule
+        // in app/globals.css forces this affordance off so the header
+        // looks like a real visitor would see it.
+        data-edit-affordance="header-pill"
         className="pointer-events-none absolute right-3 top-2 z-[55] flex items-center gap-1 rounded-full bg-indigo-500/95 px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-white opacity-0 shadow-md backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100"
       >
         <svg

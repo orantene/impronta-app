@@ -897,6 +897,85 @@ function ViewportSwitcher({
   );
 }
 
+/**
+ * PreviewToggle — pill-style switch that flips the canvas between
+ * "editing" mode (rings, drag chips, hover pills) and "preview" mode
+ * (interactive page, no overlays).
+ *
+ * Visual treatment matches the viewport switcher (rounded pill, soft
+ * inset background) so the two segmented controls read as paired
+ * canvas controls. The active state uses an indigo ink to distinguish
+ * "preview is on" at a glance — a ghosted-page-eye glyph signals the
+ * concept without requiring a label change.
+ */
+function PreviewToggle({
+  previewing,
+  setPreviewing,
+}: {
+  previewing: boolean;
+  setPreviewing: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => setPreviewing(!previewing)}
+      title={
+        previewing
+          ? "Exit preview — show editing tools"
+          : "Preview — hide editing tools and interact with the page"
+      }
+      aria-pressed={previewing}
+      className="ml-2 inline-flex shrink-0 items-center gap-[6px] rounded-full border-none px-[12px] py-[5px] text-[12px] font-semibold tracking-[-0.005em] transition-all"
+      style={{
+        background: previewing
+          ? "rgba(99, 102, 241, 0.12)"
+          : "rgba(0,0,0,0.05)",
+        color: previewing ? "#3d4f7c" : CHROME.muted,
+        boxShadow: previewing
+          ? "inset 0 0 0 1px rgba(99,102,241,0.28)"
+          : "inset 0 0 0 1px rgba(0,0,0,0.04)",
+      }}
+    >
+      {previewing ? (
+        // Eye-off — "currently in preview, click to return"
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+          <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+          <line x1="2" y1="2" x2="22" y2="22" />
+        </svg>
+      ) : (
+        // Eye — "click to preview"
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )}
+      {previewing ? "Editing off" : "Preview"}
+    </button>
+  );
+}
+
 function TbTextBtn({
   children,
   onClick,
@@ -1584,6 +1663,14 @@ function ExitForm({ dirty, saving }: { dirty: boolean; saving: boolean }) {
 export interface TopBarProps {
   device: EditDevice;
   setDevice: (d: EditDevice) => void;
+  /**
+   * Preview toggle — true = canvas chrome suppressed, page is interactive.
+   * Different from the URL-based ?preview=1 visitor view; this toggle
+   * keeps the operator in EditShell and only hides editing affordances
+   * (selection rings, hover pills, drag toolbars, link interceptor).
+   */
+  previewing: boolean;
+  setPreviewing: (next: boolean) => void;
   dirty: boolean;
   saving: boolean;
   canUndo: boolean;
@@ -1648,6 +1735,8 @@ const SHARE_TTL_DEFAULT = "7d" as const;
 export function TopBar({
   device,
   setDevice,
+  previewing,
+  setPreviewing,
   dirty,
   saving,
   canUndo,
@@ -1752,6 +1841,14 @@ export function TopBar({
 
       {/* ── Viewport switcher ── */}
       <ViewportSwitcher device={device} setDevice={setDevice} />
+
+      {/* ── Preview toggle ──
+       * Suppresses canvas editing chrome (selection rings, hover pills,
+       * drag toolbars, link interceptor) so the operator can interact
+       * with the live page exactly as a visitor would. The drawer
+       * stays accessible — flip back to test → tweak → test in seconds.
+       */}
+      <PreviewToggle previewing={previewing} setPreviewing={setPreviewing} />
 
       {/* ── Spacer ── */}
       <span className="flex-1" />
