@@ -178,9 +178,7 @@ function LogoField({
   tenantId: string;
 }) {
   // Resolve the asset id → public URL so we can render a thumbnail.
-  // Hits the same /api/admin/media/library endpoint the picker uses;
-  // cached on the client so picking + landing at the same URL stays
-  // snappy.
+  // Same /api/admin/media/library endpoint the picker uses.
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
 
@@ -219,73 +217,119 @@ function LogoField({
 
   const hasLogo = Boolean(currentAssetId && previewUrl);
 
+  // 2027-style hover-edit pattern: the entire thumbnail IS the trigger.
+  // No status text, no separate Pick / Replace / Clear button row. The
+  // MediaPicker's own button is positioned `absolute inset-0` and made
+  // invisible (opacity-0); a CSS hover overlay surfaces "Replace" /
+  // "Add logo" microcopy contextually. Clear (×) appears top-right
+  // only when a logo is set, only on hover.
   return (
-    <div className="flex flex-col gap-2">
-      {/* Preview tile — shows the logo if one is set, or an empty state
-       *  with the same dimensions so the layout doesn't jump. */}
-      <div className="flex items-center gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-3">
-        <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-stone-200 bg-white">
-          {hasLogo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl!}
-              alt="Current logo"
-              className="size-full object-contain p-1"
-            />
-          ) : resolving ? (
-            <span className="size-3 animate-pulse rounded-full bg-stone-300" />
-          ) : (
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-stone-300"
-              aria-hidden
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <circle cx="9" cy="9" r="2" />
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-            </svg>
-          )}
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="text-[12px] font-medium text-stone-700">
-            {hasLogo ? "Logo set" : "No logo yet"}
-          </span>
-          <span className="text-[10.5px] leading-snug text-stone-400">
-            {hasLogo
-              ? "Tap below to replace, or clear to fall back to the brand text."
-              : "Upload an SVG or PNG — square or near-square works best."}
-          </span>
-        </div>
+    <div className="group relative size-24 overflow-hidden rounded-lg border border-[#e5e0d5] bg-[#faf9f6] transition-[border-color] duration-150 hover:border-stone-300">
+      {/* Thumbnail layer */}
+      <div className="absolute inset-0 flex items-center justify-center bg-white">
+        {hasLogo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl!}
+            alt="Current logo"
+            className="size-full object-contain p-2"
+          />
+        ) : resolving ? (
+          <span className="size-3 animate-pulse rounded-full bg-stone-300" />
+        ) : (
+          <svg
+            viewBox="0 0 24 24"
+            width="28"
+            height="28"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-stone-300"
+            aria-hidden
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="9" cy="9" r="2" />
+            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+          </svg>
+        )}
       </div>
 
-      {/* Picker + clear actions */}
-      <div className="flex items-center gap-2">
+      {/* Hover overlay — fades in on group-hover. Pure CSS, no JS state. */}
+      <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-stone-900/60 text-white opacity-0 backdrop-blur-[1px] transition-opacity duration-200 group-hover:opacity-100">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          {hasLogo ? (
+            <>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </>
+          ) : (
+            <>
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </>
+          )}
+        </svg>
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em]">
+          {hasLogo ? "Replace" : "Add logo"}
+        </span>
+      </div>
+
+      {/* MediaPicker trigger — covers the whole tile, invisible. The
+       * arbitrary-selector `[&>button]` targets the button MediaPicker
+       * renders, sizes it to the tile, and zeroes its visual chrome. */}
+      <div className="absolute inset-0 z-20 [&>button]:absolute [&>button]:inset-0 [&>button]:size-full [&>button]:cursor-pointer [&>button]:rounded-lg [&>button]:border-0 [&>button]:bg-transparent [&>button]:p-0 [&>button]:text-transparent [&>button]:opacity-0">
         <MediaPicker
           tenantId={tenantId}
-          label={hasLogo ? "Replace logo" : "Pick or upload"}
+          label="."
           onPick={() => {
-            // Single-pick by URL is unused here — onPickItem below
-            // delivers the asset id we need for branding.
+            // Single-pick by URL is unused — onPickItem delivers the asset id.
           }}
           onPickItem={(item) => onChange(item.id)}
         />
-        {currentAssetId ? (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="rounded-lg border border-[#e5e0d5] bg-white px-2.5 py-1 text-[11px] font-medium text-stone-500 transition hover:border-rose-200 hover:text-rose-600"
-          >
-            Clear
-          </button>
-        ) : null}
       </div>
+
+      {/* Clear (×) — only when a logo is set; only on hover. Stops
+       * propagation so it doesn't trigger the picker behind it. */}
+      {currentAssetId ? (
+        <button
+          type="button"
+          aria-label="Clear logo"
+          title="Clear logo"
+          onClick={(e) => {
+            e.stopPropagation();
+            onChange(null);
+          }}
+          className="absolute right-1.5 top-1.5 z-30 inline-flex size-5 items-center justify-center rounded-full bg-stone-900/85 text-white opacity-0 shadow-md transition-opacity duration-200 hover:bg-rose-600 group-hover:opacity-100"
+        >
+          <svg
+            width="10"
+            height="10"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      ) : null}
     </div>
   );
 }

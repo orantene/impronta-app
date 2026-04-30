@@ -27,7 +27,6 @@ import { useState } from "react";
 import {
   DraggableList,
   InspectorGroup,
-  KIT,
   type DragHandleProps,
 } from "../../kit";
 import { validateHref } from "../href-validation";
@@ -123,7 +122,7 @@ export function NavigationTab({ config, patch }: Props) {
             <button
               type="button"
               onClick={onAdd}
-              className="mt-2 inline-flex items-center gap-1.5 self-start rounded-lg border border-dashed border-[#e5e0d5] bg-white px-3 py-2 text-[12px] font-medium text-stone-600 transition hover:border-indigo-300 hover:bg-indigo-50/40 hover:text-indigo-700"
+              className="mt-1 inline-flex items-center gap-1.5 self-start rounded-md px-2 py-1.5 text-[12px] font-medium text-stone-500 transition-colors duration-150 hover:bg-[#faf9f6] hover:text-stone-800 active:scale-[0.98]"
             >
               <PlusGlyph />
               Add link
@@ -151,10 +150,10 @@ function NavRow({
 }) {
   const [labelDraft, setLabelDraft] = useState(row.label);
   const [hrefDraft, setHrefDraft] = useState(row.href);
+  const hrefV = validateHref(hrefDraft);
+  const hrefWarn = hrefV.kind === "warn";
 
-  // Keep local draft in sync if the server-side state changes (e.g.
-  // the operator added a row, server returned with a real id, this row
-  // remounts with the canonical label).
+  // Keep local drafts in sync if server state moves while we're idle.
   if (labelDraft !== row.label && document.activeElement?.tagName !== "INPUT") {
     setLabelDraft(row.label);
   }
@@ -163,27 +162,38 @@ function NavRow({
   }
 
   return (
+    // 2027 list-item pattern (à la Linear / Framer / Notion):
+    //   - No per-row card border. Whitespace + a soft hover wash define
+    //     the row.
+    //   - Single horizontal line: drag · label · href · actions.
+    //   - Label and href inputs are borderless, transparent-bg, blend
+    //     into the row until focused.
+    //   - Action icons (eye, trash) hide until row hover/focus-within.
+    //   - Hidden-link state (visibility=false) softens text + dims the
+    //     row, no decorative dashes.
     <div
-      className={`group flex items-center gap-2 rounded-lg border bg-[#faf9f6] px-2 py-2 transition ${
-        row.visible
-          ? "border-[#e5e0d5] hover:border-stone-300"
-          : "border-dashed border-stone-300 opacity-70"
+      className={`group/row relative flex items-center gap-2 rounded-md px-2 py-1 transition-colors duration-150 hover:bg-[#faf9f6] focus-within:bg-[#faf9f6] ${
+        row.visible ? "" : "opacity-55"
       }`}
     >
+      {/* Drag handle — left rail. Larger hit target (28px), prominent on
+       *  hover so the affordance is obvious. */}
       <button
         type="button"
         aria-label="Drag to reorder"
-        title="Drag to reorder"
+        title="Drag"
         {...handleProps}
-        className="flex size-6 shrink-0 cursor-grab items-center justify-center text-stone-300 transition hover:text-stone-600 active:cursor-grabbing"
+        className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded text-stone-300 transition-colors duration-150 hover:bg-stone-100 hover:text-stone-700 active:cursor-grabbing"
       >
         <DragGlyph />
       </button>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      {/* Inputs column. Label is the primary visual; href sits below it
+       *  one font-size smaller, monospaced, dim — secondary metadata. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-0">
         <input
           type="text"
-          className={`${KIT.input} py-1.5 text-[12.5px] font-medium`}
+          className="w-full rounded-sm border-0 bg-transparent px-1 py-0.5 text-[13px] font-medium text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-1 focus:ring-indigo-300/40 focus:bg-white"
           placeholder="Link label"
           value={labelDraft}
           maxLength={60}
@@ -202,29 +212,43 @@ function NavRow({
             }
           }}
         />
-        <HrefInput
-          draft={hrefDraft}
-          setDraft={setHrefDraft}
-          onCommit={() => {
+        <input
+          type="text"
+          className={`w-full rounded-sm border-0 bg-transparent px-1 py-0 font-mono text-[10.5px] focus:outline-none focus:ring-1 focus:bg-white ${
+            hrefWarn
+              ? "text-amber-700 focus:ring-amber-400/40"
+              : "text-stone-400 focus:ring-indigo-300/40"
+          }`}
+          placeholder="/path or https://…"
+          value={hrefDraft}
+          maxLength={500}
+          onChange={(e) => setHrefDraft(e.target.value)}
+          onBlur={() => {
             if (hrefDraft.trim() !== row.href) {
               onChange({ href: hrefDraft.trim() || row.href });
             }
           }}
-          onCancel={() => setHrefDraft(row.href)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            } else if (e.key === "Escape") {
+              setHrefDraft(row.href);
+              e.currentTarget.blur();
+            }
+          }}
+          title={hrefWarn ? hrefV.message : undefined}
         />
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
+      {/* Action cluster — hide until row hover/focus. Smaller hit
+       *  targets (24px) so the row stays compact. */}
+      <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-150 group-hover/row:opacity-100 group-focus-within/row:opacity-100">
         <button
           type="button"
           onClick={() => onChange({ visible: !row.visible })}
           aria-label={row.visible ? "Hide link" : "Show link"}
           title={row.visible ? "Hide" : "Show"}
-          className={`inline-flex size-7 items-center justify-center rounded-md transition ${
-            row.visible
-              ? "text-stone-500 hover:bg-white hover:text-stone-800"
-              : "text-stone-400 hover:bg-white hover:text-stone-700"
-          }`}
+          className="inline-flex size-6 items-center justify-center rounded text-stone-400 transition-colors duration-150 hover:bg-white hover:text-stone-700"
         >
           {row.visible ? <EyeGlyph /> : <EyeOffGlyph />}
         </button>
@@ -233,67 +257,11 @@ function NavRow({
           onClick={onRemove}
           aria-label="Remove link"
           title="Remove"
-          className="inline-flex size-7 items-center justify-center rounded-md text-stone-400 transition hover:bg-rose-50 hover:text-rose-600"
+          className="inline-flex size-6 items-center justify-center rounded text-stone-400 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-600"
         >
           <TrashGlyph />
         </button>
       </div>
-    </div>
-  );
-}
-
-/**
- * HrefInput — text field that runs the href through validateHref() on
- * every change. Idle state is the standard input chrome; once the
- * operator types something that doesn't recognize cleanly (no leading
- * slash, malformed scheme, etc), the input picks up an amber accent
- * line under the field with a single line of microcopy explaining
- * what looks off.
- *
- * Validation never blocks save — premium UX rule: the inspector
- * persists what the operator typed; the warning is guidance, not a
- * gate. The storefront's link-resolver handles the "broken link"
- * surface separately.
- */
-function HrefInput({
-  draft,
-  setDraft,
-  onCommit,
-  onCancel,
-}: {
-  draft: string;
-  setDraft: (next: string) => void;
-  onCommit: () => void;
-  onCancel: () => void;
-}) {
-  const v = validateHref(draft);
-  const warn = v.kind === "warn";
-  return (
-    <div className="flex flex-col gap-0.5">
-      <input
-        type="text"
-        className={`${KIT.input} py-1 text-[11px] font-mono text-stone-500 ${
-          warn ? "border-amber-300 hover:border-amber-400 focus:border-amber-400 focus:ring-amber-400/25" : ""
-        }`}
-        placeholder="/path or https://…"
-        value={draft}
-        maxLength={500}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={onCommit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.currentTarget.blur();
-          } else if (e.key === "Escape") {
-            onCancel();
-            e.currentTarget.blur();
-          }
-        }}
-      />
-      {warn ? (
-        <span className="px-1 text-[10px] leading-snug text-amber-700/85">
-          {v.message}
-        </span>
-      ) : null}
     </div>
   );
 }
