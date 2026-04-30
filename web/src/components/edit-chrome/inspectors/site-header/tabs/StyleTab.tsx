@@ -1,80 +1,145 @@
 "use client";
 
 /**
- * Style tab — color and typography surface for the header.
+ * Style tab — color and surface decisions that affect the header.
  *
- * Placeholder. Color tokens (primary/accent/ink) and font-preset live in
- * agency_branding and are edited today via /admin/site-settings/branding
- * + /admin/site-settings/design. The inspector edits will land in the
- * next pass with proper color-picker + font preview UX.
+ * What this tab edits:
+ *   - Primary brand color  (writes branding.primary_color directly)
+ *   - Accent color         (writes branding.accent_color directly)
+ *   - Page background mode (writes background.mode token; optimistic)
+ *
+ * What's deferred to a follow-up pass:
+ *   - Full font picker — Google Fonts integration is its own surface;
+ *     for now the current preset is shown with a route to the design
+ *     admin where the picker already lives.
+ *
+ * Why this scope:
+ *   The user's mental model in the Style tab is "color + tone of the
+ *   bar". Primary + accent + background-mode reach 80% of header
+ *   styling decisions; the remainder (fonts, advanced color overrides)
+ *   are reasonable to keep one click away in the design admin until we
+ *   bring the picker inline.
  */
 
-import { InspectorGroup } from "../../kit";
+import { useState } from "react";
+
+import { InspectorGroup, KIT } from "../../kit";
 import { GroupDescription } from "../tab-helpers";
 import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
+import type { SiteHeaderPatch } from "../SiteHeaderInspector";
 
 interface Props {
   config: SiteHeaderConfig;
+  patch: SiteHeaderPatch;
 }
 
-export function StyleTab({ config }: Props) {
+const BACKGROUND_MODES: Array<{
+  value: string;
+  label: string;
+  helper: string;
+  swatch: string;
+}> = [
+  { value: "plain", label: "Plain", helper: "Solid neutral. The safest default.", swatch: "#fafaf9" },
+  { value: "editorial-ivory", label: "Ivory", helper: "Warm cream canvas. Boutique editorial feel.", swatch: "#f6f1ea" },
+  { value: "editorial-noir", label: "Noir", helper: "Black canvas, gold serif type. Couture register.", swatch: "#1a1714" },
+  { value: "champagne-gradient", label: "Champagne", helper: "Soft gold-to-ivory gradient. Wedding / lifestyle.", swatch: "linear-gradient(135deg,#f6e8c8,#fdf6e7)" },
+  { value: "aurora", label: "Aurora", helper: "Subtle radial glow. Energetic, modern.", swatch: "radial-gradient(circle at 30% 20%, #d6b8e8, transparent 70%)" },
+  { value: "mesh-blush", label: "Mesh blush", helper: "Soft blush mesh. Romantic, feminine.", swatch: "radial-gradient(circle at 30% 30%, #f4c2c2, #fff 80%)" },
+  { value: "mesh-noir", label: "Mesh noir", helper: "Dark mesh with subtle warmth. Premium night.", swatch: "radial-gradient(circle at 70% 30%, #3a2a2a, #1a1a1a 80%)" },
+  { value: "noise-texture", label: "Texture", helper: "Subtle paper grain. Tactile, considered.", swatch: "#e8e3d8" },
+];
+
+export function StyleTab({ config, patch }: Props) {
+  const primary = config.branding.primaryColor ?? "";
+  const accent = config.branding.accentColor ?? "";
+  const bgMode = config.branding.themeJson["background.mode"] ?? "plain";
+  const fontPreset = config.branding.fontPreset ?? "default";
+
   return (
     <div className="flex flex-col gap-6">
-      <InspectorGroup title="Current style">
+      <InspectorGroup title="Brand colors">
         <GroupDescription>
-          Read-only summary of what the header is using right now.
+          Primary drives buttons + active states. Accent is the gold/highlight
+          register. Both flow through the design-token system.
+        </GroupDescription>
+
+        <ColorRow
+          label="Primary"
+          hint="Main brand hue. Used by the CTA button and active selection."
+          value={primary}
+          onChange={(hex) => patch.patchBranding({ primaryColor: hex || null })}
+        />
+        <div className="h-2" />
+        <ColorRow
+          label="Accent"
+          hint="Secondary highlight — small chips, gold-line dividers, link underlines."
+          value={accent}
+          onChange={(hex) => patch.patchBranding({ accentColor: hex || null })}
+        />
+      </InspectorGroup>
+
+      <InspectorGroup title="Page background">
+        <GroupDescription>
+          Sets the canvas the header sits on. Pick the mood, not the pixel —
+          each mode is a curated treatment.
         </GroupDescription>
         <div className="grid grid-cols-2 gap-2">
-          <SwatchRow
-            label="Primary color"
-            value={config.branding.primaryColor ?? "—"}
-          />
-          <SwatchRow
-            label="Accent color"
-            value={config.branding.accentColor ?? "—"}
-          />
-          <InfoRow
-            label="Font preset"
-            value={config.branding.fontPreset ?? "default"}
-          />
-          <InfoRow
-            label="Background mode"
-            value={
-              config.branding.themeJson["background.mode"] ?? "default"
-            }
-          />
+          {BACKGROUND_MODES.map((opt) => {
+            const active = bgMode === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => patch.patchToken("background.mode", opt.value)}
+                className={`group flex flex-col items-stretch gap-2 rounded-lg border p-2.5 text-left transition ${
+                  active
+                    ? "border-indigo-300 bg-indigo-50/40 shadow-[0_0_0_1px_rgba(99,102,241,0.15)]"
+                    : "border-[#e5e0d5] bg-[#faf9f6] hover:border-stone-300 hover:bg-white"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className="block h-9 rounded-md border border-stone-200/60"
+                  style={{ background: opt.swatch }}
+                />
+                <span className="flex flex-col gap-0.5 px-0.5">
+                  <span
+                    className={`text-[12px] font-semibold ${active ? "text-indigo-700" : "text-stone-700"}`}
+                  >
+                    {opt.label}
+                  </span>
+                  <span className="text-[10.5px] leading-snug text-stone-500">
+                    {opt.helper}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </InspectorGroup>
 
-      <InspectorGroup title="Edit style">
+      <InspectorGroup title="Typography">
         <GroupDescription>
-          Color + font controls move into this drawer in the next pass.
+          Header type follows the site-wide font preset. The full Google Fonts
+          picker stays in design settings for now — bringing it inline is the
+          next pass.
         </GroupDescription>
-        <div className="rounded-lg border border-[#e5e0d5] bg-[#faf9f6] p-4 text-[12px] text-stone-600">
-          <p className="mb-2">
-            <strong className="font-semibold text-stone-800">
-              Color + typography editor coming next pass.
-            </strong>{" "}
-            We'll add accessible color pickers, contrast hints, and a Google Fonts picker that
-            previews live in the canvas.
-          </p>
-        </div>
-        <div className="mt-2 flex flex-col gap-1">
-          <a
-            href="/admin/site-settings/branding"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="self-start text-[11.5px] font-medium text-indigo-600 transition-colors hover:text-indigo-800"
-          >
-            Edit colors + logo →
-          </a>
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-3 py-2.5">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10.5px] uppercase tracking-wider text-stone-400">
+              Current preset
+            </span>
+            <span className="text-[13px] font-semibold text-stone-800">
+              {fontPreset || "default"}
+            </span>
+          </div>
           <a
             href="/admin/site-settings/design"
             target="_blank"
             rel="noopener noreferrer"
-            className="self-start text-[11.5px] font-medium text-indigo-600 transition-colors hover:text-indigo-800"
+            className="text-[11.5px] font-medium text-indigo-600 transition-colors hover:text-indigo-800"
           >
-            Edit typography + design tokens →
+            Change in design →
           </a>
         </div>
       </InspectorGroup>
@@ -82,32 +147,89 @@ export function StyleTab({ config }: Props) {
   );
 }
 
-function SwatchRow({ label, value }: { label: string; value: string }) {
-  const isHex = /^#[0-9a-fA-F]{3,8}$/.test(value);
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2.5 py-2">
-      <span
-        aria-hidden
-        className="inline-block size-5 shrink-0 rounded border border-stone-200"
-        style={{ background: isHex ? value : "transparent" }}
-      />
-      <span className="flex flex-col">
-        <span className="text-[10.5px] uppercase tracking-wider text-stone-400">
-          {label}
-        </span>
-        <span className="font-mono text-[11px] text-stone-700">{value}</span>
-      </span>
-    </div>
-  );
-}
+// ── subcomponents ────────────────────────────────────────────────────
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function ColorRow({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (hex: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const isHex = /^#[0-9a-fA-F]{3,8}$/.test(value);
+
+  // Keep input in sync if server-side value updates while we're idle.
+  if (draft !== value && document.activeElement?.tagName !== "INPUT") {
+    setDraft(value);
+  }
+
   return (
-    <div className="flex flex-col gap-0.5 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2.5 py-2">
-      <span className="text-[10.5px] uppercase tracking-wider text-stone-400">
-        {label}
-      </span>
-      <span className="text-[11.5px] font-medium text-stone-700">{value}</span>
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-0.5">
+        <span className={KIT.label}>{label}</span>
+        {hint ? <span className={KIT.hint}>{hint}</span> : null}
+      </div>
+      <div className="flex items-center gap-2 rounded-lg border border-[#e5e0d5] bg-[#faf9f6] px-2 py-1.5">
+        {/* Native color picker — no popover anchoring complexity. The
+         *  visible swatch IS the input, hidden but clickable through a
+         *  custom-styled wrapper. */}
+        <label
+          aria-label={`Change ${label.toLowerCase()} color`}
+          className="relative inline-block size-7 shrink-0 cursor-pointer overflow-hidden rounded-md border border-stone-200 transition hover:scale-105"
+          style={{ background: isHex ? value : "transparent" }}
+        >
+          {!isHex ? (
+            <span
+              aria-hidden
+              className="absolute inset-0 bg-[repeating-conic-gradient(#e5e0d8_0_25%,#fff_0_50%)] bg-[length:8px_8px]"
+            />
+          ) : null}
+          <input
+            type="color"
+            value={isHex ? value : "#000000"}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              onChange(e.target.value);
+            }}
+            className="absolute inset-0 size-full cursor-pointer opacity-0"
+          />
+        </label>
+        <input
+          type="text"
+          className="flex-1 bg-transparent font-mono text-[12px] text-stone-700 placeholder:text-stone-400 focus:outline-none"
+          placeholder="#— or rgba()"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => {
+            if (draft !== value) onChange(draft);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.currentTarget.blur();
+            } else if (e.key === "Escape") {
+              setDraft(value);
+              e.currentTarget.blur();
+            }
+          }}
+        />
+        {value ? (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft("");
+              onChange("");
+            }}
+            className="text-[10.5px] font-medium text-stone-400 transition hover:text-rose-600"
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

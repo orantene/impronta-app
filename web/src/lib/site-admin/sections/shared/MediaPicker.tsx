@@ -29,6 +29,13 @@ interface MediaItem {
   createdAt: string;
 }
 
+export interface MediaPickedItem {
+  id: string;
+  publicUrl: string;
+  width: number | null;
+  height: number | null;
+}
+
 export interface MediaPickerProps {
   tenantId: string;
   /**
@@ -37,6 +44,13 @@ export interface MediaPickerProps {
    * `onMultiPick` is provided.
    */
   onPick: (publicUrl: string) => void;
+  /**
+   * Called alongside `onPick` with the full picked-item record so callers
+   * that need the asset id (e.g. agency_branding.logo_media_asset_id)
+   * don't have to do a second URL→id lookup. Optional — existing callers
+   * keep using `onPick`.
+   */
+  onPickItem?: (item: MediaPickedItem) => void;
   /** Shown inside the trigger button. */
   label?: string;
   /** Disable the trigger. */
@@ -54,6 +68,7 @@ export interface MediaPickerProps {
 export function MediaPicker({
   tenantId,
   onPick,
+  onPickItem,
   label = "Browse library",
   disabled,
   multi = false,
@@ -121,6 +136,12 @@ export function MediaPicker({
         // Single mode: auto-pick and close — most common flow is
         // "upload + use it here" in one motion.
         onPick(item.publicUrl);
+        onPickItem?.({
+          id: item.id,
+          publicUrl: item.publicUrl,
+          width: item.width,
+          height: item.height,
+        });
         setOpen(false);
       }
     } catch (e) {
@@ -274,6 +295,12 @@ export function MediaPicker({
                               togglePending(m.publicUrl);
                             } else {
                               onPick(m.publicUrl);
+                              onPickItem?.({
+                                id: m.id,
+                                publicUrl: m.publicUrl,
+                                width: m.width,
+                                height: m.height,
+                              });
                               setOpen(false);
                             }
                           }}

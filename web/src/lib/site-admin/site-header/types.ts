@@ -30,8 +30,31 @@ export interface SiteHeaderConfig {
     version: number;
   };
   /** Header navigation links — DRAFT-side so the operator sees their
-   *  own work-in-progress, not the last published snapshot. */
+   *  own work-in-progress, not the last published snapshot.
+   *
+   *  Items carry their own `version` for CAS on save. New items added
+   *  client-side have `id: null` until the server returns the inserted
+   *  row id on the next save. */
   navigation: {
-    items: Array<{ id: string; label: string; href: string }>;
+    locale: string;
+    items: Array<{
+      id: string;
+      label: string;
+      href: string;
+      visible: boolean;
+      sortOrder: number;
+      version: number;
+    }>;
   };
+}
+
+/** Item shape the inspector sends back to the bulk save action. */
+export interface SiteHeaderNavItemInput {
+  /** null/undefined for new items the operator just added in the drawer. */
+  id?: string | null;
+  label: string;
+  href: string;
+  visible: boolean;
+  /** Required only for updates. Server returns NOT_FOUND if missing on existing rows. */
+  expectedVersion?: number;
 }

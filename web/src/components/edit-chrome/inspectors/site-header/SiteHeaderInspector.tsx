@@ -41,9 +41,13 @@ import {
   loadHeaderConfigAction,
   saveHeaderBrandingAction,
   saveHeaderIdentityAction,
+  saveHeaderNavigationAction,
   saveHeaderTokenAction,
 } from "@/lib/site-admin/site-header/actions";
-import type { SiteHeaderConfig } from "@/lib/site-admin/site-header/types";
+import type {
+  SiteHeaderConfig,
+  SiteHeaderNavItemInput,
+} from "@/lib/site-admin/site-header/types";
 
 import { BrandTab } from "./tabs/BrandTab";
 import { LayoutTab } from "./tabs/LayoutTab";
@@ -84,16 +88,21 @@ export interface SiteHeaderPatch {
     primaryCtaLabel?: string | null;
     primaryCtaHref?: string | null;
   }) => void;
-  /** Patch branding (logo, brand mark). Renderer-driven; triggers refresh. */
+  /** Patch branding (logo, brand mark, colors, font). Renderer-driven; triggers refresh. */
   patchBranding: (input: {
     logoMediaAssetId?: string | null;
     brandMarkSvg?: string | null;
+    primaryColor?: string | null;
+    accentColor?: string | null;
+    fontPreset?: string | null;
   }) => void;
   /** Patch a theme token. Token-driven; optimistic + autosave + no refresh. */
   patchToken: (key: string, value: string) => void;
+  /** Replace the entire header nav list (one locale). Server diffs; triggers refresh. */
+  patchNavigation: (items: SiteHeaderNavItemInput[]) => void;
 }
 
-export function SiteHeaderInspector({ tenantId: _tenantId }: { tenantId: string }) {
+export function SiteHeaderInspector({ tenantId }: { tenantId: string }) {
   const [tab, setTab] = useState<TabKey>("brand");
   const [config, setConfig] = useState<SiteHeaderConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -125,7 +134,7 @@ export function SiteHeaderInspector({ tenantId: _tenantId }: { tenantId: string 
   // flight, then drains. This prevents overlapping saves from racing
   // CAS and keeps the status indicator honest.
 
-  type PendingKind = "identity" | "branding" | "token";
+  type PendingKind = "identity" | "branding" | "token" | "navigation";
   type Pending = {
     kind: PendingKind;
     /** Payload accumulated for the next save (merged on every patch call). */
@@ -213,6 +222,27 @@ export function SiteHeaderInspector({ tenantId: _tenantId }: { tenantId: string 
             );
             // Tokens render via CSS — no refresh needed; the optimistic
             // <html> mutation already shows the change.
+          } else if (kind === "navigation") {
+            const navPayload = entry.payload as {
+              locale: string;
+              items: SiteHeaderNavItemInput[];
+            };
+            const res = await saveHeaderNavigationAction(navPayload);
+            if (!res.ok) throw new Error(res.error);
+            // Server returns the canonical post-publish list (with new
+            // ids for inserts). Replace local state so the UI rekeys.
+            setConfig((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    navigation: {
+                      ...prev.navigation,
+                      items: res.items,
+                    },
+                  }
+                : prev,
+            );
+            triggerRefresh = true;
           }
           queueRef.current.delete(kind);
         } catch (e) {
@@ -296,6 +326,23 @@ export function SiteHeaderInspector({ tenantId: _tenantId }: { tenantId: string 
     [config, scheduleFlush],
   );
 
+  const enqueueNavigation = useCallback(
+    (items: SiteHeaderNavItemInput[]) => {
+      if (!config) return;
+      // Replace any pending nav save — the operator's latest desired
+      // state supersedes all prior in-flight changes.
+      queueRef.current.set("navigation", {
+        kind: "navigation",
+        payload: { locale: config.navigation.locale, items },
+        // Nav doesn't use a single CAS version (each row has its own).
+        // The action handles per-row CAS internally.
+        expectedVersion: 0,
+      });
+      scheduleFlush();
+    },
+    [config, scheduleFlush],
+  );
+
   const patch: SiteHeaderPatch = {
     patchIdentity: (input) => {
       // Optimistic local update so inputs stay snappy.
@@ -311,6 +358,30 @@ export function SiteHeaderInspector({ tenantId: _tenantId }: { tenantId: string 
       enqueueBranding(input);
     },
     patchToken: enqueueToken,
+    patchNavigation: (items) => {
+      // Optimistic: render the new list immediately, even before the
+      // server persists. Items without ids stay locally-keyed; the
+      // server's response replaces them with real ids on settle.
+      setConfig((prev) =>
+        prev
+          ? {
+              ...prev,
+              navigation: {
+                ...prev.navigation,
+                items: items.map((it, i) => ({
+                  id: it.id ?? `__new_${i}_${Date.now()}__`,
+                  label: it.label,
+                  href: it.href,
+                  visible: it.visible,
+                  sortOrder: (i + 1) * 10,
+                  version: it.expectedVersion ?? 0,
+                })),
+              },
+            }
+          : prev,
+      );
+      enqueueNavigation(items);
+    },
   };
 
   // Render.
@@ -357,9 +428,9 @@ export function SiteHeaderInspector({ tenantId: _tenantId }: { tenantId: string 
       <DrawerBody padding="14px 14px 32px">
         <SaveBanner status={status} />
         {tab === "brand" ? (
-          <BrandTab config={config} patch={patch} />
+          <BrandTab config={config} patch={patch} tenantId={tenantId} />
         ) : tab === "navigation" ? (
-          <NavigationTab config={config} />
+          <NavigationTab config={config} patch={patch} />
         ) : tab === "layout" ? (
           <LayoutTab config={config} patch={patch} />
         ) : tab === "mobile" ? (
@@ -367,7 +438,7 @@ export function SiteHeaderInspector({ tenantId: _tenantId }: { tenantId: string 
         ) : tab === "behavior" ? (
           <BehaviorTab config={config} patch={patch} />
         ) : (
-          <StyleTab config={config} />
+          <StyleTab config={config} patch={patch} />
         )}
       </DrawerBody>
     </>
@@ -393,12 +464,18 @@ function mapIdentityInput(input: {
 function mapBrandingInput(input: {
   logoMediaAssetId?: string | null;
   brandMarkSvg?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  fontPreset?: string | null;
 }): Partial<SiteHeaderConfig["branding"]> {
   const out: Partial<SiteHeaderConfig["branding"]> = {};
   if (input.logoMediaAssetId !== undefined)
     out.logoMediaAssetId = input.logoMediaAssetId;
   if (input.brandMarkSvg !== undefined)
     out.brandMarkSvg = input.brandMarkSvg;
+  if (input.primaryColor !== undefined) out.primaryColor = input.primaryColor;
+  if (input.accentColor !== undefined) out.accentColor = input.accentColor;
+  if (input.fontPreset !== undefined) out.fontPreset = input.fontPreset;
   return out;
 }
 

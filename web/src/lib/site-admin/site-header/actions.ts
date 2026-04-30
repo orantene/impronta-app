@@ -36,10 +36,20 @@ import {
   saveDesignDraft,
 } from "@/lib/site-admin/server/design";
 import {
+  deleteNavItem,
+  publishNavigationMenu,
+  reorderNavItems,
+  upsertNavItem,
+  type NavItemRow,
+} from "@/lib/site-admin/server/navigation";
+import {
   brandingFormSchema,
   identityFormSchema,
 } from "@/lib/site-admin";
-import type { SiteHeaderConfig } from "./types";
+import type {
+  SiteHeaderConfig,
+  SiteHeaderNavItemInput,
+} from "./types";
 
 // ── Result envelope ────────────────────────────────────────────────────
 type ActionResult<T> =
@@ -81,6 +91,29 @@ export async function loadHeaderConfigAction(): Promise<
     };
   }
 
+  // Default locale = identity's default. Multi-locale switching is a
+  // future control inside the Navigation tab; for now we open at the
+  // tenant's primary so the operator sees their main menu.
+  const defaultLocale = identity?.default_locale ?? "en";
+
+  // Draft items for the active locale's header zone.
+  const { data: navItems, error: navErr } = await auth.supabase
+    .from("cms_navigation_items")
+    .select(
+      "id, label, href, visible, sort_order, version, parent_id, zone, locale",
+    )
+    .eq("tenant_id", scope.tenantId)
+    .eq("zone", "header")
+    .eq("locale", defaultLocale)
+    .is("parent_id", null) // top-level only — submenu support lands later
+    .order("sort_order", { ascending: true });
+  if (navErr) {
+    return {
+      ok: false,
+      error: `Navigation load failed: ${navErr.message}`,
+    };
+  }
+
   return {
     ok: true,
     config: {
@@ -101,9 +134,15 @@ export async function loadHeaderConfigAction(): Promise<
         version: branding.version ?? 0,
       },
       navigation: {
-        // Step 5b first-cut: navigation tab not yet wired. Returns an
-        // empty list; the published tree still drives the live render.
-        items: [],
+        locale: defaultLocale,
+        items: (navItems ?? []).map((row) => ({
+          id: row.id as string,
+          label: row.label as string,
+          href: row.href as string,
+          visible: Boolean(row.visible),
+          sortOrder: row.sort_order as number,
+          version: row.version as number,
+        })),
       },
     },
   };
@@ -202,6 +241,9 @@ interface BrandingPatchInput {
   expectedVersion: number;
   logoMediaAssetId?: string | null;
   brandMarkSvg?: string | null;
+  primaryColor?: string | null;
+  accentColor?: string | null;
+  fontPreset?: string | null;
 }
 
 export async function saveHeaderBrandingAction(
@@ -216,9 +258,15 @@ export async function saveHeaderBrandingAction(
   const current = await loadBrandingForStaff(auth.supabase, scope.tenantId);
 
   const merged = {
-    primaryColor: current?.primary_color ?? null,
+    primaryColor:
+      input.primaryColor !== undefined
+        ? input.primaryColor
+        : (current?.primary_color ?? null),
     secondaryColor: current?.secondary_color ?? null,
-    accentColor: current?.accent_color ?? null,
+    accentColor:
+      input.accentColor !== undefined
+        ? input.accentColor
+        : (current?.accent_color ?? null),
     neutralColor: current?.neutral_color ?? null,
     logoMediaAssetId:
       input.logoMediaAssetId !== undefined
@@ -227,7 +275,10 @@ export async function saveHeaderBrandingAction(
     logoDarkMediaAssetId: current?.logo_dark_media_asset_id ?? null,
     faviconMediaAssetId: current?.favicon_media_asset_id ?? null,
     ogImageMediaAssetId: current?.og_image_media_asset_id ?? null,
-    fontPreset: current?.font_preset ?? null,
+    fontPreset:
+      input.fontPreset !== undefined
+        ? input.fontPreset
+        : (current?.font_preset ?? null),
     headingFont: current?.heading_font ?? null,
     bodyFont: current?.body_font ?? null,
     brandMarkSvg:
@@ -343,4 +394,231 @@ export async function saveHeaderTokenAction(
     version: publish.data.version,
     theme: publish.data.theme,
   };
+}
+
+// ── Navigation bulk save + publish ─────────────────────────────────────
+
+interface NavBulkInput {
+  /** Locale of the menu being edited. */
+  locale: string;
+  /** Final desired ordered list. Server diff-applies this against current
+   *  drafts: missing rows → delete; new rows (no id) → insert; existing
+   *  rows → CAS update; any reorder is captured by sortOrder = i*10. */
+  items: SiteHeaderNavItemInput[];
+}
+
+interface NavBulkResult {
+  /** Items as they exist after save+publish, in sortOrder. Includes
+   *  server-assigned ids for newly-inserted rows so the client can
+   *  re-key them without re-loading. */
+  items: Array<{
+    id: string;
+    label: string;
+    href: string;
+    visible: boolean;
+    sortOrder: number;
+    version: number;
+  }>;
+}
+
+/**
+ * Bulk save + publish the header navigation for one locale.
+ *
+ * The inspector sends its FINAL desired state (the operator's mental
+ * model is "edit the list, the server makes it match"). Server diffs
+ * against current drafts:
+ *   - rows in DB but not in input → deleted
+ *   - input rows without `id`     → inserted (sortOrder = i*10)
+ *   - input rows with `id`        → CAS-updated (label/href/visible/sort)
+ *
+ * After draft mutations the menu is published in the same call so the
+ * live storefront reflects within one round trip.
+ *
+ * Conflict policy: any single CAS conflict aborts the batch and
+ * returns VERSION_CONFLICT. The inspector reloads + retries; the
+ * operator sees a brief "Saved" → "Refreshing" reconciliation.
+ */
+export async function saveHeaderNavigationAction(
+  input: NavBulkInput,
+): Promise<ActionResult<NavBulkResult>> {
+  const auth = await requireStaff();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const scope = await requireTenantScope().catch(() => null);
+  if (!scope) return { ok: false, error: "No tenant in scope." };
+
+  // Load current drafts (top-level header items) so we can diff.
+  const { data: currentRows, error: loadErr } = await auth.supabase
+    .from("cms_navigation_items")
+    .select(
+      "id, label, href, visible, sort_order, version, parent_id, zone, locale, tenant_id, created_at, updated_at",
+    )
+    .eq("tenant_id", scope.tenantId)
+    .eq("zone", "header")
+    .eq("locale", input.locale)
+    .is("parent_id", null);
+  if (loadErr) {
+    return { ok: false, error: `Load failed: ${loadErr.message}` };
+  }
+  const current: NavItemRow[] = (currentRows ?? []) as unknown as NavItemRow[];
+
+  const inputIds = new Set(
+    input.items.map((i) => i.id).filter(Boolean) as string[],
+  );
+
+  // 1. Deletes — items in DB whose id is no longer in the input.
+  for (const row of current) {
+    if (!inputIds.has(row.id)) {
+      const res = await deleteNavItem(auth.supabase, {
+        tenantId: scope.tenantId,
+        values: {
+          id: row.id,
+          zone: "header",
+          locale: input.locale as never,
+          expectedVersion: row.version,
+        },
+        actorProfileId: auth.user.id,
+      });
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: res.message ?? "Delete failed.",
+          code: res.code,
+        };
+      }
+    }
+  }
+
+  // 2. Upserts in input order. Each row's sortOrder is reassigned to
+  //    `i * 10` so the operator sees their visual order materialised in
+  //    the database (gaps make future single-item moves cheap).
+  const upsertedById = new Map<string, NavItemRow>();
+  const upsertedNewIndices: number[] = []; // input indices for new rows
+
+  for (let i = 0; i < input.items.length; i++) {
+    const item = input.items[i]!;
+    const sortOrder = (i + 1) * 10;
+    if (item.id) {
+      // Update existing.
+      const dbRow = current.find((r) => r.id === item.id);
+      const expectedVersion = item.expectedVersion ?? dbRow?.version ?? 0;
+      const res = await upsertNavItem(auth.supabase, {
+        tenantId: scope.tenantId,
+        values: {
+          id: item.id,
+          zone: "header",
+          locale: input.locale as never,
+          parentId: null,
+          label: item.label,
+          href: item.href,
+          sortOrder,
+          visible: item.visible,
+          expectedVersion,
+        },
+        actorProfileId: auth.user.id,
+      });
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: res.message ?? "Update failed.",
+          code: res.code,
+          currentVersion: res.currentVersion,
+        };
+      }
+      // Track the post-save shape for the response.
+      upsertedById.set(res.data.id, {
+        ...(dbRow ?? ({} as NavItemRow)),
+        id: res.data.id,
+        label: item.label,
+        href: item.href,
+        visible: item.visible,
+        sort_order: sortOrder,
+        version: res.data.version,
+      });
+    } else {
+      // Insert new.
+      const res = await upsertNavItem(auth.supabase, {
+        tenantId: scope.tenantId,
+        values: {
+          zone: "header",
+          locale: input.locale as never,
+          parentId: null,
+          label: item.label,
+          href: item.href,
+          sortOrder,
+          visible: item.visible,
+          expectedVersion: 0,
+        },
+        actorProfileId: auth.user.id,
+      });
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: res.message ?? "Insert failed.",
+          code: res.code,
+        };
+      }
+      upsertedById.set(res.data.id, {
+        id: res.data.id,
+        tenant_id: scope.tenantId,
+        zone: "header",
+        locale: input.locale as never,
+        parent_id: null,
+        label: item.label,
+        href: item.href,
+        sort_order: sortOrder,
+        visible: item.visible,
+        version: res.data.version,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      upsertedNewIndices.push(i);
+    }
+  }
+
+  // 3. Reorder fixup. upsertNavItem already wrote sort_order, but the
+  //    public `reorderNavItems` helper guarantees parent_id + sort_order
+  //    are set atomically. We've already done the work above; just rely
+  //    on it. (Skip the no-op here.)
+  void reorderNavItems;
+
+  // 4. Publish. Load the current menu row's version for CAS (0 if no
+  //    row yet — first-ever publish for this tenant + zone + locale).
+  const { data: menuRow } = await auth.supabase
+    .from("cms_navigation_menus")
+    .select("version")
+    .eq("tenant_id", scope.tenantId)
+    .eq("zone", "header")
+    .eq("locale", input.locale)
+    .maybeSingle<{ version: number }>();
+  const publishRes = await publishNavigationMenu(auth.supabase, {
+    tenantId: scope.tenantId,
+    values: {
+      zone: "header",
+      locale: input.locale as never,
+      expectedMenuVersion: menuRow?.version ?? 0,
+    },
+    actorProfileId: auth.user.id,
+  });
+  if (!publishRes.ok) {
+    return {
+      ok: false,
+      error: publishRes.message ?? "Publish failed.",
+      code: publishRes.code,
+    };
+  }
+
+  // 5. Build response in sortOrder.
+  const orderedItems = Array.from(upsertedById.values())
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .map((row) => ({
+      id: row.id,
+      label: row.label,
+      href: row.href,
+      visible: row.visible,
+      sortOrder: row.sort_order,
+      version: row.version,
+    }));
+
+  return { ok: true, items: orderedItems };
 }
