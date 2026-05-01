@@ -2,8 +2,10 @@
 
 > **Status:** Draft v1 — ready for UX / PM / Eng review
 > **Owner:** TBD (assign before kickoff)
-> **Last updated:** 2026-04-28
+> **Last updated:** 2026-05-01
 > **Purpose:** This is the canonical, end-to-end audit + execution plan to take the admin-shell prototype to production-quality. A new designer or engineer should be able to read this document, the listed memory files, and `DRAWERS.md`, and have everything they need to execute. Replaces all earlier audit/plan documents.
+
+> **Sprint 2026-05-01 — modernization + handoff prep landed.** See commit `5e0ce66` and `dev-handoff.md` §25 for what shipped. Items below tagged ✅ are now in code; ⚠️ are partial. Untagged items are still open.
 
 ---
 
@@ -176,8 +178,8 @@ The product currently feels like a **thoughtful design system with prototype sca
 | 3.5.6 | No commission split visualization for talent — "my agency took what?" | **P1** | WS-5 |
 | 3.5.7 | Payout method failures (wrong IBAN, expired card) have no recovery UX | **P1** | WS-5 |
 | 3.5.8 | No dispute / chargeback flow on either side | **P1** | WS-5 |
-| 3.5.9 | Trust ladder documented in memory but UI absent — only a single chip on rows | **P0** | WS-5 |
-| 3.5.10 | No KYC / verification flow surface — where does talent upload passport? | **P0** | WS-5 |
+| 3.5.9 | Trust ladder documented in memory but UI absent — only a single chip on rows | **P0** | WS-5 — ✅ done in Phase 1+2 (`talent-trust-detail`, `RiskScorePill`, `TrustBadgeGroup` across all surfaces) |
+| 3.5.10 | No KYC / verification flow surface — where does talent upload passport? | **P0** | WS-5 — ✅ done (`talent-id-verify` + admin review queue) |
 | 3.5.11 | No proof-of-funds flow for clients (Silver / Gold per memory) | **P1** | WS-5 |
 | 3.5.12 | No fraud-detection signals surfaced (AI-generated photos, fake profiles) | **P2** | WS-5 / WS-21 |
 | 3.5.13 | No "report this client/talent" flow — moderation needs entry points | **P2** | WS-5 / WS-21 |
@@ -757,7 +759,7 @@ WS-5 covers basic money. The deeper financial automation layer is missing.
 
 | Phase | Task | Effort |
 |---|---|---|
-| **A** Responsive inquiry workspace | Replace hard 320px Rail. Phone: vertical stack + horizontal tab strip + bottom-sheet rail cards. Tablet/desktop: current. Wide: dual-pane (private+group) with thin mini-rail | 5d |
+| **A** Responsive inquiry workspace ✅ | Replace hard 320px Rail. Phone: vertical stack via `PhoneWorkspaceLayout`. Tablet/desktop: 2-col `minmax(0,1fr) 272px`. Wide (≥1280px, admin only): 3-pane dual-stream + rail. All in `_workspace.tsx`. | 5d |
 | **A.1** Bottom-sheet primitive | Slide-up, drag-down dismiss, snap points (peek/half/full), `safe-area-inset-bottom` | 2d |
 | **B.1** Date dividers in message stream | "Today / Yesterday / Mar 14" between message clusters >4h apart | 0.5d |
 | **B.2** System-event grouping | 2+ consecutive system events collapse into "3 system updates ▾" stripe | 1d |
@@ -842,22 +844,33 @@ WS-5 covers basic money. The deeper financial automation layer is missing.
 
 **Goal:** money screens pass the "where is my money right now?" test. Trust ladder visible everywhere. KYC + proof-of-funds flows real.
 
-| Task | Description | Effort |
-|---|---|---|
-| **5.1** Escrow visualization | Green padlock when funded; state-machine display Authorized → Held → Released | 2d |
-| **5.2** Multi-currency support | Workspace default + per-booking override. Live FX (mocked) | 2d |
-| **5.3** Refund flow (all sides) | Client / talent / agency / platform — reasons, partial vs full, audit trail | 3d |
-| **5.4** Milestone payments | For long projects (campaigns spanning weeks) | 2d |
-| **5.5** Tax breakdown clarity | Every payment: gross / fees / tax / net with hover tooltips | 1d |
-| **5.6** Commission split for talent | `talent-earnings-detail` shows agency share + kit fees | 1d |
-| **5.7** Payout-method failure UX | Wrong IBAN, expired card, suspicious bank — recovery flows | 1d |
-| **5.8** Dispute / chargeback UX | Client-initiates, freezes funds, coordinator-led resolution | 2d |
-| **5.9** Trust ladder detail surfaces | Tier explanation drawers; surfaced on talent inbox + inquiry workspace + client profile | 2d |
-| **5.10** KYC verification flow | Talent uploads ID + selfie; status visible across app | 2d |
-| **5.11** Proof-of-funds for clients | Bank-link or wire-deposit verification (Silver/Gold) | 2d |
-| **5.12** Multi-card vault | Multiple payment methods, default per workspace | 1d |
-| **5.13** Apple Pay / Google Pay | Modern checkout for mobile | 1d |
-| **5.14** Subscription lifecycle UX | Trial → paid, downgrade grace period, pause, reactivate, cancel + win-back | 2d |
+> **Trust system status (2026-05-01):** Phase 1 (3 methods) + Phase 2.1–2.4 (5 more methods, platform-admin registry, risk score, contact gating, disputed-claims resolution) shipped end-to-end in the prototype. See [`TRUST.md`](./TRUST.md) for the complete schema, lifecycle, surfaces, and remaining production-wiring work.
+
+| Task | Description | Effort | Status |
+|---|---|---|---|
+| **5.1** Escrow visualization | Green padlock when funded; state-machine display Authorized → Held → Released | 2d | |
+| **5.2** Multi-currency support | Workspace default + per-booking override. Live FX (mocked) | 2d | |
+| **5.3** Refund flow (all sides) | Client / talent / agency / platform — reasons, partial vs full, audit trail | 3d | |
+| **5.4** Milestone payments | For long projects (campaigns spanning weeks) | 2d | |
+| **5.5** Tax breakdown clarity | Every payment: gross / fees / tax / net with hover tooltips | 1d | |
+| **5.6** Commission split for talent | `talent-earnings-detail` shows agency share + kit fees | 1d | |
+| **5.7** Payout-method failure UX | Wrong IBAN, expired card, suspicious bank — recovery flows | 1d | |
+| **5.8** Dispute / chargeback UX | Client-initiates, freezes funds, coordinator-led resolution | 2d | |
+| **5.9** Trust ladder detail surfaces | `talent-trust-detail` + Trust Health panel + InquiryTrustPanel + chat-header strip | 2d | ✅ Done |
+| **5.10** KYC verification flow | `talent-id-verify` (manual admin queue) + ID Verified type + meta + admin queue integration | 2d | ✅ Done |
+| **5.11** Proof-of-funds for clients | `talent-payment-verify` (auto-approve simulated Stripe ping) | 2d | ✅ Done |
+| **5.12** Multi-card vault | Multiple payment methods, default per workspace | 1d | |
+| **5.13** Apple Pay / Google Pay | Modern checkout for mobile | 1d | |
+| **5.14** Subscription lifecycle UX | Trial → paid, downgrade grace period, pause, reactivate, cancel + win-back | 2d | |
+| **5.15** Profile claiming flow | `talent-claim-invite` accept/dispute/report; `claimStatusByTalent` + `ProfileClaimInvitation` lifecycle | 2d | ✅ Done |
+| **5.16** Disputed-claim admin resolution | `trust-disputed-claims` drawer; release / uphold / remove outcomes; cascade into claim status | 1d | ✅ Done |
+| **5.17** Platform-admin verification methods registry | `platform-verification-methods` console; toggle / review-mode / visibility / tier-gate / evidence / expiry per method; audit log | 3d | ✅ Done |
+| **5.18** Trust Health score | 0–100 heuristic via `getRiskScore` (badges + claim status + account age + recent rejections); `RiskScorePill` on admin detail panels + InquiryPeekDrawer + Trust Health panel | 1d | ✅ Done |
+| **5.19** Trust filters on Discover | Filter chips: Any verified / Tulala / IG / Talent-claimed | 0.5d | ✅ Done |
+| **5.20** Talent contact-gate | `TalentContactGate` (Anyone / Verified / Trusted ≥ 60); enforcement in `canClientContactTalent`; gates the public-profile Send-inquiry button | 1d | ✅ Done |
+| **5.21** Method-disable cascade | Public surfaces hide badges of disabled methods (via `methodEnabled` flag in `getTrustSummary`); admin surfaces show with grey-dot annotation; active badges stay valid until expiry | 0.5d | ✅ Done |
+| **5.22** Phase 2.5 — IG Graph API webhook | Replace manual DM confirmation with real Instagram Graph API webhook + signature validation + auto-approve on match | 3d | Not started — needs backend |
+| **5.23** Public storefront badge wiring | Render trust badges on the real `/[profileCode]` route (not just the in-prototype preview drawer) | 1d | Deferred |
 
 ---
 
@@ -930,8 +943,8 @@ WS-5 covers basic money. The deeper financial automation layer is missing.
 | **9.4** Demo-data seeding | "Show me with sample data" toggle for evaluators | 1d |
 | **9.5** Re-onboarding for returning users | After 30d idle: "what's new since you were here" | 0.5d |
 | **9.6** Role-aware onboarding | Coordinator-joining flow ≠ owner-setup flow | 1d |
-| **9.7** `<GuidedTour>` primitive | Spotlight + tooltip-step, dismissible, resumable | 2d |
-| **9.8** App-wide feedback button | "Tell us what's wrong with this page" | 0.5d |
+| **9.7** `<GuidedTour>` primitive ✅ | Spotlight + tooltip-step, dismissible, resumable. Lives in `_guided-tour.tsx`. AdminTour is a thin wrapper. | 2d |
+| **9.8** App-wide feedback button | "Tell us what's wrong with this page". Legacy `FeedbackButton` deleted; folded into BottomActionFab "Ask AI" tab. | 0.5d |
 
 ---
 
@@ -960,11 +973,11 @@ WS-5 covers basic money. The deeper financial automation layer is missing.
 
 | Task | Description | Effort |
 |---|---|---|
-| **11.1** Per-channel granularity | In-app / email / push / SMS toggles per type | 1.5d |
-| **11.2** Batching logic | "3 new messages from Casa Pero" instead of 3 entries | 1d |
+| **11.1** Per-channel granularity ✅ | In-app / email / push / SMS toggles per type. NotificationPrefsDrawer in `_drawers.tsx`. | 1.5d |
+| **11.2** Batching logic ⚠️ | "3 new messages from Casa Pero" instead of 3 entries. UI toggle landed; backend batching logic pending. | 1d |
 | **11.3** Deep-link routing | Email-click on phone deep-links to drawer + payload | 1d |
-| **11.4** DND / quiet hours | Global toggle + schedule per day | 0.5d |
-| **11.5** Preview vs full content | Lock-screen privacy toggle | 0.5d |
+| **11.4** DND / quiet hours ✅ | Global toggle + schedule per day. UI in NotificationPrefsDrawer. | 0.5d |
+| **11.5** Preview vs full content ✅ | Lock-screen privacy toggle (full / sender-only / hidden). | 0.5d |
 | **11.6** Notification history | Beyond 30 days, paginated, filterable | 1d |
 | **11.7** Action history surface | "Things you did" view (separate from inbound notifications) | 1d |
 | **11.8** Cross-device unread sync | Read on web → cleared on phone | 1d |
@@ -1223,8 +1236,8 @@ WS-5 covers basic money. The deeper financial automation layer is missing.
 
 | Task | Description | Effort |
 |---|---|---|
-| **25.1** CSV import for talent | Map columns, validate, dry-run, commit | 1.5d |
-| **25.2** CSV import for clients | Same pattern | 1d |
+| **25.1** CSV import for talent ✅ | Map columns, validate, dry-run, commit. CsvBulkAddPanel + bulkAddTalent ctx method. Pure parser in `_csv-parser.ts` with 14 unit tests. | 1.5d |
+| **25.2** CSV import for clients ✅ | ClientCsvBulkAddDrawer + bulkAddClient ctx method + importedClients. Same parser module. | 1d |
 | **25.3** CSV import for past bookings | Map to inquiries / bookings | 1d |
 | **25.4** Email-parser → inquiry creation | Forward to a Tulala address | 2d |
 | **25.5** "Drop me your Excel" migration assistant | AI-assisted column mapping | 1.5d |
@@ -1487,7 +1500,7 @@ These should be resolved in a kickoff between admin-shell + page-builder teams i
 | **31.3** Workspace merge (acquisitions) | "Atelier Roma is acquiring Roma Models" — combine rosters, dedupe clients, conflict resolution | 2d |
 | **31.4** "I have two accounts" merge | Same person, two emails — merge talent profiles, dedupe history | 1.5d |
 | **31.5** Linked accounts (vs merged) | Sometimes keep separate identities but link for billing/permissions (family + work email) | 1d |
-| **31.6** **Minor / parent-co-pilot accounts** | Talent under 18 has parent/guardian who must approve every offer. Co-account with tiered permissions | **2d** |
+| **31.6** **Minor / parent-co-pilot accounts** ⚠️ | Talent under 18 has parent/guardian who must approve every offer. Data model + non-dismissible MinorProtectionBanner shipped (`_workspace.tsx`); MinorAccountDrawer exists. **Still open:** offer-approval flow gating (guardian must co-sign before offer can be sent), per-tier permission UI, audit trail integration. | **2d** |
 | **31.7** Mother-agency / placement-agency hierarchy | International talent has 1 mother agency (career manager) + N placement agencies (per-region bookings). Tier surfaced + commission flow | 2d |
 | **31.8** Independent manager (no agency) | Solo manager who reps a small set of talent without running a workspace — hybrid talent-rep + workspace-lite | 1.5d |
 | **31.9** Estate management | Retired/deceased talent's profile continues for legacy bookings; named executor controls | 1d |
@@ -1595,7 +1608,7 @@ These should be resolved in a kickoff between admin-shell + page-builder teams i
 | **34.5** Anti-trafficking signal flagging | Automated flags + manual reporting for "this looks coerced" | 1d |
 | **34.6** Mediation flow | When a dispute happens, Tulala HQ acts as neutral mediator | 2d |
 | **34.7** Bad-actor blacklist | HQ-curated list of banned clients/talent/photographers; warning at booking time | 1d |
-| **34.8** **Minor-protection UX** | Talent under 18: can't be alone on set; specific working-hour limits; school requirements | **1.5d** |
+| **34.8** **Minor-protection UX** ⚠️ | Talent under 18: can't be alone on set; specific working-hour limits; school requirements. Working-hour window + chaperone + school-hours surfaced via non-dismissible MinorProtectionBanner on inquiry workspace. Data model in `_state.tsx` (TalentProfile.minorProtections). **Still open:** auto-block confirm if booking schedule violates the window; chaperone name capture on call sheet. | **1.5d** |
 | **34.9** Pregnancy / health-disclosure UX | Voluntary disclosure for production safety; sensitive handling | 1d |
 | **34.10** Anti-discrimination signal flagging | Client request "only one ethnicity / body type / etc." auto-flags for review (legal in some markets, illegal in others) | 1.5d |
 | **34.11** Dispute resolution timeline | Clear stages: Filed → Mediation → Decision → Appeal. Visible to all parties | 1d |

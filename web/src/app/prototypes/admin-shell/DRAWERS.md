@@ -34,6 +34,7 @@ Each entry covers:
 - [Talent — Premium personal page](#talent--premium-personal-page)
 - [Talent — Agencies](#talent--agencies)
 - [Talent — Settings & money](#talent--settings--money)
+- [Trust & Verification](#trust--verification)
 - [Client surface](#client-surface)
 - [Cross-cutting / shared](#cross-cutting--shared)
 - [Payments / payouts](#payments--payouts)
@@ -776,11 +777,145 @@ Each entry covers:
 **Related:** `talent-payouts`, `talent-earnings-detail`
 **Ticket category:** Billing
 
-### `talent-verification`
+### `talent-verification` — **deprecated**
 **Who:** Talent
-**Purpose:** Verify your identity to unlock direct-contact tiers and higher-trust badges.
-**Related:** `talent-privacy`, `talent-documents`
+**Purpose:** Legacy alias. Superseded by `talent-trust-detail` (dashboard) and the per-method drawers below. Kept so old deep links don't 404.
+**Related:** `talent-trust-detail`
 **Ticket category:** Account & access
+
+---
+
+## Trust & Verification
+
+> The trust system splits into three concerns:
+> - **Account verification** (security — never a public badge)
+> - **Profile claiming** (ownership — talent ↔ agency)
+> - **Profile trust verification** (public badges + admin signals)
+>
+> Platform admins decide which methods exist via `platform-verification-methods`. Workspace admins review submissions via `trust-verification-queue` and `trust-disputed-claims`. Talent initiate flows from `talent-trust-detail`. The full schema, lifecycle, and wiring contract lives in [`TRUST.md`](./TRUST.md).
+
+### `trust-verification-queue`
+**Who:** Workspace admin, Workspace coordinator
+**Purpose:** Review every Instagram + Tulala + ID + business + domain + payment verification submitted by talent. Approve, reject, or ask for more info.
+**What you can do here:**
+- Filter by status (Pending / In review / Needs info / Approved / Rejected) and by method (only platform-enabled methods appear)
+- Search by talent name, IG handle, code, or method
+- Bulk-approve via row checkboxes
+- Open a request to see evidence URL, talent's note, full activity timeline, and risk-health score
+- Approve / reject (with reason) / mark in review / request more info
+**Related:** `trust-disputed-claims`, `platform-verification-methods`, `talent-trust-detail`
+**Ticket category:** Account & access
+**Dev notes:** Method-filter dropdown calls `isVerificationMethodEnabled` to hide disabled methods. Activity log is synthesised from `request.createdAt` / `updatedAt` / `reviewedAt` (no separate event table yet). Bulk approve iterates `approveVerificationRequest` per id.
+
+### `trust-disputed-claims`
+**Who:** Workspace admin
+**Purpose:** Resolve agency-created profiles that the claimed talent flagged as not theirs.
+**What you can do here:**
+- Review the talent's dispute reason and the original invite metadata
+- See the talent's risk-health score (claim disputes drop it −25)
+- Add admin-only notes recording your rationale
+- Pick one of three outcomes:
+  - **Release** — talent wins; profile freed (claim status → `released`)
+  - **Uphold** — agency wins; invite re-issued (claim status → `invite_sent`)
+  - **Remove** — neither owns it; profile taken down
+**Related:** `trust-verification-queue`, `talent-claim-invite`
+**Ticket category:** Account & access
+**Dev notes:** `resolveProfileClaimDispute(claimId, outcome, adminNotes?)` patches both `profileClaims` array (status) and `claimStatusByTalent` map. Removing a profile entirely is partial in the prototype — claim record flips to `revoked`, claimStatus is deleted; production should also strip the talent profile row.
+
+### `platform-verification-methods`
+**Who:** Tulala HQ
+**Purpose:** Source-of-truth registry for which verification methods exist on Tulala. Platform admins decide what's available to the entire ecosystem.
+**What you can do here:**
+- Toggle a method on / off (warning modal fires if active badges exist — they stay valid until expiry, but are hidden from public storefronts immediately via the disable-cascade gate)
+- Set review mode (`automated` / `manual` / `hybrid`)
+- Set visibility (`public_profile` / `admin_only` / `internal`)
+- Restrict by talent tier (`Basic` / `Pro` / `Portfolio` / `All`)
+- Toggle `evidenceRequired` and `expiresAfterDays`
+- Inspect the audit log of every change
+**Related:** `trust-verification-queue`
+**Ticket category:** Account & access
+**Dev notes:** Linked from HQ Settings → Platform card. Every change emits one `VerificationMethodAuditEntry` per modified key via `updateVerificationMethod`. The disable cascade is enforced inside `getTrustSummary` (sets `methodEnabled` on each badge) and `ProfilePhotoBadgeOverlay` / `TrustBadgeGroup` filter on it for public surfaces.
+
+### `talent-trust-detail`
+**Who:** Talent
+**Purpose:** Your trust dashboard — health score, badges, what to verify next, who can contact you.
+**What you can do here:**
+- See your trust-health score (0–100) and active-badge count
+- Open the next 1–3 highest-impact verifications, ranked by score lift
+- Run Instagram DM flow (handle + code + optional evidence URL)
+- Request Tulala manual review
+- Open Phone / ID / Business / Domain / Payment flows when enabled platform-wide
+- Set your contact gate: Anyone / Verified clients only / Trusted clients only (score ≥ 60)
+**Related:** `talent-phone-verify`, `talent-id-verify`, `talent-business-verify`, `talent-domain-verify`, `talent-payment-verify`, `talent-claim-invite`
+**Ticket category:** Account & access
+**Dev notes:** Renders only methods where `isVerificationMethodEnabled` returns true. Suggestion ranking uses a hardcoded `lift` value per method type. Contact gate calls `setTalentContactGate` which feeds into `canClientContactTalent` checked on the client send-inquiry button.
+
+### `talent-claim-invite`
+**Who:** Talent
+**Purpose:** Accept (or dispute) a profile that an agency created in your name.
+**What you can do here:**
+- Review the profile the agency built (photos, fields, agency name)
+- **Claim** → flips `claimStatusByTalent` to `claimed`, marks email verified
+- **Not me / dispute** → flips `ProfileClaimInvitation.status` to `disputed`, lands in admin queue
+- **Report** → takes profile offline pending admin review
+**Related:** `talent-trust-detail`, `trust-disputed-claims`
+**Ticket category:** Account & access
+
+### `talent-phone-verify`
+**Who:** Talent
+**Purpose:** Confirm a working phone number via SMS OTP. Internal-only — never a public badge.
+**What you can do here:**
+- Enter phone with country code
+- Receive a 6-digit OTP (prototype shows it inline; production sends real SMS)
+- Type the code to auto-verify
+**Related:** `talent-trust-detail`
+**Ticket category:** Account & access
+**Dev notes:** Runs purely on the client; `createVerificationRequest` → `approveVerificationRequest` on code match. No admin review path.
+
+### `talent-id-verify`
+**Who:** Talent
+**Purpose:** Upload a government-issued ID for manual admin review. Internal-only — confirms name + age + identity uniqueness.
+**What you can do here:**
+- Pick document type (passport / driver's license / national ID)
+- Provide a secure URL (production: direct upload)
+- Add a reviewer note
+- Submit for manual admin review (~48h)
+**Related:** `talent-trust-detail`, `talent-phone-verify`
+**Ticket category:** Account & access
+**Dev notes:** Reads `cfg.evidenceRequired` from the platform-admin config — if true, blocks submission without a URL.
+
+### `talent-business-verify`
+**Who:** Talent
+**Purpose:** Confirm the registered legal entity behind your work — VAT / company-house / DIC / equivalent. Public badge.
+**What you can do here:**
+- Enter legal name + VAT number
+- Optionally (or required by platform policy) attach a public registry URL
+- Submit for manual review (~3 business days)
+**Related:** `talent-trust-detail`
+**Ticket category:** Account & access
+**Dev notes:** When `cfg.evidenceRequired === true` the registry URL becomes required. Asterisk + helper copy adapt accordingly.
+
+### `talent-domain-verify`
+**Who:** Talent
+**Purpose:** Prove you control a domain via DNS TXT record. Public badge — adds credibility for talent who maintain their own websites.
+**What you can do here:**
+- Enter your domain
+- Copy the generated TXT value
+- Paste into your DNS provider
+- Click 'check now' to run the lookup — auto-approves on match
+**Related:** `talent-trust-detail`, `talent-custom-domain`
+**Ticket category:** Account & access
+**Dev notes:** The lookup is currently simulated (1.5s timeout → auto-approve). Production needs a real DNS resolver behind a `/api/verify/domain` endpoint with retry semantics for propagation.
+
+### `talent-payment-verify`
+**Who:** Talent
+**Purpose:** Confirm a working payout method via Stripe authorization-then-refund. Internal-only — improves trust score with payment-reliability-conscious clients.
+**What you can do here:**
+- Run the check (€1 hold + immediate refund — no money actually moves)
+- Result auto-resolves inline
+**Related:** `talent-trust-detail`, `talent-payouts`
+**Ticket category:** Billing
+**Dev notes:** Simulated in prototype. Production wires to Stripe `PaymentIntent` with capture method `manual` then `payment_intents.cancel`.
 
 ---
 
@@ -1031,6 +1166,52 @@ Each entry covers:
 **Who:** Tulala HQ
 **Purpose:** Per-region settings — currencies, tax rules, available payment processors, content moderation rules.
 **Related:** `platform-feature-flag`
+
+---
+
+## Sprint 2026-05-01 additions
+
+The following drawers landed in the modernization sprint (commit `5e0ce66`). They are routed in `_drawers.tsx`'s `DrawerRoot` switch but most do not yet have a `DRAWER_HELP` entry — add help text in a follow-up pass.
+
+### `client-csv-bulk-add`
+**Who:** Workspace owner / admin
+**Purpose:** Bulk-import clients from a CSV (name, contact, email). Validation: name + at least one of contact or email required. Imports go straight to the active client list — no approval queue.
+**Related:** `new-talent` (CSV mode), `talent-approvals`
+
+### `platform-verification-methods`
+**Who:** Tulala HQ
+**Purpose:** Toggle which of the 8 verification methods are enabled platform-wide. Disabled methods don't appear in the talent's verification picker.
+**Related:** `trust-verification-queue`, `feature-controls`
+
+### `talent-phone-verify`
+**Who:** Talent
+**Purpose:** Submit phone number for SMS-code verification. Raises trust tier; enables agency outreach.
+**Related:** `trust-verification-queue`, `talent-trust-detail`
+
+### `talent-id-verify`
+**Who:** Talent
+**Purpose:** Upload government ID for HQ review. Never shared with clients or agencies.
+**Related:** `trust-verification-queue`
+
+### `talent-business-verify`
+**Who:** Workspace owner / agency
+**Purpose:** Confirm registered business details (legal name, tax ID, country). Unlocks Verified Business badge + payment routing.
+**Related:** `trust-verification-queue`
+
+### `talent-domain-verify`
+**Who:** Talent (Portfolio tier)
+**Purpose:** Verify ownership of a custom domain via DNS TXT record. Required to use a custom domain on `tulala.digital/t/<slug>`.
+**Related:** `talent-tier-compare`, `domain` (workspace)
+
+### `talent-payment-verify`
+**Who:** Talent
+**Purpose:** Connect bank or Stripe account so agencies can pay through Tulala. Funded-account status raises trust tier + contact priority.
+**Related:** `trust-verification-queue`, `talent-tier-compare`
+
+### `minor-account` (extended)
+**Who:** Talent guardian / agency coordinator
+**Purpose:** Manage parent/guardian co-pilot for under-18 talent. Sets working-hour window, max on-set hours per day, chaperone requirement, school-hour accommodation. Surfaces inline on every inquiry workspace via `<MinorProtectionBanner>` (non-dismissible).
+**Related:** `inquiry-workspace`, `talent-trust-detail`
 
 ---
 

@@ -6,6 +6,11 @@
 
 This document explains every meaningful design decision, what the building blocks are, and what the production translation looks like. Read it once before touching the code. Cross-reference with `consolidation-map.md` (which surface lives where) and `admin-ux-architecture.md` (the prior strategic write-up).
 
+**Topic-specific deep-dives** — when one section grows past what fits inline, it lives in its own file in `prototypes/admin-shell/`. Currently:
+- **[`TRUST.md`](../../src/app/prototypes/admin-shell/TRUST.md)** — Trust & Verification system (also summarized in §24 below).
+- [`DRAWERS.md`](../../src/app/prototypes/admin-shell/DRAWERS.md) — full drawer reference.
+- [`ROADMAP.md`](../../src/app/prototypes/admin-shell/ROADMAP.md) — workstream sequencing.
+
 ---
 
 ## 1. What the prototype is — and isn't
@@ -42,21 +47,35 @@ The prototype is parametric. The dark **ControlBar** at the top of the screen ex
 
 ---
 
-## 3. Architecture — 9-file split
+## 3. Architecture — file split (current state)
 
-The prototype now spans nine files. The original 5-file admin shell stayed put; the messaging-first inquiry core and the three sibling surfaces each got their own file. Don't grow files past ~2,500 lines — split when one crosses that line.
+The prototype has grown beyond the original 9 files. As of 2026-05-01 it spans the files below. The "don't grow past ~2,500 lines" rule has been broken in three places — split is on the roadmap (see §25.9). Numbers are approximate; check `wc -l` before believing them.
 
 ```
 admin-shell/
-├── page.tsx          ~70 lines   Entry. Mounts the provider tree.
-├── _state.tsx       ~1700 lines  Types · mock data · RICH_INQUIRIES + threads · ProtoProvider · useProto · tokens.
-├── _primitives.tsx  ~1700 lines  Icon · atoms · cards · drawer/modal shells (with size modes + drag-resize) · ToastHost.
-├── _pages.tsx       ~3000 lines  ControlBar (surface-aware) · WorkspaceTopbar · admin page renderers · SurfaceRouter.
-├── _drawers.tsx     ~3300 lines  DrawerRoot dispatcher · 60+ drawer bodies · UpgradeModal.
-├── _workspace.tsx   ~1100 lines  InquiryWorkspaceDrawer — the POV-aware inquiry pane (admin/client/talent share one component).
-├── _talent.tsx      ~1500 lines  TalentSurface — Today / Inbox / Calendar / Activity / Profile / Settings, plus 14 talent drawers.
-├── _client.tsx      ~1700 lines  ClientSurface — Today / Discover / Shortlists / Inquiries / Bookings, plus 15 client drawers.
-└── _platform.tsx    ~1700 lines  PlatformSurface — dark "Tulala HQ" console with HQ role gating + 21 ops drawers.
+├── page.tsx              ~2,250 lines  Entry. ProtoProvider tree. BottomActionFab (popover-based).
+├── _state.tsx            ~7,400 lines  Types · mock data · RICH_INQUIRIES + threads · ProtoProvider · useProto · tokens · COLORS · trust verification model · minor protections · custom-fields registry.
+├── _primitives.tsx       ~8,200 lines  Icon · atoms · typography (H1/H2/H3/Eyebrow/Caption) · Card · cards · drawer/modal shells (with size modes + drag-resize) · ToastHost · ConfirmDialog · Skeleton · EmptyState · Toggle · Bullet · Avatar · TrustBadgeGroup · ProfilePhotoBadgeOverlay · ProfileClaimStatusChip · RiskScorePill · PaymentStatusChip · PayoutStatusChip · BulkSelectBar · DrawerShell · useViewport · useFeatureFlag · scrollBehavior helper.
+├── _pages.tsx            ~9,200 lines  ControlBar (surface-aware) · WorkspaceTopbar · WorkspaceSidebarShell · admin page renderers · SurfaceRouter · MobileBottomNav · AccountMenuTrigger · keyboard layer · roving tab-index helpers · tooltipped nav.
+├── _drawers.tsx         ~21,500 lines  DrawerRoot dispatcher · 149+ drawer bodies · UpgradeModal · ProfileDiffModal · TemplatesPicker · CsvBulkAddPanel · ClientCsvBulkAddDrawer · NotificationPrefsDrawer · MinorAccountDrawer · ActivityLogPanel · 6 verification stub drawers.
+├── _workspace.tsx        ~2,750 lines  InquiryWorkspaceDrawer — the POV-aware inquiry pane (admin/client/talent share one component) · WS-1.A wide 3-pane layout · MinorProtectionBanner.
+├── _talent.tsx          ~13,000 lines  TalentSurface — Today / Messages / Profile / Calendar / Agencies / Public-page (with WebGPU + mobile preview) / Settings (with PasskeysCard) · 18+ talent drawers.
+├── _talent_drawers.tsx   ~2,000 lines  Talent-drawer split-out (polaroids / availability / block-dates / hub-detail / message-detail / portfolio etc).
+├── _client.tsx          ~12,000 lines  ClientSurface — Today / Discover / Shortlists / Inquiries / Bookings / Settings · 15 client drawers.
+├── _platform.tsx         ~5,500 lines  PlatformSurface — dark "Tulala HQ" console with HQ role gating · 21 ops drawers.
+├── _messages.tsx         ~5,500 lines  MessagesShell — extracted unified inbox + thread rendering (used by workspace + talent + client surfaces).
+├── _wave2.tsx            ~3,200 lines  Phase 2 helpers — SavedViewsBar · MentionTypeahead · etc.
+├── _help.tsx             ~3,500 lines  DRAWER_HELP registry — FAQs / how-to / shortcut keys per drawer ID.
+├── _palette.tsx            ~600 lines  CommandPalette (⌘K) — searchable across drawers / inquiries / clients / talent / settings.
+├── _notifications-hub.tsx  ~280 lines  NotificationsBell — bell + 3-bucket popover, reads pendingTalent.
+├── _admin-tour.tsx          ~70 lines  Thin wrapper around <GuidedTour> with the 4 admin steps.
+├── _guided-tour.tsx        ~230 lines  Reusable guided-tour primitive. Exported.
+├── _modern-features.tsx    ~470 lines  PasskeysCard (WebAuthn) + GalleryFxCard (WebGPU). Exported.
+├── _profile-store.ts       ~200 lines  Module-scoped subscribable store for shared profile drafts (useSyncExternalStore).
+├── _csv-parser.ts          ~100 lines  Pure CSV parsing helpers (no React).
+├── _csv-parser.test.ts     ~120 lines  14 unit tests via tsx --test.
+├── _taxonomy-loader.ts     ~150 lines  Lazy-loaded Supabase taxonomy_terms + talent_languages reads.
+└── talent/profile/edit/page.tsx        Real Next.js route — 308-redirects to the prototype with the right query params.
 ```
 
 **Mount tree** (in `page.tsx`):
@@ -629,3 +648,476 @@ Quick lookup if you need to find a specific thing:
 ---
 
 **Anything unclear?** The prototype itself is the source of truth. Open a scene, click around, then come back here. Don't reverse-engineer from screenshots — the live state-driven UI tells you more than any frame can.
+
+---
+
+## 23. Unified palette (BottomActionFab) — 2026-05-01
+
+**One palette, three scopes (Create / Recent / Ask AI), two entry points (FAB + ⌘K), one mental model.** Replaces the legacy `EmbeddedCommandPalette` (deleted) and the standalone topbar Search modal. The mobile experience drove the redesign; the desktop ⌘K experience comes along for free.
+
+### 23.1 What it is
+
+A native HTML `popover="auto"` element rendered by `BottomActionFab` in [page.tsx](../../src/app/prototypes/admin-shell/page.tsx). The browser owns light-dismiss (outside-click + Escape + scroll-up dismiss on iOS) and top-layer promotion; React owns animation, focus, query state, keyboard nav, and AI seeding.
+
+**Surface footprint:**
+
+| Viewport | Layout | Trigger |
+|---|---|---|
+| ≥ 768px (desktop/tablet) | 340px popover anchored above the FAB; backdrop transparent | FAB · `⌘K` · topbar Search pill |
+| < 768px (phone) | Full-width bottom sheet, 82vh max, top-rounded; backdrop dimmed; drag handle at top (tap to close); search input at bottom (thumb reach) — `flex-direction: column-reverse` flips internal order | FAB only (topbar pills hide) |
+
+The same DOM element handles both — there is no separate mobile component. CSS media query `@media (max-width: 767px)` overrides position, dimensions, border radius, flex direction, and backdrop opacity.
+
+### 23.2 The single input + scope tabs
+
+```
+┌─────────────────────────────────────┐
+│ 🔍  Search, create, or ask Tulala…  esc │  ← input always visible at top of body
+├─────────────────────────────────────┤
+│ [Create]  [Recent · 2]  [Ask AI]    │  ← tabs are scopes for the input
+├─────────────────────────────────────┤
+│ ▶ New inquiry  · Capture a lead   ↵ │  ← selected row gets ↵ hint
+│   New booking · Confirmed job   GB  │
+│   Add talent  · Create a roster GT  │
+│   …                                 │
+│   Go to Roster · Workspace surface  │  ← navigate items inline (icon: arrow-right)
+│   …                                 │
+│   ✨ Ask AI: <query>             ↵  │  ← always-visible fallback row when query non-empty
+└─────────────────────────────────────┘
+```
+
+- **Create scope** mixes create-actions (`New inquiry`, `Add talent`) with navigate-actions (`Go to Roster`) so a single keystroke can either create or jump.
+- **Recent scope** shows drafts + last-created items; filters by the same query.
+- **Ask AI scope** is a chat panel with FAQ-matched mock replies. Auto-sends when the user clicks the Ask AI fallback row (or hits Enter when no Create matches).
+
+### 23.3 Surface-aware items
+
+`BottomActionFab.items` is a per-surface array of `{ id, label, sub, icon, shortcut?, canDo, run }`. Navigate items are appended from `WORKSPACE_PAGES` / `TALENT_PAGE_META` / `CLIENT_PAGE_META` / `PLATFORM_PAGE_META`. The `canDo` predicate uses `meetsRole` and plan checks to filter what the current user can actually do — viewers don't see "Add talent," free plans don't see "Add client."
+
+**Production translation:** swap the static Recent mock data for a query against the activity feed. Swap the Ask AI mock for the LLM endpoint. The Create/Navigate items can stay statically defined per surface; just respect the same `canDo` shape.
+
+### 23.4 Keyboard contract
+
+| Key | Behavior |
+|---|---|
+| `⌘K` / `Ctrl-K` | Open palette (registered globally by `useKeyboardLayer`) |
+| `↑` / `↓` | Move selection within Create scope; wraps |
+| `Enter` | Run selected item (or Ask AI with current query if no matches) |
+| `Esc` | Clear query if non-empty, else close palette |
+| Type | Filter Create + Navigate live; switches to Create scope automatically |
+
+The `↵` hint pill replaces the row's normal shortcut indicator on the selected row to show *what Enter will do*. Mouse hover does NOT override keyboard selection — match Linear/Raycast UX.
+
+### 23.5 Window-event API
+
+Two events on `window`, declared in [_state.tsx](../../src/app/prototypes/admin-shell/_state.tsx) as constants — **never use raw strings**:
+
+```ts
+import { FAB_PALETTE_OPEN_EVENT, FAB_PALETTE_CHANGED_EVENT, type FabPaletteChangedDetail } from "./_state";
+
+// Anyone can fire this to open the palette:
+window.dispatchEvent(new Event(FAB_PALETTE_OPEN_EVENT));
+
+// BottomActionFab broadcasts this on every open/close:
+window.addEventListener(FAB_PALETTE_CHANGED_EVENT, (e) => {
+  const detail = (e as CustomEvent<FabPaletteChangedDetail>).detail;
+  // detail.open === true | false
+});
+```
+
+**Producer:** `BottomActionFab` listens for `FAB_PALETTE_OPEN_EVENT` and broadcasts `FAB_PALETTE_CHANGED_EVENT` whenever its `open` state flips.
+**Consumer:** `WorkspaceShell` listens for the changed event and folds `paletteOpen` into `useKeyboardLayer({ isModalOpen })` so global shortcuts (`G I`, `j/k`, etc.) suppress while the palette is up.
+
+This decouples ⌘K wiring from the palette's lifecycle. Adding a third trigger (e.g., a help-page button) is one line.
+
+### 23.6 Files touched (this session)
+
+| File | Why |
+|---|---|
+| [page.tsx](../../src/app/prototypes/admin-shell/page.tsx) | `BottomActionFab` (the popover, search input, scope tabs, kbd nav, mobile sheet CSS), `FabRecentPanel` (now query-filtered), `FabAiPanel` (sendRef for stale-closure fix), event broadcast |
+| [_pages.tsx](../../src/app/prototypes/admin-shell/_pages.tsx) | `WorkspaceShell` listens to `FAB_PALETTE_CHANGED_EVENT`, dispatches `FAB_PALETTE_OPEN_EVENT` from ⌘K + topbar pill; topbar Search pills get `data-tulala-topbar-search-right` for the mobile-hide rule |
+| [_state.tsx](../../src/app/prototypes/admin-shell/_state.tsx) | `FAB_PALETTE_OPEN_EVENT`, `FAB_PALETTE_CHANGED_EVENT`, `FabPaletteChangedDetail` type |
+| [_primitives.tsx](../../src/app/prototypes/admin-shell/_primitives.tsx) | `DrawerShell` hydration fix — gated `showSizeToolbar` behind a `mounted` flag so SSR and first CSR agree (see §23.8) |
+| [_workspace.tsx](../../src/app/prototypes/admin-shell/_workspace.tsx) | **Deleted** the legacy `EmbeddedCommandPalette` + helpers (`CmdResult`, `CmdSection`, `filterCmd`, `flattenSections`) — ~444 lines |
+
+### 23.7 Mobile sheet specifics
+
+The mobile layout uses `flex-direction: column-reverse` so the LAST DOM child paints at the visual TOP. DOM order:
+
+```
+[search bar]  [scope tabs]  [body: Create/Recent/AI]  [drag handle]
+```
+
+Visual order on phone (column-reverse):
+
+```
+[drag handle]   ← top
+[body]          ← middle (scrollable)
+[scope tabs]
+[search bar]    ← bottom (thumb reach)
+```
+
+The drag handle is a real `<button aria-label="Close palette">` with `cursor: pointer` and `onClick={hidePopover}`. Full drag-to-dismiss isn't wired (the popover API doesn't expose touch deltas) but tap-to-close gives the affordance honest feedback.
+
+### 23.8 The DrawerShell hydration fix
+
+`useViewport()` returns `"desktop"` on the server (no `window`) but the actual viewport on the client. Before the fix, `DrawerShell` rendered its size toolbar conditionally on `viewport !== "phone"`, so SSR rendered the toolbar but a phone client did not — React reported a hydration mismatch and the surrounding Suspense boundary stayed stuck in its hidden SSR shell. Symptom: the FAB had `width: 52px` in computed styles but a `0,0,0,0` bounding rect because its hidden ancestor never unmounted.
+
+**Fix:** gate viewport-dependent rendering behind a `mounted` flag (false during SSR + first CSR, true after `useEffect`). Both renders agree; the toolbar appears on the next paint. Same pattern applies anywhere `useViewport()` drives conditional JSX. See [_primitives.tsx#L3919-3929](../../src/app/prototypes/admin-shell/_primitives.tsx#L3919).
+
+### 23.9 What was removed
+
+**Deleted:** `EmbeddedCommandPalette` and its helper types (`CmdResult`, `CmdSection`, `CmdResultType`, `filterCmd`, `flattenSections`) — ~444 lines from `_workspace.tsx`. The functionality folded into `BottomActionFab`:
+
+- Quick actions → Create scope items (now also surface-aware for talent/client/platform).
+- Page navigation → Navigate items appended to the Create scope.
+- Inquiry/talent/setting search → not yet ported; Ask AI catches the residual queries today. Production should rebuild these as proper search providers backed by the database.
+
+### 23.10 Coming up — known gaps + future ideas
+
+A backlog of things this session intentionally didn't ship. Pick from the top down; the Now items are the closest to "should exist."
+
+**Now (small, well-scoped):**
+- **Keyboard nav inside Recent + Ask AI** — currently only Create scope responds to ↑/↓/Enter. Same `selIdx` pattern can extend.
+- **`↑` clamp vs. wrap** — current behavior wraps from first → last. Linear-style clamp is more predictable. Either is fine; pick one and document.
+- **Inquiry / talent / setting search** — three categories the legacy palette had that didn't get ported. Add as additional Create-list sections (with subheadings) or as separate scopes.
+- **Telemetry** — wire the existing `track()` in `_state.tsx` into `runSelected()`, `goToAi()`, the open/close toggle, and Ask AI sends. Suggested events: `command_palette.opened`, `command_palette.action_run` `{ id, scope, queryLength }`, `command_palette.ask_ai` `{ queryLength, hadCreateMatches }`.
+
+**Soon (replace mock data):**
+- `FabRecentPanel.drafts` / `recent` are hardcoded. Should query the workspace activity feed for the current user, filtered to recent edits + draft profiles + recent inquiries.
+- `FabAiPanel.send()` does FAQ substring matching. The `seedQuestion` prop + `sendRef` pattern is production-ready — swap the body for a streaming endpoint (Anthropic SDK, OpenAI, whatever).
+
+**Later (real upgrades):**
+- **Real drag-to-dismiss on the mobile sheet** — popover API doesn't expose touch deltas, so today the drag handle is tap-to-close. A custom touch handler on the handle that tracks `touchmove` deltaY and calls `hidePopover()` past a threshold gets you proper sheet behavior.
+- **Voice input on Ask AI** — a mic button next to the AI input, MediaRecorder + Whisper or browser SpeechRecognition. Pairs nicely with the Ask AI tab being a peer of Create.
+- **Contextual ranking of Create items** — surface the most relevant create-action by current page. On Roster → "Add talent" floats up; with unread inquiry → "Reply to <client>" surfaces. Re-rank the surface-specific items array based on `state.page` + recent activity.
+- **Inline result types on the search results** — small `Inquiry` / `Talent` / `Setting` chip on the right of each result row so users can tell at a glance what they're about to open. Especially needed once inquiry/talent search lands.
+- **Pinned actions** — let users pin the 1-3 actions they fire most. Fewer keystrokes to the common case.
+
+**Won't fix (intentional choices):**
+- Recent tab doesn't filter on Create's typed query unless the user switches to the Recent tab. By design — typing on Create filters Create; switching to Recent filters Recent. Keeping a single filter scope per tab matches Linear / Raycast behavior.
+- Mouse hover does NOT steal keyboard selection. Verified intentional after testing — `onMouseMove` was removed because it fought with kbd nav.
+
+### 23.11 Production translation checklist
+
+When porting the palette from prototype to production:
+
+1. Replace `useProto()` calls with the real session/permission hooks. `meetsRole` / `meetsPlan` shapes already match.
+2. Replace `RICH_INQUIRIES` and `MOCK_*` mock data with real queries. Recent items: activity feed. Ask AI: LLM endpoint with streaming.
+3. Move the popover element + its `<style>` block into a dedicated `CommandPalette` component under `web/src/components/admin/`. Keep the event-name constants colocated or in a shared `events.ts`.
+4. Drop the `data-tulala-bottom-fab` data attribute or rename to `data-command-palette` to match production naming.
+5. Wire telemetry: dispatch `track("command_palette.opened")` on toggle-open, `track("command_palette.action_run", { id, scope })` on `runSelected`.
+6. Remove the prototype's mobile-hide CSS rule for topbar pills if production wants them visible across breakpoints; the rule is purely a prototype simplification.
+7. Decide whether ⌘K opens this palette OR a more powerful global search (e.g., Algolia-backed). The current design assumes the palette IS the global search.
+
+---
+
+## 24. Trust & Verification system — 2026-05-01
+
+**Phase 1 + Phase 2.1–2.4 shipped end-to-end in the prototype.** Three concerns separated cleanly (account / claim / trust), 8 verification types, platform-admin registry, risk score, contact gating, disputed-claim resolution. Out of scope: Phase 2.5 (real Instagram Graph API webhook) and the public storefront `/[profileCode]` route — both deferred until backend exists.
+
+> **The full system handoff lives in [`prototypes/admin-shell/TRUST.md`](../../src/app/prototypes/admin-shell/TRUST.md)** — read that one first when migrating. This section summarizes what's there + how it ties into production migration.
+
+### 24.1 The three concerns (load-bearing — don't conflate)
+
+The trust system separates three concepts that conflict if mixed:
+
+1. **Account verification** — security signal. Email, phone, ID. **Never a public badge.** Drives security flows + risk score.
+2. **Profile claiming** — ownership signal. Says "this profile belongs to this user." Agency-created profiles need talent acceptance via emailed invite.
+3. **Profile trust verification** — public credibility signal. Public-facing badges (Instagram / Tulala / Domain / Business / Agency Confirmed).
+
+Hard rule: `account.emailVerified === true` does NOT produce a public badge. Encoded in `VERIFICATION_TYPE_META[type].publicEligible` + `ProfileVerification.publicBadgeEnabled`. Production must keep this separation.
+
+### 24.2 The 8 verification types
+
+| Type | Concern | Default review | Default visibility | Default tier gate | Evidence req? | Default expiry | Phase |
+|---|---|---|---|---|---|---|---|
+| `instagram_verified` | Trust | Manual (DM lookup) | `public_profile` | All | No | Never | 1 — enabled |
+| `tulala_verified` | Trust | Manual (admin curates) | `public_profile` | All | No | Never | 1 — enabled |
+| `agency_confirmed` | Trust | Automated (agency adds) | `public_profile` | All | No | Never | 1 — enabled |
+| `phone_verified` | Account | Automated (OTP) | `admin_only` | All | No | 365d | 2 — disabled by default |
+| `id_verified` | Account | Manual | `admin_only` | Pro / Portfolio | **Yes** | 730d | 2 — disabled by default |
+| `business_verified` | Trust | Manual | `public_profile` | Pro / Portfolio | Yes | 365d | 2 — disabled by default |
+| `domain_verified` | Trust | Automated (DNS TXT) | `public_profile` | Portfolio only | No | 90d | 2 — disabled by default |
+| `payment_verified` | Account | Automated (Stripe ping) | `admin_only` | All | No | 365d | 2 — disabled by default |
+
+Defaults baked into `SEED_VERIFICATION_METHOD_CONFIG` (`_state.tsx`). Platform admin overrides every column at runtime via the `platform-verification-methods` console.
+
+### 24.3 New drawers added (10 total)
+
+All routed in `_drawers.tsx` `DrawerRoot` switch, all with `_help.tsx` entries, all in `DRAWERS.md` under the "Trust & Verification" section.
+
+| DrawerId | Audience | Purpose |
+|---|---|---|
+| `trust-verification-queue` | W-admin | Review queue: tabs, method filter, search, bulk-approve, detail with evidence + activity log + risk score + decision buttons |
+| `trust-disputed-claims` | W-admin | Dispute resolution: release / uphold / remove |
+| `platform-verification-methods` | HQ | Registry console: per-method enable / review-mode / visibility / tier-gate / evidence / expiry + audit log |
+| `talent-trust-detail` | Talent | Dashboard: Trust Health panel + IG / Tulala flows + per-method CTAs + contact gate |
+| `talent-claim-invite` | Talent | Claim / dispute / report an agency-created profile |
+| `talent-phone-verify` | Talent | OTP flow (auto-approve) |
+| `talent-id-verify` | Talent | ID upload (manual review) |
+| `talent-business-verify` | Talent | VAT + registry URL (manual review, evidence-required-aware) |
+| `talent-domain-verify` | Talent | DNS TXT verification (auto-approve, simulated) |
+| `talent-payment-verify` | Talent | Stripe authorization-then-refund (auto-approve, simulated) |
+
+### 24.4 New state model (in `_state.tsx`)
+
+```ts
+// Phase 1
+VerificationSubjectType   = "talent_profile" | "client_profile" | "brand_profile" | "agency_profile" | "user_account"
+VerificationContext       = "hub" | "agency" | "studio" | "client" | "platform"
+VerificationMethod        = "instagram_dm" | "manual_review" | "agency_confirmation" | "domain" | "payment" | "phone" | "email"
+VerificationType          = (the 8 above)
+VerificationRequestStatus = "draft" | "pending_user_action" | "submitted" | "in_review" | "approved" | "rejected" | "expired" | "cancelled" | "needs_more_info"
+VerificationActiveStatus  = "active" | "revoked" | "expired"
+ProfileClaimStatus        = "unclaimed" | "invite_sent" | "claimed" | "disputed" | "released"
+
+VerificationRequest      = { id, subjectType, subjectId, requestedByUserId, context, agencyId?, hubId?, clientId?,
+                             method, verificationType, status, verificationCode?, claimedIdentifier?, targetUrl?,
+                             evidenceUrl?, evidenceNote?,            // ← Phase 1 final
+                             publicMessage?, adminNotes?, rejectionReason?,
+                             reviewedByUserId?, reviewedAt?, expiresAt?, createdAt, updatedAt }
+
+ProfileVerification      = { id, subjectType, subjectId, verificationType, identifier?, publicBadgeEnabled,
+                             verifiedByUserId?, verifiedAt, status, expiresAt?, metadata? }
+
+ProfileClaimInvitation   = { id, profileId, profileType, email?, phone?, invitedByUserId, invitedByAgencyId?,
+                             tokenHash, status, acceptedByUserId?, acceptedAt?, expiresAt, createdAt, updatedAt }
+
+// Phase 2
+VerificationReviewMode    = "automated" | "manual" | "hybrid"
+VerificationVisibility    = "public_profile" | "admin_only" | "internal"
+VerificationTierGate      = "basic" | "pro" | "portfolio" | "all"
+
+VerificationMethodConfig  = { type, enabled, reviewMode, visibleOn[], availableToTiers[],
+                              evidenceRequired, expiresAfterDays? }
+VerificationMethodAuditEntry = { id, methodType, changedByUserId, changeKind, before, after, at }
+
+TalentContactGate         = "open" | "verified_only" | "trusted_only"
+```
+
+### 24.5 New context API (`useProto()`)
+
+Reads:
+- `verificationRequests`, `profileVerifications`, `profileClaims`, `claimStatusByTalent`
+- `verificationMethodConfigs`, `verificationMethodAudit`
+- `getTrustSummary(subjectType, subjectId)` — **single source of truth** for every trust UI surface
+- `getRiskScore(subjectType, subjectId)` — 0–100 heuristic
+- `isVerificationMethodEnabled(type)`, `getVerificationMethodConfig(type)`, `listEnabledMethods()`
+- `getTalentContactGate(talentId)`, `canClientContactTalent(talentId, clientId)`
+
+Writes:
+- `createVerificationRequest`, `updateVerificationRequest`, `approveVerificationRequest`, `rejectVerificationRequest`
+- `revokeProfileVerification`, `revokeInstagramOnHandleChange`
+- `sendProfileClaimInvite`, `resolveProfileClaimDispute(claimId, "release"|"uphold"|"remove", adminNotes?)`
+- `updateVerificationMethod(type, patch)` — emits one audit entry per modified key
+- `setTalentContactGate(talentId, gate)`
+
+### 24.6 New primitives (`_primitives.tsx`)
+
+- **`TrustBadgeGroup`** — pill-style badge row. Surface-aware: public surfaces hide admin-only methods + filter out badges of disabled methods; admin surfaces show disabled-method badges with a grey-dot annotation + hover tooltip.
+- **`ProfilePhotoBadgeOverlay`** — photo-corner badge stack. Instagram uses authentic gradient `linear-gradient(135deg, #F09433 0%, #E6683C 25%, #DC2743 50%, #CC2366 75%, #BC1888 100%)`; Tulala is forest-green `#0F4F3E` with white checkmark. White ring + soft shadow. Stack-overlap rendering.
+- **`ProfileClaimStatusChip`** — claim status pill (Unclaimed / Invite sent / Claimed / Disputed / Released).
+- **`RiskScorePill`** — 0–100 score, color-coded (≥70 healthy green / ≥40 watchful amber / <40 review red). Admin surfaces only — never publicly visible.
+
+### 24.7 Where badges + risk scores appear
+
+| Surface | Component | File | Variant |
+|---|---|---|---|
+| Roster cell | `RosterTrustCell` | `_pages.tsx` | `surface="admin_roster"` + Disputed/Invite-sent claim chips |
+| Roster card photo | `RosterPhotoBadgeOverlay` | `_pages.tsx` | corner overlay |
+| Public profile preview | `TalentPublicPreviewDrawer` | `_talent_drawers.tsx` | corner overlay + `surface="public_profile"` strip |
+| Discover card | `ClientDiscoverPhotoBadge` + `ClientDiscoverTrustRow` | `_client.tsx` | corner overlay + public strip |
+| Discover detail sheet | `ClientTalentDetailSheet` hero | `_client.tsx` | corner overlay + public strip + Send-inquiry gate |
+| Chat header (3 POVs) | `ParticipantTrustStrip` | `_messages.tsx` | `surface="chat_header"` |
+| Inquiry workspace peek | `InquiryTrustPanel` | `_drawers.tsx` | client + talent two-column with `RiskScorePill` |
+| Trust queue detail | inline | `_drawers.tsx` | full timeline + evidence + `RiskScorePill` |
+| Disputed claim detail | inline | `_drawers.tsx` | risk score + dispute reason + 3 resolutions |
+| Talent Trust dashboard | `TalentTrustHealthPanel` | `_drawers.tsx` | own `RiskScorePill` + earn-+X suggestions |
+
+### 24.8 Critical wiring rules
+
+These rules are load-bearing. Production must reproduce them.
+
+**24.8.1 Email-verified ≠ public badge.** `account.emailVerified` flows into the risk score (+5) but never produces a `ProfileVerification` row. Don't auto-issue public badges from account-security signals.
+
+**24.8.2 Method-disable cascade.** When platform admin flips `enabled: true → false`:
+- Confirm-disable modal warns about active badges.
+- `getTrustSummary` resolves each badge with `methodEnabled = isVerificationMethodEnabled(type)`.
+- Public surfaces filter out badges where `methodEnabled === false` — they disappear instantly.
+- Admin surfaces show them with a grey-dot annotation + tooltip explaining they survive until expiry.
+- Talent-side per-method drawers short-circuit to `MethodDisabledNotice` so new requests can't start.
+
+**24.8.3 Required-evidence gate.** `cfg.evidenceRequired` is descriptive metadata at the platform-admin level. ID + Business drawers read it and gate submission. Phone / Domain / Payment ignore it because their flow is itself evidence (OTP, DNS lookup, payment hold). Mirror the ID/Business pattern if a future method needs to honor it.
+
+**24.8.4 Risk score formula.** Lives in `getRiskScore`:
+- Baseline 50
+- +12 per active badge
+- +10 if `claimStatus === "claimed"`, −25 if `"disputed"`
+- +5 if `account.emailVerified`, +5 if `account.phoneVerified`
+- −8 per recent rejected/expired request
+- Clamped 0–100
+
+Heuristic only. Never expose to public users. Production should rebase to a real risk engine.
+
+**24.8.5 Contact gate enforcement.** `canClientContactTalent(talentId, clientId)`:
+- `"open"` → always true
+- `"verified_only"` → client must have at least one active `ProfileVerification`
+- `"trusted_only"` → client's score must be ≥ 60
+
+Currently enforced at one call site: `ClientTalentDetailSheet` Send-inquiry button. Add more enforcement points by calling the helper and gating the button.
+
+**24.8.6 Activity log derivation.** The Trust queue detail timeline is synthesized from `request.createdAt` / `updatedAt` / `reviewedAt` + current status — there is **no separate event-log table**. Production must replace this with an event-sourced log so multi-hop transitions preserve all timestamps.
+
+**24.8.7 Audit log for the registry.** Every `updateVerificationMethod(type, patch)` emits one `VerificationMethodAuditEntry` per modified key. Detail panel shows the last 8 entries scoped to selected method. Production wires to a real audit table.
+
+### 24.9 Production-port checklist (trust-specific)
+
+Migration-time TODOs. Each is a backend-shaped task:
+
+1. **Schema.** Create three tables: `verification_requests`, `profile_verifications`, `profile_claim_invitations`. Match the type shapes in §24.4 verbatim. Add a fourth `verification_method_configs` table seeded from `SEED_VERIFICATION_METHOD_CONFIG`. Fifth: `verification_method_audit` for the registry trail.
+2. **`getTrustSummary` RPC.** This single function feeds every UI surface — must land as a low-latency endpoint or denormalized read model. Cache aggressively (badges + claim status change rarely; pending requests change per-action). Output shape is fixed: don't drift it.
+3. **Platform-admin registry endpoint.** `updateVerificationMethod` is the only write path; gated to platform-admin role. Audit entry persisted as a side effect, never as a separate call from the client.
+4. **Method-disable cascade is a read-time filter, not a write-time mutation.** Don't touch active `ProfileVerification` rows when a method is disabled — the cascade lives in `getTrustSummary` (sets `methodEnabled` per badge) and in the surface-aware filters in `TrustBadgeGroup` / `ProfilePhotoBadgeOverlay`. This means re-enabling a method instantly restores the badges. Production should preserve this property.
+5. **IG verification (real).** Replace manual DM-lookup. Webhook receiver at `/api/verify/instagram/webhook`, validate the signature with the Graph API secret, parse the inbound DM body, match against pending `verification_requests` where `verificationCode === code AND status === "submitted"`, auto-approve on match. Falls back to manual review on no-match within 72h.
+6. **DNS resolution (real).** `talent-domain-verify` simulates a 1.5s lookup. Replace with `/api/verify/domain` calling a real DNS resolver, with retry semantics for propagation lag (typically 5–30 min). Auto-approve on match.
+7. **Stripe payment ping (real).** `talent-payment-verify` simulates auto-approve. Wire to `PaymentIntent` (`capture_method: manual` then `payment_intents.cancel`). Treat the authorization as verification proof; never capture the funds.
+8. **OTP via Twilio Verify (real).** `talent-phone-verify` shows the code inline for the demo. Replace with real SMS dispatch + server-side code validation. Rate-limit per phone number.
+9. **Secure ID upload.** `talent-id-verify` accepts a URL. Replace with direct upload via signed URL to S3/R2, virus scan, optional Persona/Onfido integration for OCR + face match, auto-redact PII at rest. **Never** allow the document URL to leak to client-facing surfaces — admin-review only.
+10. **Notifications.** When a badge is approved / rejected / expires / revoked, the talent must be notified (email + in-app). Currently the prototype only renders state changes inline.
+11. **Activity log persistence.** Move from synthesized timeline to event-sourced records. Append-only table with `subject_type`, `subject_id`, `kind`, `actor_id`, `payload`, `at`.
+12. **Public storefront badges.** The real `/[profileCode]` route doesn't render trust badges yet — only the in-prototype preview drawer does. Wire `getTrustSummary("talent_profile", profileCode)` into the SSR data layer + render `ProfilePhotoBadgeOverlay` + `TrustBadgeGroup` at `surface="public_profile"`.
+13. **Telemetry.** `track("trust.request_created", { type, method })` on submit; `track("trust.approved" | "trust.rejected", { type, days_to_decision })` on admin action; `track("trust.method_toggled", { type, enabled })` on platform-admin change; `track("trust.contact_gate_set", { gate })` on talent gate change.
+
+### 24.10 Where the Trust work is in source
+
+| Looking for | File · key symbols |
+|---|---|
+| Schema, types, seeds, all context fns | `_state.tsx` → `VerificationType` (~5410), `VerificationRequest` (~5440), `VerificationMethodConfig` (~5450), `SEED_VERIFICATION_METHOD_CONFIG` (~5790), `getTrustSummary` (~6927), `getRiskScore` (~7012), `canClientContactTalent` (~7045) |
+| Admin queue + detail panel + activity log | `_drawers.tsx` → `TrustVerificationQueueDrawer` (~12894), `ActivityLogPanel` (~12816), `SubjectRiskScoreRow` (~12805) |
+| Disputed-claim resolution | `_drawers.tsx` → `DisputedClaimsDrawer` (~13409) |
+| Platform-admin registry console | `_drawers.tsx` → `PlatformVerificationMethodsDrawer` (~14290), `ConfigRow` / `vmSelectStyle` / `vmChipStyle` |
+| Talent dashboard + Trust Health panel + contact gate | `_drawers.tsx` → `TalentTrustDetailDrawer` (~13684), `TalentTrustHealthPanel` (~13614) |
+| Per-method talent drawers | `_drawers.tsx` → `TalentPhoneVerifyDrawer`, `TalentIdVerifyDrawer`, `TalentBusinessVerifyDrawer`, `TalentDomainVerifyDrawer`, `TalentPaymentVerifyDrawer` (~14633–14945) |
+| IG DM modal | `_drawers.tsx` → `InstagramVerificationInstructions` |
+| Inquiry trust panel (client + talent + risk score) | `_drawers.tsx` → `InquiryTrustPanel` (~10537) |
+| Chat header strip (admin / talent / client POVs) | `_messages.tsx` → `ParticipantTrustStrip` |
+| Discover trust filter chips + Send-inquiry gate | `_client.tsx` → `ClientDiscoverPage` filter row (~1330), `ClientTalentDetailSheet` Send button (~1818) |
+| Roster trust cell + photo overlay | `_pages.tsx` → `RosterTrustCell` (~6003), `RosterPhotoBadgeOverlay` (~6010) |
+| Topbar split nav badge + settings count badges | `_pages.tsx` → `WorkspaceTopbar` (~542), `WorkspacePageView` settings rows (~8378) |
+| Talent public preview with badges | `_talent_drawers.tsx` → `TalentPublicPreviewDrawer` (~5766) |
+| Badge primitives | `_primitives.tsx` → `TrustBadgeGroup` (~2540), `ProfilePhotoBadgeOverlay` (~2321), `ProfileClaimStatusChip` (~2267), `RiskScorePill` (~2517) |
+| Help registry entries (10 trust drawers) | `_help.tsx` → "Trust & Verification" block at end |
+| Drawer-by-drawer reference | `prototypes/admin-shell/DRAWERS.md` → "Trust & Verification" section |
+| Roadmap status (WS-5) | `prototypes/admin-shell/ROADMAP.md` → §3.5 audit findings + §4 WS-5 sub-tasks 5.9–5.23 |
+| Full handoff (read first) | `prototypes/admin-shell/TRUST.md` |
+
+### 24.11 Out of scope (deferred until backend)
+
+- **Phase 2.5 — Real Instagram Graph API webhook** (ROADMAP 5.22). Needs API credentials + signature validation + a webhook endpoint.
+- **Public storefront badges on `/[profileCode]`** (ROADMAP 5.23). Needs SSR data wiring.
+- **Real risk engine.** Heuristic in `getRiskScore` is a stand-in. Production should plug in a real signals platform (account age, behavior fingerprints, fraud patterns).
+- **Notifications on badge state changes.** Talent should be told when something is approved, rejected, expired, revoked.
+- **Photo badge overlay on the actual public route.** Currently only renders inside the prototype's preview drawer.
+
+---
+
+## 25. Sprint 2026-05-01 — Modernization + safety + handoff prep
+
+This section captures the state of the prototype as of the live-handoff cut (commit `5e0ce66`). Read it alongside §3 for the file map and §13 for the production-port plan.
+
+### 25.1 New files added in this sprint
+
+| File | Purpose | Notes for prod port |
+|---|---|---|
+| `_admin-tour.tsx` | First-time admin tour, now a thin wrapper around `<GuidedTour>` | Steps array + storage key only — actual tour logic lives in `_guided-tour.tsx` |
+| `_guided-tour.tsx` | Reusable WS-9.7 guided-tour primitive — SVG mask spotlight, tooltip card, `getBoundingClientRect`-based anchoring | Promote to `web/src/components/admin/GuidedTour/*`. API: `<GuidedTour storageKey steps sessionKey? durationLabel? kickoffDelayMs? />` |
+| `_csv-parser.ts` | Pure CSV parsing helpers (`parseTalentCsv`, `parseClientCsv`, `findColumn`, `isValid*Row`) | Promote to `web/src/lib/admin/csv/*`. Production should swap naive comma-split for `papaparse` |
+| `_csv-parser.test.ts` | 14 unit tests via `tsx --test` | Wire into `npm run ci` once the prototype CSV path ships in prod |
+| `_modern-features.tsx` | `<PasskeysCard>` (WebAuthn) + `<GalleryFxCard>` (WebGPU) | Both real-API. Passkey flow needs server-side challenge issuance + credential storage. WebGPU gallery is pure-frontend, ship as-is |
+| `_notifications-hub.tsx` | `<NotificationsBell>` — bell icon + 3-bucket popover (Action Needed / Updates / System) | Reads `pendingTalent` from ctx + localStorage for read/dismiss state. Replace localStorage with backend-derived state in prod |
+| `_profile-store.ts` | Module-scoped subscribable store (`useSyncExternalStore`) for shared profile draft across QuickAdd/Wizard/Shell | Mirror the contract in prod: `useProfileDraft(key)`, `patchProfileDraft`, `readProfileDraft`, `clearProfileDraft`. SW IndexedDB mirror is optional |
+| `talent/profile/edit/page.tsx` | URL-route shim — 308-redirects to the prototype with `?surface=talent&drawer=talent-profile-edit` | Canonical entrypoint for deep-links into the talent edit-profile drawer. Production keeps this URL stable; the redirect target may differ once routes are split |
+| `public/tulala-prototype-sw.js` | Service Worker — IndexedDB-backed offline drafts | Prototype-only. Production SW should only register if PWA install is desired |
+
+### 25.2 Updated `_state.tsx` shape
+
+New types and ctx members added on top of the existing model:
+
+| New | Where | What |
+|---|---|---|
+| `bulkAddClient` | ctx | WS-25.2 — append client rows from CSV. Validation: name + (contact OR email) |
+| `importedClients: Client[]` | ctx | Append-only list of CSV-imported clients |
+| `TalentProfile.isMinor / birthYear / guardian / minorProtections` | type extension | WS-31.6 / WS-34.8 — minor-protection model. Hard defaults: 9–17 working hours, 6h/day, chaperone, school 25h/wk |
+| `"client-csv-bulk-add"` | DrawerId union | Routes to `<ClientCsvBulkAddDrawer>` |
+
+**Demo seed:** Lina Park (`ROSTER_AGENCY` t4) is the test minor. Guardian Min-Jun Park, consent verified, full protection block. Added to inquiry RI-201 talents so the banner surfaces immediately.
+
+### 25.3 Updated workspace surface
+
+`_workspace.tsx`:
+- `WorkspaceBody` now branches on viewport: phone / tablet+desktop (2-col tabs+rail) / wide (3-pane: private | group | rail). Wide is admin-only; client/talent POVs see one thread anyway so they keep 2-col regardless of width.
+- `<MinorProtectionBanner>` mounts immediately under `<StatusStrip>` whenever any inquiry talent is flagged as a minor. **Non-dismissible by design** — protections are a legal obligation, not a UX preference. Cross-references inquiry talent names against `ROSTER_AGENCY`.
+
+### 25.4 Native popover migrations
+
+Three components migrated from custom outside-click + escape handlers to native `popover="auto"` + `popoverTarget`:
+
+| Component | File | Anchor strategy |
+|---|---|---|
+| `BottomActionFab` panel | `page.tsx` | `position: fixed; inset: auto; bottom; right` — fixed coords because anchor is also fixed |
+| `ProfileShellMobileMenu` | `_drawers.tsx` | `getBoundingClientRect()` on toggle event — top-layer kills containing-block math |
+| `NotificationsBell` | `_notifications-hub.tsx` | Same `getBoundingClientRect()` pattern, with edge-clamping when bell is near viewport right |
+
+**Watch out:** UA stylesheet sets `inset: 0; margin: auto` on `[popover]`. Must explicitly set `inset: auto` (or compute top/left/right) in the inline style or the popover renders centered. This bug was caught and fixed during browser verification — see `page.tsx:493`.
+
+### 25.5 Notification preferences (WS-11) advanced controls
+
+`NotificationPrefsDrawer` (`_drawers.tsx`) gains:
+- Per-channel toggle matrix (already shipped — email / push / SMS for 8 notification types)
+- **Batching toggle** — collapses "3 from Casa Pero" instead of 3 entries
+- **DND / quiet-hours window** — `<input type="time">` start + end pickers. Workspace timezone
+- **Lock-screen privacy** — three modes: Full content / Sender only / Hidden
+
+Production maps these to a `notification_preferences` table per user with a `quiet_hours` JSONB and an enum for preview mode.
+
+### 25.6 Dead code removed
+
+| Component | File | Why dropped |
+|---|---|---|
+| `AIHelpBot` (~240 lines) | `page.tsx` | Free-floating sparkle FAB retired. Chat panel logic extracted into `BottomActionFab`'s "Ask AI" tab |
+| `FeedbackButton` (~268 lines) | `_primitives.tsx` | Was creating a second FAB stack at bottom-right. Feedback is reachable via the FAB's Ask AI tab |
+| `TalentProfileEditDrawer` (~40 lines) | `_talent_drawers.tsx` | `talent-profile-edit` drawer ID now routes to `TalentProfileShellDrawer` in `mode="edit-self"` |
+| `<TalentMessagesFab />` mount | `_talent.tsx` | Dormant comment-only — function deleted in prior pass; mount left commented |
+| `<ClientConciergeButton />` mount | `_client.tsx` | Dormant comment-only — `BottomActionFab` now serves the client surface |
+
+### 25.7 Verification status
+
+| Check | Result |
+|---|---|
+| `npx tsc --noEmit` | exit 0 |
+| `npm run test:prototype-csv` | 14/14 pass |
+| Browser walkthrough at desktop (1316×922) | ✓ FAB popover anchored, ✓ Notifications bell anchored, ✓ URL redirect to edit-profile drawer works, ✓ PasskeysCard renders, ✓ GalleryFxCard shows status `LIVE`, ✓ Wide layout 3-pane on RI-201, ✓ MinorProtectionBanner surfaces with all guardian/protection fields |
+| Mobile viewport (375pt) | **NOT verified in-browser this sprint.** `useViewport()` returns "phone" at <768; `PhoneWorkspaceLayout` already shipped + worked previously. Re-verify before live handoff |
+
+### 25.8 Memory file updates
+
+`feedback_admin_aesthetics.md` was 8 days stale at sprint start. Updated 2026-05-01 with the resolution status of the three original complaints:
+1. **Gold/rust accents — RESOLVED.** `COLORS.accent` migrated to `#0F4F3E` (deep forest). Guardrails in `docs/PR_CHECKLIST.md` line 11 + `docs/STYLE.md` line 182.
+2. **Dead space on list surfaces — PARTIAL.** Original specific surface no longer has the offending status-tabs+filter-card pair. Treat as case-by-case when touching list pages.
+3. **Opaque jargon labels — ADDRESSED for workspace nav.** Sidebar + topbar nav buttons now expose `PAGE_META[p].description` via `title=` and `aria-label=`. First-time admin tour also covers the 4 most-opaque DOM nodes.
+
+### 25.9 What's still open at handoff
+
+Tracked in `ROADMAP.md` § 4. Highest-leverage remaining items:
+
+- **WS-1.B-G chat redesign** — date dividers, system-event grouping, real-time presence, smart replies, optimistic send + retry, draft auto-save (file already partially landed), participant filters, inline thread search
+- **WS-5 money & trust** — escrow visualization, multi-currency, refund flow, milestone payments, dispute UX, KYC flow, proof-of-funds. Existential-risk-flagged
+- **WS-22 email + transactional comms** — entirely missing in code; 30+ template inventory needed
+- **WS-12 i18n + a11y** — strings extraction, RTL audit, screen-reader pass, high-contrast mode
+- **WS-13 performance** — code-split per surface, virtualize lists, vanilla-extract style extraction
+- **WS-28–WS-34** — round-4 industry-depth additions (casting director surface, production team, image rights, account lifecycle, discovery, on-set live, safety/disputes)
+- Mobile-viewport popover re-verify (item 25.7 above)
+- `_state.tsx` context split — file is now ~7,400 lines with a single Context provider holding ~50 cb refs. Splitting into PageContext / DrawerContext / DataContext would reduce re-render cost. Not on the roadmap; recommend adding to WS-13
+
+
