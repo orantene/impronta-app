@@ -839,6 +839,51 @@ export const CAPABILITIES = {
     gating: "platform_role",
     deprecated: false,
   }),
+
+  // ─── Taxonomy + adaptive registration ────────────────────────────────
+  // See docs/taxonomy-and-registration.md for the three-layer model
+  // (master / workspace-enablement / talent-selection) and the adaptive
+  // registration flow. Capability names are locked product contracts;
+  // most have no callers in v1 — Track B.5 wires them when the workspace
+  // taxonomy settings page + adaptive registration flow are built.
+
+  "workspace.taxonomy.configure": define({
+    key: "workspace.taxonomy.configure",
+    displayName: "Configure workspace taxonomy",
+    description:
+      "Choose which talent types, skills, and other vocabulary the workspace exposes. Set per-term visibility (registration / directory), primary/secondary toggles, approval requirements, custom labels, and helper text.",
+    category: "team",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "workspace.registration.configure": define({
+    key: "workspace.registration.configure",
+    displayName: "Configure registration behavior",
+    description:
+      "Set workspace-wide registration toggles: default approval requirement, allow secondary roles, allow open applications for non-enabled types.",
+    category: "team",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.talent.approve_registration": define({
+    key: "agency.talent.approve_registration",
+    displayName: "Approve talent registration",
+    description:
+      "Review and approve a talent's submitted registration. Required when the workspace or specific term has requires_approval set.",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "platform.taxonomy.manage": define({
+    key: "platform.taxonomy.manage",
+    displayName: "Manage master taxonomy vocabulary",
+    description:
+      "Add, edit, deprecate, or merge terms in the master vocabulary (talent_types, tags, skills, event_types, etc.). Defines field groups for new talent types.",
+    category: "platform",
+    scope: "platform",
+    gating: "platform_role",
+    deprecated: false,
+  }),
 } as const;
 
 export type CapabilityKey = keyof typeof CAPABILITIES;

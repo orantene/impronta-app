@@ -203,6 +203,17 @@ These documents are binding product logic. Code, schema, or copy that conflicts 
   - 10 capability keys reserved in `lib/access/capabilities.ts`.
   - Reserved tables (deferred migrations): `booking_transactions`, `payout_accounts`. Reserved column on future `plans` table: `platform_fee_basis_points`.
 
+- [`docs/taxonomy-and-registration.md`](docs/taxonomy-and-registration.md) — Master taxonomy + workspace-scoped enablement + adaptive registration. Establishes:
+  - **Three-layer model:** platform-owned master vocabulary / workspace-scoped enablement layer / talent-selection layer. *"Tulala owns the master taxonomy. The agency/hub chooses its allowed offer menu. The talent sees only the relevant registration flow for that agency/hub."*
+  - **`agency_taxonomy_settings`** (deferred table) carries per-(tenant, term) config: `is_enabled`, `show_in_directory`, `show_in_registration`, `allow_as_primary`, `allow_as_secondary`, `requires_approval`, `display_order`, `custom_label`, `helper_text`.
+  - **Plan-gated parent-type width:** Free=3, Studio=8, Agency=unlimited, Network=unlimited + custom hub vocabularies. New `max_taxonomy_groups` plan-limit.
+  - **Adaptive registration flow** (mobile-first 8-step) — schema-driven by the workspace's enabled vocabulary. Same engine, different menu per workspace.
+  - **Dynamic profile fields by talent type** via `talent_type_field_groups` (deferred). A model and a driver see different field groups.
+  - **Two-mode profile editor:** talent (mobile-first, simple) / admin (deeper controls including approval status, internal notes, directory priority).
+  - **5-phase build sequence** (Phase A foundation → E plan-gating). Phase B integrates with Track B.5; Phase E with Track C.
+  - 4 capability keys reserved.
+  - Honors page-builder invariants: CAS on `agency_taxonomy_settings`; new cache-tag surfaces (`taxonomy`, `registration-flow`); admin UI composes inspector kit primitives.
+
 - [`docs/page-builder-invariants.md`](docs/page-builder-invariants.md) — **Binding constraints** for the SaaS / dashboard refactor (Track B.5) and any future shell, surface, or inspector work. Subsystem reality, not product direction. Establishes:
   - **Token registry** (`web/src/lib/site-admin/tokens/registry.ts`) is the only door for design knobs. Never write `agency_branding.theme_json` directly.
   - **Cache-tag helper** (`web/src/lib/site-admin/cache-tags.ts`) is the only path for cache invalidation; bare-string tags are ESLint-banned. New SaaS surfaces register here.

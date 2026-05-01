@@ -79,7 +79,8 @@ test("registry contains all expected capability sets", () => {
   // Talent monetization (docs/talent-monetization.md): 9 keys (8 + 1
   //   added with the founder's exclusivity-distribution refinement).
   // Client trust + contact controls (docs/client-trust-and-contact-controls.md): 8 keys.
-  // Total: 84.
+  // Taxonomy + adaptive registration (docs/taxonomy-and-registration.md): 4 keys.
+  // Total: 88.
   const TALENT_RELATIONSHIP_KEYS: readonly CapabilityKey[] = [
     "agency.settings.edit_join_mode",
     "agency.talent.create",
@@ -132,11 +133,18 @@ test("registry contains all expected capability sets", () => {
     "platform.client_trust.configure_thresholds",
     "platform.client_trust.override",
   ];
+  const TAXONOMY_REGISTRATION_KEYS: readonly CapabilityKey[] = [
+    "workspace.taxonomy.configure",
+    "workspace.registration.configure",
+    "agency.talent.approve_registration",
+    "platform.taxonomy.manage",
+  ];
   for (const key of [
     ...TALENT_RELATIONSHIP_KEYS,
     ...TRANSACTION_KEYS,
     ...TALENT_MONETIZATION_KEYS,
     ...CLIENT_TRUST_KEYS,
+    ...TAXONOMY_REGISTRATION_KEYS,
   ]) {
     assert.ok(isKnownCapability(key), `capability "${key}" missing`);
   }
@@ -146,7 +154,8 @@ test("registry contains all expected capability sets", () => {
     TALENT_RELATIONSHIP_KEYS.length +
     TRANSACTION_KEYS.length +
     TALENT_MONETIZATION_KEYS.length +
-    CLIENT_TRUST_KEYS.length;
+    CLIENT_TRUST_KEYS.length +
+    TAXONOMY_REGISTRATION_KEYS.length;
   assert.equal(CAPABILITY_KEYS.length, expected, `expected ${expected} capability keys`);
 });
 
