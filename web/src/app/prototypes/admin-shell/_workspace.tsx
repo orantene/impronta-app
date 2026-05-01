@@ -44,6 +44,7 @@ import {
   TRANSITION,
   REQUIREMENT_ROLE_META,
   RICH_INQUIRIES,
+  ROSTER_AGENCY,
   WORKSPACE_PAGES,
   describeSource,
   getPaymentSummary,
@@ -57,11 +58,13 @@ import {
   type WorkspacePage,
 } from "./_state";
 import {
+  ActivityFeedItem,
   Avatar,
   Bullet,
   CapsLabel,
   ClientTrustChip,
   Divider,
+  EmptyState,
   GhostButton,
   Icon,
   PaymentStatusChip,
@@ -127,41 +130,188 @@ function povFromSurface(surface: string): InquiryWorkspacePov {
 //                      group-stream | 260px rail
 //                      (client / talent keep 2-col)
 
-function WorkspaceBody({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
-  const viewport = useViewport();
-  const isPhone  = viewport === "phone";
-  const isWide   = viewport === "wide";
-  const dualPane = isWide && pov === "admin";
+/**
+ * WS-31.6 / WS-34.8 — MinorProtectionBanner
+ *
+ * Non-dismissible banner shown at the top of any inquiry workspace when
+ * one or more talents on the inquiry are minors. Surfaces:
+ *   - the talent's name + age
+ *   - guardian name + consent status
+ *   - working-hour window (hard cap)
+ *   - max on-set hours per day
+ *   - chaperone requirement
+ *
+ * On compact viewports we collapse to a single-line "1 minor — review
+ * protections" pill that opens the MinorAccountDrawer on click. Full
+ * banner shown on tablet+.
+ *
+ * Why non-dismissible: protections are a legal obligation. A coordinator
+ * who dismisses the banner accidentally still needs to honor the rules.
+ * The banner stays so they can never claim they didn't see it.
+ */
+function MinorProtectionBanner({ talents, compact = false }: {
+  talents: typeof ROSTER_AGENCY;
+  compact?: boolean;
+}) {
+  const { openDrawer } = useProto();
+  if (talents.length === 0) return null;
+  const today = new Date().getFullYear();
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={() => openDrawer("minor-account", { talentIds: talents.map(t => t.id) })}
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 12px",
+          background: COLORS.coralSoft,
+          border: `1px solid ${COLORS.coralDeep}`,
+          borderRadius: 10,
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          textAlign: "left", width: "100%",
+        }}
+      >
+        <span aria-hidden style={{ fontSize: 14 }}>🛡️</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.coralDeep }}>
+          {talents.length === 1 ? `${talents[0].name} is a minor` : `${talents.length} minors on this inquiry`}
+        </span>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: COLORS.coralDeep, fontWeight: 600 }}>
+          Review protections →
+        </span>
+      </button>
+    );
+  }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 8 : 16, height: "100%" }}>
+    <div
+      role="alert"
+      style={{
+        padding: "10px 14px",
+        background: COLORS.coralSoft,
+        border: `1px solid ${COLORS.coralDeep}`,
+        borderRadius: 12,
+        fontFamily: FONTS.body,
+        flexShrink: 0,
+        display: "flex", alignItems: "flex-start", gap: 12,
+      }}
+    >
+      <span aria-hidden style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>🛡️</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4,
+          fontSize: 12.5, fontWeight: 700, color: COLORS.coralDeep,
+        }}>
+          Minor protections in effect
+          <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", opacity: 0.75 }}>
+            non-overridable
+          </span>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", fontSize: 11.5, color: COLORS.coralDeep }}>
+          {talents.map(t => {
+            const age = t.birthYear ? today - t.birthYear : null;
+            const p = t.minorProtections;
+            return (
+              <div key={t.id} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <strong style={{ fontWeight: 700 }}>{t.name}</strong>
+                {age != null && <span>· age {age}</span>}
+                {p && (
+                  <>
+                    <span>· hours {p.workingHourStart}:00–{p.workingHourEnd}:00</span>
+                    <span>· max {p.maxOnSetHoursPerDay}h/day</span>
+                    {p.chaperoneRequired && <span>· chaperone required</span>}
+                  </>
+                )}
+                {t.guardian && (
+                  <span style={{ opacity: 0.85 }}>
+                    · guardian: {t.guardian.name}{t.guardian.consentVerified ? " ✓" : " (consent pending)"}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => openDrawer("minor-account", { talentIds: talents.map(t => t.id) })}
+        style={{
+          padding: "5px 10px",
+          background: "#fff",
+          color: COLORS.coralDeep,
+          border: `1px solid ${COLORS.coralDeep}`,
+          borderRadius: 6,
+          fontSize: 11.5, fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          flexShrink: 0,
+        }}
+      >
+        Manage →
+      </button>
+    </div>
+  );
+}
+
+export function WorkspaceBody({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
+  const viewport = useViewport();
+  const isPhone  = viewport === "phone";
+  // WS-1.A wide layout — admins on ≥1280px get dual-pane (private + group
+  // side-by-side, no tab-switching). Client/talent POVs only see one
+  // thread anyway, so they keep the 2-col layout regardless of width.
+  const isWide = viewport === "wide";
+  const showDualPane = isWide && pov === "admin";
+
+  // WS-31.6 — minor-protection detection. Cross-reference talent names
+  // on this inquiry with the agency roster; surface a sticky banner if
+  // any are flagged as minors. Banner is non-dismissible by design —
+  // protection rules are a coordinator obligation, not a UI annoyance.
+  const minorsOnInquiry = useMemo(() => {
+    const names = new Set(
+      inquiry.requirementGroups.flatMap(g => g.talents.map(t => t.name))
+    );
+    return ROSTER_AGENCY.filter(t => t.isMinor && names.has(t.name));
+  }, [inquiry]);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: isPhone ? 8 : 12, height: "100%" }}>
       <StatusStrip inquiry={inquiry} pov={pov} compact={isPhone} />
+      {minorsOnInquiry.length > 0 && (
+        <MinorProtectionBanner talents={minorsOnInquiry} compact={isPhone} />
+      )}
 
       {isPhone ? (
         /* ── Phone: stacked layout ── */
         <PhoneWorkspaceLayout inquiry={inquiry} pov={pov} />
-      ) : (
-        /* ── Tablet / Desktop / Wide: grid layout ── */
+      ) : showDualPane ? (
+        /* ── Wide (admin only): private | group | rail ── */
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: dualPane
-              ? "minmax(0, 1fr) minmax(0, 1fr) 260px"
-              : "minmax(0, 1fr) 320px",
-            gap: 16,
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr) 260px",
+            gap: 12,
             flex: 1,
             minHeight: 0,
           }}
         >
-          {dualPane ? (
-            /* Wide admin: private + group side by side */
-            <>
-              <MessagingPanel inquiry={inquiry} pov={pov} forcedThread="private" />
-              <MessagingPanel inquiry={inquiry} pov={pov} forcedThread="group" />
-            </>
-          ) : (
-            <MessagingPanel inquiry={inquiry} pov={pov} />
-          )}
+          <MessagingPanel inquiry={inquiry} pov={pov} forcedThread="private" />
+          <MessagingPanel inquiry={inquiry} pov={pov} forcedThread="group" />
+          <Rail inquiry={inquiry} pov={pov} />
+        </div>
+      ) : (
+        /* ── Tablet / desktop: tabs + rail ── */
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) 272px",
+            gap: 14,
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
+          <MessagingPanel inquiry={inquiry} pov={pov} />
           <Rail inquiry={inquiry} pov={pov} />
         </div>
       )}
@@ -300,43 +450,40 @@ function PhoneWorkspaceLayout({ inquiry, pov }: { inquiry: RichInquiry; pov: Inq
           </span>
         </button>
 
-        {/* Details toggle — pushed right */}
+        {/* Details toggle — visually distinct from thread tabs; this opens
+            an info panel, not switches threads. Pill-button affordance with
+            info icon makes the metaphor clear. */}
         <button
           type="button"
           onClick={() => setRailOpen((v) => !v)}
           aria-expanded={railOpen}
+          aria-label={railOpen ? "Hide details" : "Show inquiry details"}
           data-tulala-phone-details-toggle
           style={{
             marginLeft: "auto",
+            marginRight: 6,
+            alignSelf: "center",
             flexShrink: 0,
-            background: "transparent",
+            background: railOpen ? COLORS.fill : "rgba(11,11,13,0.05)",
             border: "none",
-            padding: "0 14px",
-            height: 44,
+            padding: "6px 12px",
+            borderRadius: 999,
             fontFamily: FONTS.body,
-            fontSize: 13,
-            fontWeight: 500,
-            color: railOpen ? COLORS.ink : COLORS.inkMuted,
+            fontSize: 12,
+            fontWeight: 600,
+            color: railOpen ? "#fff" : COLORS.ink,
             cursor: "pointer",
             display: "inline-flex",
             alignItems: "center",
             gap: 5,
-            borderBottom: railOpen ? `2px solid ${COLORS.ink}` : "2px solid transparent",
-            marginBottom: -1,
+            transition: `all ${TRANSITION.sm}`,
           }}
         >
-          Details
-          <span
-            aria-hidden
-            style={{
-              fontSize: 10,
-              transition: `transform ${TRANSITION.sm}`,
-              transform: railOpen ? "rotate(180deg)" : "rotate(0deg)",
-              display: "inline-block",
-            }}
-          >
-            ▾
-          </span>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M7 6.4V10M7 4.5v.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+          </svg>
+          {railOpen ? "Hide" : "Details"}
         </button>
       </div>
 
@@ -423,22 +570,9 @@ function PhoneMessagingStream({
             role="log"
             aria-live="polite"
             aria-label="Message thread"
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: COLORS.inkMuted,
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              textAlign: "center",
-              padding: "32px 16px",
-              gap: 6,
-            }}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
-            <Icon name="mail" size={20} color={COLORS.inkDim} />
-            No messages yet — write the first one.
+            <EmptyState icon="mail" title="No messages yet" body="Write the first one below." compact />
           </div>
         ) : (
           <Virtuoso
@@ -471,7 +605,7 @@ function PhoneMessagingStream({
               bottom: 10,
               padding: "7px 14px",
               borderRadius: 999,
-              background: COLORS.ink,
+              background: COLORS.fill,
               color: "#fff",
               fontFamily: FONTS.body,
               fontSize: 12,
@@ -628,7 +762,7 @@ function StatusStrip({
   );
 }
 
-function InquiryStatusChip({ inquiry }: { inquiry: RichInquiry }) {
+export function InquiryStatusChip({ inquiry }: { inquiry: RichInquiry }) {
   const meta = INQUIRY_STAGE_META[inquiry.stage];
   const bgMap: Record<string, string> = {
     ink: "rgba(11,11,13,0.06)",
@@ -967,8 +1101,8 @@ function ParticipantChipStrip({
           flexShrink: 0,
           padding: "3px 10px",
           borderRadius: 999,
-          border: `1px solid ${filter === null ? COLORS.ink : COLORS.borderSoft}`,
-          background: filter === null ? COLORS.ink : "transparent",
+          border: `1px solid ${filter === null ? COLORS.accent : COLORS.borderSoft}`,
+          background: filter === null ? COLORS.fill : "transparent",
           color: filter === null ? "#fff" : COLORS.inkMuted,
           fontFamily: FONTS.body,
           fontSize: 11,
@@ -993,8 +1127,8 @@ function ParticipantChipStrip({
               gap: 5,
               padding: "3px 10px 3px 4px",
               borderRadius: 999,
-              border: `1px solid ${isActive ? COLORS.ink : COLORS.borderSoft}`,
-              background: isActive ? COLORS.ink : "transparent",
+              border: `1px solid ${isActive ? COLORS.accent : COLORS.borderSoft}`,
+              background: isActive ? COLORS.fill : "transparent",
               color: isActive ? "#fff" : COLORS.inkMuted,
               fontFamily: FONTS.body,
               fontSize: 11,
@@ -1003,7 +1137,15 @@ function ParticipantChipStrip({
               transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
             }}
           >
-            <span style={{ fontSize: 13 }}>{t.thumb}</span>
+            {t.thumb?.startsWith("http") ? (
+              <span style={{
+                width: 18, height: 18, borderRadius: "50%",
+                background: `url(${t.thumb}) center/cover`,
+                flexShrink: 0,
+              }} />
+            ) : (
+              <span style={{ fontSize: 13 }}>{t.thumb}</span>
+            )}
             {t.name.split(" ")[0]}
             {t.lastSaidTs && !isActive && (
               <span style={{ fontSize: 9.5, opacity: 0.6, marginLeft: 2 }}>
@@ -1148,6 +1290,37 @@ function MessagingPanel({
   // WS-1.E — dismissed action banners (session-only)
   const [dismissedActions, setDismissedActions] = useState<Set<string>>(new Set());
 
+  // WS-18.1 — AI reply suggestions (admin/coordinator POV only)
+  const AI_SUGGESTIONS: Record<ThreadType, string[]> = {
+    private: [
+      "The rates look competitive for this brief — happy to discuss further if needed.",
+      "We'll have a response for you by end of day.",
+      `${inquiry.requirementGroups[0]?.talents[0]?.name ?? "The talent"} is available for those dates. I'll send the formal offer shortly.`,
+    ],
+    group: [
+      "Please confirm your availability for the dates in the brief above.",
+      "The client has approved the hold — let me know your call-sheet preferences.",
+      "Let me know if you have any questions about the brief.",
+    ],
+  };
+  const [suggestionsVisible, setSuggestionsVisible] = useState(false); // hidden by default — tap ✦ to reveal
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<number>>(new Set());
+
+  // WS-18.2 — AI thread summary (coordinator-only)
+  const THREAD_SUMMARIES: Record<ThreadType, string[]> = {
+    private: [
+      `Client confirmed ${inquiry.requirementGroups[0]?.role ?? "talent"} for ${inquiry.brief}.`,
+      `Rates discussed: ${inquiry.offer?.lineItems[0]?.fee ?? "TBD"}. Client expects offer by Friday.`,
+      `Hold dates requested: ${inquiry.offer?.sentAt ? `around ${inquiry.offer.sentAt}` : "TBD"}.`,
+    ],
+    group: [
+      `${inquiry.requirementGroups[0]?.talents.map(t => t.name.split(" ")[0]).join(" and ") ?? "Talent"} both confirmed available.`,
+      "Brief shared — outstanding: call sheet and contract.",
+      inquiry.offer ? `Offer v${inquiry.offer.version} sent at ${inquiry.offer.total}. Awaiting client approval.` : "No offer sent yet.",
+    ],
+  };
+  const [summaryVisible, setSummaryVisible] = useState(false);
+
   // WS-1.F.1 — participant filter for group thread
   const [participantFilter, setParticipantFilter] = useState<string | null>(null);
 
@@ -1228,130 +1401,147 @@ function MessagingPanel({
         overflow: "hidden",
       }}
     >
-      {/* ── Thread switcher (hidden when forcedThread is set — wide dual-pane) ── */}
+      {/* ── Thread switcher — pill segmented control ── */}
       {visible.length > 1 && (
         <div
-          role="tablist"
-          aria-label="Message threads"
           style={{
             display: "flex",
             alignItems: "center",
+            padding: "10px 12px 0",
+            gap: 8,
             borderBottom: `1px solid ${COLORS.borderSoft}`,
-            padding: "0 6px",
+            background: "#fff",
           }}
         >
-          {visible.map((t) => {
-            const isActive = active === t && !showFiles;
-            return (
+          {/* Pill track */}
+          <div
+            role="tablist"
+            aria-label="Message threads"
+            style={{
+              display: "flex",
+              background: "rgba(11,11,13,0.055)",
+              borderRadius: 10,
+              padding: 3,
+              gap: 2,
+            }}
+          >
+            {visible.map((t) => {
+              const isActive = active === t && !showFiles;
+              const threadDot = t === "private"
+                ? { bg: "rgba(79,70,229,1)", soft: "rgba(79,70,229,0.14)" }
+                : { bg: "rgba(217,119,6,1)",  soft: "rgba(217,119,6,0.14)" };
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => { setActive(t); setShowFiles(false); setParticipantFilter(null); setSearchActive(false); setSearchQuery(""); }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    background: isActive ? "#fff" : "transparent",
+                    border: "none",
+                    borderRadius: 7,
+                    padding: "5px 12px",
+                    fontFamily: FONTS.body,
+                    fontSize: 12.5,
+                    fontWeight: isActive ? 650 : 500,
+                    color: isActive ? COLORS.ink : COLORS.inkMuted,
+                    cursor: "pointer",
+                    boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.06)" : "none",
+                    transition: `all ${TRANSITION.sm}`,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {/* Thread-colored dot */}
+                  <span style={{
+                    width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+                    background: isActive ? threadDot.bg : COLORS.inkDim,
+                    transition: `background ${TRANSITION.sm}`,
+                  }} />
+                  {labels[t]}
+                  {unread[t] > 0 && (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        padding: "0 5px",
+                        minWidth: 16,
+                        height: 16,
+                        borderRadius: 999,
+                        background: COLORS.amber,
+                        color: "#fff",
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {unread[t]}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {/* Files tab inside the pill track */}
+            {!forcedThread && (
               <button
-                key={t}
                 type="button"
                 role="tab"
-                aria-selected={isActive}
-                onClick={() => { setActive(t); setShowFiles(false); setParticipantFilter(null); setSearchActive(false); setSearchQuery(""); }}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: "12px 14px",
-                  fontFamily: FONTS.body,
-                  fontSize: 13,
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? COLORS.ink : COLORS.inkMuted,
-                  cursor: "pointer",
-                  borderBottom: isActive ? `2px solid ${THREAD_ACCENT[t]}` : "2px solid transparent",
-                  marginBottom: -1,
-                }}
-              >
-                {labels[t]}
-                {unread[t] > 0 && (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      marginLeft: 8,
-                      padding: "0 6px",
-                      minWidth: 16,
-                      height: 16,
-                      borderRadius: 999,
-                      background: COLORS.amber,
-                      color: "#fff",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {unread[t]}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-
-          {/* WS-10.3 — Files tab */}
-          {!forcedThread && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={showFiles}
-              data-tulala-workspace-files-tab
-              onClick={() => setShowFiles(true)}
-              style={{
-                background: "transparent",
-                border: "none",
-                padding: "12px 14px",
-                fontFamily: FONTS.body,
-                fontSize: 13,
-                fontWeight: showFiles ? 600 : 500,
-                color: showFiles ? COLORS.ink : COLORS.inkMuted,
-                cursor: "pointer",
-                borderBottom: showFiles ? `2px solid ${COLORS.accent}` : "2px solid transparent",
-                marginBottom: -1,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              Files
-              <span
+                aria-selected={showFiles}
+                data-tulala-workspace-files-tab
+                onClick={() => setShowFiles(true)}
                 style={{
                   display: "inline-flex",
-                  padding: "0 5px",
-                  minWidth: 16,
-                  height: 16,
-                  borderRadius: 999,
-                  background: showFiles ? COLORS.accent : "rgba(11,11,13,0.08)",
-                  color: showFiles ? "#fff" : COLORS.inkMuted,
-                  fontSize: 10,
-                  fontWeight: 700,
                   alignItems: "center",
-                  justifyContent: "center",
+                  gap: 5,
+                  background: showFiles ? "#fff" : "transparent",
+                  border: "none",
+                  borderRadius: 7,
+                  padding: "5px 12px",
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  fontWeight: showFiles ? 650 : 500,
+                  color: showFiles ? COLORS.ink : COLORS.inkMuted,
+                  cursor: "pointer",
+                  boxShadow: showFiles ? "0 1px 3px rgba(0,0,0,0.10), 0 0 0 0.5px rgba(0,0,0,0.06)" : "none",
+                  transition: `all ${TRANSITION.sm}`,
                 }}
               >
-                {WORKSPACE_FILES_COUNT}
-              </span>
-            </button>
-          )}
+                <span style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: showFiles ? COLORS.accent : COLORS.inkDim, transition: `background ${TRANSITION.sm}` }} />
+                Files
+                <span style={{ display: "inline-flex", padding: "0 5px", minWidth: 16, height: 16, borderRadius: 999, background: showFiles ? COLORS.accent : "rgba(11,11,13,0.10)", color: showFiles ? "#fff" : COLORS.inkMuted, fontSize: 9.5, fontWeight: 700, alignItems: "center", justifyContent: "center" }}>
+                  {WORKSPACE_FILES_COUNT}
+                </span>
+              </button>
+            )}
+          </div>
 
-          {/* WS-1.B.4 — Mark read + WS-1.G.1 — search toggle (hidden in files view) */}
+          {/* Right-side toolbar — search, mark read, AI summarize */}
           {!showFiles && (
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 0, marginRight: 4 }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2, paddingBottom: 2 }}>
             <button
               type="button"
               onClick={() => { setSearchActive((v) => !v); setSearchQuery(""); }}
               aria-label="Search thread"
               title="Search (press / in composer)"
               style={{
-                background: searchActive ? "rgba(11,11,13,0.06)" : "transparent",
+                background: searchActive ? "rgba(11,11,13,0.07)" : "transparent",
                 border: "none",
-                padding: "6px 9px",
+                padding: "5px 8px",
                 color: searchActive ? COLORS.ink : COLORS.inkMuted,
                 cursor: "pointer",
                 fontFamily: FONTS.body,
                 fontSize: 13,
-                borderRadius: 6,
+                borderRadius: 7,
+                display: "inline-flex", alignItems: "center",
+                transition: `background ${TRANSITION.micro}`,
               }}
             >
-              🔍
+              <Icon name="search" size={13} color={searchActive ? COLORS.ink : COLORS.inkMuted} />
             </button>
             <button
               type="button"
@@ -1361,19 +1551,129 @@ function MessagingPanel({
               style={{
                 background: "transparent",
                 border: "none",
-                padding: "6px 10px",
+                padding: "5px 9px",
                 fontFamily: FONTS.body,
                 fontSize: 11.5,
                 fontWeight: 500,
                 color: unread[active] === 0 ? COLORS.inkDim : COLORS.inkMuted,
                 cursor: unread[active] === 0 ? "default" : "pointer",
-                borderRadius: 6,
+                borderRadius: 7,
               }}
             >
               Mark read
             </button>
+
+            {/* WS-18.2 — AI summarize thread */}
+            {pov === "admin" && (
+              <button
+                type="button"
+                title="Summarize thread with AI"
+                aria-label="Summarize thread"
+                onClick={() => setSummaryVisible((v) => !v)}
+                style={{
+                  background: summaryVisible ? COLORS.royalSoft : "transparent",
+                  border: "none",
+                  padding: "5px 9px",
+                  borderRadius: 7,
+                  cursor: "pointer",
+                  color: summaryVisible ? COLORS.royal : COLORS.inkMuted,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontFamily: FONTS.body,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  transition: `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
+                }}
+              >
+                <Icon name="sparkle" size={11} color={summaryVisible ? COLORS.royal : COLORS.inkMuted} stroke={1.8} />
+                Summarize
+              </button>
+            )}
           </div>
           )}
+        </div>
+      )}
+
+      {/* WS-18.2 — AI thread summary banner (pinned below toolbar) */}
+      {summaryVisible && !showFiles && (
+        <div
+          style={{
+            borderBottom: `1px solid ${COLORS.royalSoft}`,
+            background: "rgba(95,75,139,0.04)",
+            padding: "12px 16px",
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 8,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="sparkle" size={12} color={COLORS.royal} stroke={1.7} />
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  color: COLORS.royal,
+                }}
+              >
+                AI Summary
+              </span>
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 10,
+                  color: COLORS.inkDim,
+                  marginLeft: 2,
+                }}
+              >
+                · draft, not saved
+              </span>
+            </div>
+            <button
+              type="button"
+              aria-label="Dismiss summary"
+              onClick={() => setSummaryVisible(false)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", color: COLORS.inkDim }}
+            >
+              <Icon name="x" size={12} color={COLORS.inkDim} />
+            </button>
+          </div>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 5 }}>
+            {THREAD_SUMMARIES[active].map((point, i) => (
+              <li
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  fontFamily: FONTS.body,
+                  fontSize: 12,
+                  color: COLORS.ink,
+                  lineHeight: 1.45,
+                }}
+              >
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: "50%",
+                    background: COLORS.royal,
+                    flexShrink: 0,
+                    marginTop: 6,
+                  }}
+                />
+                {point}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -1465,22 +1765,9 @@ function MessagingPanel({
             role="log"
             aria-live="polite"
             aria-label="Message thread"
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: COLORS.inkMuted,
-              fontFamily: FONTS.body,
-              fontSize: 13,
-              textAlign: "center",
-              padding: "40px 20px",
-              gap: 6,
-            }}
+            style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
-            <Icon name="mail" size={20} color={COLORS.inkDim} />
-            No messages yet — write the first one.
+            <EmptyState icon="mail" title="No messages yet" body="Write the first one below." compact />
           </div>
         ) : (
           <Virtuoso
@@ -1561,20 +1848,8 @@ function MessagingPanel({
           />
         )}
         {searchActive && searchQuery.length > 0 && searchedMessages.length === 0 && (
-          <div style={{
-            position: "absolute",
-            top: "50%",
-            left: 0,
-            right: 0,
-            transform: "translateY(-50%)",
-            textAlign: "center",
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.inkMuted,
-            padding: "32px 20px",
-            pointerEvents: "none",
-          }}>
-            No messages match &ldquo;{searchQuery}&rdquo;
+          <div style={{ position: "absolute", top: "50%", left: 0, right: 0, transform: "translateY(-50%)", pointerEvents: "none" }}>
+            <EmptyState icon="search" title={`No messages match "${searchQuery}"`} compact />
           </div>
         )}
 
@@ -1591,7 +1866,7 @@ function MessagingPanel({
               bottom: 14,
               padding: "7px 14px",
               borderRadius: 999,
-              background: COLORS.ink,
+              background: COLORS.fill,
               color: "#fff",
               fontFamily: FONTS.body,
               fontSize: 12,
@@ -1614,102 +1889,184 @@ function MessagingPanel({
       {!showFiles && <div
         style={{
           borderTop: `1px solid ${COLORS.borderSoft}`,
-          padding: 14,
-          background: THREAD_BG[active],
+          padding: "10px 12px 12px",
+          background: "#fff",
           flexShrink: 0,
         }}
       >
-        {/* WS-1.C.2 — thread context caption */}
-        <div
-          style={{
-            fontFamily: FONTS.body,
-            fontSize: 11,
-            color: COLORS.inkMuted,
-            marginBottom: 6,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span
-            style={{
-              display: "inline-block",
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              background: THREAD_ACCENT[active],
-              flexShrink: 0,
-            }}
-          />
-          <span style={{ fontWeight: 500 }}>
-            Posting to: {labels[active]}
-          </span>
-          <Bullet />
-          <span style={{ color: COLORS.inkDim }}>
-            {active === "private" ? "Visible to client + coordinator" : "Visible to coordinator + booked talent"}
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", position: "relative" }}>
-          <MentionTypeahead value={draft} onChange={setDraft} textareaRef={textareaRef} />
-          <textarea
-            ref={textareaRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={
-              active === "private"
-                ? pov === "client" ? "Send your coordinator a note…" : "Reply to the client…"
-                : pov === "talent" ? "Reply to the booking team…"   : "Message the booked talent…"
-            }
-            rows={2}
-            style={{
-              flex: 1,
-              padding: "9px 12px",
-              fontFamily: FONTS.body,
-              fontSize: 13.5,
-              color: COLORS.ink,
-              background: "#fff",
-              /* WS-1.C.1 — tinted border matches active thread */
-              border: `1.5px solid ${draft.length > 0 ? THREAD_ACCENT[active] : COLORS.border}`,
-              borderRadius: 8,
-              outline: "none",
-              resize: "none",
-              lineHeight: 1.55,
-              transition: `border-color ${TRANSITION.sm}`,
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
-              // WS-1.G.1 — "/" opens thread search when composer is empty
-              if (e.key === "/" && !draft) { e.preventDefault(); setSearchActive(true); }
-            }}
-          />
-          <PrimaryButton onClick={send}>Send</PrimaryButton>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 5,
-            fontFamily: FONTS.body,
-            fontSize: 10.5,
-            color: COLORS.inkDim,
-          }}
-        >
-          <span>⌘ ↵ to send</span>
-          <Bullet />
-          <span>
-            Type{" "}
-            <kbd style={{ fontFamily: FONTS.mono, fontSize: 10, padding: "1px 5px", borderRadius: 4, background: "rgba(11,11,13,0.06)", color: COLORS.ink }}>
-              /
-            </kbd>{" "}
-            to search
-          </span>
-          {draft.length > 0 && (
-            <>
-              <Bullet />
-              <span style={{ color: COLORS.inkMuted, fontStyle: "italic" }}>Draft auto-saved</span>
-            </>
+        {/* WS-18.1 — AI reply suggestions strip (admin only, dismissible) */}
+        {pov === "admin" && suggestionsVisible && (
+          <div style={{ marginBottom: 8, background: COLORS.royalSoft, borderRadius: RADIUS.md, padding: "8px 10px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <Icon name="sparkle" size={11} color={COLORS.royal} stroke={1.8} />
+                <span style={{ fontFamily: FONTS.body, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.royal }}>
+                  Suggested replies
+                </span>
+              </div>
+              <button
+                type="button"
+                aria-label="Dismiss suggestions"
+                onClick={() => setSuggestionsVisible(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.inkDim, padding: "1px 3px" }}
+              >
+                <Icon name="x" size={11} color={COLORS.inkDim} />
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {AI_SUGGESTIONS[active].map((sug, i) =>
+                dismissedSuggestions.has(i) ? null : (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background: "rgba(255,255,255,0.7)",
+                      borderRadius: RADIUS.sm,
+                      padding: "0 6px 0 0",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => { setDraft(sug); setSuggestionsVisible(false); }}
+                      style={{
+                        flex: 1,
+                        textAlign: "left",
+                        background: "none",
+                        border: "none",
+                        padding: "6px 10px",
+                        fontFamily: FONTS.body,
+                        fontSize: 12,
+                        color: COLORS.royalDeep,
+                        cursor: "pointer",
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {sug}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Dismiss suggestion ${i + 1}`}
+                      onClick={() => setDismissedSuggestions((p) => new Set([...p, i]))}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: COLORS.royal,
+                        padding: "4px",
+                        flexShrink: 0,
+                        opacity: 0.6,
+                      }}
+                    >
+                      <Icon name="x" size={10} color={COLORS.royal} />
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Minimal icon-bar composer row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative" }}>
+          {/* + attachment */}
+          <button
+            type="button"
+            aria-label="Add attachment"
+            style={{ background: "none", border: "none", cursor: "pointer", padding: "6px", borderRadius: 8, color: COLORS.inkMuted, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          >
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle cx="9" cy="9" r="8" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M9 5.5v7M5.5 9h7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+          </button>
+          {/* ✦ AI suggestions */}
+          {pov === "admin" && (
+            <button
+              type="button"
+              aria-label="AI suggestions"
+              onClick={() => setSuggestionsVisible((v) => !v)}
+              style={{ background: suggestionsVisible ? COLORS.royalSoft : "none", border: "none", cursor: "pointer", padding: "6px", borderRadius: 8, color: suggestionsVisible ? COLORS.royal : COLORS.inkMuted, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: `background ${TRANSITION.micro}` }}
+            >
+              <Icon name="sparkle" size={16} color={suggestionsVisible ? COLORS.royal : COLORS.inkMuted} stroke={1.7} />
+            </button>
           )}
+          {/* Input pill */}
+          <div style={{ flex: 1, position: "relative" }}>
+            <MentionTypeahead value={draft} onChange={setDraft} textareaRef={textareaRef} />
+            <textarea
+              ref={textareaRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={
+                active === "private"
+                  ? pov === "client" ? "Send your coordinator a note…" : "Message…"
+                  : pov === "talent" ? "Reply to booking team…" : "Message…"
+              }
+              rows={1}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "10px 14px",
+                fontFamily: FONTS.body,
+                fontSize: 13.5,
+                color: COLORS.ink,
+                background: "rgba(11,11,13,0.042)",
+                border: `1.5px solid ${draft.length > 0 ? THREAD_ACCENT[active] : "transparent"}`,
+                borderRadius: 24,
+                outline: "none",
+                resize: "none",
+                lineHeight: 1.45,
+                transition: `border-color ${TRANSITION.sm}`,
+                maxHeight: 120,
+                overflow: "auto",
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+                if (e.key === "/" && !draft) { e.preventDefault(); setSearchActive(true); }
+              }}
+            />
+          </div>
+          {/* Voice memo */}
+          {!draft && (
+            <button
+              type="button"
+              aria-label="Voice memo"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: "6px", borderRadius: 8, color: COLORS.inkMuted, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                <rect x="5.5" y="1.5" width="6" height="9" rx="3" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M2.5 8.5a6 6 0 0012 0" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M8.5 14.5v1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+            </button>
+          )}
+          {/* Send */}
+          <button
+            type="button"
+            onClick={send}
+            disabled={!draft.trim()}
+            aria-label="Send message"
+            style={{
+              width: 32, height: 32, borderRadius: "50%", border: "none", cursor: draft.trim() ? "pointer" : "default",
+              background: draft.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
+              color: draft.trim() ? "#fff" : COLORS.inkDim,
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              transition: `background ${TRANSITION.sm}`,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M12.5 7H1.5M12.5 7L8 2.5M12.5 7L8 11.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        {/* Tiny context hint */}
+        <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontFamily: FONTS.body, fontSize: 10, color: COLORS.inkDim }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: THREAD_ACCENT[active], display: "inline-block", flexShrink: 0 }} />
+          <span>{active === "private" ? "Client thread" : "Talent group"} · {active === "private" ? "visible to client + coordinator" : "visible to coordinator + booked talent"}</span>
+          {draft.length > 0 && <><span>·</span><span style={{ fontStyle: "italic" }}>draft saved</span></>}
         </div>
       </div>}
     </section>
@@ -2000,23 +2357,13 @@ function WorkspaceFilesPanel({
 
       {/* ── File list ── */}
       {filtered.length === 0 ? (
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            padding: "40px 20px",
-            fontFamily: FONTS.body,
-            color: COLORS.inkMuted,
-            fontSize: 13,
-            textAlign: "center",
-          }}
-        >
-          <span style={{ fontSize: 28 }}>📁</span>
-          <span>No {filter === "all" ? "" : filter + " "}files shared yet</span>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <EmptyState
+            icon="plus"
+            title={`No ${filter === "all" ? "" : filter + " "}files shared yet`}
+            body="Attachments sent in this thread will appear here."
+            compact
+          />
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column" }}>
@@ -2276,29 +2623,77 @@ function WorkspaceFilesPanel({
 // ─── Rail (right side) ─────────────────────────────────────────────
 
 function Rail({ inquiry, pov }: { inquiry: RichInquiry; pov: InquiryWorkspacePov }) {
+  const [tab, setTab] = useState<"details" | "activity">("details");
+
   return (
     <aside
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 10,
-        overflowY: "auto",
         minHeight: 0,
-        paddingBottom: 4,
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        overflow: "hidden",
       }}
     >
-      {/* WS-1.D.3 — "Viewing now" badge (admin only — shows who else has
-          this inquiry open in real-time). Mocked for prototype. */}
-      {pov === "admin" && <ViewingNowBadge inquiry={inquiry} />}
-      <SummaryPanel inquiry={inquiry} />
-      {pov === "admin" && <CoordinatorPanel inquiry={inquiry} />}
-      <RequirementGroupsPanel inquiry={inquiry} pov={pov} />
-      <OfferPanel inquiry={inquiry} pov={pov} />
-      {(inquiry.bookingId || inquiry.stage === "approved") && (
-        <BookingPanel inquiry={inquiry} pov={pov} />
-      )}
-      <PaymentPanel inquiry={inquiry} pov={pov} />
-      <ActivityPanel inquiry={inquiry} />
+      {/* Tab bar */}
+      <div style={{ display: "flex", borderBottom: `1px solid ${COLORS.borderSoft}`, flexShrink: 0 }}>
+        {(["details", "activity"] as const).map(t => {
+          const isActive = tab === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              style={{
+                flex: 1,
+                background: "transparent",
+                border: "none",
+                padding: "11px 0",
+                fontFamily: FONTS.body,
+                fontSize: 13,
+                fontWeight: isActive ? 650 : 500,
+                color: isActive ? COLORS.ink : COLORS.inkMuted,
+                cursor: "pointer",
+                borderBottom: isActive ? `2px solid ${COLORS.ink}` : "2px solid transparent",
+                marginBottom: -1,
+                textTransform: "capitalize",
+                transition: `color ${TRANSITION.micro}`,
+              }}
+            >
+              {t}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          aria-label="Close rail"
+          style={{ background: "none", border: "none", cursor: "pointer", padding: "8px 12px", color: COLORS.inkMuted, marginBottom: -1 }}
+        >
+          <Icon name="x" size={13} color={COLORS.inkMuted} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "14px 14px 16px" }}>
+        {tab === "details" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {pov === "admin" && <ViewingNowBadge inquiry={inquiry} />}
+            <SummaryPanel inquiry={inquiry} />
+            {pov === "admin" && <CoordinatorPanel inquiry={inquiry} />}
+            <RequirementGroupsPanel inquiry={inquiry} pov={pov} />
+            <OfferPanel inquiry={inquiry} pov={pov} />
+            {(inquiry.bookingId || inquiry.stage === "approved") && (
+              <BookingPanel inquiry={inquiry} pov={pov} />
+            )}
+            <PaymentPanel inquiry={inquiry} pov={pov} />
+          </div>
+        )}
+        {tab === "activity" && (
+          <ActivityPanel inquiry={inquiry} />
+        )}
+      </div>
     </aside>
   );
 }
@@ -2590,7 +2985,7 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
               style={{
                 width: `${g.needed === 0 ? 0 : Math.round((g.approved / g.needed) * 100)}%`,
                 height: "100%",
-                background: g.approved >= g.needed ? COLORS.green : COLORS.ink,
+                background: g.approved >= g.needed ? COLORS.green : COLORS.fill,
               }}
             />
           </div>
@@ -2619,7 +3014,11 @@ function RequirementGroupsPanel({ inquiry, pov }: { inquiry: RichInquiry; pov: I
                   }`,
                 }}
               >
-                <span style={{ fontSize: 14, flexShrink: 0 }}>{t.thumb}</span>
+                {t.thumb?.startsWith("http") ? (
+                  <span style={{ width: 22, height: 22, borderRadius: "50%", background: `url(${t.thumb}) center/cover`, flexShrink: 0 }} />
+                ) : (
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>{t.thumb}</span>
+                )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
@@ -2751,6 +3150,39 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
         </span>
         <ApprovalChip status={offer.clientApproval} who="Client" />
       </div>
+
+      {/* WS-18.3 — AI anomaly detection: compare offer total vs past history */}
+      {pov === "admin" && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 7,
+            padding: "8px 10px",
+            background: COLORS.royalSoft,
+            borderRadius: RADIUS.sm,
+            marginBottom: 10,
+          }}
+        >
+          <span style={{ flexShrink: 0, marginTop: 2, lineHeight: 0 }}>
+            <Icon name="sparkle" size={12} color={COLORS.royal} stroke={1.7} />
+          </span>
+          {(() => {
+            const totalNum = parseFloat(offer.total.replace(/[€,\s]/g, ""));
+            const msg = totalNum > 9000
+              ? `${offer.total} is above your typical range for this client — worth a quick check before sending.`
+              : totalNum < 3000
+                ? `${offer.total} is on the low end vs your last 3 bookings with this client.`
+                : `${offer.total} is within your usual range for this client type.`;
+            return (
+              <div style={{ fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.royalDeep, lineHeight: 1.45 }}>
+                {msg}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {offer.lineItems.map((li, i) => {
           const showLineCtAs = pov === "client" && offer.clientApproval === "pending" && li.status === "pending";
@@ -2773,7 +3205,11 @@ function OfferInner({ offer, pov }: { offer: Offer; pov: InquiryWorkspacePov }) 
                 fontSize: 12.5,
               }}
             >
-              <span style={{ fontSize: 14 }}>{li.thumb}</span>
+              {li.thumb?.startsWith("http") ? (
+                <span style={{ width: 22, height: 22, borderRadius: "50%", background: `url(${li.thumb}) center/cover`, flexShrink: 0 }} />
+              ) : (
+                <span style={{ fontSize: 14 }}>{li.thumb}</span>
+              )}
               <span style={{ flex: 1, color: COLORS.ink }}>{li.talentName}</span>
               <span style={{ color: COLORS.ink, fontWeight: 500 }}>{li.fee}</span>
               {showLineCtAs ? (
@@ -3222,500 +3658,42 @@ function paymentRowIdFor(inquiryId: string): string {
 }
 
 function ActivityPanel({ inquiry }: { inquiry: RichInquiry }) {
-  const events: { ts: string; label: string }[] = [
+  type FeedEvent = { actor: string; action: string; target: string; timestamp: string; iconName: "bolt" | "check" | "mail" | "user" };
+  const events: FeedEvent[] = [
     inquiry.bookingId
-      ? { ts: "Today", label: `Booking ${inquiry.bookingId} created` }
+      ? { actor: "System",      action: "created booking",         target: inquiry.bookingId,                           timestamp: "Today",                         iconName: "bolt"     }
       : null,
     inquiry.offer && inquiry.offer.clientApproval === "accepted"
-      ? { ts: "Today", label: "Client approved offer v" + inquiry.offer.version }
+      ? { actor: "Client",      action: "approved",                target: `offer v${inquiry.offer.version}`,           timestamp: "Today",                         iconName: "check"    }
       : null,
     inquiry.offer
-      ? { ts: inquiry.offer.sentAt ?? "—", label: `Offer v${inquiry.offer.version} sent` }
+      ? { actor: "Coordinator", action: "sent",                    target: `offer v${inquiry.offer.version}`,           timestamp: inquiry.offer.sentAt ?? "—",     iconName: "mail"     }
       : null,
     inquiry.coordinator
-      ? { ts: inquiry.coordinator.acceptedAt ?? "—", label: `${inquiry.coordinator.name} accepted as coordinator` }
+      ? { actor: inquiry.coordinator.name, action: "accepted as coordinator", target: "",                               timestamp: inquiry.coordinator.acceptedAt ?? "—", iconName: "user" }
       : null,
-    { ts: `${inquiry.ageDays}d ago`, label: "Inquiry submitted" },
-  ].filter(Boolean) as { ts: string; label: string }[];
+    { actor: "Client", action: "submitted inquiry", target: "", timestamp: `${inquiry.ageDays}d ago`, iconName: "bolt" },
+  ].filter(Boolean) as FeedEvent[];
 
   return (
     <RailCard title="Activity">
-      <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", flexDirection: "column" }}>
         {events.slice(0, 5).map((e, i) => (
-          <li
-            key={i}
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "flex-start",
-              fontFamily: FONTS.body,
-              fontSize: 12,
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: i === 0 ? COLORS.ink : COLORS.inkDim,
-                flexShrink: 0,
-                marginTop: 6,
-              }}
+          <div key={i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
+            <ActivityFeedItem
+              actor={e.actor}
+              action={e.action}
+              target={e.target}
+              timestamp={e.timestamp}
+              iconName={e.iconName}
             />
-            <span style={{ flex: 1, color: COLORS.ink }}>{e.label}</span>
-            <span style={{ color: COLORS.inkMuted, flexShrink: 0 }}>{e.ts}</span>
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
     </RailCard>
   );
 }
 
-// ─── WS-7.1 Command Palette (Cmd-K) ──────────────────────────────────────────
-//
-// Global search + command launcher. Opens on Cmd-K (Mac) / Ctrl-K (Win/Linux)
-// or programmatically via `useCommandPalette()`.
-//
-// Sections:
-//   "quick"    — Quick actions (new inquiry, new booking, add talent)
-//   "pages"    — Navigate to a workspace page
-//   "inquiries"— Open a specific inquiry workspace
-//   "talent"   — Jump to a talent's profile drawer
-//   "settings" — Jump to settings sections
-//
-// Keyboard:
-//   ↑/↓        — move selection
-//   Enter       — execute selected
-//   Esc         — close
-//   Backspace (when input is empty) — close
-// ─────────────────────────────────────────────────────────────────────────────
-
-type CmdResultType = "quick" | "page" | "inquiry" | "talent" | "client" | "setting";
-
-type CmdResult = {
-  id:       string;
-  type:     CmdResultType;
-  label:    string;
-  sublabel?: string;
-  emoji?:   string;
-  kbd?:     string;       // keyboard shortcut hint
-  onSelect: () => void;
-};
-
-type CmdSection = {
-  id:      string;
-  title:   string;
-  items:   CmdResult[];
-};
-
-/** Filter a list of CmdResults by a query string (simple substring match). */
-function filterCmd(items: CmdResult[], q: string): CmdResult[] {
-  const lower = q.toLowerCase();
-  return items.filter(
-    (r) =>
-      r.label.toLowerCase().includes(lower) ||
-      (r.sublabel ?? "").toLowerCase().includes(lower)
-  );
-}
-
-/** Flatten sections into a single ordered array for keyboard navigation. */
-function flattenSections(sections: CmdSection[]): CmdResult[] {
-  return sections.flatMap((s) => s.items);
-}
-
-/** Controlled, data-driven command palette — for embedded use (e.g. sidebar shell).
- *  The page-root standalone version is in `_palette.tsx`.
- *  WS-7.1 */
-export function EmbeddedCommandPalette({
-  open,
-  onClose,
-}: {
-  open:    boolean;
-  onClose: () => void;
-}) {
-  const proto            = useProto();
-  const [query, setQuery] = useState("");
-  const [selIdx, setSelIdx] = useState(0);
-  const inputRef         = useRef<HTMLInputElement>(null);
-  const listRef          = useRef<HTMLUListElement>(null);
-
-  // Reset on open
-  useEffect(() => {
-    if (open) { setQuery(""); setSelIdx(0); inputRef.current?.focus(); }
-  }, [open]);
-
-  // ── Quick actions ────────────────────────────────────────────────
-  const quickActions: CmdResult[] = useMemo(() => [
-    {
-      id: "qa-new-inquiry",
-      type: "quick",
-      label: "New inquiry",
-      sublabel: "Start a fresh inquiry with a client",
-      emoji: "📋",
-      kbd: "N",
-      onSelect: () => { proto.openDrawer("new-inquiry"); onClose(); },
-    },
-    {
-      id: "qa-new-booking",
-      type: "quick",
-      label: "New booking",
-      sublabel: "Convert an approved inquiry to a booking",
-      emoji: "📅",
-      onSelect: () => { proto.openDrawer("new-booking"); onClose(); },
-    },
-    {
-      id: "qa-add-talent",
-      type: "quick",
-      label: "Add talent",
-      sublabel: "Invite a new talent to the roster",
-      emoji: "🎭",
-      onSelect: () => { proto.openDrawer("new-talent"); onClose(); },
-    },
-    {
-      id: "qa-today-pulse",
-      type: "quick",
-      label: "Today's pulse",
-      sublabel: "Overview of what needs attention today",
-      emoji: "📊",
-      kbd: "G then O",
-      onSelect: () => { proto.setPage("overview"); onClose(); },
-    },
-  ], [proto, onClose]);
-
-  // ── Page navigation ────────────────────────────────────────────────
-  const pageItems: CmdResult[] = useMemo(() =>
-    (WORKSPACE_PAGES as WorkspacePage[]).map((p) => {
-      const meta = PAGE_META[p];
-      return {
-        id:       `page-${p}`,
-        type:     "page" as const,
-        label:    `Go to ${meta?.label ?? p}`,
-        sublabel: meta?.description ?? "",
-        emoji:    "→",
-        onSelect: () => { proto.setPage(p); onClose(); },
-      };
-    }),
-  [proto, onClose]);
-
-  // ── Inquiry results ────────────────────────────────────────────────
-  const inquiryItems: CmdResult[] = useMemo(() =>
-    RICH_INQUIRIES.map((inq) => ({
-      id:       `inq-${inq.id}`,
-      type:     "inquiry" as const,
-      label:    inq.clientName,
-      sublabel: `${inq.brief} · ${INQUIRY_STAGE_META[inq.stage].label}`,
-      emoji:    "💬",
-      onSelect: () => {
-        proto.openDrawer("inquiry-workspace", { inquiryId: inq.id });
-        onClose();
-      },
-    })),
-  [proto, onClose]);
-
-  // ── Talent results (from inquiry rosters) ─────────────────────────
-  const talentItems: CmdResult[] = useMemo(() => {
-    const seen = new Set<string>();
-    const items: CmdResult[] = [];
-    for (const inq of RICH_INQUIRIES) {
-      for (const group of inq.requirementGroups) {
-        for (const talent of group.talents) {
-          // Use name as dedup key since talentId doesn't exist on the group shape
-          if (!seen.has(talent.name)) {
-            seen.add(talent.name);
-            items.push({
-              id:       `talent-${talent.name.replace(/\s+/g, "-").toLowerCase()}`,
-              type:     "talent",
-              label:    talent.name,
-              sublabel: group.role,
-              emoji:    talent.thumb ?? "🎭",
-              onSelect: () => {
-                proto.openDrawer("talent-profile");
-                onClose();
-              },
-            });
-          }
-        }
-      }
-    }
-    return items;
-  }, [proto, onClose]);
-
-  // ── Settings shortcuts ────────────────────────────────────────────
-  const settingItems: CmdResult[] = useMemo(() => [
-    { id: "s-branding",  type: "setting", label: "Workspace branding",   emoji: "🎨", onSelect: () => { proto.openDrawer("branding");  onClose(); } },
-    { id: "s-team",      type: "setting", label: "Manage team",          emoji: "👥", onSelect: () => { proto.openDrawer("team");      onClose(); } },
-    { id: "s-domain",    type: "setting", label: "Custom domain",        emoji: "🌐", onSelect: () => { proto.openDrawer("domain");    onClose(); } },
-    { id: "s-plan",      type: "setting", label: "Plan & billing",       emoji: "💳", onSelect: () => { proto.openDrawer("plan-billing"); onClose(); } },
-    { id: "s-api",       type: "setting", label: "API keys",             emoji: "🔑", onSelect: () => { proto.openDrawer("api-keys");  onClose(); } },
-    { id: "s-notifs",    type: "setting", label: "Notification prefs",   emoji: "🔔", onSelect: () => { proto.openDrawer("notifications-prefs"); onClose(); } },
-  ] as CmdResult[], [proto, onClose]);
-
-  // ── Build sections based on query ─────────────────────────────────
-  const sections: CmdSection[] = useMemo(() => {
-    const q = query.trim();
-    if (!q) {
-      // Empty state — show quick actions + recent inquiries
-      return [
-        { id: "quick", title: "Quick actions", items: quickActions },
-        { id: "pages",  title: "Navigate",      items: pageItems.slice(0, 4) },
-      ];
-    }
-    const result: CmdSection[] = [];
-    const fq = filterCmd(quickActions,  q); if (fq.length) result.push({ id: "quick",    title: "Actions",   items: fq });
-    const fi = filterCmd(inquiryItems,  q); if (fi.length) result.push({ id: "inquiries", title: "Inquiries", items: fi.slice(0, 5) });
-    const ft = filterCmd(talentItems,   q); if (ft.length) result.push({ id: "talent",    title: "Talent",    items: ft.slice(0, 5) });
-    const fp = filterCmd(pageItems,     q); if (fp.length) result.push({ id: "pages",     title: "Navigate",  items: fp });
-    const fs = filterCmd(settingItems,  q); if (fs.length) result.push({ id: "settings",  title: "Settings",  items: fs });
-    return result;
-  }, [query, quickActions, pageItems, inquiryItems, talentItems, settingItems]);
-
-  const flat    = useMemo(() => flattenSections(sections), [sections]);
-  const safeIdx = flat.length ? Math.min(selIdx, flat.length - 1) : -1;
-
-  // Scroll selected item into view
-  useEffect(() => {
-    if (safeIdx < 0 || !listRef.current) return;
-    const el = listRef.current.querySelectorAll<HTMLElement>("[data-cmd-item]")[safeIdx];
-    el?.scrollIntoView({ block: "nearest" });
-  }, [safeIdx]);
-
-  // Keyboard handler
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") { e.preventDefault(); setSelIdx((i) => Math.min(i + 1, flat.length - 1)); }
-      if (e.key === "ArrowUp")   { e.preventDefault(); setSelIdx((i) => Math.max(i - 1, 0)); }
-      if (e.key === "Enter")     { e.preventDefault(); flat[safeIdx]?.onSelect(); }
-      if (e.key === "Escape")    { onClose(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, flat, safeIdx, onClose]);
-
-  if (!open) return null;
-
-  let globalIdx = 0; // rolling index across sections for selection highlighting
-
-  return (
-    <div
-      data-tulala-command-palette="overlay"
-      style={{
-        position:   "fixed",
-        inset:      0,
-        zIndex:     1200,
-        background: "rgba(0,0,0,0.45)",
-        display:    "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
-        padding:    "12vh 16px 0",
-      }}
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div
-        data-tulala-command-palette="panel"
-        style={{
-          width:         640,
-          maxWidth:      "100%",
-          background:    COLORS.surface,
-          borderRadius:  RADIUS.xl,
-          boxShadow:     "0 24px 64px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.12)",
-          border:        `1px solid ${COLORS.border}`,
-          overflow:      "hidden",
-          display:       "flex",
-          flexDirection: "column",
-          maxHeight:     "70vh",
-        }}
-      >
-        {/* Search input */}
-        <div style={{
-          display:     "flex",
-          alignItems:  "center",
-          gap:         10,
-          padding:     "12px 16px",
-          borderBottom: `1px solid ${COLORS.border}`,
-          flexShrink:  0,
-        }}>
-          <Icon name="search" size={16} stroke={2} color={COLORS.inkMuted} />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setSelIdx(0); }}
-            placeholder="Search or jump to…"
-            style={{
-              flex:       1,
-              border:     "none",
-              outline:    "none",
-              background: "transparent",
-              fontFamily: FONTS.body,
-              fontSize:   15,
-              color:      COLORS.ink,
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Backspace" && query === "") { e.preventDefault(); onClose(); }
-            }}
-          />
-          <kbd style={{
-            fontSize:   11,
-            color:      COLORS.inkMuted,
-            background: COLORS.surfaceAlt,
-            border:     `1px solid ${COLORS.border}`,
-            borderRadius: 4,
-            padding:    "2px 6px",
-            fontFamily: FONTS.mono,
-          }}>
-            esc
-          </kbd>
-        </div>
-
-        {/* Results */}
-        <ul
-          ref={listRef}
-          role="listbox"
-          aria-label="Command palette results"
-          style={{
-            flex:      "1 1 auto",
-            overflowY: "auto",
-            margin:    0,
-            padding:   "6px 0",
-            listStyle: "none",
-          }}
-        >
-          {sections.length === 0 && (
-            <li style={{
-              padding:   "32px 16px",
-              textAlign: "center",
-              color:     COLORS.inkMuted,
-              fontFamily: FONTS.body,
-              fontSize:  13,
-            }}>
-              No results for &ldquo;{query}&rdquo;
-            </li>
-          )}
-          {sections.map((section) => (
-            <li key={section.id}>
-              <div style={{
-                padding:    "8px 16px 4px",
-                fontSize:   10,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color:      COLORS.inkDim,
-                fontFamily: FONTS.body,
-              }}>
-                {section.title}
-              </div>
-              <ul role="group" style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                {section.items.map((item) => {
-                  const idx     = globalIdx++;
-                  const isActive = idx === safeIdx;
-                  return (
-                    <li
-                      key={item.id}
-                      role="option"
-                      aria-selected={isActive}
-                      data-cmd-item
-                      onClick={item.onSelect}
-                      onMouseEnter={() => setSelIdx(idx)}
-                      style={{
-                        display:     "flex",
-                        alignItems:  "center",
-                        gap:         10,
-                        padding:     "8px 16px",
-                        cursor:      "pointer",
-                        background:  isActive ? COLORS.surfaceAlt : "transparent",
-                        borderRadius: 0,
-                        transition:  "background .08s",
-                      }}
-                    >
-                      {/* Icon / emoji */}
-                      <span style={{
-                        width:          28,
-                        height:         28,
-                        borderRadius:   RADIUS.sm,
-                        background:     isActive ? COLORS.card : COLORS.surfaceAlt,
-                        display:        "flex",
-                        alignItems:     "center",
-                        justifyContent: "center",
-                        fontSize:       14,
-                        flexShrink:     0,
-                        transition:     "background .08s",
-                      }}>
-                        {item.emoji ?? "→"}
-                      </span>
-
-                      {/* Text */}
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{
-                          display:    "block",
-                          fontSize:   13,
-                          fontWeight: 500,
-                          color:      COLORS.ink,
-                          fontFamily: FONTS.body,
-                        }}>
-                          {item.label}
-                        </span>
-                        {item.sublabel && (
-                          <span style={{
-                            display:    "block",
-                            fontSize:   11,
-                            color:      COLORS.inkMuted,
-                            fontFamily: FONTS.body,
-                            overflow:   "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}>
-                            {item.sublabel}
-                          </span>
-                        )}
-                      </span>
-
-                      {/* Keyboard shortcut hint */}
-                      {item.kbd && (
-                        <kbd style={{
-                          fontSize:   10,
-                          color:      COLORS.inkMuted,
-                          background: COLORS.surfaceAlt,
-                          border:     `1px solid ${COLORS.border}`,
-                          borderRadius: 4,
-                          padding:    "1px 5px",
-                          fontFamily: FONTS.mono,
-                          flexShrink: 0,
-                          whiteSpace: "nowrap",
-                        }}>
-                          {item.kbd}
-                        </kbd>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
-        </ul>
-
-        {/* Footer */}
-        <div style={{
-          display:      "flex",
-          alignItems:   "center",
-          gap:          12,
-          padding:      "8px 16px",
-          borderTop:    `1px solid ${COLORS.border}`,
-          flexShrink:   0,
-          fontSize:     11,
-          color:        COLORS.inkMuted,
-          fontFamily:   FONTS.body,
-        }}>
-          <span><kbd style={{ fontSize: 10 }}>↑↓</kbd> navigate</span>
-          <span><kbd style={{ fontSize: 10 }}>↵</kbd> open</span>
-          <span><kbd style={{ fontSize: 10 }}>esc</kbd> close</span>
-          <span style={{ marginLeft: "auto" }}>
-            Press <kbd style={{ fontSize: 10 }}>?</kbd> for keyboard shortcuts
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── WS-7.4 / 7.5 Keyboard shortcut layer + help overlay ─────────────────────
 //
@@ -4037,7 +4015,7 @@ export function BulkActionBar({
         left:        "50%",
         transform:   "translateX(-50%)",
         zIndex:      900,
-        background:  COLORS.ink,
+        background:  COLORS.fill,
         color:       "#fff",
         borderRadius: RADIUS.xl,
         boxShadow:   "0 12px 40px rgba(0,0,0,0.35)",

@@ -27,13 +27,24 @@
  * Dev-handoff documentation lives at `web/docs/admin-redesign/dev-handoff.md`.
  */
 
-import { Component, Suspense, useEffect, useState, type ReactNode } from "react";
-import { ProtoProvider, useProto, COLORS, FONTS } from "./_state";
-import { ToastHost, BackToTop, OfflineBanner, ShortcutsModal, FeedbackButton } from "./_primitives";
+import { Component, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ProtoProvider, useProto, COLORS, FONTS, RADIUS, TRANSITION, Z, meetsRole,
+  WORKSPACE_PAGES, PAGE_META,
+  TALENT_PAGE_META, CLIENT_PAGE_META, PLATFORM_PAGE_META,
+  FAB_PALETTE_OPEN_EVENT, FAB_PALETTE_CHANGED_EVENT,
+  type FabPaletteChangedDetail,
+} from "./_state";
+// FeedbackButton intentionally NOT imported — it was the legacy bottom-right
+// FAB and now lives dormant in _primitives. The new unified BottomActionFab
+// owns that screen position; feedback is reachable via the FAB's Ask AI tab.
+import { Icon, ToastHost, BackToTop, OfflineBanner, ShortcutsModal } from "./_primitives";
+import { AdminTour } from "./_admin-tour";
 import { ControlBar, MobileBottomNav, SurfaceRouter } from "./_pages";
 import { DrawerRoot, UpgradeModal } from "./_drawers";
 import { CommandPalette } from "./_palette";
 import { MOCK_CONVERSATIONS } from "./_talent";
+import { DRAWER_HELP } from "./_help";
 
 // ─── Toast bridge (reads from context, passes to dumb host) ──────────
 
@@ -180,6 +191,20 @@ function PrototypeRoot() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // 2026 #11 — Service Worker for offline draft persistence. Scoped to
+  // /prototypes/admin-shell so we don't pollute production routes.
+  // Best-effort: registration failures are non-fatal.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
+    if (!window.location.pathname.startsWith("/prototypes/admin-shell")) return;
+    navigator.serviceWorker
+      .register("/tulala-prototype-sw.js", { scope: "/prototypes/admin-shell/" })
+      .catch(() => {
+        // SW registration failed — prototype still works, just no offline.
+      });
+  }, []);
+
   return (
     <>
       <ProtoProviderInnerOriginal showDevBar={showDevBar} />
@@ -222,9 +247,852 @@ function PrototypeRoot() {
   );
 }
 
+
+// ════════════════════════════════════════════════════════════════════
+// BottomActionFab — unified bottom-right "+" that opens a panel with
+// two tabs: Create (quick-create list) + Ask AI (chat).
+// Replaces the topbar "+ New" + standalone AI sparkle button.
+// ════════════════════════════════════════════════════════════════════
+
+type FabTab = "create" | "ai" | "recent";
+
+// Mock counts surfaced as notification dots on the FAB.
+// Production wires these to real queue/draft counts.
+const FAB_PENDING_APPROVALS_MOCK = 3;
+const FAB_DRAFTS_MOCK = 2;
+
+/** Stable popover ID — referenced by:
+ *  - the FAB button via popoverTarget
+ *  - the window event "tulala:open-fab-palette" (⌘K, palette nav, etc.)
+ *  - the imperative .showPopover()/.hidePopover() calls below */
+const FAB_POPOVER_ID = "tulala-fab-popover";
+
+function BottomActionFab() {
+  const { state, openDrawer, setPage, setTalentPage, setClientPage, setPlatformPage, toast } = useProto();
+  // Native popover-driven open/close — listens to the browser's
+  // toggle event so React state still mirrors visibility for animation
+  // + auto-reset of search input. The browser handles outside-click,
+  // escape, and ::backdrop for free.
+  const [open, setOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  // #1 (deferred → shipped) — Unified FAB across all four surfaces.
+  // Each surface gets its own Create items but the shell, Recent tab,
+  // and AI tab are shared. Removes the legacy purple Concierge FAB +
+  // Messages FAB on talent/client surfaces.
+  const contextDefault: FabTab = "create";
+  const [tab, setTab] = useState<FabTab>(contextDefault);
+  const [query, setQuery] = useState("");
+  const [aiSeed, setAiSeed] = useState<string>("");
+  const [selIdx, setSelIdx] = useState(0);
+
+  // Track the popover's toggle event — browser-driven open/close
+  useEffect(() => {
+    const el = popoverRef.current;
+    if (!el) return;
+    const onToggle = (e: Event) => {
+      const isOpen = (e as ToggleEvent).newState === "open";
+      setOpen(isOpen);
+      if (isOpen) {
+        setQuery("");
+        setAiSeed("");
+        setTab(contextDefault);
+        setSelIdx(0);
+        // Focus the search input after the browser paints the popover.
+        // Two-frame delay because top-layer promotion runs after toggle.
+        requestAnimationFrame(() => requestAnimationFrame(() => searchRef.current?.focus()));
+      }
+    };
+    el.addEventListener("toggle", onToggle);
+    return () => el.removeEventListener("toggle", onToggle);
+  }, [contextDefault]);
+
+  // External open trigger (⌘K, palette redirect, etc.) — calls showPopover.
+  // Falls back to setOpen(true) if popover API isn't supported (very old
+  // browsers); the conditional render below handles both paths.
+  useEffect(() => {
+    const onOpen = () => {
+      const el = popoverRef.current;
+      if (el && typeof (el as HTMLElement & { showPopover?: () => void }).showPopover === "function") {
+        try { (el as HTMLElement & { showPopover: () => void }).showPopover(); return; } catch {}
+      }
+      setOpen(true);
+    };
+    window.addEventListener(FAB_PALETTE_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(FAB_PALETTE_OPEN_EVENT, onOpen);
+  }, []);
+
+  // Broadcast open/close so the surrounding shell can treat the palette as
+  // a modal layer (suppressing global keyboard shortcuts while it's open).
+  useEffect(() => {
+    const detail: FabPaletteChangedDetail = { open };
+    window.dispatchEvent(new CustomEvent(FAB_PALETTE_CHANGED_EVENT, { detail }));
+  }, [open]);
+
+  const totalDots = state.surface === "workspace"
+    ? FAB_PENDING_APPROVALS_MOCK + FAB_DRAFTS_MOCK
+    : 0;
+
+  // Helper to close the popover from inside (e.g. clicking a Create item).
+  const hidePopover = () => {
+    const el = popoverRef.current;
+    if (el && typeof (el as HTMLElement & { hidePopover?: () => void }).hidePopover === "function") {
+      try { (el as HTMLElement & { hidePopover: () => void }).hidePopover(); return; } catch {}
+    }
+    setOpen(false);
+  };
+
+  // Quick-create + navigate items — surface-specific. The unified palette
+  // mixes "create X" actions with "go to Y" jumps in one filterable list,
+  // replacing the legacy Cmd-K palette's separate sections.
+  type Item = { id: string; label: string; sub: string; icon: string; shortcut?: string; canDo: boolean; run: () => void };
+  const items: Item[] = (() => {
+    if (state.surface === "talent") {
+      const create: Item[] = [
+        { id: "block-dates",    label: "Block dates",     sub: "Mark days you're not available",    icon: "calendar", canDo: true,
+          run: () => openDrawer("talent-block-dates") },
+        { id: "edit-profile",   label: "Edit profile",     sub: "Update photos, bio, rates",         icon: "user",     canDo: true,
+          run: () => openDrawer("talent-profile-edit") },
+        { id: "polaroids",      label: "Add polaroids",    sub: "Front · side · back · smile",       icon: "plus",     canDo: true,
+          run: () => openDrawer("talent-polaroids") },
+      ];
+      const nav: Item[] = (Object.keys(TALENT_PAGE_META) as Array<keyof typeof TALENT_PAGE_META>).map((p) => ({
+        id: `nav-talent-${p}`,
+        label: `Go to ${TALENT_PAGE_META[p].label}`,
+        sub: "Talent surface",
+        icon: "arrow-right",
+        canDo: true,
+        run: () => setTalentPage(p),
+      }));
+      return [...create, ...nav];
+    }
+    if (state.surface === "client") {
+      const create: Item[] = [
+        { id: "new-inquiry",    label: "Send an inquiry",  sub: "Brief us — we'll reply in <2h",     icon: "plus",     canDo: true,
+          run: () => openDrawer("client-send-inquiry") },
+        { id: "shortlist",      label: "Build a shortlist", sub: "Save talent + share a brief",       icon: "team",     canDo: true,
+          run: () => openDrawer("client-new-shortlist") },
+      ];
+      const nav: Item[] = (Object.keys(CLIENT_PAGE_META) as Array<keyof typeof CLIENT_PAGE_META>).map((p) => ({
+        id: `nav-client-${p}`,
+        label: `Go to ${CLIENT_PAGE_META[p].label}`,
+        sub: "Client surface",
+        icon: "arrow-right",
+        canDo: true,
+        run: () => setClientPage(p),
+      }));
+      return [...create, ...nav];
+    }
+    if (state.surface === "platform") {
+      const create: Item[] = [
+        { id: "new-tenant",     label: "New tenant",       sub: "Onboard an agency or hub",          icon: "plus",     canDo: true,
+          run: () => toast("Open tenant intake") },
+        { id: "ops",            label: "Operations alerts", sub: "Cross-tenant flags",                icon: "info",     canDo: true,
+          run: () => toast("Open operations") },
+      ];
+      const nav: Item[] = (Object.keys(PLATFORM_PAGE_META) as Array<keyof typeof PLATFORM_PAGE_META>).map((p) => ({
+        id: `nav-platform-${p}`,
+        label: `Go to ${PLATFORM_PAGE_META[p].label}`,
+        sub: "Platform surface",
+        icon: "arrow-right",
+        canDo: true,
+        run: () => setPlatformPage(p),
+      }));
+      return [...create, ...nav];
+    }
+    // workspace (default)
+    const create: Item[] = [
+      { id: "new-inquiry",    label: "New inquiry",       sub: "Capture a lead from a client",        icon: "plus",     shortcut: "G I", canDo: meetsRole(state.role, "coordinator") || state.plan === "free",
+        run: () => openDrawer("new-inquiry") },
+      { id: "new-booking",    label: "New booking",       sub: "Confirmed job — skip the inquiry",    icon: "calendar", shortcut: "G B", canDo: meetsRole(state.role, "coordinator"),
+        run: () => openDrawer("new-booking") },
+      { id: "new-talent",     label: "Add talent",        sub: "Create a roster profile",             icon: "user",     shortcut: "G T", canDo: meetsRole(state.role, "editor"),
+        run: () => openDrawer("new-talent") },
+      { id: "new-client",     label: "Add client",        sub: "Track a relationship",                icon: "team",     shortcut: "G C", canDo: meetsRole(state.role, "coordinator") && state.plan !== "free",
+        run: () => openDrawer("client-profile", { id: "new" }) },
+      { id: "invite-team",    label: "Invite teammate",   sub: "Coordinator or editor",               icon: "plus",     shortcut: "G U", canDo: meetsRole(state.role, "admin"),
+        run: () => openDrawer("team") },
+      { id: "snippets",       label: "New snippet",       sub: "Reusable reply for the composer",     icon: "plus",     shortcut: "G S", canDo: meetsRole(state.role, "coordinator"),
+        run: () => openDrawer("inbox-snippets") },
+      { id: "share-card",     label: "Share talent",      sub: "Send a client-facing standalone link", icon: "plus",    shortcut: "G H", canDo: meetsRole(state.role, "coordinator"),
+        run: () => openDrawer("talent-share-card") },
+    ];
+    const nav: Item[] = WORKSPACE_PAGES.map((p) => ({
+      id: `nav-ws-${p}`,
+      label: `Go to ${PAGE_META[p]?.label ?? p}`,
+      sub: PAGE_META[p]?.description ?? "Workspace surface",
+      icon: "arrow-right",
+      canDo: true,
+      run: () => setPage(p),
+    }));
+    return [...create, ...nav];
+  })();
+
+  const allowedItems = items.filter(i => i.canDo);
+
+  const q = query.trim().toLowerCase();
+  const filteredItems = q
+    ? allowedItems.filter(i =>
+        i.label.toLowerCase().includes(q) || i.sub.toLowerCase().includes(q)
+      )
+    : allowedItems;
+
+  // Clamp selection whenever the filtered list shrinks/changes.
+  useEffect(() => {
+    setSelIdx((idx) => {
+      if (filteredItems.length === 0) return 0;
+      return Math.min(idx, filteredItems.length - 1);
+    });
+  }, [filteredItems.length, query]);
+
+  // Keep the selected row visible as the user navigates with arrow keys.
+  useEffect(() => {
+    if (!open || tab !== "create") return;
+    const list = popoverRef.current?.querySelector('[role="listbox"]');
+    const row = list?.querySelectorAll('[role="option"]')[selIdx] as HTMLElement | undefined;
+    row?.scrollIntoView({ block: "nearest" });
+  }, [selIdx, open, tab]);
+
+  const goToAi = (seed: string) => {
+    setAiSeed(seed);
+    setTab("ai");
+  };
+
+  const runSelected = () => {
+    if (filteredItems.length > 0) {
+      const it = filteredItems[Math.min(selIdx, filteredItems.length - 1)];
+      it.run();
+      hidePopover();
+    } else if (q) {
+      goToAi(query.trim());
+    }
+  };
+
+  const moveSel = (delta: number) => {
+    if (filteredItems.length === 0) return;
+    setSelIdx((idx) => {
+      const next = (idx + delta + filteredItems.length) % filteredItems.length;
+      return next;
+    });
+  };
+
+  return (
+    <div data-tulala-bottom-fab style={{
+      position: "fixed",
+      bottom: "calc(80px + env(safe-area-inset-bottom))",
+      right: 16,
+      zIndex: Z.toast - 10,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-end",
+      gap: 10,
+      fontFamily: FONTS.body,
+    }}>
+      {/* Panel — native popover. Browser handles light-dismiss (outside
+          click + escape) and renders on the top layer. We position it via
+          fixed coords below; popover="auto" keeps it isolated from
+          surrounding stacking contexts. The popoverRef + toggle event wire
+          React state for animation + focus management. */}
+      <div
+        ref={popoverRef}
+        id={FAB_POPOVER_ID}
+        {...({ popover: "auto" } as Record<string, string>)}
+        style={{
+          // popover="auto" sets `display:none` until shown; once shown, the
+          // browser promotes to top layer and `display: revert`s. The UA
+          // sets `inset: 0; margin: auto` by default — neutralize inset
+          // so our bottom/right anchoring actually positions the panel.
+          position: "fixed",
+          inset: "auto",
+          bottom: "calc(146px + env(safe-area-inset-bottom))",
+          right: 16,
+          width: 340,
+          maxWidth: "calc(100vw - 32px)",
+          maxHeight: "calc(100vh - 180px)",
+          background: "#fff",
+          borderRadius: 18,
+          boxShadow: "0 24px 60px -10px rgba(11,11,13,0.30), 0 4px 16px rgba(11,11,13,0.06)",
+          border: `1px solid ${COLORS.borderSoft}`,
+          overflow: "hidden",
+          flexDirection: "column",
+          margin: 0,
+          padding: 0,
+          fontFamily: FONTS.body,
+          // Use display:flex when open. Browsers that respect popover will
+          // toggle via [popover] selector; we also respect React's `open`
+          // state so legacy fallback works.
+          display: open ? "flex" : "none",
+          animation: "tulalaFabSlideUp .18s cubic-bezier(.22,1,.36,1)",
+        }}
+      >
+          <style dangerouslySetInnerHTML={{ __html:
+            "@keyframes tulalaFabSlideUp {" +
+              "from { opacity: 0; transform: translateY(12px) scale(0.96); }" +
+              "to   { opacity: 1; transform: translateY(0) scale(1); }" +
+            "}" +
+            "@keyframes tulalaFabSheetSlideUp {" +
+              "from { transform: translateY(100%); }" +
+              "to   { transform: translateY(0); }" +
+            "}" +
+            "#" + FAB_POPOVER_ID + ":popover-open { display: flex !important; }" +
+            "#" + FAB_POPOVER_ID + "::backdrop { background: rgba(11,11,13,0); transition: background 0.2s; }" +
+            /* Mobile bottom-sheet: panel anchors to viewport bottom, takes
+               full width, ~78vh tall. The internal flex order is reversed
+               so the search input lands at the bottom (thumb reach) with
+               results stacked above. A drag handle hints at the sheet
+               affordance (real drag-to-dismiss handled by the popover's
+               built-in light-dismiss + swipe via the input keyboard). */
+            "@media (max-width: 767px) {" +
+              "#" + FAB_POPOVER_ID + " {" +
+                "left: 0 !important; right: 0 !important; bottom: 0 !important;" +
+                "width: 100% !important; max-width: 100% !important;" +
+                "max-height: 82vh !important;" +
+                "border-radius: 18px 18px 0 0 !important;" +
+                "flex-direction: column-reverse !important;" +
+                "animation: tulalaFabSheetSlideUp .22s cubic-bezier(.22,1,.36,1) !important;" +
+              "}" +
+              "#" + FAB_POPOVER_ID + "::backdrop { background: rgba(11,11,13,0.42) !important; }" +
+              "#" + FAB_POPOVER_ID + " [data-tulala-fab-sheet-handle] { display: flex !important; }" +
+            "}"
+          }} />
+
+          {/* Search bar — single input, three scopes via tabs below */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "12px 14px 10px",
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+          }}>
+            <Icon name="search" size={14} stroke={1.7} color={COLORS.inkMuted} />
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (tab !== "create") setTab("create");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); runSelected(); }
+                else if (e.key === "ArrowDown") { e.preventDefault(); moveSel(1); }
+                else if (e.key === "ArrowUp")   { e.preventDefault(); moveSel(-1); }
+                else if (e.key === "Escape" && query) { e.preventDefault(); setQuery(""); }
+              }}
+              placeholder="Search, create, or ask Tulala…"
+              aria-label="Search, create, or ask"
+              style={{
+                flex: 1, minWidth: 0,
+                border: "none", outline: "none", background: "transparent",
+                fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink,
+                letterSpacing: -0.1,
+              }}
+            />
+            {query ? (
+              <button type="button" onClick={() => { setQuery(""); searchRef.current?.focus(); }}
+                aria-label="Clear search"
+                style={{
+                  border: "none", background: "rgba(11,11,13,0.06)", cursor: "pointer",
+                  color: COLORS.inkMuted,
+                  width: 20, height: 20, borderRadius: 999,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                <Icon name="x" size={11} />
+              </button>
+            ) : (
+              <kbd style={{
+                fontSize: 10, fontFamily: FONTS.mono,
+                color: COLORS.inkMuted,
+                background: "rgba(11,11,13,0.05)",
+                border: `1px solid ${COLORS.borderSoft}`,
+                padding: "1px 6px", borderRadius: 4,
+                flexShrink: 0,
+              }}>esc</kbd>
+            )}
+          </div>
+
+          {/* Scope tabs (filters for the input above) */}
+          <div style={{
+            display: "flex",
+            padding: "8px 12px",
+            gap: 4,
+            borderBottom: `1px solid ${COLORS.borderSoft}`,
+          }}>
+            <FabTabButton label="Create" icon="plus" active={tab === "create"} onClick={() => setTab("create")} />
+            <FabTabButton label="Recent" icon="bolt" active={tab === "recent"} onClick={() => setTab("recent")} badge={FAB_DRAFTS_MOCK > 0 ? FAB_DRAFTS_MOCK : undefined} />
+            <FabTabButton label="Ask AI" icon="sparkle" active={tab === "ai"} onClick={() => { setAiSeed(query.trim()); setTab("ai"); }} accent="royal" />
+          </div>
+
+          {/* Body */}
+          {tab === "create" && (
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 6px" }} role="listbox" aria-label="Search results">
+              {filteredItems.map((it, idx) => {
+                const selected = idx === Math.min(selIdx, filteredItems.length - 1);
+                return (
+                <button key={it.id} type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => { it.run(); hidePopover(); }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 11,
+                    padding: "9px 10px", margin: "0 4px",
+                    background: selected ? COLORS.surfaceAlt : "transparent",
+                    border: "none",
+                    width: "calc(100% - 8px)", textAlign: "left",
+                    fontFamily: FONTS.body, cursor: "pointer",
+                    borderRadius: 10,
+                    transition: `background ${TRANSITION.micro}`,
+                  }}
+                >
+                  <span style={{
+                    width: 32, height: 32, borderRadius: 9,
+                    background: selected ? "#fff" : COLORS.surfaceAlt,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0, color: COLORS.ink,
+                    boxShadow: selected ? `0 0 0 1px ${COLORS.borderSoft}` : "none",
+                  }}>
+                    <Icon name={it.icon as any} size={14} stroke={1.7} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.1 }}>
+                      {it.label}
+                    </span>
+                    <span style={{ display: "block", fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                      {it.sub}
+                    </span>
+                  </span>
+                  {selected ? (
+                    <span aria-hidden style={{
+                      fontSize: 10, fontFamily: FONTS.mono,
+                      color: COLORS.inkMuted,
+                      background: "#fff",
+                      border: `1px solid ${COLORS.borderSoft}`,
+                      padding: "1px 6px", borderRadius: 4,
+                      flexShrink: 0,
+                    }}>↵</span>
+                  ) : it.shortcut ? (
+                    <span style={{ display: "inline-flex", gap: 3, flexShrink: 0 }}>
+                      {it.shortcut.split(" ").map(k => (
+                        <span key={k} style={{
+                          fontSize: 9.5, fontFamily: FONTS.mono,
+                          color: COLORS.inkMuted,
+                          background: "rgba(11,11,13,0.05)",
+                          padding: "1px 5px", borderRadius: 4,
+                          minWidth: 14, textAlign: "center",
+                        }}>{k}</span>
+                      ))}
+                    </span>
+                  ) : null}
+                </button>
+              );
+              })}
+
+              {q && filteredItems.length === 0 && (
+                <div style={{
+                  padding: "14px 14px 6px",
+                  fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5,
+                }}>
+                  No matching action. Ask Tulala instead?
+                </div>
+              )}
+
+              {q && (
+                <button type="button"
+                  onClick={() => goToAi(query.trim())}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 11,
+                    padding: "10px 10px", margin: "4px 4px 0",
+                    background: COLORS.royalSoft,
+                    border: `1px solid rgba(95,75,139,0.16)`,
+                    width: "calc(100% - 8px)", textAlign: "left",
+                    fontFamily: FONTS.body, cursor: "pointer",
+                    borderRadius: 10,
+                  }}
+                >
+                  <span style={{
+                    width: 32, height: 32, borderRadius: 9,
+                    background: "#fff",
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    flexShrink: 0,
+                  }}>
+                    <Icon name="sparkle" size={14} stroke={1.7} color={COLORS.royalDeep} />
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.royalDeep, letterSpacing: 0.2, textTransform: "uppercase" }}>
+                      Ask AI
+                    </span>
+                    <span style={{ display: "block", fontSize: 13, color: COLORS.ink, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {query.trim()}
+                    </span>
+                  </span>
+                  <span aria-hidden style={{
+                    fontSize: 9.5, fontFamily: FONTS.mono,
+                    color: COLORS.royalDeep,
+                    background: "#fff",
+                    padding: "1px 6px", borderRadius: 4,
+                  }}>↵</span>
+                </button>
+              )}
+
+              {!q && state.surface === "workspace" && (
+                <div style={{
+                  margin: "6px 8px 4px",
+                  padding: "8px 8px 4px",
+                  borderTop: `1px solid ${COLORS.borderSoft}`,
+                  fontSize: 10.5, color: COLORS.inkDim,
+                }}>
+                  Press G then a key from anywhere to quick-create.
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === "recent" && <FabRecentPanel query={q} />}
+          {tab === "ai" && <FabAiPanel seedQuestion={aiSeed} />}
+
+          {/* Mobile-only sheet drag handle. Hidden on desktop via the inline
+              <style> rule; visible at the top of the bottom sheet because
+              the panel uses flex-direction: column-reverse on phones, so
+              the LAST DOM child paints at the visual top. Tapping the
+              handle closes the sheet — full drag-to-dismiss isn't wired
+              (popover API doesn't expose touch deltas) but tap-to-close
+              gives the affordance a real action. */}
+          <button
+            type="button"
+            data-tulala-fab-sheet-handle
+            aria-label="Close palette"
+            onClick={hidePopover}
+            style={{
+              display: "none",
+              padding: "8px 0 4px",
+              justifyContent: "center",
+              alignItems: "center",
+              flexShrink: 0,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              width: "100%",
+            }}
+          >
+            <span aria-hidden style={{
+              display: "block",
+              width: 36, height: 4,
+              borderRadius: 999,
+              background: "rgba(11,11,13,0.18)",
+            }} />
+          </button>
+        </div>
+
+      {/* The "+" button itself — with notification dot if work is pending.
+          popoverTarget wires the native open/close behavior; React state
+          mirrors via the popoverRef toggle event listener. */}
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          {...({ popoverTarget: FAB_POPOVER_ID, popoverTargetAction: "toggle" } as Record<string, string>)}
+          aria-label={open ? "Close quick actions" : `Open quick actions${totalDots > 0 ? ` · ${totalDots} pending` : ""}`}
+          aria-expanded={open}
+          aria-controls={FAB_POPOVER_ID}
+          title="Quick actions (⌘K)"
+          style={{
+            width: 52, height: 52, borderRadius: 16,
+            background: open ? COLORS.fill : COLORS.fill,
+            color: "#fff", border: "none", cursor: "pointer",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            boxShadow: open
+              ? "0 12px 32px -8px rgba(11,11,13,0.45), 0 2px 6px rgba(11,11,13,0.15)"
+              : "0 8px 24px -6px rgba(11,11,13,0.35), 0 2px 6px rgba(11,11,13,0.12)",
+            transition: `transform ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
+            transform: open ? "rotate(45deg)" : "rotate(0)",
+          }}>
+          <Icon name="plus" size={20} stroke={2} color="#fff" />
+        </button>
+        {!open && totalDots > 0 && (
+          <span aria-hidden style={{
+            position: "absolute", top: -4, right: -4,
+            minWidth: 20, height: 20, padding: "0 6px",
+            borderRadius: 999,
+            background: COLORS.amberDeep, color: "#fff",
+            fontSize: 11, fontWeight: 700,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            border: "2px solid #fff",
+            boxShadow: "0 2px 6px rgba(11,11,13,0.20)",
+            fontFamily: FONTS.body,
+          }}>{totalDots}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Recent tab — surfaces drafts + last-created items so power users can resume.
+// `query` is the search input from the parent FAB; when present, drafts +
+// recent rows are filtered by label/note substring.
+function FabRecentPanel({ query = "" }: { query?: string }) {
+  const { openDrawer, toast } = useProto();
+  const drafts = [
+    { id: "draft-1", label: "Maria Sandoval — promo model", note: "Draft · started 2h ago", action: () => toast("Resume Maria's profile") },
+    { id: "draft-2", label: "Carlos Pérez — DJ",            note: "Draft · started 3d ago", action: () => toast("Resume Carlos's profile") },
+  ];
+  const recent = [
+    { id: "r-1", label: "Sofia Lupo invited",               note: "Talent · 12 min ago",  action: () => openDrawer("talent-approvals") },
+    { id: "r-2", label: "RI-208 inquiry created",           note: "Inquiry · 1h ago",     action: () => openDrawer("inquiry-peek", { id: "RI-208" }) },
+    { id: "r-3", label: "Tomás Navarro published",          note: "Talent · yesterday",   action: () => toast("Open Tomás") },
+  ];
+  const q = query.trim().toLowerCase();
+  const match = (it: { label: string; note: string }) =>
+    !q || it.label.toLowerCase().includes(q) || it.note.toLowerCase().includes(q);
+  const filteredDrafts = drafts.filter(match);
+  const filteredRecent = recent.filter(match);
+  const empty = q && filteredDrafts.length === 0 && filteredRecent.length === 0;
+  return (
+    <div style={{ overflowY: "auto", padding: "10px 6px", maxHeight: 380, fontFamily: FONTS.body }}>
+      <RecentSection title="Drafts" items={filteredDrafts} />
+      <RecentSection title="Last created" items={filteredRecent} />
+      {empty && (
+        <div style={{ padding: "14px 14px 6px", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          Nothing recent matches “{query}”.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecentSection({ title, items }: {
+  title: string;
+  items: { id: string; label: string; note: string; action: () => void }[];
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <div style={{
+        padding: "6px 10px 4px",
+        fontSize: 10, fontWeight: 600, letterSpacing: 1.2, textTransform: "uppercase",
+        color: COLORS.inkMuted,
+      }}>{title}</div>
+      {items.map(it => (
+        <button key={it.id} type="button" onClick={it.action} style={{
+          display: "flex", alignItems: "center", gap: 11,
+          padding: "9px 10px", margin: "0 4px",
+          background: "transparent", border: "none",
+          width: "calc(100% - 8px)", textAlign: "left",
+          cursor: "pointer", borderRadius: 10,
+          transition: `background ${TRANSITION.micro}`,
+        }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.surfaceAlt; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+        >
+          <span style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: COLORS.surfaceAlt, color: COLORS.ink,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            <Icon name="bolt" size={13} stroke={1.7} />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 13, fontWeight: 500, color: COLORS.ink }}>
+              {it.label}
+            </span>
+            <span style={{ display: "block", fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+              {it.note}
+            </span>
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FabTabButton({ label, icon, active, onClick, accent, badge }: {
+  label: string;
+  icon: string;
+  active: boolean;
+  onClick: () => void;
+  accent?: "royal";
+  badge?: number;
+}) {
+  const activeBg = accent === "royal" ? COLORS.royalSoft : "rgba(11,11,13,0.05)";
+  const activeFg = accent === "royal" ? COLORS.royalDeep : COLORS.ink;
+  return (
+    <button type="button" onClick={onClick} style={{
+      padding: "6px 12px", borderRadius: 999,
+      border: "none",
+      background: active ? activeBg : "transparent",
+      color: active ? activeFg : COLORS.inkMuted,
+      fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+      cursor: "pointer",
+      display: "inline-flex", alignItems: "center", gap: 5,
+      position: "relative",
+    }}>
+      <Icon name={icon as any} size={11} stroke={1.7} color={active ? activeFg : COLORS.inkMuted} />
+      {label}
+      {badge !== undefined && badge > 0 && (
+        <span style={{
+          marginLeft: 2,
+          minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
+          background: COLORS.amberDeep, color: "#fff",
+          fontSize: 9.5, fontWeight: 700,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+        }}>{badge}</span>
+      )}
+    </button>
+  );
+}
+
+// ── AI chat panel (extracted from AIHelpBot, now mounted inside Fab) ─
+function FabAiPanel({ seedQuestion }: { seedQuestion?: string }) {
+  const { state } = useProto();
+  const drawerId = state.drawer.drawerId;
+  const helpEntry = drawerId ? (DRAWER_HELP as Record<string, typeof DRAWER_HELP[keyof typeof DRAWER_HELP]>)[drawerId] ?? null : null;
+  const faqs = helpEntry?.faqs ?? [];
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<{ role: "user" | "bot"; text: string }[]>([
+    { role: "bot", text: "Hi! I can answer questions about how to use Tulala. Try asking something or pick a suggestion below." },
+  ]);
+  const listRef = useRef<HTMLDivElement>(null);
+  const lastSeed = useRef<string>("");
+
+  const send = (text: string) => {
+    if (!text.trim()) return;
+    const userMsg = { role: "user" as const, text };
+    const matchedFaq = faqs.find((f) => text.toLowerCase().includes(f.q.toLowerCase().slice(0, 20)));
+    const botReply = matchedFaq
+      ? matchedFaq.a
+      : helpEntry
+        ? `${helpEntry.purpose} ${helpEntry.youCanHere[0] ? `You can: ${helpEntry.youCanHere[0].toLowerCase()}` : ""}`
+        : "I don't have specific info about that, but you can find guidance in the help panel (click ⓘ in any drawer).";
+    setMessages((prev) => [...prev, userMsg, { role: "bot", text: botReply }]);
+    setInput("");
+    setTimeout(() => {
+      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+    }, 50);
+  };
+
+  // Keep a ref to the latest `send` so the seed effect picks up current
+  // FAQ context even if the user opens a different drawer between
+  // Ask-AI invocations within the same panel mount.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+
+  useEffect(() => {
+    const seed = (seedQuestion ?? "").trim();
+    if (seed && seed !== lastSeed.current) {
+      lastSeed.current = seed;
+      sendRef.current(seed);
+    }
+  }, [seedQuestion]);
+
+  const quickSuggestions = faqs.length > 0
+    ? faqs.slice(0, 3).map((f) => f.q)
+    : ["How do I send an offer?", "How do I add talent to the roster?", "How do I invite a teammate?"];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 320, maxHeight: 460 }}>
+      {helpEntry && (
+        <div style={{
+          padding: "6px 14px",
+          background: COLORS.royalSoft,
+          fontSize: 10.5, color: COLORS.royalDeep, fontWeight: 500,
+        }}>Context: {helpEntry.category}</div>
+      )}
+      <div ref={listRef} style={{
+        flex: 1, overflowY: "auto", padding: "12px 14px",
+        display: "flex", flexDirection: "column", gap: 8,
+      }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{
+            display: "flex",
+            justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+          }}>
+            <div style={{
+              maxWidth: "82%",
+              padding: "8px 11px",
+              borderRadius: m.role === "user" ? "12px 12px 3px 12px" : "12px 12px 12px 3px",
+              background: m.role === "user" ? COLORS.royal : COLORS.surfaceAlt,
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              color: m.role === "user" ? "#fff" : COLORS.ink,
+              lineHeight: 1.45,
+            }}>
+              {m.text}
+            </div>
+          </div>
+        ))}
+      </div>
+      {messages.length <= 2 && (
+        <div style={{ padding: "0 12px 8px", display: "flex", flexDirection: "column", gap: 5 }}>
+          {quickSuggestions.map((q, i) => (
+            <button key={i} type="button" onClick={() => send(q)} style={{
+              textAlign: "left",
+              padding: "7px 11px",
+              background: COLORS.royalSoft,
+              border: `1px solid rgba(95,75,139,0.15)`,
+              borderRadius: 10,
+              fontFamily: FONTS.body, fontSize: 12, color: COLORS.royalDeep,
+              cursor: "pointer", lineHeight: 1.4,
+            }}>
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+      <div style={{
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        padding: "10px 12px",
+        display: "flex", gap: 6,
+      }}>
+        <input type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") send(input); }}
+          placeholder="Ask Tulala anything…"
+          style={{
+            flex: 1, padding: "9px 12px",
+            fontFamily: FONTS.body, fontSize: 12.5,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 10,
+            outline: "none", color: COLORS.ink, background: "#fff",
+          }}
+        />
+        <button type="button" onClick={() => send(input)} disabled={!input.trim()} style={{
+          padding: "0 12px",
+          background: input.trim() ? COLORS.royal : "rgba(11,11,13,0.10)",
+          color: input.trim() ? "#fff" : COLORS.inkDim,
+          border: "none", borderRadius: 10,
+          cursor: input.trim() ? "pointer" : "default",
+          display: "inline-flex", alignItems: "center",
+        }}>
+          <Icon name="arrow-right" size={13} color={input.trim() ? "#fff" : COLORS.inkDim} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
   return (
     <>
+        {/* 2026 #7 — Speculation Rules. Tells the browser to prerender
+            same-origin URLs the user is likely to visit next. Targets
+            internal nav links inside the prototype shell. The browser
+            holds prerenders for ~5 minutes; click → instant render with
+            no network or layout cost. Falls back silently on browsers
+            without support. Uses "moderate" eagerness so we prerender
+            on hover/focus rather than every link in viewport. */}
+        <script type="speculationrules" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+          prerender: [{
+            where: { and: [
+              { href_matches: "/prototypes/admin-shell*" },
+              { not: { href_matches: "/prototypes/admin-shell?logout*" } },
+            ] },
+            eagerness: "moderate",
+          }],
+          prefetch: [{
+            where: { href_matches: "/prototypes/admin-shell*" },
+            eagerness: "moderate",
+          }],
+        })}} />
         {/* Global keyboard-focus styling for the prototype. Scoped via
             `.tulala-shell` so we don't leak into other prototypes. Uses
             :focus-visible so mouse clicks don't trigger the ring. */}
@@ -240,6 +1108,30 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
           }
           .tulala-shell button:focus:not(:focus-visible) {
             outline: none;
+          }
+          /* On mobile the BottomActionFab is the single command surface —
+             hide the duplicate topbar Search pills. They reappear ≥768px. */
+          @media (max-width: 767px) {
+            .tulala-shell [data-tulala-topbar-search],
+            .tulala-shell [data-tulala-topbar-search-right] {
+              display: none !important;
+            }
+          }
+          /* 2026 #11 — prefers-reduced-motion enforcement. Respects the
+             OS-level "Reduce motion" setting (System Settings →
+             Accessibility on iOS / macOS, or equivalent). Cuts every
+             transition + animation to a near-instant ~10ms duration so
+             the UI still acknowledges state changes without vestibular
+             motion. Scoped to .tulala-shell to keep us isolated. */
+          @media (prefers-reduced-motion: reduce) {
+            .tulala-shell *,
+            .tulala-shell *::before,
+            .tulala-shell *::after {
+              animation-duration: 0.01ms !important;
+              animation-iteration-count: 1 !important;
+              transition-duration: 0.01ms !important;
+              scroll-behavior: auto !important;
+            }
           }
           /* Audit #4 — acting-as chevron rotates 180° on chip hover. */
           .tulala-shell .tulala-acting-chip:hover .tulala-acting-chevron {
@@ -512,6 +1404,51 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell [data-tulala-drawer-body] {
               padding: 16px 14px 20px !important;
             }
+            /* Mobile drawer header: show the back-to-page pill, hide the
+               X close icon (back button replaces it as the primary
+               dismiss control). Also hide size-toolbar (compact/half/full
+               size buttons are meaningless on mobile — drawer is always
+               full-bleed). The "Copy link" button also hides since
+               share/copy is rare on a phone. The toolbar with help (?)
+               stays since it's contextual. */
+            .tulala-shell [data-tulala-drawer-mobile-back] {
+              display: inline-flex !important;
+            }
+            /* Add a small tap-pad so the small Back link still meets a
+               44×44 hit area without visually dominating. */
+            .tulala-shell [data-tulala-drawer-mobile-back]::before {
+              content: "";
+              position: absolute;
+              inset: -10px -16px;
+            }
+            .tulala-shell [data-tulala-drawer-mobile-back] {
+              position: relative !important;
+            }
+            .tulala-shell [data-tulala-drawer-header] > div:last-child > button[aria-label^="Close"] {
+              display: none !important;
+            }
+            .tulala-shell [data-tulala-drawer-header] > div:last-child > [role="group"] {
+              display: none !important;
+            }
+            .tulala-shell [data-tulala-drawer-header] > div:last-child > button[aria-label="Copy link to this drawer"] {
+              display: none !important;
+            }
+            /* Tighten drawer header padding on mobile */
+            .tulala-shell [data-tulala-drawer-header] {
+              padding: 12px 14px 12px !important;
+              gap: 10px !important;
+            }
+            /* Drawer h2 mobile typography */
+            .tulala-shell [data-tulala-drawer-header] h2 {
+              font-size: 17px !important;
+              line-height: 1.25 !important;
+              letter-spacing: -0.2px !important;
+            }
+            .tulala-shell [data-tulala-drawer-header] p {
+              font-size: 12px !important;
+              line-height: 1.4 !important;
+              margin-top: 2px !important;
+            }
             /* Plan-compare drawer is a wide N×M table that can't collapse
                cleanly to one column. At mobile, give the inner grids a
                fixed min-width and let users swipe horizontally. The sticky
@@ -669,10 +1606,39 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             .tulala-shell .tulala-mobile-back {
               display: inline-flex !important;
             }
+            /* Workspace messages WhatsApp-style header: show back arrow,
+               hide desktop-only trust chip + status chip to keep the bar
+               clean for thumb-driven nav. */
+            .tulala-shell [data-tulala-thread-back] {
+              display: inline-flex !important;
+            }
+            .tulala-shell [data-tulala-header-trust-desktop],
+            .tulala-shell [data-tulala-header-status-desktop] {
+              display: none !important;
+            }
             /* Mobile FAB sits comfortably above the bottom tab bar +
                safe-area inset. */
             .tulala-shell button[aria-label^="Messages ·"][style*="position: fixed"] {
               bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+            /* Feedback FAB is hidden on mobile — the "Send feedback"
+               action lives inside the bottom-nav More menu instead, so
+               we never cover content with a floating button. The panel
+               itself still opens via the same FeedbackButton component
+               (it listens to a "tulala-open-feedback" custom event). */
+            .tulala-shell [data-tulala-feedback-btn] > button[aria-label="Send feedback"] {
+              display: none !important;
+            }
+            /* AI helpbot lifts above the bottom nav on mobile (Feedback
+               is no longer floating, so we just clear the 64px tab bar
+               + a comfortable gap). */
+            .tulala-shell [data-tulala-ai-helpbot] {
+              bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+            }
+            /* Account menu trigger (avatar + hamburger) — make sure the
+               whole pill is at least 36px tall on mobile for thumb taps. */
+            .tulala-shell [data-tulala-account-menu-root] > button {
+              min-height: 36px !important;
             }
             /* Composer mobile: input taller for thumb comfort, button
                touch zones grown, attach popover spans full viewport
@@ -847,18 +1813,21 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               height: 1px !important;
             }
           }
-          /* Talent / surface H1 mobile typography. The big 30px display
-             headline scales down to keep proportions on phone. */
+          /* Surface H1 mobile typography. New compact-header system uses
+             ~19px on phone — header is navigation, not hero. The old
+             rule scaled the big 30px display headline down to 26/22; now
+             the headline is born small. Keeping these as a global cap so
+             any straggling h1 (not via PageHeader) also stays compact. */
           @media (max-width: 720px) {
             .tulala-shell [data-tulala-surface-main] h1 {
-              font-size: 26px !important;
-              letter-spacing: -0.4px !important;
+              font-size: 20px !important;
+              letter-spacing: -0.3px !important;
             }
           }
           @media (max-width: 540px) {
             .tulala-shell [data-tulala-surface-main] h1 {
-              font-size: 22px !important;
-              letter-spacing: -0.3px !important;
+              font-size: 19px !important;
+              letter-spacing: -0.25px !important;
             }
           }
           /* Composer attach menu — at <720 expands to a full-width
@@ -1052,10 +2021,10 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
              that still feel cramped at 720 get a final pass at 540. */
           @media (max-width: 540px) {
             .tulala-shell [data-tulala-h1] {
-              font-size: 22px !important;
+              font-size: 19px !important;
             }
             .tulala-shell [data-tulala-surface-main] {
-              padding: 14px 12px 40px !important;
+              padding: 10px 12px 36px !important;
             }
             /* Identity bar phone — collapse brand, name, slash separator.
                Keep avatar (recognizable identity) + acting-as chip + mode
@@ -1214,9 +2183,27 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
           {/* Floating "↑ Top" — appears after 600px of scroll. */}
           <BackToTop />
 
-          {/* WS-9.8 Feedback button — floating bottom-right */}
-          <FeedbackButton />
+          {/* WS-9.8 Feedback button — DORMANT. Replaced by BottomActionFab,
+              which now owns the bottom-right slot. Feedback is reachable from
+              within the FAB's "Ask AI" tab and the help bell menu. Kept import
+              for TS until full removal in next pass. */}
+          {/* <FeedbackButton /> */}
+
+          {/* Unified bottom-right floating action button — combines
+              Quick Create (was top-right "+ New") + AI Assistant (was a
+              separate sparkle FAB) into one menu. */}
+          <BottomActionFab />
+          {/* First-time admin tour — 4 tooltip overlays. Self-fires once. */}
+          <AdminTourGate />
         </div>
     </>
   );
+}
+
+/** Gate the tour to workspace surface only. Lives outside ProtoProvider's
+ *  children scope so it can read state via useProto. */
+function AdminTourGate() {
+  const { state } = useProto();
+  if (state.surface !== "workspace") return null;
+  return <AdminTour />;
 }

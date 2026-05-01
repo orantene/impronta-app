@@ -17,7 +17,9 @@
  */
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { pinNextConversation as pinNextConversationT } from "./_messages";
 import {
   TalentAnalyticsCard,
   TalentFunnelCard,
@@ -74,7 +76,9 @@ import {
   type TalentSkill,
   type TalentSubscriptionTier,
 } from "./_state";
+import { PasskeysCard, GalleryFxCard } from "./_modern-features";
 import {
+  ActivityFeedItem,
   Affordance,
   Avatar,
   Bullet,
@@ -153,7 +157,7 @@ function unreadOnInquiry(inquiry: RichInquiry): number {
 }
 
 function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, setTalentPage, toast } = useProto();
   const stage = INQUIRY_STAGE_META[inquiry.stage];
   const myStatus = myStatusOn(inquiry);
   const unread = unreadOnInquiry(inquiry);
@@ -206,7 +210,11 @@ function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
       {/* Main clickable area — vertical stack so identity, chips and meta
           each get their own line. Easier to scan, breathes at narrow widths. */}
       <button
-        onClick={() => openDrawer("inquiry-workspace", { inquiryId: inquiry.id, pov: "talent" })}
+        onClick={() => {
+          const convId = TALENT_INQUIRY_TO_CONV[inquiry.id] ?? inquiry.id;
+          pinNextConversationT(convId);
+          setTalentPage("messages");
+        }}
         style={{
           display: "flex",
           flexDirection: "column",
@@ -255,9 +263,7 @@ function InquiryRow({ inquiry }: { inquiry: RichInquiry }) {
               color: stageFg,
               fontSize: 10.5,
               fontWeight: 600,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-              flexShrink: 0,
+                            flexShrink: 0,
             }}
           >
             {stage.label}
@@ -383,11 +389,12 @@ export function TalentSurface() {
       >
         <TalentRouter />
       </main>
-      {/* Messages FAB — bottom-right floating button on every talent
-          page EXCEPT the Messages page itself. Tap → opens the
-          Messages overlay sheet with the conversation list + currently
-          open thread. Mobile-first sized; PWA-ready. */}
-      <TalentMessagesFab />
+      {/* Legacy TalentMessagesFab is superseded by the unified
+          BottomActionFab which now also handles the talent surface
+          (with talent-specific quick-actions: Block dates / Edit
+          profile / Add polaroids / Open messages).
+          Kept dormant for one release in case we need to revert. */}
+      {/* <TalentMessagesFab /> */}
     </div>
   );
 }
@@ -463,7 +470,7 @@ function TalentTopbar() {
                     left: 8,
                     right: 8,
                     height: 3,
-                    background: COLORS.ink,
+                    background: COLORS.fill,
                     borderRadius: 2,
                     opacity: active ? 1 : 0,
                     transform: active ? "scaleX(1)" : "scaleX(0.4)",
@@ -477,29 +484,40 @@ function TalentTopbar() {
           })}
         </nav>
 
-        {/* Right — only the talent-specific "Preview public profile" CTA. */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <a
-            href={`https://${profile.publicUrl}`}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-              fontFamily: FONTS.body,
-              fontSize: 11.5,
-              color: COLORS.inkMuted,
-              textDecoration: "none",
-              padding: "5px 9px",
-              borderRadius: 999,
-              background: "rgba(11,11,13,0.04)",
-            }}
-          >
-            <Icon name="external" size={11} />
-            Preview public profile
-          </a>
-        </div>
+        {/* Preview public profile — secondary link on desktop only.
+            Hidden on mobile because the topbar gets cramped and this
+            isn't a primary action; talent can still preview from
+            Profile / Public page. Was a chunky pill on a colored bg —
+            now it's an unstyled link, calmer alongside the page nav. */}
+        <a
+          data-tulala-talent-preview-link
+          href={`https://${profile.publicUrl}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            fontFamily: FONTS.body,
+            fontSize: 12,
+            fontWeight: 500,
+            color: COLORS.inkMuted,
+            textDecoration: "none",
+            padding: "6px 4px",
+            flexShrink: 0,
+            transition: `color ${TRANSITION.micro}`,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = COLORS.ink; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = COLORS.inkMuted; }}
+        >
+          <Icon name="external" size={11} stroke={1.7} />
+          Preview profile
+        </a>
+        <style>{`
+          @media (max-width: 720px) {
+            [data-tulala-talent-preview-link] { display: none !important; }
+          }
+        `}</style>
       </div>
     </header>
   );
@@ -568,10 +586,22 @@ function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 24 }}>
+    <>
+    <style>{`
+      @media (max-width: 680px) {
+        [data-tulala-page-header] [data-tulala-h1] {
+          font-size: 19px !important; line-height: 1.2 !important; letter-spacing: -0.25px !important; font-weight: 700 !important;
+        }
+        [data-tulala-page-header] { margin-bottom: 10px !important; gap: 8px !important; align-items: baseline !important; }
+        [data-tulala-page-header] [data-tulala-page-eyebrow] { display: none !important; }
+        [data-tulala-page-header] p { display: none !important; }
+        [data-tulala-page-header-actions] { flex-shrink: 0 !important; }
+      }
+    `}</style>
+    <div data-tulala-page-header style={{ display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 14 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         {eyebrow && (
-          <div style={{ marginBottom: 6 }}>
+          <div data-tulala-page-eyebrow style={{ marginBottom: 6 }}>
             <CapsLabel>{eyebrow}</CapsLabel>
           </div>
         )}
@@ -579,9 +609,9 @@ function PageHeader({
           data-tulala-h1
           style={{
             fontFamily: FONTS.display,
-            fontSize: 30,
-            fontWeight: 500,
-            letterSpacing: -0.6,
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: -0.4,
             color: COLORS.ink,
             margin: 0,
             lineHeight: 1.15,
@@ -593,11 +623,11 @@ function PageHeader({
           <p
             style={{
               fontFamily: FONTS.body,
-              fontSize: 14,
+              fontSize: 13,
               color: COLORS.inkMuted,
-              margin: "6px 0 0",
-              lineHeight: 1.55,
-              maxWidth: 720,
+              margin: "4px 0 0",
+              lineHeight: 1.5,
+              maxWidth: 640,
             }}
           >
             {subtitle}
@@ -610,6 +640,7 @@ function PageHeader({
         </div>
       )}
     </div>
+    </>
   );
 }
 
@@ -629,6 +660,17 @@ function Grid({ children, cols = "auto" }: { children: ReactNode; cols?: "auto" 
 // TODAY
 // ════════════════════════════════════════════════════════════════════
 
+// Inquiry RI-* → talent conversation cN. Mirrors the client-side map so
+// every Today-style click on the talent surface lands inside the new
+// MessagesShell with the right thread pinned, instead of opening legacy
+// drawers.
+const TALENT_INQUIRY_TO_CONV: Record<string, string> = {
+  "RI-201": "c1",  // Mango spring lookbook
+  "RI-202": "c3",  // Vogue Italia (talent c3 maps to RI-202 in TALENT_REQUESTS)
+  "RI-203": "c2",  // Bvlgari
+  "RI-207": "c5",  // H&M past
+};
+
 function TalentTodayPage() {
   const { openDrawer, setTalentPage } = useProto();
   const profile = MY_TALENT_PROFILE;
@@ -647,17 +689,23 @@ function TalentTodayPage() {
   const mineNeedsMe = mine.filter((i) => myStatusOn(i) === "pending");
   const mineInProgress = mine.filter((i) => myStatusOn(i) !== "pending");
   const pendingCount = mineNeedsMe.length + needsAnswer.length;
-  // Top 2 pending items as name + click → drawer. Names render as inline
-  // clickable links in the hero headline. Direct route to action.
+  // Helper: route into MessagesShell with a thread pinned (the new shell
+  // pattern). Falls back to plain navigation if no mapping is available.
+  const openInMessages = (riOrConvId: string) => {
+    const convId = TALENT_INQUIRY_TO_CONV[riOrConvId] ?? riOrConvId;
+    pinNextConversationT(convId);
+    setTalentPage("messages");
+  };
+  // Top 2 pending items as name + click. Routes through new MessagesShell
+  // (no legacy drawer). Names render as inline clickable links in the hero.
   const pendingTargets: { name: string; onClick: () => void }[] = [
     ...needsAnswer.map((r) => ({
       name: r.client,
-      onClick: () => openDrawer("talent-offer-detail", { id: r.id }),
+      onClick: () => openInMessages(r.inquiryId ?? r.id),
     })),
     ...mineNeedsMe.map((i) => ({
       name: i.clientName,
-      onClick: () =>
-        openDrawer("inquiry-workspace", { inquiryId: i.id, pov: "talent" }),
+      onClick: () => openInMessages(i.id),
     })),
   ].slice(0, 2);
 
@@ -675,6 +723,46 @@ function TalentTodayPage() {
 
   return (
     <>
+      {/* Mobile compaction for the entire Today page. Tighter card
+          padding + section gaps + stat strip horizontal rather than
+          stacked vertically — the page goes from ~3 viewports tall to
+          ~2 on a typical iPhone. */}
+      <style>{`
+        @media (max-width: 720px) {
+          /* Stats strip: horizontal 3-up at mobile (override the
+             generic stat-strip rule that stacks them) so CONFIRMED /
+             PAID THIS MONTH / PROFILE fit in one row. */
+          .tulala-shell #tulala-talent-content [data-tulala-stat-strip] {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            scrollbar-width: none !important;
+            padding: 10px 12px !important;
+          }
+          .tulala-shell #tulala-talent-content [data-tulala-stat-strip]::-webkit-scrollbar {
+            display: none;
+          }
+          .tulala-shell #tulala-talent-content [data-tulala-stat-strip] > * {
+            flex-basis: auto !important;
+            flex-grow: 0 !important;
+            flex-shrink: 0 !important;
+            min-width: 110px;
+          }
+          /* Section margin tightens between cards / strips */
+          .tulala-shell #tulala-talent-content > div > section,
+          .tulala-shell #tulala-talent-content > div > div {
+            margin-bottom: 10px !important;
+          }
+          /* Cards: 14px padding instead of default 18px */
+          .tulala-shell #tulala-talent-content [data-tulala-card] {
+            padding: 12px 14px !important;
+          }
+          /* Section heading row */
+          .tulala-shell #tulala-talent-content h2 {
+            font-size: 14.5px !important;
+          }
+        }
+      `}</style>
+
       {/* First-session checklist — shows ONCE on Day-1 and routes the
           new talent through the 4 onboarding wins that unlock inquiries.
           Sits above the hero so it's the first thing they see.
@@ -1376,9 +1464,7 @@ function DateBlock({
         style={{
           fontSize: 9,
           color: COLORS.inkMuted,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          fontWeight: 600,
+                    fontWeight: 600,
           marginTop: 2,
         }}
       >
@@ -1420,9 +1506,7 @@ function KindChip({
         fontFamily: FONTS.body,
         fontSize: 10.5,
         fontWeight: 600,
-        letterSpacing: 0.4,
-        textTransform: "uppercase",
-      }}
+              }}
     >
       {label}
     </span>
@@ -1691,11 +1775,52 @@ function TalentTodayHero({
   }
 
   return (
-    <section
+    <section data-tulala-today-hero
       style={{
         marginBottom: 16,
       }}
     >
+      {/* Mobile-only compaction for the entire Today page hero zone:
+          smaller h1, tighter eyebrow / subline / location strip, more
+          compact action buttons. Keeps the visual hierarchy intact while
+          reclaiming ~80-100px of vertical real estate. */}
+      <style>{`
+        @media (max-width: 720px) {
+          [data-tulala-today-hero] {
+            margin-bottom: 10px !important;
+          }
+          [data-tulala-today-hero] [data-tulala-talent-hero-row] {
+            margin-bottom: 8px !important;
+            gap: 12px !important;
+          }
+          [data-tulala-today-hero] [data-tulala-talent-hero-row] h1 {
+            font-size: 21px !important;
+            line-height: 1.18 !important;
+            letter-spacing: -0.3px !important;
+          }
+          [data-tulala-today-hero] [data-tulala-talent-hero-row] > div:first-child > div:first-child {
+            font-size: 10.5px !important;
+            margin-bottom: 2px !important;
+          }
+          [data-tulala-today-hero] [data-tulala-talent-hero-row] > div:first-child > div:nth-child(3) {
+            font-size: 12.5px !important;
+            margin-top: 4px !important;
+            line-height: 1.4 !important;
+          }
+          [data-tulala-today-hero] [data-tulala-talent-hero-row] > div:first-child > button {
+            margin-top: 6px !important;
+            font-size: 11.5px !important;
+          }
+          /* Action buttons (Reply now + Availability) inline + compact */
+          [data-tulala-today-hero] [data-tulala-talent-hero-row] > div:last-child {
+            gap: 6px !important;
+          }
+          [data-tulala-today-hero] [data-tulala-talent-hero-row] > div:last-child button {
+            padding: 7px 12px !important;
+            font-size: 12.5px !important;
+          }
+        }
+      `}</style>
       <div
         data-tulala-talent-hero-row
         style={{
@@ -1712,23 +1837,23 @@ function TalentTodayHero({
               fontFamily: FONTS.body,
               fontSize: 11.5,
               fontWeight: 600,
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
+                            color: COLORS.inkMuted,
               marginBottom: 4,
+              display: "none",
             }}
           >
             Hi {firstName}
           </div>
           <h1
+            data-tulala-h1
             style={{
               fontFamily: FONTS.display,
-              fontSize: 30,
-              fontWeight: 500,
-              letterSpacing: -0.6,
+              fontSize: 22,
+              fontWeight: 700,
+              letterSpacing: -0.3,
               color: COLORS.ink,
               margin: 0,
-              lineHeight: 1.15,
+              lineHeight: 1.2,
             }}
           >
             {headlineParts}
@@ -1736,9 +1861,9 @@ function TalentTodayHero({
           <div
             style={{
               fontFamily: FONTS.body,
-              fontSize: 13.5,
+              fontSize: 13,
               color: COLORS.inkMuted,
-              marginTop: 6,
+              marginTop: 4,
               lineHeight: 1.5,
             }}
           >
@@ -1867,7 +1992,7 @@ function ReplyNowSplitButton({
           display: "inline-flex",
           alignItems: "center",
           padding: "9px 14px",
-          background: COLORS.ink,
+          background: COLORS.fill,
           color: "#fff",
           border: "none",
           borderRadius: "8px 0 0 8px",
@@ -1889,7 +2014,7 @@ function ReplyNowSplitButton({
           display: "inline-flex",
           alignItems: "center",
           padding: "9px 8px",
-          background: COLORS.ink,
+          background: COLORS.fill,
           color: "#fff",
           border: "none",
           borderLeft: "1px solid rgba(255,255,255,0.18)",
@@ -1930,9 +2055,7 @@ function ReplyNowSplitButton({
               style={{
                 fontSize: 10.5,
                 fontWeight: 600,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted,
+                                color: COLORS.inkMuted,
                 padding: "6px 10px 4px",
               }}
             >
@@ -2036,9 +2159,7 @@ function HeroStat({
           fontFamily: FONTS.body,
           fontSize: 10.5,
           fontWeight: 600,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
+                    color: COLORS.inkMuted,
         }}
       >
         {label}
@@ -2437,9 +2558,8 @@ function MyProfilePage() {
   return (
     <>
       <PageHeader
-        eyebrow="My profile"
         title={p.name}
-        subtitle={`${p.measurementsSummary} · ${p.city}. Published since ${p.publishedAt}.`}
+        subtitle={`${p.measurementsSummary} · ${p.city}`}
         actions={
           <>
             <SecondaryButton onClick={() => openDrawer("talent-public-preview")}>
@@ -2953,12 +3073,14 @@ function ProfileHero() {
         overflow: "hidden",
       }}
     >
-      {/* Cover photo */}
+      {/* Cover photo — handles real URLs (premium) AND emoji fallback. */}
       <div
         style={{
           position: "relative",
-          height: 180,
-          background: `linear-gradient(180deg, ${COLORS.surfaceAlt} 0%, rgba(15,79,62,0.18) 100%)`,
+          height: 200,
+          background: p.coverPhoto.startsWith("http")
+            ? `url(${p.coverPhoto}) center/cover, ${COLORS.surfaceAlt}`
+            : `linear-gradient(180deg, ${COLORS.surfaceAlt} 0%, rgba(15,79,62,0.18) 100%)`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -2966,7 +3088,7 @@ function ProfileHero() {
           letterSpacing: 8,
         }}
       >
-        <span style={{ filter: "saturate(0.8)" }}>{p.coverPhoto}</span>
+        {!p.coverPhoto.startsWith("http") && <span style={{ filter: "saturate(0.8)" }}>{p.coverPhoto}</span>}
         <button
           onClick={() => openDrawer("talent-photo-edit", { which: "cover" })}
           style={{
@@ -3005,7 +3127,9 @@ function ProfileHero() {
             width: 104,
             height: 104,
             borderRadius: "50%",
-            background: COLORS.surfaceAlt,
+            background: p.profilePhoto.startsWith("http")
+              ? `url(${p.profilePhoto}) center/cover, ${COLORS.surfaceAlt}`
+              : COLORS.surfaceAlt,
             border: `4px solid #fff`,
             display: "flex",
             alignItems: "center",
@@ -3017,7 +3141,7 @@ function ProfileHero() {
           }}
           aria-label="Edit headshot"
         >
-          <span>{p.profilePhoto}</span>
+          {!p.profilePhoto.startsWith("http") && <span>{p.profilePhoto}</span>}
           <span
             style={{
               position: "absolute",
@@ -3026,7 +3150,7 @@ function ProfileHero() {
               width: 26,
               height: 26,
               borderRadius: "50%",
-              background: COLORS.ink,
+              background: COLORS.fill,
               color: "#fff",
               display: "inline-flex",
               alignItems: "center",
@@ -3140,29 +3264,57 @@ function ProfileHero() {
 
 // ─── Engagement strip (rank · views · inquiries · trend) ────────────
 
+/**
+ * Premium engagement strip — replaces the 4-up StatusCard grid that
+ * was eating ~600px on mobile (stacked tall cards). One white card,
+ * 4 inline cells, hairline dividers. Mobile collapses 4→2x2.
+ */
 function EngagementStrip() {
   const p = MY_TALENT_PROFILE;
-  const items: { label: string; value: string; sub?: string; tone: "ink" | "green" | "amber" }[] = [
-    { label: "Tulala discover rank", value: `#${p.discoverRank}`, sub: "Updated daily", tone: "ink" },
+  const items = [
+    { label: "Discover rank", value: `#${p.discoverRank}`, sub: "Updated daily", tone: COLORS.indigo },
     {
-      label: "Profile views · 7d",
+      label: "Views · 7d",
       value: p.profileViews7d.toLocaleString(),
       sub: `${p.viewsTrend > 0 ? "▲" : "▼"} ${Math.abs(p.viewsTrend)}% vs last week`,
-      tone: p.viewsTrend > 0 ? "green" : "amber",
+      tone: p.viewsTrend > 0 ? COLORS.success : COLORS.amber,
     },
-    { label: "Inquiries · 7d", value: p.inquiries7d.toString(), sub: `${p.bookingStats.repeatClients} repeat clients`, tone: "ink" },
-    { label: "On-time rate", value: `${p.bookingStats.onTimeRate}%`, sub: `${p.bookingStats.completedBookings} bookings`, tone: "green" },
+    { label: "Inquiries · 7d", value: String(p.inquiries7d), sub: `${p.bookingStats.repeatClients} repeat clients`, tone: COLORS.coral },
+    { label: "On-time rate", value: `${p.bookingStats.onTimeRate}%`, sub: `${p.bookingStats.completedBookings} bookings`, tone: COLORS.success },
   ];
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-      {items.map((it) => (
-        <StatusCard
-          key={it.label}
-          label={it.label}
-          value={it.value}
-          caption={it.sub}
-          tone={it.tone as "green" | "amber" | "ink"}
-        />
+    <div data-tulala-talent-stat-strip style={{
+      background: "#fff", borderRadius: 12,
+      border: `1px solid ${COLORS.borderSoft}`,
+      boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+      display: "grid", gridTemplateColumns: `repeat(${items.length}, 1fr)`,
+      overflow: "hidden",
+    }}>
+      <style>{`
+        @media (max-width: 640px) {
+          [data-tulala-talent-stat-strip] { grid-template-columns: 1fr 1fr !important; }
+          [data-tulala-talent-stat-strip] > div { border-bottom: 1px solid ${COLORS.borderSoft} !important; }
+          [data-tulala-talent-stat-strip] > div:nth-last-child(-n+2) { border-bottom: none !important; }
+          [data-tulala-talent-stat-strip] > div:nth-child(2n) { border-right: none !important; }
+        }
+      `}</style>
+      {items.map((it, i) => (
+        <div key={it.label} style={{
+          padding: "12px 14px", fontFamily: FONTS.body,
+          borderRight: i < items.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: it.tone }} />
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
+          </div>
+          <div style={{
+            fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+            color: COLORS.ink, lineHeight: 1, fontVariantNumeric: "tabular-nums",
+          }}>{it.value}</div>
+          {it.sub && (
+            <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 4, lineHeight: 1.3 }}>{it.sub}</div>
+          )}
+        </div>
       ))}
     </div>
   );
@@ -3333,7 +3485,7 @@ function TierPill({ tier, onClick }: { tier: TalentSubscriptionTier; onClick: ()
   const palette: Record<TalentSubscriptionTier, { bg: string; fg: string; border: string }> = {
     basic: { bg: "rgba(11,11,13,0.05)", fg: COLORS.ink, border: "rgba(11,11,13,0.10)" },
     pro: { bg: COLORS.accentSoft, fg: COLORS.accent, border: "rgba(15,79,62,0.28)" },
-    portfolio: { bg: COLORS.ink, fg: "#fff", border: COLORS.ink },
+    portfolio: { bg: COLORS.royal, fg: "#fff", border: COLORS.royal },
   };
   const c = palette[tier];
   return (
@@ -3378,9 +3530,9 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
         alignItems: "center",
         gap: 4,
         padding: "2px 7px",
-        background: requiredTier === "portfolio" ? COLORS.ink : COLORS.accentSoft,
+        background: requiredTier === "portfolio" ? COLORS.fill : COLORS.accentSoft,
         color: requiredTier === "portfolio" ? "#fff" : COLORS.accent,
-        border: `1px solid ${requiredTier === "portfolio" ? COLORS.ink : "rgba(15,79,62,0.28)"}`,
+        border: `1px solid ${requiredTier === "portfolio" ? COLORS.accent : "rgba(15,79,62,0.28)"}`,
         fontFamily: FONTS.body,
         fontSize: 10,
         fontWeight: 600,
@@ -3498,9 +3650,7 @@ function MeasurementsTable() {
             style={{
               fontSize: 10.5,
               fontWeight: 600,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
+                            color: COLORS.inkMuted,
             }}
           >
             {c.label}
@@ -3582,9 +3732,7 @@ function LimitRow({ limit }: { limit: TalentLimit }) {
         style={{
           fontSize: 10,
           fontWeight: 700,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          color: limit.enforcement === "hard" ? "#7A2026" : COLORS.amberDeep,
+                    color: limit.enforcement === "hard" ? "#7A2026" : COLORS.amberDeep,
         }}
       >
         {limit.enforcement}
@@ -3694,9 +3842,7 @@ function BookingStatCell({ label, value, accent }: { label: string; value: strin
         style={{
           fontSize: 10.5,
           fontWeight: 600,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
+                    color: COLORS.inkMuted,
         }}
       >
         {label}
@@ -3787,7 +3933,7 @@ function CompletenessBar({ value }: { value: number }) {
           style={{
             width: `${value}%`,
             height: "100%",
-            background: value >= 100 ? COLORS.green : COLORS.ink,
+            background: value >= 100 ? COLORS.green : COLORS.fill,
           }}
         />
       </div>
@@ -3830,7 +3976,7 @@ function CompletenessBar({ value }: { value: number }) {
 
 type MsgStage = "inquiry" | "hold" | "booked" | "past" | "cancelled";
 
-type Participant = {
+export type Participant = {
   initials: string;
   name: string;
   role: string;
@@ -3838,7 +3984,7 @@ type Participant = {
   isTalent?: boolean;
 };
 
-type Conversation = {
+export type Conversation = {
   id: string;
   client: string;
   clientInitials: string;
@@ -4000,7 +4146,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
   },
 ];
 
-type Msg =
+export type Msg =
   | { id: string; kind: "text"; sender: ConvSender; body: string; ts: string; readBy?: ConvSender[] }
   | { id: string; kind: "image"; sender: ConvSender; caption?: string; count: number; ts: string }
   | { id: string; kind: "file"; sender: ConvSender; filename: string; sizeKB: number; ts: string }
@@ -4017,7 +4163,7 @@ type Msg =
 
 type ConvSender = "you" | "client" | "coordinator" | "agency";
 
-const MOCK_THREAD: Record<string, Msg[]> = {
+export const MOCK_THREAD: Record<string, Msg[]> = {
   c1: [
     { id: "c1m1", kind: "system", body: "Inquiry created · routed to Acme Models", ts: "Apr 28 · 10:14" },
     { id: "c1m2", kind: "text", sender: "coordinator", body: "Hi Marta — Mango is briefing for a Spring lookbook in Madrid. Single day, May 14. Editorial energy, less commercial. Are you open?", ts: "Apr 28 · 10:18", readBy: ["you"] },
@@ -4097,7 +4243,7 @@ function TalentMessagesFab() {
           width: 56,
           height: 56,
           borderRadius: 999,
-          background: COLORS.ink,
+          background: COLORS.fill,
           color: "#fff",
           border: "none",
           cursor: "pointer",
@@ -4310,8 +4456,21 @@ function useIsPhone(breakpoint = 720) {
   return isPhone;
 }
 
+// TalentMessagesPage delegates to the unified MessagesShell so all 3
+// surfaces share the same list chrome, row component, header, filter
+// chips, and mobile responsive pattern. Lazy-loaded via dynamic() to
+// avoid the import cycle with `_messages.tsx` (which itself imports
+// `Conversation`, `ParticipantsStack`, `MOCK_CONVERSATIONS` from this
+// file). See `_messages.tsx` charter for full design decisions.
+const TalentMessagesShellLazy = dynamic(() => import("./_messages").then(m => m.MessagesShell), { ssr: false });
+
 export function TalentMessagesPage() {
   useKeyboardInset();
+  return <TalentMessagesShellLazy pov="talent" />;
+}
+
+// Legacy implementation retained as `_TalentMessagesPageLegacy` below.
+function _TalentMessagesPageLegacy() {
   const [activeId, setActiveId] = useState<string>(MOCK_CONVERSATIONS[0]!.id);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread" | "inquiry" | "hold" | "booked" | "past">("all");
@@ -4489,7 +4648,7 @@ function ConversationList({
                 key={f.id}
                 onClick={() => onFilterChange(f.id)}
                 style={{
-                  background: active ? COLORS.ink : "transparent",
+                  background: active ? COLORS.fill : "transparent",
                   color: active ? "#fff" : COLORS.inkMuted,
                   border: active ? "none" : `1px solid ${COLORS.borderSoft}`,
                   borderRadius: 999,
@@ -4643,7 +4802,7 @@ function ConversationListRow({
         width: "100%",
         padding: "12px 14px",
         background: active ? "rgba(11,11,13,0.05)" : "transparent",
-        borderLeft: active ? `3px solid ${COLORS.ink}` : "3px solid transparent",
+        borderLeft: active ? `3px solid ${COLORS.accent}` : "3px solid transparent",
         borderTop: "none",
         borderRight: "none",
         borderBottom: `1px solid ${COLORS.borderSoft}`,
@@ -4688,9 +4847,7 @@ function ConversationListRow({
             style={{
               fontSize: 9.5,
               fontWeight: 700,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-              padding: "1px 5px",
+                            padding: "1px 5px",
               borderRadius: 4,
               background: stage.bg,
               color: stage.tone,
@@ -4771,9 +4928,7 @@ function ConversationListRow({
           <div style={{
             fontSize: 10,
             fontWeight: 700,
-            letterSpacing: 0.6,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
+                        color: COLORS.inkMuted,
             padding: "6px 10px 4px",
           }}>Snooze</div>
           <BubbleMenuItem icon="🕓" label="2 hours" onClick={() => { setMenuOpen(false); toast(`${conv.client} snoozed · returns in 2h`, { undo: () => toast("Snooze cancelled") }); }} />
@@ -4794,7 +4949,7 @@ function ConversationListRow({
  * sorted to the front (the user cares most about peers); crew fills
  * the rest. Visible cap = 5; the rest collapse into "+N".
  */
-function ParticipantsStack({ participants }: { participants: Participant[] }) {
+export function ParticipantsStack({ participants }: { participants: Participant[] }) {
   const sorted = [...participants].sort((a, b) => Number(!!b.isTalent) - Number(!!a.isTalent));
   const visible = sorted.slice(0, 5);
   const overflow = sorted.length - visible.length;
@@ -4828,11 +4983,18 @@ function ParticipantsStack({ participants }: { participants: Participant[] }) {
             key={`${p.initials}-${i}`}
             style={{
               marginLeft: i === 0 ? 0 : -6,
+              width: 23,
+              height: 23,
+              boxSizing: "border-box",
               border: "1.5px solid #fff",
               borderRadius: "50%",
-              display: "inline-block",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 0,
               position: "relative",
               zIndex: visible.length - i,
+              flexShrink: 0,
             }}
           >
             <Avatar size={20} tone="auto" hashSeed={p.name} initials={p.initials} />
@@ -4889,7 +5051,7 @@ const MOCK_REACTIONS: Record<string, string[]> = {
   "c2m4": ["❤️", "🙏"],
 };
 
-function ConversationThread({
+export function ConversationThread({
   conv,
   messages,
   onBackToList,
@@ -5090,9 +5252,7 @@ function ThreadHeader({
             style={{
               fontSize: 9.5,
               fontWeight: 700,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-              padding: "2px 6px",
+                            padding: "2px 6px",
               borderRadius: 999,
               background: stage.bg,
               color: stage.tone,
@@ -5129,7 +5289,7 @@ function ThreadHeader({
           title={infoOpen ? "Hide details" : "Show details"}
           style={{
             ...iconButtonSm,
-            background: infoOpen ? COLORS.ink : "#fff",
+            background: infoOpen ? COLORS.fill : "#fff",
             color: infoOpen ? "#fff" : COLORS.inkMuted,
             borderColor: infoOpen ? COLORS.ink : COLORS.borderSoft,
           }}
@@ -5562,7 +5722,7 @@ function InfoSidebarHeader({ onClose, tab, onTabChange }: {
                 marginRight: 16,
                 background: "transparent",
                 border: "none",
-                borderBottom: active ? `2px solid ${COLORS.ink}` : "2px solid transparent",
+                borderBottom: active ? `2px solid ${COLORS.accent}` : "2px solid transparent",
                 color: active ? COLORS.ink : COLORS.inkMuted,
                 fontFamily: FONTS.display,
                 fontSize: 13.5,
@@ -5612,53 +5772,43 @@ function InfoSidebarHeader({ onClose, tab, onTabChange }: {
 function ThreadActivityTimeline({ conv }: { conv: Conversation }) {
   // Mock activity events derived from the conv state. Real impl would
   // query the activity_log table filtered by conversation_id.
-  const events = [
-    { ts: "Apr 22 · 10:14", actor: "system", icon: "📩", label: `Inquiry created by ${conv.client}` },
-    { ts: "Apr 23 · 09:00", actor: "coordinator", icon: "👤", label: "Sara assigned as coordinator" },
-    { ts: "Apr 24 · 14:32", actor: "coordinator", icon: "💸", label: "Rate quoted · €1,200/day" },
+  type TimelineEvent = { actor: string; action: string; target: string; timestamp: string; icon: string };
+  const events: TimelineEvent[] = [
+    { actor: "System",      action: "created inquiry from",  target: conv.client,           timestamp: "Apr 22 · 10:14", icon: "📩" },
+    { actor: "Sara",        action: "assigned as",           target: "coordinator",          timestamp: "Apr 23 · 09:00", icon: "👤" },
+    { actor: "Coordinator", action: "quoted rate",           target: "€1,200/day",           timestamp: "Apr 24 · 14:32", icon: "💸" },
     ...(conv.stage === "hold" || conv.stage === "booked" ? [
-      { ts: "Apr 26 · 09:00", actor: "system", icon: "📅", label: `Hold opened · ${conv.date ?? "TBD"}` },
+      { actor: "System",    action: "opened hold for",       target: conv.date ?? "TBD",     timestamp: "Apr 26 · 09:00", icon: "📅" },
     ] : []),
     ...(conv.stage === "booked" ? [
-      { ts: "Apr 27 · 11:18", actor: "client", icon: "✅", label: "Client confirmed booking" },
-      { ts: "Apr 27 · 11:20", actor: "system", icon: "📑", label: "Contract issued" },
+      { actor: "Client",    action: "confirmed booking",     target: "",                     timestamp: "Apr 27 · 11:18", icon: "✅" },
+      { actor: "System",    action: "issued contract",       target: "",                     timestamp: "Apr 27 · 11:20", icon: "📑" },
     ] : []),
   ];
   return (
-    <div style={{ padding: "16px 18px", fontFamily: FONTS.body }}>
-      <div style={{ position: "relative", paddingLeft: 22 }}>
-        <div style={{
-          position: "absolute",
-          top: 6,
-          bottom: 6,
-          left: 7,
-          width: 2,
-          background: COLORS.borderSoft,
-          borderRadius: 1,
-        }} />
+    <div style={{ padding: "16px 18px" }}>
+      {/* Vertical timeline line runs behind the ActivityFeedItem icon circles */}
+      <div style={{ position: "relative" }}>
+        {events.length > 1 && (
+          <div style={{
+            position: "absolute",
+            top: 24,
+            bottom: 24,
+            left: 13,
+            width: 2,
+            background: COLORS.borderSoft,
+            borderRadius: 1,
+          }} />
+        )}
         {events.map((e, i) => (
-          <div key={i} style={{ position: "relative", paddingBottom: 14 }}>
-            <span aria-hidden style={{
-              position: "absolute",
-              left: -22,
-              top: 0,
-              width: 16,
-              height: 16,
-              borderRadius: 999,
-              background: "#fff",
-              border: `1.5px solid ${COLORS.borderSoft}`,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 9,
-            }}>{e.icon}</span>
-            <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>
-              {e.label}
-            </div>
-            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
-              {e.ts} · {e.actor}
-            </div>
-          </div>
+          <ActivityFeedItem
+            key={i}
+            actor={e.actor}
+            action={e.action}
+            target={e.target}
+            timestamp={e.timestamp}
+            icon={e.icon}
+          />
         ))}
       </div>
     </div>
@@ -5785,7 +5935,7 @@ function RateChangeRequest({ currentValue }: { currentValue: string }) {
           title={!proposed.trim() ? "Enter a proposed amount first" : ""}
           style={{
             padding: "5px 10px",
-            background: COLORS.ink,
+            background: COLORS.fill,
             border: "none",
             borderRadius: 6,
             cursor: !proposed.trim() ? "not-allowed" : "pointer",
@@ -5930,9 +6080,7 @@ function NewMessagesDivider({ count }: { count: number }) {
       <span style={{
         fontSize: 10.5,
         fontWeight: 700,
-        letterSpacing: 0.6,
-        textTransform: "uppercase",
-        color: COLORS.coral,
+                color: COLORS.coral,
         background: "rgba(194,106,69,0.08)",
         padding: "3px 9px",
         borderRadius: 999,
@@ -6008,9 +6156,7 @@ function AIThreadSummary({ conv, open, onToggle }: { conv: Conversation; open: b
         <span style={{
           fontSize: 11,
           fontWeight: 700,
-          letterSpacing: 0.6,
-          textTransform: "uppercase",
-          color: COLORS.accent,
+                    color: COLORS.accent,
           flexShrink: 0,
         }}>AI summary</span>
         <span style={{
@@ -6229,7 +6375,7 @@ function SendButtonWithSchedule({ disabled, onSend, onSchedule }: {
           height: 34,
           borderRadius: 999,
           border: "none",
-          background: !disabled ? COLORS.ink : "rgba(11,11,13,0.06)",
+          background: !disabled ? COLORS.fill : "rgba(11,11,13,0.06)",
           color: !disabled ? "#fff" : COLORS.inkDim,
           cursor: !disabled ? "pointer" : "not-allowed",
           display: "inline-flex",
@@ -6265,9 +6411,7 @@ function SendButtonWithSchedule({ disabled, onSend, onSchedule }: {
           <div style={{
             fontSize: 10,
             fontWeight: 700,
-            letterSpacing: 0.6,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
+                        color: COLORS.inkMuted,
             padding: "6px 10px 4px",
           }}>Schedule send</div>
           {[
@@ -7023,7 +7167,7 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
     const hasConflict = msg.date.includes("18") && msg.title.toLowerCase().includes("bvlgari");
     return (
       <div style={{ background: "#fff", border: `1px solid ${hasConflict ? "rgba(176,52,52,0.30)" : COLORS.borderSoft}`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.indigo, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.indigo, marginBottom: 4 }}>
           📅 Calendar invite
         </div>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{msg.title}</div>
@@ -7091,7 +7235,7 @@ function ActionMessage({ msg, fromYou, stage }: { msg: Msg; fromYou: boolean; st
   if (msg.kind === "payment-receipt") {
     return (
       <div style={{ background: "rgba(46,125,91,0.06)", border: `1px solid rgba(46,125,91,0.25)`, borderRadius: 14, padding: "12px 14px", maxWidth: 320, fontFamily: FONTS.body }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.green, marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.green, marginBottom: 4 }}>
           ✓ Paid
         </div>
         <div style={{ fontSize: 18, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.display, letterSpacing: -0.2 }}>
@@ -7198,9 +7342,7 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
               <span style={{
                 fontSize: 10,
                 fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted,
+                                color: COLORS.inkMuted,
                 alignSelf: "center",
                 marginRight: 2,
               }}>Quick quote</span>
@@ -7234,9 +7376,7 @@ function Composer({ conv, isLocked, onAfterSend }: { conv: Conversation; isLocke
             <span style={{
               fontSize: 10,
               fontWeight: 700,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
+                            color: COLORS.inkMuted,
               alignSelf: "center",
               marginRight: 2,
             }}>Quick reply</span>
@@ -7573,7 +7713,11 @@ type InboxItem = {
 };
 
 function InboxPage() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, setTalentPage, toast } = useProto();
+  const goToMessages = (riOrConvId: string) => {
+    pinNextConversationT(TALENT_INQUIRY_TO_CONV[riOrConvId] ?? riOrConvId);
+    setTalentPage("messages");
+  };
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("action");
   // Audit #23 — bulk-select state. Set of row keys (`${source}-${id}`).
@@ -7622,7 +7766,7 @@ function InboxPage() {
         ageHrs: i.lastActivityHrs,
         date: i.date ?? undefined,
         agency: i.agencyName,
-        onOpen: () => openDrawer("inquiry-workspace", { inquiryId: i.id, pov: "talent" }),
+        onOpen: () => goToMessages(i.id),
       };
     }),
     ...TALENT_REQUESTS.map((r): InboxItem => {
@@ -7659,7 +7803,7 @@ function InboxPage() {
         date: r.date,
         amount: r.amount,
         agency: r.agency,
-        onOpen: () => openDrawer("talent-offer-detail", { id: r.id }),
+        onOpen: () => goToMessages(r.inquiryId ?? r.id),
       };
     }),
   ];
@@ -7718,8 +7862,7 @@ function InboxPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Inbox"
-        title="Everything that needs you, in one place"
+        title="Inbox"
         subtitle="Inquiries from your agencies plus holds and casting calls. Filter by what you need to do."
       />
 
@@ -7987,9 +8130,7 @@ function AIReplyAssistant({ item }: { item: InboxItem | null }) {
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    letterSpacing: 0.5,
-                    textTransform: "uppercase",
-                    color: COLORS.royalDeep,
+                                        color: COLORS.royalDeep,
                   }}
                 >
                   {v.label}
@@ -8012,7 +8153,7 @@ function AIReplyAssistant({ item }: { item: InboxItem | null }) {
                   setExpanded(false);
                 }}
                 style={{
-                  background: COLORS.ink,
+                  background: COLORS.fill,
                   color: "#fff",
                   border: "none",
                   borderRadius: 8,
@@ -8159,7 +8300,7 @@ function BulkActionBar({
         alignItems: "center",
         gap: 10,
         padding: "10px 14px",
-        background: COLORS.ink,
+        background: COLORS.fill,
         color: "#fff",
         borderRadius: 10,
         fontFamily: FONTS.body,
@@ -8240,8 +8381,8 @@ function InboxFilterChips({
               gap: 6,
               padding: "6px 11px",
               borderRadius: 999,
-              background: active ? COLORS.ink : "#fff",
-              border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+              background: active ? COLORS.fill : "#fff",
+              border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
               cursor: "pointer",
               fontFamily: FONTS.body,
               fontSize: 12.5,
@@ -9264,9 +9405,8 @@ function CalendarPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Calendar"
-        title="Bookings & availability"
-        subtitle="Confirmed work, pending replies, inquiries — all in one timeline."
+        title="Calendar"
+        subtitle="Bookings, holds & availability"
         actions={
           <>
             <SecondaryButton onClick={() => openDrawer("talent-block-dates")}>
@@ -9333,7 +9473,7 @@ function CalendarPage() {
               aria-selected={active}
               onClick={() => setViewMode(m)}
               style={{
-                background: active ? COLORS.ink : "transparent",
+                background: active ? COLORS.fill : "transparent",
                 color: active ? "#fff" : COLORS.inkMuted,
                 border: "none",
                 borderRadius: 999,
@@ -9571,8 +9711,8 @@ function FilterChipStrip({
               gap: 6,
               padding: "6px 11px",
               borderRadius: 999,
-              background: active ? COLORS.ink : "#fff",
-              border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+              background: active ? COLORS.fill : "#fff",
+              border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
               cursor: "pointer",
               fontFamily: FONTS.body,
               fontSize: 12.5,
@@ -9971,9 +10111,7 @@ function EarningsGoalRing({ total }: { total: number }) {
               fontSize: 9.5,
               color: COLORS.inkMuted,
               fontWeight: 600,
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-            }}
+                          }}
           >
             of goal
           </span>
@@ -10050,7 +10188,7 @@ function EarningsGoalRing({ total }: { total: number }) {
               }}
               style={{
                 padding: "5px 10px",
-                background: COLORS.ink,
+                background: COLORS.fill,
                 color: "#fff",
                 border: "none",
                 borderRadius: 6,
@@ -10276,9 +10414,8 @@ function ActivityPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Activity"
-        title="Earnings & history"
-        subtitle="Everything you've been paid — agency-routed, personal-page direct, hubs, off-platform. Tap a row for booking detail."
+        title="Activity"
+        subtitle="Earnings & history."
         actions={
           <>
             <SecondaryButton onClick={() => openDrawer("talent-add-event", { mode: "work" })}>
@@ -10384,8 +10521,8 @@ function ActivityPage() {
                 gap: 6,
                 padding: "6px 11px",
                 borderRadius: 999,
-                background: active ? COLORS.ink : "#fff",
-                border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+                background: active ? COLORS.fill : "#fff",
+                border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
                 cursor: "pointer",
                 fontFamily: FONTS.body,
                 fontSize: 12.5,
@@ -10647,9 +10784,8 @@ function ReachPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Reach"
-        title="Where you appear, and what each channel sent you."
-        subtitle="Distribution is a lever you own. Toggle channels, see what works, grow your reach."
+        title="Reach"
+        subtitle="Where you appear, and what each channel sent you."
         actions={
           <SecondaryButton onClick={() => openDrawer("talent-public-preview")}>
             Preview public profile
@@ -10950,7 +11086,7 @@ function ModalConfirm({
             type="button"
             onClick={onConfirm}
             style={{
-              background: confirmTone === "critical" ? COLORS.critical : COLORS.ink,
+              background: confirmTone === "critical" ? COLORS.critical : COLORS.fill,
               color: "#fff",
               border: "none",
               borderRadius: 8,
@@ -10998,9 +11134,7 @@ function ReachStat({
           fontFamily: FONTS.body,
           fontSize: 10.5,
           fontWeight: 600,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
+                    color: COLORS.inkMuted,
         }}
       >
         {label}
@@ -11161,9 +11295,7 @@ function ExposurePresetSlider({
                     right: 6,
                     fontSize: 9,
                     fontWeight: 700,
-                    letterSpacing: 0.5,
-                    textTransform: "uppercase",
-                    padding: "1px 5px",
+                                        padding: "1px 5px",
                     borderRadius: 4,
                     background: "rgba(46,125,91,0.15)",
                     color: COLORS.green,
@@ -11379,7 +11511,7 @@ function ReachHealthScore({
         {score}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.6, textTransform: "uppercase", color: COLORS.inkMuted }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted }}>
           Reach health
         </div>
         <div style={{ fontSize: 14, fontWeight: 500, color: COLORS.ink, marginTop: 2 }}>
@@ -11674,9 +11806,7 @@ function ChannelRow({
               style={{
                 fontSize: 9.5,
                 fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                padding: "1px 5px",
+                                padding: "1px 5px",
                 borderRadius: 4,
                 background: COLORS.indigoSoft,
                 color: COLORS.indigoDeep,
@@ -11692,9 +11822,7 @@ function ChannelRow({
               gap: 4,
               fontSize: 10.5,
               fontWeight: 600,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-              color: statusFg,
+                            color: statusFg,
             }}
           >
             <span
@@ -11892,9 +12020,7 @@ function AvailableChannelRow({
               style={{
                 fontSize: 9.5,
                 fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                padding: "1px 5px",
+                                padding: "1px 5px",
                 borderRadius: 4,
                 background: COLORS.indigoSoft,
                 color: COLORS.indigoDeep,
@@ -11934,14 +12060,137 @@ function AvailableChannelRow({
 // SETTINGS
 // ════════════════════════════════════════════════════════════════════
 
+// Mock count — production reads from the talent's circle table.
+const MOCK_CIRCLE_PREVIEW_COUNT = 6;
+
+/** Talent-side trust card — shows current verification posture + CTAs.
+ *  Renders on the talent's Settings page. Tapping opens the talent-trust-detail
+ *  drawer for the full lifecycle (Verify Instagram, Request Tulala Review,
+ *  see claim status). */
+function TalentTrustCard({ onOpenDetail }: { onOpenDetail: () => void }) {
+  // Demo: the prototype's "current talent" maps to roster id `t1` (Marta).
+  // In production this comes from the auth session.
+  const TALENT_ID = "t1";
+  const { getTrustSummary } = useProto();
+  const trust = getTrustSummary("talent_profile", TALENT_ID);
+  const igActive = trust.badges.some(b => b.type === "instagram_verified" && b.status === "active");
+  const tulalaActive = trust.badges.some(b => b.type === "tulala_verified" && b.status === "active");
+  const igPending = trust.pendingRequests.some(r => r.verificationType === "instagram_verified");
+  const tulalaPending = trust.pendingRequests.some(r => r.verificationType === "tulala_verified");
+
+  const rows: { label: string; status: string; tone: "good" | "pending" | "muted"; emoji: string }[] = [
+    {
+      label: "Account email",
+      status: trust.account?.emailVerified ? "Verified" : "Not verified",
+      tone: trust.account?.emailVerified ? "good" : "muted",
+      emoji: "✉",
+    },
+    {
+      label: "Profile ownership",
+      status: trust.claimStatus === "claimed" ? "Claimed by you"
+        : trust.claimStatus === "invite_sent" ? "Invite pending"
+        : trust.claimStatus === "unclaimed" ? "Unclaimed"
+        : trust.claimStatus ?? "—",
+      tone: trust.claimStatus === "claimed" ? "good" : trust.claimStatus === "invite_sent" ? "pending" : "muted",
+      emoji: "👤",
+    },
+    {
+      label: "Instagram",
+      status: igActive ? "Verified · public badge"
+        : igPending ? "Pending review"
+        : "Not verified",
+      tone: igActive ? "good" : igPending ? "pending" : "muted",
+      emoji: "📸",
+    },
+    {
+      label: "Tulala Review",
+      status: tulalaActive ? "Verified · public badge"
+        : tulalaPending ? "In review"
+        : "Not requested",
+      tone: tulalaActive ? "good" : tulalaPending ? "pending" : "muted",
+      emoji: "✓",
+    },
+    {
+      label: "Agency",
+      status: trust.badges.some(b => b.type === "agency_confirmed" && b.status === "active")
+        ? "Confirmed by Atelier Roma"
+        : "Not confirmed",
+      tone: trust.badges.some(b => b.type === "agency_confirmed" && b.status === "active") ? "good" : "muted",
+      emoji: "✦",
+    },
+  ];
+
+  return (
+    <button
+      type="button"
+      onClick={onOpenDetail}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        width: "100%",
+        padding: "16px 18px",
+        marginBottom: 16,
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 14,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        textAlign: "left",
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        transition: "border-color 0.15s, box-shadow 0.15s",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{
+            fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5,
+            color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 4,
+          }}>Trust & Verification</div>
+          <div style={{
+            fontFamily: FONTS.display, fontSize: 16, fontWeight: 600,
+            color: COLORS.ink, letterSpacing: -0.2,
+          }}>
+            {igActive && tulalaActive ? "You're fully verified."
+              : igActive || tulalaActive ? "Almost there."
+              : "Get verified."}
+          </div>
+        </div>
+        <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 18 }}>›</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {rows.map((r) => (
+          <div key={r.label} style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "8px 10px", borderRadius: 8,
+            background: r.tone === "good" ? COLORS.successSoft
+              : r.tone === "pending" ? COLORS.amberSoft
+              : "rgba(11,11,13,0.03)",
+          }}>
+            <span style={{ fontSize: 13 }}>{r.emoji}</span>
+            <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink, fontWeight: 500 }}>{r.label}</span>
+            <span style={{
+              fontSize: 11, fontWeight: 600,
+              color: r.tone === "good" ? COLORS.successDeep
+                : r.tone === "pending" ? COLORS.amberDeep
+                : COLORS.inkMuted,
+            }}>{r.status}</span>
+          </div>
+        ))}
+      </div>
+    </button>
+  );
+}
+
 function SettingsPage() {
   const { openDrawer, setTalentPage } = useProto();
 
   return (
     <>
       <PageHeader
-        eyebrow="Settings"
-        title="Your account"
+        title="Settings"
         subtitle="Agencies, notifications, privacy and payouts. Where you appear lives in Reach."
         actions={
           <SecondaryButton onClick={() => setTalentPage("reach")}>
@@ -11949,6 +12198,14 @@ function SettingsPage() {
           </SecondaryButton>
         }
       />
+
+      {/* Trust & Verification — talent's view of their own trust state */}
+      <TalentTrustCard onOpenDetail={() => openDrawer("talent-trust-detail")} />
+
+      {/* Account security — passkey-based sign-in (WebAuthn). Real
+          navigator.credentials API; in this prototype the credential ID
+          round-trips localStorage instead of a server. */}
+      <PasskeysCard userName={MY_TALENT_PROFILE.name} userId="talent-self" />
 
       {/* A4 cross-link banner — Reach owns distribution decisions; Privacy
           here is just the locked / sensitive bits. */}
@@ -12004,6 +12261,29 @@ function SettingsPage() {
         <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.indigoDeep }}>
           Open Reach →
         </span>
+      </button>
+
+      <Divider label="My Circle" />
+      <button
+        type="button"
+        onClick={() => openDrawer("circle-manage")}
+        style={{
+          display: "flex", alignItems: "center", gap: 12,
+          width: "100%", padding: "14px 16px", marginBottom: 16,
+          background: COLORS.royalSoft, border: `1px solid rgba(95,75,139,0.18)`,
+          borderRadius: 10, cursor: "pointer", fontFamily: FONTS.body, textAlign: "left",
+        }}
+      >
+        <span aria-hidden style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(95,75,139,0.18)", color: COLORS.royal, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon name="team" size={14} stroke={1.7} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.royalDeep }}>My Circle</div>
+          <div style={{ fontSize: 11.5, color: COLORS.royal, opacity: 0.78, marginTop: 2 }}>
+            Trusted collaborators you can recommend into bookings in one tap. {MOCK_CIRCLE_PREVIEW_COUNT} people in your circle.
+          </div>
+        </div>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.royalDeep }}>Manage →</span>
       </button>
 
       <Divider label="Agencies" />
@@ -12221,7 +12501,7 @@ function EarningsTile({
                 border:      "none",
                 borderRadius: RADIUS.sm,
                 cursor:      "pointer",
-                background:  cycle === c ? COLORS.ink : "transparent",
+                background:  cycle === c ? COLORS.fill : "transparent",
                 color:       cycle === c ? "#fff" : COLORS.inkMuted,
                 fontFamily:  FONTS.body,
                 transition:  `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
@@ -12322,7 +12602,7 @@ const DAY_COLORS: Record<string, { bg: string; label: string; border: string }> 
   hold:      { bg: "rgba(217,119,6,0.08)", label: "rgba(180,100,0,1)", border: "rgba(217,119,6,0.3)" },
   available: { bg: COLORS.surfaceAlt, label: COLORS.inkMuted, border: COLORS.borderSoft },
   blocked:   { bg: COLORS.card,       label: COLORS.inkDim,   border: COLORS.borderSoft },
-  today:     { bg: COLORS.ink,        label: "#fff",          border: COLORS.ink },
+  today:     { bg: COLORS.accent,    label: "#fff",          border: COLORS.accent },
 };
 
 function WeekRhythmStrip() {
@@ -12442,9 +12722,7 @@ function AgenciesPage() {
               </div>
               {/* Status chip */}
               <div style={{
-                fontSize:     10, fontWeight: 700, letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                padding:      "2px 8px", borderRadius: RADIUS.sm,
+                fontSize:     10, fontWeight: 700,                 padding:      "2px 8px", borderRadius: RADIUS.sm,
                 background:   ag.status === "active" ? COLORS.accentSoft : COLORS.card,
                 color:        ag.status === "active" ? COLORS.accent : COLORS.inkMuted,
                 fontFamily:   FONTS.body,
@@ -12511,7 +12789,7 @@ function AgenciesPage() {
           }}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
-            background: requestSent ? COLORS.surfaceAlt : COLORS.ink,
+            background: requestSent ? COLORS.surfaceAlt : COLORS.fill,
             color: requestSent ? COLORS.inkMuted : "#fff",
             border: "none", borderRadius: RADIUS.md,
             padding: "8px 16px", fontSize: 13, fontWeight: 600,
@@ -12555,7 +12833,7 @@ function PublicPageEditor() {
             type="button"
             onClick={() => setPreview((v) => !v)}
             style={{
-              background: preview ? COLORS.ink : "transparent",
+              background: preview ? COLORS.fill : "transparent",
               color:      preview ? "#fff" : COLORS.ink,
               border:     `1px solid ${COLORS.border}`, borderRadius: RADIUS.md,
               padding:    "7px 14px", fontSize: 12, fontWeight: 600,
@@ -12568,7 +12846,7 @@ function PublicPageEditor() {
             type="button"
             onClick={() => toast("Changes saved", { tone: "success" })}
             style={{
-              background: COLORS.ink, color: "#fff",
+              background: COLORS.fill, color: "#fff",
               border: "none", borderRadius: RADIUS.md,
               padding: "7px 14px", fontSize: 12, fontWeight: 600,
               cursor: "pointer", fontFamily: FONTS.body,
@@ -12609,6 +12887,10 @@ function PublicPageEditor() {
           </button>
         </div>
       )}
+
+      {/* Animated cover (Pro only) — WebGPU shader. Falls back to a
+          static gradient when WebGPU isn't available. */}
+      {isPro && <GalleryFxCard />}
 
       {/* Layout selector */}
       <section style={{ marginBottom: 20 }}>
@@ -12679,8 +12961,8 @@ function PublicPageEditor() {
               onClick={() => toast(`${row.label}: ${!row.val ? "on" : "off"}`, { tone: "default" })}
               style={{
                 width: 36, height: 20, borderRadius: 10,
-                background: row.val ? COLORS.ink : COLORS.card,
-                border: `1px solid ${row.val ? COLORS.ink : COLORS.border}`,
+                background: row.val ? COLORS.fill : COLORS.card,
+                border: `1px solid ${row.val ? COLORS.accent : COLORS.border}`,
                 cursor: "pointer", position: "relative", flexShrink: 0,
               }}
             >
@@ -12725,7 +13007,7 @@ function PublicPageEditor() {
             type="button"
             onClick={() => openDrawer("talent-custom-domain")}
             style={{
-              background: COLORS.ink, color: "#fff", border: "none",
+              background: COLORS.fill, color: "#fff", border: "none",
               borderRadius: RADIUS.md, padding: "6px 14px", fontSize: 12,
               fontWeight: 600, cursor: "pointer", fontFamily: FONTS.body,
             }}
@@ -12747,6 +13029,112 @@ function PublicPageEditor() {
           </button>
         )}
       </section>
+
+      {/* Mobile preview pane — appears when "Preview" toggle is on.
+          Renders an iPhone-shaped card showing what tulala.digital/t/<slug>
+          looks like on a phone. Pure CSS frame; no iframe (we don't have
+          the public-page route in the prototype yet, so we render a
+          stylized mock from the same MY_TALENT_PROFILE data). */}
+      {preview && (
+        <section
+          aria-label="Mobile preview"
+          style={{
+            marginTop: 24,
+            padding: 20,
+            background: COLORS.surfaceAlt,
+            borderRadius: RADIUS.lg,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body }}>
+            Mobile preview · 390 × 844
+          </div>
+          <div
+            data-tulala-mobile-preview
+            style={{
+              width: 320,
+              height: 640,
+              borderRadius: 36,
+              background: "#0B0B0D",
+              padding: 8,
+              boxShadow: "0 24px 60px -10px rgba(11,11,13,0.30)",
+              position: "relative",
+            }}
+          >
+            {/* Notch */}
+            <div style={{
+              position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+              width: 86, height: 22, borderRadius: 12, background: "#0B0B0D",
+              zIndex: 2,
+            }} />
+            {/* Screen */}
+            <div
+              style={{
+                width: "100%", height: "100%",
+                borderRadius: 28,
+                background: "#fff",
+                overflowY: "auto",
+                fontFamily: FONTS.body,
+                position: "relative",
+              }}
+            >
+              {/* Cover banner */}
+              <div style={{
+                height: 180,
+                background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.accentDeep} 100%)`,
+                display: "flex", alignItems: "flex-end", padding: 14, color: "#fff",
+              }}>
+                <div>
+                  <div style={{ fontSize: 11, opacity: 0.8, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                    {profile.specialties[0] ?? "Talent"}
+                  </div>
+                  <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: -0.5 }}>
+                    {profile.name}
+                  </div>
+                  <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
+                    {profile.currentLocation}
+                  </div>
+                </div>
+              </div>
+              {/* Stats / measurements */}
+              <div style={{ padding: "16px 16px 8px" }}>
+                <p style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5, margin: 0 }}>
+                  {profile.measurementsSummary} · {profile.bookingStats.completedBookings} bookings · {profile.bookingStats.yearsActive}y experience
+                </p>
+              </div>
+              {/* Photo grid */}
+              <div style={{ padding: "0 12px 12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                {[0,1,2,3].map(i => (
+                  <div key={i} style={{
+                    paddingBottom: "100%", borderRadius: 8,
+                    background: `linear-gradient(${i*45}deg, ${COLORS.accentSoft}, ${COLORS.surfaceAlt})`,
+                  }} />
+                ))}
+              </div>
+              {/* Contact CTA */}
+              <div style={{ padding: "0 16px 20px" }}>
+                <button type="button" disabled style={{
+                  width: "100%", padding: "12px 14px", borderRadius: 12,
+                  background: COLORS.fill, color: "#fff", border: "none",
+                  fontSize: 13, fontWeight: 700, fontFamily: FONTS.body,
+                  cursor: "default",
+                }}>
+                  Send an inquiry
+                </button>
+                <div style={{ fontSize: 10.5, color: COLORS.inkDim, textAlign: "center", marginTop: 8 }}>
+                  Powered by Tulala
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
+            This is what visitors see at <strong>tulala.digital/t/{profile.name.toLowerCase().replace(/\s+/g, "-")}</strong>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

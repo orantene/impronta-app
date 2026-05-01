@@ -27,7 +27,10 @@ import {
   TALENT_PAGES,
   TALENT_PAGE_META,
   TALENT_STATE_LABEL,
+  TAXONOMY,
+  PENDING_TALENT,
   MY_TALENT_PROFILE,
+  MY_CLIENT_BRAND,
   TENANT,
   WORKSPACE_PAGES,
   getClients,
@@ -60,7 +63,12 @@ import {
   type Role,
   type Surface,
   type TalentPage,
+  type TalentProfile,
+  type TaxonomyParentId,
   type WorkspacePage,
+  FAB_PALETTE_OPEN_EVENT,
+  FAB_PALETTE_CHANGED_EVENT,
+  type FabPaletteChangedDetail,
 } from "./_state";
 import {
   Affordance,
@@ -69,6 +77,7 @@ import {
   Card,
   CapNudge,
   CapsLabel,
+  ClientTrustBadge,
   ClientTrustChip,
   CompactLockedCard,
   EmptyState,
@@ -89,6 +98,11 @@ import {
   StateChip,
   StatDot,
   StatusCard,
+  StatusStrip,
+  PlanLockPill,
+  TrustBadgeGroup,
+  ProfileClaimStatusChip,
+  ProfilePhotoBadgeOverlay,
   StatusPill,
   PlanChip,
   Popover,
@@ -109,6 +123,8 @@ import {
   RowSkeleton,
 } from "./_primitives";
 import { SavedViewsBar, LoadMore, QuickReplyButtons, downloadCsv, WorkspaceActivationBanner, DemoDataBanner } from "./_wave2";
+import { pinNextConversation as pinNextConversationP } from "./_messages";
+import { NotificationsBell } from "./_notifications-hub";
 // WS-13.1 — lazy-load non-workspace surfaces so the workspace JS bundle
 // doesn't ship talent / client / platform code unless the user actually
 // switches surface. Each surface is ~3–6 MB of inline styles + logic.
@@ -117,11 +133,18 @@ const TalentSurface = dynamic(() => import("./_talent").then((m) => ({ default: 
 const ClientSurface = dynamic(() => import("./_client").then((m) => ({ default: m.ClientSurface })), { ssr: false });
 const PlatformSurface = dynamic(() => import("./_platform").then((m) => ({ default: m.PlatformSurface })), { ssr: false });
 import {
-  EmbeddedCommandPalette,
   ShortcutHelpOverlay,
   useKeyboardLayer,
   BulkActionBar,
+  WorkspaceBody,
+  InquiryStatusChip,
 } from "./_workspace";
+import { ParticipantsStack, type Participant } from "./_talent";
+// MessagesShell is lazy-loaded with ssr:false because it imports
+// ConversationThread from _talent.tsx, which transitively pulls in
+// react-virtuoso — not SSR-safe. Lazy import keeps the prototype
+// SSR-renderable while the messages shell is client-only.
+const MessagesShell = dynamic(() => import("./_messages").then(m => m.MessagesShell), { ssr: false });
 
 // ════════════════════════════════════════════════════════════════════
 // Prototype control bar
@@ -138,6 +161,7 @@ export function ControlBar() {
     setPage,
     setTalentPage,
     setClientPage,
+    setClientProfile,
     setPlatformPage,
   } = useProto();
 
@@ -166,7 +190,7 @@ export function ControlBar() {
       role="banner"
       aria-label="Prototype control bar"
       style={{
-        background: "#0F0F11",
+        background: COLORS.fill,
         color: "#fff",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         padding: "6px 14px",
@@ -266,12 +290,23 @@ export function ControlBar() {
       )}
 
       {state.surface === "client" && (
-        <SegmentedControl
-          label="Page"
-          value={state.clientPage}
-          options={CLIENT_PAGES.map((p) => ({ value: p, label: CLIENT_PAGE_META[p].label }))}
-          onChange={(v) => setClientPage(v as ClientPage)}
-        />
+        <>
+          <SegmentedControl
+            label="Page"
+            value={state.clientPage}
+            options={CLIENT_PAGES.map((p) => ({ value: p, label: CLIENT_PAGE_META[p].label }))}
+            onChange={(v) => setClientPage(v as ClientPage)}
+          />
+          <SegmentedControl
+            label="Profile"
+            value={state.clientProfile}
+            options={[
+              { value: "martina", label: "Martina (business)" },
+              { value: "gringo",  label: "The Gringo (person)" },
+            ]}
+            onChange={(v) => setClientProfile(v as "martina" | "gringo")}
+          />
+        </>
       )}
 
       {state.surface === "platform" && (
@@ -457,7 +492,10 @@ const PAGE_ICON: Record<string, "bolt" | "mail" | "calendar" | "team" | "user" |
 // ════════════════════════════════════════════════════════════════════
 
 export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void }) {
-  const { state, setPage, setWorkspaceLayout } = useProto();
+  const { state, setPage, setWorkspaceLayout, pendingTalent, verificationRequests } = useProto();
+  const pendingVerifications = verificationRequests.filter(r =>
+    r.status === "submitted" || r.status === "in_review" || r.status === "pending_user_action"
+  ).length;
   // WS-3.2 — "workspace" is now "settings"; check both for backward compat
   const isSettingsActive = state.page === "settings" || state.page === "workspace";
   const canCreate = meetsRole(state.role, "editor");
@@ -477,6 +515,21 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
         zIndex: Z.topbar,
       }}
     >
+      <style>{`
+        /* Mobile compaction (premium): drop Search pill + theme + sidebar
+           toggle from the workspace topbar — they're keyboard-driven on
+           desktop and rarely tapped on mobile. Quick-create stays so the
+           "+ New" affordance is one tap away. */
+        @media (max-width: 720px) {
+          [data-tulala-app-topbar] { padding: 0 14px !important; }
+          [data-tulala-app-topbar-row] { gap: 8px !important; height: 46px !important; }
+          [data-tulala-topbar-search] { display: none !important; }
+          [data-tulala-app-topbar-right] [aria-label="Workspace settings"],
+          [data-tulala-app-topbar-right] [aria-label="Switch to sidebar layout"] {
+            display: none !important;
+          }
+        }
+      `}</style>
       <div
         data-tulala-app-topbar-row
         style={{
@@ -492,10 +545,20 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
         <nav ref={topbarNavRef} data-tulala-app-topbar-nav aria-label="Workspace sections" style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, overflow: "auto" }}>
           {WORKSPACE_PAGES.map((p) => {
             const active = state.page === p;
+            // 2026 redesign — surface pending-approval count on the Roster tab
+            // so the signal is visible from anywhere in the workspace, not
+            // just from the Roster page itself. Roster tab now splits the
+            // signal: pending self-registrations (amber) and pending IG/
+            // Tulala verifications (indigo) render as separate sub-dots so
+            // admins can tell at a glance which queue needs attention.
+            const showRosterBadges = p === "roster" && (pendingTalent.length + pendingVerifications) > 0;
+            const pageBadge = p === "roster" ? (pendingTalent.length + pendingVerifications) : 0;
             return (
               <button
                 key={p}
                 onClick={() => setPage(p)}
+                title={PAGE_META[p].description}
+                aria-label={PAGE_META[p].description ? `${PAGE_META[p].label} — ${PAGE_META[p].description}` : PAGE_META[p].label}
                 style={{
                   background: "transparent",
                   border: "none",
@@ -508,6 +571,9 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
                   letterSpacing: 0.1,
                   borderRadius: 7,
                   position: "relative",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
                   transition: `color ${TRANSITION.micro}, background ${TRANSITION.micro}`,
                 }}
                 onMouseEnter={(e) => {
@@ -519,6 +585,48 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
               >
                 {/* WS-3.2 — "roster" inherits the entity-type label (Talent/Models/Artists) */}
                 {p === "roster" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label}
+                {showRosterBadges ? (
+                  <span aria-label={`${pendingTalent.length} pending approvals · ${pendingVerifications} pending verifications`}
+                    title={`${pendingTalent.length} pending approval${pendingTalent.length === 1 ? "" : "s"} · ${pendingVerifications} pending verification${pendingVerifications === 1 ? "" : "s"}`}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                    {pendingTalent.length > 0 && (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
+                        background: COLORS.amber, color: "#fff",
+                        fontSize: 10, fontWeight: 700, lineHeight: 1,
+                      }}>{pendingTalent.length}</span>
+                    )}
+                    {pendingVerifications > 0 && (
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        minWidth: 16, height: 16, padding: "0 5px", borderRadius: 999,
+                        background: COLORS.indigo, color: "#fff",
+                        fontSize: 10, fontWeight: 700, lineHeight: 1,
+                      }}>{pendingVerifications}</span>
+                    )}
+                  </span>
+                ) : pageBadge > 0 && (
+                  <span
+                    aria-label={`${pageBadge} pending`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 16,
+                      height: 16,
+                      padding: "0 5px",
+                      borderRadius: 999,
+                      background: COLORS.amber,
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {pageBadge}
+                  </span>
+                )}
                 <span
                   aria-hidden
                   style={{
@@ -527,7 +635,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
                     left: 8,
                     right: 8,
                     height: 2,
-                    background: COLORS.ink,
+                    background: COLORS.fill,
                     borderRadius: 2,
                     opacity: active ? 1 : 0,
                     transform: active ? "scaleX(1)" : "scaleX(0.4)",
@@ -582,9 +690,36 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
           </button>
         )}
 
-        {/* Right side — Quick create + settings shortcut + sidebar layout toggle. */}
+        {/* Right side — search chip + settings + sidebar layout toggle.
+            "+ New" + AI assistant unified into BottomActionFab (bottom-right). */}
         <div data-tulala-app-topbar-right style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {canCreate && <QuickCreateMenu />}
+          {/* #2 — Global search chip. Opens the existing CommandPalette
+              (⌘K) so power-users can find anything instantly. */}
+          {onOpenSearch && (
+            <button type="button" onClick={onOpenSearch}
+              aria-label="Search anything (⌘K)"
+              data-tulala-topbar-search-right
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "6px 10px 6px 8px", borderRadius: 8,
+                border: `1px solid ${COLORS.borderSoft}`,
+                background: COLORS.surfaceAlt, color: COLORS.inkMuted,
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: 500,
+                cursor: "pointer", whiteSpace: "nowrap",
+                transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = COLORS.border; e.currentTarget.style.color = COLORS.ink; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = COLORS.borderSoft; e.currentTarget.style.color = COLORS.inkMuted; }}
+            >
+              <Icon name="search" size={12} stroke={1.7} />
+              <span>Search</span>
+              <span style={{
+                marginLeft: 4, padding: "1px 5px", borderRadius: 4,
+                background: "rgba(11,11,13,0.06)",
+                fontSize: 9.5, fontFamily: FONTS.mono, color: COLORS.inkMuted,
+              }}>⌘K</span>
+            </button>
+          )}
           <Popover content="Workspace settings">
             <button
               type="button"
@@ -592,7 +727,7 @@ export function WorkspaceTopbar({ onOpenSearch }: { onOpenSearch?: () => void })
               aria-label="Workspace settings"
               style={{
                 ...iconButtonStyle,
-                background: isSettingsActive ? COLORS.ink : "#fff",
+                background: isSettingsActive ? COLORS.fill : "#fff",
                 color: isSettingsActive ? "#fff" : COLORS.inkMuted,
                 borderColor: isSettingsActive ? COLORS.ink : COLORS.borderSoft,
               }}
@@ -666,6 +801,86 @@ function BellIcon() {
       <path d="M10 21a2 2 0 0 0 4 0" />
     </svg>
   );
+}
+
+/**
+ * Canonical "what can I create now?" list. Used by both the desktop
+ * QuickCreateMenu and the mobile FloatingFab popup so the choices stay
+ * in sync. Each item is gated by role + plan.
+ */
+type QuickCreateItem = {
+  id: string;
+  label: string;
+  sub: string;
+  emoji: string;
+  drawer: string;
+  drawerPayload?: Record<string, unknown>;
+  shortcut: string;
+  canDo: boolean;
+};
+function useQuickCreateItems(): QuickCreateItem[] {
+  const { state } = useProto();
+  return [
+    {
+      id: "new-inquiry", label: "New inquiry", emoji: "📨",
+      sub: "Capture a lead from a client",
+      drawer: "new-inquiry", shortcut: "G I",
+      canDo: meetsRole(state.role, "coordinator") || state.plan === "free",
+    },
+    {
+      id: "new-booking", label: "New booking", emoji: "📅",
+      sub: "Confirmed job — skip the inquiry",
+      drawer: "new-booking", shortcut: "G B",
+      canDo: meetsRole(state.role, "coordinator"),
+    },
+    {
+      id: "new-talent", label: "Add talent", emoji: "👤",
+      sub: "Create a roster profile",
+      drawer: "new-talent", shortcut: "G T",
+      canDo: meetsRole(state.role, "editor"),
+    },
+    {
+      id: "new-client", label: "Add client", emoji: "🏷",
+      sub: "Track a relationship",
+      drawer: "client-profile", drawerPayload: { id: "new" }, shortcut: "G C",
+      canDo: meetsRole(state.role, "coordinator") && state.plan !== "free",
+    },
+    {
+      id: "invite-team", label: "Invite teammate", emoji: "👥",
+      sub: "Add a coordinator or editor",
+      drawer: "team", shortcut: "G U",
+      canDo: meetsRole(state.role, "admin"),
+    },
+    {
+      id: "snippets", label: "New snippet", emoji: "💬",
+      sub: "Reusable reply for the message composer",
+      drawer: "inbox-snippets", shortcut: "G S",
+      canDo: meetsRole(state.role, "coordinator"),
+    },
+    {
+      id: "share-card", label: "Share talent", emoji: "🔗",
+      sub: "Send a client-facing standalone link",
+      drawer: "talent-share-card", shortcut: "G H",
+      canDo: meetsRole(state.role, "coordinator"),
+    },
+  ];
+}
+
+/**
+ * Hook for the mobile FAB. Returns the canonical create-actions filtered
+ * to what this user can do. Use as: `actions={useQuickCreateActionsFiltered()}`.
+ */
+function useQuickCreateActionsFiltered(): import("./_primitives").FabAction[] {
+  const { openDrawer } = useProto();
+  return useQuickCreateItems()
+    .filter(it => it.canDo)
+    .map(it => ({
+      id: it.id,
+      label: it.label,
+      sub: it.sub,
+      emoji: it.emoji,
+      onClick: () => openDrawer(it.drawer as Parameters<typeof openDrawer>[0], it.drawerPayload),
+    }));
 }
 
 function QuickCreateMenu() {
@@ -757,7 +972,7 @@ function QuickCreateMenu() {
           alignItems: "center",
           gap: 6,
           padding: "7px 12px 7px 10px",
-          background: COLORS.ink,
+          background: COLORS.fill,
           color: "#fff",
           border: "none",
           borderRadius: 8,
@@ -780,7 +995,7 @@ function QuickCreateMenu() {
             position: "absolute",
             top: "calc(100% + 6px)",
             right: 0,
-            background: "#15151A",
+            background: COLORS.fillDeep,
             color: "#fff",
             borderRadius: 12,
             padding: 6,
@@ -918,37 +1133,53 @@ const TALENT_UNREAD = TALENT_NOTIFICATION_COUNT;
 const WORKSPACE_UNREAD = WORKSPACE_NOTIFICATION_COUNT;
 
 export function TulalaIdentityBar() {
-  const { state, openDrawer, flipMode, toast } = useProto();
+  const { state, openDrawer, flipMode, toast, setClientPage } = useProto();
   const { surface, alsoTalent, role, plan, entityType } = state;
 
-  // Only the hybrid-user surfaces (workspace + talent) get this bar.
-  // Client and platform are different products with their own chrome.
-  if (surface !== "workspace" && surface !== "talent") return null;
+  // Identity bar renders for the three end-user surfaces (workspace +
+  // talent + client). Platform HQ has its own dark chrome and skips it.
+  if (surface === "platform") return null;
 
-  const userName = MY_TALENT_PROFILE.name;
-  const userInitials = MY_TALENT_PROFILE.initials;
-
-  // Acting-as context flips with mode. Workspace = the agency the user
-  // owns. Talent = the agency the user is currently representing.
   const inWorkspace = surface === "workspace";
-  const actingLabel = inWorkspace ? TENANT.name : MY_TALENT_PROFILE.primaryAgency;
+  const inClient    = surface === "client";
+  // Resolve client profile from the URL/state-driven id. Two profiles
+  // for QA: Martina Beach Club (business) and The Gringo (personal).
+  // Inline-defined to dodge HMR cache issues with the fresh export.
+  const CP = {
+    martina: { name: "Martina Beach Club", initials: "MB", industry: "Hospitality · beach club", contactName: "Martina González", photoUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80", isBusiness: true },
+    gringo:  { name: "The Gringo",         initials: "TG", industry: "Personal client",          contactName: "The Gringo",        photoUrl: "https://i.pravatar.cc/300?img=33", isBusiness: false },
+  } as const;
+  const activeClientProfile = CP[state.clientProfile] ?? CP.martina;
+  const userName = inClient ? activeClientProfile.contactName : MY_TALENT_PROFILE.name;
+  const userInitials = inClient ? activeClientProfile.initials : MY_TALENT_PROFILE.initials;
+  const userPhotoUrl = inClient ? activeClientProfile.photoUrl : undefined;
+
+  // Acting-as context flips with surface:
+  const actingLabel = inWorkspace ? TENANT.name
+    : inClient ? activeClientProfile.name
+    : MY_TALENT_PROFILE.primaryAgency;
+  // Subtext stays terse — the plan tier now has its own badge inline,
+  // so this just clarifies the role + entity context.
   const actingSubLabel = inWorkspace
-    ? `${plan.charAt(0).toUpperCase() + plan.slice(1)} · ${entityType} · ${role.charAt(0).toUpperCase() + role.slice(1)}`
+    ? `${role.charAt(0).toUpperCase() + role.slice(1)} · ${entityType}`
+    : inClient ? (activeClientProfile.isBusiness ? "Business client" : "Personal client")
     : "Primary agency";
-  // Acting-as detail line — surfaces a secondary metric next to the
-  // workspace/agency name so the chip says more than just "Acme Models".
-  // Workspace shows pending receivables; talent shows confirmed bookings
-  // count for the active agency relationship. Mocked.
   const actingDetail = inWorkspace
     ? `${fmtMoney(4200)} pending · 3 confirmed`
+    : inClient ? activeClientProfile.industry
     : `3 confirmed · ${fmtMoney(4200)} YTD`;
   const onActingClick = () =>
-    inWorkspace ? openDrawer("tenant-switcher") : openDrawer("talent-agency-relationship");
+    inWorkspace ? openDrawer("tenant-switcher")
+    : inClient ? openDrawer("client-brand-switcher")
+    : openDrawer("talent-agency-relationship");
 
-  // The notifications + help drawers are different on each side — the
-  // bell opens the right one based on surface.
-  const notificationsDrawerId = inWorkspace ? "notifications" : "talent-notifications";
-  const notificationsUnread = inWorkspace ? WORKSPACE_UNREAD : TALENT_UNREAD;
+  // The notifications + help drawers differ per surface.
+  const notificationsDrawerId = inWorkspace ? "notifications"
+    : inClient ? "client-today-pulse"
+    : "talent-notifications";
+  const notificationsUnread = inWorkspace ? WORKSPACE_UNREAD
+    : inClient ? 0
+    : TALENT_UNREAD;
 
   return (
     <header
@@ -996,7 +1227,7 @@ export function TulalaIdentityBar() {
         {/* User identity — the one human across modes. Click opens
             the account menu (audit #3). */}
         <AccountMenuTrigger userName={userName} userInitials={userInitials}>
-          <Avatar initials={userInitials} size={28} tone="ink" />
+          <Avatar initials={userInitials} size={26} tone="ink" hashSeed={userName} photoUrl={userPhotoUrl} />
           <span
             data-tulala-identity-name
             style={{
@@ -1009,7 +1240,14 @@ export function TulalaIdentityBar() {
           >
             {userName}
           </span>
-          <Icon name="chevron-down" size={10} color={COLORS.inkDim} />
+          {/* Hamburger icon — universal "menu" affordance. Replaces the
+              ambiguous chevron-down so the avatar reads as a tappable
+              menu trigger, not just identity. */}
+          <span aria-hidden style={{ display: "inline-flex", alignItems: "center", color: COLORS.inkMuted, marginLeft: 1 }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+          </span>
         </AccountMenuTrigger>
 
         {/* Subtle separator dot between identity and acting-as.
@@ -1068,6 +1306,9 @@ export function TulalaIdentityBar() {
             }}
           >
             <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
               fontFamily: FONTS.body,
               fontSize: 13,
               fontWeight: 500,
@@ -1077,7 +1318,18 @@ export function TulalaIdentityBar() {
               overflow: "hidden",
               textOverflow: "ellipsis",
               lineHeight: 1.15,
-            }}>{actingLabel}</span>
+            }}>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{actingLabel}</span>
+              {inWorkspace && (
+                <span
+                  data-tulala-plan-tier-badge
+                  data-plan={plan}
+                  style={{ flexShrink: 0, display: "inline-flex" }}
+                >
+                  <PlanChip plan={plan} variant="outline" />
+                </span>
+              )}
+            </span>
             <span data-tulala-acting-detail style={{
               fontFamily: FONTS.body,
               fontSize: 10,
@@ -1105,21 +1357,28 @@ export function TulalaIdentityBar() {
 
         <div style={{ flex: 1 }} />
 
-        {/* Mode toggle — the centerpiece. ONLY for hybrid users. Pill
-            with ink-filled active side; inactive side carries unread. */}
-        {alsoTalent && <ModeTogglePill surface={surface} flipMode={flipMode} />}
+        {/* Mode toggle — only for hybrid users (talent who also have a
+            workspace). Hidden on the client surface — clients are
+            single-mode and don't have a talent/workspace dual identity. */}
+        {alsoTalent && !inClient && <ModeTogglePill surface={surface} flipMode={flipMode} />}
 
-        {/* Global utilities — single source for both modes. */}
-        <IdentityBarIconButton
-          aria-label={`Notifications · ${notificationsUnread} unread`}
-          onClick={() => openDrawer(notificationsDrawerId)}
-          badge={notificationsUnread}
-        >
-          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
-            <path d="M10 21a2 2 0 0 0 4 0" />
-          </svg>
-        </IdentityBarIconButton>
+        {/* Global utilities — single source for both modes.
+            Workspace + talent surfaces use the new NotificationsBell
+            popover hub. Client keeps its dedicated /notifications page. */}
+        {inClient ? (
+          <IdentityBarIconButton
+            aria-label={`Notifications · ${notificationsUnread} unread`}
+            onClick={() => setClientPage("notifications")}
+            badge={notificationsUnread}
+          >
+            <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
+              <path d="M10 21a2 2 0 0 0 4 0" />
+            </svg>
+          </IdentityBarIconButton>
+        ) : (
+          <NotificationsBell />
+        )}
 
         <IdentityBarIconButton
           aria-label="Help"
@@ -1190,26 +1449,35 @@ function AccountMenuTrigger({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={`Signed in as ${userName}`}
+        aria-label={`Open account menu — signed in as ${userName}`}
         aria-haspopup="menu"
         aria-expanded={open}
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 9,
-          background: open ? "rgba(11,11,13,0.06)" : "transparent",
-          border: "none",
+          gap: 8,
+          // Always-on subtle pill so the trigger reads as a button, not
+          // just an avatar. Stronger when open / hovered. Border makes
+          // it visually distinct from a static avatar.
+          background: open ? "rgba(11,11,13,0.08)" : "rgba(11,11,13,0.035)",
+          border: `1px solid ${open ? "rgba(11,11,13,0.12)" : "rgba(11,11,13,0.07)"}`,
           cursor: "pointer",
-          padding: "4px 6px 4px 4px",
+          padding: "3px 8px 3px 3px",
           borderRadius: 999,
           fontFamily: FONTS.body,
-          transition: `background ${TRANSITION.micro}`,
+          transition: `background ${TRANSITION.micro}, border-color ${TRANSITION.micro}`,
         }}
         onMouseEnter={(e) => {
-          if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.04)";
+          if (!open) {
+            e.currentTarget.style.background = "rgba(11,11,13,0.06)";
+            e.currentTarget.style.borderColor = "rgba(11,11,13,0.10)";
+          }
         }}
         onMouseLeave={(e) => {
-          if (!open) e.currentTarget.style.background = "transparent";
+          if (!open) {
+            e.currentTarget.style.background = "rgba(11,11,13,0.035)";
+            e.currentTarget.style.borderColor = "rgba(11,11,13,0.07)";
+          }
         }}
       >
         {children}
@@ -1290,7 +1558,7 @@ function AccountMenuTrigger({
           <AccountMenuItem
             label="Language"
             sub="EN · ES"
-            onClick={() => { setOpen(false); toast("Language settings — coming soon"); }}
+            onClick={() => { setOpen(false); toast("Coming soon"); }}
           />
           <AccountMenuItem
             label="Keyboard shortcuts"
@@ -1384,7 +1652,7 @@ function LocaleToggle() {
             onClick={() => {
               if (active) return;
               setLocale(code);
-              toast(`Language · ${code === "EN" ? "English" : "Español"}`);
+              toast(`Language set to ${code === "EN" ? "English" : "Español"}`);
             }}
             aria-pressed={active}
             style={{
@@ -1470,7 +1738,7 @@ function ModeTogglePillButton({
       aria-pressed={active}
       onClick={onClick}
       style={{
-        background: active ? COLORS.ink : "transparent",
+        background: active ? COLORS.fill : "transparent",
         color: active ? "#fff" : COLORS.inkMuted,
         border: "none",
         borderRadius: 999,
@@ -1621,16 +1889,35 @@ export function HybridShell({ children }: { children: ReactNode }) {
 
 export function WorkspaceShell() {
   const { state, setPage, openDrawer } = useProto();
-  const [cmdOpen,   setCmdOpen]   = useState(false);
   const [helpOpen,  setHelpOpen]  = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // WS-7.4 — global keyboard shortcuts
+  const openPalette = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(FAB_PALETTE_OPEN_EVENT));
+    }
+  };
+
+  // Track FAB palette state via the broadcast event so global keyboard
+  // shortcuts (G I, j/k, etc.) suppress while the palette is open.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<FabPaletteChangedDetail>).detail;
+      setPaletteOpen(!!detail?.open);
+    };
+    window.addEventListener(FAB_PALETTE_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(FAB_PALETTE_CHANGED_EVENT, onChange);
+  }, []);
+
+  // WS-7.4 — global keyboard shortcuts. ⌘K + onOpenSearch both route to
+  // the unified BottomActionFab palette via window event.
   useKeyboardLayer({
-    onOpenPalette: () => setCmdOpen(true),
+    onOpenPalette: openPalette,
     onOpenHelp:    () => setHelpOpen((v) => !v),
     onNavigate:    setPage,
     onCompose:     () => openDrawer("new-inquiry"),
-    isModalOpen:   !!state.drawer.drawerId || cmdOpen || helpOpen,
+    isModalOpen:   !!state.drawer.drawerId || helpOpen || paletteOpen,
   });
 
   return (
@@ -1639,7 +1926,7 @@ export function WorkspaceShell() {
         <WorkspaceSidebarShell />
       ) : (
         <div style={{ background: COLORS.surface, minHeight: "calc(100vh - 56px - 56px - 50px)" }}>
-          <WorkspaceTopbar onOpenSearch={() => setCmdOpen(true)} />
+          <WorkspaceTopbar onOpenSearch={openPalette} />
           <main
             data-tulala-surface-main
             style={{
@@ -1652,8 +1939,6 @@ export function WorkspaceShell() {
           </main>
         </div>
       )}
-      {/* WS-7.1 Embedded palette (sidebar shell / workspace-scoped search) */}
-      <EmbeddedCommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
       {/* WS-7.5 Shortcut help overlay */}
       <ShortcutHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
     </HybridShell>
@@ -1753,6 +2038,8 @@ function WorkspaceSidebarShell() {
                 key={p}
                 type="button"
                 onClick={() => setPage(p)}
+                title={PAGE_META[p].description}
+                aria-label={PAGE_META[p].description ? `${PAGE_META[p].label} — ${PAGE_META[p].description}` : PAGE_META[p].label}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1846,10 +2133,14 @@ function PageRouter({ page }: { page: WorkspacePage }) {
     case "overview":
       body = <OverviewPage />;
       break;
-    // WS-3.2 — canonical "messages" route (was "inbox")
+    // WS-3.2 — canonical "messages" route (was "inbox").
+    // 2026 redesign: legacy "inbox" alias now also routes to MessagesShell
+    // so the old UnifiedInboxPage chrome stops appearing for any user that
+    // bookmarks the legacy URL. (UnifiedInboxPage kept compiled for any
+    // direct programmatic invocations elsewhere in the prototype.)
     case "messages":
-    case "inbox":      // legacy alias — redirect resolves before this, but keep fallback
-      body = <UnifiedInboxPage />;
+    case "inbox":
+      body = <WorkspaceMessagesPage />;
       break;
     case "calendar":
       body = <CalendarPage />;
@@ -1866,6 +2157,12 @@ function PageRouter({ page }: { page: WorkspacePage }) {
       break;
     case "clients":
       body = <ClientsPage />;
+      break;
+    case "operations":
+      body = <OperationsPage />;
+      break;
+    case "production":
+      body = <ProductionPage />;
       break;
     // WS-3.4 — "site" is en route to its own surface; for now keep it
     // inside workspace but accessible at its old path.
@@ -1891,6 +2188,56 @@ function PageRouter({ page }: { page: WorkspacePage }) {
 // Page header shared
 // ════════════════════════════════════════════════════════════════════
 
+/**
+ * Premium stat strip — replaces the 4-up StatusCard grid that was
+ * eating ~440px showing 4 numbers. Single white card with 4 inline
+ * tappable cells, separated by hairlines. Each cell has a tone dot,
+ * compact label, big tabular number. Mobile collapses to 2x2.
+ */
+function WorkspaceStatStrip({ items }: {
+  items: { label: string; value: number; tone: string; onClick: () => void }[];
+}) {
+  return (
+    <div data-tulala-stat-strip style={{
+      background: "#fff", borderRadius: 12,
+      border: `1px solid ${COLORS.borderSoft}`,
+      boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+      display: "grid",
+      gridTemplateColumns: `repeat(${items.length}, 1fr)`,
+      overflow: "hidden",
+    }}>
+      <style>{`
+        @media (max-width: 640px) {
+          [data-tulala-stat-strip] { grid-template-columns: 1fr 1fr !important; }
+          [data-tulala-stat-strip] > button { border-bottom: 1px solid ${COLORS.borderSoft} !important; }
+          [data-tulala-stat-strip] > button:nth-last-child(-n+2) { border-bottom: none !important; }
+          [data-tulala-stat-strip] > button:nth-child(2n) { border-right: none !important; }
+        }
+      `}</style>
+      {items.map((it, i) => (
+        <button key={it.label} type="button" onClick={it.onClick} style={{
+          background: "transparent", border: "none", cursor: "pointer",
+          padding: "12px 14px", textAlign: "left",
+          borderRight: i < items.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+          fontFamily: FONTS.body,
+        }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(11,11,13,0.025)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: it.tone }} />
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
+          </div>
+          <div style={{
+            fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+            color: COLORS.ink, lineHeight: 1, fontVariantNumeric: "tabular-nums",
+          }}>{it.value}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PageHeader({
   eyebrow,
   title,
@@ -1907,18 +2254,45 @@ function PageHeader({
 }) {
   return (
     <>
-    <style>{`@media (max-width: 680px) { [data-tulala-page-back] { display: flex !important; } }`}</style>
+    <style>{`
+      @media (max-width: 680px) {
+        [data-tulala-page-back] { display: flex !important; }
+        /* Mobile page-header compaction (system-wide).
+           Goal: header = navigation/context, never a hero section.
+             - title shrinks to 19px (was 30px)
+             - eyebrow hidden (it almost always repeats the title)
+             - subtitle hidden (rarely earns its space on mobile)
+             - bottom margin 10px (was 24px)
+           This propagates to every PageHeader caller automatically. */
+        [data-tulala-page-header] [data-tulala-h1] {
+          font-size: 19px !important;
+          line-height: 1.2 !important;
+          letter-spacing: -0.25px !important;
+          font-weight: 700 !important;
+        }
+        [data-tulala-page-header] {
+          margin-bottom: 10px !important;
+          gap: 8px !important;
+          align-items: baseline !important;
+        }
+        [data-tulala-page-header] [data-tulala-page-eyebrow] { display: none !important; }
+        [data-tulala-page-header] p { display: none !important; }
+        [data-tulala-page-header-actions] {
+          flex-shrink: 0 !important;
+        }
+      }
+    `}</style>
     <div
       data-tulala-page-header
       style={{
         display: "flex",
         alignItems: "flex-start",
         gap: 16,
-        marginBottom: 24,
+        marginBottom: 14,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Back button: visible only on mobile via CSS (#1) */}
+        {/* Legacy back button (rare — kept for screens that pass onBack) */}
         {onBack && (
           <button
             type="button"
@@ -1945,7 +2319,7 @@ function PageHeader({
           </button>
         )}
         {eyebrow && (
-          <div style={{ marginBottom: 6 }}>
+          <div data-tulala-page-eyebrow style={{ marginBottom: 6 }}>
             <CapsLabel>{eyebrow}</CapsLabel>
           </div>
         )}
@@ -1953,9 +2327,9 @@ function PageHeader({
           data-tulala-h1
           style={{
             fontFamily: FONTS.display,
-            fontSize: 30,
-            fontWeight: 500,
-            letterSpacing: -0.6,
+            fontSize: 24,
+            fontWeight: 600,
+            letterSpacing: -0.4,
             color: COLORS.ink,
             margin: 0,
             lineHeight: 1.15,
@@ -1967,11 +2341,11 @@ function PageHeader({
           <p
             style={{
               fontFamily: FONTS.body,
-              fontSize: 14,
+              fontSize: 13,
               color: COLORS.inkMuted,
-              margin: "6px 0 0",
-              lineHeight: 1.55,
-              maxWidth: 720,
+              margin: "4px 0 0",
+              lineHeight: 1.5,
+              maxWidth: 640,
             }}
           >
             {subtitle}
@@ -2131,7 +2505,7 @@ function TodaysFocusCard({
 }
 
 function OverviewPage() {
-  const { state, openDrawer, openUpgrade, completeTask, toast } = useProto();
+  const { state, openDrawer, openUpgrade, completeTask, toast, setPage } = useProto();
   const isFree = state.plan === "free";
   const canEdit = meetsRole(state.role, "editor");
 
@@ -2152,9 +2526,8 @@ function OverviewPage() {
   return (
     <>
       <PageHeader
-        eyebrow={`${greeting()}, ${MY_TALENT_PROFILE.name.split(" ")[0]} · ${TENANT.name}`}
-        title={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-        subtitle="Your workspace at a glance — what's moving, what's stuck, and what needs you."
+        title={`${greeting()}, ${MY_TALENT_PROFILE.name.split(" ")[0]}`}
+        subtitle={new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
         actions={
           canEdit && (
             <PrimaryButton onClick={() => openDrawer("new-inquiry")}>
@@ -2180,39 +2553,20 @@ function OverviewPage() {
         onOpen={() => openDrawer("today-pulse")}
       />
 
-      {/* Stat row */}
-      <Grid cols="4">
-        <StatusCard
-          label="Needs attention"
-          value={awaiting.length + draftCount}
-          caption="items needing your attention"
-          tone="amber"
-          onClick={() => openDrawer("today-pulse")}
-        />
-        <StatusCard
-          label="Active inquiries"
-          value={richInqs.filter((i) => i.stage !== "rejected" && i.stage !== "expired").length}
-          caption="across pipeline"
-          tone="ink"
-          onClick={() => openDrawer("pipeline")}
-        />
-        <StatusCard
-          label="Confirmed this week"
-          value={confirmedThisWeek.length}
-          caption="bookings on the calendar"
-          tone="green"
-          onClick={() => openDrawer("confirmed-bookings")}
-        />
-        <StatusCard
-          label="Profile views"
-          value={MOCK_STOREFRONT_STATS.views7d}
-          caption={`last 7 days · ${MOCK_STOREFRONT_STATS.viewsGrowth}`}
-          tone="ink"
-          onClick={() => openDrawer("storefront-visibility")}
-        />
-      </Grid>
+      {/* Stat strip — replaces the old 4-up StatusCard grid that ate
+          ~440px of vertical space showing 4 numbers. Premium pattern:
+          one compact card with 4 inline metrics, each tappable, no
+          card-frame chrome around individual values. */}
+      <WorkspaceStatStrip
+        items={[
+          { label: "Needs you", value: awaiting.length + draftCount, tone: COLORS.coral, onClick: () => openDrawer("today-pulse") },
+          { label: "Active", value: richInqs.filter((i) => i.stage !== "rejected" && i.stage !== "expired").length, tone: COLORS.indigo, onClick: () => openDrawer("pipeline") },
+          { label: "Confirmed", value: confirmedThisWeek.length, tone: COLORS.success, onClick: () => openDrawer("confirmed-bookings") },
+          { label: "Views 7d", value: MOCK_STOREFRONT_STATS.views7d, tone: COLORS.inkMuted, onClick: () => openDrawer("storefront-visibility") },
+        ]}
+      />
 
-      <div style={{ height: 24 }} />
+      <div style={{ height: 16 }} />
 
       {/* Primary row */}
       <Grid cols="2">
@@ -2264,7 +2618,157 @@ function OverviewPage() {
           affordance="See feed"
           onClick={() => openDrawer("team-activity")}
         />
+        <SecondaryCard
+          title="Approval queue"
+          description="Briefs, offers, and documents waiting for sign-off."
+          affordance="Review"
+          onClick={() => openDrawer("approval-flow")}
+        />
       </Grid>
+
+      {/* Analytics — premium section header (sentence-case, compact) */}
+      <div style={{ marginTop: 22 }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8, padding: "0 4px 10px",
+        }}>
+          <span aria-hidden style={{ width: 5, height: 5, borderRadius: "50%", background: COLORS.indigo }} />
+          <h2 style={{
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+            color: COLORS.ink, margin: 0, letterSpacing: -0.1,
+          }}>Analytics</h2>
+        </div>
+        <Grid cols="4">
+          <SecondaryCard
+            title="Revenue"
+            description="MRR, ARR, monthly trend and category breakdown."
+            affordance="Open"
+            onClick={() => openDrawer("workspace-revenue")}
+          />
+          <SecondaryCard
+            title="Conversion funnel"
+            description="Inquiry → offer → booking. Drop-off by stage."
+            affordance="Open"
+            onClick={() => openDrawer("conversion-funnel")}
+          />
+          <SecondaryCard
+            title="Top performers"
+            description="Talent and client rankings by YTD revenue."
+            affordance="Open"
+            onClick={() => openDrawer("top-performers")}
+          />
+          <SecondaryCard
+            title="Team workload"
+            description="Active load, messages, and reply time per coordinator."
+            affordance="Open"
+            onClick={() => openDrawer("coordinator-workload")}
+          />
+        </Grid>
+      </div>
+
+      {/* WS-20 — Operations entry points */}
+      <div style={{ marginTop: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 10,
+          }}
+        >
+          <h2
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 18,
+              fontWeight: 500,
+              color: COLORS.ink,
+              margin: 0,
+              letterSpacing: -0.2,
+            }}
+          >
+            Operations
+          </h2>
+        </div>
+        <Grid cols="3">
+          <SecondaryCard
+            title="My queue"
+            description="Your assigned inquiries sorted by SLA urgency."
+            affordance="Open"
+            onClick={() => openDrawer("my-queue")}
+          />
+          <SecondaryCard
+            title="SLA timers"
+            description="Response deadlines across all active inquiries."
+            affordance="Open"
+            onClick={() => openDrawer("sla-timers")}
+          />
+          <SecondaryCard
+            title="Automation rules"
+            description="Trigger-action rules that run automatically."
+            affordance="Open"
+            onClick={() => openDrawer("rules-builder")}
+          />
+          <SecondaryCard
+            title="Saved replies"
+            description="Reusable message templates with variable substitution."
+            affordance="Open"
+            onClick={() => openDrawer("saved-replies")}
+          />
+          <SecondaryCard
+            title="Vacation handover"
+            description="Reassign your workload while you're away."
+            affordance="Open"
+            onClick={() => openDrawer("vacation-handover")}
+          />
+          <SecondaryCard
+            title="On-call rotation"
+            description="Weekly schedule and escalation ladder."
+            affordance="Open"
+            onClick={() => openDrawer("on-call-rotation")}
+          />
+        </Grid>
+      </div>
+
+      {/* Pointers to the new Operations + Production pages */}
+      <div style={{ marginTop: 28, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <button
+          type="button"
+          onClick={() => setPage("operations")}
+          style={{
+            display: "flex", alignItems: "center", gap: 14,
+            padding: "16px 18px", textAlign: "left", cursor: "pointer",
+            background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md,
+            fontFamily: FONTS.body, transition: TRANSITION.sm,
+          }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: COLORS.indigoSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon name="bolt" size={18} color={COLORS.indigo} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>Operations</div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Analytics, queues, automations, comms.</div>
+          </div>
+          <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setPage("production")}
+          style={{
+            display: "flex", alignItems: "center", gap: 14,
+            padding: "16px 18px", textAlign: "left", cursor: "pointer",
+            background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md,
+            fontFamily: FONTS.body, transition: TRANSITION.sm,
+          }}
+        >
+          <div style={{ width: 40, height: 40, borderRadius: RADIUS.md, background: COLORS.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon name="team" size={18} color={COLORS.accent} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink }}>Production</div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Casting, crew, on-set, rights & safety.</div>
+          </div>
+          <Icon name="arrow-right" size={14} color={COLORS.inkMuted} />
+        </button>
+      </div>
 
       {/* Locked strip — what's available higher up */}
       {state.plan === "studio" && (
@@ -2358,7 +2862,30 @@ function OverviewPage() {
           >
             Recent activity
           </h2>
-          <GhostButton size="sm" onClick={() => openDrawer("team-activity")}>View all</GhostButton>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => openDrawer("ai-weekly-digest")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "4px 9px",
+                background: COLORS.royalSoft,
+                border: `1px solid rgba(95,75,139,0.2)`,
+                borderRadius: RADIUS.sm,
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                fontWeight: 600,
+                color: COLORS.royal,
+                cursor: "pointer",
+              }}
+            >
+              <Icon name="sparkle" size={11} color={COLORS.royal} stroke={1.8} />
+              Weekly digest
+            </button>
+            <GhostButton size="sm" onClick={() => openDrawer("team-activity")}>View all</GhostButton>
+          </div>
         </div>
         <div
           style={{
@@ -2466,7 +2993,7 @@ function OverviewFree() {
             style={{
               width: `${progressPct}%`,
               height: "100%",
-              background: COLORS.ink,
+              background: COLORS.fill,
               transition: "width .25s ease",
             }}
           />
@@ -2495,7 +3022,7 @@ function OverviewFree() {
                       }
                     } else {
                       completeTask(task.id);
-                      toast(`Marked "${task.label}" as done`);
+                      toast(`"${task.label}" marked done`);
                     }
                   }}
                   style={{
@@ -2703,8 +3230,26 @@ function OverviewFree() {
  * counts and last-activity timestamps. In production this would read from
  * a unified `events` view.
  */
+// ════════════════════════════════════════════════════════════════════
+// WORKSPACE MESSAGES — WhatsApp-style 3-pane (list + inline conversation)
+// ════════════════════════════════════════════════════════════════════
+// Aligns with TalentMessagesPage. List on the left, full inquiry workspace
+// (private/group tabs + rail) inline on the right. No drawer-on-click.
+//
+// Mobile: single-pane stack (list ↔ thread) — toggled via [data-mobile-pane].
+
+function WorkspaceMessagesPage() {
+  return <MessagesShell pov="admin" />;
+}
+
 function UnifiedInboxPage() {
-  const { openDrawer, toast } = useProto();
+  const { openDrawer, setPage, toast } = useProto();
+  // Route inquiry clicks through the new MessagesShell instead of the
+  // legacy drawer.
+  const goToInquiryMessages = (inquiryId: string) => {
+    pinNextConversationP(inquiryId);
+    setPage("messages");
+  };
   // Use RICH_INQUIRIES so we have nextActionBy / unread / lastActivityHrs.
   const inquiries = RICH_INQUIRIES;
   // WS-3.3 — "by-stage" adds pipeline columns view within Messages
@@ -2790,9 +3335,8 @@ function UnifiedInboxPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Inbox"
-        title="Unified inbox"
-        subtitle="Inquiry threads, mentions, and notifications in one place — sorted by what needs you next."
+        title="Inbox"
+        subtitle="Threads, mentions & notifications — sorted by what needs you."
         actions={
           <GhostButton size="sm" onClick={exportCsv}>
             Export CSV
@@ -2808,7 +3352,7 @@ function UnifiedInboxPage() {
           {
             label: "Mark read",
             onClick: () => {
-              toast(`Marked ${selected.size} read`);
+              toast(`Marked ${selected.size} ${selected.size === 1 ? "item" : "items"} read`);
               clearSelection();
             },
           },
@@ -2823,7 +3367,7 @@ function UnifiedInboxPage() {
             label: "Archive",
             tone: "red",
             onClick: () => {
-              toast(`Archived ${selected.size}`);
+              toast(`Archived ${selected.size} ${selected.size === 1 ? "item" : "items"}`);
               clearSelection();
             },
           },
@@ -2904,7 +3448,7 @@ function UnifiedInboxPage() {
               onClick={() => setFilter(f.id)}
               style={{
                 padding: "6px 12px",
-                background: active ? COLORS.ink : "rgba(11,11,13,0.04)",
+                background: active ? COLORS.fill : "rgba(11,11,13,0.04)",
                 color: active ? "#fff" : COLORS.ink,
                 border: "none",
                 borderRadius: 999,
@@ -3019,7 +3563,7 @@ function UnifiedInboxPage() {
                   {
                     label: "Snooze",
                     tone: "ink",
-                    onClick: () => toast(`Snoozed ${inq.clientName} 4h`),
+                    onClick: () => toast(`Snoozed ${inq.clientName} for 4h`),
                   },
                   {
                     label: "Archive",
@@ -3034,7 +3578,7 @@ function UnifiedInboxPage() {
                   ref={(el) => {
                     rowRefs.current[idx] = el;
                   }}
-                  onClick={() => openDrawer("inquiry-workspace", { inquiryId: inq.id })}
+                  onClick={() => goToInquiryMessages(inq.id)}
                   style={{
                     display: "flex",
                     alignItems: "flex-start",
@@ -3175,11 +3719,11 @@ function UnifiedInboxPage() {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <QuickReplyButtons
-                          onAccept={() => toast(`Accepted offer from ${inq.clientName}`)}
+                          onAccept={() => toast("Offer accepted")}
                           onCounter={() => {
-                            openDrawer("inquiry-workspace", { inquiryId: inq.id });
+                            goToInquiryMessages(inq.id);
                           }}
-                          onDecline={() => toast(`Declined offer from ${inq.clientName}`)}
+                          onDecline={() => toast("Offer declined")}
                         />
                       </div>
                     )}
@@ -3198,13 +3742,21 @@ function UnifiedInboxPage() {
           onMore={() => setPagesShown((p) => p + 1)}
         />
       )}
-      {/* FAB — new inquiry, mobile only (#4) */}
-      <FloatingFab
-        label="New inquiry"
-        onClick={() => openDrawer("new-inquiry")}
-      />
+      {/* FAB — full quick-create menu (mobile only) */}
+      <FabWithQuickCreate label="Create new" />
     </>
   );
+}
+
+/**
+ * Mobile FAB that opens the canonical quick-create sheet. Use this
+ * instead of <FloatingFab onClick={...}> on any page that wants the
+ * full "+ New" experience on small screens.
+ */
+function FabWithQuickCreate({ label = "Create new" }: { label?: string }) {
+  const actions = useQuickCreateActionsFiltered();
+  if (actions.length === 0) return null;
+  return <FloatingFab label={label} actions={actions} />;
 }
 
 // ─── WS-3.3 InboxPipelineView ────────────────────────────────────────────────
@@ -3343,7 +3895,7 @@ function parseInquiryDays(dateStr: string, displayMonth: number): number[] {
 }
 
 function CalendarPage() {
-  const { openDrawer } = useProto();
+  const { openDrawer, setPage } = useProto();
   const inquiries = RICH_INQUIRIES;
   const today = new Date();
   const [displayYear, setDisplayYear] = useState(today.getFullYear());
@@ -3386,18 +3938,36 @@ function CalendarPage() {
   };
   const goToToday = () => { setDisplayYear(today.getFullYear()); setDisplayMonth(today.getMonth()); };
 
+  // Month-aggregate counts for the StatusStrip.
+  const allMonthEvents = Object.values(events).flat();
+  const monthCounts = {
+    confirmed: allMonthEvents.filter((e) => e.tone === "green").length,
+    submitted: allMonthEvents.filter((e) => e.tone === "amber").length,
+    inProgress: allMonthEvents.filter((e) => e.tone === "ink").length,
+    expired: allMonthEvents.filter((e) => e.tone === "red").length,
+  };
+
   return (
     <>
       <PageHeader
-        eyebrow="Calendar"
-        title="Roster calendar"
-        subtitle="Confirmed bookings, holds, and blocked dates across all your talent. Click a day to drill in."
+        title="Calendar"
         actions={
           <SecondaryButton onClick={() => openDrawer("new-booking")}>
             New booking
           </SecondaryButton>
         }
       />
+
+      <StatusStrip
+        ariaLabel={`${monthLabel} overview`}
+        items={[
+          { id: "confirmed",  label: "Confirmed",   value: monthCounts.confirmed,  tone: "green" },
+          { id: "submitted",  label: "Submitted",   value: monthCounts.submitted,  tone: "amber" },
+          { id: "inProgress", label: "In progress", value: monthCounts.inProgress, tone: "ink" },
+          { id: "expired",    label: "Expired",     value: monthCounts.expired,    tone: "red" },
+        ]}
+      />
+
       <div
         style={{
           background: "#fff",
@@ -3458,9 +4028,7 @@ function CalendarPage() {
                 padding: "8px 10px",
                 fontSize: 11,
                 fontWeight: 600,
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                color: COLORS.inkMuted,
+                                color: COLORS.inkMuted,
               }}
             >
               {d}
@@ -3527,7 +4095,7 @@ function CalendarPage() {
                   <button
                     key={idx}
                     type="button"
-                    onClick={(ev) => { ev.stopPropagation(); openDrawer("inquiry-workspace", { inquiryId: e.id }); }}
+                    onClick={(ev) => { ev.stopPropagation(); pinNextConversationP(e.id); setPage("messages"); }}
                     style={{
                       fontSize: 10.5,
                       color: e.tone === "green" ? COLORS.green : e.tone === "amber" ? COLORS.amber : e.tone === "red" ? "#c0392b" : COLORS.ink,
@@ -3614,7 +4182,7 @@ function CalendarNavBtn({ label, onClick, disabled }: { label: string; onClick?:
 // ════════════════════════════════════════════════════════════════════
 
 function WorkPage() {
-  const { state, openDrawer, openUpgrade, toast } = useProto();
+  const { state, openDrawer, setPage, openUpgrade, toast } = useProto();
   const inquiries = getInquiries(state.plan);
   const canEdit = meetsRole(state.role, "coordinator");
   const isFree = state.plan === "free";
@@ -3663,7 +4231,7 @@ function WorkPage() {
         source: matchRich(iq)?.source.kind ?? "",
       })),
     );
-    toast(`Exported ${filteredInquiries.length} rows`);
+    toast(`Exported ${filteredInquiries.length} rows to CSV`);
   };
 
   const drafts = inquiries.filter((i) => i.stage === "draft" || i.stage === "hold");
@@ -3673,8 +4241,7 @@ function WorkPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Workflow"
-        title="In-flight work"
+        title="Workflow"
         subtitle="Every open inquiry grouped by where it's stuck — from first brief to confirmed booking."
         actions={
           <>
@@ -3689,31 +4256,14 @@ function WorkPage() {
         }
       />
 
-      <Grid cols="3">
-        <StatusCard
-          label="Drafts & holds"
-          value={drafts.length}
-          caption="not yet sent"
-          tone="amber"
-          onClick={() => openDrawer("drafts-holds")}
-        />
-        <StatusCard
-          label="Awaiting client"
-          value={awaiting.length}
-          caption="offers sent"
-          tone="amber"
-          onClick={() => openDrawer("awaiting-client")}
-        />
-        <StatusCard
-          label="Confirmed"
-          value={confirmed.length}
-          caption="this week"
-          tone="green"
-          onClick={() => openDrawer("confirmed-bookings")}
-        />
-      </Grid>
-
-      <div style={{ height: 28 }} />
+      <StatusStrip
+        ariaLabel="Pipeline overview"
+        items={[
+          { id: "drafts",    label: "Drafts & holds", value: drafts.length,    tone: "amber",  onClick: () => openDrawer("drafts-holds") },
+          { id: "awaiting",  label: "Awaiting client", value: awaiting.length, tone: "amber",  onClick: () => openDrawer("awaiting-client") },
+          { id: "confirmed", label: "Confirmed",      value: confirmed.length, tone: "green",  onClick: () => openDrawer("confirmed-bookings") },
+        ]}
+      />
 
       {/* Pipeline list */}
       <section>
@@ -3863,7 +4413,8 @@ function WorkPage() {
               key={iq.id}
               onClick={() => {
                 if (rich) {
-                  openDrawer("inquiry-workspace", { inquiryId: rich.id, pov: "admin" });
+                  pinNextConversationP(rich.id);
+                  setPage("messages");
                 } else {
                   openDrawer("inquiry-peek", { id: iq.id });
                 }
@@ -3956,12 +4507,7 @@ function WorkPage() {
           />
         </MoreWithSection>
       )}
-      {canEdit && (
-        <FloatingFab
-          label="New inquiry"
-          onClick={() => openDrawer("new-inquiry")}
-        />
-      )}
+      {canEdit && <FabWithQuickCreate />}
     </>
   );
 }
@@ -4109,9 +4655,7 @@ function FreeValuePanel() {
             style={{
               fontSize: 11,
               fontWeight: 600,
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
+                            color: COLORS.inkMuted,
               marginBottom: 4,
             }}
           >
@@ -4196,7 +4740,7 @@ function FreeValuePanel() {
                       style={{
                         width: `${pct}%`,
                         height: "100%",
-                        background: near ? COLORS.amber : COLORS.ink,
+                        background: near ? COLORS.amber : COLORS.fill,
                       }}
                     />
                   </div>
@@ -4238,31 +4782,56 @@ function nextPlanForRoster(plan: Plan): Plan | null {
   return null;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// ROSTER (talent page) — 2026 redesign
+// ── Replaces the legacy 4-up StatusCard + box-grid layout ─────────────
+//   • Single-line status strip (clickable filter)
+//   • Premium hairline cards w/ real photos, type chip, completeness
+//   • Grid + List view toggle
+//   • Inline filter chips (Status × Type) + search + sort with direction
+//   • Pending-approvals strip when self-registrations are queued
+//   • Bulk-select sticky action bar
+//   • Cards open the new TalentProfileShellDrawer (not legacy drawer)
+// ════════════════════════════════════════════════════════════════════
+
 function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent } = useProto();
   const roster = getRoster(state.plan);
   const canEdit = meetsRole(state.role, "editor");
   const isFree = state.plan === "free";
 
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<"all" | "published" | "draft" | "invited" | "awaiting-approval">("all");
-  const [sort, setSort] = useState<"name" | "newest" | "state">("name");
+  const [typeFilter, setTypeFilter] = useState<TaxonomyParentId | "all">("all");
+  const [sort, setSort] = useState<"name" | "completeness" | "newest">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // Resolve a parent-type filter to its children (for filtering by primaryType id).
+  const typeFilterChildren = typeFilter === "all"
+    ? null
+    : new Set(TAXONOMY.find(p => p.id === typeFilter)?.children.map(c => c.id) ?? []);
 
   const filteredRoster = roster
     .filter((p) => stateFilter === "all" || p.state === stateFilter)
+    .filter((p) => !typeFilterChildren || (p.primaryType !== undefined && typeFilterChildren.has(p.primaryType)))
     .filter((p) => {
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
       return (
         p.name.toLowerCase().includes(q) ||
         (p.city ?? "").toLowerCase().includes(q) ||
-        (p.height ?? "").toLowerCase().includes(q)
+        (p.primaryType ?? "").toLowerCase().includes(q)
       );
     })
     .sort((a, b) => {
-      if (sort === "name") return a.name.localeCompare(b.name);
-      if (sort === "state") return a.state.localeCompare(b.state);
-      return 0; // newest = source order
+      let r = 0;
+      if (sort === "name") r = a.name.localeCompare(b.name);
+      else if (sort === "completeness") r = (b.completeness ?? 0) - (a.completeness ?? 0);
+      // newest = source order = 0
+      return sortDir === "asc" ? r : -r;
     });
 
   const counts = {
@@ -4271,6 +4840,22 @@ function TalentPage() {
     invited: roster.filter((r) => r.state === "invited").length,
     awaiting: roster.filter((r) => r.state === "awaiting-approval").length,
   };
+
+  // Talent-type parents that actually exist in the roster — drives the
+  // type filter chips (no point showing "Chefs" if there are 0 chefs).
+  const usedTypes = Array.from(new Set(
+    roster
+      .map((r) => {
+        if (!r.primaryType) return null;
+        for (const p of TAXONOMY) {
+          if (p.children.some((c) => c.id === r.primaryType)) return p.id;
+        }
+        return null;
+      })
+      .filter((x): x is TaxonomyParentId => x !== null)
+  ));
+
+  const pendingCount = pendingTalent.length;
 
   const exportCsv = () => {
     downloadCsv(
@@ -4283,10 +4868,9 @@ function TalentPage() {
         representation: p.representation ?? "",
       })),
     );
-    toast(`Exported ${filteredRoster.length} rows`);
+    toast(`Exported ${filteredRoster.length} rows to CSV`);
   };
 
-  // Roster cap is per-plan; only relevant for non-network tenants on the agency surface.
   const rosterCap =
     state.entityType === "agency"
       ? state.plan === "free"
@@ -4299,6 +4883,29 @@ function TalentPage() {
       : null;
 
   const entityMeta = ENTITY_TYPE_META[state.entityType];
+
+  // Bulk select helpers
+  const toggleSelect = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const clearSelected = () => setSelected(new Set());
+  const selectAll = () => setSelected(new Set(filteredRoster.map((p) => p.id)));
+
+  // Card click → open the new profile shell with seed data
+  const openProfile = (p: TalentProfile) => {
+    openDrawer("talent-profile-shell", {
+      mode: "edit-admin",
+      seed: {
+        stageName: p.name,
+        primaryType: p.primaryType,
+        homeBase: p.city,
+      },
+    });
+  };
+
   return (
     <>
       <PageHeader
@@ -4311,17 +4918,24 @@ function TalentPage() {
         }
         actions={
           <>
-            <GhostButton size="sm" onClick={exportCsv}>Export CSV</GhostButton>
             {!canEdit && <ReadOnlyChip />}
             {canEdit && (
               <>
-                {/* Bulk import (#21) */}
-                <GhostButton
-                  size="sm"
-                  onClick={() => toast("Bulk import CSV — upload a .csv with name, email, city, height columns.")}
-                >
-                  Import CSV
-                </GhostButton>
+                <RosterMoreMenu
+                  open={moreOpen}
+                  onToggle={() => setMoreOpen((o) => !o)}
+                  onClose={() => setMoreOpen(false)}
+                  onExport={exportCsv}
+                  onImport={() => {
+                    setMoreOpen(false);
+                    toast("Bulk import CSV — upload a .csv with name, email, city, height columns.");
+                  }}
+                  onTypes={() => {
+                    setMoreOpen(false);
+                    openDrawer("talent-types");
+                  }}
+                />
+                <GhostButton onClick={() => openDrawer("invite-flow")}>Invite</GhostButton>
                 <PrimaryButton onClick={() => openDrawer("new-talent")}>
                   {state.entityType === "hub" ? "Invite member" : "Add talent"}
                 </PrimaryButton>
@@ -4331,43 +4945,20 @@ function TalentPage() {
         }
       />
 
-      {state.alsoTalent && (
-        <div
-          style={{
-            background: "#fff",
-            border: `1px solid ${COLORS.borderSoft}`,
-            borderRadius: 12,
-            padding: "12px 16px",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            marginBottom: 16,
-          }}
-        >
-          <Avatar initials="OT" size={32} tone="ink" />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, fontWeight: 600 }}>
-              You're also on this roster
-            </div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginTop: 1 }}>
-              You can edit your own profile from the avatar menu — what bookers see is what shows in your public listing.
-            </div>
-          </div>
-          <SecondaryButton size="sm" onClick={() => openDrawer("my-profile")}>
-            Edit my profile
-          </SecondaryButton>
-        </div>
+      {/* Pending approvals strip — only when there are self-registrations to review */}
+      {canEdit && pendingCount > 0 && (
+        <PendingApprovalsStrip
+          count={pendingCount}
+          onReview={() => openDrawer("talent-approvals")}
+        />
       )}
 
-      <Grid cols="4">
-        <StatusCard label="Published" value={counts.published} tone="green" />
-        <StatusCard label="Awaiting approval" value={counts.awaiting} tone="amber" />
-        <StatusCard label="Invited" value={counts.invited} tone="amber" />
-        <StatusCard label="Drafts" value={counts.draft} tone="dim" />
-      </Grid>
+      {/* Self-on-roster — refined to match new aesthetic */}
+      {state.alsoTalent && (
+        <SelfOnRosterRow onEdit={() => openDrawer("my-profile")} />
+      )}
 
-      <div style={{ height: 24 }} />
-
+      {/* Cap nudge — kept as a thin top strip when relevant */}
       {rosterCap !== null && nextPlanForRoster(state.plan) && (
         <CapNudge
           label="talents"
@@ -4394,255 +4985,1547 @@ function TalentPage() {
         />
       )}
 
-      {/* Roster grid */}
-      <section>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 12,
-          }}
-        >
-          <h2
-            style={{
-              fontFamily: FONTS.display,
-              fontSize: 20,
-              fontWeight: 500,
-              color: COLORS.ink,
-              margin: 0,
-              letterSpacing: -0.2,
-            }}
-          >
-            All talent
-          </h2>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <input
-              type="text"
-              aria-label="Search roster by name or city"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name / city…"
-              style={{
-                padding: "7px 10px",
-                fontFamily: FONTS.body,
-                fontSize: 12.5,
-                color: COLORS.ink,
-                background: "#fff",
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: 7,
-                outline: "none",
-                width: 180,
-              }}
-            />
-            <select
-              value={stateFilter}
-              onChange={(e) => setStateFilter(e.target.value as typeof stateFilter)}
-              aria-label="Filter by state"
-              style={selectStyle}
-            >
-              <option value="all">All states</option>
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-              <option value="invited">Invited</option>
-              <option value="awaiting-approval">Awaiting approval</option>
-            </select>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as typeof sort)}
-              aria-label="Sort"
-              style={selectStyle}
-            >
-              <option value="name">Name</option>
-              <option value="newest">Newest</option>
-              <option value="state">State</option>
-            </select>
-            {(search.trim() || stateFilter !== "all" || sort !== "name") && (
-              <button
-                type="button"
-                onClick={() => { setSearch(""); setStateFilter("all"); setSort("name"); }}
-                style={{
-                  padding: "4px 10px",
-                  background: "transparent",
-                  color: COLORS.inkMuted,
-                  border: `1px solid ${COLORS.border}`,
-                  borderRadius: 999,
-                  cursor: "pointer",
-                  fontFamily: FONTS.body,
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <span aria-hidden>×</span> Clear
-              </button>
-            )}
-            {state.plan === "agency" && (
-              <GhostButton onClick={() => openDrawer("taxonomy")}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                  <Icon name="settings" size={12} stroke={1.7} />
-                  Taxonomy
-                </span>
-              </GhostButton>
-            )}
-          </div>
-        </div>
-        {filteredRoster.length === 0 ? (
-          <EmptyState
-            icon="user"
-            title={search.trim() ? `No results for "${search.trim()}"` : "No talent matches"}
-            body={search.trim() ? "Try a different name or city, or clear the search." : "Try a different search or clear the state filter."}
-            primaryLabel="Clear filters"
-            onPrimary={() => {
-              setSearch("");
-              setStateFilter("all");
-              setSort("name");
-            }}
-          />
-        ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {filteredRoster.map((profile) => (
-            <button
-              key={profile.id}
-              onClick={() => openDrawer("talent-profile", { id: profile.id })}
-              style={{
-                background: "#fff",
-                border: `1px solid ${COLORS.borderSoft}`,
-                borderRadius: 12,
-                padding: 14,
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                textAlign: "left",
-                fontFamily: FONTS.body,
-                transition: `border-color ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(11,11,13,0.18)";
-                e.currentTarget.style.boxShadow = "0 6px 20px -10px rgba(11,11,13,0.18)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = COLORS.borderSoft;
-                e.currentTarget.style.boxShadow = "none";
-              }}
-            >
-              <div
-                style={{
-                  aspectRatio: "3 / 4",
-                  background: COLORS.surfaceAlt,
-                  borderRadius: 8,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  position: "relative",
-                  overflow: "hidden",
-                }}
-              >
-                <Avatar
-                  initials={profile.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()}
-                  hashSeed={profile.name}
-                  size={72}
-                  tone="auto"
-                />
-                <div style={{ position: "absolute", bottom: 8, left: 8 }}>
-                  <StateChip state={profile.state} label={TALENT_STATE_LABEL[profile.state]} />
-                </div>
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontFamily: FONTS.display,
-                    fontSize: 16,
-                    fontWeight: 500,
-                    color: COLORS.ink,
-                    letterSpacing: -0.1,
-                  }}
-                >
-                  {profile.name}
-                </div>
-                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {profile.height} <Bullet /> {profile.city}
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-        )}
-      </section>
+      {/* Status strip — single line replaces 4-up StatusCard. Each segment
+          is a clickable filter (toggle on/off). */}
+      <RosterStatusStrip
+        counts={counts}
+        active={stateFilter}
+        onFilter={(f) => setStateFilter(f === stateFilter ? "all" : f)}
+      />
 
-      {isFree && (
-        <MoreWithSection plan="agency">
-          <CompactLockedCard
-            title="Custom roster fields"
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: "Field catalog",
-                why: "Add the fields your agency actually books on — measurements, contracts, niches.",
-                requiredPlan: "agency",
-                unlocks: ["Custom fields", "Required vs optional", "Per-roster taxonomy"],
-              })
-            }
-          />
-          <CompactLockedCard
-            title="Bulk publish"
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: "Bulk operations",
-                why: "Publish, invite or archive multiple profiles at once.",
-                requiredPlan: "agency",
-              })
-            }
-          />
-          <CompactLockedCard
-            title="Approval workflow"
-            requiredPlan="agency"
-            onClick={() =>
-              openUpgrade({
-                feature: "Approval workflow",
-                why: "Editors draft, admins approve. Required for teams of 3+.",
-                requiredPlan: "agency",
-              })
-            }
-          />
-        </MoreWithSection>
-      )}
+      {/* Filter bar — search + type chips + sort + view toggle */}
+      <RosterFilterBar
+        search={search}
+        onSearch={setSearch}
+        typeFilter={typeFilter}
+        onTypeFilter={setTypeFilter}
+        usedTypes={usedTypes}
+        sort={sort}
+        sortDir={sortDir}
+        onSort={(s) => {
+          if (s === sort) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+          else { setSort(s); setSortDir("asc"); }
+        }}
+        view={view}
+        onView={setView}
+        canBulk={canEdit}
+        selectedCount={selected.size}
+        onSelectAll={selectAll}
+        onClearSelection={clearSelected}
+        resultCount={filteredRoster.length}
+        totalCount={roster.length}
+      />
 
-      {state.plan === "agency" && (
-        <MoreWithSection plan="network">
-          <CompactLockedCard
-            title="Cross-roster pool"
-            requiredPlan="network"
-            onClick={() =>
-              openUpgrade({
-                feature: "Cross-roster pool",
-                why: "Share talent across multiple brands. Useful when you run more than one agency identity.",
-                requiredPlan: "network",
-              })
-            }
-          />
-        </MoreWithSection>
-      )}
-      {/* FAB — add talent, mobile only (#4) */}
-      {canEdit && (
-        <FloatingFab
-          label={state.entityType === "hub" ? "Invite member" : "Add talent"}
-          onClick={() => openDrawer("new-talent")}
+      {/* Body — grid / list / empty */}
+      {filteredRoster.length === 0 ? (
+        <RosterEmptyState
+          searching={!!search.trim()}
+          query={search.trim()}
+          onClear={() => {
+            setSearch("");
+            setStateFilter("all");
+            setTypeFilter("all");
+          }}
+          onAdd={canEdit ? () => openDrawer("new-talent") : undefined}
+        />
+      ) : view === "grid" ? (
+        <RosterGrid
+          items={filteredRoster}
+          selected={selected}
+          onSelect={canEdit ? toggleSelect : undefined}
+          onOpen={openProfile}
+        />
+      ) : (
+        <RosterList
+          items={filteredRoster}
+          selected={selected}
+          onSelect={canEdit ? toggleSelect : undefined}
+          onOpen={openProfile}
         />
       )}
+
+      {/* Bulk action bar — sticky bottom when selection > 0 */}
+      {selected.size > 0 && canEdit && (
+        <RosterBulkActionBar
+          count={selected.size}
+          onClear={clearSelected}
+          onPublish={() => { toast(`Published ${selected.size} profiles`); clearSelected(); }}
+          onArchive={() => { toast(`Archived ${selected.size} profiles`); clearSelected(); }}
+          onMessage={() => toast("Opening message thread for selection")}
+        />
+      )}
+
+      {/* Mobile FAB — full quick-create menu */}
+      {canEdit && <FabWithQuickCreate />}
     </>
   );
 }
+
+// ── Pending approvals strip ─────────────────────────────────────────
+function PendingApprovalsStrip({ count, onReview }: { count: number; onReview: () => void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        marginBottom: 14,
+        borderRadius: 12,
+        background: COLORS.amberSoft,
+        border: `1px solid rgba(82,96,109,0.18)`,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <span
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          background: "#fff",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontSize: 14,
+        }}
+      >
+        🔍
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.amberDeep }}>
+          {count} self-registration{count === 1 ? "" : "s"} waiting for review
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+          Approve, request changes, or reject. Average review time: under 24h.
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onReview}
+        style={{
+          padding: "7px 14px",
+          borderRadius: 999,
+          border: "none",
+          background: COLORS.amberDeep,
+          color: "#fff",
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          fontWeight: 600,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Review →
+      </button>
+    </div>
+  );
+}
+
+// ── Self-on-roster row — refined hairline strip ─────────────────────
+function SelfOnRosterRow({ onEdit }: { onEdit: () => void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "8px 14px",
+        marginBottom: 14,
+        borderRadius: 999,
+        background: "rgba(11,11,13,0.03)",
+        border: `1px solid ${COLORS.borderSoft}`,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <span style={{ fontSize: 13 }}>👤</span>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 12, color: COLORS.inkMuted }}>
+        You're on this roster too — your public listing is what bookers see.
+      </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        style={{
+          padding: 0,
+          background: "transparent",
+          border: "none",
+          color: COLORS.ink,
+          fontSize: 12,
+          fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+        }}
+      >
+        Edit my profile →
+      </button>
+    </div>
+  );
+}
+
+// ── Roster status strip ─────────────────────────────────────────────
+function RosterStatusStrip({
+  counts,
+  active,
+  onFilter,
+}: {
+  counts: { published: number; draft: number; invited: number; awaiting: number };
+  active: "all" | "published" | "draft" | "invited" | "awaiting-approval";
+  onFilter: (f: "published" | "draft" | "invited" | "awaiting-approval") => void;
+}) {
+  const items: { id: "published" | "awaiting-approval" | "invited" | "draft"; label: string; count: number; tone: string }[] = [
+    { id: "published",         label: "Published",  count: counts.published, tone: COLORS.green },
+    { id: "awaiting-approval", label: "Pending",    count: counts.awaiting,  tone: COLORS.amber },
+    { id: "invited",           label: "Invited",    count: counts.invited,   tone: COLORS.indigoDeep },
+    { id: "draft",             label: "Draft",      count: counts.draft,     tone: COLORS.inkMuted },
+  ];
+  return (
+    <div
+      data-tulala-roster-status
+      style={{
+        display: "flex",
+        alignItems: "stretch",
+        gap: 0,
+        padding: 4,
+        borderRadius: 12,
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        marginBottom: 14,
+        fontFamily: FONTS.body,
+        overflowX: "auto",
+        scrollbarWidth: "none",
+      }}
+    >
+      {items.map((it, i) => {
+        const isActive = active === it.id;
+        return (
+          <button
+            key={it.id}
+            type="button"
+            onClick={() => onFilter(it.id)}
+            disabled={it.count === 0}
+            style={{
+              flex: 1,
+              minWidth: 96,
+              padding: "10px 14px",
+              border: "none",
+              background: isActive ? "rgba(15,79,62,0.06)" : "transparent",
+              borderRadius: 8,
+              cursor: it.count === 0 ? "default" : "pointer",
+              opacity: it.count === 0 ? 0.5 : 1,
+              textAlign: "left",
+              borderRight: i < items.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+              fontFamily: FONTS.body,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: it.tone,
+                }}
+              />
+              <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500 }}>{it.label}</span>
+            </div>
+            <div
+              style={{
+                fontFamily: FONTS.display,
+                fontSize: 22,
+                fontWeight: 500,
+                color: isActive ? COLORS.accentDeep : COLORS.ink,
+                letterSpacing: -0.4,
+                lineHeight: 1,
+              }}
+            >
+              {it.count}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Roster filter bar ───────────────────────────────────────────────
+function RosterFilterBar({
+  search, onSearch,
+  typeFilter, onTypeFilter, usedTypes,
+  sort, sortDir, onSort,
+  view, onView,
+  canBulk, selectedCount, onSelectAll, onClearSelection,
+  resultCount, totalCount,
+}: {
+  search: string;
+  onSearch: (s: string) => void;
+  typeFilter: TaxonomyParentId | "all";
+  onTypeFilter: (f: TaxonomyParentId | "all") => void;
+  usedTypes: TaxonomyParentId[];
+  sort: "name" | "completeness" | "newest";
+  sortDir: "asc" | "desc";
+  onSort: (s: "name" | "completeness" | "newest") => void;
+  view: "grid" | "list";
+  onView: (v: "grid" | "list") => void;
+  canBulk: boolean;
+  selectedCount: number;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  resultCount: number;
+  totalCount: number;
+}) {
+  return (
+    <div
+      data-tulala-roster-filterbar
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexWrap: "wrap",
+        marginBottom: 14,
+        fontFamily: FONTS.body,
+      }}
+    >
+      <style>{`
+        @media (max-width: 720px) {
+          [data-tulala-roster-filterbar] { gap: 6px; }
+          [data-tulala-roster-filterbar] [data-rfb-search] { width: 100% !important; order: -1; }
+        }
+      `}</style>
+      {/* Search */}
+      <div data-rfb-search style={{ position: "relative", width: 240 }}>
+        <span
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: 12,
+            transform: "translateY(-50%)",
+            color: COLORS.inkMuted,
+            fontSize: 13,
+            pointerEvents: "none",
+          }}
+        >
+          ⌕
+        </span>
+        <input
+          type="text"
+          aria-label="Search roster"
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+          placeholder="Search by name, type, city…"
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "8px 10px 8px 32px",
+            fontFamily: FONTS.body,
+            fontSize: 12.5,
+            color: COLORS.ink,
+            background: "#fff",
+            border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 999,
+            outline: "none",
+          }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = COLORS.border)}
+          onBlur={(e) => (e.currentTarget.style.borderColor = COLORS.borderSoft)}
+        />
+      </div>
+
+      {/* Type chips — only if roster has typed talent */}
+      {usedTypes.length > 0 && (
+        <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+          <FilterChip
+            label="All types"
+            active={typeFilter === "all"}
+            onClick={() => onTypeFilter("all")}
+          />
+          {usedTypes.map((t) => {
+            const meta = TAXONOMY.find((p) => p.id === t)!;
+            return (
+              <FilterChip
+                key={t}
+                label={meta.label}
+                emoji={meta.emoji}
+                active={typeFilter === t}
+                onClick={() => onTypeFilter(t)}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ flex: 1 }} />
+
+      {/* Result count */}
+      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 500 }}>
+        {resultCount === totalCount ? `${totalCount} talent` : `${resultCount} of ${totalCount}`}
+      </div>
+
+      {/* Sort */}
+      <SortButton sort={sort} sortDir={sortDir} onSort={onSort} />
+
+      {/* View toggle */}
+      <ViewToggle view={view} onView={onView} />
+
+      {/* Bulk select count (only when active) */}
+      {canBulk && selectedCount > 0 && (
+        <button
+          type="button"
+          onClick={onClearSelection}
+          style={{
+            padding: "5px 10px",
+            background: "rgba(15,79,62,0.08)",
+            border: `1px solid ${COLORS.accent}`,
+            color: COLORS.accentDeep,
+            borderRadius: 999,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 600,
+          }}
+        >
+          {selectedCount} selected · clear
+        </button>
+      )}
+      {canBulk && selectedCount === 0 && (
+        <button
+          type="button"
+          onClick={onSelectAll}
+          aria-label="Select all"
+          style={{
+            padding: "5px 10px",
+            background: "transparent",
+            border: `1px solid ${COLORS.borderSoft}`,
+            color: COLORS.inkMuted,
+            borderRadius: 999,
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 500,
+          }}
+        >
+          Select all
+        </button>
+      )}
+    </div>
+  );
+}
+
+function FilterChip({
+  label,
+  emoji,
+  active,
+  onClick,
+}: {
+  label: string;
+  emoji?: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        padding: "5px 11px",
+        borderRadius: 999,
+        border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+        background: active ? "rgba(15,79,62,0.08)" : "#fff",
+        color: active ? COLORS.accentDeep : COLORS.ink,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        fontSize: 11.5,
+        fontWeight: active ? 600 : 500,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {emoji && <span aria-hidden style={{ fontSize: 12 }}>{emoji}</span>}
+      {label}
+    </button>
+  );
+}
+
+function SortButton({
+  sort,
+  sortDir,
+  onSort,
+}: {
+  sort: "name" | "completeness" | "newest";
+  sortDir: "asc" | "desc";
+  onSort: (s: "name" | "completeness" | "newest") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const sortLabel = {
+    name: "Name",
+    completeness: "Completeness",
+    newest: "Newest",
+  }[sort];
+  const arrow = sort === "newest" ? "" : sortDir === "asc" ? " ↑" : " ↓";
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          padding: "5px 11px",
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          color: COLORS.ink,
+          borderRadius: 999,
+          cursor: "pointer",
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          fontWeight: 500,
+          whiteSpace: "nowrap",
+        }}
+      >
+        Sort: <strong>{sortLabel}{arrow}</strong>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50 }} />
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              right: 0,
+              zIndex: 51,
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              boxShadow: "0 10px 30px -8px rgba(11,11,13,0.18)",
+              minWidth: 160,
+              padding: 4,
+              fontFamily: FONTS.body,
+            }}
+          >
+            {(["name", "completeness", "newest"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  onSort(s);
+                  setOpen(false);
+                }}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: s === sort ? "rgba(11,11,13,0.04)" : "transparent",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: COLORS.ink,
+                }}
+              >
+                {s === "name" ? "Name" : s === "completeness" ? "Completeness" : "Newest"}
+                {s === sort && <span style={{ marginLeft: "auto", color: COLORS.inkMuted, fontSize: 11 }}>{sortDir === "asc" ? "↑" : "↓"}</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ViewToggle({ view, onView }: { view: "grid" | "list"; onView: (v: "grid" | "list") => void }) {
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        padding: 2,
+        background: "rgba(11,11,13,0.04)",
+        borderRadius: 999,
+        flexShrink: 0,
+      }}
+    >
+      {(["grid", "list"] as const).map((v) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onView(v)}
+          aria-label={`${v} view`}
+          aria-pressed={view === v}
+          style={{
+            width: 28,
+            height: 24,
+            borderRadius: 999,
+            border: "none",
+            background: view === v ? "#fff" : "transparent",
+            color: view === v ? COLORS.ink : COLORS.inkMuted,
+            cursor: "pointer",
+            fontSize: 11,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: view === v ? "0 1px 2px rgba(11,11,13,0.08)" : "none",
+          }}
+        >
+          {v === "grid" ? (
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor" />
+              <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" />
+              <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" />
+              <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" />
+            </svg>
+          ) : (
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none">
+              <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
+              <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
+              <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
+            </svg>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Roster more menu (... button for Export / Import / Manage types) ─
+function RosterMoreMenu({
+  open,
+  onToggle,
+  onClose,
+  onExport,
+  onImport,
+  onTypes,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onExport: () => void;
+  onImport: () => void;
+  onTypes: () => void;
+}) {
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label="More actions"
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 999,
+          background: "#fff",
+          border: `1px solid ${COLORS.borderSoft}`,
+          color: COLORS.ink,
+          cursor: "pointer",
+          fontSize: 14,
+          lineHeight: 1,
+          fontWeight: 600,
+        }}
+      >
+        ⋯
+      </button>
+      {open && (
+        <>
+          <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50 }} />
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 6px)",
+              right: 0,
+              zIndex: 51,
+              background: "#fff",
+              border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 10,
+              boxShadow: "0 12px 36px -8px rgba(11,11,13,0.20)",
+              minWidth: 200,
+              padding: 4,
+              fontFamily: FONTS.body,
+            }}
+          >
+            {[
+              { id: "export", label: "Export CSV",    onClick: onExport },
+              { id: "import", label: "Import CSV",    onClick: onImport },
+              { id: "types",  label: "Talent types…", onClick: onTypes },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={item.onClick}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 12px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  fontSize: 12.5,
+                  fontWeight: 500,
+                  color: COLORS.ink,
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Roster grid ─────────────────────────────────────────────────────
+function RosterGrid({
+  items,
+  selected,
+  onSelect,
+  onOpen,
+}: {
+  items: TalentProfile[];
+  selected: Set<string>;
+  onSelect?: (id: string) => void;
+  onOpen: (p: TalentProfile) => void;
+}) {
+  return (
+    <div
+      data-tulala-roster-grid
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+        gap: 12,
+      }}
+    >
+      <style>{`
+        @media (max-width: 600px) {
+          [data-tulala-roster-grid] { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+        }
+        @media (min-width: 1500px) {
+          /* Cap card density on wide screens — 7+ cards per row gets claustrophobic. */
+          [data-tulala-roster-grid] {
+            grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+            max-width: 1340px;
+          }
+        }
+      `}</style>
+      {items.map((p) => (
+        <RosterCard
+          key={p.id}
+          profile={p}
+          selected={selected.has(p.id)}
+          onSelect={onSelect}
+          onOpen={onOpen}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Roster card (premium 2026 design) ───────────────────────────────
+function RosterCard({
+  profile,
+  selected,
+  onSelect,
+  onOpen,
+}: {
+  profile: TalentProfile;
+  selected: boolean;
+  onSelect?: (id: string) => void;
+  onOpen: (p: TalentProfile) => void;
+}) {
+  const [hover, setHover] = useState(false);
+
+  // Resolve primary type → label + parent emoji + first specialty.
+  // The triplet is what makes the card scan-able: emoji = visual anchor,
+  // label = "what they do", specialty = "what flavor of that".
+  const typeMeta = (() => {
+    if (!profile.primaryType) return null;
+    for (const parent of TAXONOMY) {
+      const c = parent.children.find((x) => x.id === profile.primaryType);
+      if (c) return {
+        label: c.label,
+        emoji: parent.emoji,
+        specialty: c.specialties?.[0] ?? null,
+      };
+    }
+    return null;
+  })();
+  const typeLabel = typeMeta?.label ?? null;
+
+  // State dot tone
+  const stateTone = ({
+    published: COLORS.green,
+    draft: COLORS.inkMuted,
+    invited: COLORS.indigoDeep,
+    "awaiting-approval": COLORS.amber,
+    claimed: COLORS.ink,
+  } as const)[profile.state];
+
+  // Availability dot
+  const availDot = profile.availability === "available"
+    ? COLORS.green
+    : profile.availability === "busy"
+      ? COLORS.amber
+      : "rgba(11,11,13,0.18)";
+
+  return (
+    <div
+      onClick={() => onOpen(profile)}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(profile);
+        }
+      }}
+      style={{
+        position: "relative",
+        background: "#fff",
+        border: `1px solid ${selected ? COLORS.accent : COLORS.borderSoft}`,
+        borderRadius: 14,
+        padding: 0,
+        cursor: "pointer",
+        textAlign: "left",
+        fontFamily: FONTS.body,
+        overflow: "hidden",
+        transition: "border-color 0.15s, box-shadow 0.15s, transform 0.15s",
+        boxShadow: hover ? "0 6px 20px -10px rgba(11,11,13,0.18)" : "0 1px 2px rgba(11,11,13,0.03)",
+      }}
+    >
+      {/* Photo */}
+      <div
+        style={{
+          position: "relative",
+          aspectRatio: "4 / 5",
+          background: profile.thumb
+            ? `url(${profile.thumb}) center/cover`
+            : COLORS.surfaceAlt,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {/* Initials fallback when no photo. Hash-tinted for variation. */}
+        {!profile.thumb && (
+          <div
+            aria-hidden
+            style={{
+              fontFamily: FONTS.display,
+              fontSize: 36,
+              fontWeight: 500,
+              color: COLORS.inkMuted,
+              letterSpacing: -1,
+              userSelect: "none",
+            }}
+          >
+            {profile.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
+          </div>
+        )}
+        {/* Modern verified-icon overlay — IG / Tulala / Agency. */}
+        <RosterPhotoBadgeOverlay talentId={profile.id} />
+        {/* Selection checkbox — appears on hover or if selected */}
+        {onSelect && (hover || selected) && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(profile.id);
+            }}
+            aria-label={selected ? "Deselect" : "Select"}
+            style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              border: `1.5px solid ${selected ? COLORS.accent : "rgba(255,255,255,0.9)"}`,
+              background: selected ? COLORS.accent : "rgba(11,11,13,0.4)",
+              cursor: "pointer",
+              padding: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            {selected && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
+          </button>
+        )}
+
+        {/* Availability + state dots, top-right */}
+        <div
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "3px 8px",
+            borderRadius: 999,
+            background: "rgba(255,255,255,0.92)",
+            backdropFilter: "blur(6px)",
+            boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
+            fontSize: 10,
+            fontWeight: 600,
+            color: COLORS.ink,
+          }}
+        >
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
+          <span style={{ textTransform: "capitalize" }}>
+            {profile.state === "awaiting-approval" ? "pending" : profile.state}
+          </span>
+        </div>
+
+        {/* Completeness pill bottom-left for non-published profiles */}
+        {profile.state !== "published" && profile.completeness !== undefined && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 8,
+              left: 8,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 8px",
+              borderRadius: 999,
+              background: "rgba(11,11,13,0.55)",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 600,
+              backdropFilter: "blur(6px)",
+            }}
+          >
+            {profile.completeness}%
+          </div>
+        )}
+
+        {/* Availability dot bottom-right (published only) */}
+        {profile.state === "published" && profile.availability && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 8,
+              right: 8,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 8px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.92)",
+              backdropFilter: "blur(6px)",
+              boxShadow: "0 1px 4px rgba(11,11,13,0.10)",
+              fontSize: 10,
+              fontWeight: 600,
+              color: COLORS.ink,
+              textTransform: "capitalize",
+            }}
+          >
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: availDot }} />
+            {profile.availability}
+          </div>
+        )}
+      </div>
+
+      {/* Card body — name + type + city, hairlined */}
+      <div style={{ padding: "10px 12px 12px" }}>
+        <div
+          style={{
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: COLORS.ink,
+            letterSpacing: -0.1,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {profile.name}
+        </div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: typeLabel ? COLORS.accentDeep : COLORS.inkMuted,
+            fontWeight: typeLabel ? 600 : 500,
+            marginTop: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+          }}
+        >
+          {typeMeta && (
+            <span aria-hidden style={{ fontSize: 12, flexShrink: 0, opacity: 0.85 }}>
+              {typeMeta.emoji}
+            </span>
+          )}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+            {typeMeta?.label ?? "No type set"}
+            {typeMeta?.specialty && (
+              <span style={{ color: COLORS.inkMuted, fontWeight: 500 }}>
+                {" · "}{typeMeta.specialty}
+              </span>
+            )}
+          </span>
+        </div>
+        {profile.city && (
+          <div
+            style={{
+              fontSize: 11,
+              color: COLORS.inkMuted,
+              marginTop: 1,
+            }}
+          >
+            📍 {profile.city}
+            {profile.lastActive && profile.lastActive !== "—" && ` · active ${profile.lastActive}`}
+          </div>
+        )}
+        {/* Trust & claim indicators — visible on every Roster card. */}
+        <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+          <RosterTrustCell talentId={profile.id} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Resolves trust state for a talent and renders compact admin-surface badges. */
+function RosterTrustCell({ talentId }: { talentId: string }) {
+  const { getTrustSummary } = useProto();
+  const trust = getTrustSummary("talent_profile", talentId);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+      <TrustBadgeGroup trust={trust} surface="admin_roster" size="sm" max={4} />
+      {trust.claimStatus === "disputed" && (
+        <span title="Talent disputed this profile claim — admin review needed."
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            padding: "3px 8px", borderRadius: 999,
+            background: "rgba(200,40,40,0.10)", color: "#C82828",
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+          }}>
+          ⚠ Disputed
+        </span>
+      )}
+      {trust.claimStatus === "invite_sent" && (
+        <span title="Claim invite sent — talent has not yet accepted."
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            padding: "3px 8px", borderRadius: 999,
+            background: "rgba(82,96,109,0.10)", color: "#3A4651",
+            fontSize: 10, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+          }}>
+          Invite sent
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Modern verified-icon overlay on the talent's photo corner. */
+function RosterPhotoBadgeOverlay({ talentId }: { talentId: string }) {
+  const { getTrustSummary } = useProto();
+  const trust = getTrustSummary("talent_profile", talentId);
+  return <ProfilePhotoBadgeOverlay trust={trust} size="md" max={2} position="bottom-right" />;
+}
+
+// ── Roster list view ────────────────────────────────────────────────
+function RosterList({
+  items,
+  selected,
+  onSelect,
+  onOpen,
+}: {
+  items: TalentProfile[];
+  selected: Set<string>;
+  onSelect?: (id: string) => void;
+  onOpen: (p: TalentProfile) => void;
+}) {
+  return (
+    <div
+      data-tulala-roster-list
+      style={{
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12,
+        overflow: "hidden",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <style>{`
+        @media (max-width: 720px) {
+          [data-tulala-roster-list] [data-rl-header],
+          [data-tulala-roster-list] [data-rl-completeness],
+          [data-tulala-roster-list] [data-rl-lastactive] {
+            display: none !important;
+          }
+        }
+      `}</style>
+      {/* Column header row */}
+      <div
+        data-rl-header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "8px 14px",
+          background: "rgba(11,11,13,0.02)",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: 1,
+          textTransform: "uppercase",
+          color: COLORS.inkMuted,
+        }}
+      >
+        {onSelect && <span style={{ width: 18, flexShrink: 0 }} />}
+        <span style={{ width: 36, flexShrink: 0 }} />
+        <span style={{ flex: 1, minWidth: 0 }}>Name · type · city</span>
+        <span data-rl-completeness style={{ width: 56, flexShrink: 0, textAlign: "right" }}>Profile</span>
+        <span data-rl-lastactive style={{ width: 60, flexShrink: 0, textAlign: "right" }}>Active</span>
+        <span style={{ width: 84, flexShrink: 0 }}>State</span>
+      </div>
+      {items.map((p, i) => (
+        <RosterRow
+          key={p.id}
+          profile={p}
+          isFirst={i === 0}
+          selected={selected.has(p.id)}
+          onSelect={onSelect}
+          onOpen={onOpen}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RosterRow({
+  profile,
+  isFirst,
+  selected,
+  onSelect,
+  onOpen,
+}: {
+  profile: TalentProfile;
+  isFirst: boolean;
+  selected: boolean;
+  onSelect?: (id: string) => void;
+  onOpen: (p: TalentProfile) => void;
+}) {
+  const [hover, setHover] = useState(false);
+
+  const typeMeta = (() => {
+    if (!profile.primaryType) return null;
+    for (const parent of TAXONOMY) {
+      const c = parent.children.find((x) => x.id === profile.primaryType);
+      if (c) return { label: c.label, emoji: parent.emoji, specialty: c.specialties?.[0] ?? null };
+    }
+    return null;
+  })();
+  const typeLabel = typeMeta?.label ?? null;
+
+  const stateTone = ({
+    published: COLORS.green,
+    draft: COLORS.inkMuted,
+    invited: COLORS.indigoDeep,
+    "awaiting-approval": COLORS.amber,
+    claimed: COLORS.ink,
+  } as const)[profile.state];
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(profile)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(profile);
+        }
+      }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 14px",
+        borderTop: isFirst ? "none" : `1px solid ${COLORS.borderSoft}`,
+        cursor: "pointer",
+        background: hover ? "rgba(11,11,13,0.02)" : selected ? "rgba(15,79,62,0.04)" : "transparent",
+        transition: "background 0.12s",
+      }}
+    >
+      {/* Selection checkbox */}
+      {onSelect && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(profile.id);
+          }}
+          aria-label={selected ? "Deselect" : "Select"}
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: 4,
+            border: `1.5px solid ${selected ? COLORS.accent : COLORS.borderSoft}`,
+            background: selected ? COLORS.accent : "transparent",
+            cursor: "pointer",
+            padding: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            opacity: hover || selected ? 1 : 0.5,
+            transition: "opacity 0.12s",
+          }}
+        >
+          {selected && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+        </button>
+      )}
+
+      {/* Avatar */}
+      <span
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: "50%",
+          background: profile.thumb
+            ? `url(${profile.thumb}) center/cover`
+            : COLORS.surfaceAlt,
+          flexShrink: 0,
+        }}
+      />
+
+      {/* Name + type */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: COLORS.ink,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {profile.name}
+        </div>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: COLORS.inkMuted,
+            marginTop: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+          }}
+        >
+          {typeMeta && (
+            <span aria-hidden style={{ fontSize: 12, flexShrink: 0, opacity: 0.85 }}>
+              {typeMeta.emoji}
+            </span>
+          )}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+            {typeMeta?.label ?? "No type"}
+            {typeMeta?.specialty && <span style={{ color: COLORS.inkDim }}>{" · "}{typeMeta.specialty}</span>}
+            {profile.city && <span style={{ color: COLORS.inkDim }}>{" · "}{profile.city}</span>}
+          </span>
+        </div>
+      </div>
+
+      {/* Completeness (non-published) */}
+      {profile.state !== "published" && profile.completeness !== undefined && (
+        <div style={{ width: 56, flexShrink: 0 }}>
+          <div style={{ fontSize: 10, color: COLORS.inkMuted, fontWeight: 600, marginBottom: 2, textAlign: "right" }}>
+            {profile.completeness}%
+          </div>
+          <div style={{ height: 3, background: "rgba(11,11,13,0.06)", borderRadius: 999, overflow: "hidden" }}>
+            <div
+              style={{
+                width: `${profile.completeness}%`,
+                height: "100%",
+                background: COLORS.indigoDeep,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Last active */}
+      {profile.lastActive && (
+        <div
+          style={{
+            fontSize: 11,
+            color: COLORS.inkMuted,
+            width: 60,
+            textAlign: "right",
+            flexShrink: 0,
+          }}
+        >
+          {profile.lastActive}
+        </div>
+      )}
+
+      {/* State pill */}
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "3px 9px",
+          borderRadius: 999,
+          background: profile.state === "published" ? COLORS.successSoft :
+                       profile.state === "awaiting-approval" ? COLORS.amberSoft :
+                       profile.state === "invited" ? COLORS.indigoSoft :
+                       "rgba(11,11,13,0.05)",
+          color: profile.state === "published" ? COLORS.successDeep :
+                 profile.state === "awaiting-approval" ? COLORS.amberDeep :
+                 profile.state === "invited" ? COLORS.indigoDeep :
+                 COLORS.inkMuted,
+          fontSize: 10.5,
+          fontWeight: 600,
+          flexShrink: 0,
+          textTransform: "capitalize",
+        }}
+      >
+        <span style={{ width: 5, height: 5, borderRadius: "50%", background: stateTone }} />
+        {profile.state === "awaiting-approval" ? "pending" : profile.state}
+      </div>
+    </div>
+  );
+}
+
+// ── Roster empty state ──────────────────────────────────────────────
+function RosterEmptyState({
+  searching,
+  query,
+  onClear,
+  onAdd,
+}: {
+  searching: boolean;
+  query?: string;
+  onClear: () => void;
+  onAdd?: () => void;
+}) {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: `1px dashed ${COLORS.borderSoft}`,
+        borderRadius: 14,
+        padding: "44px 24px",
+        textAlign: "center",
+        fontFamily: FONTS.body,
+      }}
+    >
+      <div style={{ fontSize: 32, marginBottom: 10 }}>{searching ? "🔍" : "✨"}</div>
+      <div
+        style={{
+          fontFamily: FONTS.display,
+          fontSize: 17,
+          fontWeight: 500,
+          color: COLORS.ink,
+          letterSpacing: -0.2,
+          marginBottom: 4,
+        }}
+      >
+        {searching ? `No matches for "${query}"` : "Your roster is empty"}
+      </div>
+      <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
+        {searching
+          ? "Try a different name, type, or city — or clear the filters to see everyone."
+          : "Three fast ways to start. Templates pre-fill the common types so your first 3 are 30 seconds each."}
+      </div>
+      <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+        {searching && (
+          <button
+            type="button"
+            onClick={onClear}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 999,
+              border: `1px solid ${COLORS.border}`,
+              background: "transparent",
+              color: COLORS.ink,
+              fontFamily: FONTS.body,
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Clear filters
+          </button>
+        )}
+        {onAdd && !searching && (
+          <>
+            <button
+              type="button"
+              onClick={onAdd}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 999,
+                border: "none",
+                background: COLORS.fill,
+                color: "#fff",
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              + Add your first talent
+            </button>
+            <button
+              type="button"
+              onClick={onAdd}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 999,
+                border: `1px solid ${COLORS.borderSoft}`,
+                background: "#fff",
+                color: COLORS.ink,
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              📋 Use a template
+            </button>
+            <button
+              type="button"
+              onClick={onAdd}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 999,
+                border: `1px dashed ${COLORS.border}`,
+                background: "transparent",
+                color: COLORS.inkMuted,
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              📎 Bulk via CSV
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Bulk action bar (sticky bottom) ─────────────────────────────────
+function RosterBulkActionBar({
+  count,
+  onClear,
+  onPublish,
+  onArchive,
+  onMessage,
+}: {
+  count: number;
+  onClear: () => void;
+  onPublish: () => void;
+  onArchive: () => void;
+  onMessage: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: "sticky",
+        bottom: 16,
+        left: 0,
+        right: 0,
+        marginTop: 16,
+        zIndex: 30,
+        display: "flex",
+        justifyContent: "center",
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          pointerEvents: "auto",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "8px 8px 8px 16px",
+          background: COLORS.ink,
+          color: "#fff",
+          borderRadius: 999,
+          boxShadow: "0 12px 40px -8px rgba(11,11,13,0.35)",
+          fontFamily: FONTS.body,
+          fontSize: 12.5,
+          fontWeight: 600,
+        }}
+      >
+        <span>{count} selected</span>
+        <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.18)" }} />
+        <button type="button" onClick={onMessage} style={bulkBtnStyle}>
+          Message
+        </button>
+        <button type="button" onClick={onPublish} style={bulkBtnStyle}>
+          Publish
+        </button>
+        <button type="button" onClick={onArchive} style={bulkBtnStyle}>
+          Archive
+        </button>
+        <button
+          type="button"
+          onClick={onClear}
+          aria-label="Clear selection"
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            border: "none",
+            background: "rgba(255,255,255,0.10)",
+            color: "#fff",
+            cursor: "pointer",
+            fontSize: 13,
+            lineHeight: 1,
+          }}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const bulkBtnStyle: React.CSSProperties = {
+  padding: "6px 12px",
+  borderRadius: 999,
+  border: "none",
+  background: "rgba(255,255,255,0.10)",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 600,
+  fontFamily: "inherit",
+};
 
 // ════════════════════════════════════════════════════════════════════
 // CLIENTS
@@ -4686,16 +6569,15 @@ function ClientsPage() {
         trust: c.trust ?? "",
       })),
     );
-    toast(`Exported ${filteredClients.length} rows`);
+    toast(`Exported ${filteredClients.length} rows to CSV`);
   };
 
   if (isFree) {
     return (
       <>
         <PageHeader
-          eyebrow="Clients"
-          title="Build your client list"
-          subtitle="On Free, inquiries arrive through the public Tulala directory. Move to Studio to take inquiries on your own domain and own your client list."
+          title="Clients"
+          subtitle="Inquiries from your channels. Filter by what needs you."
         />
         <Grid cols="2">
           <PrimaryCard
@@ -4750,8 +6632,7 @@ function ClientsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Clients"
-        title="Client relationships"
+        title="Clients"
         subtitle={`${clients.length} clients you've worked with. Each one carries booking history and notes.`}
         actions={
           <>
@@ -4765,6 +6646,17 @@ function ClientsPage() {
             )}
           </>
         }
+      />
+
+      {/* Status strip — replaces 4-up StatusCard wall */}
+      <StatusStrip
+        ariaLabel="Clients overview"
+        items={[
+          { id: "active",  label: "Active",   value: clients.filter((c) => c.status === "active").length,  tone: "green",  active: statusFilter === "active",  onClick: () => setStatusFilter(statusFilter === "active" ? "all" : "active") },
+          { id: "dormant", label: "Dormant",  value: clients.filter((c) => c.status === "dormant").length, tone: "dim",    active: statusFilter === "dormant", onClick: () => setStatusFilter(statusFilter === "dormant" ? "all" : "dormant") },
+          { id: "trust",   label: "Verified+", value: clients.filter((c) => c.trust && c.trust !== "basic").length, tone: "indigo" },
+          { id: "ytd",     label: "Bookings YTD", value: clients.reduce((sum, c) => sum + c.bookingsYTD, 0), tone: "ink" },
+        ]}
       />
 
       <div
@@ -4966,13 +6858,8 @@ function ClientsPage() {
         </MoreWithSection>
       )}
 
-      {/* FAB — add client, mobile only (#4) */}
-      {canEdit && (
-        <FloatingFab
-          label="Add client"
-          onClick={() => openDrawer("client-profile", { id: "new" })}
-        />
-      )}
+      {/* FAB — full quick-create menu (mobile only) */}
+      {canEdit && <FabWithQuickCreate />}
 
       {/* Confirm modal — archive client (#8) */}
       <ConfirmModal
@@ -4981,7 +6868,7 @@ function ClientsPage() {
         message={`Archive ${confirmArchive?.name ?? "this client"}? Their booking history is preserved — you can unarchive any time.`}
         confirmLabel="Archive"
         onConfirm={() => {
-          toast(`${confirmArchive?.name ?? "Client"} archived`);
+          toast(`Archived ${confirmArchive?.name ?? "client"}`);
           setConfirmArchive(null);
         }}
         onCancel={() => setConfirmArchive(null)}
@@ -5005,6 +6892,221 @@ function StatusBadge({
 }
 
 // ════════════════════════════════════════════════════════════════════
+// OPERATIONS — Analytics + Workflow automation
+// ════════════════════════════════════════════════════════════════════
+
+// Tight section header for tool pages (Operations, Production) — colored
+// dot + tight title row + description below. No huge accent bar / page
+// breaks; everything is dense for fast scanning.
+function PageSection({ tone, title, desc, children }: { tone: string; label?: string; title: string; desc: string; children: ReactNode }) {
+  return (
+    <section style={{ marginTop: 18 }}>
+      <header style={{ marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: tone, flexShrink: 0 }} />
+          <h2 style={{ fontFamily: FONTS.display, fontSize: 15, fontWeight: 700, color: COLORS.ink, margin: 0, letterSpacing: -0.1 }}>{title}</h2>
+          <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, marginLeft: 4 }}>{desc}</span>
+        </div>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+// Settings-style row used by Operations / Production pages. Same card
+// shape as the SettingsAccordionItem header — but instead of toggling
+// open, the click fires the provided onClick (opens a drawer).
+function ToolRow({ tone, icon, title, desc, onClick }: { tone: string; icon: ReactNode; title: string; desc: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        width: "100%",
+        padding: "12px 14px",
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        textAlign: "left",
+        marginBottom: 6,
+        transition: `border-color ${TRANSITION.sm}, transform ${TRANSITION.micro}, box-shadow ${TRANSITION.sm}, background ${TRANSITION.micro}`,
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = COLORS.border;
+        e.currentTarget.style.background = "rgba(11,11,13,0.015)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = COLORS.borderSoft;
+        e.currentTarget.style.background = "#fff";
+      }}
+    >
+      <div style={{
+        width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+        background: `${tone}14`, color: tone,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {icon}
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink, lineHeight: 1.3, letterSpacing: -0.05 }}>{title}</div>
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>{desc}</div>
+      </div>
+      {/* Right chevron — indicates "opens" rather than "expands" */}
+      <span aria-hidden style={{ flexShrink: 0, color: COLORS.inkDim }}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </span>
+    </button>
+  );
+}
+
+// Reusable inline icons — kept here so each ToolTile can use a distinct
+// glyph without piping through Icon name unions.
+const TI = {
+  chart:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12V8M6 12V4M10 12v-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
+  funnel:   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3h10l-3.5 4.5V12L5.5 11V7.5L2 3z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
+  star:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l1.5 3.4 3.7.4-2.8 2.5.8 3.6L7 9.7l-3.2 1.7.8-3.6L1.8 5.3l3.7-.4L7 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
+  team:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="5" r="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="10" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 11.5c0-2 1.5-3.5 3.5-3.5s3.5 1.5 3.5 3.5M9 11.5c0-1.5 1-2.5 2.5-2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  list:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 3.5h8M3 7h8M3 10.5h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  clock:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M7 4v3.5l2 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  bolt:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7.5 1.5L3 8h3.5l-1 4.5L11 6H7.5l1-4.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
+  reply:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 4L2 7l3 3M2 7h7c2 0 3 1 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  airplane: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7l10-5-3 11-2-4-5-2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
+  rotate:   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 4.5A5 5 0 102 8m9.5-3.5V2m0 2.5h-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  mail:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="3" width="11" height="8" rx="1" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 4l5.5 4 5.5-4" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
+  flow:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="3" r="1.5" stroke="currentColor" strokeWidth="1.4"/><circle cx="11" cy="11" r="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 3H10c.5 0 1 .4 1 1v6.5" stroke="currentColor" strokeWidth="1.4"/></svg>,
+  send:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7L12 2l-2.5 11-2-4.5L2 7z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
+  gift:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="6" width="10" height="6.5" stroke="currentColor" strokeWidth="1.4"/><path d="M2 6h10M7 6v6.5M7 6c-1.5-2-4 0-1 1m1-1c1.5-2 4 0 1 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  upload:   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 9V2m0 0L4 5m3-3l3 3M2 11.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  swap:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l-2-2 2-2M1 3h7c1.5 0 3 1 3 3M11 9l2 2-2 2M13 11H6c-1.5 0-3-1-3-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  sparkle:  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v3M7 9v3M2 7h3M9 7h3M3.5 3.5l1.5 1.5M9 9l1.5 1.5M10.5 3.5L9 5M5 9l-1.5 1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  toggle:   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="4" width="11" height="6" rx="3" stroke="currentColor" strokeWidth="1.4"/><circle cx="9.5" cy="7" r="1.6" fill="currentColor"/></svg>,
+  search:   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.4"/><path d="M9 9l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  callback: <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 9c0 2-2 3-4.5 3s-4.5-1-4.5-3M2.5 5c0-2 2-3 4.5-3s4.5 1 4.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  feed:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="2.5" cy="11" r="1.2" stroke="currentColor" strokeWidth="1.3"/><path d="M2.5 6.5a4.5 4.5 0 014.5 4.5M2.5 2a9 9 0 019 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  cal:      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="3" width="11" height="9" rx="1" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 6h11M4.5 1.5v3M9.5 1.5v3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  crew:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="4.5" r="1.6" stroke="currentColor" strokeWidth="1.4"/><circle cx="10" cy="4.5" r="1.6" stroke="currentColor" strokeWidth="1.4"/><circle cx="7" cy="9.5" r="1.6" stroke="currentColor" strokeWidth="1.4"/></svg>,
+  film:     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="3" width="11" height="8" rx="1" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 3v8M9.5 3v8M1.5 7h11" stroke="currentColor" strokeWidth="1.4"/></svg>,
+  pin:      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 12.5C7 12.5 11 8.5 11 5.5a4 4 0 00-8 0c0 3 4 7 4 7z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><circle cx="7" cy="5.5" r="1.3" stroke="currentColor" strokeWidth="1.4"/></svg>,
+  brief:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="2" y="4" width="10" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.4"/><path d="M5 4V2.5h4V4M4 7h6M4 9.5h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  shield:   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l4.5 1.5v4c0 3-2 5-4.5 6-2.5-1-4.5-3-4.5-6V3L7 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/></svg>,
+  alert:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l5.5 10H1.5L7 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M7 6v2.5M7 10v.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
+  scale:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5v11M3 5l-2 4h4l-2-4zM11 5l-2 4h4l-2-4zM2 12.5h10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+  guard:    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="5" r="2" stroke="currentColor" strokeWidth="1.4"/><circle cx="9.5" cy="6" r="1.5" stroke="currentColor" strokeWidth="1.4"/><path d="M2 11.5c0-2 1-3 3-3s3 1 3 3M9.5 11.5c0-1.5 1-2 2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  approve:  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/><path d="M4.5 7L6 8.5l3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>,
+};
+
+function OperationsPage() {
+  const { openDrawer } = useProto();
+
+  return (
+    <>
+      <PageHeader
+        title="Operations"
+        subtitle="Analytics, queues, SLAs & automations."
+      />
+
+      <div style={{ maxWidth: 760 }}>
+        <PageSection tone={COLORS.indigo} title="Analytics" desc="Revenue, conversion, and team performance.">
+          <ToolRow tone={COLORS.indigo} icon={TI.chart}    title="Revenue"           desc="Monthly revenue, top clients, and trend."             onClick={() => openDrawer("workspace-revenue")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.funnel}   title="Conversion funnel" desc="Inquiry → offer → booking conversion."                onClick={() => openDrawer("conversion-funnel")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.star}     title="Top performers"    desc="Most-booked talent and best clients."                 onClick={() => openDrawer("top-performers")} />
+          <ToolRow tone={COLORS.indigo} icon={TI.team}     title="Team workload"     desc="Per-coordinator queue depth and SLA risk."            onClick={() => openDrawer("coordinator-workload")} />
+        </PageSection>
+
+        <PageSection tone={COLORS.accent} title="Workflow" desc="Coordinator queue, response timers, and automation rules.">
+          <ToolRow tone={COLORS.accent} icon={TI.list}     title="My queue"          desc="Items assigned to you, sorted by priority."           onClick={() => openDrawer("my-queue")} />
+          <ToolRow tone={COLORS.accent} icon={TI.clock}    title="SLA timers"        desc="Response-time clocks and escalation paths."           onClick={() => openDrawer("sla-timers")} />
+          <ToolRow tone={COLORS.accent} icon={TI.bolt}     title="Automation rules"  desc="Trigger actions on status, deadlines, or fields."     onClick={() => openDrawer("rules-builder")} />
+          <ToolRow tone={COLORS.accent} icon={TI.reply}    title="Saved replies"     desc="Canned response library for inbox threads."           onClick={() => openDrawer("saved-replies")} />
+          <ToolRow tone={COLORS.accent} icon={TI.airplane} title="Vacation handover" desc="Delegate your queue while you're away."               onClick={() => openDrawer("vacation-handover")} />
+          <ToolRow tone={COLORS.accent} icon={TI.rotate}   title="On-call rotation"  desc="Weekly schedule and escalation ladder."               onClick={() => openDrawer("on-call-rotation")} />
+        </PageSection>
+
+        <PageSection tone={COLORS.amber} title="Comms & growth" desc="Outbound email, sequences, and the referral programme.">
+          <ToolRow tone={COLORS.amber}  icon={TI.mail}     title="Email templates"   desc="Outbound templates with merge fields."                onClick={() => openDrawer("email-templates")} />
+          <ToolRow tone={COLORS.amber}  icon={TI.flow}     title="Email sequences"   desc="Multi-step automated follow-ups."                     onClick={() => openDrawer("email-sequences")} />
+          <ToolRow tone={COLORS.amber}  icon={TI.send}     title="Invite flow"       desc="Send pre-filled talent invite links."                 onClick={() => openDrawer("invite-flow")} />
+          <ToolRow tone={COLORS.amber}  icon={TI.gift}     title="Referrals"         desc="Track referrals, conversions, and credits."           onClick={() => openDrawer("referral-dashboard")} />
+        </PageSection>
+
+        <PageSection tone={COLORS.royal} title="Admin tools" desc="Bulk operations, AI workspace, telemetry, and feature controls.">
+          <ToolRow tone={COLORS.royal}  icon={TI.upload}   title="CSV import"          desc="Bulk import talent, clients, or bookings."          onClick={() => openDrawer("csv-import", { type: "talent" })} />
+          <ToolRow tone={COLORS.royal}  icon={TI.swap}     title="Migration assistant" desc="Move data from your current platform."              onClick={() => openDrawer("migration-assistant")} />
+          <ToolRow tone={COLORS.royal}  icon={TI.sparkle}  title="AI workspace"        desc="Providers, usage controls, and console."            onClick={() => openDrawer("ai-workspace")} />
+          <ToolRow tone={COLORS.royal}  icon={TI.toggle}   title="Feature controls"    desc="Turn platform features on or off per workspace."    onClick={() => openDrawer("feature-controls")} />
+        </PageSection>
+      </div>
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PRODUCTION — Casting · Crew · On-set · Rights · Safety
+// ════════════════════════════════════════════════════════════════════
+
+function ProductionPage() {
+  const { openDrawer } = useProto();
+
+  return (
+    <>
+      <PageHeader
+        title="Production"
+        subtitle="Casting, crew, shoot day, rights & safety."
+      />
+
+      <PageSection tone={COLORS.coral} label="01" title="Casting" desc="Open or closed casting flows and round-by-round callbacks.">
+        <Grid cols="4">
+          <SecondaryCard title="Casting flow" description="Configure open/closed casting and rounds." affordance="Open" onClick={() => openDrawer("casting-flow")} />
+          <SecondaryCard title="Callback tracker" description="Per-round talent status with feedback." affordance="Open" onClick={() => openDrawer("callback-tracker")} />
+          <SecondaryCard title="Discovery feed" description="Trending talent and editorial picks." affordance="Open" onClick={() => openDrawer("discovery-feed")} />
+          <SecondaryCard title="Availability search" description="Find talent for a date range and location." affordance="Open" onClick={() => openDrawer("avail-search")} />
+        </Grid>
+      </PageSection>
+
+      <PageSection tone={COLORS.accent} label="02" title="Crew & shoot day" desc="Multi-discipline bookings, call sheets, and live on-set check-in.">
+        <Grid cols="4">
+          <SecondaryCard title="Crew booking" description="Book talent, photographer, HMU, studio." affordance="Open" onClick={() => openDrawer("crew-booking")} />
+          <SecondaryCard title="Production timeline" description="Call-sheet order of events." affordance="Open" onClick={() => openDrawer("production-timeline")} />
+          <SecondaryCard title="Call sheet" description="Live production roster with status." affordance="Open" onClick={() => openDrawer("call-sheet")} />
+          <SecondaryCard title="On-set check-in" description="Mark talent and crew as arrived." affordance="Open" onClick={() => openDrawer("onset-checkin")} />
+        </Grid>
+        <div style={{ marginTop: 8 }}>
+          <Grid cols="3">
+            <SecondaryCard title="Locations" description="Studios, venues, and outdoor locations." affordance="Open" onClick={() => openDrawer("locations-drawer")} />
+            <SecondaryCard title="Brief builder" description="Author shot lists and creative briefs." affordance="Open" onClick={() => openDrawer("brief-builder")} />
+            <SecondaryCard title="Brand assets" description="Logos, fonts, and reusable assets." affordance="Open" onClick={() => openDrawer("brand-assets")} />
+          </Grid>
+        </div>
+      </PageSection>
+
+      <PageSection tone={COLORS.amber} label="03" title="Rights & safety" desc="Image-rights tracking, incident reporting, and dispute resolution.">
+        <Grid cols="4">
+          <SecondaryCard title="Usage tracker" description="Monitor licence expiry per booking." affordance="Open" onClick={() => openDrawer("usage-tracker")} />
+          <SecondaryCard title="Relicence" description="Extend or expand usage rights." affordance="Open" onClick={() => openDrawer("relicense-flow")} />
+          <SecondaryCard title="Incident reports" description="On-set safety and conduct reports." affordance="Open" onClick={() => openDrawer("incident-report")} />
+          <SecondaryCard title="Disputes" description="Filed → Mediation → Decision." affordance="Open" onClick={() => openDrawer("dispute-resolution")} />
+        </Grid>
+      </PageSection>
+
+      <PageSection tone={COLORS.indigo} label="04" title="Account lifecycle" desc="Workspace ownership and minor-account guardian setup.">
+        <Grid cols="3">
+          <SecondaryCard title="Ownership transfer" description="Transfer workspace to a new owner." affordance="Open" onClick={() => openDrawer("ownership-transfer")} />
+          <SecondaryCard title="Minor account" description="Attach guardian co-pilot for under-18 talent." affordance="Open" onClick={() => openDrawer("minor-account")} />
+          <SecondaryCard title="Approval flow" description="Multi-stage sign-off for sensitive items." affordance="Open" onClick={() => openDrawer("approval-flow")} />
+        </Grid>
+      </PageSection>
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
 // SITE
 // ════════════════════════════════════════════════════════════════════
 
@@ -5015,8 +7117,7 @@ function SitePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Public Site"
-        title="Site & roster"
+        title="Public site"
         subtitle="Roster, site pages, and embeds — in one place."
         actions={
           <>
@@ -5034,7 +7135,13 @@ function SitePage() {
       {/* Setup walkthrough banner */}
       <SiteSetupBanner />
 
-      <div style={{ height: 18 }} />
+      {/* WS-27 Site management tools */}
+      <div style={{ display: "flex", gap: 8, marginTop: 14, marginBottom: 4 }}>
+        <SecondaryButton size="sm" onClick={() => openDrawer("site-context-switcher")}>Switch context</SecondaryButton>
+        <SecondaryButton size="sm" onClick={() => openDrawer("page-scheduler")}>Schedule pages</SecondaryButton>
+      </div>
+
+      <div style={{ height: 10 }} />
 
       {/* EVERY PLAN */}
       <TierSection
@@ -5559,7 +7666,7 @@ function PlanLadderStrip() {
             style={{
               padding: "12px 14px",
               borderRadius: 9,
-              background: isCurrent ? COLORS.ink : "transparent",
+              background: isCurrent ? COLORS.fill : "transparent",
               color: isCurrent ? "#fff" : COLORS.ink,
               border: "none",
               cursor: isReached ? "default" : "pointer",
@@ -5596,9 +7703,7 @@ function PlanLadderStrip() {
                     color: "#fff",
                     padding: "1px 6px",
                     borderRadius: 4,
-                    letterSpacing: 0.6,
-                    textTransform: "uppercase",
-                  }}
+                                      }}
                 >
                   Current
                 </span>
@@ -5644,8 +7749,7 @@ function BillingPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Billing"
-        title="Payments & payouts"
+        title="Billing"
         subtitle="Platform fee, payout routing, and recent payment activity."
         actions={
           isOwner ? (
@@ -5778,9 +7882,7 @@ function BillingActivityTable() {
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           fontFamily: FONTS.body,
           fontSize: 11,
-          letterSpacing: 0.4,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
+                    color: COLORS.inkMuted,
           fontWeight: 600,
         }}
       >
@@ -5854,15 +7956,18 @@ function BillingActivityTable() {
 // WS-3.5  Settings page redesign — anchor-link sub-nav
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Accordion sections — `supportLink` deep-links to the support docs/help
+// surface for that category, so backend can route help-requests by section.
 const SETTINGS_SECTIONS = [
-  { id: "account",      label: "Account"        },
-  { id: "plan",         label: "Plan & billing" },
-  { id: "workspace",    label: "Workspace"      },
-  { id: "domain",       label: "Domain"         },
-  { id: "branding",     label: "Branding"       },
-  { id: "team",         label: "Team"           },
-  { id: "integrations", label: "Integrations"   },
-  { id: "danger",       label: "Danger zone"    },
+  { id: "account",      label: "Account",          desc: "Workspace name, slug, contact email.",                                supportLink: "/help/settings/account" },
+  { id: "plan",         label: "Plan & billing",   desc: "Your current plan, usage, and invoices.",                              supportLink: "/help/settings/billing" },
+  { id: "workspace",    label: "Workspace",        desc: "Timezone, locale, currency, custom fields, and taxonomy.",             supportLink: "/help/settings/workspace" },
+  { id: "domain",       label: "Domain",           desc: "Run your storefront at your own domain.",                              supportLink: "/help/settings/domain" },
+  { id: "branding",     label: "Branding",         desc: "Logo, colors, email identity — what clients see.",                     supportLink: "/help/settings/branding" },
+  { id: "team",         label: "Team",             desc: "Invite teammates and assign roles.",                                   supportLink: "/help/settings/team" },
+  { id: "integrations", label: "Integrations",     desc: "Connect calendars, CRMs, and other tools.",                            supportLink: "/help/settings/integrations" },
+  { id: "features",     label: "Feature controls", desc: "Turn platform features on or off for your workspace.",                 supportLink: "/help/settings/features" },
+  { id: "danger",       label: "Danger zone",      desc: "Irreversible operations — proceed with care.",                         supportLink: "/help/settings/danger" },
 ] as const;
 type SettingsSection = typeof SETTINGS_SECTIONS[number]["id"];
 
@@ -5889,18 +7994,43 @@ function LockedPill({ plan }: { plan: Plan }) {
 }
 
 function WorkspacePageView() {
-  const { state, openDrawer, openUpgrade, toast } = useProto();
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, verificationRequests, profileClaims } = useProto();
+  const pendingTrustCount = verificationRequests.filter(r =>
+    r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"
+  ).length;
+  const disputedClaimsCount = profileClaims.filter(c => c.status === "disputed").length;
   const isOwner = state.role === "owner";
   const isAdmin = meetsRole(state.role, "admin");
   const isFree = state.plan === "free";
-  const [activeSection, setActiveSection] = useState<SettingsSection>("account");
-  const [isDirty, setIsDirty] = useState(false);
 
-  // Anchor refs for scroll-spy
-  const sectionRefs = useRef<Record<SettingsSection, HTMLDivElement | null>>({
-    account: null, plan: null, workspace: null, domain: null,
-    branding: null, team: null, integrations: null, danger: null,
-  });
+  // Accordion: only Account expanded by default. Click a section header
+  // to expand it; click again to collapse. Each accordion item carries
+  // a `data-support-link` that backend can route to /help/settings/{id}.
+  const [openSet, setOpenSet] = useState<Set<string>>(new Set(["account"]));
+  const isOpen = (id: string) => openSet.has(id);
+  const toggleSection = (id: string) => {
+    setOpenSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const expandAll = () => setOpenSet(new Set(SETTINGS_SECTIONS.map(s => s.id)));
+  const collapseAll = () => setOpenSet(new Set(["account"]));
+
+  // 2026 redesign — group the 13-accordion wall into 4 tabs.
+  // Each tab renders a subset of the accordion list; user can still
+  // expand/collapse within the tab. Clearer mental map than a giant scroll.
+  type SettingsTab = "workspace" | "roster" | "team" | "billing" | "advanced";
+  const [activeTab, setActiveTab] = useState<SettingsTab>("workspace");
+  const TABS: { id: SettingsTab; label: string; emoji: string; sections: string[] }[] = [
+    { id: "workspace", label: "Workspace",     emoji: "🏛", sections: ["account", "workspace", "domain", "branding"] },
+    { id: "roster",    label: "Roster",        emoji: "🎯", sections: ["talent-types"] },
+    { id: "team",      label: "Team & legal",  emoji: "👥", sections: ["team", "compliance"] },
+    { id: "billing",   label: "Plan & integrations", emoji: "💳", sections: ["plan", "integrations", "brand", "growth", "email"] },
+    { id: "advanced",  label: "Advanced",      emoji: "⚙",  sections: ["features", "danger"] },
+  ];
+  const visibleSections = new Set(TABS.find(t => t.id === activeTab)!.sections);
 
   // Auto-save indicator (#6) — simulates a settings save 1.2s after mount
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -5908,11 +8038,6 @@ function WorkspacePageView() {
     const t = setTimeout(() => setSavedAt(new Date()), 1200);
     return () => clearTimeout(t);
   }, []);
-
-  const scrollToSection = (id: SettingsSection) => {
-    setActiveSection(id);
-    sectionRefs.current[id]?.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
-  };
 
   /** Settings list row — white card with flex-row layout + hover lift.
    *  Interactive rows: pass `onClick`; the whole surface becomes the tap target.
@@ -5947,68 +8072,177 @@ function WorkspacePageView() {
       </Card>
     );
   }
-  const SECTION_WRAP: CSSProperties = {
-    marginBottom: 32, scrollMarginTop: 80,
-  };
+  // ── Accordion item shell ────────────────────────────────────────
+  // Click the row to expand/collapse. Smooth chevron rotation + soft
+  // border highlight when open. `supportLink` is wired to a data-attr
+  // so backend deep-linking works.
+  function AccordionItem({
+    id, label, desc, supportLink, danger, defaultBadge, children,
+  }: {
+    id: string;
+    label: string;
+    desc: string;
+    supportLink: string;
+    danger?: boolean;
+    defaultBadge?: ReactNode;
+    children: ReactNode;
+  }) {
+    const open = isOpen(id);
+    return (
+      <div
+        data-settings-section={id}
+        data-support-link={supportLink}
+        style={{
+          marginBottom: 8,
+          background: "#fff",
+          border: `1px solid ${open ? (danger ? "#FCA5A5" : COLORS.border) : COLORS.borderSoft}`,
+          borderRadius: RADIUS.md,
+          overflow: "hidden",
+          transition: `border-color ${TRANSITION.sm}, box-shadow ${TRANSITION.sm}`,
+          boxShadow: open ? "0 1px 3px rgba(11,11,13,0.04)" : "none",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => toggleSection(id)}
+          aria-expanded={open}
+          aria-controls={`settings-body-${id}`}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            width: "100%",
+            padding: "14px 16px",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: FONTS.body,
+            textAlign: "left",
+          }}
+          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = "rgba(11,11,13,0.02)"; }}
+          onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = "transparent"; }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{
+                fontFamily: FONTS.display, fontSize: 15, fontWeight: 600,
+                color: danger ? "#DC2626" : COLORS.ink, letterSpacing: -0.1,
+              }}>
+                {label}
+              </span>
+              {defaultBadge}
+            </div>
+            <div style={{
+              fontSize: 12.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            }}>
+              {desc}
+            </div>
+          </div>
+          {/* Chevron — rotates 180° when open */}
+          <span aria-hidden style={{ flexShrink: 0, color: COLORS.inkMuted, transition: `transform ${TRANSITION.sm}`, transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+        </button>
+        {open && (
+          <div
+            id={`settings-body-${id}`}
+            style={{
+              padding: "0 16px 14px",
+              borderTop: `1px solid ${COLORS.borderSoft}`,
+              animation: "settingsAccordionExpand .2s ease-out",
+            }}
+          >
+            <style>{`@keyframes settingsAccordionExpand { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+            <div style={{ paddingTop: 12 }}>{children}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
       <PageHeader
-        eyebrow="Settings"
-        title="Workspace settings"
+        title="Settings"
         subtitle="Plan, team, branding, identity — the controls that shape who you are inside Tulala."
-        actions={<AutoSaveIndicator savedAt={savedAt} />}
+        actions={
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              onClick={openSet.size === SETTINGS_SECTIONS.length ? collapseAll : expandAll}
+              style={{
+                background: "transparent", border: "none", cursor: "pointer",
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: 500,
+                color: COLORS.inkMuted, padding: "6px 8px", borderRadius: 6,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = COLORS.ink)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = COLORS.inkMuted)}
+            >
+              {openSet.size === SETTINGS_SECTIONS.length ? "Collapse all" : "Expand all"}
+            </button>
+            <AutoSaveIndicator savedAt={savedAt} />
+          </div>
+        }
       />
 
-      {/* WS-3.5 — Two-column layout: sticky sub-nav + scrollable content */}
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+      {/* 2026 redesign — tab nav groups the 13 accordions into 5 buckets.
+          Each tab still uses accordion sections within for expand/collapse. */}
+      <div
+        data-tulala-settings-tabs
+        style={{
+          display: "flex",
+          gap: 4,
+          padding: 4,
+          background: "rgba(11,11,13,0.04)",
+          borderRadius: 999,
+          marginBottom: 16,
+          maxWidth: 760,
+          overflowX: "auto",
+          scrollbarWidth: "none",
+        }}
+      >
+        {TABS.map((t) => {
+          const active = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
+              style={{
+                flexShrink: 0,
+                padding: "7px 14px",
+                borderRadius: 999,
+                border: "none",
+                background: active ? "#fff" : "transparent",
+                color: active ? COLORS.ink : COLORS.inkMuted,
+                fontFamily: FONTS.body,
+                fontSize: 12.5,
+                fontWeight: active ? 600 : 500,
+                cursor: "pointer",
+                boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
+                whiteSpace: "nowrap",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 13 }}>{t.emoji}</span>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
 
-        {/* ── Sticky sub-nav ───────────────────────────────────────── */}
-        <div style={{
-          width: 180, flexShrink: 0,
-          position: "sticky", top: 80,
-          background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
-          border: `1px solid ${COLORS.border}`, padding: "8px 0",
-          fontFamily: FONTS.body,
-        }}>
-          {SETTINGS_SECTIONS.map((sec) => {
-            const isActive = activeSection === sec.id;
-            const isDanger = sec.id === "danger";
-            return (
-              <button
-                key={sec.id}
-                type="button"
-                onClick={() => scrollToSection(sec.id as SettingsSection)}
-                style={{
-                  display: "block", width: "100%", textAlign: "left",
-                  padding: "7px 14px", background: "transparent", border: "none",
-                  cursor: "pointer",
-                  fontSize: 13,
-                  fontWeight: isActive ? 700 : 400,
-                  color: isDanger ? "#DC2626" : isActive ? COLORS.ink : COLORS.inkMuted,
-                  borderLeft: `3px solid ${isActive && !isDanger ? COLORS.accent : "transparent"}`,
-                  transition: `all ${TRANSITION.micro}`,
-                }}
-                onMouseEnter={(e) => !isActive && (e.currentTarget.style.color = COLORS.ink)}
-                onMouseLeave={(e) => !isActive && (e.currentTarget.style.color = isDanger ? "#DC2626" : COLORS.inkMuted)}
-              >
-                {sec.label}
-              </button>
-            );
-          })}
-        </div>
+      {/* Single column accordion — click each section header to expand. */}
+      <div style={{ maxWidth: 760 }}>
+        <div>
 
-        {/* ── Scrollable sections ──────────────────────────────────── */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-
-          {/* Account */}
-          <div
-            id="settings-account"
-            ref={(el) => { sectionRefs.current.account = el; }}
-            style={SECTION_WRAP}
-            onFocus={() => setActiveSection("account")}
-          >
-            <SettingsSectionHeader title="Account" desc="Workspace name, slug, and contact info." />
+          {visibleSections.has("account") && (
+          <AccordionItem id="account" label="Account" desc="Workspace name, slug, and contact info." supportLink="/help/settings/account">
             <SettingsRow onClick={() => openDrawer("identity")}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{TENANT.name}</div>
@@ -6016,16 +8250,11 @@ function WorkspacePageView() {
               </div>
               <Affordance label="Edit" />
             </SettingsRow>
-          </div>
+          </AccordionItem>
+          )}
 
-          {/* Plan & billing */}
-          <div
-            id="settings-plan"
-            ref={(el) => { sectionRefs.current.plan = el; }}
-            style={SECTION_WRAP}
-            onFocus={() => setActiveSection("plan")}
-          >
-            <SettingsSectionHeader title="Plan & billing" desc="Your current plan, usage, and invoices." />
+          {visibleSections.has("plan") && (
+          <AccordionItem id="plan" label="Plan & billing" desc="Your current plan, usage, and invoices." supportLink="/help/settings/billing" defaultBadge={<PlanChip plan={state.plan} variant="solid" />}>
             {isOwner ? (
               <SettingsRow onClick={() => openDrawer("plan-billing")}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -6043,16 +8272,11 @@ function WorkspacePageView() {
                 <ReadOnlyChip />
               </SettingsRow>
             )}
-          </div>
+          </AccordionItem>
+          )}
 
-          {/* Workspace */}
-          <div
-            id="settings-workspace"
-            ref={(el) => { sectionRefs.current.workspace = el; }}
-            style={SECTION_WRAP}
-            onFocus={() => setActiveSection("workspace")}
-          >
-            <SettingsSectionHeader title="Workspace" desc="Timezone, locale, currency, custom fields, and taxonomy." />
+          {visibleSections.has("workspace") && (
+          <AccordionItem id="workspace" label="Workspace" desc="Timezone, locale, currency, custom fields, and taxonomy." supportLink="/help/settings/workspace">
             {[
               { title: "General",     desc: "Timezone · Locale · Default currency",  drawer: "workspace-settings" as const },
               { title: "Field catalog", desc: "Custom fields for talent, clients, bookings", drawer: "field-catalog" as const, plan: "agency" as const },
@@ -6073,18 +8297,13 @@ function WorkspacePageView() {
                 </SettingsRow>
               );
             })}
-          </div>
+          </AccordionItem>
+          )}
 
-          {/* Domain */}
-          <div
-            id="settings-domain"
-            ref={(el) => { sectionRefs.current.domain = el; }}
-            style={SECTION_WRAP}
-            onFocus={() => setActiveSection("domain")}
-          >
-            <SettingsSectionHeader title="Domain" desc="Run your storefront at your own domain." />
+          {visibleSections.has("domain") && (
+          <AccordionItem id="domain" label="Domain" desc="Run your storefront at your own domain." supportLink="/help/settings/domain">
             {meetsPlan(state.plan, "studio") ? (
-              <SettingsRow onClick={() => toast("Domain settings — coming soon")}>
+              <SettingsRow onClick={() => toast("Coming soon")}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Custom domain</div>
                   <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
@@ -6105,16 +8324,11 @@ function WorkspacePageView() {
                 <LockedPill plan="studio" />
               </SettingsRow>
             )}
-          </div>
+          </AccordionItem>
+          )}
 
-          {/* Branding */}
-          <div
-            id="settings-branding"
-            ref={(el) => { sectionRefs.current.branding = el; }}
-            style={SECTION_WRAP}
-            onFocus={() => setActiveSection("branding")}
-          >
-            <SettingsSectionHeader title="Branding" desc="Logo, colors, email identity — what clients see." />
+          {visibleSections.has("branding") && (
+          <AccordionItem id="branding" label="Branding" desc="Logo, colors, email identity — what clients see." supportLink="/help/settings/branding">
             {isAdmin && meetsPlan(state.plan, "agency") ? (
               <SettingsRow onClick={() => openDrawer("branding")}>
                 <div>
@@ -6135,16 +8349,11 @@ function WorkspacePageView() {
                 <LockedPill plan="agency" />
               </SettingsRow>
             )}
-          </div>
+          </AccordionItem>
+          )}
 
-          {/* Team */}
-          <div
-            id="settings-team"
-            ref={(el) => { sectionRefs.current.team = el; }}
-            style={SECTION_WRAP}
-            onFocus={() => setActiveSection("team")}
-          >
-            <SettingsSectionHeader title="Team" desc="Invite teammates and assign roles." />
+          {visibleSections.has("team") && (
+          <AccordionItem id="team" label="Team" desc="Invite teammates and assign roles." supportLink="/help/settings/team">
             {isAdmin && !isFree ? (
               <SettingsRow onClick={() => openDrawer("team")}>
                 <div>
@@ -6167,22 +8376,119 @@ function WorkspacePageView() {
                 <LockedPill plan="agency" />
               </SettingsRow>
             )}
-          </div>
+          </AccordionItem>
+          )}
 
-          {/* Integrations */}
-          <div
-            id="settings-integrations"
-            ref={(el) => { sectionRefs.current.integrations = el; }}
-            style={SECTION_WRAP}
-            onFocus={() => setActiveSection("integrations")}
-          >
-            <SettingsSectionHeader title="Integrations" desc="Connect calendars, CRMs, and other tools." />
+          {visibleSections.has("talent-types") && (
+          <AccordionItem id="talent-types" label="Talent types" desc="Choose which talent categories your roster supports." supportLink="/help/settings/talent-types">
+            <SettingsRow onClick={() => openDrawer("talent-types")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Categories on your site</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                  Master taxonomy · plan-tier gated
+                </div>
+              </div>
+              <Affordance label="Manage" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("field-privacy")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Field privacy</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                  What's public on your site, what admins see, what's hidden
+                </div>
+              </div>
+              <Affordance label="Configure" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("field-catalog")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Field catalog</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                  Built-in fields + add agency-specific custom fields
+                </div>
+              </div>
+              <Affordance label="Open" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("trust-verification-queue")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Trust & Verification</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                    Review Instagram + Tulala verification requests · approve / reject / request more info
+                  </div>
+                </div>
+                {pendingTrustCount > 0 && (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
+                    background: COLORS.indigo, color: "#fff",
+                    fontSize: 10.5, fontWeight: 700, lineHeight: 1,
+                  }}>{pendingTrustCount}</span>
+                )}
+              </div>
+              <Affordance label={pendingTrustCount > 0 ? "Review" : "Open"} />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("trust-disputed-claims")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Disputed claims</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                    Talent-flagged agency profiles · release / uphold / remove
+                  </div>
+                </div>
+                {disputedClaimsCount > 0 && (
+                  <span style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    minWidth: 18, height: 18, padding: "0 6px", borderRadius: 999,
+                    background: COLORS.red, color: "#fff",
+                    fontSize: 10.5, fontWeight: 700, lineHeight: 1,
+                  }}>{disputedClaimsCount}</span>
+                )}
+              </div>
+              <Affordance label={disputedClaimsCount > 0 ? "Resolve" : "Open"} />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("talent-approvals")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Pending approvals</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>
+                    {pendingTalent.length === 0
+                      ? "No self-registrations waiting — you'll be notified."
+                      : "Self-registered talent waiting for review"}
+                  </div>
+                </div>
+                {pendingTalent.length > 0 && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 18,
+                      height: 18,
+                      padding: "0 6px",
+                      borderRadius: 999,
+                      background: COLORS.amber,
+                      color: "#fff",
+                      fontSize: 10.5,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {pendingTalent.length}
+                  </span>
+                )}
+              </div>
+              <Affordance label={pendingTalent.length === 0 ? "Open queue" : "Review"} />
+            </SettingsRow>
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("integrations") && (
+          <AccordionItem id="integrations" label="Integrations" desc="Connect calendars, CRMs, and other tools." supportLink="/help/settings/integrations">
             {[
               { name: "Google Calendar sync", status: "Connected",  connected: true  },
               { name: "Slack notifications",   status: "Not set up", connected: false },
               { name: "Xero / QuickBooks",      status: "Not set up", connected: false },
             ].map((intg) => (
-              <SettingsRow key={intg.name} onClick={() => toast(`${intg.name} — coming soon`)}>
+              <SettingsRow key={intg.name} onClick={() => toast("Coming soon")}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{intg.name}</div>
                   <div style={{ fontSize: 12, marginTop: 2, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted }}>
@@ -6192,17 +8498,148 @@ function WorkspacePageView() {
                 <Affordance label={intg.connected ? "Manage" : "Connect"} />
               </SettingsRow>
             ))}
-          </div>
+          </AccordionItem>
+          )}
 
-          {/* Danger zone */}
-          {isOwner && (
-            <div
-              id="settings-danger"
-              ref={(el) => { sectionRefs.current.danger = el; }}
-              style={{ ...SECTION_WRAP, borderTop: `1px solid #FCA5A5`, paddingTop: 24 }}
-              onFocus={() => setActiveSection("danger")}
-            >
-              <SettingsSectionHeader title="Danger zone" desc="Irreversible operations — proceed with care." />
+          {visibleSections.has("brand") && (
+          <AccordionItem id="brand" label="Data & brand tools" desc="Imports, migration, brand assets, and brief authoring." supportLink="/help/settings/data-brand">
+            <SettingsRow onClick={() => openDrawer("csv-import", { type: "talent" })}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Import talent</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Bulk CSV import with column mapping.</div>
+              </div>
+              <Affordance label="Import" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("migration-assistant")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Migration assistant</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>AI-assisted import from Excel, WhatsApp, Airtable.</div>
+              </div>
+              <Affordance label="Migrate" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("brand-assets")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Brand assets</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Logos, photography, and document library.</div>
+              </div>
+              <Affordance label="Manage" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("beta-program")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Beta program</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Opt into early-access features.</div>
+              </div>
+              <Affordance label="Manage" />
+            </SettingsRow>
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("growth") && (
+          <AccordionItem id="growth" label="Growth & integrations" desc="Calendar sync, referrals, and platform status." supportLink="/help/settings/growth">
+            <SettingsRow onClick={() => openDrawer("calendar-sync")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Calendar sync</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Google, Apple, Outlook · iCal subscription URL.</div>
+              </div>
+              <Affordance label="Manage" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("referral-dashboard")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Referral program</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Earn €50 credit per workspace you refer.</div>
+              </div>
+              <Affordance label="View" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("system-status")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>System status</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Tulala infrastructure health and incident log.</div>
+              </div>
+              <Affordance label="View" />
+            </SettingsRow>
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("email") && (
+          <AccordionItem id="email" label="Email & communications" desc="Templates, sequences, branding, and notification preferences." supportLink="/help/settings/email">
+            <SettingsRow onClick={() => openDrawer("email-templates")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Email templates</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Manage your transactional email library.</div>
+              </div>
+              <Affordance label="Manage" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("email-branding")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Email branding</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Sender name, logo, colors, and footer.</div>
+              </div>
+              <Affordance label="Customize" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("email-sequences")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Email sequences</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Onboarding, dunning, win-back campaigns.</div>
+              </div>
+              <Affordance label="Manage" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("notification-prefs")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Notification preferences</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Email, push, and SMS per event type.</div>
+              </div>
+              <Affordance label="Configure" />
+            </SettingsRow>
+          </AccordionItem>
+          )}
+
+          {visibleSections.has("compliance") && (
+          <AccordionItem id="compliance" label="Compliance & legal" desc="GDPR, consent records, and contract templates." supportLink="/help/settings/compliance">
+            <SettingsRow onClick={() => openDrawer("gdpr-export")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Export your data</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>GDPR / CCPA data portability — per data type.</div>
+              </div>
+              <Affordance label="Export" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("consent-log")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Consent log</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Marketing preferences — timestamped and auditable.</div>
+              </div>
+              <Affordance label="View" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("contract-templates")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Contract templates</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Workspace-wide reusable templates with merge fields.</div>
+              </div>
+              <Affordance label="Manage" />
+            </SettingsRow>
+            <SettingsRow onClick={() => openDrawer("audit-log")}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Audit log</div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Full event trail — logins, edits, access records.</div>
+              </div>
+              <Affordance label="View" />
+            </SettingsRow>
+          </AccordionItem>
+          )}
+
+          {isAdmin && visibleSections.has("features") && (
+          <AccordionItem id="features" label="Feature controls" desc="Turn platform features on or off for your workspace." supportLink="/help/settings/features">
+              <SettingsRow onClick={() => openDrawer("feature-controls")}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>All feature toggles</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>Inbox, casting, bookings, payments, analytics, AI tools, site builder, and more.</div>
+                </div>
+                <Affordance label="Configure" />
+              </SettingsRow>
+            </AccordionItem>
+          )}
+
+          {isOwner && visibleSections.has("danger") && (
+          <AccordionItem id="danger" label="Danger zone" desc="Irreversible operations — proceed with care." supportLink="/help/settings/danger" danger>
               <SettingsRow borderColor="#FCA5A5" onClick={() => openDrawer("danger-zone")}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#DC2626" }}>Delete or transfer workspace</div>
@@ -6210,11 +8647,11 @@ function WorkspacePageView() {
                 </div>
                 <Affordance label="Open" />
               </SettingsRow>
-            </div>
+            </AccordionItem>
           )}
 
-        </div>{/* end scrollable sections */}
-      </div>{/* end two-column layout */}
+        </div>{/* end accordion list */}
+      </div>{/* end max-width wrapper */}
 
       {/* Legacy — keep MoreWithSection for free plan upsell below the main layout */}
       {state.plan === "free" && (
@@ -6273,7 +8710,15 @@ export function SurfaceRouter() {
           </HybridShell>
         );
       case "client":
-        return <ClientSurface />;
+        // Wrap client in HybridShell so it gets the same persistent
+        // identity bar (avatar / brand switcher / Talent↔Workspace mode
+        // toggle / notifications) that talent + workspace have. Mirrors
+        // the talent surface treatment for visual parity.
+        return (
+          <HybridShell>
+            <ClientSurface />
+          </HybridShell>
+        );
       case "platform":
         return <PlatformSurface />;
     }
@@ -6281,7 +8726,197 @@ export function SurfaceRouter() {
   return (
     <main id="tulala-main" tabIndex={-1} aria-label={`${state.surface} surface`} style={{ display: "contents", outline: "none" }}>
       {inner}
+      <UpgradeCelebration />
     </main>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// UpgradeCelebration — fires when plan ranks up (Free → Studio → Agency
+// → Network). Shows a brief, premium overlay listing the new unlocks.
+// Auto-dismisses after 6s; the user can also tap to skip.
+// ════════════════════════════════════════════════════════════════════
+function UpgradeCelebration() {
+  const { state } = useProto();
+  const planRanks: Record<Plan, number> = {
+    free: 0, studio: 1, agency: 2, network: 3,
+  };
+  const SS_KEY = "tulala_prev_plan";
+  const [showing, setShowing] = useState<Plan | null>(null);
+
+  // 2026 redesign — fire on any "first time seeing this plan this session"
+  // where the plan rank increased. Uses sessionStorage as the source of
+  // truth so URL navigation, in-app setPlan, or page reload all trigger
+  // consistently. Side-effect-free guard via a ref + timeout.
+  const checkedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = state.plan;
+    if (checkedRef.current === key) return; // already checked this plan in this mount
+    checkedRef.current = key;
+    let prev: Plan | null = null;
+    try { prev = window.sessionStorage.getItem(SS_KEY) as Plan | null; } catch {}
+    // Persist the "last seen plan" each time, regardless of celebration.
+    try { window.sessionStorage.setItem(SS_KEY, key); } catch {}
+    if (!prev) return; // first time in session — don't celebrate
+    if (prev === key) return;
+    if (planRanks[key] <= planRanks[prev]) return; // downgrade or sideways
+    setShowing(key);
+    const t = setTimeout(() => setShowing(null), 6000);
+    return () => clearTimeout(t);
+  }, [state.plan]);
+
+  if (!showing) return null;
+
+  const unlocks: Record<Plan, string[]> = {
+    free:    [],
+    studio:  ["Custom domain", "Owned client list", "Up to 50 talents", "Private inquiry inbox"],
+    agency:  ["Branded design system", "Custom roster fields", "Team & roles up to 25", "Up to 200 talents"],
+    network: ["Multi-brand workspaces", "Cross-roster pool", "Hub-level analytics", "Unlimited everything"],
+  };
+  const tier = showing;
+  const tierMeta: Record<Plan, { color: string; soft: string; emoji: string }> = {
+    free:    { color: COLORS.inkMuted,  soft: "rgba(11,11,13,0.05)",   emoji: "🌱" },
+    studio:  { color: "#3B4A75",         soft: "rgba(91,107,160,0.12)", emoji: "✦" },
+    agency:  { color: "#7A5A1F",         soft: "rgba(184,135,49,0.16)", emoji: "★" },
+    network: { color: COLORS.accentDeep, soft: "rgba(15,79,62,0.12)",   emoji: "◆" },
+  };
+  const meta = tierMeta[tier];
+  const items = unlocks[tier];
+
+  return (
+    <div
+      onClick={() => setShowing(null)}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 250,
+        background: "rgba(11,11,13,0.45)",
+        backdropFilter: "blur(10px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        animation: "tulala-celebrate-fade-in 0.3s ease",
+      }}
+    >
+      <style>{`
+        @keyframes tulala-celebrate-fade-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes tulala-celebrate-pop {
+          0%   { transform: scale(0.92) translateY(12px); opacity: 0; }
+          60%  { transform: scale(1.02) translateY(0); opacity: 1; }
+          100% { transform: scale(1)    translateY(0); opacity: 1; }
+        }
+      `}</style>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "calc(100% - 48px)",
+          maxWidth: 420,
+          background: "#fff",
+          borderRadius: 20,
+          padding: 28,
+          fontFamily: FONTS.body,
+          boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
+          animation: "tulala-celebrate-pop 0.45s cubic-bezier(.2,.9,.3,1.2)",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: "50%",
+            background: meta.soft,
+            color: meta.color,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 30,
+            margin: "0 auto 16px",
+            boxShadow: `0 8px 32px -8px ${meta.soft}`,
+          }}
+        >
+          {meta.emoji}
+        </div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 1.4,
+            color: meta.color,
+            textTransform: "uppercase",
+            marginBottom: 6,
+          }}
+        >
+          Welcome to {PLAN_META[tier].label}
+        </div>
+        <h2
+          style={{
+            margin: 0,
+            fontFamily: FONTS.display,
+            fontSize: 22,
+            fontWeight: 600,
+            color: COLORS.ink,
+            letterSpacing: -0.3,
+            lineHeight: 1.2,
+            marginBottom: 12,
+          }}
+        >
+          {items.length} things unlocked.
+        </h2>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            margin: "0 0 20px",
+            textAlign: "left",
+          }}
+        >
+          {items.map((u) => (
+            <div
+              key={u}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "8px 12px",
+                borderRadius: 10,
+                background: meta.soft,
+                fontSize: 13,
+                color: COLORS.ink,
+                fontWeight: 500,
+              }}
+            >
+              <span style={{ color: meta.color, fontSize: 13, lineHeight: 1, fontWeight: 700 }}>✓</span>
+              {u}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowing(null)}
+          style={{
+            padding: "10px 22px",
+            borderRadius: 999,
+            border: "none",
+            background: COLORS.fill,
+            color: "#fff",
+            fontFamily: FONTS.body,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          Take me in
+        </button>
+        <div style={{ marginTop: 8, fontSize: 10.5, color: COLORS.inkDim }}>
+          Tap anywhere to dismiss · auto-closes in 6s
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -6305,6 +8940,7 @@ export function MobileBottomNav() {
     setTalentPage,
     setClientPage,
     setPlatformPage,
+    pendingTalent,
   } = useProto();
   const [moreOpen, setMoreOpen] = useState(false);
   // WS-12.6 — left/right arrows move between bottom nav tabs
@@ -6313,12 +8949,20 @@ export function MobileBottomNav() {
 
   const tabs = (() => {
     if (state.surface === "workspace") {
+      // Mobile nav badges — surface pending-approval count on the Roster tab
+      // + unread message count on Messages, matching the desktop topbar nav.
+      // Single source of truth.
+      const WORKSPACE_TAB_BADGE: Partial<Record<WorkspacePage, number>> = {
+        roster: pendingTalent.length || undefined,
+        messages: WORKSPACE_NOTIFICATION_COUNT || undefined,
+      };
       return WORKSPACE_PAGES.map((p) => ({
         id: p,
         label: p === "talent" ? ENTITY_TYPE_META[state.entityType].rosterLabel : PAGE_META[p].label,
         active: state.page === p,
         run: () => setPage(p as WorkspacePage),
         icon: WORKSPACE_TAB_ICON[p as WorkspacePage] ?? "info",
+        badge: WORKSPACE_TAB_BADGE[p as WorkspacePage],
       }));
     }
     if (state.surface === "talent") {
@@ -6336,12 +8980,17 @@ export function MobileBottomNav() {
       }));
     }
     if (state.surface === "client") {
+      // Client surface badges — unread on Messages (mock 2 for prototype).
+      const CLIENT_TAB_BADGE: Partial<Record<ClientPage, number>> = {
+        messages: 2,
+      };
       return CLIENT_PAGES.map((p) => ({
         id: p,
         label: CLIENT_PAGE_META[p].label,
         active: state.clientPage === p,
         run: () => setClientPage(p as ClientPage),
         icon: CLIENT_TAB_ICON[p as ClientPage] ?? "info",
+        badge: CLIENT_TAB_BADGE[p as ClientPage],
       }));
     }
     return PLATFORM_PAGES.map((p) => ({
@@ -6377,7 +9026,7 @@ export function MobileBottomNav() {
           fontFamily: FONTS.body,
         }}
       >
-        <div style={{ display: "flex", alignItems: "stretch", height: 56 }}>
+        <div style={{ display: "flex", alignItems: "stretch", height: 64 }}>
           {visible.map((t) => (
             <BottomTab key={t.id} {...t} />
           ))}
@@ -6455,6 +9104,43 @@ export function MobileBottomNav() {
                 {t.label}
               </button>
             ))}
+            {/* Divider + auxiliary actions (feedback, help) — keep them
+                inside the same menu instead of as floating buttons that
+                cover content. */}
+            <div style={{ height: 1, background: COLORS.borderSoft, margin: "6px 12px" }} />
+            <button
+              type="button"
+              onClick={() => {
+                // Trigger the FeedbackButton via a custom event the
+                // primitive listens to. Simple + decoupled.
+                if (typeof window !== "undefined") {
+                  window.dispatchEvent(new CustomEvent("tulala-open-feedback"));
+                }
+                setMoreOpen(false);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                width: "100%",
+                padding: "14px 18px",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 15,
+                fontWeight: 500,
+                color: COLORS.ink,
+                textAlign: "left",
+              }}
+            >
+              <span style={{ display: "inline-flex", color: COLORS.inkMuted }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 4.5h10v6.5l-3 .5-2 2-2-2H3v-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
+              Send feedback
+            </button>
           </div>
         </div>
       )}
@@ -6497,13 +9183,14 @@ function BottomTab({
         alignItems: "center",
         justifyContent: "center",
         gap: 3,
-        padding: "9px 6px 8px",
-        margin: "5px 3px",
+        padding: "7px 6px 6px",
+        margin: "4px 3px",
         color: active ? COLORS.accentDeep : COLORS.inkMuted,
         fontFamily: FONTS.body,
         fontSize: 11,
         fontWeight: active ? 600 : 500,
         letterSpacing: 0.05,
+        lineHeight: 1.2,
         position: "relative",
         transition: `background ${TRANSITION.sm}, color ${TRANSITION.sm}`,
       }}
@@ -6519,7 +9206,7 @@ function BottomTab({
       >
         <Icon
           name={icon}
-          size={20}
+          size={18}
           stroke={active ? 2 : 1.7}
           color={active ? COLORS.accent : COLORS.inkMuted}
         />
@@ -6550,7 +9237,17 @@ function BottomTab({
           </span>
         )}
       </span>
-      <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 76 }}>
+      <span style={{
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        maxWidth: 76,
+        lineHeight: 1.3,
+        // Reserve space for descenders so y/g/p don't clip on iOS where
+        // line-box rounds down. paddingBottom + display:block guarantees
+        // the descender area is part of the layout box.
+        display: "block",
+      }}>
         {label}
       </span>
     </button>
@@ -6559,11 +9256,17 @@ function BottomTab({
 
 const WORKSPACE_TAB_ICON: Partial<Record<WorkspacePage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
   overview: "bolt",
-  inbox: "mail",
+  messages: "mail",
   calendar: "calendar",
+  roster: "team",
+  clients: "user",
+  operations: "search",
+  production: "sparkle",
+  settings: "info",
+  // legacy aliases
+  inbox: "mail",
   work: "info",
   talent: "team",
-  clients: "user",
   site: "sparkle",
   billing: "credit",
   workspace: "info",
@@ -6573,15 +9276,19 @@ const TALENT_TAB_ICON: Partial<Record<TalentPage, "info" | "sparkle" | "plus" | 
   today: "bolt",
   messages: "mail",
   profile: "user",
-  inbox: "mail",
   calendar: "calendar",
+  agencies: "team",
+  "public-page": "sparkle",
+  settings: "info",
+  // legacy aliases
+  inbox: "mail",
   activity: "sparkle",
   reach: "search",
-  settings: "info",
 };
 
 const CLIENT_TAB_ICON: Partial<Record<ClientPage, "info" | "sparkle" | "plus" | "search" | "mail" | "calendar" | "user" | "team" | "bolt" | "credit">> = {
   today: "bolt",
+  messages: "mail",
   discover: "search",
   shortlists: "team",
   inquiries: "mail",

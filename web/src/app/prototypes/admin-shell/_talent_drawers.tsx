@@ -74,10 +74,12 @@ import {
   FieldRow,
   Icon,
   PrimaryButton,
+  ProfilePhotoBadgeOverlay,
   SecondaryButton,
   TextArea,
   TextInput,
   Toggle,
+  TrustBadgeGroup,
 } from "./_primitives";
 
 // ─── LockedBadge (inlined — also in _talent.tsx for MyProfilePage) ────────────
@@ -91,9 +93,9 @@ function LockedBadge({ requiredTier }: { requiredTier: TalentSubscriptionTier })
         alignItems: "center",
         gap: 4,
         padding: "2px 7px",
-        background: requiredTier === "portfolio" ? COLORS.ink : COLORS.accentSoft,
+        background: requiredTier === "portfolio" ? COLORS.fill : COLORS.accentSoft,
         color: requiredTier === "portfolio" ? "#fff" : COLORS.accent,
-        border: `1px solid ${requiredTier === "portfolio" ? COLORS.ink : "rgba(15,79,62,0.28)"}`,
+        border: `1px solid ${requiredTier === "portfolio" ? COLORS.accent : "rgba(15,79,62,0.28)"}`,
         fontFamily: FONTS.body,
         fontSize: 10,
         fontWeight: 600,
@@ -1734,8 +1736,8 @@ function LogWorkForm({
                         style={{
                           padding: "6px 11px",
                           borderRadius: 999,
-                          background: active ? COLORS.ink : "#fff",
-                          border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+                          background: active ? COLORS.fill : "#fff",
+                          border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
                           cursor: "pointer",
                           fontFamily: FONTS.body,
                           fontSize: 12,
@@ -1831,7 +1833,7 @@ function LogWorkForm({
             })
           }
           style={{
-            background: canSave ? COLORS.ink : "rgba(11,11,13,0.20)",
+            background: canSave ? COLORS.fill : "rgba(11,11,13,0.20)",
             color: "#fff",
             border: "none",
             borderRadius: 8,
@@ -1919,8 +1921,8 @@ function BlockTimeForm({
                     gap: 6,
                     padding: "6px 11px",
                     borderRadius: 999,
-                    background: active ? COLORS.ink : "#fff",
-                    border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+                    background: active ? COLORS.fill : "#fff",
+                    border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
                     cursor: "pointer",
                     fontFamily: FONTS.body,
                     fontSize: 12.5,
@@ -1989,7 +1991,7 @@ function BlockTimeForm({
           disabled={!canSave}
           onClick={() => onSave({ from, to, reason, note })}
           style={{
-            background: canSave ? COLORS.ink : "rgba(11,11,13,0.20)",
+            background: canSave ? COLORS.fill : "rgba(11,11,13,0.20)",
             color: "#fff",
             border: "none",
             borderRadius: 8,
@@ -2007,46 +2009,6 @@ function BlockTimeForm({
   );
 }
 
-// ─── Profile edit ─────────────────────────────────────────────────
-
-export function TalentProfileEditDrawer() {
-  const { state, closeDrawer } = useProto();
-  const open = state.drawer.drawerId === "talent-profile-edit";
-  const onSave = useSaveAndClose("Profile saved · agencies notified");
-  const p = MY_TALENT_PROFILE;
-
-  return (
-    <DrawerShell
-      open={open}
-      onClose={closeDrawer}
-      title="Edit profile basics"
-      description="Changes flow to your public profile and to every agency that has you on roster."
-      width={560}
-      footer={<StandardFooter onSave={onSave} saveLabel="Save profile" />}
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <FieldRow label="Name">
-          <TextInput defaultValue={p.name} />
-        </FieldRow>
-        <FieldRow label="City">
-          <TextInput defaultValue={p.city.split(" ·")[0]} />
-        </FieldRow>
-        <FieldRow label="Height">
-          <TextInput defaultValue={p.measurements.heightImperial} />
-        </FieldRow>
-        <FieldRow label="Bio" hint="Shown on your public profile and on agency rosters.">
-          <TextArea
-            defaultValue="Madrid-based · editorial + commercial. Comfortable on movement-heavy shoots, multilingual on set (ES · EN · IT)."
-            rows={4}
-          />
-        </FieldRow>
-        <Divider label="Visibility" />
-        <ToggleRow label="Show on Tulala hub" hint="Appear in Tulala's curated talent directory." defaultOn={true} />
-        <ToggleRow label="Show on public storefronts" hint="Acme Models · Praline London public sites." defaultOn={true} />
-      </div>
-    </DrawerShell>
-  );
-}
 
 function ToggleRow({ label, hint, defaultOn }: { label: string; hint?: string; defaultOn?: boolean }) {
   const [on, setOn] = useState(defaultOn ?? false);
@@ -2263,8 +2225,8 @@ export function TalentBlockDatesDrawer() {
                   onClick={() => setLocation(city)}
                   style={{
                     padding: "3px 9px",
-                    background: location === city ? COLORS.ink : "#fff",
-                    border: `1px solid ${location === city ? COLORS.ink : COLORS.borderSoft}`,
+                    background: location === city ? COLORS.fill : "#fff",
+                    border: `1px solid ${location === city ? COLORS.accent : COLORS.borderSoft}`,
                     borderRadius: 999,
                     cursor: "pointer",
                     fontFamily: FONTS.body,
@@ -3126,9 +3088,9 @@ function PresetButton({
     <button
       onClick={onClick}
       style={{
-        background: active ? COLORS.ink : "#fff",
+        background: active ? COLORS.fill : "#fff",
         color: active ? "#fff" : COLORS.ink,
-        border: `1px solid ${active ? COLORS.ink : COLORS.borderSoft}`,
+        border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
         borderRadius: 999,
         padding: "6px 12px",
         fontFamily: FONTS.body,
@@ -3229,7 +3191,7 @@ export function TalentPayoutsDrawer() {
                   width: 22,
                   height: 22,
                   borderRadius: "50%",
-                  background: isDone ? COLORS.green : isActive ? COLORS.ink : "rgba(11,11,13,0.06)",
+                  background: isDone ? COLORS.green : isActive ? COLORS.fill : "rgba(11,11,13,0.06)",
                   color: isDone || isActive ? "#fff" : COLORS.inkDim,
                   display: "inline-flex",
                   alignItems: "center",
@@ -5804,9 +5766,11 @@ export function TalentEmergencyContactDrawer() {
 // ─── Public preview ─────────────────────────────────────────────
 
 export function TalentPublicPreviewDrawer() {
-  const { state, closeDrawer, toast, openDrawer } = useProto();
+  const { state, closeDrawer, toast, openDrawer, getTrustSummary } = useProto();
   const open = state.drawer.drawerId === "talent-public-preview";
   const p = MY_TALENT_PROFILE;
+  // Demo: prototype talent maps to roster id t1 (Marta) for trust lookup.
+  const trust = getTrustSummary("talent_profile", "t1");
   const currentTier = p.subscription.tier;
   const [previewTier, setPreviewTier] = useState<TalentSubscriptionTier>(currentTier);
   const showEmbeds = previewTier !== "basic";
@@ -5908,29 +5872,32 @@ export function TalentPublicPreviewDrawer() {
         </div>
         {/* Identity */}
         <div style={{ padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 14, position: "relative" }}>
-          <div
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: "50%",
-              background: COLORS.surfaceAlt,
-              border: `3px solid #fff`,
-              boxShadow: "0 1px 4px rgba(11,11,13,0.08)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 32,
-              marginTop: -36,
-              flexShrink: 0,
-            }}
-          >
-            {p.profilePhoto}
+          <div style={{ position: "relative", marginTop: -36, flexShrink: 0 }}>
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: "50%",
+                background: COLORS.surfaceAlt,
+                border: `3px solid #fff`,
+                boxShadow: "0 1px 4px rgba(11,11,13,0.08)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 32,
+              }}
+            >
+              {p.profilePhoto}
+            </div>
+            <ProfilePhotoBadgeOverlay trust={trust} size="md" />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink, lineHeight: 1.2 }}>{p.name}</div>
             <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, marginTop: 4 }}>
               {p.pronouns} · {p.measurementsSummary} · {p.city.split(" ·")[0]}
             </div>
+            <TrustBadgeGroup trust={trust} surface="public_profile" max={3} />
+
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
               {p.specialties.slice(0, 4).map((s) => (
                 <span
@@ -5953,7 +5920,7 @@ export function TalentPublicPreviewDrawer() {
           <button
             onClick={() => toast("Inquiry form — coming soon")}
             style={{
-              background: COLORS.ink,
+              background: COLORS.fill,
               color: "#fff",
               border: "none",
               padding: "8px 14px",
@@ -6039,7 +6006,7 @@ export function TalentPublicPreviewDrawer() {
               <div
                 style={{
                   padding: "10px 12px",
-                  background: COLORS.ink,
+                  background: COLORS.fill,
                   color: "#fff",
                   borderRadius: 10,
                   fontFamily: FONTS.body,
@@ -6152,9 +6119,9 @@ export function TalentTierCompareDrawer() {
               key={t}
               style={{
                 padding: "16px 16px",
-                background: t === "portfolio" ? COLORS.ink : "#fff",
+                background: t === "portfolio" ? COLORS.fill : "#fff",
                 color: t === "portfolio" ? "#fff" : COLORS.ink,
-                border: `1.5px solid ${isCurrent ? COLORS.accentDeep : t === "portfolio" ? COLORS.ink : COLORS.borderSoft}`,
+                border: `1.5px solid ${isCurrent ? COLORS.accentDeep : t === "portfolio" ? COLORS.accent : COLORS.borderSoft}`,
                 borderRadius: 12,
                 position: "relative",
               }}
@@ -6947,6 +6914,73 @@ export function TalentCareerAnalyticsDrawer() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>
                   €{c.spend.toLocaleString()}
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* WS-18.4 — AI talent-side insights */}
+        <div
+          style={{
+            background: COLORS.royalSoft,
+            borderRadius: RADIUS.lg,
+            padding: "14px 16px",
+            border: `1px solid rgba(95,75,139,0.15)`,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <Icon name="sparkle" size={13} color={COLORS.royal} stroke={1.7} />
+            <span
+              style={{
+                fontFamily: FONTS.body,
+                fontSize: 10.5,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+                color: COLORS.royal,
+              }}
+            >
+              AI Insights
+            </span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {(
+              [
+                {
+                  icon: "bolt" as const,
+                  body: `7 of your last 10 inquiries were commercial. Your commercial booking rate (${s.acceptRate}%) is lower than editorial — you may be under-pricing that category.`,
+                  tone: "amber" as const,
+                },
+                {
+                  icon: "star" as const,
+                  body: `Your day rate increased by €${(s.rateHistory[s.rateHistory.length - 1] - s.rateHistory[0]).toLocaleString()} over the last 7 bookings. You're trending up — consider raising your quote floor.`,
+                  tone: "green" as const,
+                },
+                {
+                  icon: "user" as const,
+                  body: `${s.topClients[0].name} accounts for ${Math.round((s.topClients[0].spend / (s.topClients.reduce((a, c) => a + c.spend, 0))) * 100)}% of your YTD revenue. Diversifying reduces scheduling risk.`,
+                  tone: "info" as const,
+                },
+              ] as { icon: "bolt" | "star" | "user"; body: string; tone: "amber" | "green" | "info" }[]
+            ).map((item, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  color: COLORS.royalDeep,
+                  lineHeight: 1.5,
+                }}
+              >
+                <Icon
+                  name={item.icon}
+                  size={13}
+                  color={item.tone === "green" ? COLORS.successDeep : item.tone === "amber" ? COLORS.amberDeep : COLORS.indigoDeep}
+                  stroke={1.8}
+                />
+                <span>{item.body}</span>
               </div>
             ))}
           </div>

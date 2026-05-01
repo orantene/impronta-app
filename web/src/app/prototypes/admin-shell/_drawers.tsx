@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import React, { useState, useEffect, useRef, useMemo, useId, type ReactNode } from "react";
+import { useLiveTaxonomy, type LiveTaxonomyParent } from "./_taxonomy-loader";
+import { patchProfileDraft, readProfileDraft, clearProfileDraft, type ProfileDraft } from "./_profile-store";
 import {
   CLIENT_TRUST_META,
   COLORS,
   FONTS,
+  RADIUS,
   TRANSITION,
   PLANS,
   PLAN_LADDER,
@@ -26,6 +29,25 @@ import {
   TALENT_STATE_LABEL,
   TALENT_STATE_TONE,
   TENANT,
+  TAXONOMY,
+  TAXONOMY_FIELDS,
+  PLAN_TAXONOMY_LIMITS,
+  WORKSPACE_TAXONOMY_DEFAULT,
+  SKILL_CATALOG,
+  CONTEXT_CATALOG,
+  PENDING_TALENT,
+  ROSTER_AGENCY,
+  ROSTER_FREE,
+  TALENT_TRUST_META,
+  PRONOUNS_OPTIONS,
+  GENDER_OPTIONS,
+  PROFICIENCY_META,
+  BIO_TONES,
+  PHOTO_TAG_META,
+  PROFILE_TEMPLATES,
+  TALENT_INVITES,
+  deriveAge,
+  ageRangeFor,
   getClients,
   getInquiries,
   getRoster,
@@ -41,8 +63,66 @@ import {
   type Role,
   type PayoutReceiver,
   type RepresentationStatus,
+  type TaxonomyParent,
+  type TaxonomyParentId,
+  type TaxonomyChild,
+  type WorkspaceTaxonomySetting,
+  type RegField,
+  type WorkspaceCustomField,
+  type FieldVisibility,
+  type ProfileFieldId,
+  PROFILE_FIELD_META,
+  DEFAULT_FIELD_VISIBILITY,
+  FIELD_PRIVACY_PLAN_RULES,
+  ALWAYS_INTERNAL_FIELDS,
+  VERIFICATION_TYPE_META,
+  PROFILE_CLAIM_META,
+  type VerificationRequest,
+  type VerificationRequestStatus,
+  type VerificationType,
+  type VerificationMethodConfig,
+  ALWAYS_VISIBLE_FIELDS,
+  allowedVisibilities,
+  type ProfileLanguage,
+  type LanguageLevel,
+  type ServiceArea,
+  type PendingTalent,
+  type AvailabilityCell,
+  type AvailabilityStatus,
+  type ProfileRate,
+  type RateUnit,
+  type ProfileAlbum,
+  type LocaleCode,
+  type LocaleBio,
+  type Verifications,
+  type TrustTier,
+  type ProfileChange,
+  type Pronouns,
+  type GenderOption,
+  type AgeDisplayMode,
+  type ProfileIdentity,
+  type SkillProficiency,
+  type SkillEntry,
+  type BioTone,
+  type Personality,
+  type PhotoTag,
+  type PhotoMeta,
+  type VideoSlot,
+  type SeasonalWindow,
+  type RecurringPattern,
+  type VacationWindow,
+  type PackageRate,
+  type PastClient,
+  type ProfileTemplate,
+  type FieldLockPath,
+  type TalentInvite,
+  type InviteStatus,
+  TYPE_RATE_UNIT,
+  LOCALE_LABEL,
+  computeTrustTier,
 } from "./_state";
 import {
+  ActivityFeedItem,
   Affordance,
   Avatar,
   Bullet,
@@ -70,8 +150,15 @@ import {
   TextInput,
   Toggle,
   DrawerShell,
+  TrustBadgeGroup,
+  RiskScorePill,
 } from "./_primitives";
 import { InquiryWorkspaceDrawer } from "./_workspace";
+import dynamic from "next/dynamic";
+const InquiryComposerLazyD = dynamic(
+  () => import("./_messages").then((m) => m.InquiryComposer),
+  { ssr: false },
+);
 import {
   InboxSnippetsDrawer,
   NotificationsPrefsDrawer,
@@ -92,7 +179,7 @@ import {
   TalentBookingDetailDrawer,
   TalentClosedBookingDrawer,
   TalentHubDetailDrawer,
-  TalentProfileEditDrawer,
+  // TalentProfileEditDrawer removed — replaced by unified TalentProfileShellDrawer.
   TalentProfileSectionDrawer,
   TalentAvailabilityDrawer,
   TalentBlockDatesDrawer,
@@ -147,6 +234,7 @@ import {
   ClientSendInquiryDrawer,
   ClientInquiryDetailDrawer,
   ClientCounterOfferDrawer,
+  ClientReviewDrawer,
   ClientBookingDetailDrawer,
   ClientContractsDrawer,
   ClientTeamDrawer,
@@ -214,6 +302,14 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <PlanBillingDrawer />;
     case "team":
       return <TeamDrawer />;
+    case "talent-types":
+      return <TalentTypesDrawer />;
+    case "talent-registration":
+      return <TalentRegistrationDrawer />;
+    case "talent-profile-shell":
+      return <TalentProfileShellDrawer />;
+    case "talent-approvals":
+      return <TalentApprovalsDrawer />;
     case "branding":
       return <BrandingDrawer />;
     case "domain":
@@ -238,6 +334,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <DayDetailDrawer />;
     case "client-profile":
       return <ClientProfileDrawer />;
+    case "client-csv-bulk-add":
+      return <ClientCsvBulkAddDrawer />;
     case "today-pulse":
       return <TodayPulseDrawer />;
     case "pipeline":
@@ -282,6 +380,28 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <SeoDrawer />;
     case "field-catalog":
       return <FieldCatalogDrawer />;
+    case "field-privacy":
+      return <FieldPrivacyDrawer />;
+    case "trust-verification-queue":
+      return <TrustVerificationQueueDrawer />;
+    case "trust-disputed-claims":
+      return <DisputedClaimsDrawer />;
+    case "platform-verification-methods":
+      return <PlatformVerificationMethodsDrawer />;
+    case "talent-trust-detail":
+      return <TalentTrustDetailDrawer />;
+    case "talent-claim-invite":
+      return <TalentClaimInviteDrawer />;
+    case "talent-phone-verify":
+      return <TalentPhoneVerifyDrawer />;
+    case "talent-id-verify":
+      return <TalentIdVerifyDrawer />;
+    case "talent-business-verify":
+      return <TalentBusinessVerifyDrawer />;
+    case "talent-domain-verify":
+      return <TalentDomainVerifyDrawer />;
+    case "talent-payment-verify":
+      return <TalentPaymentVerifyDrawer />;
     case "taxonomy":
       return <TaxonomyDrawer />;
     case "design":
@@ -328,7 +448,9 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
     case "talent-hub-detail":
       return <TalentHubDetailDrawer />;
     case "talent-profile-edit":
-      return <TalentProfileEditDrawer />;
+      // Phase 4 — talent self-edit now uses the unified profile shell
+      // with mode="edit-self" (admin-only sections gated off).
+      return <TalentProfileShellDrawer />;
     case "talent-profile-section":
       return <TalentProfileSectionDrawer />;
     case "talent-availability":
@@ -449,6 +571,8 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <ClientInquiryDetailDrawer />;
     case "client-counter-offer":
       return <ClientCounterOfferDrawer />;
+    case "client-review":
+      return <ClientReviewDrawer />;
     case "client-booking-detail":
       return <ClientBookingDetailDrawer />;
     case "client-contracts":
@@ -563,6 +687,146 @@ function DrawerSwitch({ id }: { id: DrawerId }) {
       return <AiDraftAssistDrawer />;
     case "ai-search-explain":
       return <AiSearchExplainDrawer />;
+    case "ai-weekly-digest":
+      return <AiWeeklyDigestDrawer />;
+
+    // ── WS-19 Reporting & analytics ──────────────────────────────────
+    case "workspace-revenue":
+      return <WorkspaceRevenueDrawer />;
+    case "conversion-funnel":
+      return <ConversionFunnelDrawer />;
+    case "top-performers":
+      return <TopPerformersDrawer />;
+    case "coordinator-workload":
+      return <CoordinatorWorkloadDrawer />;
+
+    // ── WS-20 Operations & workflow ───────────────────────────────────
+    case "my-queue":
+      return <MyQueueDrawer />;
+    case "sla-timers":
+      return <SlaTimersDrawer />;
+    case "rules-builder":
+      return <RulesBuilderDrawer />;
+    case "saved-replies":
+      return <SavedRepliesDrawer />;
+    case "vacation-handover":
+      return <VacationHandoverDrawer />;
+    case "on-call-rotation":
+      return <OnCallRotationDrawer />;
+
+    // ── WS-21 Compliance, legal, audit ────────────────────────────────
+    case "gdpr-export":
+      return <GdprExportDrawer />;
+    case "consent-log":
+      return <ConsentLogDrawer />;
+    case "contract-templates":
+      return <ContractTemplatesDrawer />;
+    case "report-content":
+      return <ReportContentDrawer />;
+
+    // ── WS-22 Email + transactional comms ─────────────────────────────
+    case "email-templates":
+      return <EmailTemplatesDrawer />;
+    case "email-branding":
+      return <EmailBrandingDrawer />;
+    case "email-sequences":
+      return <EmailSequencesDrawer />;
+    case "notification-prefs":
+      return <NotificationPrefsDrawer />;
+
+    // ── WS-23 Marketing & growth ──────────────────────────────────────
+    case "invite-flow":
+      return <InviteFlowDrawer />;
+    case "referral-dashboard":
+      return <ReferralDashboardDrawer />;
+    case "calendar-sync":
+      return <CalendarSyncDrawer />;
+    case "system-status":
+      return <SystemStatusDrawer />;
+
+    // ── WS-24 Quality & release engineering ───────────────────────────
+    case "telemetry-dashboard":
+      return <TelemetryDashboardDrawer />;
+    case "beta-program":
+      return <BetaProgramDrawer />;
+
+    // ── WS-25 Bulk operations + migration ─────────────────────────────
+    case "csv-import":
+      return <CsvImportDrawer />;
+    case "migration-assistant":
+      return <MigrationAssistantDrawer />;
+
+    // ── WS-26 Brand & creative tools ──────────────────────────────────
+    case "brief-builder":
+      return <BriefBuilderDrawer />;
+    case "brand-assets":
+      return <BrandAssetsDrawer />;
+    case "approval-flow":
+      return <ApprovalFlowDrawer />;
+
+    // ── WS-27 Site & page-builder management ──────────────────────────
+    case "site-context-switcher":
+      return <SiteContextSwitcherDrawer />;
+    case "page-scheduler":
+      return <PageSchedulerDrawer />;
+
+    // ── WS-28 Casting director ─────────────────────────────────────────
+    case "casting-flow":
+      return <CastingFlowDrawer />;
+    case "callback-tracker":
+      return <CallbackTrackerDrawer />;
+
+    // ── WS-29 Production team & multi-discipline bookings ─────────────
+    case "crew-booking":
+      return <CrewBookingDrawer />;
+    case "production-timeline":
+      return <ProductionTimelineDrawer />;
+
+    // ── WS-30 Image rights & post-booking lifecycle ───────────────────
+    case "usage-tracker":
+      return <UsageTrackerDrawer />;
+    case "relicense-flow":
+      return <RelicenseFlowDrawer />;
+
+    // ── WS-31 Account lifecycle ────────────────────────────────────────
+    case "ownership-transfer":
+      return <OwnershipTransferDrawer />;
+    case "minor-account":
+      return <MinorAccountDrawer />;
+
+    // ── WS-32 Discovery & marketplace ─────────────────────────────────
+    case "discovery-feed":
+      return <DiscoveryFeedDrawer />;
+    case "avail-search":
+      return <AvailSearchDrawer />;
+
+    // ── WS-33 On-set / production-day live ────────────────────────────
+    case "call-sheet":
+      return <CallSheetDrawer />;
+    case "onset-checkin":
+      return <OnsetCheckinDrawer />;
+
+    // ── WS-34 Safety, disputes, incident handling ─────────────────────
+    case "incident-report":
+      return <IncidentReportDrawer />;
+    case "dispute-resolution":
+      return <DisputeResolutionDrawer />;
+
+    // ── WS-35 Production-feature reconciliation ───────────────────────
+    case "locations-drawer":
+      return <LocationsDrawer />;
+    case "ai-workspace":
+      return <AiWorkspaceDrawer />;
+
+    // ── Feature controls ──────────────────────────────────────────────
+    case "feature-controls":
+      return <FeatureControlsDrawer />;
+
+    // ── Talent circle (personal collaborator network) ─────────────────
+    case "circle-manage":
+      return <CircleManageDrawer />;
+    case "circle-recommend":
+      return <CircleRecommendDrawer />;
 
     default:
       return <SimpleStubDrawer title="Coming up next" description="This drawer's full design lands in the next iteration." sections={[]} />;
@@ -871,7 +1135,7 @@ function UsageRow({ label, value }: { label: string; value: number }) {
           style={{
             width: `${pct}%`,
             height: "100%",
-            background: pct > 80 ? COLORS.amber : COLORS.ink,
+            background: pct > 80 ? COLORS.amber : COLORS.fill,
             borderRadius: 999,
             transition: "width .3s",
           }}
@@ -1069,7 +1333,7 @@ function ThemeFoundationsDrawer() {
               onClick={() => setTheme(t.id as any)}
               style={{
                 background: "#fff",
-                border: `1.5px solid ${theme === t.id ? COLORS.ink : COLORS.borderSoft}`,
+                border: `1.5px solid ${theme === t.id ? COLORS.accent : COLORS.borderSoft}`,
                 borderRadius: 10,
                 padding: 12,
                 cursor: "pointer",
@@ -1173,7 +1437,7 @@ function ThemeFoundationsDrawer() {
               onClick={() => setDensity(d.id as any)}
               style={{
                 background: "#fff",
-                border: `1.5px solid ${density === d.id ? COLORS.ink : COLORS.borderSoft}`,
+                border: `1.5px solid ${density === d.id ? COLORS.accent : COLORS.borderSoft}`,
                 borderRadius: 10,
                 padding: 12,
                 cursor: "pointer",
@@ -1437,6 +1701,6948 @@ function TeamDrawer() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// Phase 2 — Talent Types settings (workspace admin)
+// Agency picks which parent groups talent can register / appear under.
+// Plan tier limits how many parents can be enabled simultaneously.
+// ════════════════════════════════════════════════════════════════════
+
+function TalentTypesDrawer() {
+  const { state, closeDrawer, openDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-types";
+  const [settings, setSettings] = useState(WORKSPACE_TAXONOMY_DEFAULT);
+  const limit = PLAN_TAXONOMY_LIMITS[state.plan as keyof typeof PLAN_TAXONOMY_LIMITS] ?? 3;
+  const enabledCount = settings.filter(s => s.isEnabled).length;
+  const planLabel = state.plan.charAt(0).toUpperCase() + state.plan.slice(1);
+
+  const planRank = (p: "free" | "studio" | "agency" | "network") =>
+    ({ free: 0, studio: 1, agency: 2, network: 3 } as const)[p];
+  const currentRank = planRank(state.plan as "free" | "studio" | "agency" | "network");
+
+  const toggle = (parentId: string) => {
+    const target = settings.find(s => s.parentId === parentId);
+    if (!target) return;
+    const parent = TAXONOMY.find(p => p.id === parentId);
+    if (!parent) return;
+    if (planRank(parent.minPlan) > currentRank) {
+      toast(`${parent.label} requires ${parent.minPlan.charAt(0).toUpperCase() + parent.minPlan.slice(1)} plan`);
+      return;
+    }
+    if (!target.isEnabled && enabledCount >= limit) {
+      toast(`Plan limit reached — upgrade to enable more.`);
+      return;
+    }
+    setSettings(s => s.map(x => x.parentId === parentId ? { ...x, isEnabled: !x.isEnabled } : x));
+  };
+
+  const updateRule = (parentId: string, key: keyof WorkspaceTaxonomySetting, val: boolean) => {
+    setSettings(s => s.map(x => x.parentId === parentId ? { ...x, [key]: val } : x));
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Talent types"
+      description="Pick which talent your agency accepts. The registration form and Discover both follow this list."
+      footer={
+        <>
+          <SecondaryButton onClick={() => openDrawer("talent-registration")}>Preview registration</SecondaryButton>
+          <PrimaryButton onClick={() => { toast("Talent types saved"); closeDrawer(); }}>Save</PrimaryButton>
+        </>
+      }
+    >
+      {/* Plan usage strip */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "12px 14px", borderRadius: 10,
+        background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
+        fontFamily: FONTS.body, marginBottom: 14,
+      }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.indigoDeep }}>
+            {limit === 999 ? "All groups available" : `${enabledCount} of ${limit} groups enabled`}
+          </div>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+            {planLabel} plan · {limit === 999 ? "no cap" : "upgrade to enable more"}
+          </div>
+        </div>
+        {limit !== 999 && (
+          <button type="button" onClick={() => toast("Plan compare")} style={{
+            padding: "6px 12px", borderRadius: 999, border: "none",
+            background: COLORS.indigoDeep, color: "#fff",
+            fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
+          }}>Upgrade</button>
+        )}
+      </div>
+
+      {/* Available now (within plan tier) */}
+      <div style={{
+        fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+        color: COLORS.inkMuted, marginBottom: 8,
+      }}>Available on your plan</div>
+      <div style={{
+        background: "#fff", borderRadius: 12, overflow: "hidden",
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)", marginBottom: 14,
+      }}>
+        {TAXONOMY.filter(p => planRank(p.minPlan) <= currentRank).map((parent, i) => {
+          const setting = settings.find(s => s.parentId === parent.id)!;
+          return (
+            <TalentTypeRow
+              key={parent.id} parent={parent} setting={setting}
+              isFirst={i === 0}
+              onToggle={() => toggle(parent.id)}
+              onRule={(k, v) => updateRule(parent.id, k, v)}
+              locked={false}
+            />
+          );
+        })}
+      </div>
+
+      {/* Locked behind plan */}
+      {TAXONOMY.some(p => planRank(p.minPlan) > currentRank) && (
+        <>
+          <div style={{
+            fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+            color: COLORS.inkMuted, marginBottom: 8,
+          }}>Locked — upgrade to enable</div>
+          <div style={{
+            background: "#fff", borderRadius: 12, overflow: "hidden",
+            border: `1px solid ${COLORS.borderSoft}`,
+            boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+          }}>
+            {TAXONOMY.filter(p => planRank(p.minPlan) > currentRank).map((parent, i) => {
+              const setting = settings.find(s => s.parentId === parent.id)!;
+              return (
+                <TalentTypeRow
+                  key={parent.id} parent={parent} setting={setting}
+                  isFirst={i === 0}
+                  onToggle={() => toast(`${parent.label} requires ${parent.minPlan} plan`)}
+                  onRule={() => {}}
+                  locked={true}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
+    </DrawerShell>
+  );
+}
+
+function TalentTypeRow({
+  parent, setting, isFirst, onToggle, onRule, locked,
+}: {
+  parent: TaxonomyParent;
+  setting: WorkspaceTaxonomySetting;
+  isFirst: boolean;
+  onToggle: () => void;
+  onRule: (key: keyof WorkspaceTaxonomySetting, val: boolean) => void;
+  locked: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div style={{
+      borderTop: isFirst ? "none" : `1px solid ${COLORS.borderSoft}`,
+      fontFamily: FONTS.body,
+      opacity: locked ? 0.55 : 1,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "12px 14px", cursor: locked ? "not-allowed" : "pointer",
+      }} onClick={() => !locked && setting.isEnabled && setExpanded(e => !e)}>
+        <span style={{ fontSize: 22, flexShrink: 0 }}>{parent.emoji}</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>
+            {parent.label}
+          </div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+            {parent.helper}
+          </div>
+        </div>
+        {locked ? (
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: 999,
+            background: COLORS.royalSoft, color: COLORS.royalDeep,
+            textTransform: "capitalize",
+          }}>{parent.minPlan}</span>
+        ) : (
+          <button type="button"
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            aria-pressed={setting.isEnabled}
+            style={{
+              width: 36, height: 22, borderRadius: 999,
+              background: setting.isEnabled ? COLORS.accent : "rgba(11,11,13,0.12)",
+              border: "none", cursor: "pointer", padding: 0,
+              position: "relative", transition: "background 0.15s",
+              flexShrink: 0,
+            }}>
+            <span style={{
+              position: "absolute", top: 2, left: setting.isEnabled ? 16 : 2,
+              width: 18, height: 18, borderRadius: "50%", background: "#fff",
+              transition: "left 0.15s",
+            }} />
+          </button>
+        )}
+      </div>
+      {expanded && setting.isEnabled && !locked && (
+        <div style={{
+          padding: "0 14px 12px 50px", display: "flex", flexDirection: "column", gap: 8,
+        }}>
+          <TaxonomyToggleRow
+            label="Show in directory"
+            desc="Discover surfaces this category to clients."
+            value={setting.showInDirectory}
+            onChange={(v) => onRule("showInDirectory", v)}
+          />
+          <TaxonomyToggleRow
+            label="Show in registration"
+            desc="Talent can register under this category."
+            value={setting.showInRegistration}
+            onChange={(v) => onRule("showInRegistration", v)}
+          />
+          <TaxonomyToggleRow
+            label="Require approval"
+            desc="New profiles in this category go to admin queue first."
+            value={setting.requiresApproval}
+            onChange={(v) => onRule("requiresApproval", v)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaxonomyToggleRow({ label, desc, value, onChange }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <button type="button" onClick={() => onChange(!value)}
+        aria-pressed={value}
+        style={{
+          width: 32, height: 18, borderRadius: 999, border: "none", cursor: "pointer", padding: 0,
+          background: value ? COLORS.accent : "rgba(11,11,13,0.12)",
+          position: "relative", flexShrink: 0,
+        }}>
+        <span style={{
+          position: "absolute", top: 2, left: value ? 16 : 2,
+          width: 14, height: 14, borderRadius: "50%", background: "#fff",
+        }} />
+      </button>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{label}</div>
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{desc}</div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 3 — Talent Registration Wizard
+// 7-step mobile-first flow. Filtered by the agency's enabled taxonomy.
+// Schema-driven dynamic fields per type (TAXONOMY_FIELDS).
+// ════════════════════════════════════════════════════════════════════
+
+type RegValues = Record<string, string | string[]>;
+
+function TalentRegistrationDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-registration";
+  const [step, setStep] = useState(0);
+  const [stageName, setStageName] = useState("");
+  const [parents, setParents] = useState<Set<TaxonomyParentId>>(new Set());
+  const [children, setChildren] = useState<Set<string>>(new Set());
+  const [city, setCity] = useState("");
+  const [radius, setRadius] = useState<number>(50);
+  const [photoCount, setPhotoCount] = useState(0);
+  const [fields, setFields] = useState<RegValues>({});
+  // Structured languages — language + level + role flags (per spec).
+  const [languages, setLanguages] = useState<ProfileLanguage[]>([]);
+  // Skill IDs from SKILL_CATALOG (separate from Talent Types).
+  const [skillIds, setSkillIds] = useState<Set<string>>(new Set());
+
+  // Architecture loop closed — wizard now writes to the same draft
+  // store as QuickAdd. So when admin runs Approval queue → opens shell,
+  // the talent's submitted wizard data is the seed.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      const firstChild = [...children][0];
+      patchProfileDraft("default", {
+        firstName: stageName.split(/\s+/)[0] ?? "",
+        lastName: stageName.split(/\s+/).slice(1).join(" "),
+        displayName: stageName,
+        primaryType: firstChild ?? null,
+        homeBase: city,
+        photoCount,
+        languages,
+        fields,
+        method: "invited",
+        serviceArea: {
+          homeBase: city, serviceCities: [],
+          travelKm: radius, travelFee: false, remoteOnly: false,
+        },
+      } as Partial<ProfileDraft>, "wizard");
+    }, 350);
+    return () => clearTimeout(t);
+  }, [open, stageName, parents, children, city, radius, photoCount, fields, languages]);
+
+  if (!open) return null;
+
+  // Filter the master taxonomy down to what the agency exposes for
+  // registration (uses the per-workspace settings; in prod this comes
+  // from `workspace_taxonomy_settings` keyed by tenant_id).
+  const allowed = WORKSPACE_TAXONOMY_DEFAULT
+    .filter(s => s.isEnabled && s.showInRegistration)
+    .map(s => s.parentId);
+  const visibleParents = TAXONOMY.filter(p => allowed.includes(p.id));
+
+  const toggleParent = (id: TaxonomyParentId) => {
+    setParents(p => {
+      const next = new Set(p);
+      if (next.has(id)) {
+        next.delete(id);
+        // Drop child selections of removed parent
+        const drop = new Set(TAXONOMY.find(x => x.id === id)?.children.map(c => c.id) ?? []);
+        setChildren(c => new Set([...c].filter(x => !drop.has(x))));
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleChild = (id: string) => {
+    setChildren(c => {
+      const next = new Set(c);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const setField = (key: string, value: string | string[]) => {
+    setFields(f => ({ ...f, [key]: value }));
+  };
+
+  // Aggregate dynamic fields for all selected parent categories.
+  const dynamicFields: { parent: TaxonomyParent; fields: RegField[] }[] =
+    [...parents].map(pid => {
+      const parent = TAXONOMY.find(p => p.id === pid)!;
+      return { parent, fields: TAXONOMY_FIELDS[pid] ?? [] };
+    });
+
+  // Validation
+  const canStep0 = stageName.trim().length > 0;
+  const canStep1 = parents.size > 0;
+  const canStep2 = children.size > 0;
+  const canStep3 = city.trim().length > 0;
+  const canStep4 = photoCount >= 3;
+  const canStep5 = dynamicFields.every(g =>
+    g.fields.filter(f => !f.optional).every(f => {
+      const v = fields[f.id];
+      if (!v) return false;
+      return Array.isArray(v) ? v.length > 0 : v.toString().trim().length > 0;
+    })
+  );
+  const canStep6 = languages.length > 0;
+
+  const steps: { title: string; sub: string; canNext: boolean }[] = [
+    { title: `Join ${TENANT.name}`, sub: "Create your talent profile in a few minutes.", canNext: canStep0 },
+    { title: "What do you offer?", sub: "Pick the categories you want to be booked under.", canNext: canStep1 },
+    { title: "Choose your exact Talent Type", sub: "We'll match you to the right inquiries.", canNext: canStep2 },
+    { title: "Where do you work?", sub: "Home base + how far you'll travel.", canNext: canStep3 },
+    { title: "Photos", sub: "At least 3 photos. Start with a clean headshot.", canNext: canStep4 },
+    { title: "Profile details", sub: "A few extra fields based on your Talent Types.", canNext: canStep5 },
+    { title: "Languages & skills", sub: "Languages with levels — and any extra strengths.", canNext: canStep6 },
+    { title: "Review & submit", sub: `${TENANT.name} reviews new profiles within 1 business day.`, canNext: true },
+  ];
+
+  const cur = steps[step]!;
+  const isLast = step === steps.length - 1;
+
+  const finish = () => {
+    toast("Profile submitted for review");
+    closeDrawer();
+  };
+
+  return (
+    <div
+      onClick={closeDrawer}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(11,11,13,0.42)", backdropFilter: "blur(8px)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 480, maxHeight: "92vh",
+        background: "#fff", borderRadius: "20px 20px 0 0",
+        padding: "20px 22px max(22px, env(safe-area-inset-bottom)) 22px",
+        fontFamily: FONTS.body,
+        boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.25)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        {/* Step pips */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 18, flexShrink: 0 }}>
+          {steps.map((_, i) => (
+            <span key={i} style={{
+              flex: 1, height: 4, borderRadius: 2,
+              background: i <= step ? COLORS.accent : "rgba(11,11,13,0.08)",
+              transition: "background .2s",
+            }} />
+          ))}
+        </div>
+
+        <h2 style={{
+          margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+          color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.15, flexShrink: 0,
+        }}>{cur.title}</h2>
+        <p style={{ margin: "6px 0 16px", fontSize: 13.5, color: COLORS.inkMuted, lineHeight: 1.5, flexShrink: 0 }}>
+          {cur.sub}
+        </p>
+
+        <div style={{ flex: 1, overflowY: "auto", marginBottom: 16, marginRight: -8, paddingRight: 8 }}>
+          {step === 0 && (
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+                Stage / professional name
+              </label>
+              <input type="text" value={stageName} onChange={e => setStageName(e.target.value)}
+                placeholder="First Last"
+                style={{
+                  width: "100%", boxSizing: "border-box", padding: "14px 16px",
+                  borderRadius: 12, border: `1.5px solid ${COLORS.borderSoft}`,
+                  fontFamily: FONTS.body, fontSize: 15, color: COLORS.ink, outline: "none",
+                }}
+              />
+              <div style={{
+                marginTop: 14, padding: "12px 14px", borderRadius: 10,
+                background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
+                fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+              }}>
+                You're registering with <strong>{TENANT.name}</strong>. They'll review your profile before publishing.
+              </div>
+            </div>
+          )}
+
+          {step === 1 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {visibleParents.length === 0 ? (
+                <div style={{
+                  padding: 14, borderRadius: 10, background: COLORS.surface,
+                  border: `1px solid ${COLORS.borderSoft}`, fontSize: 12.5, color: COLORS.inkMuted,
+                }}>
+                  This agency hasn't enabled any talent categories yet.
+                </div>
+              ) : visibleParents.map(p => {
+                const active = parents.has(p.id);
+                return (
+                  <button key={p.id} type="button" onClick={() => toggleParent(p.id)} style={{
+                    padding: "13px 14px", borderRadius: 12,
+                    border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                    background: active ? "rgba(15,79,62,0.06)" : "#fff",
+                    fontFamily: FONTS.body, textAlign: "left", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 12,
+                  }}>
+                    <span style={{ fontSize: 22, flexShrink: 0 }}>{p.emoji}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{p.label}</div>
+                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{p.helper}</div>
+                    </div>
+                    <span style={{
+                      width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                      border: `1.5px solid ${active ? COLORS.accent : "rgba(11,11,13,0.18)"}`,
+                      background: active ? COLORS.accent : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {active && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {step === 2 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {[...parents].map(pid => {
+                const parent = TAXONOMY.find(p => p.id === pid)!;
+                return (
+                  <div key={pid}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                      {parent.emoji}  {parent.label}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {parent.children.map(c => {
+                        const active = children.has(c.id);
+                        return (
+                          <button key={c.id} type="button" onClick={() => toggleChild(c.id)} style={{
+                            padding: "8px 13px", borderRadius: 999,
+                            border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                            background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                            color: active ? COLORS.accentDeep : COLORS.ink,
+                            fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                          }}>
+                            {c.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {step === 3 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Home city
+                </label>
+                <input type="text" value={city} onChange={e => setCity(e.target.value)}
+                  placeholder="e.g. Madrid, Tulum, Berlin"
+                  style={{
+                    width: "100%", boxSizing: "border-box", padding: "14px 16px",
+                    borderRadius: 12, border: `1.5px solid ${COLORS.borderSoft}`,
+                    fontFamily: FONTS.body, fontSize: 15, color: COLORS.ink, outline: "none",
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Travel radius — {radius === 999 ? "Anywhere" : `${radius} km`}
+                </label>
+                <input type="range" min={10} max={999} step={10} value={radius}
+                  onChange={e => setRadius(Number(e.target.value))}
+                  style={{ width: "100%", accentColor: COLORS.accent }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 4 }}>
+                  <span>Local only</span>
+                  <span>Worldwide</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                {Array.from({ length: 6 }).map((_, i) => {
+                  const filled = i < photoCount;
+                  return (
+                    <button key={i} type="button" onClick={() => setPhotoCount(c => Math.min(6, c + 1))} style={{
+                      aspectRatio: "3 / 4", borderRadius: 10,
+                      border: `1.5px ${filled ? "solid" : "dashed"} ${filled ? COLORS.accent : COLORS.borderSoft}`,
+                      background: filled ? "rgba(15,79,62,0.06)" : "#fff",
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                      fontFamily: FONTS.body, fontSize: 11, color: filled ? COLORS.accentDeep : COLORS.inkMuted,
+                      fontWeight: 600,
+                    }}>
+                      {filled ? `Photo ${i + 1}` : "+ Add"}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{
+                marginTop: 12, fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5,
+              }}>
+                Tip: One clean headshot, one full body, then 3–4 work samples.
+                {photoCount > 0 && photoCount < 3 && (
+                  <span style={{ display: "block", marginTop: 4, color: COLORS.amberDeep }}>
+                    Need {3 - photoCount} more.
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === 5 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+              {dynamicFields.map(g => (
+                <div key={g.parent.id}>
+                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 8 }}>
+                    {g.parent.emoji}  {g.parent.label}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {g.fields.map(f => (
+                      <RegFieldInput key={f.id} field={f}
+                        value={fields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
+                        onChange={(v) => setField(f.id, v)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {step === 6 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Languages
+                </div>
+                <LanguagesEditor value={languages} onChange={setLanguages} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Skills & strengths · optional
+                </div>
+                <CatalogChips
+                  items={SKILL_CATALOG}
+                  selected={skillIds}
+                  onToggle={(id) => setSkillIds(s => {
+                    const next = new Set(s);
+                    if (next.has(id)) next.delete(id); else next.add(id);
+                    return next;
+                  })}
+                />
+              </div>
+            </div>
+          )}
+
+          {step === 7 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Summary card — what gets submitted */}
+              <div style={{
+                padding: 14, borderRadius: 12,
+                border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+                fontFamily: FONTS.body,
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, marginBottom: 8 }}>
+                  {stageName || "Your profile"}
+                </div>
+                <ReviewKv label="Categories"
+                  value={[...parents].map(id => TAXONOMY.find(p => p.id === id)?.label).filter(Boolean).join(" · ") || "—"} />
+                <ReviewKv label="Talent Types"
+                  value={[...children].map(id => {
+                    for (const p of TAXONOMY) {
+                      const c = p.children.find(x => x.id === id);
+                      if (c) return c.label;
+                    }
+                    return null;
+                  }).filter(Boolean).join(" · ") || "—"} />
+                <ReviewKv label="Home base"
+                  value={city || "—"} />
+                <ReviewKv label="Travel"
+                  value={radius === 999 ? "Anywhere" : `${radius} km`} />
+                <ReviewKv label="Languages"
+                  value={languages.map(l => `${l.language} (${l.level})`).join(" · ") || "—"} />
+                <ReviewKv label="Photos"
+                  value={`${photoCount} uploaded`} />
+              </div>
+
+              {/* Privacy / consent — two-column "what this agency will use" */}
+              <ConsentTwoCol agencyName={TENANT.name} />
+
+              <div style={{
+                padding: "12px 14px", borderRadius: 10, background: COLORS.successSoft,
+                color: COLORS.successDeep, fontFamily: FONTS.body, fontSize: 12.5, lineHeight: 1.5,
+              }}>
+                Tap <strong>Submit for review</strong> to agree to the above and join {TENANT.name}. You'll get an email when they approve you — usually within 1 business day.
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+          <button type="button" onClick={closeDrawer} style={{
+            background: "transparent", border: "none", padding: 0, cursor: "pointer",
+            fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, fontWeight: 500,
+          }}>Cancel</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {step > 0 && !isLast && (
+              <button type="button" onClick={() => setStep(s => s - 1)} style={{
+                padding: "10px 14px", borderRadius: 999,
+                border: `1px solid ${COLORS.border}`, background: "transparent",
+                color: COLORS.ink, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}>Back</button>
+            )}
+            {!isLast && step < steps.length - 2 ? (
+              <button type="button" disabled={!cur.canNext} onClick={() => setStep(s => s + 1)} style={{
+                padding: "10px 18px", borderRadius: 999,
+                border: "none", background: cur.canNext ? COLORS.accent : "rgba(11,11,13,0.10)",
+                color: cur.canNext ? "#fff" : COLORS.inkDim,
+                fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+                cursor: cur.canNext ? "pointer" : "default",
+              }}>Continue</button>
+            ) : !isLast ? (
+              <button type="button" disabled={!cur.canNext} onClick={() => setStep(s => s + 1)} style={{
+                padding: "10px 18px", borderRadius: 999,
+                border: "none", background: cur.canNext ? COLORS.fill : "rgba(11,11,13,0.10)",
+                color: cur.canNext ? "#fff" : COLORS.inkDim,
+                fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+                cursor: cur.canNext ? "pointer" : "default",
+              }}>Submit for review</button>
+            ) : (
+              <button type="button" onClick={finish} style={{
+                padding: "10px 18px", borderRadius: 999,
+                border: "none", background: COLORS.accent, color: "#fff",
+                fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}>Done</button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Renders a custom workspace field (defined in the Field Catalog) as
+ * the right input for its kind. Mirrors RegFieldInput but reads its
+ * shape from WorkspaceCustomField rather than the type-specific RegField.
+ */
+function CustomWorkspaceFieldInput({ field, value, onChange }: {
+  field: WorkspaceCustomField;
+  value: string | string[];
+  onChange: (v: string | string[]) => void;
+}) {
+  const labelRow = (
+    <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+      {field.name}
+      {!field.required && <span style={{ fontSize: 10, fontWeight: 500, color: COLORS.inkDim }}>· optional</span>}
+      {field.required && <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.amberDeep }}>· required</span>}
+    </label>
+  );
+  const helper = field.helper && (
+    <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 4 }}>{field.helper}</div>
+  );
+
+  if (field.kind === "Text" || field.kind === "Number" || field.kind === "Date") {
+    return (
+      <div>
+        {labelRow}
+        <input
+          type={field.kind === "Number" ? "number" : field.kind === "Date" ? "date" : "text"}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "11px 13px",
+            borderRadius: 10, border: `1.5px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, outline: "none",
+          }}
+        />
+        {helper}
+      </div>
+    );
+  }
+  if (field.kind === "Toggle") {
+    const v = value === "true";
+    return (
+      <div>
+        {labelRow}
+        <button type="button" onClick={() => onChange(v ? "false" : "true")} aria-pressed={v}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            padding: 0, background: "transparent", border: "none", cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>
+          <span style={{
+            width: 36, height: 22, borderRadius: 999,
+            background: v ? COLORS.accent : "rgba(11,11,13,0.12)",
+            position: "relative", flexShrink: 0,
+          }}>
+            <span style={{
+              position: "absolute", top: 2, left: v ? 16 : 2,
+              width: 18, height: 18, borderRadius: "50%",
+              background: "#fff", transition: "left 0.15s",
+            }} />
+          </span>
+          <span style={{ fontSize: 12.5, color: COLORS.ink }}>{v ? "Yes" : "No"}</span>
+        </button>
+        {helper}
+      </div>
+    );
+  }
+  // Select / Multi-select — for the prototype, free-text chips since
+  // the Field Catalog doesn't yet capture an option list.
+  const arr = Array.isArray(value) ? value : (value ? [value] : []);
+  const isMulti = field.kind === "Multi-select";
+  return (
+    <ChipsInput
+      label={field.name + (field.required ? "  ·  required" : "  ·  optional")}
+      placeholder={isMulti ? "Add a value…" : "Type a value (single)"}
+      values={arr}
+      onChange={(v) => onChange(isMulti ? v : (v[v.length - 1] ?? ""))}
+    />
+  );
+}
+
+function RegFieldInput({ field, value, onChange }: {
+  field: RegField;
+  value: string | string[];
+  onChange: (v: string | string[]) => void;
+}) {
+  if (field.kind === "text" || field.kind === "number") {
+    return (
+      <div>
+        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+          {field.label}
+          {field.optional && <span style={{ fontSize: 10, fontWeight: 500, color: COLORS.inkDim }}>· optional</span>}
+        </label>
+        <input type={field.kind === "number" ? "number" : "text"}
+          value={typeof value === "string" ? value : ""}
+          onChange={e => onChange(e.target.value)}
+          placeholder={field.placeholder}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "11px 13px",
+            borderRadius: 10, border: `1.5px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body, fontSize: 13.5, color: COLORS.ink, outline: "none",
+          }}
+        />
+        {field.helper && (
+          <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 4 }}>{field.helper}</div>
+        )}
+      </div>
+    );
+  }
+  if (field.kind === "select") {
+    const v = typeof value === "string" ? value : "";
+    return (
+      <div>
+        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+          {field.label}
+          {field.optional && <span style={{ fontSize: 10, fontWeight: 500, color: COLORS.inkDim }}>· optional</span>}
+        </label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {(field.options ?? []).map(opt => {
+            const active = v === opt;
+            return (
+              <button key={opt} type="button" onClick={() => onChange(active ? "" : opt)} style={{
+                padding: "7px 12px", borderRadius: 999,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              }}>{opt}</button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  if (field.kind === "multiselect") {
+    const v = Array.isArray(value) ? value : [];
+    const toggle = (opt: string) => {
+      const next = v.includes(opt) ? v.filter(x => x !== opt) : [...v, opt];
+      onChange(next);
+    };
+    return (
+      <div>
+        <label style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+          {field.label}
+          {field.optional && <span style={{ fontSize: 10, fontWeight: 500, color: COLORS.inkDim }}>· optional</span>}
+        </label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {(field.options ?? []).map(opt => {
+            const active = v.includes(opt);
+            return (
+              <button key={opt} type="button" onClick={() => toggle(opt)} style={{
+                padding: "7px 12px", borderRadius: 999,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              }}>{opt}</button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  // chips — free-text repeating
+  const arr = Array.isArray(value) ? value : [];
+  return (
+    <ChipsInput
+      label={field.label + (field.optional ? "  ·  optional" : "")}
+      placeholder={field.placeholder ?? "Add…"}
+      values={arr}
+      onChange={(v) => onChange(v)}
+    />
+  );
+}
+
+/**
+ * Talent-consent two-column table — shown at the end of the registration
+ * wizard. Reads the agency's effective field-visibility settings and
+ * renders two lists: "On the public profile" + "Agency admins will see".
+ * Talent must explicitly agree (via the Submit for review CTA).
+ */
+function ConsentTwoCol({ agencyName }: { agencyName: string }) {
+  const { effectiveFieldVisibility, customFields } = useProto();
+  const allFieldIds = Object.keys(PROFILE_FIELD_META) as ProfileFieldId[];
+  const publicLabels: string[] = [];
+  const internalLabels: string[] = [];
+  for (const id of allFieldIds) {
+    const v = effectiveFieldVisibility(id);
+    const label = PROFILE_FIELD_META[id].label;
+    if (v === "public") publicLabels.push(label);
+    else if (v === "internal") internalLabels.push(label);
+    // hidden → not collected by this workspace; don't list
+  }
+  // Custom fields show up too with their workspace-defined visibility
+  for (const cf of customFields.filter(c => c.appliesTo === "Talent")) {
+    const v = cf.visibility ?? "internal";
+    if (v === "public") publicLabels.push(cf.name + " ✦");
+    else if (v === "internal") internalLabels.push(cf.name + " ✦");
+  }
+  return (
+    <div data-tulala-consent style={{
+      borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`,
+      background: "#fff", overflow: "hidden",
+      fontFamily: FONTS.body,
+    }}>
+      <style>{`
+        @media (max-width: 540px) {
+          [data-tulala-consent] [data-cc-cols] { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+      <div style={{
+        padding: "12px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`,
+        background: COLORS.surface,
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
+          color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 3,
+        }}>Privacy · what {agencyName} will use</div>
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          Tulala always captures your full profile. {agencyName} chooses what's public and what stays internal. Here's what they've configured.
+        </div>
+      </div>
+      <div data-cc-cols style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0,
+      }}>
+        <div style={{ padding: 12, borderRight: `1px solid ${COLORS.borderSoft}` }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 5,
+            fontSize: 11, fontWeight: 600, color: COLORS.successDeep,
+            marginBottom: 8,
+          }}>
+            <span style={{ fontSize: 12 }}>🌐</span>
+            <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>On {agencyName}'s site</span>
+          </div>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
+            {publicLabels.length === 0 && (
+              <li style={{ fontSize: 11, color: COLORS.inkDim }}>None — fully internal.</li>
+            )}
+            {publicLabels.map(l => (
+              <li key={l} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
+                <span style={{ color: COLORS.successDeep, marginRight: 4 }}>✓</span>{l}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div style={{ padding: 12 }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 5,
+            fontSize: 11, fontWeight: 600, color: COLORS.amberDeep,
+            marginBottom: 8,
+          }}>
+            <span style={{ fontSize: 12 }}>🔒</span>
+            <span style={{ letterSpacing: 0.4, textTransform: "uppercase" }}>Agency admins see</span>
+          </div>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 3 }}>
+            {internalLabels.length === 0 && (
+              <li style={{ fontSize: 11, color: COLORS.inkDim }}>None.</li>
+            )}
+            {internalLabels.map(l => (
+              <li key={l} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
+                <span style={{ color: COLORS.amberDeep, marginRight: 4 }}>✓</span>{l}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div style={{
+        padding: "10px 14px", borderTop: `1px solid ${COLORS.borderSoft}`,
+        background: COLORS.surface,
+        fontSize: 10.5, color: COLORS.inkDim, lineHeight: 1.5,
+      }}>
+        ✦ = custom field defined by {agencyName}. You can revoke this agency's access any time from your Talent settings.
+      </div>
+    </div>
+  );
+}
+
+function ReviewKv({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", padding: "6px 0", borderTop: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body }}>
+      <span style={{ width: 100, fontSize: 11, color: COLORS.inkMuted, fontWeight: 600 }}>{label}</span>
+      <span style={{ flex: 1, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>{value}</span>
+    </div>
+  );
+}
+
+function ChipsInput({ label, placeholder, values, onChange }: {
+  label: string;
+  placeholder: string;
+  values: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const commit = () => {
+    const v = draft.trim();
+    if (!v) return;
+    if (!values.includes(v)) onChange([...values, v]);
+    setDraft("");
+  };
+  return (
+    <div>
+      <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 5 }}>
+        {label}
+      </label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+        {values.map(v => (
+          <span key={v} style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "5px 10px", borderRadius: 999,
+            background: "rgba(15,79,62,0.08)", color: COLORS.accentDeep,
+            fontSize: 12, fontWeight: 600, fontFamily: FONTS.body,
+          }}>
+            {v}
+            <button type="button" onClick={() => onChange(values.filter(x => x !== v))} style={{
+              background: "transparent", border: "none", padding: 0, cursor: "pointer",
+              color: COLORS.accentDeep, fontSize: 14, lineHeight: 1, fontWeight: 700,
+            }}>×</button>
+          </span>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input type="text" value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
+          placeholder={placeholder}
+          style={{
+            flex: 1, padding: "10px 12px",
+            borderRadius: 10, border: `1.5px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+          }}
+        />
+        <button type="button" onClick={commit} disabled={!draft.trim()} style={{
+          padding: "0 14px", borderRadius: 10, border: "none",
+          background: draft.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
+          color: draft.trim() ? "#fff" : COLORS.inkDim,
+          fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: draft.trim() ? "pointer" : "default",
+        }}>Add</button>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 4 — Talent Profile Shell
+//
+// The unified profile builder used by:
+//   • Admin create  (continued from NewTalentDrawer with seed)
+//   • Admin edit    (existing roster talent)
+//   • Talent self-edit (admin sections hidden)
+//
+// Section order is the binding hierarchy:
+//   1. Status   2. Services (Talent Types) 3. Location & service area
+//   4. Media    5. About    6. Type-specific details
+//   7. Languages 8. Skills  9. Contexts    10. Admin (admin-only)
+// ════════════════════════════════════════════════════════════════════
+
+type ProfileShellPayload = {
+  /** Mode controls header copy + which sections are gated. */
+  mode?: "create" | "edit-admin" | "edit-self";
+  /** Pre-filled fields handed off from NewTalentDrawer or approval queue. */
+  seed?: {
+    stageName?: string;
+    primaryType?: string;
+    homeBase?: string;
+    method?: "agency" | "invited" | "draft";
+    contact?: string;
+    // From approval queue (talent's submitted registration data):
+    secondaryTypes?: string[];
+    specialties?: string[];
+    serviceCities?: string[];
+    travelKm?: number;
+    bio?: string;
+    photoCount?: number;
+    fields?: Record<string, string | string[]>;
+    languages?: ProfileLanguage[];
+  };
+};
+
+function findChild(typeId: string | null) {
+  if (!typeId) return null;
+  for (const p of TAXONOMY) {
+    const c = p.children.find(x => x.id === typeId);
+    if (c) return { parent: p, child: c };
+  }
+  return null;
+}
+
+// ── Smart defaults per Talent Type ───────────────────────────────────
+// When a primary type is picked, we pre-suggest specialties and a bio
+// template so the talent doesn't stare at a blank canvas. Untouched if
+// the talent has already typed something.
+type TypeDefaults = {
+  defaultSpecialties: string[];
+  bioTemplate: (vars: { stageName?: string; homeBase?: string; languages?: string[] }) => string;
+};
+
+const TYPE_DEFAULTS: Record<string, TypeDefaults> = {
+  fashion:      { defaultSpecialties: ["Editorial"],       bioTemplate: (v) => `Editorial fashion model${v.homeBase ? ` based in ${v.homeBase}` : ""}.${v.languages?.length ? ` ${v.languages.slice(0, 2).join(" · ")}.` : ""}` },
+  promotional:  { defaultSpecialties: ["Brand activation"],bioTemplate: (v) => `Promotional model${v.homeBase ? ` working ${v.homeBase} and surrounds` : ""}.${v.languages?.length ? ` ${v.languages.slice(0, 2).join(" · ")}.` : ""}` },
+  content:      { defaultSpecialties: ["UGC"],              bioTemplate: (v) => `Content model + UGC creator${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  commercial:   { defaultSpecialties: ["Print"],            bioTemplate: (v) => `Commercial model${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  vip_host:     { defaultSpecialties: ["Hotel"],            bioTemplate: (v) => `VIP host${v.homeBase ? ` based in ${v.homeBase}` : ""}.${v.languages?.length ? ` Speaks ${v.languages.slice(0, 2).join(" + ")}.` : ""}` },
+  brand_amb:    { defaultSpecialties: ["Activation"],       bioTemplate: (v) => `Brand ambassador${v.homeBase ? ` covering ${v.homeBase}` : ""}.` },
+  mc:           { defaultSpecialties: ["Wedding"],          bioTemplate: (v) => `MC for events${v.homeBase ? ` in ${v.homeBase}` : ""}.` },
+  promoter:     { defaultSpecialties: ["Nightclub"],        bioTemplate: (v) => `Promoter${v.homeBase ? ` in ${v.homeBase}` : ""}.` },
+  dj:           { defaultSpecialties: ["House"],            bioTemplate: (v) => `DJ${v.homeBase ? ` from ${v.homeBase}` : ""} — clubs, festivals, private events.` },
+  singer:       { defaultSpecialties: ["Pop"],              bioTemplate: (v) => `Vocalist${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  band:         { defaultSpecialties: [],                   bioTemplate: (v) => `Live band${v.homeBase ? ` from ${v.homeBase}` : ""}.` },
+  musician:     { defaultSpecialties: [],                   bioTemplate: (v) => `Musician${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  private_chef: { defaultSpecialties: ["Mediterranean"],    bioTemplate: (v) => `Private chef${v.homeBase ? ` in ${v.homeBase}` : ""}. Tasting menus 6–24 guests.` },
+  mixologist:   { defaultSpecialties: ["Cocktail menu"],    bioTemplate: (v) => `Mixologist${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  fire:         { defaultSpecialties: ["Poi"],              bioTemplate: (v) => `Fire performer${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  dancer:       { defaultSpecialties: [],                   bioTemplate: (v) => `Dancer${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  belly_dancer: { defaultSpecialties: ["Egyptian"],         bioTemplate: (v) => `Belly dancer${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  acrobat:      { defaultSpecialties: ["Silk"],             bioTemplate: (v) => `Aerial acrobat${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  chauffeur:    { defaultSpecialties: ["VIP"],              bioTemplate: (v) => `Professional chauffeur${v.homeBase ? ` covering ${v.homeBase}` : ""}.` },
+  airport:      { defaultSpecialties: [],                   bioTemplate: (v) => `Airport transfer driver${v.homeBase ? ` in ${v.homeBase}` : ""}.` },
+  massage:      { defaultSpecialties: ["Deep tissue"],      bioTemplate: (v) => `Massage therapist${v.homeBase ? ` in ${v.homeBase}` : ""}, mobile + studio.` },
+  yoga:         { defaultSpecialties: ["Vinyasa"],          bioTemplate: (v) => `Yoga instructor${v.homeBase ? ` in ${v.homeBase}` : ""}.` },
+  housekeeper:  { defaultSpecialties: ["Villa"],            bioTemplate: (v) => `Housekeeper${v.homeBase ? ` in ${v.homeBase}` : ""}.` },
+  butler:       { defaultSpecialties: ["Service"],          bioTemplate: (v) => `Butler${v.homeBase ? ` in ${v.homeBase}` : ""}.` },
+  photographer: { defaultSpecialties: [],                   bioTemplate: (v) => `Photographer${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+  videographer: { defaultSpecialties: [],                   bioTemplate: (v) => `Videographer${v.homeBase ? ` based in ${v.homeBase}` : ""}.` },
+};
+
+function getTypeDefaults(typeId: string | null): TypeDefaults {
+  if (!typeId) return { defaultSpecialties: [], bioTemplate: () => "" };
+  return TYPE_DEFAULTS[typeId] ?? {
+    defaultSpecialties: [],
+    bioTemplate: (v) => `${(findChild(typeId)?.child.label ?? "Talent")}${v.homeBase ? ` based in ${v.homeBase}` : ""}.`,
+  };
+}
+
+// Common language combos — one tap adds 2-3 languages with sensible levels.
+const LANGUAGE_PRESETS: { id: string; label: string; langs: string[] }[] = [
+  { id: "en-es",    label: "EN + ES",       langs: ["English", "Spanish"] },
+  { id: "en-fr",    label: "EN + FR",       langs: ["English", "French"] },
+  { id: "en-it",    label: "EN + IT",       langs: ["English", "Italian"] },
+  { id: "en-de",    label: "EN + DE",       langs: ["English", "German"] },
+  { id: "en-fr-it", label: "EN + FR + IT",  langs: ["English", "French", "Italian"] },
+  { id: "rivmaya",  label: "Riviera Maya",  langs: ["Spanish", "English", "French"] },
+];
+
+// Section IDs — used by mobile tab nav and the active-section accordion.
+// Identity is the first section ever — name, pronouns, gender, DOB.
+const PROFILE_SECTIONS = [
+  "identity", "services", "location", "media", "albums", "polaroids",
+  "about", "details", "rates", "availability", "languages",
+  "refinement", "credits", "limits", "files",
+  "social_proof", "verifications", "admin",
+] as const;
+type ProfileSectionId = typeof PROFILE_SECTIONS[number] | "";
+
+const SECTION_META: Record<Exclude<ProfileSectionId, "">, { label: string; emoji: string }> = {
+  identity:      { label: "Identity",      emoji: "👤" },
+  services:      { label: "Services",      emoji: "🎯" },
+  location:      { label: "Location",      emoji: "📍" },
+  media:         { label: "Media",         emoji: "📷" },
+  albums:        { label: "Albums",        emoji: "🗂" },
+  polaroids:     { label: "Polaroids",     emoji: "🪪" },
+  about:         { label: "About",         emoji: "✏️" },
+  details:       { label: "Details",       emoji: "📋" },
+  rates:         { label: "Rates",         emoji: "💶" },
+  availability:  { label: "Availability",  emoji: "📅" },
+  languages:     { label: "Languages",     emoji: "🌐" },
+  refinement:    { label: "Refinement",    emoji: "✦" },
+  credits:       { label: "Credits",       emoji: "🏆" },
+  limits:        { label: "Limits",        emoji: "⊘" },
+  files:         { label: "Files",         emoji: "📎" },
+  social_proof:  { label: "Social proof",  emoji: "⭐" },
+  verifications: { label: "Trust",         emoji: "🛡" },
+  admin:         { label: "Admin",         emoji: "🔒" },
+};
+
+function ageString(d: Date): string {
+  const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (sec < 5) return "just now";
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  return `${min}m ago`;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Profile state — single reducer to support undo/redo (Phase 4 +20).
+// ════════════════════════════════════════════════════════════════════
+
+type ProfileState = {
+  // Identity (Phase 4 +30 — separated from Talent Type per spec)
+  identity: ProfileIdentity;
+
+  // Display
+  stageName: string;
+  tagline: string;
+  bios: LocaleBio[];
+  bioActiveLocale: LocaleCode;
+  bioTone: BioTone;
+  personality: Personality;
+
+  // Services
+  primaryType: string | null;
+  secondaryTypes: string[];
+  /** What the talent is growing into. Surfaced as "open to grow" in Discover. */
+  aspirations: string[];
+  specialties: string[];
+
+  // Location
+  serviceArea: ServiceArea;
+  /** Seasonal "I'm here X months a year" windows. */
+  seasonalWindows: SeasonalWindow[];
+
+  // Media
+  /** Wide editorial banner shown at the top of the public profile.
+   *  Distinct from the avatar/main photo — this is the storyboard. */
+  coverPhotoUrl: string | null;
+  /** Albums now carry per-photo metadata (tag, alt, caption). */
+  albumsPro: { id: string; name: string; items: PhotoMeta[] }[];
+  activeAlbumId: string;
+  videoLinks: string[];
+  /** Per-album short video clip (15s preview). */
+  videoClip: VideoSlot | null;
+  /** 30-sec hello reel — top-of-profile intro. */
+  helloReel: VideoSlot | null;
+  /** Industry-standard polaroid set: front / side / back / smile / no makeup. */
+  polaroids: { id: string; angle: string; url: string | null }[];
+
+  // Files — work documents (W-8BEN, NDA, model release, certifications, …)
+  files: { id: string; name: string; kind: string; sizeBytes?: number; uploadedAt: string }[];
+
+  // Limits — hard/soft constraints (no nudity, no fur, etc.)
+  limits: { id: string; category: string; label: string; enforcement: "hard" | "soft" }[];
+
+  // Credits — past work (campaigns, editorials, runway, lookbooks)
+  credits: { id: string; year: string; brand: string; type: string; credit?: string; role?: string; pinned?: boolean }[];
+
+  // Type-specific dynamic fields
+  dynFields: Record<string, string | string[]>;
+
+  // Rates (per-unit + packages + travel/lodging toggles)
+  rates: ProfileRate[];
+  /** Channel-tier overrides — direct vs agency vs hub. */
+  rateTiers: { typeId: string; tier: "direct" | "agency" | "hub"; amount: number; currency: string; unit: RateUnit }[];
+  packageRates: PackageRate[];
+  travelIncluded: boolean;
+  lodgingIncluded: boolean;
+  askForQuote: boolean;
+
+  // Availability
+  availability: AvailabilityCell[];
+  recurring: RecurringPattern;
+  vacation: VacationWindow | null;
+
+  // Languages
+  languages: ProfileLanguage[];
+
+  // Refinement (skills with proficiency + contexts)
+  skillEntries: SkillEntry[];
+  contexts: string[];
+
+  // Social proof
+  pastClients: PastClient[];
+
+  // Verification
+  verifications: Verifications;
+
+  // Admin
+  profileStatus: "draft" | "pending" | "published" | "hidden";
+  featureInDirectory: boolean;
+  internalNotes: string;
+  /** Field paths the agency has locked from talent self-edit. */
+  fieldLocks: FieldLockPath[];
+};
+
+type ProfileAction =
+  | { type: "PATCH"; patch: Partial<ProfileState> }
+  | { type: "TOGGLE_SET"; field: "secondaryTypes" | "specialties" | "contexts" | "aspirations"; value: string }
+  | { type: "SET_SKILL"; skillId: string; proficiency: SkillProficiency | null }
+  | { type: "RESET"; state: ProfileState };
+
+function profileReducer(state: ProfileState, action: ProfileAction): ProfileState {
+  switch (action.type) {
+    case "PATCH":
+      return { ...state, ...action.patch };
+    case "TOGGLE_SET": {
+      const cur = state[action.field];
+      const next = cur.includes(action.value)
+        ? cur.filter(x => x !== action.value)
+        : [...cur, action.value];
+      return { ...state, [action.field]: next };
+    }
+    case "SET_SKILL": {
+      // proficiency=null removes the skill; otherwise upserts the entry.
+      const cur = state.skillEntries;
+      const without = cur.filter(s => s.skillId !== action.skillId);
+      if (action.proficiency === null) return { ...state, skillEntries: without };
+      return { ...state, skillEntries: [...without, { skillId: action.skillId, proficiency: action.proficiency }] };
+    }
+    case "RESET":
+      return action.state;
+    default:
+      return state;
+  }
+}
+
+function makeInitialProfileState(payload: ProfileShellPayload, isSelf: boolean): ProfileState {
+  const seed = payload.seed ?? {};
+  // #4 — Hydrate from the shared draft store. QuickAdd writes here on
+  // every input; the Shell reads on mount. So first/last/email/phone/
+  // photo flow through cleanly without prop-drilling each field through
+  // the seed payload.
+  const draft: ProfileDraft = !isSelf && payload.mode === "create"
+    ? readProfileDraft("default")
+    : {};
+  const items: PhotoMeta[] = (() => {
+    if (draft.photoUrl) {
+      return [{ url: draft.photoUrl, tag: "headshot" as const }];
+    }
+    return Array.from({ length: seed.photoCount ?? 0 })
+      .map((_, i) => ({
+        url: `https://i.pravatar.cc/300?img=${(i * 11 + 5) % 70}`,
+        tag: i === 0 ? ("headshot" as const) : i === 1 ? ("full_body" as const) : ("portfolio" as const),
+      }));
+  })();
+  const verifications: Verifications = {
+    idSubmitted: true,
+    payoutConnected: true,
+    bookingsCount: isSelf ? 3 : 1,
+    hasFundedClient: false,
+    emailVerified: !!draft.email,
+    phoneVerified: false,
+  };
+  // Display name resolution: explicit seed > draft display > draft First+Last > fallback
+  const draftDisplay = draft.displayName?.trim()
+    || `${draft.firstName?.trim() ?? ""} ${draft.lastName?.trim() ?? ""}`.trim();
+  const stageName = seed.stageName ?? (draftDisplay || "Sofia Lupo");
+  return {
+    identity: {
+      stageName,
+      legalName: "",
+      pronunciation: draft.pronunciation ?? "",
+      pronouns: null,
+      gender: null,
+      dob: null,
+      ageDisplay: "range",
+    },
+    stageName,
+    tagline: "",
+    bios: [{ locale: "en", text: seed.bio ?? "" }],
+    bioActiveLocale: "en",
+    bioTone: "professional",
+    personality: { loves: [], avoids: [] },
+    primaryType: seed.primaryType ?? draft.primaryType ?? null,
+    secondaryTypes: seed.secondaryTypes ?? [],
+    aspirations: [],
+    specialties: seed.specialties ?? [],
+    serviceArea: {
+      homeBase: seed.homeBase ?? draft.homeBase ?? "",
+      serviceCities: seed.serviceCities ?? [],
+      travelKm: seed.travelKm ?? 50,
+      travelFee: false,
+      remoteOnly: false,
+    },
+    seasonalWindows: [],
+    coverPhotoUrl: null,
+    albumsPro: [{ id: "main", name: "Main", items }],
+    activeAlbumId: "main",
+    videoLinks: [],
+    videoClip: null,
+    helloReel: null,
+    polaroids: [
+      { id: "p-front",    angle: "Front",     url: null },
+      { id: "p-side",     angle: "Side",      url: null },
+      { id: "p-back",     angle: "Back",      url: null },
+      { id: "p-smile",    angle: "Smile",     url: null },
+      { id: "p-no-makeup",angle: "No makeup", url: null },
+    ],
+    files: [],
+    limits: [],
+    credits: [],
+    dynFields: seed.fields ?? {},
+    rates: [],
+    rateTiers: [],
+    packageRates: [],
+    travelIncluded: false,
+    lodgingIncluded: false,
+    askForQuote: false,
+    availability: [],
+    recurring: { kind: "none" },
+    vacation: null,
+    languages: seed.languages ?? [],
+    skillEntries: [],
+    contexts: [],
+    pastClients: [],
+    verifications,
+    profileStatus: isSelf ? "published" : "draft",
+    featureInDirectory: false,
+    internalNotes: "",
+    fieldLocks: [],
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Profile shell — main drawer
+// ════════════════════════════════════════════════════════════════════
+
+function TalentProfileShellDrawer() {
+  const { state: protoState, closeDrawer, openDrawer, toast, customFields } = useProto();
+  const drawerId = protoState.drawer.drawerId;
+  const drawerOpen = drawerId === "talent-profile-shell" || drawerId === "talent-profile-edit";
+  const payload = (protoState.drawer.payload ?? {}) as ProfileShellPayload;
+  const mode = drawerId === "talent-profile-edit"
+    ? ("edit-self" as const)
+    : payload.mode ?? "edit-admin";
+  const isSelf = mode === "edit-self";
+  const adminVisible = !isSelf;
+  const isInvited = payload.seed?.method === "invited";
+
+  // ── Reducer with history (undo/redo) ─────────────────────────────
+  const initialState = useRef<ProfileState | null>(null);
+  if (initialState.current === null) {
+    initialState.current = makeInitialProfileState(payload, isSelf);
+  }
+  const [state, dispatch] = React.useReducer(profileReducer, initialState.current);
+  const historyRef = useRef<ProfileState[]>([initialState.current]);
+  const historyIdxRef = useRef(0);
+  const skipHistoryRef = useRef(false);
+
+  // Push a snapshot whenever state changes (debounced).
+  useEffect(() => {
+    if (!drawerOpen) return;
+    if (skipHistoryRef.current) {
+      skipHistoryRef.current = false;
+      return;
+    }
+    const t = setTimeout(() => {
+      const h = historyRef.current.slice(0, historyIdxRef.current + 1);
+      h.push(state);
+      // Cap ring buffer at 30.
+      if (h.length > 30) h.shift();
+      historyRef.current = h;
+      historyIdxRef.current = h.length - 1;
+    }, 350);
+    return () => clearTimeout(t);
+  }, [state, drawerOpen]);
+
+  const undo = React.useCallback(() => {
+    if (historyIdxRef.current <= 0) return;
+    historyIdxRef.current -= 1;
+    skipHistoryRef.current = true;
+    dispatch({ type: "RESET", state: historyRef.current[historyIdxRef.current] });
+    toast("Undone");
+  }, [toast]);
+  const redo = React.useCallback(() => {
+    if (historyIdxRef.current >= historyRef.current.length - 1) return;
+    historyIdxRef.current += 1;
+    skipHistoryRef.current = true;
+    dispatch({ type: "RESET", state: historyRef.current[historyIdxRef.current] });
+    toast("Redone");
+  }, [toast]);
+
+  // Keyboard ⌘Z / ⌘⇧Z
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      const isMeta = e.metaKey || e.ctrlKey;
+      if (isMeta && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen, undo, redo]);
+
+  // Convenience patcher
+  const patch = React.useCallback((p: Partial<ProfileState>) => {
+    dispatch({ type: "PATCH", patch: p });
+  }, []);
+  const toggleSet = (field: "secondaryTypes" | "specialties" | "contexts" | "aspirations") =>
+    (value: string) => dispatch({ type: "TOGGLE_SET", field, value });
+  const setSkill = (skillId: string, proficiency: SkillProficiency | null) =>
+    dispatch({ type: "SET_SKILL", skillId, proficiency });
+
+  // ── UI state ───────────────────────────────────────────────────────
+  // #3 — Deep-link hydration. URL ?section=availability lands directly
+  // on the Availability accordion, scrolled into view + expanded.
+  // Falls back to "identity" for fresh edits, "services" for create mode.
+  const [activeSection, setActiveSection] = useState<ProfileSectionId>(() => {
+    if (typeof window === "undefined") return "identity";
+    const url = new URL(window.location.href);
+    const fromUrl = url.searchParams.get("section");
+    if (fromUrl && (PROFILE_SECTIONS as readonly string[]).includes(fromUrl)) {
+      return fromUrl as ProfileSectionId;
+    }
+    return mode === "create" ? "services" : "identity";
+  });
+  // Scroll the section into view after the accordion expands
+  useEffect(() => {
+    if (!drawerOpen || !activeSection) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-tulala-pshell] #pshell-${activeSection}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => clearTimeout(t);
+  }, [drawerOpen, activeSection]);
+  const [refinementTab, setRefinementTab] = useState<"skills" | "contexts">("skills");
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [viewAsClient, setViewAsClient] = useState(false);
+
+  // (Required-coach autofocus uses [data-pshell-field] querySelector)
+
+  // ── Plan filter + live taxonomy ───────────────────────────────────
+  // PR-A — picker source comes from taxonomy_terms (parent_category +
+  // talent_type). Workspace-enabled subset + plan tier still apply.
+  const liveTax = useLiveTaxonomy();
+  const [showMoreParents, setShowMoreParents] = useState(false);
+  const planRank = (p: "free" | "studio" | "agency" | "network") =>
+    ({ free: 0, studio: 1, agency: 2, network: 3 } as const)[p];
+  const currentRank = planRank(protoState.plan as "free" | "studio" | "agency" | "network");
+  const allowedParentIds = new Set(
+    WORKSPACE_TAXONOMY_DEFAULT
+      .filter(s => s.isEnabled && s.showInRegistration)
+      .map(s => s.parentId as string)
+  );
+  const filterByWS = (lp: LiveTaxonomyParent) =>
+    allowedParentIds.has(lp.raw.slug) || allowedParentIds.has(lp.display.id);
+  const visibleParentsLP = liveTax.visibleParents
+    .filter(filterByWS)
+    .filter(lp => planRank(lp.display.minPlan) <= currentRank);
+  const restParentsLP = liveTax.restParents
+    .filter(filterByWS)
+    .filter(lp => planRank(lp.display.minPlan) <= currentRank);
+  const allowedParents = (showMoreParents
+    ? [...visibleParentsLP, ...restParentsLP]
+    : visibleParentsLP
+  ).map(lp => lp.display);
+
+  // Resolve types
+  const primaryRes = findChild(state.primaryType);
+  const allSelectedTypeIds = state.primaryType ? [state.primaryType, ...state.secondaryTypes] : [...state.secondaryTypes];
+  const allSelectedChildren = allSelectedTypeIds
+    .map(id => findChild(id))
+    .filter((x): x is { parent: TaxonomyParent; child: TaxonomyChild } => x !== null);
+  const dynParentIds = Array.from(new Set(allSelectedChildren.map(x => x.parent.id)));
+  const dynamicGroups = dynParentIds
+    .map(pid => {
+      const parent = TAXONOMY.find(p => p.id === pid)!;
+      return { parent, fields: TAXONOMY_FIELDS[pid] ?? [] };
+    })
+    .filter(g => g.fields.length > 0);
+
+  // Custom workspace fields filtered to those that apply to talent.
+  // Renders below type-specific fields in the "Profile details" section.
+  const workspaceCustomTalentFields = customFields.filter(cf => cf.appliesTo === "Talent");
+
+  // Smart defaults — when primary type changes
+  const lastTypeRef = useRef<string | null>(payload.seed?.primaryType ?? null);
+  useEffect(() => {
+    if (!state.primaryType || state.primaryType === lastTypeRef.current) return;
+    lastTypeRef.current = state.primaryType;
+    const defaults = getTypeDefaults(state.primaryType);
+    const updates: Partial<ProfileState> = {};
+    if (state.specialties.length === 0 && defaults.defaultSpecialties.length > 0) {
+      updates.specialties = defaults.defaultSpecialties;
+    }
+    const activeBio = state.bios.find(b => b.locale === state.bioActiveLocale);
+    if (!activeBio?.text.trim()) {
+      const langStrings = state.languages.map(l => l.language);
+      const newText = defaults.bioTemplate({ stageName: state.stageName, homeBase: state.serviceArea.homeBase, languages: langStrings });
+      updates.bios = state.bios.map(b => b.locale === state.bioActiveLocale ? { ...b, text: newText } : b);
+    }
+    // Suggest a default rate row for the new primary type
+    if (!state.rates.some(r => r.typeId === state.primaryType)) {
+      const child = findChild(state.primaryType);
+      if (child) {
+        const unit = TYPE_RATE_UNIT[child.parent.id] ?? "day";
+        updates.rates = [...state.rates, { typeId: state.primaryType, amount: 0, currency: "EUR", unit }];
+      }
+    }
+    if (Object.keys(updates).length > 0) patch(updates);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.primaryType]);
+
+  // Autosave indicator
+  const stateSnap = JSON.stringify(state);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const t = setTimeout(() => setSavedAt(new Date()), 800);
+    return () => clearTimeout(t);
+  }, [stateSnap, drawerOpen]);
+
+  // Computed trust tier
+  const trust = computeTrustTier(state.verifications);
+
+  // Required fields
+  const totalPhotos = state.albumsPro.reduce((n, a) => n + a.items.length, 0);
+  const activeBio = state.bios.find(b => b.locale === state.bioActiveLocale);
+  const required = [
+    { id: "stageName",   label: "stage name",   met: !!state.stageName.trim(),       sectionId: "services" as ProfileSectionId },
+    { id: "primaryType", label: "Talent Type",  met: !!state.primaryType,            sectionId: "services" as ProfileSectionId },
+    { id: "homeBase",    label: "home base",    met: !!state.serviceArea.homeBase.trim(), sectionId: "location" as ProfileSectionId },
+    {
+      id: "photos",
+      label: totalPhotos === 0 ? "photos" : `${3 - totalPhotos} more photo${totalPhotos === 2 ? "" : "s"}`,
+      met: totalPhotos >= 3,
+      sectionId: "media" as ProfileSectionId,
+    },
+    { id: "bio",         label: "a bio",        met: (activeBio?.text.trim().length ?? 0) >= 30, sectionId: "about" as ProfileSectionId },
+    { id: "language",    label: "1 language",   met: state.languages.length > 0,     sectionId: "languages" as ProfileSectionId },
+  ];
+  const missing = required.filter(r => !r.met);
+  const completeness = Math.round((required.filter(r => r.met).length / required.length) * 100);
+
+  // Per-section completeness (for tab-nav dots)
+  const polaroidsFilledCount = state.polaroids.filter(p => p.url).length;
+  const sectionComplete: Record<Exclude<ProfileSectionId, "">, boolean> = {
+    services:      !!state.primaryType,
+    location:      !!state.serviceArea.homeBase.trim(),
+    media:         totalPhotos >= 3,
+    albums:        state.albumsPro.length > 1 || totalPhotos > 0,
+    polaroids:     polaroidsFilledCount >= 4,
+    about:         (activeBio?.text.trim().length ?? 0) >= 30,
+    details:       Object.keys(state.dynFields).length > 0,
+    rates:         state.rates.some(r => r.amount > 0),
+    availability:  state.availability.length > 0,
+    languages:     state.languages.length > 0,
+    identity:      !!state.identity.pronouns || !!state.identity.gender,
+    refinement:    state.skillEntries.length + state.contexts.length > 0,
+    credits:       state.credits.length > 0,
+    limits:        state.limits.length > 0,
+    files:         state.files.length > 0,
+    social_proof:  state.pastClients.length > 0,
+    verifications: state.verifications.idSubmitted && state.verifications.payoutConnected,
+    admin:         true,
+  };
+
+  // Specialty options
+  const specialtyOptions = allSelectedChildren
+    .filter(x => x.child.specialties && x.child.specialties.length > 0)
+    .map(x => ({ typeId: x.child.id, typeLabel: x.child.label, items: x.child.specialties! }));
+
+  const setDyn = (key: string, v: string | string[]) =>
+    patch({ dynFields: { ...state.dynFields, [key]: v } });
+
+  // #8 — Publish celebration modal. When admin publishes a previously
+  // unpublished profile, intercept submit and open the share toolkit.
+  const [publishCelebrationOpen, setPublishCelebrationOpen] = useState(false);
+  // #18 — Talent diff preview before submit. #15 — Admin diff view on
+  // pending submissions. The baseline snapshot is the initial state when
+  // the drawer was opened (already cached in initialState.current).
+  const [diffOpen, setDiffOpen] = useState(false);
+  const computeDiff = (): DiffEntry[] => {
+    return computeProfileDiff(initialState.current ?? null, state);
+  };
+  const finalSubmit = () => {
+    toast(isSelf
+      ? "Profile changes submitted for review"
+      : state.profileStatus === "published" ? "Profile updated" : "Profile published");
+    // #4 — Clear the QuickAdd → Shell handoff draft once the profile
+    // has been committed; otherwise the next "Add talent" inherits stale data.
+    if (mode === "create") clearProfileDraft("default");
+    closeDrawer();
+  };
+  const submit = () => {
+    if (!isSelf && state.profileStatus !== "published") {
+      // Admin going draft/pending → published. Open celebration first.
+      patch({ profileStatus: "published" });
+      setPublishCelebrationOpen(true);
+      return;
+    }
+    if (isSelf) {
+      // Talent self-edit — preview diff before final submit.
+      const entries = computeDiff();
+      if (entries.length > 0) {
+        setDiffOpen(true);
+        return;
+      }
+    }
+    finalSubmit();
+  };
+  const saveAndExit = () => {
+    toast("Draft saved — pick up where you left off");
+    closeDrawer();
+  };
+
+  // Required-coach jump-and-focus.
+  // Uses querySelector inside the shell rather than forwardRef wiring,
+  // since several controls are wrapped components.
+  const onJumpToMissing = (id: string) => {
+    const r = required.find(x => x.id === id);
+    if (!r) return;
+    setActiveSection(r.sectionId);
+    setTimeout(() => {
+      const sel = `[data-tulala-pshell] [data-pshell-field="${id}"]`;
+      const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(sel);
+      if (el) {
+        el.focus();
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 250);
+  };
+
+  if (!drawerOpen) return null;
+
+  return (
+    <div onClick={closeDrawer} style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      background: "rgba(11,11,13,0.42)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "stretch", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} data-tulala-pshell style={{
+        width: "100%", maxWidth: 1100, height: "100vh",
+        background: "#fff",
+        display: "flex", flexDirection: "column",
+        overflow: "hidden",
+      }}>
+        <style>{`
+          /* 2026 #3 — Container queries replace viewport-width media
+             queries. The shell now responds to its OWN width, not the
+             viewport. So if it ever renders in a sidebar, an iframe,
+             or a desktop split-pane, layout still adapts correctly. */
+          [data-tulala-pshell] {
+            container-type: inline-size;
+            container-name: pshell;
+          }
+          [data-tulala-pshell] [data-pshell-body] { display: flex; flex: 1; min-height: 0; }
+          [data-tulala-pshell] [data-pshell-preview] { width: 360px; border-right: 1px solid ${COLORS.borderSoft}; padding: 22px; overflow-y: auto; flex-shrink: 0; background: ${COLORS.surface}; }
+          [data-tulala-pshell] [data-pshell-form] { flex: 1; overflow-y: auto; padding: 0; position: relative; }
+          [data-tulala-pshell] [data-pshell-tab-nav] { display: none; }
+          [data-tulala-pshell] [data-paccordion-section] [data-paccordion-header] {
+            position: sticky; top: 0; z-index: 5;
+            background: #fff;
+          }
+          [data-tulala-pshell] [data-paccordion-body] {
+            overflow: hidden;
+            transition: max-height .22s cubic-bezier(.4,0,.2,1), opacity .18s, padding .18s;
+          }
+          [data-tulala-pshell] [data-paccordion-body][data-open="false"] {
+            max-height: 0 !important; opacity: 0;
+            padding-top: 0 !important; padding-bottom: 0 !important;
+          }
+          [data-tulala-pshell] [data-paccordion-body][data-open="true"] {
+            max-height: 4000px; opacity: 1;
+          }
+          /* 2026 #4 — :has() selector. State-aware styling without
+             className shuffling: any open accordion gets a subtle left
+             accent strip so the active section is visually clear at a
+             glance. Falls back gracefully where :has() isn't supported. */
+          [data-tulala-pshell] section:has([data-open="true"]) {
+            box-shadow: inset 3px 0 0 0 ${COLORS.accent};
+          }
+          /* Disabled inputs flag their parent FieldRow as "locked" so
+             the helper text dims naturally without a class on the parent. */
+          [data-tulala-pshell] [data-tulala-fieldrow]:has(input:disabled),
+          [data-tulala-pshell] [data-tulala-fieldrow]:has(textarea:disabled) {
+            opacity: 0.65;
+          }
+          /* 2026 #5 — color-mix(). Generate hover variants from the
+             accent token instead of hardcoding rgba sprays everywhere.
+             Buttons that opt in via [data-pshell-tinted] inherit a
+             token-driven hover state. */
+          [data-tulala-pshell] [data-pshell-tinted]:hover {
+            background: color-mix(in oklch, ${COLORS.accent} 8%, white);
+          }
+          /* 2026 #10 — CSS subgrid. The body's two panes (left preview,
+             right form) participate in the same row-grid so the hero
+             card's bottom edge aligns with the first accordion section
+             header even as content reflows. */
+          @supports (grid-template-rows: subgrid) {
+            [data-tulala-pshell] [data-pshell-body] {
+              display: grid;
+              grid-template-columns: 360px 1fr;
+              grid-template-rows: 1fr;
+            }
+            [data-tulala-pshell] [data-pshell-preview],
+            [data-tulala-pshell] [data-pshell-form] {
+              grid-row: 1;
+              display: subgrid;
+            }
+          }
+          /* Container query — fires when the shell's container is < 880px */
+          @container pshell (max-width: 880px) {
+            [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; }
+            [data-tulala-pshell] [data-pshell-body] { flex-direction: column; padding-bottom: 64px; }
+            [data-tulala-pshell] [data-pshell-preview] { width: auto; border-right: none; border-bottom: 1px solid ${COLORS.borderSoft}; padding: 12px 16px; max-height: 38vh; }
+            [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
+            [data-tulala-pshell] [data-pshell-mobile-save] {
+              position: fixed; bottom: 0; left: 0; right: 0;
+              z-index: 5;
+              padding: 8px 12px max(8px, env(safe-area-inset-bottom)) 12px;
+              background: rgba(255,255,255,0.96);
+              backdrop-filter: blur(8px);
+              border-top: 1px solid ${COLORS.borderSoft};
+              display: flex; gap: 8px; align-items: center;
+            }
+            [data-tulala-pshell] [data-pshell-mobile-save] [data-pshell-saved] {
+              flex: 1; font-size: 11.5px; color: ${COLORS.inkMuted};
+              display: inline-flex; align-items: center; gap: 4px;
+            }
+            [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
+          }
+          /* Hide mobile-only chrome when the container is wider */
+          @container pshell (min-width: 881px) {
+            [data-tulala-pshell] [data-pshell-mobile-save] { display: none !important; }
+            [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
+          }
+          /* Fallback for browsers without container-query support
+             (Safari < 16, Firefox < 110). Same rules, viewport-keyed.
+             Modern browsers ignore these because @container wins. */
+          @supports not (container-type: inline-size) {
+            @media (max-width: 880px) {
+              [data-tulala-pshell] { border-radius: 20px 20px 0 0; max-height: 95vh; height: 95vh; align-self: flex-end; }
+              [data-tulala-pshell] [data-pshell-body] { flex-direction: column; padding-bottom: 64px; }
+              [data-tulala-pshell] [data-pshell-preview] { width: auto; border-right: none; border-bottom: 1px solid ${COLORS.borderSoft}; padding: 12px 16px; max-height: 38vh; }
+              [data-tulala-pshell] [data-pshell-tab-nav] { display: flex; }
+              [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
+            }
+            @media (min-width: 881px) {
+              [data-tulala-pshell] [data-pshell-mobile-save] { display: none !important; }
+              [data-tulala-pshell] [data-pshell-mobile-menu] { display: none !important; }
+            }
+          }
+          /* Mobile: collapse the desktop toolbar into the overflow menu */
+          @media (max-width: 880px) {
+            [data-tulala-pshell] [data-pshell-header-extras] { display: none !important; }
+          }
+        `}</style>
+
+        {/* Header — desktop shows full toolbar; mobile collapses
+            secondary actions into the overflow ••• menu and pushes the
+            status + smart CTA down to the bottom save bar.
+            (See @media (max-width: 880px) css block above for visibility) */}
+        <div style={{
+          padding: "12px 18px", borderBottom: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
+        }}>
+          <button type="button" onClick={closeDrawer} aria-label="Close" style={{
+            width: 28, height: 28, borderRadius: 8, border: "none", cursor: "pointer",
+            background: "transparent", color: COLORS.ink, fontSize: 14, lineHeight: 1,
+          }}>✕</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {mode === "create" ? "New profile" : isSelf ? "Edit your profile" : (state.stageName || "Profile")}
+            </div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: savedAt ? COLORS.green : "rgba(11,11,13,0.20)" }} />
+              {savedAt ? `Saved ${ageString(savedAt)}` : "Not saved yet"}
+            </div>
+          </div>
+
+          {/* Desktop-only toolbar — every secondary action lives here. */}
+          <div data-pshell-header-extras style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <button type="button" onClick={undo} aria-label="Undo (⌘Z)" disabled={historyIdxRef.current <= 0} style={{
+              width: 28, height: 28, borderRadius: 8, border: "none",
+              background: "transparent", color: historyIdxRef.current <= 0 ? COLORS.inkDim : COLORS.ink,
+              cursor: historyIdxRef.current <= 0 ? "not-allowed" : "pointer", fontSize: 14, lineHeight: 1, padding: 0,
+            }}>↶</button>
+            <button type="button" onClick={redo} aria-label="Redo (⌘⇧Z)" style={{
+              width: 28, height: 28, borderRadius: 8, border: "none",
+              background: "transparent", color: COLORS.ink,
+              cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 0,
+            }}>↷</button>
+            {adminVisible && (
+              <>
+                <TemplatesPicker onApply={(tpl) => {
+                  patch({
+                    primaryType: tpl.primaryType,
+                    secondaryTypes: tpl.secondaryTypes ?? [],
+                    serviceArea: tpl.serviceArea ?? state.serviceArea,
+                    rates: tpl.defaultRates ?? state.rates,
+                    languages: tpl.defaultLanguages ?? state.languages,
+                    contexts: tpl.contexts ?? state.contexts,
+                    skillEntries: tpl.skills ?? state.skillEntries,
+                  });
+                  toast(`Applied template: ${tpl.name}`);
+                }} />
+                {state.primaryType && (
+                  <button type="button" onClick={() => {
+                    const child = findChild(state.primaryType);
+                    toast(`Saved as template: ${child?.child.label ?? "Template"} · ${state.serviceArea.homeBase || "—"}`);
+                  }} title="Save this profile as a reusable template" style={{
+                    padding: "5px 11px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
+                    background: "#fff", color: COLORS.ink,
+                    fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    fontFamily: FONTS.body,
+                  }}>★ Save as template</button>
+                )}
+              </>
+            )}
+            <button type="button" onClick={() => setViewAsClient(true)} title="View as client" aria-label="View as client" style={{
+              padding: "5px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff", color: COLORS.ink,
+              fontSize: 11, fontWeight: 500, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 5,
+            }}>👁 View as client</button>
+            {/* #15 — Admin "Review changes" → opens the diff modal so
+                admin sees what changed since the last published version
+                before approving / rejecting. Always available; the modal
+                shows "no changes" if there's nothing pending. */}
+            {adminVisible && (
+              <button type="button" onClick={() => setDiffOpen(true)} title="Review changes" style={{
+                padding: "5px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
+                background: "#fff", color: COLORS.ink,
+                fontSize: 11, fontWeight: 500, cursor: "pointer",
+                display: "inline-flex", alignItems: "center", gap: 5,
+              }}>⇆ Review changes</button>
+            )}
+            <StatusPillDropdown status={state.profileStatus} onChange={(s) => patch({ profileStatus: s })} role={isSelf ? "talent" : "admin"} />
+            <button type="button" onClick={saveAndExit} style={{
+              padding: "8px 14px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff", color: COLORS.ink,
+              fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+            }}>Save & exit</button>
+            <SmartFooterCTA
+              status={state.profileStatus}
+              mode={mode}
+              canPublish={missing.length === 0}
+              onAction={submit}
+            />
+          </div>
+
+          {/* Mobile-only overflow menu — collapses every secondary
+              action into one ••• button. Status + autosave + smart
+              CTA already live in the sticky bottom bar on mobile. */}
+          <ProfileShellMobileMenu
+            adminVisible={adminVisible}
+            isSelf={isSelf}
+            primaryTypeSet={!!state.primaryType}
+            canUndo={historyIdxRef.current > 0}
+            canRedo={historyIdxRef.current < historyRef.current.length - 1}
+            onUndo={undo}
+            onRedo={redo}
+            onSaveAsTemplate={() => {
+              const child = findChild(state.primaryType);
+              toast(`Saved as template: ${child?.child.label ?? "Template"} · ${state.serviceArea.homeBase || "—"}`);
+            }}
+            onApplyTemplate={(tpl) => {
+              patch({
+                primaryType: tpl.primaryType,
+                secondaryTypes: tpl.secondaryTypes ?? [],
+                serviceArea: tpl.serviceArea ?? state.serviceArea,
+                rates: tpl.defaultRates ?? state.rates,
+                languages: tpl.defaultLanguages ?? state.languages,
+                contexts: tpl.contexts ?? state.contexts,
+                skillEntries: tpl.skills ?? state.skillEntries,
+              });
+              toast(`Applied template: ${tpl.name}`);
+            }}
+            onViewAsClient={() => setViewAsClient(true)}
+            onSaveAndExit={saveAndExit}
+          />
+        </div>
+
+        {/* Invite-claim banner */}
+        {isInvited && (
+          <InviteClaimBanner
+            stageName={state.stageName}
+            onResend={() => toast(`Resent invite to ${state.stageName}`)}
+            onTakeOver={() => { patch({ profileStatus: "draft" }); toast("Now agency-managed"); }}
+          />
+        )}
+
+        {/* Mobile tab nav */}
+        <div data-pshell-tab-nav style={{
+          padding: "8px 14px", borderBottom: `1px solid ${COLORS.borderSoft}`,
+          gap: 6, overflowX: "auto", flexShrink: 0,
+        }}>
+          {(PROFILE_SECTIONS as readonly Exclude<ProfileSectionId, "">[]).map(s => {
+            if (s === "admin" && !adminVisible) return null;
+            if (s === "details" && dynamicGroups.length === 0) return null;
+            const meta = SECTION_META[s];
+            const active = activeSection === s;
+            const done = sectionComplete[s];
+            return (
+              <button key={s} type="button" onClick={() => setActiveSection(s)} style={{
+                flexShrink: 0, padding: "6px 11px", borderRadius: 999,
+                border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+                display: "inline-flex", alignItems: "center", gap: 5,
+              }}>
+                <span style={{
+                  width: 6, height: 6, borderRadius: "50%",
+                  background: done ? COLORS.green : "rgba(11,11,13,0.18)",
+                }} />
+                <span>{meta.emoji}</span>
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Body */}
+        <div data-pshell-body>
+          {/* Left pane */}
+          <aside data-pshell-preview>
+            <HeroPreviewCard
+              stageName={state.stageName}
+              tagline={state.tagline}
+              primaryRes={primaryRes}
+              secondaryTypes={state.secondaryTypes}
+              specialties={state.specialties}
+              serviceArea={state.serviceArea}
+              photos={state.albumsPro.flatMap(a => a.items.map(i => i.url))}
+              languages={state.languages}
+              trust={trust}
+              completeness={completeness}
+              onClickPhoto={() => setViewAsClient(true)}
+            />
+            {/* #19 — Profile growth metric for returning talent.
+                Hidden on first-time / draft profiles to avoid showing zeros. */}
+            {isSelf && state.profileStatus === "published" && (
+              <ProfileGrowthMetric onJump={() => setActiveSection("media")} />
+            )}
+            {missing.length > 0 && (
+              <RequiredCoach missing={missing} onJump={onJumpToMissing} />
+            )}
+            {/* #2 — First-time onboarding hero. Shows on profiles with
+                little content; collapses once you've made progress. */}
+            {completeness < 35 && (
+              <FirstTimeHero
+                completeness={completeness}
+                onStart={(sectionId) => setActiveSection(sectionId)}
+              />
+            )}
+          </aside>
+
+          {/* Right pane — accordion */}
+          <div data-pshell-form>
+            {/* IDENTITY */}
+            <ProfileAccordionSection
+              id="identity" title="Identity"
+              sub="Name, pronouns, gender, DOB. You control privacy per field."
+              complete={sectionComplete.identity}
+              open={activeSection === "identity"}
+              onToggle={() => setActiveSection(activeSection === "identity" ? "" : "identity")}
+            >
+              <IdentityEditor
+                identity={state.identity}
+                onChange={(next) => patch({ identity: next, stageName: next.stageName })}
+                isSelf={isSelf}
+                isFieldLocked={(path) => isSelf && state.fieldLocks.includes(path)}
+              />
+              {adminVisible && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                  <FieldLockToggle path="identity.legalName" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
+                  <FieldLockToggle path="identity.stageName" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
+                </div>
+              )}
+            </ProfileAccordionSection>
+
+            {/* SERVICES */}
+            <ProfileAccordionSection
+              id="services" title="Services"
+              sub="Talent Type + specialties + aspirations. The most important section."
+              complete={sectionComplete.services}
+              open={activeSection === "services"}
+              onToggle={() => setActiveSection(activeSection === "services" ? "" : "services")}
+            >
+              <FieldRow label="Tagline" optional hint="One line clients see at a glance.">
+                <TextInput placeholder="e.g. Editorial fashion model · Madrid" value={state.tagline} onChange={(e) => patch({ tagline: e.target.value })} />
+              </FieldRow>
+              <ServicesEditor
+                allowedParents={allowedParents}
+                primaryType={state.primaryType}
+                secondaryTypes={state.secondaryTypes}
+                specialties={state.specialties}
+                primaryRes={primaryRes}
+                specialtyOptions={specialtyOptions}
+                onPickPrimary={(id) => patch({ primaryType: id })}
+                onClearPrimary={() => patch({ primaryType: null })}
+                onToggleSecondary={(id) => {
+                  if (id === state.primaryType) return;
+                  toggleSet("secondaryTypes")(id);
+                }}
+                onToggleSpecialty={(s) => toggleSet("specialties")(s)}
+              />
+              {/* PR-A — "More…" expander to load the 11 non-public-filter parents */}
+              {!state.primaryType && restParentsLP.length > 0 && (
+                <button type="button" onClick={() => setShowMoreParents(s => !s)} style={{
+                  alignSelf: "flex-start", padding: "6px 12px", borderRadius: 999,
+                  background: "transparent", border: `1px dashed ${COLORS.border}`,
+                  color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}>
+                  {showMoreParents
+                    ? `– Hide ${restParentsLP.length} more`
+                    : `+ More categories… (${restParentsLP.length})`}
+                </button>
+              )}
+              <div style={{ fontSize: 10.5, color: COLORS.inkDim }}>
+                {liveTax.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParentsLP.length} visible{restParentsLP.length > 0 ? ` · ${restParentsLP.length} more` : ""}
+                {liveTax.error && ` · ${liveTax.error}`}
+              </div>
+              {state.primaryType && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6, marginTop: 12 }}>
+                    What I'm growing into
+                    <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· optional · open-to-grow signals</span>
+                  </div>
+                  <AspirationsEditor
+                    allowedParents={allowedParents}
+                    primaryType={state.primaryType}
+                    secondaryTypes={state.secondaryTypes}
+                    value={state.aspirations}
+                    onToggle={(id) => toggleSet("aspirations")(id)}
+                  />
+                </div>
+              )}
+            </ProfileAccordionSection>
+
+            {/* LOCATION */}
+            <ProfileAccordionSection
+              id="location" title="Location & service area"
+              sub="Where they work — drives client filtering on Discover."
+              complete={sectionComplete.location}
+              open={activeSection === "location"}
+              onToggle={() => setActiveSection(activeSection === "location" ? "" : "location")}
+            >
+              <FieldRow label="Home base">
+                <input data-pshell-field="homeBase"
+                  placeholder="e.g. Playa del Carmen"
+                  value={state.serviceArea.homeBase}
+                  onChange={(e) => patch({ serviceArea: { ...state.serviceArea, homeBase: e.target.value } })}
+                  style={{
+                    width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                    borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                    fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                  }}
+                />
+              </FieldRow>
+              <ServiceAreaMap
+                homeBase={state.serviceArea.homeBase}
+                travelKm={state.serviceArea.travelKm}
+                cities={state.serviceArea.serviceCities}
+              />
+              <FieldRow label="Service areas" hint="Cities they'll work in without travel logistics.">
+                <ChipsInput label="" placeholder="Add a city or region…"
+                  values={state.serviceArea.serviceCities}
+                  onChange={(v) => patch({ serviceArea: { ...state.serviceArea, serviceCities: v } })}
+                />
+              </FieldRow>
+              <FieldRow label={`Travel radius — ${state.serviceArea.travelKm === 999 ? "Anywhere" : `${state.serviceArea.travelKm} km`}`}>
+                <input type="range" min={10} max={999} step={10} value={state.serviceArea.travelKm}
+                  onChange={(e) => patch({ serviceArea: { ...state.serviceArea, travelKm: Number(e.target.value) } })}
+                  style={{ width: "100%", accentColor: COLORS.accent }}
+                />
+              </FieldRow>
+              <FieldRow label="Travel fee" optional>
+                <ToggleControl value={state.serviceArea.travelFee}
+                  onChange={(v) => patch({ serviceArea: { ...state.serviceArea, travelFee: v } })}
+                  label="Charge a travel fee outside the home area" />
+              </FieldRow>
+              <FieldRow label="Remote only" optional>
+                <ToggleControl value={!!state.serviceArea.remoteOnly}
+                  onChange={(v) => patch({ serviceArea: { ...state.serviceArea, remoteOnly: v } })}
+                  label="Talent works remotely / online only" />
+              </FieldRow>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Seasonal windows
+                  <span style={{ marginLeft: 6, fontWeight: 500, color: COLORS.inkDim, letterSpacing: 0 }}>· "I'm here X months a year"</span>
+                </div>
+                <SeasonalEditor windows={state.seasonalWindows} onChange={(w) => patch({ seasonalWindows: w })} />
+              </div>
+            </ProfileAccordionSection>
+
+            {/* MEDIA — cover banner + gallery for active album */}
+            <ProfileAccordionSection
+              id="media" title="Media"
+              sub="Cover banner + main photo + portfolio. First photo = avatar."
+              complete={sectionComplete.media}
+              open={activeSection === "media"}
+              onToggle={() => setActiveSection(activeSection === "media" ? "" : "media")}
+            >
+              <CoverPhotoEditor
+                url={state.coverPhotoUrl}
+                onChange={(u) => patch({ coverPhotoUrl: u })}
+              />
+              <HelloReelEditor
+                reel={state.helloReel}
+                onChange={(r) => patch({ helloReel: r })}
+              />
+              <PhotoGalleryPro
+                items={(state.albumsPro.find(a => a.id === state.activeAlbumId) ?? state.albumsPro[0]).items}
+                onChange={(items) => patch({
+                  albumsPro: state.albumsPro.map(a => a.id === state.activeAlbumId ? { ...a, items } : a),
+                })}
+              />
+              <FieldRow label="Video / social links" optional>
+                <ChipsInput label="" placeholder="https://instagram.com/…" values={state.videoLinks} onChange={(v) => patch({ videoLinks: v })} />
+              </FieldRow>
+            </ProfileAccordionSection>
+
+            {/* ALBUMS */}
+            <ProfileAccordionSection
+              id="albums" title="Portfolio albums"
+              sub="Group photos by Editorial / Lookbook / Behind-the-scenes."
+              complete={sectionComplete.albums}
+              open={activeSection === "albums"}
+              onToggle={() => setActiveSection(activeSection === "albums" ? "" : "albums")}
+            >
+              <AlbumsEditorPro
+                albums={state.albumsPro}
+                activeId={state.activeAlbumId}
+                onActivate={(id) => patch({ activeAlbumId: id })}
+                onChange={(albs) => patch({ albumsPro: albs })}
+              />
+            </ProfileAccordionSection>
+
+            {/* POLAROIDS — model-industry standard 5-shot set */}
+            <ProfileAccordionSection
+              id="polaroids" title="Polaroids"
+              sub="Industry-standard 5-shot set: front · side · back · smile · no makeup. Casting directors expect these."
+              complete={sectionComplete.polaroids}
+              open={activeSection === "polaroids"}
+              onToggle={() => setActiveSection(activeSection === "polaroids" ? "" : "polaroids")}
+            >
+              <PolaroidsEditor
+                polaroids={state.polaroids}
+                onChange={(p) => patch({ polaroids: p })}
+              />
+            </ProfileAccordionSection>
+
+            {/* ABOUT — locale-aware bios + tone + personality */}
+            <ProfileAccordionSection
+              id="about" title="About"
+              sub="2–3 sentences per language. Pick a tone, drop personality cues."
+              complete={sectionComplete.about}
+              open={activeSection === "about"}
+              onToggle={() => setActiveSection(activeSection === "about" ? "" : "about")}
+            >
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Tone
+                </div>
+                <BioToneSelector value={state.bioTone} onChange={(t) => patch({ bioTone: t })} />
+              </div>
+              <BiosEditor
+                bios={state.bios}
+                activeLocale={state.bioActiveLocale}
+                onActivateLocale={(l) => patch({ bioActiveLocale: l })}
+                onChange={(bs) => patch({ bios: bs })}
+                onRegenerate={() => {
+                  if (!state.primaryType) return;
+                  const defaults = getTypeDefaults(state.primaryType);
+                  const text = defaults.bioTemplate({
+                    stageName: state.stageName,
+                    homeBase: state.serviceArea.homeBase,
+                    languages: state.languages.map(l => l.language),
+                  });
+                  patch({
+                    bios: state.bios.map(b => b.locale === state.bioActiveLocale ? { ...b, text } : b),
+                  });
+                }}
+                primaryLabel={primaryRes?.child.label}
+              />
+              <PersonalityEditor value={state.personality} onChange={(p) => patch({ personality: p })} />
+            </ProfileAccordionSection>
+
+            {/* DETAILS */}
+            {(dynamicGroups.length > 0 || workspaceCustomTalentFields.length > 0) && (
+              <ProfileAccordionSection
+                id="details" title="Profile details"
+                sub="Type-specific fields plus any custom fields your workspace added."
+                complete={sectionComplete.details}
+                open={activeSection === "details"}
+                onToggle={() => setActiveSection(activeSection === "details" ? "" : "details")}
+              >
+                {dynamicGroups.map(g => (
+                  <div key={g.parent.id}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 8 }}>
+                      {g.parent.emoji}  {g.parent.label}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {g.fields.map(f => (
+                        <RegFieldInput key={f.id} field={f}
+                          value={state.dynFields[f.id] ?? (f.kind === "multiselect" || f.kind === "chips" ? [] : "")}
+                          onChange={(v) => setDyn(f.id, v)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Custom workspace fields — agency-specific extras added via Field Catalog */}
+                {workspaceCustomTalentFields.length > 0 && (
+                  <div>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+                      color: COLORS.inkMuted, marginBottom: 8,
+                    }}>
+                      <span style={{ fontSize: 13 }}>✦</span>
+                      Custom workspace fields
+                      <span style={{
+                        fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
+                        background: "rgba(184,135,49,0.14)", color: "#7A5A1F",
+                        marginLeft: 4, letterSpacing: 0.4,
+                      }}>AGENCY</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {workspaceCustomTalentFields.map(cf => (
+                        <CustomWorkspaceFieldInput
+                          key={cf.id}
+                          field={cf}
+                          value={state.dynFields[`custom_${cf.id}`] ?? (cf.kind === "Multi-select" ? [] : "")}
+                          onChange={(v) => setDyn(`custom_${cf.id}`, v)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pointer to add more custom fields — discoverable handoff */}
+                {(protoState.plan === "agency" || protoState.plan === "network") && (
+                  <button type="button" onClick={() => openDrawer("field-catalog")} style={{
+                    alignSelf: "flex-start",
+                    padding: "6px 12px", borderRadius: 999,
+                    background: "transparent", border: `1px dashed ${COLORS.border}`,
+                    color: COLORS.inkMuted,
+                    fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+                  }}>
+                    + Add custom field
+                  </button>
+                )}
+              </ProfileAccordionSection>
+            )}
+
+            {/* RATES */}
+            <ProfileAccordionSection
+              id="rates" title="Rates"
+              sub="Per-unit + package bundles + travel/lodging + ask-for-quote."
+              complete={sectionComplete.rates}
+              open={activeSection === "rates"}
+              onToggle={() => setActiveSection(activeSection === "rates" ? "" : "rates")}
+            >
+              <FieldRow label="Pricing mode" optional>
+                <ToggleControl value={state.askForQuote}
+                  onChange={(v) => patch({ askForQuote: v })}
+                  label="Negotiated only — clients see 'Ask for quote' instead of a number" />
+              </FieldRow>
+              {!state.askForQuote && (
+                <RatesEditor
+                  rates={state.rates}
+                  selectedTypeIds={allSelectedTypeIds}
+                  onChange={(rs) => patch({ rates: rs })}
+                />
+              )}
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6, marginTop: 6 }}>
+                  Package bundles
+                </div>
+                <PackageRatesEditor packages={state.packageRates} onChange={(p) => patch({ packageRates: p })} />
+              </div>
+              <FieldRow label="Travel" optional>
+                <ToggleControl value={state.travelIncluded}
+                  onChange={(v) => patch({ travelIncluded: v })}
+                  label="Travel included in rate" />
+              </FieldRow>
+              <FieldRow label="Lodging" optional>
+                <ToggleControl value={state.lodgingIncluded}
+                  onChange={(v) => patch({ lodgingIncluded: v })}
+                  label="Lodging included in rate" />
+              </FieldRow>
+              {adminVisible && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                  <FieldLockToggle path="rates" locks={state.fieldLocks} onChange={(l) => patch({ fieldLocks: l })} />
+                </div>
+              )}
+            </ProfileAccordionSection>
+
+            {/* AVAILABILITY */}
+            <ProfileAccordionSection
+              id="availability" title="Availability"
+              sub="Tap a day to mark busy / blocked. Open by default."
+              complete={sectionComplete.availability}
+              open={activeSection === "availability"}
+              onToggle={() => setActiveSection(activeSection === "availability" ? "" : "availability")}
+            >
+              <AvailabilityGrid
+                cells={state.availability}
+                onToggle={(date) => {
+                  const cur = state.availability.find(c => c.date === date);
+                  const cycle: Record<AvailabilityStatus, AvailabilityStatus> = { open: "busy", busy: "blocked", blocked: "open" };
+                  if (cur) {
+                    if (cur.status === "blocked") {
+                      patch({ availability: state.availability.filter(c => c.date !== date) });
+                    } else {
+                      patch({ availability: state.availability.map(c => c.date === date ? { ...c, status: cycle[c.status] } : c) });
+                    }
+                  } else {
+                    patch({ availability: [...state.availability, { date, status: "busy" }] });
+                  }
+                }}
+              />
+              <RecurringPatternEditor
+                value={state.recurring}
+                vacation={state.vacation}
+                onChange={(r) => patch({ recurring: r })}
+                onVacationChange={(v) => patch({ vacation: v })}
+              />
+            </ProfileAccordionSection>
+
+            {/* LANGUAGES */}
+            <ProfileAccordionSection
+              id="languages" title="Languages"
+              sub="Speaking level + role flags help clients filter Discover."
+              complete={sectionComplete.languages}
+              open={activeSection === "languages"}
+              onToggle={() => setActiveSection(activeSection === "languages" ? "" : "languages")}
+            >
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+                  Quick add
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {LANGUAGE_PRESETS.map(p => (
+                    <button key={p.id} type="button" onClick={() => {
+                      const existing = new Set(state.languages.map(l => l.language.toLowerCase()));
+                      const additions = p.langs
+                        .filter(l => !existing.has(l.toLowerCase()))
+                        .map<ProfileLanguage>((l, i) => ({ language: l, level: i === 0 ? "native" : "fluent" }));
+                      if (additions.length > 0) patch({ languages: [...state.languages, ...additions] });
+                    }} style={{
+                      padding: "5px 11px", borderRadius: 999,
+                      border: `1px dashed ${COLORS.border}`,
+                      background: "transparent", color: COLORS.inkMuted,
+                      fontSize: 11, fontWeight: 500, cursor: "pointer",
+                      fontFamily: FONTS.body,
+                    }}>{p.label}</button>
+                  ))}
+                </div>
+              </div>
+              <LanguagesEditor value={state.languages} onChange={(v) => patch({ languages: v })} />
+            </ProfileAccordionSection>
+
+            {/* REFINEMENT */}
+            <ProfileAccordionSection
+              id="refinement" title="Refinement"
+              sub="Skills the talent has, and contexts they shine in."
+              complete={sectionComplete.refinement}
+              open={activeSection === "refinement"}
+              onToggle={() => setActiveSection(activeSection === "refinement" ? "" : "refinement")}
+            >
+              <div style={{
+                display: "inline-flex", padding: 3, borderRadius: 999,
+                background: "rgba(11,11,13,0.04)",
+              }}>
+                {([
+                  { id: "skills" as const,   label: state.skillEntries.length ? `Skills · ${state.skillEntries.length}`   : "Skills" },
+                  { id: "contexts" as const, label: state.contexts.length     ? `Best for · ${state.contexts.length}`     : "Best for" },
+                ]).map(t => {
+                  const active = refinementTab === t.id;
+                  return (
+                    <button key={t.id} type="button" onClick={() => setRefinementTab(t.id)} style={{
+                      padding: "6px 14px", borderRadius: 999, border: "none",
+                      background: active ? "#fff" : "transparent",
+                      color: active ? COLORS.ink : COLORS.inkMuted,
+                      fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+                      cursor: "pointer",
+                      boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
+                    }}>{t.label}</button>
+                  );
+                })}
+              </div>
+              {refinementTab === "skills" ? (
+                <SkillsProEditor entries={state.skillEntries} onChange={setSkill} />
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {CONTEXT_CATALOG.map(c => {
+                    const active = state.contexts.includes(c.id);
+                    return (
+                      <button key={c.id} type="button" onClick={() => toggleSet("contexts")(c.id)} style={{
+                        padding: "6px 11px", borderRadius: 999,
+                        border: `1.5px solid ${active ? COLORS.indigo : COLORS.borderSoft}`,
+                        background: active ? COLORS.indigoSoft : "#fff",
+                        color: active ? COLORS.indigoDeep : COLORS.ink,
+                        fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+                      }}>{c.label}</button>
+                    );
+                  })}
+                </div>
+              )}
+            </ProfileAccordionSection>
+
+            {/* CREDITS — past work / campaigns / editorials */}
+            <ProfileAccordionSection
+              id="credits" title="Credits"
+              sub="Past campaigns, editorials, runways, lookbooks. Pin your top 3."
+              complete={sectionComplete.credits}
+              open={activeSection === "credits"}
+              onToggle={() => setActiveSection(activeSection === "credits" ? "" : "credits")}
+            >
+              <CreditsEditor
+                credits={state.credits}
+                onChange={(c) => patch({ credits: c })}
+              />
+            </ProfileAccordionSection>
+
+            {/* LIMITS — hard/soft constraints */}
+            <ProfileAccordionSection
+              id="limits" title="Limits"
+              sub="Hard no's and soft case-by-case. Clients see this on the inquiry."
+              complete={sectionComplete.limits}
+              open={activeSection === "limits"}
+              onToggle={() => setActiveSection(activeSection === "limits" ? "" : "limits")}
+            >
+              <LimitsEditor
+                limits={state.limits}
+                onChange={(l) => patch({ limits: l })}
+              />
+            </ProfileAccordionSection>
+
+            {/* FILES — work documents (W-8BEN, NDA, model release, certifications) */}
+            <ProfileAccordionSection
+              id="files" title="Files"
+              sub="Tax forms, model releases, certifications. Admin-only by default."
+              complete={sectionComplete.files}
+              open={activeSection === "files"}
+              onToggle={() => setActiveSection(activeSection === "files" ? "" : "files")}
+            >
+              <FilesEditor
+                files={state.files}
+                onChange={(f) => patch({ files: f })}
+              />
+            </ProfileAccordionSection>
+
+            {/* SOCIAL PROOF */}
+            <ProfileAccordionSection
+              id="social_proof" title="Past clients & testimonials"
+              sub="Logos + 1-line quotes. Verified bookings get a checkmark."
+              complete={sectionComplete.social_proof}
+              open={activeSection === "social_proof"}
+              onToggle={() => setActiveSection(activeSection === "social_proof" ? "" : "social_proof")}
+            >
+              <PastClientsEditor clients={state.pastClients} onChange={(c) => patch({ pastClients: c })} />
+            </ProfileAccordionSection>
+
+            {/* VERIFICATIONS */}
+            <ProfileAccordionSection
+              id="verifications" title="Trust & verification"
+              sub="Drives the trust badge. Higher tier = more visibility on Discover."
+              complete={sectionComplete.verifications}
+              open={activeSection === "verifications"}
+              onToggle={() => setActiveSection(activeSection === "verifications" ? "" : "verifications")}
+            >
+              <VerificationsEditor
+                verifications={state.verifications}
+                tier={trust}
+                onChange={(v) => patch({ verifications: v })}
+                isSelf={isSelf}
+              />
+              <NextTierCoach tier={trust} verifications={state.verifications} />
+            </ProfileAccordionSection>
+
+            {/* ADMIN */}
+            {adminVisible && (
+              <ProfileAccordionSection
+                id="admin" title="Admin controls" sub="Visible only to your team."
+                complete open={activeSection === "admin"}
+                onToggle={() => setActiveSection(activeSection === "admin" ? "" : "admin")}
+                accent="amber"
+              >
+                <FieldRow label="Feature in directory" optional>
+                  <ToggleControl value={state.featureInDirectory} onChange={(v) => patch({ featureInDirectory: v })}
+                    label="Pin near the top of Discover" />
+                </FieldRow>
+                <FieldRow label="Internal notes" hint="Visible to your team only.">
+                  <textarea value={state.internalNotes} onChange={(e) => patch({ internalNotes: e.target.value })}
+                    placeholder="Reliability notes, payment terms, special instructions…"
+                    rows={3}
+                    style={{
+                      width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                      borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                      fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                      resize: "vertical",
+                    }}
+                  />
+                </FieldRow>
+                {/* Profile ownership — convert agency-managed to claimable */}
+                <FieldRow
+                  label="Profile ownership"
+                  hint="Hand the keys to the talent so they can edit their own profile + accept inquiries directly."
+                >
+                  <ProfileOwnershipPanel
+                    talentName={state.stageName || "this talent"}
+                    contactEmail={payload.seed?.contact}
+                  />
+                </FieldRow>
+                {/* #9 — Recent activity / change log */}
+                <FieldRow label="Recent activity" hint="Last 5 changes to this profile. Tap to see diff.">
+                  <ProfileActivityLog />
+                </FieldRow>
+              </ProfileAccordionSection>
+            )}
+
+            <div style={{ height: 40 }} />
+          </div>
+        </div>
+
+        {/* #20 — Mobile sticky save bar (hidden on desktop via media query) */}
+        <div data-pshell-mobile-save>
+          <span data-pshell-saved>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: savedAt ? COLORS.green : "rgba(11,11,13,0.20)" }} />
+            {savedAt ? `Saved ${ageString(savedAt)}` : "Not saved yet"}
+          </span>
+          <StatusPillDropdown status={state.profileStatus} onChange={(s) => patch({ profileStatus: s })} role={isSelf ? "talent" : "admin"} />
+          <SmartFooterCTA
+            status={state.profileStatus}
+            mode={mode}
+            canPublish={missing.length === 0}
+            onAction={submit}
+          />
+        </div>
+
+        {/* View as client modal */}
+        {viewAsClient && (
+          <ViewAsClientModal
+            stageName={state.stageName}
+            tagline={state.tagline}
+            primaryRes={primaryRes}
+            secondaryTypes={state.secondaryTypes}
+            specialties={state.specialties}
+            serviceArea={state.serviceArea}
+            photos={state.albumsPro.flatMap(a => a.items.map(i => i.url))}
+            languages={state.languages}
+            trust={trust}
+            bios={state.bios}
+            onClose={() => setViewAsClient(false)}
+          />
+        )}
+
+        {/* #8 — Publish celebration */}
+        {publishCelebrationOpen && (
+          <PublishCelebrationModal
+            stageName={state.stageName}
+            slug={(state.stageName || "talent").toLowerCase().replace(/\s+/g, "-")}
+            tenantSlug={TENANT.slug}
+            onClose={() => { setPublishCelebrationOpen(false); closeDrawer(); }}
+            onCopyLink={() => toast("Profile link copied")}
+            onShare={() => toast("Sharing profile…")}
+          />
+        )}
+
+        {/* #18 — Talent diff preview before submit (also reusable as
+            #15 admin diff view from the approvals queue). */}
+        {diffOpen && (
+          <ProfileDiffModal
+            entries={computeDiff()}
+            mode={isSelf ? "talent" : "admin"}
+            onClose={() => setDiffOpen(false)}
+            onSubmit={() => { setDiffOpen(false); finalSubmit(); }}
+            onApproveAll={!isSelf ? () => { setDiffOpen(false); finalSubmit(); } : undefined}
+            onRejectAll={!isSelf ? () => { setDiffOpen(false); toast("Changes rejected — talent will be notified"); closeDrawer(); } : undefined}
+            // #2 — Per-field decisions actually patch the record. Rejected
+            // fields revert to the baseline; approved + undecided fields
+            // keep the talent's submission. We dispatch a RESET with the
+            // merged state, then commit.
+            onApplyDecisions={!isSelf ? (rejected) => {
+              const baseline = initialState.current;
+              if (!baseline) return;
+              const merged: ProfileState = { ...state };
+              if (rejected.has("stageName")) merged.identity = { ...merged.identity, stageName: baseline.identity.stageName };
+              if (rejected.has("tagline")) merged.tagline = baseline.tagline;
+              if (rejected.has("primaryType")) merged.primaryType = baseline.primaryType;
+              if (rejected.has("secondaryTypes")) merged.secondaryTypes = baseline.secondaryTypes;
+              if (rejected.has("bio")) merged.bios = baseline.bios;
+              if (rejected.has("homeBase")) merged.serviceArea = { ...merged.serviceArea, homeBase: baseline.serviceArea.homeBase };
+              if (rejected.has("serviceCities")) merged.serviceArea = { ...merged.serviceArea, serviceCities: baseline.serviceArea.serviceCities };
+              if (rejected.has("languages")) merged.languages = baseline.languages;
+              if (rejected.has("photos")) merged.albumsPro = baseline.albumsPro;
+              dispatch({ type: "RESET", state: merged });
+              setDiffOpen(false);
+              toast(`Applied · approved ${computeDiff().length - rejected.size} · reverted ${rejected.size}`);
+            } : undefined}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 4 +20 — supporting helper components
+// ════════════════════════════════════════════════════════════════════
+
+function ServicesEditor({
+  allowedParents, primaryType, secondaryTypes, specialties, primaryRes, specialtyOptions,
+  onPickPrimary, onClearPrimary, onToggleSecondary, onToggleSpecialty,
+}: {
+  allowedParents: TaxonomyParent[];
+  primaryType: string | null;
+  secondaryTypes: string[];
+  specialties: string[];
+  primaryRes: { parent: TaxonomyParent; child: TaxonomyChild } | null;
+  specialtyOptions: { typeId: string; typeLabel: string; items: string[] }[];
+  onPickPrimary: (id: string) => void;
+  onClearPrimary: () => void;
+  onToggleSecondary: (id: string) => void;
+  onToggleSpecialty: (s: string) => void;
+}) {
+  return (
+    <>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 4 }}>
+          Main role
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkDim, marginBottom: 8, lineHeight: 1.4 }}>
+          What can clients book this person as? Pick the one role that best describes the work.
+        </div>
+        {primaryRes ? (
+          <div>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "8px 12px", borderRadius: 999,
+              background: "rgba(15,79,62,0.08)", color: COLORS.accentDeep,
+              border: `1.5px solid ${COLORS.accent}`,
+              fontSize: 13, fontWeight: 600,
+            }}>
+              <span style={{ fontSize: 14 }}>{primaryRes.parent.emoji}</span>
+              {primaryRes.child.label}
+              <button type="button" onClick={onClearPrimary} aria-label="Change main role"
+                style={{ background: "transparent", border: "none", cursor: "pointer", color: COLORS.accentDeep, fontSize: 14, lineHeight: 1, fontWeight: 700, padding: 0 }}>×</button>
+            </div>
+            {primaryRes.child.specialties && primaryRes.child.specialties.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginBottom: 4 }}>
+                  Specialties under {primaryRes.child.label}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {primaryRes.child.specialties.map(s => {
+                    const active = specialties.includes(s);
+                    return (
+                      <button key={s} type="button" onClick={() => onToggleSpecialty(s)} style={{
+                        padding: "5px 10px", borderRadius: 999,
+                        border: `1px solid ${active ? COLORS.indigo : COLORS.borderSoft}`,
+                        background: active ? COLORS.indigoSoft : "#fff",
+                        color: active ? COLORS.indigoDeep : COLORS.ink,
+                        fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+                        fontFamily: FONTS.body,
+                      }}>{s}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={onPickPrimary} />
+        )}
+      </div>
+      {primaryType && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+            Also available as
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {allowedParents.flatMap(p => p.children).map(c => {
+              if (c.id === primaryType) return null;
+              const active = secondaryTypes.includes(c.id);
+              return (
+                <button key={c.id} type="button" onClick={() => onToggleSecondary(c.id)} style={{
+                  padding: "6px 11px", borderRadius: 999,
+                  border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                  background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                  color: active ? COLORS.accentDeep : COLORS.ink,
+                  fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}>{c.label}</button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {specialtyOptions.filter(g => g.typeId !== primaryType).length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+            More specialties
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {specialtyOptions.filter(g => g.typeId !== primaryType).map(g => (
+              <div key={g.typeId}>
+                <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginBottom: 4 }}>Under {g.typeLabel}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {g.items.map(s => {
+                    const active = specialties.includes(s);
+                    return (
+                      <button key={s} type="button" onClick={() => onToggleSpecialty(s)} style={{
+                        padding: "5px 10px", borderRadius: 999,
+                        border: `1px solid ${active ? COLORS.indigo : COLORS.borderSoft}`,
+                        background: active ? COLORS.indigoSoft : "#fff",
+                        color: active ? COLORS.indigoDeep : COLORS.ink,
+                        fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+                        fontFamily: FONTS.body,
+                      }}>{s}</button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── Real photo gallery with file-picker, drag-reorder, crop modal ────
+function PhotoGalleryReal({ album, onUpdateAlbum }: {
+  album: ProfileAlbum;
+  onUpdateAlbum: (updater: (a: ProfileAlbum) => ProfileAlbum) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+  const [cropIdx, setCropIdx] = useState<number | null>(null);
+  const [pendingMain, setPendingMain] = useState<number | null>(null);
+
+  const addFiles = (files: FileList | File[]) => {
+    const arr = Array.from(files).slice(0, 8 - album.photos.length);
+    const urls = arr.map(f => URL.createObjectURL(f));
+    onUpdateAlbum(a => ({ ...a, photos: [...a.photos, ...urls] }));
+  };
+  const onPick = () => fileInputRef.current?.click();
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
+  };
+
+  const removePhoto = (i: number) => {
+    if (i === 0 && album.photos.length > 1) {
+      setPendingMain(1);
+      return;
+    }
+    onUpdateAlbum(a => ({ ...a, photos: a.photos.filter((_, idx) => idx !== i) }));
+  };
+  const confirmRemoveMain = () => {
+    onUpdateAlbum(a => ({ ...a, photos: a.photos.slice(1) }));
+    setPendingMain(null);
+  };
+  const movePhoto = (from: number, to: number) => {
+    if (from === to) return;
+    onUpdateAlbum(a => {
+      const arr = [...a.photos];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      return { ...a, photos: arr };
+    });
+  };
+  const makeMain = (i: number) => movePhoto(i, 0);
+
+  return (
+    <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+         onDragLeave={() => setDragOver(false)}
+         onDrop={onDrop}
+         style={{
+           position: "relative",
+           padding: dragOver ? 8 : 0,
+           borderRadius: dragOver ? 12 : 0,
+           background: dragOver ? "rgba(15,79,62,0.05)" : "transparent",
+           transition: "all .12s",
+         }}
+    >
+      <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }}
+        onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+      />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+        {album.photos.map((src, i) => (
+          <div
+            key={`${i}-${src}`}
+            draggable
+            onDragStart={(e) => { setDraggingIdx(i); e.dataTransfer.effectAllowed = "move"; }}
+            onDragEnd={() => setDraggingIdx(null)}
+            onDragEnter={(e) => { e.preventDefault(); }}
+            onDragOver={(e) => { e.preventDefault(); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggingIdx !== null && draggingIdx !== i) movePhoto(draggingIdx, i);
+              setDraggingIdx(null);
+            }}
+            style={{
+              position: "relative", aspectRatio: "3 / 4", borderRadius: 8,
+              background: `url(${src}) center/cover, ${COLORS.surfaceAlt}`,
+              border: i === 0 ? `2px solid ${COLORS.accent}` : `1px solid ${COLORS.borderSoft}`,
+              overflow: "hidden",
+              cursor: "grab",
+              opacity: draggingIdx === i ? 0.4 : 1,
+              transition: "opacity .12s",
+            }}
+          >
+            {i === 0 ? (
+              <span style={{
+                position: "absolute", top: 4, left: 4,
+                fontSize: 9, fontWeight: 700, fontFamily: FONTS.body,
+                padding: "2px 6px", borderRadius: 999,
+                background: COLORS.accent, color: "#fff",
+              }}>★ MAIN</span>
+            ) : (
+              <button type="button" onClick={(e) => { e.stopPropagation(); makeMain(i); }} aria-label="Make main"
+                style={{
+                  position: "absolute", top: 4, left: 4,
+                  width: 22, height: 22, borderRadius: "50%",
+                  border: "none", background: "rgba(11,11,13,0.55)", color: "#fff",
+                  fontSize: 11, cursor: "pointer", lineHeight: 1,
+                }}>★</button>
+            )}
+            <button type="button" onClick={(e) => { e.stopPropagation(); setCropIdx(i); }} aria-label="Crop"
+              style={{
+                position: "absolute", bottom: 4, left: 4,
+                width: 22, height: 22, borderRadius: "50%",
+                border: "none", background: "rgba(11,11,13,0.55)", color: "#fff",
+                fontSize: 11, cursor: "pointer", lineHeight: 1,
+              }}>✂</button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); removePhoto(i); }} aria-label="Remove"
+              style={{
+                position: "absolute", top: 4, right: 4,
+                width: 22, height: 22, borderRadius: "50%",
+                border: "none", background: "rgba(11,11,13,0.55)", color: "#fff",
+                fontSize: 12, cursor: "pointer", lineHeight: 1, fontWeight: 600,
+              }}>×</button>
+          </div>
+        ))}
+        {album.photos.length < 8 && (
+          <button type="button" onClick={onPick} style={{
+            aspectRatio: "3 / 4", borderRadius: 8,
+            border: `1.5px dashed ${COLORS.borderSoft}`,
+            background: dragOver ? "rgba(15,79,62,0.08)" : "#fff",
+            cursor: "pointer",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+            fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, fontFamily: FONTS.body,
+            transition: "background .12s",
+          }}>
+            <span style={{ fontSize: 18 }}>+</span>
+            <span>{dragOver ? "Drop here" : "Drop or pick"}</span>
+          </button>
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }}>
+        Drag tiles to reorder. ★ promotes to main. ✂ to crop.
+      </div>
+
+      {/* Confirm-replace-main */}
+      {pendingMain !== null && (
+        <ConfirmDialog
+          title="Remove the main photo?"
+          body={`The next photo (#${pendingMain + 1}) will become the main photo on your profile and Discover card.`}
+          confirmLabel="Remove main"
+          onConfirm={confirmRemoveMain}
+          onCancel={() => setPendingMain(null)}
+        />
+      )}
+
+      {/* Crop modal */}
+      {cropIdx !== null && album.photos[cropIdx] && (
+        <CropModal
+          src={album.photos[cropIdx]}
+          onClose={() => setCropIdx(null)}
+          onSave={() => setCropIdx(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel }: {
+  title: string; body: string; confirmLabel: string;
+  onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <div onClick={onCancel} style={{
+      position: "fixed", inset: 0, zIndex: 250,
+      background: "rgba(11,11,13,0.42)", backdropFilter: "blur(8px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: "#fff", borderRadius: 14, padding: 22,
+        maxWidth: 420, width: "90%",
+        boxShadow: "0 30px 60px -10px rgba(11,11,13,0.35)",
+      }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{title}</h3>
+        <p style={{ margin: "8px 0 16px", fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5 }}>{body}</p>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onCancel} style={{
+            padding: "9px 14px", borderRadius: 999,
+            border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>Cancel</button>
+          <button type="button" onClick={onConfirm} style={{
+            padding: "9px 16px", borderRadius: 999, border: "none",
+            background: COLORS.fill, color: "#fff",
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CropModal({ src, onClose, onSave }: {
+  src: string; onClose: () => void; onSave: () => void;
+}) {
+  const [zoom, setZoom] = useState(1);
+  const [ratio, setRatio] = useState<"4:5" | "1:1" | "16:9">("4:5");
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 260,
+      background: "rgba(11,11,13,0.55)", backdropFilter: "blur(10px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: "#fff", borderRadius: 14, padding: 18,
+        maxWidth: 480, width: "92%",
+        boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>Crop photo</h3>
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            background: "transparent", border: "none", padding: 4, cursor: "pointer", fontSize: 16, color: COLORS.inkMuted,
+          }}>✕</button>
+        </div>
+        <div style={{
+          width: "100%", aspectRatio: ratio === "4:5" ? "4 / 5" : ratio === "1:1" ? "1 / 1" : "16 / 9",
+          background: `url(${src}) center/cover, ${COLORS.surfaceAlt}`,
+          borderRadius: 10, overflow: "hidden", position: "relative",
+          border: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          <div style={{
+            position: "absolute", inset: 0,
+            backgroundImage: `url(${src})`,
+            backgroundSize: `${zoom * 100}%`,
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }} />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>Aspect ratio</div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {(["4:5", "1:1", "16:9"] as const).map(r => {
+              const active = ratio === r;
+              return (
+                <button key={r} type="button" onClick={() => setRatio(r)} style={{
+                  padding: "6px 12px", borderRadius: 999,
+                  border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                  background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                  color: active ? COLORS.accentDeep : COLORS.ink,
+                  fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                }}>{r}</button>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.inkMuted, marginBottom: 6 }}>
+            Zoom · {Math.round(zoom * 100)}%
+          </div>
+          <input type="range" min={1} max={3} step={0.1} value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            style={{ width: "100%", accentColor: COLORS.accent }}
+          />
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+          <button type="button" onClick={onClose} style={{
+            padding: "9px 14px", borderRadius: 999,
+            border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
+            fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>Cancel</button>
+          <button type="button" onClick={onSave} style={{
+            padding: "9px 16px", borderRadius: 999, border: "none",
+            background: COLORS.fill, color: "#fff",
+            fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>Save crop</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Albums editor ────────────────────────────────────────────────────
+function AlbumsEditor({ albums, activeId, onActivate, onChange }: {
+  albums: ProfileAlbum[];
+  activeId: string;
+  onActivate: (id: string) => void;
+  onChange: (a: ProfileAlbum[]) => void;
+}) {
+  const [newName, setNewName] = useState("");
+  const addAlbum = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const id = name.toLowerCase().replace(/\s+/g, "-").slice(0, 30) + "-" + Math.random().toString(36).slice(2, 6);
+    onChange([...albums, { id, name, photos: [] }]);
+    setNewName("");
+  };
+  const renameAlbum = (id: string, name: string) =>
+    onChange(albums.map(a => a.id === id ? { ...a, name } : a));
+  const deleteAlbum = (id: string) => {
+    if (albums.length <= 1) return;
+    onChange(albums.filter(a => a.id !== id));
+    if (activeId === id) onActivate(albums[0].id);
+  };
+
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+        {albums.map(a => {
+          const active = a.id === activeId;
+          return (
+            <button key={a.id} type="button" onClick={() => onActivate(a.id)} style={{
+              padding: "6px 11px", borderRadius: 999,
+              border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+              background: active ? "rgba(15,79,62,0.08)" : "#fff",
+              color: active ? COLORS.accentDeep : COLORS.ink,
+              fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}>
+              {a.name} <span style={{ color: COLORS.inkDim, fontWeight: 500 }}>· {a.photos.length}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{
+        background: COLORS.surface, padding: 14, borderRadius: 10,
+        border: `1px solid ${COLORS.borderSoft}`,
+      }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>
+          Manage albums
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+          {albums.map(a => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="text" value={a.name}
+                onChange={(e) => renameAlbum(a.id, e.target.value)}
+                style={{
+                  flex: 1, padding: "7px 10px", borderRadius: 8,
+                  border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                  fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
+                }}
+              />
+              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{a.photos.length} photo{a.photos.length === 1 ? "" : "s"}</span>
+              {albums.length > 1 && (
+                <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
+                  width: 24, height: 24, borderRadius: 6,
+                  border: "none", background: "transparent", color: COLORS.inkMuted,
+                  fontSize: 14, cursor: "pointer", padding: 0,
+                }}>×</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input type="text" value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAlbum(); } }}
+            placeholder="e.g. Editorial, Lookbook, Behind-the-scenes…"
+            style={{
+              flex: 1, padding: "9px 12px", borderRadius: 8,
+              border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+              fontSize: 12.5, color: COLORS.ink, outline: "none",
+            }}
+          />
+          <button type="button" onClick={addAlbum} disabled={!newName.trim()} style={{
+            padding: "0 14px", borderRadius: 8, border: "none",
+            background: newName.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
+            color: newName.trim() ? "#fff" : COLORS.inkDim,
+            fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+            cursor: newName.trim() ? "pointer" : "default",
+          }}>Add album</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Locale-aware bios editor ─────────────────────────────────────────
+function BiosEditor({ bios, activeLocale, onActivateLocale, onChange, onRegenerate, primaryLabel }: {
+  bios: LocaleBio[];
+  activeLocale: LocaleCode;
+  onActivateLocale: (l: LocaleCode) => void;
+  onChange: (b: LocaleBio[]) => void;
+  onRegenerate: () => void;
+  primaryLabel?: string;
+}) {
+  const ALL_LOCALES: LocaleCode[] = ["en", "es", "fr", "it", "pt", "de"];
+  const ensureLocale = (l: LocaleCode) => {
+    if (bios.some(b => b.locale === l)) return;
+    onChange([...bios, { locale: l, text: "" }]);
+  };
+  const setText = (l: LocaleCode, t: string) =>
+    onChange(bios.map(b => b.locale === l ? { ...b, text: t } : b));
+  const remove = (l: LocaleCode) => {
+    if (l === "en") return; // english is the canonical
+    const next = bios.filter(b => b.locale !== l);
+    onChange(next);
+    if (activeLocale === l) onActivateLocale("en");
+  };
+  const active = bios.find(b => b.locale === activeLocale) ?? bios[0];
+  const charCount = active?.text.length ?? 0;
+  const limit = 280;
+
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+        {bios.map(b => {
+          const isActive = b.locale === activeLocale;
+          return (
+            <button key={b.locale} type="button" onClick={() => onActivateLocale(b.locale)} style={{
+              padding: "5px 11px", borderRadius: 999,
+              border: `1.5px solid ${isActive ? COLORS.accent : COLORS.borderSoft}`,
+              background: isActive ? "rgba(15,79,62,0.08)" : "#fff",
+              color: isActive ? COLORS.accentDeep : COLORS.ink,
+              fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}>
+              {LOCALE_LABEL[b.locale]}
+              {b.locale !== "en" && (
+                <span onClick={(e) => { e.stopPropagation(); remove(b.locale); }}
+                  style={{ color: COLORS.inkMuted, fontSize: 12, lineHeight: 1, fontWeight: 700, cursor: "pointer" }}>×</span>
+              )}
+            </button>
+          );
+        })}
+        <select value="" onChange={(e) => { if (e.target.value) ensureLocale(e.target.value as LocaleCode); }} style={{
+          padding: "5px 10px", borderRadius: 999,
+          border: `1px dashed ${COLORS.border}`, background: "transparent",
+          fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, cursor: "pointer",
+        }}>
+          <option value="">+ Add language</option>
+          {ALL_LOCALES.filter(l => !bios.some(b => b.locale === l)).map(l => (
+            <option key={l} value={l}>{LOCALE_LABEL[l]}</option>
+          ))}
+        </select>
+      </div>
+      <textarea
+        data-pshell-field="bio"
+        value={active?.text ?? ""}
+        onChange={(e) => setText(activeLocale, e.target.value)}
+        placeholder={`Bio in ${LOCALE_LABEL[activeLocale]}…`}
+        rows={4}
+        maxLength={limit}
+        style={{
+          width: "100%", boxSizing: "border-box", padding: "10px 12px",
+          borderRadius: 10, border: `1px solid ${COLORS.border}`,
+          fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+          resize: "vertical",
+        }}
+      />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6 }}>
+        <button type="button" onClick={onRegenerate} disabled={!primaryLabel} style={{
+          padding: "5px 11px", borderRadius: 999,
+          background: "transparent", border: `1px dashed ${COLORS.border}`,
+          color: primaryLabel ? COLORS.inkMuted : COLORS.inkDim,
+          fontSize: 11, fontWeight: 500,
+          cursor: primaryLabel ? "pointer" : "default",
+          fontFamily: FONTS.body,
+        }}>↺ {primaryLabel ? `Regenerate from ${primaryLabel}` : "Pick a Talent Type to regenerate"}</button>
+        <span style={{ fontSize: 10.5, color: charCount > limit * 0.9 ? COLORS.amberDeep : COLORS.inkDim }}>
+          {charCount} / {limit}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── Rates editor ─────────────────────────────────────────────────────
+function RatesEditor({ rates, selectedTypeIds, onChange }: {
+  rates: ProfileRate[];
+  selectedTypeIds: string[];
+  onChange: (r: ProfileRate[]) => void;
+}) {
+  if (selectedTypeIds.length === 0) {
+    return (
+      <div style={{
+        padding: 14, borderRadius: 10,
+        background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+        fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body, lineHeight: 1.5,
+      }}>
+        Pick a Talent Type in Services first. Each type gets its own rate.
+      </div>
+    );
+  }
+
+  // Ensure a row exists for each selected type
+  const rateRows = selectedTypeIds.map(tid => {
+    const child = findChild(tid);
+    if (!child) return null;
+    const cur = rates.find(r => r.typeId === tid);
+    if (cur) return { ...cur, parent: child.parent, child: child.child };
+    const unit = TYPE_RATE_UNIT[child.parent.id];
+    return { typeId: tid, amount: 0, currency: "EUR", unit, parent: child.parent, child: child.child };
+  }).filter(Boolean) as (ProfileRate & { parent: TaxonomyParent; child: TaxonomyChild })[];
+
+  const updateRow = (typeId: string, patch: Partial<ProfileRate>) => {
+    const exists = rates.some(r => r.typeId === typeId);
+    if (exists) {
+      onChange(rates.map(r => r.typeId === typeId ? { ...r, ...patch } : r));
+    } else {
+      const child = findChild(typeId);
+      if (!child) return;
+      const unit = TYPE_RATE_UNIT[child.parent.id];
+      onChange([...rates, { typeId, amount: 0, currency: "EUR", unit, ...patch } as ProfileRate]);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
+      {rateRows.map(r => (
+        <div key={r.typeId} style={{
+          padding: 12, borderRadius: 10,
+          border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <span style={{ fontSize: 14 }}>{r.parent.emoji}</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{r.child.label}</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <select value={r.currency} onChange={(e) => updateRow(r.typeId, { currency: e.target.value })} style={{
+              padding: "9px 10px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+              fontSize: 12.5, color: COLORS.ink, outline: "none",
+            }}>
+              <option value="EUR">€ EUR</option>
+              <option value="USD">$ USD</option>
+              <option value="GBP">£ GBP</option>
+              <option value="MXN">$ MXN</option>
+            </select>
+            <input type="number" min={0} value={r.amount}
+              onChange={(e) => updateRow(r.typeId, { amount: Number(e.target.value) })}
+              placeholder="0"
+              style={{
+                flex: 1, padding: "9px 12px", borderRadius: 8,
+                border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                fontSize: 13, color: COLORS.ink, outline: "none",
+              }}
+            />
+            <select value={r.unit} onChange={(e) => updateRow(r.typeId, { unit: e.target.value as RateUnit })} style={{
+              padding: "9px 10px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+              fontSize: 12.5, color: COLORS.ink, outline: "none",
+            }}>
+              <option value="hour">/ hour</option>
+              <option value="day">/ day</option>
+              <option value="set">/ set</option>
+              <option value="event">/ event</option>
+              <option value="session">/ session</option>
+              <option value="month">/ month</option>
+            </select>
+          </div>
+          <input type="text" value={r.conditions ?? ""}
+            onChange={(e) => updateRow(r.typeId, { conditions: e.target.value })}
+            placeholder="Conditions — e.g. min 4 hours, + tax, weekend uplift"
+            style={{
+              width: "100%", boxSizing: "border-box", marginTop: 6,
+              padding: "8px 10px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+              fontSize: 12, color: COLORS.ink, outline: "none",
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Availability mini-grid (4 weeks) ────────────────────────────────
+function AvailabilityGrid({ cells, onToggle }: {
+  cells: AvailabilityCell[];
+  onToggle: (date: string) => void;
+}) {
+  // Build 28 days starting from today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days: { date: string; label: string; isToday: boolean }[] = [];
+  for (let i = 0; i < 28; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    days.push({
+      date: d.toISOString().slice(0, 10),
+      label: String(d.getDate()),
+      isToday: i === 0,
+    });
+  }
+  const cellMap = new Map(cells.map(c => [c.date, c.status]));
+
+  const colorFor = (s?: AvailabilityStatus) => {
+    if (s === "busy")    return { bg: COLORS.amberSoft,    fg: COLORS.amberDeep,   border: COLORS.amberDeep };
+    if (s === "blocked") return { bg: "rgba(11,11,13,0.06)", fg: COLORS.ink,        border: "rgba(11,11,13,0.20)" };
+    return { bg: COLORS.successSoft, fg: COLORS.successDeep, border: "transparent" };
+  };
+
+  const counts = { open: 0, busy: 0, blocked: 0 };
+  days.forEach(d => {
+    const s = cellMap.get(d.date) ?? "open";
+    counts[s] += 1;
+  });
+
+  const dowLabels = ["S", "M", "T", "W", "T", "F", "S"];
+  const startDow = today.getDay();
+
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", gap: 10, fontSize: 11, color: COLORS.inkMuted, marginBottom: 8 }}>
+        <Legend dotColor={COLORS.green} label={`Open · ${counts.open}`} />
+        <Legend dotColor={COLORS.amberDeep} label={`Busy · ${counts.busy}`} />
+        <Legend dotColor="rgba(11,11,13,0.4)" label={`Blocked · ${counts.blocked}`} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+        {dowLabels.map((d, i) => (
+          <div key={i} style={{
+            fontSize: 9.5, fontWeight: 600, color: COLORS.inkDim, textAlign: "center", letterSpacing: 0.4,
+          }}>{d}</div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+        {Array.from({ length: startDow }).map((_, i) => (
+          <div key={`pad-${i}`} />
+        ))}
+        {days.map(d => {
+          const s = cellMap.get(d.date) ?? "open";
+          const c = colorFor(s);
+          return (
+            <button key={d.date} type="button" onClick={() => onToggle(d.date)} style={{
+              aspectRatio: "1 / 1", borderRadius: 8,
+              background: c.bg,
+              border: d.isToday ? `2px solid ${COLORS.accent}` : `1px solid ${c.border}`,
+              color: c.fg, cursor: "pointer",
+              fontSize: 11, fontWeight: 600,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontFamily: FONTS.body,
+            }}>{d.label}</button>
+          );
+        })}
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4 }}>
+        Tap a day to cycle: open → busy → blocked → open. Today highlighted in green.
+      </div>
+    </div>
+  );
+}
+
+function Legend({ dotColor, label }: { dotColor: string; label: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <span style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor }} />
+      {label}
+    </span>
+  );
+}
+
+// ── Verifications editor (drives trust badge) ────────────────────────
+function VerificationsEditor({ verifications, tier, onChange, isSelf }: {
+  verifications: Verifications;
+  tier: TrustTier;
+  onChange: (v: Verifications) => void;
+  isSelf: boolean;
+}) {
+  const tierMeta = TALENT_TRUST_META[tier];
+  const rows: { id: keyof Verifications; label: string; helper: string; readonly?: boolean }[] = [
+    { id: "emailVerified",    label: "Email verified",     helper: "We sent a confirm link." },
+    { id: "phoneVerified",    label: "Phone verified",     helper: "SMS or call." },
+    { id: "idSubmitted",      label: "ID submitted",       helper: "Passport or government ID. Required for Verified." },
+    { id: "payoutConnected",  label: "Payout connected",   helper: "Bank or PSP linked. Required for Verified." },
+    { id: "hasFundedClient",  label: "Funded-account client", helper: "At least one client on Tulala with funds on hold. Required for Gold." },
+  ];
+
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{
+        padding: 14, borderRadius: 12,
+        background: tierMeta.bg, border: `1px solid ${tierMeta.fg}30`,
+        marginBottom: 14,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: tierMeta.fg, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 18 }}>{tierMeta.emoji}</span>
+          {tierMeta.label}
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
+          {tierMeta.helper}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {rows.map(r => (
+          <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <ToggleControl
+              value={!!verifications[r.id]}
+              onChange={(v) => onChange({ ...verifications, [r.id]: v })}
+              label={r.label}
+            />
+            <span style={{ fontSize: 11, color: COLORS.inkDim, flex: 1 }}>{r.helper}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginTop: 14, padding: "10px 12px", borderRadius: 10,
+        background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+      }}>
+        <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>
+          Bookings completed on Tulala
+        </span>
+        <input type="number" min={0} value={verifications.bookingsCount}
+          onChange={(e) => onChange({ ...verifications, bookingsCount: Number(e.target.value) })}
+          disabled={isSelf}
+          style={{
+            width: 70, padding: "6px 10px", borderRadius: 6,
+            border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink,
+            textAlign: "right", outline: "none",
+            opacity: isSelf ? 0.6 : 1,
+          }}
+        />
+      </div>
+      {isSelf && (
+        <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4 }}>
+          Verification status is managed by Tulala — toggle when you complete each step.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Invite-claim banner ──────────────────────────────────────────────
+function InviteClaimBanner({ stageName, onResend, onTakeOver }: {
+  stageName: string;
+  onResend: () => void;
+  onTakeOver: () => void;
+}) {
+  return (
+    <div style={{
+      padding: "10px 18px",
+      background: COLORS.amberSoft,
+      borderBottom: `1px solid ${COLORS.amberDeep}30`,
+      display: "flex", alignItems: "center", gap: 10,
+      fontFamily: FONTS.body, flexShrink: 0,
+    }}>
+      <span style={{
+        width: 22, height: 22, borderRadius: "50%",
+        background: COLORS.amberDeep, color: "#fff",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        fontSize: 12, flexShrink: 0,
+      }}>📧</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.amberDeep }}>
+          Waiting on {stageName || "talent"} to claim this profile
+        </div>
+        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+          Invite sent 3 days ago. They'll review, edit, and approve before publish.
+        </div>
+      </div>
+      <button type="button" onClick={onResend} style={{
+        padding: "6px 12px", borderRadius: 999,
+        border: `1px solid ${COLORS.amberDeep}40`, background: "#fff",
+        color: COLORS.amberDeep, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+      }}>Resend</button>
+      <button type="button" onClick={onTakeOver} style={{
+        padding: "6px 12px", borderRadius: 999, border: "none",
+        background: COLORS.amberDeep, color: "#fff",
+        fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+      }}>Take over</button>
+    </div>
+  );
+}
+
+// ── View-as-client modal ─────────────────────────────────────────────
+function ViewAsClientModal({ stageName, tagline, primaryRes, secondaryTypes, specialties, serviceArea, photos, languages, trust, bios, onClose }: {
+  stageName: string;
+  tagline: string;
+  primaryRes: { parent: TaxonomyParent; child: TaxonomyChild } | null;
+  secondaryTypes: string[];
+  specialties: string[];
+  serviceArea: ServiceArea;
+  photos: string[];
+  languages: ProfileLanguage[];
+  trust: TrustTier;
+  bios: LocaleBio[];
+  onClose: () => void;
+}) {
+  const trustMeta = TALENT_TRUST_META[trust];
+  const enBio = bios.find(b => b.locale === "en")?.text ?? "";
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 220,
+      background: "rgba(11,11,13,0.55)", backdropFilter: "blur(10px)",
+      display: "flex", alignItems: "flex-end", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 480, maxHeight: "95vh",
+        background: "#fff", borderRadius: "20px 20px 0 0",
+        boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.35)",
+        overflowY: "auto",
+      }}>
+        <div style={{ position: "relative" }}>
+          <div style={{
+            aspectRatio: "4 / 3.5",
+            background: photos[0]
+              ? `url(${photos[0]}) center/cover, ${COLORS.surfaceAlt}`
+              : COLORS.surfaceAlt,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: COLORS.inkMuted, fontSize: 36,
+          }}>{!photos[0] && "📷"}</div>
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            position: "absolute", top: 12, right: 12,
+            width: 34, height: 34, borderRadius: "50%",
+            background: "rgba(255,255,255,0.92)", border: "none", cursor: "pointer",
+            color: COLORS.ink, fontSize: 16, lineHeight: 1, fontWeight: 600,
+          }}>✕</button>
+          <div style={{
+            position: "absolute", top: 12, left: 12,
+            padding: "5px 12px", borderRadius: 999,
+            background: "rgba(11,11,13,0.65)", color: "#fff",
+            backdropFilter: "blur(8px)",
+            fontSize: 10.5, fontWeight: 600,
+          }}>👁 Client preview</div>
+        </div>
+        <div style={{ padding: "16px 22px 24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+            <h2 style={{
+              margin: 0,
+              fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+              color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.1,
+            }}>{stageName || "Untitled profile"}</h2>
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
+              background: trustMeta.bg, color: trustMeta.fg,
+            }}>{trustMeta.emoji} {trustMeta.label}</span>
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 4 }}>
+            {primaryRes ? primaryRes.child.label : "—"}
+          </div>
+          {tagline && (
+            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, fontStyle: "italic", marginBottom: 6 }}>
+              {tagline}
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>
+            📍 {[serviceArea.homeBase, ...serviceArea.serviceCities].filter(Boolean).slice(0, 4).join(" · ") || "—"}
+          </div>
+          {secondaryTypes.length > 0 && (
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8 }}>
+              Also available as: {secondaryTypes.map(id => findChild(id)?.child.label).filter(Boolean).join(" · ")}
+            </div>
+          )}
+          {specialties.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 12 }}>
+              {specialties.slice(0, 8).map(s => (
+                <span key={s} style={{
+                  fontSize: 10.5, fontWeight: 500, padding: "2px 9px", borderRadius: 999,
+                  background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                }}>{s}</span>
+              ))}
+            </div>
+          )}
+          {enBio && (
+            <p style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.55, marginTop: 8, marginBottom: 12 }}>
+              {enBio}
+            </p>
+          )}
+          {photos.length > 1 && (
+            <div style={{
+              display: "flex", gap: 6, marginRight: -22, paddingRight: 22, marginTop: 4,
+              overflowX: "auto", scrollbarWidth: "none",
+            }}>
+              {photos.slice(1, 8).map((p, i) => (
+                <div key={i} style={{
+                  flexShrink: 0,
+                  width: 96, aspectRatio: "3 / 4", borderRadius: 8,
+                  background: `url(${p}) center/cover, ${COLORS.surfaceAlt}`,
+                }} />
+              ))}
+            </div>
+          )}
+          {languages.length > 0 && (
+            <div style={{ marginTop: 14, fontSize: 11.5, color: COLORS.inkMuted }}>
+              <strong style={{ color: COLORS.ink }}>Languages — </strong>
+              {languages.map(l => `${l.language} (${l.level})`).join(" · ")}
+            </div>
+          )}
+        </div>
+        <div style={{
+          padding: "12px 22px max(14px, env(safe-area-inset-bottom)) 22px",
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", gap: 8, alignItems: "center",
+        }}>
+          <button type="button" onClick={onClose} style={{
+            padding: "11px 16px", borderRadius: 999,
+            border: `1px solid ${COLORS.border}`, background: "#fff",
+            color: COLORS.ink,
+            fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>Close preview</button>
+          <div style={{ flex: 1, padding: "12px 18px", borderRadius: 999, background: COLORS.fill, color: "#fff", fontSize: 13.5, fontWeight: 600, textAlign: "center" }}>
+            Send inquiry
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ProfileDiffModal — used by both:
+//   #15 Admin diff view (admin reviews talent's pending self-edit)
+//   #18 Talent preview (talent sees own changes before submitting)
+// ════════════════════════════════════════════════════════════════════
+
+export type DiffEntry = { fieldId: string; fieldLabel: string; before: string; after: string };
+
+function ProfileDiffModal({ entries, mode, onClose, onApproveAll, onRejectAll, onApplyDecisions, onSubmit }: {
+  entries: DiffEntry[];
+  mode: "admin" | "talent";
+  onClose: () => void;
+  onApproveAll?: () => void;
+  onRejectAll?: () => void;
+  /** Per-field commit. Keys are field ids; missing entries are treated as approved.
+   *  Called when admin presses "Apply decisions". */
+  onApplyDecisions?: (rejected: Set<string>) => void;
+  onSubmit?: () => void;
+}) {
+  const isAdmin = mode === "admin";
+  // Per-field decisions tracked internally. "rejected" means revert to `before`,
+  // "approved" / undecided means accept talent's submission.
+  const [decisions, setDecisions] = useState<Map<string, "approved" | "rejected">>(new Map());
+  const setDecision = (id: string, d: "approved" | "rejected") =>
+    setDecisions(m => { const next = new Map(m); next.set(id, d); return next; });
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 250,
+      background: "rgba(11,11,13,0.55)", backdropFilter: "blur(10px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 560, maxHeight: "92vh",
+        background: "#fff", borderRadius: 16,
+        display: "flex", flexDirection: "column", overflow: "hidden",
+        boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
+      }}>
+        <div style={{
+          padding: "16px 20px", borderBottom: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <div style={{ flex: 1 }}>
+            <h2 style={{
+              margin: 0, fontFamily: FONTS.display, fontSize: 18, fontWeight: 700,
+              color: COLORS.ink, letterSpacing: -0.2,
+            }}>{isAdmin ? "Review changes" : "What you've changed"}</h2>
+            <p style={{ margin: "3px 0 0", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.4 }}>
+              {entries.length === 0
+                ? "No changes since the last published version."
+                : `${entries.length} field${entries.length === 1 ? "" : "s"} ${isAdmin ? "modified by talent" : "you've changed"}.`}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            width: 28, height: 28, borderRadius: 8, border: "none",
+            background: "transparent", color: COLORS.inkMuted,
+            fontSize: 14, lineHeight: 1, cursor: "pointer",
+          }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px" }}>
+          {entries.length === 0 ? (
+            <div style={{ padding: "30px 20px", textAlign: "center", fontSize: 13, color: COLORS.inkMuted }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+              All clear — nothing has changed.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {entries.map(e => (
+                <div key={e.fieldId} style={{
+                  padding: 12, borderRadius: 10,
+                  background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+                }}>
+                  <div style={{
+                    display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8,
+                    marginBottom: 6,
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase" }}>
+                      {e.fieldLabel}
+                    </div>
+                    {isAdmin && (() => {
+                      const d = decisions.get(e.fieldId);
+                      return (
+                        <div style={{ display: "inline-flex", gap: 4 }}>
+                          <button type="button" onClick={() => setDecision(e.fieldId, "rejected")}
+                            aria-pressed={d === "rejected"}
+                            style={{
+                              padding: "3px 9px", borderRadius: 999,
+                              border: `1px solid ${d === "rejected" ? COLORS.red : "rgba(176,48,58,0.30)"}`,
+                              background: d === "rejected" ? COLORS.red : "rgba(176,48,58,0.06)",
+                              color: d === "rejected" ? "#fff" : COLORS.red,
+                              fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+                          }}>✕ Reject</button>
+                          <button type="button" onClick={() => setDecision(e.fieldId, "approved")}
+                            aria-pressed={d === "approved"}
+                            style={{
+                              padding: "3px 9px", borderRadius: 999,
+                              border: `1px solid ${d === "approved" ? COLORS.successDeep : "rgba(46,125,91,0.30)"}`,
+                              background: d === "approved" ? COLORS.successDeep : COLORS.successSoft,
+                              color: d === "approved" ? "#fff" : COLORS.successDeep,
+                              fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+                          }}>✓ Approve</button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {e.before && (
+                      <div style={{
+                        padding: "8px 10px", borderRadius: 8,
+                        background: "rgba(176,48,58,0.06)",
+                        borderLeft: `3px solid rgba(176,48,58,0.4)`,
+                        fontSize: 12.5, lineHeight: 1.4,
+                        color: COLORS.inkMuted, textDecoration: "line-through",
+                      }}>{e.before}</div>
+                    )}
+                    {e.after && (
+                      <div style={{
+                        padding: "8px 10px", borderRadius: 8,
+                        background: COLORS.successSoft,
+                        borderLeft: `3px solid ${COLORS.successDeep}`,
+                        fontSize: 12.5, lineHeight: 1.4,
+                        color: COLORS.ink, fontWeight: 500,
+                      }}>{e.after}</div>
+                    )}
+                    {!e.before && (
+                      <div style={{ fontSize: 10.5, color: COLORS.inkDim, fontStyle: "italic", marginTop: -2 }}>
+                        + new field
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{
+          padding: "12px 20px",
+          borderTop: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end",
+        }}>
+          <button type="button" onClick={onClose} style={{
+            padding: "9px 14px", borderRadius: 999,
+            border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>{isAdmin ? "Close" : "Keep editing"}</button>
+          {isAdmin && entries.length > 0 && (() => {
+            const rejected = new Set([...decisions.entries()].filter(([, v]) => v === "rejected").map(([k]) => k));
+            const approved = new Set([...decisions.entries()].filter(([, v]) => v === "approved").map(([k]) => k));
+            const hasMixed = rejected.size > 0 || approved.size > 0;
+            const allRejected = rejected.size === entries.length;
+            const allApproved = approved.size === entries.length;
+            // Mixed decisions → show "Apply N decisions"
+            if (hasMixed && !allRejected && !allApproved) {
+              return (
+                <button type="button" onClick={() => onApplyDecisions?.(rejected)} style={{
+                  padding: "9px 16px", borderRadius: 999, border: "none",
+                  background: COLORS.fill, color: "#fff",
+                  fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}>Apply · approve {approved.size} · reject {rejected.size}{decisions.size < entries.length ? ` · ${entries.length - decisions.size} pending` : ""}</button>
+              );
+            }
+            return (
+              <>
+                {onRejectAll && (
+                  <button type="button" onClick={onRejectAll} style={{
+                    padding: "9px 14px", borderRadius: 999,
+                    border: `1px solid rgba(176,48,58,0.30)`, background: "#fff", color: COLORS.red,
+                    fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}>Reject all</button>
+                )}
+                {onApproveAll && (
+                  <button type="button" onClick={onApproveAll} style={{
+                    padding: "9px 16px", borderRadius: 999, border: "none",
+                    background: COLORS.fill, color: "#fff",
+                    fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}>Approve all</button>
+                )}
+              </>
+            );
+          })()}
+          {!isAdmin && onSubmit && entries.length > 0 && (
+            <button type="button" onClick={onSubmit} style={{
+              padding: "9px 16px", borderRadius: 999, border: "none",
+              background: COLORS.fill, color: "#fff",
+              fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}>Submit for review</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Compute changes between two ProfileState snapshots.
+function computeProfileDiff(before: ProfileState | null, after: ProfileState): DiffEntry[] {
+  if (!before) {
+    const out: DiffEntry[] = [];
+    if (after.identity.stageName) out.push({ fieldId: "stageName", fieldLabel: "Stage name", before: "", after: after.identity.stageName });
+    if (after.primaryType) {
+      const p = findChild(after.primaryType);
+      out.push({ fieldId: "primaryType", fieldLabel: "Primary Talent Type", before: "", after: p?.child.label ?? after.primaryType });
+    }
+    return out;
+  }
+  const out: DiffEntry[] = [];
+  if (before.identity.stageName !== after.identity.stageName) {
+    out.push({ fieldId: "stageName", fieldLabel: "Stage name", before: before.identity.stageName, after: after.identity.stageName });
+  }
+  if (before.tagline !== after.tagline) {
+    out.push({ fieldId: "tagline", fieldLabel: "Tagline", before: before.tagline, after: after.tagline });
+  }
+  if (before.primaryType !== after.primaryType) {
+    const b = before.primaryType ? findChild(before.primaryType)?.child.label ?? before.primaryType : "—";
+    const a = after.primaryType ? findChild(after.primaryType)?.child.label ?? after.primaryType : "—";
+    out.push({ fieldId: "primaryType", fieldLabel: "Primary Talent Type", before: b, after: a });
+  }
+  if (JSON.stringify([...before.secondaryTypes].sort()) !== JSON.stringify([...after.secondaryTypes].sort())) {
+    out.push({
+      fieldId: "secondaryTypes", fieldLabel: "Secondary roles",
+      before: before.secondaryTypes.map(id => findChild(id)?.child.label ?? id).join(" · "),
+      after: after.secondaryTypes.map(id => findChild(id)?.child.label ?? id).join(" · "),
+    });
+  }
+  const bBio = before.bios.find(b => b.locale === before.bioActiveLocale)?.text ?? "";
+  const aBio = after.bios.find(b => b.locale === after.bioActiveLocale)?.text ?? "";
+  if (bBio !== aBio) {
+    out.push({ fieldId: "bio", fieldLabel: `Bio (${after.bioActiveLocale})`, before: bBio, after: aBio });
+  }
+  if (before.serviceArea.homeBase !== after.serviceArea.homeBase) {
+    out.push({ fieldId: "homeBase", fieldLabel: "Home base", before: before.serviceArea.homeBase, after: after.serviceArea.homeBase });
+  }
+  if (JSON.stringify(before.serviceArea.serviceCities) !== JSON.stringify(after.serviceArea.serviceCities)) {
+    out.push({
+      fieldId: "serviceCities", fieldLabel: "Service cities",
+      before: before.serviceArea.serviceCities.join(" · "),
+      after: after.serviceArea.serviceCities.join(" · "),
+    });
+  }
+  if (JSON.stringify(before.languages) !== JSON.stringify(after.languages)) {
+    out.push({
+      fieldId: "languages", fieldLabel: "Languages",
+      before: before.languages.map(l => `${l.language} (${l.level})`).join(" · "),
+      after: after.languages.map(l => `${l.language} (${l.level})`).join(" · "),
+    });
+  }
+  const bPhotos = before.albumsPro.reduce((n, a) => n + a.items.length, 0);
+  const aPhotos = after.albumsPro.reduce((n, a) => n + a.items.length, 0);
+  if (bPhotos !== aPhotos) {
+    out.push({ fieldId: "photos", fieldLabel: "Photos", before: `${bPhotos} photo${bPhotos === 1 ? "" : "s"}`, after: `${aPhotos} photo${aPhotos === 1 ? "" : "s"}` });
+  }
+  return out;
+}
+
+// #8 — Publish celebration modal. Pops the moment a profile goes live;
+// gives the admin a share toolkit (copy link / QR / IG-story / PDF).
+function PublishCelebrationModal({ stageName, slug, tenantSlug, onClose, onCopyLink, onShare }: {
+  stageName: string;
+  slug: string;
+  tenantSlug: string;
+  onClose: () => void;
+  onCopyLink: () => void;
+  onShare: () => void;
+}) {
+  const { toast } = useProto();
+  const profileUrl = `https://tulala.digital/${tenantSlug}/t/${slug}`;
+  // 2026 #8 — Web Share API. Triggers the native iOS / Android / desktop
+  // share sheet (Messages, WhatsApp, AirDrop, Slack, etc). Falls back
+  // to clipboard copy when the API isn't available (older browsers).
+  const supportsShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const handleNativeShare = async () => {
+    if (!supportsShare) {
+      try { await navigator.clipboard.writeText(profileUrl); toast("Link copied — share API unavailable"); }
+      catch { toast("Couldn't open share sheet"); }
+      return;
+    }
+    try {
+      await navigator.share({
+        title: `${stageName} on Tulala`,
+        text: `Check out ${stageName}'s profile`,
+        url: profileUrl,
+      });
+      onShare();
+    } catch (err) {
+      // User canceled the share sheet — silent.
+      if ((err as DOMException)?.name !== "AbortError") {
+        toast("Share canceled");
+      }
+    }
+  };
+  // Web Share Files (level 2) — for the "model card PDF" CTA. Detected
+  // separately because Files-level support is narrower than basic share.
+  const supportsShareFiles = supportsShare
+    && typeof navigator !== "undefined"
+    && typeof (navigator as Navigator & { canShare?: (data: ShareData) => boolean }).canShare === "function";
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 240,
+      background: "rgba(11,11,13,0.55)", backdropFilter: "blur(10px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 420,
+        background: "#fff", borderRadius: 18,
+        padding: "26px 22px 20px",
+        boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
+        textAlign: "center",
+      }}>
+        <div style={{ fontSize: 42, lineHeight: 1, marginBottom: 8 }}>🎉</div>
+        <h2 style={{
+          margin: 0, fontFamily: FONTS.display, fontSize: 22, fontWeight: 700,
+          color: COLORS.ink, letterSpacing: -0.3, lineHeight: 1.15,
+        }}>{stageName || "Profile"} is live</h2>
+        <p style={{
+          margin: "6px 0 16px", fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.5,
+        }}>Share the link, drop the QR in a deck, or send the model card.</p>
+        {/* Link card */}
+        <div style={{
+          padding: "10px 14px", borderRadius: 10,
+          background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+          fontFamily: FONTS.mono, fontSize: 12, color: COLORS.ink,
+          marginBottom: 14,
+          textAlign: "left", overflowX: "auto",
+        }}>{profileUrl}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <button type="button" onClick={() => {
+            if (typeof navigator !== "undefined" && navigator.clipboard) {
+              navigator.clipboard.writeText(profileUrl).then(() => onCopyLink()).catch(() => onCopyLink());
+            } else { onCopyLink(); }
+          }} style={celebrationBtnStyle()}>📋 Copy link</button>
+          <button type="button" onClick={handleNativeShare} style={celebrationBtnStyle()}
+            title={supportsShare ? "Open share sheet" : "Share API unavailable — will copy link"}
+          >
+            📲 {supportsShare ? "Share" : "Copy"}
+          </button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+          <button type="button" onClick={onShare} style={celebrationBtnStyle()}>▦ QR code</button>
+          <button type="button" onClick={onShare} style={celebrationBtnStyle()}
+            title={supportsShareFiles ? "Share PDF via system sheet" : "Download PDF"}
+          >📄 PDF model card</button>
+        </div>
+        <button type="button" onClick={onClose} style={{
+          padding: "10px 18px", borderRadius: 999, border: "none",
+          background: COLORS.fill, color: "#fff",
+          fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer",
+          width: "100%",
+        }}>Done</button>
+      </div>
+    </div>
+  );
+}
+
+function celebrationBtnStyle(): React.CSSProperties {
+  return {
+    padding: "9px 12px", borderRadius: 10,
+    border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
+    fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
+  };
+}
+
+// Profile ownership panel — surfaced in the Profile Shell admin section.
+// Drives the agency-managed → talent-claimed transition. Three states:
+//   1. unclaimed (no invite sent) — admin has full control; offer to send
+//   2. invited (claim email sent, not yet accepted) — show resent / cancel
+//   3. claimed (talent owns it) — show co-edit settings + revoke option
+//
+// In production these states are stored on `talent_profiles.ownership`
+// with timestamps. The prototype keeps it local for the demo.
+function ProfileOwnershipPanel({
+  talentName,
+  contactEmail,
+}: {
+  talentName: string;
+  contactEmail?: string;
+}) {
+  const { toast } = useProto();
+  type OwnershipState = "unclaimed" | "invited" | "claimed";
+  const [state, setState] = useState<OwnershipState>("unclaimed");
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [email, setEmail] = useState(contactEmail ?? "");
+  const [phone, setPhone] = useState("");
+  const [includePassword, setIncludePassword] = useState(false);
+
+  // Co-edit permissions when claimed — admin still keeps oversight on
+  // sensitive fields by default (rates, status).
+  const [coEditPermissions, setCoEditPermissions] = useState({
+    media: true,
+    bio: true,
+    languages: true,
+    skills: true,
+    rates: false,
+    availability: true,
+    status: false,
+  });
+
+  const sendInvite = () => {
+    if (!email.trim() && !phone.trim()) {
+      toast("Add an email or phone first");
+      return;
+    }
+    setState("invited");
+    setShowInviteForm(false);
+    toast(`Claim invite sent to ${email || phone}`);
+  };
+  const resendInvite = () => toast(`Resent claim invite to ${email || phone}`);
+  const cancelInvite = () => {
+    setState("unclaimed");
+    toast("Claim invite cancelled");
+  };
+  const revoke = () => {
+    setState("unclaimed");
+    toast(`${talentName} ownership revoked — back to agency-managed`);
+  };
+  const simulateClaim = () => {
+    setState("claimed");
+    toast(`${talentName} accepted the invite — they now own this profile`);
+  };
+
+  if (state === "unclaimed") {
+    return (
+      <div style={{ fontFamily: FONTS.body }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 11px", borderRadius: 999,
+          background: "rgba(11,11,13,0.04)",
+          fontSize: 12, color: COLORS.inkMuted, marginBottom: 10,
+          width: "fit-content",
+        }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: COLORS.inkMuted,
+          }} />
+          You own this profile · talent has no account yet
+        </div>
+        {!showInviteForm ? (
+          <button type="button" onClick={() => setShowInviteForm(true)} style={{
+            padding: "9px 14px", borderRadius: 999, border: "none",
+            background: COLORS.fill, color: "#fff",
+            fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+          }}>
+            ✉ Send claim invite to {talentName}
+          </button>
+        ) : (
+          <div style={{
+            background: "#fff", borderRadius: 12,
+            border: `1.5px solid ${COLORS.accent}`,
+            padding: 14,
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 10 }}>
+              Send claim invite
+            </div>
+            <FieldRow label="Email" hint="Talent receives a one-tap claim link.">
+              <TextInput type="email" placeholder="talent@example.com"
+                value={email} onChange={(e) => setEmail(e.target.value)} />
+            </FieldRow>
+            <FieldRow label="Phone" optional hint="Backup channel — we'll SMS the link too.">
+              <TextInput type="text" placeholder="+34 612 345 678"
+                value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </FieldRow>
+            <FieldRow label="One-time password" optional>
+              <ToggleControl value={includePassword} onChange={setIncludePassword}
+                label="Send a 6-digit code instead of a link · for talent without email" />
+            </FieldRow>
+            <div style={{
+              padding: "8px 11px", borderRadius: 8,
+              background: COLORS.indigoSoft,
+              fontSize: 11.5, color: COLORS.indigoDeep, marginBottom: 12,
+              lineHeight: 1.5,
+            }}>
+              <strong>What happens next:</strong> {talentName} gets an email · clicks "Claim my profile" · creates a password · can edit any field you've enabled below. Your existing data stays — they just become the owner.
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setShowInviteForm(false)} style={{
+                padding: "8px 14px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                background: "transparent", color: COLORS.ink,
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}>Cancel</button>
+              <button type="button" onClick={sendInvite} style={{
+                padding: "8px 14px", borderRadius: 999, border: "none",
+                background: COLORS.fill, color: "#fff",
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}>Send invite</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (state === "invited") {
+    return (
+      <div style={{ fontFamily: FONTS.body }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "8px 11px", borderRadius: 999,
+          background: COLORS.amberSoft,
+          fontSize: 12, color: COLORS.amberDeep, marginBottom: 10,
+          width: "fit-content", fontWeight: 600,
+        }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: COLORS.amber,
+          }} />
+          Invite sent to {email || phone} · waiting for {talentName} to claim
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+          <button type="button" onClick={resendInvite} style={{
+            padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+            background: "transparent", color: COLORS.ink,
+            fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
+          }}>↺ Resend invite</button>
+          <button type="button" onClick={cancelInvite} style={{
+            padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+            background: "transparent", color: COLORS.inkMuted,
+            fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
+          }}>× Cancel invite</button>
+          {/* Demo helper — simulates the talent accepting in real product */}
+          <button type="button" onClick={simulateClaim} style={{
+            padding: "8px 13px", borderRadius: 999, border: `1px dashed ${COLORS.border}`,
+            background: "transparent", color: COLORS.inkDim,
+            fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, cursor: "pointer",
+          }}>↗ Simulate talent accepting (demo)</button>
+        </div>
+        <div style={{ fontSize: 11, color: COLORS.inkDim, lineHeight: 1.5 }}>
+          You can keep editing while the invite is pending. Talent's first edit will overwrite drafts in the fields they have permission for.
+        </div>
+      </div>
+    );
+  }
+
+  // claimed
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "8px 11px", borderRadius: 999,
+        background: COLORS.successSoft,
+        fontSize: 12, color: COLORS.successDeep, marginBottom: 10,
+        width: "fit-content", fontWeight: 600,
+      }}>
+        <span style={{
+          width: 6, height: 6, borderRadius: "50%",
+          background: COLORS.green,
+        }} />
+        ✓ {talentName} owns this profile
+      </div>
+      <div style={{
+        background: "#fff", borderRadius: 10,
+        border: `1px solid ${COLORS.borderSoft}`,
+        padding: 12, marginBottom: 10,
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+          color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 8,
+        }}>What talent can edit</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {([
+            { key: "media",        label: "Photos + albums" },
+            { key: "bio",          label: "Bio + tagline" },
+            { key: "languages",    label: "Languages + skills" },
+            { key: "skills",       label: "Skills + contexts" },
+            { key: "availability", label: "Availability calendar" },
+            { key: "rates",        label: "Rates + pricing", admin: true },
+            { key: "status",       label: "Profile status (publish / hide)", admin: true },
+          ] as const).map((p) => {
+            const v = coEditPermissions[p.key];
+            return (
+              <label key={p.key} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                cursor: "pointer", fontSize: 12.5, color: COLORS.ink,
+              }}>
+                <button type="button" onClick={() => setCoEditPermissions(c => ({ ...c, [p.key]: !v }))}
+                  aria-pressed={v}
+                  style={{
+                    width: 32, height: 18, borderRadius: 999, border: "none", cursor: "pointer", padding: 0,
+                    background: v ? COLORS.accent : "rgba(11,11,13,0.12)",
+                    position: "relative", flexShrink: 0,
+                  }}>
+                  <span style={{
+                    position: "absolute", top: 2, left: v ? 16 : 2,
+                    width: 14, height: 14, borderRadius: "50%", background: "#fff",
+                  }} />
+                </button>
+                <span>{p.label}</span>
+                {"admin" in p && p.admin && (
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, color: "#7A5A1F",
+                    padding: "1px 6px", borderRadius: 999,
+                    background: "rgba(184,135,49,0.14)",
+                    textTransform: "uppercase", letterSpacing: 0.4,
+                  }}>admin default</span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button type="button" onClick={() => toast(`Sent ${talentName} a notification`)} style={{
+          padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+          background: "transparent", color: COLORS.ink,
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
+        }}>✉ Message {talentName}</button>
+        <button type="button" onClick={revoke} style={{
+          padding: "8px 13px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+          background: "transparent", color: COLORS.red,
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 600, cursor: "pointer",
+        }}>↶ Revoke ownership</button>
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.5 }}>
+        Revoking returns the profile to agency-managed. Talent's account stays, but they lose edit access on this profile.
+      </div>
+    </div>
+  );
+}
+
+// #9 — Profile activity log. Mock data for prototype; production reads
+// from profile_changes table with field-level diffs.
+function ProfileActivityLog() {
+  const { toast } = useProto();
+  const entries = [
+    { who: "Talent · Sofia",   action: "edited bio",          when: "2h ago",   diff: true },
+    { who: "Admin · Sven",     action: "added 2 photos",      when: "yesterday", diff: true },
+    { who: "Talent · Sofia",   action: "updated languages",   when: "2 days ago", diff: true },
+    { who: "Admin · Marta",    action: "set primary type → Fashion model", when: "1 week ago", diff: true },
+    { who: "System",           action: "verified ID",         when: "1 week ago", diff: false },
+  ];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, fontFamily: FONTS.body }}>
+      {entries.map((e, i) => (
+        <button key={i} type="button"
+          onClick={() => e.diff ? toast(`Open diff: ${e.action}`) : undefined}
+          disabled={!e.diff}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "8px 10px", borderRadius: 8, border: "none",
+            background: COLORS.surface, cursor: e.diff ? "pointer" : "default",
+            textAlign: "left", fontFamily: FONTS.body,
+          }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: e.who.startsWith("Admin") ? COLORS.amberDeep
+              : e.who.startsWith("Talent") ? COLORS.indigoDeep
+              : COLORS.inkDim,
+            flexShrink: 0,
+          }} />
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 12, color: COLORS.ink, lineHeight: 1.4 }}>
+              <strong style={{ fontWeight: 600 }}>{e.who}</strong> {e.action}
+            </span>
+            <span style={{ display: "block", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>{e.when}</span>
+          </span>
+          {e.diff && <span style={{ color: COLORS.inkMuted, fontSize: 13 }}>›</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Cover photo editor ──────────────────────────────────────────────
+function CoverPhotoEditor({ url, onChange }: { url: string | null; onChange: (u: string | null) => void }) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, fontFamily: FONTS.body }}>Cover photo · banner</div>
+        <span style={{ fontSize: 10.5, color: COLORS.inkDim, fontFamily: FONTS.body }}>1600×900 · landscape</span>
+      </div>
+      {url ? (
+        <div style={{
+          position: "relative", aspectRatio: "16 / 9", borderRadius: 12,
+          background: `url(${url}) center/cover, ${COLORS.surfaceAlt}`,
+          border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden",
+        }}>
+          <button type="button" onClick={() => fileRef.current?.click()} style={{
+            position: "absolute", bottom: 8, right: 8,
+            padding: "6px 11px", borderRadius: 999, border: "none",
+            background: "rgba(11,11,13,0.7)", color: "#fff",
+            fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.body,
+            backdropFilter: "blur(8px)",
+          }}>Replace</button>
+          <button type="button" onClick={() => onChange(null)} aria-label="Remove cover" style={{
+            position: "absolute", top: 8, right: 8,
+            width: 26, height: 26, borderRadius: "50%", border: "none",
+            background: "rgba(11,11,13,0.6)", color: "#fff",
+            fontSize: 14, lineHeight: 1, cursor: "pointer",
+          }}>×</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => fileRef.current?.click()} style={{
+          width: "100%", aspectRatio: "16 / 9", borderRadius: 12,
+          border: `1.5px dashed ${COLORS.borderSoft}`,
+          background: COLORS.surface, cursor: "pointer",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+          fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, fontWeight: 600,
+        }}>
+          <span style={{ fontSize: 24, lineHeight: 1 }}>+</span>
+          <span>Drop or pick a cover banner</span>
+          <span style={{ fontSize: 10.5, color: COLORS.inkDim, fontWeight: 500 }}>The wide image at the top of your public profile</span>
+        </button>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onChange(URL.createObjectURL(f));
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
+// ── Polaroids editor ────────────────────────────────────────────────
+function PolaroidsEditor({ polaroids, onChange }: {
+  polaroids: { id: string; angle: string; url: string | null }[];
+  onChange: (p: { id: string; angle: string; url: string | null }[]) => void;
+}) {
+  const fileRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const filledCount = polaroids.filter(p => p.url).length;
+  const setUrl = (id: string, url: string | null) =>
+    onChange(polaroids.map(p => p.id === id ? { ...p, url } : p));
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+        {filledCount} of 5 polaroids set. Casting directors check this set first.
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
+        {polaroids.map(p => (
+          <div key={p.id}>
+            <button type="button" onClick={() => fileRefs.current.get(p.id)?.click()} style={{
+              width: "100%", aspectRatio: "3 / 4", borderRadius: 8,
+              background: p.url ? `url(${p.url}) center/cover, ${COLORS.surfaceAlt}` : COLORS.surfaceAlt,
+              border: p.url ? `1.5px solid ${COLORS.accent}` : `1.5px dashed ${COLORS.borderSoft}`,
+              cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 18, color: COLORS.inkMuted, position: "relative", overflow: "hidden",
+            }}>
+              {!p.url && "+"}
+              {p.url && (
+                <span onClick={(e) => { e.stopPropagation(); setUrl(p.id, null); }} style={{
+                  position: "absolute", top: 4, right: 4,
+                  width: 20, height: 20, borderRadius: "50%",
+                  background: "rgba(11,11,13,0.6)", color: "#fff",
+                  fontSize: 11, lineHeight: 1, fontWeight: 700,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>×</span>
+              )}
+            </button>
+            <input ref={(el) => { if (el) fileRefs.current.set(p.id, el); }}
+              type="file" accept="image/*" capture="user" style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) setUrl(p.id, URL.createObjectURL(f));
+                e.target.value = "";
+              }}
+            />
+            <div style={{
+              fontSize: 10, color: p.url ? COLORS.ink : COLORS.inkMuted,
+              fontWeight: 600, textAlign: "center", marginTop: 4,
+            }}>{p.angle}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Credits editor ──────────────────────────────────────────────────
+function CreditsEditor({ credits, onChange }: {
+  credits: { id: string; year: string; brand: string; type: string; credit?: string; role?: string; pinned?: boolean }[];
+  onChange: (c: typeof credits) => void;
+}) {
+  const add = () => onChange([...credits, { id: `cr-${Date.now()}`, year: "", brand: "", type: "Editorial" }]);
+  const update = (id: string, patch: Partial<typeof credits[number]>) =>
+    onChange(credits.map(c => c.id === id ? { ...c, ...patch } : c));
+  const remove = (id: string) => onChange(credits.filter(c => c.id !== id));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
+      {credits.length > 0 && (
+        <div style={{ fontSize: 11, color: COLORS.inkDim, marginBottom: -2 }}>
+          Pin up to 3 with the ★ — they show first on your public profile.
+        </div>
+      )}
+      {credits.map(c => (
+        <div key={c.id} style={{
+          padding: 12, borderRadius: 10,
+          border: `1px solid ${c.pinned ? COLORS.accent : COLORS.borderSoft}`,
+          background: c.pinned ? "rgba(15,79,62,0.04)" : "#fff",
+        }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <input type="text" value={c.year} onChange={(e) => update(c.id, { year: e.target.value })}
+              placeholder="2026 / S/S 25"
+              style={{ width: 120, padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none" }}
+            />
+            <input type="text" value={c.brand} onChange={(e) => update(c.id, { brand: e.target.value })}
+              placeholder="Brand — e.g. Vogue Italia"
+              style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, color: COLORS.ink, outline: "none" }}
+            />
+            <button type="button" onClick={() => update(c.id, { pinned: !c.pinned })} aria-label={c.pinned ? "Unpin" : "Pin"} style={{
+              width: 30, height: 30, borderRadius: 8, border: "none",
+              background: c.pinned ? COLORS.accent : "transparent",
+              color: c.pinned ? "#fff" : COLORS.inkMuted,
+              fontSize: 13, cursor: "pointer",
+            }}>★</button>
+            <button type="button" onClick={() => remove(c.id)} aria-label="Remove" style={{
+              width: 28, height: 28, borderRadius: 8, border: "none",
+              background: "transparent", color: COLORS.inkMuted, fontSize: 14, cursor: "pointer",
+            }}>×</button>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <select value={c.type} onChange={(e) => update(c.id, { type: e.target.value })} style={{
+              padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff", fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none",
+            }}>
+              <option value="Editorial">Editorial</option>
+              <option value="Campaign">Campaign</option>
+              <option value="Cover">Cover</option>
+              <option value="Lookbook">Lookbook</option>
+              <option value="Runway">Runway</option>
+              <option value="Performance">Performance</option>
+              <option value="Event">Event</option>
+              <option value="Other">Other</option>
+            </select>
+            <input type="text" value={c.role ?? ""} onChange={(e) => update(c.id, { role: e.target.value })}
+              placeholder="Role — e.g. Lead, Walk · 4 looks"
+              style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, outline: "none" }}
+            />
+          </div>
+          <input type="text" value={c.credit ?? ""} onChange={(e) => update(c.id, { credit: e.target.value })}
+            placeholder="Credit — e.g. Photo · Marco Russo"
+            style={{ width: "100%", boxSizing: "border-box", marginTop: 6, padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, outline: "none" }}
+          />
+        </div>
+      ))}
+      <button type="button" onClick={add} style={{
+        padding: "9px 14px", borderRadius: 10,
+        background: "transparent", border: `1.5px dashed ${COLORS.border}`,
+        color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
+        fontFamily: FONTS.body,
+      }}>+ Add credit</button>
+    </div>
+  );
+}
+
+// ── Limits editor ──────────────────────────────────────────────────
+function LimitsEditor({ limits, onChange }: {
+  limits: { id: string; category: string; label: string; enforcement: "hard" | "soft" }[];
+  onChange: (l: typeof limits) => void;
+}) {
+  const QUICK_LIMITS = [
+    "No nudity", "No fur", "Lingerie · case-by-case", "No tobacco / vape",
+    "No alcohol", "No religious imagery", "Vegan only",
+  ];
+  const add = (label?: string) => onChange([...limits, {
+    id: `lim-${Date.now()}-${Math.random().toString(36).slice(2,5)}`, category: "wardrobe", label: label ?? "", enforcement: "hard",
+  }]);
+  const update = (id: string, patch: Partial<typeof limits[number]>) =>
+    onChange(limits.map(l => l.id === id ? { ...l, ...patch } : l));
+  const remove = (id: string) => onChange(limits.filter(l => l.id !== id));
+  const usedLabels = new Set(limits.map(l => l.label.toLowerCase()));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
+      {limits.map(l => (
+        <div key={l.id} style={{
+          display: "flex", gap: 6, alignItems: "center",
+          padding: "8px 10px", borderRadius: 10,
+          border: `1px solid ${l.enforcement === "hard" ? "rgba(176,48,58,0.30)" : COLORS.borderSoft}`,
+          background: l.enforcement === "hard" ? "rgba(176,48,58,0.04)" : "#fff",
+        }}>
+          <input type="text" value={l.label} onChange={(e) => update(l.id, { label: e.target.value })}
+            placeholder="e.g. No nudity"
+            style={{ flex: 1, padding: "6px 8px", border: "none", background: "transparent", fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none" }}
+          />
+          <select value={l.enforcement} onChange={(e) => update(l.id, { enforcement: e.target.value as "hard" | "soft" })} style={{
+            padding: "5px 8px", borderRadius: 6,
+            border: `1px solid ${COLORS.borderSoft}`,
+            background: "#fff", fontSize: 11, color: COLORS.ink, outline: "none",
+          }}>
+            <option value="hard">Hard · won't do</option>
+            <option value="soft">Soft · case-by-case</option>
+          </select>
+          <button type="button" onClick={() => remove(l.id)} aria-label="Remove" style={{
+            width: 26, height: 26, borderRadius: 6, border: "none",
+            background: "transparent", color: COLORS.inkMuted, fontSize: 13, cursor: "pointer",
+          }}>×</button>
+        </div>
+      ))}
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>Quick add</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {QUICK_LIMITS.filter(l => !usedLabels.has(l.toLowerCase())).map(l => (
+            <button key={l} type="button" onClick={() => add(l)} style={{
+              padding: "5px 11px", borderRadius: 999,
+              border: `1px dashed ${COLORS.border}`,
+              background: "transparent", color: COLORS.inkMuted,
+              fontSize: 11, fontWeight: 500, cursor: "pointer",
+              fontFamily: FONTS.body,
+            }}>+ {l}</button>
+          ))}
+        </div>
+      </div>
+      <button type="button" onClick={() => add()} style={{
+        alignSelf: "flex-start", padding: "7px 12px", borderRadius: 999,
+        background: "transparent", border: `1.5px dashed ${COLORS.border}`,
+        color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
+        fontFamily: FONTS.body,
+      }}>+ Custom limit</button>
+    </div>
+  );
+}
+
+// ── Files editor ───────────────────────────────────────────────────
+function FilesEditor({ files, onChange }: {
+  files: { id: string; name: string; kind: string; sizeBytes?: number; uploadedAt: string }[];
+  onChange: (f: typeof files) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const ICON_FOR_KIND: Record<string, string> = {
+    tax: "🧾", release: "📝", nda: "🔒", contract: "📃", cert: "🎓", id: "🪪", other: "📄",
+  };
+  const add = (selectedFile: File) => {
+    const lower = selectedFile.name.toLowerCase();
+    const guessedKind = /tax|w8|w9|w-8|w-9/.test(lower) ? "tax"
+      : /release/.test(lower) ? "release"
+      : /nda/.test(lower) ? "nda"
+      : /contract/.test(lower) ? "contract"
+      : /cert|diploma/.test(lower) ? "cert"
+      : "other";
+    onChange([...files, {
+      id: `f-${Date.now()}-${Math.random().toString(36).slice(2,5)}`,
+      name: selectedFile.name,
+      kind: guessedKind,
+      sizeBytes: selectedFile.size,
+      uploadedAt: new Date().toISOString(),
+    }]);
+  };
+  const update = (id: string, patch: Partial<typeof files[number]>) =>
+    onChange(files.map(f => f.id === id ? { ...f, ...patch } : f));
+  const remove = (id: string) => onChange(files.filter(f => f.id !== id));
+  const fmtSize = (b?: number) => {
+    if (!b) return "—";
+    if (b < 1024) return `${b} B`;
+    if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+    return `${(b / 1024 / 1024).toFixed(1)} MB`;
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, fontFamily: FONTS.body }}>
+      {files.length === 0 && (
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          Common files: W-8BEN tax form · NDA · model release · driving license · public-liability cert.
+        </div>
+      )}
+      {files.map(f => (
+        <div key={f.id} style={{
+          display: "flex", gap: 10, alignItems: "center",
+          padding: "10px 12px", borderRadius: 10,
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>{ICON_FOR_KIND[f.kind] ?? ICON_FOR_KIND.other}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {f.name}
+            </div>
+            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              {fmtSize(f.sizeBytes)} · uploaded {new Date(f.uploadedAt).toLocaleDateString()}
+            </div>
+          </div>
+          <select value={f.kind} onChange={(e) => update(f.id, { kind: e.target.value })} style={{
+            padding: "5px 8px", borderRadius: 6,
+            border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+            fontSize: 11, color: COLORS.inkMuted, outline: "none",
+          }}>
+            <option value="tax">Tax form</option>
+            <option value="release">Model release</option>
+            <option value="nda">NDA</option>
+            <option value="contract">Contract</option>
+            <option value="cert">Certification</option>
+            <option value="id">ID</option>
+            <option value="other">Other</option>
+          </select>
+          <button type="button" onClick={() => remove(f.id)} aria-label="Remove" style={{
+            width: 26, height: 26, borderRadius: 6, border: "none",
+            background: "transparent", color: COLORS.inkMuted, fontSize: 13, cursor: "pointer",
+          }}>×</button>
+        </div>
+      ))}
+      <button type="button" onClick={() => fileRef.current?.click()} style={{
+        padding: "10px 14px", borderRadius: 10,
+        border: `1.5px dashed ${COLORS.border}`,
+        background: "transparent", color: COLORS.inkMuted,
+        fontSize: 12, fontWeight: 600, cursor: "pointer",
+        fontFamily: FONTS.body,
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+      }}>
+        <span style={{ fontSize: 16 }}>+</span> Upload file (PDF, JPG, PNG, DOC)
+      </button>
+      <input ref={fileRef} type="file"
+        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.heic" multiple style={{ display: "none" }}
+        onChange={(e) => {
+          const fs = Array.from(e.target.files ?? []);
+          fs.forEach(f => add(f));
+          e.target.value = "";
+        }}
+      />
+      <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 4 }}>
+        🔒 Files are admin-visible by default. Talent sees but doesn't edit unless an admin shares.
+      </div>
+    </div>
+  );
+}
+
+function HeroPreviewCard({ stageName, tagline, primaryRes, secondaryTypes, specialties, serviceArea, photos, languages, trust, completeness, onClickPhoto }: {
+  stageName: string;
+  tagline: string;
+  primaryRes: { parent: TaxonomyParent; child: TaxonomyChild } | null;
+  secondaryTypes: string[];
+  specialties: string[];
+  serviceArea: ServiceArea;
+  photos: string[];
+  languages: ProfileLanguage[];
+  trust: "basic" | "verified" | "silver" | "gold";
+  completeness: number;
+  onClickPhoto?: () => void;
+}) {
+  const trustMeta = TALENT_TRUST_META[trust];
+  return (
+    <div>
+      <div style={{
+        fontSize: 10, fontWeight: 600, letterSpacing: 0.4,
+        color: COLORS.inkMuted, marginBottom: 8,
+      }}>LIVE PREVIEW</div>
+      <div style={{
+        background: "#fff", borderRadius: 14,
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        overflow: "hidden", marginBottom: 14,
+      }}>
+        <div onClick={onClickPhoto}
+          role={onClickPhoto ? "button" : undefined}
+          aria-label={onClickPhoto ? "Open client preview" : undefined}
+          style={{
+            aspectRatio: "4 / 5",
+            background: photos[0]
+              ? `url(${photos[0]}) center/cover, ${COLORS.surfaceAlt}`
+              : COLORS.surfaceAlt,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: COLORS.inkMuted, fontSize: 36,
+            cursor: onClickPhoto ? "pointer" : "default",
+          }}>{!photos[0] && "📷"}</div>
+        <div style={{ padding: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.2 }}>
+              {stageName || "Untitled profile"}
+            </span>
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 999,
+              background: trustMeta.bg, color: trustMeta.fg,
+              display: "inline-flex", alignItems: "center", gap: 3,
+            }}>{trustMeta.emoji} {trustMeta.label}</span>
+          </div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 4 }}>
+            {primaryRes ? primaryRes.child.label : "Pick a Talent Type"}
+          </div>
+          {tagline && (
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, fontStyle: "italic", marginBottom: 6 }}>
+              {tagline}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 4 }}>
+            📍 {[serviceArea.homeBase, ...serviceArea.serviceCities].filter(Boolean).slice(0, 4).join(" · ") || "—"}
+          </div>
+          {secondaryTypes.length > 0 && (
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+              Also: {secondaryTypes.map(id => findChild(id)?.child.label).filter(Boolean).slice(0, 3).join(" · ")}
+            </div>
+          )}
+          {specialties.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+              {specialties.slice(0, 4).map(s => (
+                <span key={s} style={{
+                  fontSize: 10, fontWeight: 500, padding: "1px 7px", borderRadius: 999,
+                  background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+                }}>{s}</span>
+              ))}
+            </div>
+          )}
+          {languages.length > 0 && (
+            <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 6 }}>
+              {languages.slice(0, 3).map(l => `${l.language} · ${l.level}`).join(" · ")}
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8,
+        fontSize: 11, color: COLORS.inkMuted, marginBottom: 14,
+      }}>
+        <div style={{ flex: 1, height: 4, background: "rgba(11,11,13,0.06)", borderRadius: 999, overflow: "hidden" }}>
+          <div style={{ width: `${completeness}%`, height: "100%", background: completeness === 100 ? COLORS.green : COLORS.indigoDeep, transition: "width .25s" }} />
+        </div>
+        <span style={{ fontWeight: 600, color: COLORS.ink }}>{completeness}%</span>
+      </div>
+    </div>
+  );
+}
+
+function RequiredCoach({ missing, onJump }: {
+  missing: { id: string; label: string; met: boolean }[];
+  onJump: (id: string) => void;
+}) {
+  return (
+    <div style={{
+      borderRadius: 12, border: `1px solid rgba(91,107,160,0.18)`,
+      background: COLORS.indigoSoft, padding: 14, fontFamily: FONTS.body,
+    }}>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.indigoDeep, marginBottom: 6 }}>
+        Add {missing.length} {missing.length === 1 ? "thing" : "things"} to publish
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {missing.map(m => (
+          <button key={m.id} type="button" onClick={() => onJump(m.id)} style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "6px 8px", borderRadius: 8, border: "none",
+            background: "rgba(255,255,255,0.6)", cursor: "pointer", textAlign: "left",
+            fontFamily: FONTS.body,
+          }}>
+            <span style={{
+              width: 16, height: 16, borderRadius: "50%",
+              border: `1.5px solid ${COLORS.indigoDeep}`,
+              flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 12, color: COLORS.ink, flex: 1 }}>Add {m.label}</span>
+            <span style={{ color: COLORS.indigoDeep, fontSize: 14 }}>›</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Mobile overflow menu — collapses Undo / Redo / Templates / View-as-
+// client / Save & exit into one ••• button on screens ≤880px. Status,
+// autosave, and Smart CTA already live in the bottom save bar; this
+// menu carries the actions that don't deserve a permanent slot on mobile.
+function ProfileShellMobileMenu({
+  adminVisible, isSelf, primaryTypeSet, canUndo, canRedo,
+  onUndo, onRedo, onSaveAsTemplate, onApplyTemplate, onViewAsClient, onSaveAndExit,
+}: {
+  adminVisible: boolean;
+  isSelf: boolean;
+  primaryTypeSet: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onSaveAsTemplate: () => void;
+  onApplyTemplate: (tpl: ProfileTemplate) => void;
+  onViewAsClient: () => void;
+  onSaveAndExit: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  // Native popover migration: browser handles outside-click + escape via
+  // popover="auto". Position is computed against the trigger when the
+  // toggle event fires, since top-layer elements don't inherit
+  // containing-block positioning from their parent.
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const popoverId = useId().replace(/:/g, "");
+  const fullId = `pshell-menu-${popoverId}`;
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  useEffect(() => {
+    const el = popoverRef.current;
+    if (!el) return;
+    const onToggle = (e: Event) => {
+      const isOpen = (e as ToggleEvent).newState === "open";
+      setOpen(isOpen);
+      if (isOpen && triggerRef.current) {
+        const r = triggerRef.current.getBoundingClientRect();
+        setPos({ top: r.bottom + 6, right: window.innerWidth - r.right });
+      }
+    };
+    el.addEventListener("toggle", onToggle);
+    return () => el.removeEventListener("toggle", onToggle);
+  }, []);
+  useEffect(() => { if (!open) setShowTemplates(false); }, [open]);
+  // Helper: close the native popover from inside (menu-item clicks).
+  // Browser clears top-layer + fires the toggle event which clears React state.
+  const close = () => {
+    const el = popoverRef.current;
+    if (el && typeof (el as HTMLElement & { hidePopover?: () => void }).hidePopover === "function") {
+      try { (el as HTMLElement & { hidePopover: () => void }).hidePopover(); return; } catch {}
+    }
+    setOpen(false);
+  };
+  return (
+    <div data-pshell-mobile-menu style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+      <button
+        ref={triggerRef}
+        type="button"
+        {...({ popoverTarget: fullId, popoverTargetAction: "toggle" } as Record<string, string>)}
+        aria-label="More actions"
+        aria-expanded={open}
+        aria-controls={fullId}
+        style={{
+          width: 36, height: 36, borderRadius: 10,
+          border: `1px solid ${COLORS.borderSoft}`,
+          background: open ? COLORS.surfaceAlt : "#fff",
+          color: COLORS.ink,
+          fontSize: 17, lineHeight: 1, cursor: "pointer",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          fontFamily: FONTS.body,
+        }}>•••</button>
+      <div
+        ref={popoverRef}
+        id={fullId}
+        role="menu"
+        {...({ popover: "auto" } as Record<string, string>)}
+        style={{
+          position: "fixed", top: pos.top, right: pos.right,
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
+          boxShadow: "0 16px 40px -8px rgba(11,11,13,0.25)",
+          minWidth: 240, padding: 4,
+          margin: 0,
+          fontFamily: FONTS.body,
+        }}>
+            {showTemplates ? (
+              <div>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "8px 10px",
+                  fontSize: 11, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase",
+                  color: COLORS.inkMuted,
+                }}>
+                  <button type="button" onClick={() => setShowTemplates(false)} style={{
+                    background: "transparent", border: "none", padding: 0, cursor: "pointer",
+                    color: COLORS.inkMuted, fontSize: 14,
+                  }}>‹</button>
+                  Templates
+                </div>
+                {PROFILE_TEMPLATES.map(t => (
+                  <PMobileMenuItem key={t.id} onClick={() => { onApplyTemplate(t); close(); }} icon="📋" label={t.name} />
+                ))}
+              </div>
+            ) : (
+              <>
+                <PMobileMenuItem
+                  icon="↶" label="Undo"
+                  onClick={() => { if (canUndo) { onUndo(); close(); } }}
+                  disabled={!canUndo} shortcut="⌘Z"
+                />
+                <PMobileMenuItem
+                  icon="↷" label="Redo"
+                  onClick={() => { if (canRedo) { onRedo(); close(); } }}
+                  disabled={!canRedo} shortcut="⌘⇧Z"
+                />
+                <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 6px" }} />
+                <PMobileMenuItem
+                  icon="👁" label="View as client"
+                  onClick={() => { onViewAsClient(); close(); }}
+                />
+                {adminVisible && (
+                  <>
+                    <PMobileMenuItem
+                      icon="📋" label="Apply template…"
+                      onClick={() => setShowTemplates(true)} hasSubmenu
+                    />
+                    {primaryTypeSet && (
+                      <PMobileMenuItem
+                        icon="★" label="Save as template"
+                        onClick={() => { onSaveAsTemplate(); close(); }}
+                      />
+                    )}
+                  </>
+                )}
+                <div style={{ height: 1, background: COLORS.borderSoft, margin: "4px 6px" }} />
+                <PMobileMenuItem
+                  icon="💾" label="Save & exit"
+                  onClick={() => { onSaveAndExit(); close(); }}
+                />
+              </>
+            )}
+      </div>
+    </div>
+  );
+}
+
+function PMobileMenuItem({ icon, label, onClick, disabled, shortcut, hasSubmenu }: {
+  icon: string; label: string; onClick: () => void;
+  disabled?: boolean; shortcut?: string; hasSubmenu?: boolean;
+}) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} style={{
+      width: "100%", display: "flex", alignItems: "center", gap: 10,
+      padding: "10px 12px", borderRadius: 8, border: "none",
+      background: "transparent", cursor: disabled ? "not-allowed" : "pointer",
+      textAlign: "left", fontFamily: FONTS.body,
+      opacity: disabled ? 0.45 : 1,
+    }}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = COLORS.surfaceAlt; }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+    >
+      <span style={{
+        width: 22, fontSize: 14, color: COLORS.inkMuted, textAlign: "center", flexShrink: 0,
+      }}>{icon}</span>
+      <span style={{ flex: 1, fontSize: 13, color: COLORS.ink, fontWeight: 500 }}>{label}</span>
+      {shortcut && (
+        <span style={{
+          fontSize: 10, fontFamily: FONTS.mono, color: COLORS.inkDim,
+          background: "rgba(11,11,13,0.04)", padding: "2px 6px", borderRadius: 4,
+        }}>{shortcut}</span>
+      )}
+      {hasSubmenu && <span style={{ color: COLORS.inkDim, fontSize: 13 }}>›</span>}
+    </button>
+  );
+}
+
+// #2 — First-time hero on the Profile Shell. Shows below 35% to coach
+// the talent through the 3 highest-leverage things to do first.
+function FirstTimeHero({ completeness, onStart }: {
+  completeness: number;
+  onStart: (sectionId: ProfileSectionId) => void;
+}) {
+  const steps: { id: ProfileSectionId; label: string; helper: string; emoji: string }[] = [
+    { id: "media",    label: "Add a photo",   helper: "One headshot is enough to start.", emoji: "📷" },
+    { id: "services", label: "Pick your role", helper: "What clients book you as.",       emoji: "🎯" },
+    { id: "location", label: "Set your base", helper: "City + travel range.",              emoji: "📍" },
+  ];
+  return (
+    <div style={{
+      marginTop: 12, padding: 14, borderRadius: 12,
+      background: "linear-gradient(135deg, rgba(15,79,62,0.06) 0%, rgba(91,107,160,0.06) 100%)",
+      border: `1px solid ${COLORS.borderSoft}`,
+      fontFamily: FONTS.body,
+    }}>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
+        Welcome — let's start with 3 things
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+        Each takes about 30 seconds. You can polish the rest later.
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        {steps.map((s, i) => (
+          <button key={s.id} type="button" onClick={() => onStart(s.id)} style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "8px 10px", borderRadius: 9, border: "none",
+            background: "#fff", cursor: "pointer", textAlign: "left",
+            fontFamily: FONTS.body,
+          }}>
+            <span style={{
+              width: 22, height: 22, borderRadius: "50%",
+              background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+              fontSize: 11, fontWeight: 700, color: COLORS.inkMuted,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>{i + 1}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{s.emoji}  {s.label}</span>
+              <span style={{ display: "block", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>{s.helper}</span>
+            </span>
+            <span style={{ color: COLORS.inkDim, fontSize: 14 }}>›</span>
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 10, color: COLORS.inkDim, marginTop: 8 }}>
+        Profile is {completeness}% complete · publish at 100%
+      </div>
+    </div>
+  );
+}
+
+// #19 — Profile growth metric. Shown to talent on a published profile.
+// Mock-data for now (would pull from analytics in production).
+function ProfileGrowthMetric({ onJump }: { onJump: () => void }) {
+  // Stable mock — would come from /analytics/talent/{id}/last-7d
+  const views = 47;
+  const inquiries = 3;
+  const trend = +12; // percent change vs prior week
+  return (
+    <div style={{
+      marginTop: 12, padding: 12, borderRadius: 12,
+      background: "#fff",
+      border: `1px solid ${COLORS.borderSoft}`,
+      boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+      fontFamily: FONTS.body,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.5, color: COLORS.inkMuted, textTransform: "uppercase" }}>Last 7 days</span>
+        <span style={{ fontSize: 10, fontWeight: 600, color: trend >= 0 ? COLORS.successDeep : COLORS.amberDeep }}>
+          {trend >= 0 ? "▲" : "▼"} {Math.abs(trend)}%
+        </span>
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.3 }}>{views}</div>
+          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>Profile views</div>
+        </div>
+        <div style={{ width: 1, background: COLORS.borderSoft }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.ink, letterSpacing: -0.3 }}>{inquiries}</div>
+          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>Inquiries</div>
+        </div>
+      </div>
+      <button type="button" onClick={onJump} style={{
+        marginTop: 8, padding: "5px 10px", borderRadius: 999,
+        background: "transparent", border: `1px dashed ${COLORS.border}`,
+        color: COLORS.inkMuted,
+        fontSize: 10.5, fontWeight: 500, cursor: "pointer",
+        fontFamily: FONTS.body,
+      }}>↑ Refresh photos to boost views</button>
+    </div>
+  );
+}
+
+function ProfileAccordionSection({ id, title, sub, complete, open, onToggle, accent, children }: {
+  id: string;
+  title: string;
+  sub?: string;
+  complete: boolean;
+  open: boolean;
+  onToggle: () => void;
+  accent?: "amber";
+  children: ReactNode;
+}) {
+  return (
+    <section id={`pshell-${id}`} style={{
+      borderTop: `1px solid ${COLORS.borderSoft}`,
+      background: "#fff",
+    }}>
+      <button type="button" onClick={onToggle} style={{
+        width: "100%", display: "flex", alignItems: "center", gap: 10,
+        padding: "16px 24px", border: "none",
+        background: "transparent", cursor: "pointer", textAlign: "left",
+        fontFamily: FONTS.body,
+      }}>
+        <span style={{
+          width: 18, height: 18, borderRadius: "50%",
+          border: `1.5px solid ${complete ? COLORS.green : COLORS.borderStrong}`,
+          background: complete ? COLORS.green : "transparent",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          {complete && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: accent === "amber" ? COLORS.amberDeep : COLORS.ink, letterSpacing: -0.1 }}>{title}</div>
+          {sub && <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{sub}</div>}
+        </div>
+        <span style={{ color: COLORS.inkMuted, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s", fontSize: 16 }}>›</span>
+      </button>
+      {open && (
+        <div style={{ padding: "0 24px 20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {children}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ServiceAreaMap({ homeBase, travelKm, cities }: {
+  homeBase: string; travelKm: number; cities: string[];
+}) {
+  const radius = Math.max(20, Math.min(70, travelKm / 12));
+  return (
+    <div style={{
+      position: "relative",
+      height: 130, borderRadius: 10,
+      background: COLORS.surface,
+      border: `1px solid ${COLORS.borderSoft}`,
+      overflow: "hidden",
+    }}>
+      <svg width="100%" height="100%" viewBox="0 0 280 130" preserveAspectRatio="none" style={{ position: "absolute", inset: 0 }}>
+        <defs>
+          <pattern id="psgrid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <path d="M20 0 L0 0 0 20" fill="none" stroke="rgba(11,11,13,0.05)" strokeWidth="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="280" height="130" fill="url(#psgrid)" />
+        <circle cx="140" cy="65" r={radius} fill="rgba(15,79,62,0.10)" stroke="rgba(15,79,62,0.4)" strokeWidth="1" strokeDasharray="3 2"/>
+        <circle cx="140" cy="65" r="5" fill={COLORS.accent}/>
+        <circle cx="140" cy="65" r="2.5" fill="#fff"/>
+        {cities.slice(0, 4).map((c, i) => {
+          const angle = (i / 4) * Math.PI * 2 + 0.4;
+          const cx = 140 + Math.cos(angle) * (radius * 0.85);
+          const cy = 65 + Math.sin(angle) * (radius * 0.85);
+          return <circle key={c} cx={cx} cy={cy} r="3" fill={COLORS.indigoDeep}/>;
+        })}
+      </svg>
+      <div style={{
+        position: "absolute", bottom: 8, left: 10, right: 10,
+        display: "flex", justifyContent: "space-between",
+        fontSize: 10, color: COLORS.inkMuted, fontWeight: 500,
+        fontFamily: FONTS.body,
+      }}>
+        <span>📍 {homeBase || "Set home base"}</span>
+        <span>{travelKm === 999 ? "Anywhere" : `${travelKm} km`}</span>
+      </div>
+    </div>
+  );
+}
+
+function PhotoGallery({ photos, onAdd, onRemove, onMakeMain, onReorder }: {
+  photos: string[];
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+  onMakeMain: (i: number) => void;
+  onReorder?: (fromIndex: number, toIndex: number) => void;
+}) {
+  // Drag-and-drop reorder state.
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  const handleDragStart = (i: number) => (e: React.DragEvent) => {
+    setDragFrom(i);
+    e.dataTransfer.effectAllowed = "move";
+    // Some browsers need data set to start the drag.
+    try { e.dataTransfer.setData("text/plain", String(i)); } catch {}
+  };
+  const handleDragOver = (i: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOver !== i) setDragOver(i);
+  };
+  const handleDrop = (i: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (dragFrom !== null && dragFrom !== i && onReorder) {
+      onReorder(dragFrom, i);
+    }
+    setDragFrom(null);
+    setDragOver(null);
+  };
+  const handleDragEnd = () => {
+    setDragFrom(null);
+    setDragOver(null);
+  };
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+        {photos.map((src, i) => {
+          const isDragging = dragFrom === i;
+          const isDropTarget = dragOver === i && dragFrom !== null && dragFrom !== i;
+          return (
+            <div
+              key={`${i}-${src}`}
+              draggable={!!onReorder}
+              onDragStart={handleDragStart(i)}
+              onDragOver={handleDragOver(i)}
+              onDragLeave={() => dragOver === i && setDragOver(null)}
+              onDrop={handleDrop(i)}
+              onDragEnd={handleDragEnd}
+              style={{
+                position: "relative", aspectRatio: "3 / 4", borderRadius: 8,
+                background: `url(${src}) center/cover, ${COLORS.surfaceAlt}`,
+                border: isDropTarget
+                  ? `2px dashed ${COLORS.accent}`
+                  : i === 0
+                    ? `2px solid ${COLORS.accent}`
+                    : `1px solid ${COLORS.borderSoft}`,
+                overflow: "hidden",
+                cursor: onReorder ? "grab" : "default",
+                opacity: isDragging ? 0.45 : 1,
+                transition: "opacity .12s, border-color .12s",
+              }}
+            >
+              {i === 0 ? (
+                <span style={{
+                  position: "absolute", top: 4, left: 4,
+                  fontSize: 9, fontWeight: 700, fontFamily: FONTS.body,
+                  padding: "2px 6px", borderRadius: 999,
+                  background: COLORS.accent, color: "#fff",
+                }}>★ MAIN</span>
+              ) : (
+                <button type="button" onClick={() => onMakeMain(i)} aria-label="Make main"
+                  style={{
+                    position: "absolute", top: 4, left: 4,
+                    width: 22, height: 22, borderRadius: "50%",
+                    border: "none", background: "rgba(11,11,13,0.55)", color: "#fff",
+                    fontSize: 11, cursor: "pointer", lineHeight: 1,
+                  }}>★</button>
+              )}
+              <button type="button" onClick={() => onRemove(i)} aria-label="Remove"
+                style={{
+                  position: "absolute", top: 4, right: 4,
+                  width: 22, height: 22, borderRadius: "50%",
+                  border: "none", background: "rgba(11,11,13,0.55)", color: "#fff",
+                  fontSize: 12, cursor: "pointer", lineHeight: 1, fontWeight: 600,
+                }}>×</button>
+              {/* Drag handle indicator on hover (decorative; the whole tile is draggable) */}
+              {onReorder && (
+                <span
+                  aria-hidden
+                  style={{
+                    position: "absolute", bottom: 4, right: 4,
+                    background: "rgba(11,11,13,0.55)",
+                    color: "#fff",
+                    fontSize: 10, lineHeight: 1,
+                    padding: "2px 5px", borderRadius: 5,
+                    opacity: 0.7,
+                    pointerEvents: "none",
+                  }}
+                >⠿</span>
+              )}
+            </div>
+          );
+        })}
+        {photos.length < 8 && (
+          <button type="button" onClick={onAdd} style={{
+            aspectRatio: "3 / 4", borderRadius: 8,
+            border: `1.5px dashed ${COLORS.borderSoft}`,
+            background: "#fff", cursor: "pointer",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+            fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, fontFamily: FONTS.body,
+          }}>
+            <span style={{ fontSize: 18 }}>+</span>
+            <span>Drop or pick</span>
+          </button>
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }}>
+        First photo = main. Tap ★ on any other to swap. Drag a tile to reorder.
+      </div>
+    </div>
+  );
+}
+
+// 2026 #1 — Native popover migration. The browser handles
+// click-outside, Escape, focus trap, and accessible-anchor positioning.
+// Falls back to JS state on browsers without `popover` support
+// (caught by the `popover in HTMLElement.prototype` check).
+function StatusPillDropdown({ status, onChange, role }: {
+  status: "draft" | "pending" | "published" | "hidden";
+  onChange: (s: "draft" | "pending" | "published" | "hidden") => void;
+  role: "admin" | "talent";
+}) {
+  type Status = "draft" | "pending" | "published" | "hidden";
+  const meta: Record<Status, { label: string; bg: string; fg: string }> = {
+    draft:     { label: "Draft",     bg: "rgba(11,11,13,0.06)",    fg: COLORS.inkMuted },
+    pending:   { label: "Pending",   bg: COLORS.amberSoft,         fg: COLORS.amberDeep },
+    published: { label: "Published", bg: COLORS.successSoft,       fg: COLORS.successDeep },
+    hidden:    { label: "Hidden",    bg: "rgba(91,107,160,0.10)",  fg: COLORS.indigoDeep },
+  };
+  const cur = meta[status];
+  const allowed: Status[] = role === "admin"
+    ? ["draft", "pending", "published", "hidden"]
+    : status === "published" ? ["published", "pending"] : ["pending"];
+  // Stable popover id (one per render — fine since only one is open at a time)
+  const popoverId = React.useId();
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  return (
+    <div style={{ position: "relative" }}>
+      <button type="button"
+        // Native popover trigger — browser handles open/close
+        {...({ popoverTarget: popoverId } as Record<string, string>)}
+        style={{
+          padding: "5px 12px", borderRadius: 999, border: "none",
+          background: cur.bg, color: cur.fg,
+          fontSize: 11, fontWeight: 600, cursor: "pointer",
+          display: "inline-flex", alignItems: "center", gap: 5,
+          fontFamily: FONTS.body,
+        }}>
+        {cur.label}
+        <span style={{ fontSize: 10 }}>▾</span>
+      </button>
+      <div
+        ref={popoverRef}
+        id={popoverId}
+        // Native popover; auto-dismisses on outside click + Escape
+        {...({ popover: "auto" } as Record<string, string>)}
+        style={{
+          position: "absolute", top: "calc(100% + 4px)", right: 0,
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
+          boxShadow: "0 10px 30px -8px rgba(11,11,13,0.18)",
+          minWidth: 160, padding: 4, fontFamily: FONTS.body,
+          // popover="auto" sets `display: none` until shown
+          margin: 0, inset: "auto",
+        }}>
+        {allowed.map(s => (
+          <button key={s} type="button" onClick={() => {
+            onChange(s);
+            // Close the popover via the API
+            popoverRef.current?.hidePopover?.();
+          }} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 8,
+            padding: "8px 10px", borderRadius: 6, border: "none",
+            background: s === status ? "rgba(11,11,13,0.04)" : "transparent",
+            cursor: "pointer", textAlign: "left",
+            fontSize: 12.5, fontWeight: 500, color: COLORS.ink,
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: meta[s].fg,
+            }} />
+            {meta[s].label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SmartFooterCTA({ status, mode, canPublish, onAction }: {
+  status: "draft" | "pending" | "published" | "hidden";
+  mode: "create" | "edit-admin" | "edit-self";
+  canPublish: boolean;
+  onAction: () => void;
+}) {
+  const isSelf = mode === "edit-self";
+  const cta = isSelf
+    ? (status === "published" ? "Save changes" : "Submit for review")
+    : (status === "published" ? "Update" : status === "hidden" ? "Unhide" : status === "pending" ? "Save" : "Publish");
+  const enabled = isSelf || status === "published" || status === "hidden" || status === "pending" || canPublish;
+  return (
+    <button type="button" disabled={!enabled} onClick={onAction} style={{
+      padding: "8px 16px", borderRadius: 999, border: "none",
+      background: enabled ? COLORS.fill : "rgba(11,11,13,0.10)",
+      color: enabled ? "#fff" : COLORS.inkDim,
+      fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+      cursor: enabled ? "pointer" : "default",
+      whiteSpace: "nowrap",
+    }}>{cta}</button>
+  );
+}
+
+function ToggleControl({ value, onChange, label }: { value: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: FONTS.body }}>
+      <button type="button" onClick={() => onChange(!value)} aria-pressed={value} style={{
+        width: 36, height: 22, borderRadius: 999, border: "none", cursor: "pointer", padding: 0,
+        background: value ? COLORS.accent : "rgba(11,11,13,0.12)",
+        position: "relative", flexShrink: 0,
+      }}>
+        <span style={{
+          position: "absolute", top: 2, left: value ? 16 : 2,
+          width: 18, height: 18, borderRadius: "50%", background: "#fff",
+          transition: "left 0.15s",
+        }} />
+      </button>
+      <div style={{ fontSize: 12.5, color: COLORS.ink, lineHeight: 1.4 }}>{label}</div>
+    </div>
+  );
+}
+
+function CatalogChips({ items, selected, onToggle }: {
+  items: { id: string; label: string; group?: string }[];
+  selected: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  const groups = items.reduce<Record<string, typeof items>>((acc, it) => {
+    const g = it.group ?? "All";
+    (acc[g] ??= []).push(it);
+    return acc;
+  }, {});
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {Object.entries(groups).map(([group, rows]) => (
+        <div key={group}>
+          {group !== "All" && (
+            <div style={{ fontSize: 10.5, fontWeight: 500, color: COLORS.inkDim, marginBottom: 4 }}>
+              {group}
+            </div>
+          )}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {rows.map(it => {
+              const active = selected.has(it.id);
+              return (
+                <button key={it.id} type="button" onClick={() => onToggle(it.id)} style={{
+                  padding: "6px 11px", borderRadius: 999,
+                  border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                  background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                  color: active ? COLORS.accentDeep : COLORS.ink,
+                  fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+                }}>
+                  {it.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LanguagesEditor({ value, onChange }: {
+  value: ProfileLanguage[];
+  onChange: (v: ProfileLanguage[]) => void;
+}) {
+  const [draftLang, setDraftLang] = useState("");
+  const [draftLevel, setDraftLevel] = useState<LanguageLevel>("fluent");
+  const add = () => {
+    const l = draftLang.trim();
+    if (!l) return;
+    if (value.some(x => x.language.toLowerCase() === l.toLowerCase())) return;
+    onChange([...value, { language: l, level: draftLevel }]);
+    setDraftLang("");
+  };
+  const update = (i: number, patch: Partial<ProfileLanguage>) =>
+    onChange(value.map((x, idx) => idx === i ? { ...x, ...patch } : x));
+  const remove = (i: number) =>
+    onChange(value.filter((_, idx) => idx !== i));
+
+  const levelLabel: Record<LanguageLevel, string> = {
+    native: "Native",
+    fluent: "Fluent",
+    conversational: "Conversational",
+    basic: "Basic",
+  };
+
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      {value.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          {value.map((row, i) => (
+            <div key={i} style={{
+              border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
+              padding: 10, background: "#fff",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <input type="text" value={row.language}
+                  onChange={(e) => update(i, { language: e.target.value })}
+                  style={{
+                    flex: 1, padding: "7px 10px", borderRadius: 8,
+                    border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                    fontSize: 13, color: COLORS.ink, outline: "none",
+                  }}
+                />
+                <select value={row.level}
+                  onChange={(e) => update(i, { level: e.target.value as LanguageLevel })}
+                  style={{
+                    padding: "7px 10px", borderRadius: 8,
+                    border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                    fontSize: 12, color: COLORS.ink, outline: "none", background: "#fff",
+                  }}>
+                  {(Object.keys(levelLabel) as LanguageLevel[]).map(lv => (
+                    <option key={lv} value={lv}>{levelLabel[lv]}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => remove(i)} aria-label="Remove" style={{
+                  background: "transparent", border: "none", padding: 4, cursor: "pointer",
+                  color: COLORS.inkMuted, fontSize: 16, lineHeight: 1, fontWeight: 700,
+                }}>×</button>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {([
+                  { key: "canHost",      label: "Can host" },
+                  { key: "canSell",      label: "Can sell" },
+                  { key: "canTranslate", label: "Translate" },
+                  { key: "canTeach",     label: "Teach" },
+                ] as const).map(opt => {
+                  const active = !!row[opt.key];
+                  return (
+                    <button key={opt.key} type="button"
+                      onClick={() => update(i, { [opt.key]: !active })}
+                      style={{
+                        padding: "4px 10px", borderRadius: 999,
+                        border: `1px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                        background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                        color: active ? COLORS.accentDeep : COLORS.inkMuted,
+                        fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      }}>
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6 }}>
+        <input type="text" value={draftLang}
+          onChange={(e) => setDraftLang(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          placeholder="Add a language…"
+          style={{
+            flex: 1, padding: "10px 12px", borderRadius: 10,
+            border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+            fontSize: 13, color: COLORS.ink, outline: "none",
+          }}
+        />
+        <select value={draftLevel} onChange={(e) => setDraftLevel(e.target.value as LanguageLevel)} style={{
+          padding: "10px 12px", borderRadius: 10,
+          border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+          fontSize: 12, color: COLORS.ink, outline: "none", background: "#fff",
+        }}>
+          {(Object.keys(levelLabel) as LanguageLevel[]).map(lv => (
+            <option key={lv} value={lv}>{levelLabel[lv]}</option>
+          ))}
+        </select>
+        <button type="button" onClick={add} disabled={!draftLang.trim()} style={{
+          padding: "0 14px", borderRadius: 10, border: "none",
+          background: draftLang.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
+          color: draftLang.trim() ? "#fff" : COLORS.inkDim,
+          fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+          cursor: draftLang.trim() ? "pointer" : "default",
+        }}>Add</button>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase H — Talent approvals queue
+// Pending self-registrations land here. Admin approves / rejects /
+// requests changes. Surfaced via a Roster pill ("Pending · 3").
+// ════════════════════════════════════════════════════════════════════
+
+function TalentApprovalsDrawer() {
+  const { state, closeDrawer, openDrawer, toast, pendingTalent, resolveApproval } = useProto();
+  const open = state.drawer.drawerId === "talent-approvals";
+
+  // Read the queue from proto state so approve/reject changes propagate
+  // to topbar nav badges + mobile bottom nav + Settings row immediately.
+  const queue = pendingTalent;
+  const [active, setActive] = useState<string | null>(queue[0]?.id ?? null);
+  const cur = queue.find(p => p.id === active);
+  const [rejectModalFor, setRejectModalFor] = useState<{ id: string; name: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  // If the active item gets resolved, advance to the next one.
+  useEffect(() => {
+    if (active && !queue.some(p => p.id === active)) {
+      setActive(queue[0]?.id ?? null);
+    }
+  }, [queue, active]);
+
+  // Compose mock photos for review — uses talent's thumb + variants since
+  // we don't have real submitted photos yet. Real impl pulls from the
+  // pending_submissions.photos[] array.
+  const composePhotos = (p: PendingTalent): string[] => {
+    if (!p.thumb.includes("?img=")) return [p.thumb];
+    const base = parseInt(p.thumb.match(/img=(\d+)/)?.[1] ?? "5", 10);
+    return Array.from({ length: Math.min(p.photoCount, 5) })
+      .map((_, i) => p.thumb.replace(/img=\d+/, `img=${(base + i * 7) % 70 + 1}`));
+  };
+
+  const handleApprove = (p: PendingTalent) => {
+    toast(`${p.name} approved · profile created`);
+    resolveApproval(p.id);
+    openDrawer("talent-profile-shell", {
+      mode: "edit-admin",
+      seed: {
+        stageName: p.name,
+        primaryType: p.childTypes[0],
+        secondaryTypes: p.childTypes.slice(1),
+        homeBase: p.city,
+        photoCount: p.photoCount,
+        fields: p.fields,
+        languages: p.languages.map<ProfileLanguage>((l, i) => ({
+          language: l, level: i === 0 ? "native" : "fluent",
+        })),
+      },
+    });
+  };
+
+  const handleRequestChanges = (p: PendingTalent) => {
+    toast(`Asked ${p.name} for changes — they'll get an email`);
+    // Stays in queue with state flag in real impl; for prototype just toast.
+  };
+
+  const openRejectModal = (p: PendingTalent) => {
+    setRejectReason("");
+    setRejectModalFor({ id: p.id, name: p.name });
+  };
+  const confirmReject = () => {
+    if (!rejectModalFor) return;
+    if (!rejectReason.trim()) {
+      toast("Please add a reason — talent will see it");
+      return;
+    }
+    toast(`Rejected ${rejectModalFor.name} · reason sent`);
+    resolveApproval(rejectModalFor.id);
+    setRejectModalFor(null);
+    setRejectReason("");
+  };
+
+  return (
+    <>
+      <DrawerShell
+        open={open}
+        onClose={closeDrawer}
+        title="Pending approvals"
+        description={queue.length === 0 ? "All caught up." : `${queue.length} talent waiting for review.`}
+        width={620}
+        footer={
+          cur ? (
+            <>
+              <SecondaryButton onClick={() => handleRequestChanges(cur)}>Request changes</SecondaryButton>
+              <SecondaryButton onClick={() => openRejectModal(cur)}>Reject</SecondaryButton>
+              <PrimaryButton onClick={() => handleApprove(cur)}>Approve & open profile</PrimaryButton>
+            </>
+          ) : <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        }
+      >
+        {queue.length === 0 ? (
+          <div style={{
+            padding: "32px 16px", textAlign: "center",
+            background: COLORS.successSoft, borderRadius: 12,
+            color: COLORS.successDeep, fontFamily: FONTS.body,
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>✓</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>All caught up</div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+              New self-registrations will land here. You'll get a notification too.
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {queue.map(p => {
+              const isActive = active === p.id;
+              const parent = TAXONOMY.find(x => x.id === p.parentCategory);
+              const photos = composePhotos(p);
+              return (
+                <button key={p.id} type="button" onClick={() => setActive(p.id)} style={{
+                  background: isActive ? "rgba(15,79,62,0.04)" : "#fff",
+                  border: `1.5px solid ${isActive ? COLORS.accent : COLORS.borderSoft}`,
+                  borderRadius: 12, padding: 12,
+                  cursor: "pointer", textAlign: "left", fontFamily: FONTS.body,
+                  display: "flex", flexDirection: "column", gap: 10,
+                }}>
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <span style={{
+                      width: 48, height: 48, borderRadius: "50%", flexShrink: 0,
+                      background: `url(${p.thumb}) center/cover, ${COLORS.surfaceAlt}`,
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{p.name}</span>
+                        <span style={{
+                          fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+                          background: COLORS.amberSoft, color: COLORS.amberDeep,
+                        }}>Pending · {p.submittedAgo}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 4 }}>
+                        {parent?.emoji} {parent?.label} · {p.city}
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 4 }}>
+                        {p.childTypes.map(t => {
+                          const c = parent?.children.find(x => x.id === t);
+                          return c ? (
+                            <span key={t} style={{
+                              fontSize: 10.5, fontWeight: 500,
+                              padding: "2px 8px", borderRadius: 999,
+                              background: "rgba(11,11,13,0.05)", color: COLORS.inkMuted,
+                            }}>{c.label}</span>
+                          ) : null;
+                        })}
+                      </div>
+                      <div style={{ fontSize: 11, color: COLORS.inkDim }}>
+                        {p.photoCount} photo{p.photoCount === 1 ? "" : "s"} · {p.languages.join(" · ")}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Photo strip — review actual submitted photos at a glance */}
+                  {isActive && photos.length > 0 && (
+                    <div style={{ display: "flex", gap: 4, overflowX: "auto", scrollbarWidth: "none", marginLeft: 60 }}>
+                      {photos.map((src, i) => (
+                        <div key={i} style={{
+                          flexShrink: 0,
+                          width: 56, aspectRatio: "3 / 4", borderRadius: 6,
+                          background: `url(${src}) center/cover, ${COLORS.surfaceAlt}`,
+                          border: `1px solid ${COLORS.borderSoft}`,
+                        }} />
+                      ))}
+                      {p.photoCount > photos.length && (
+                        <div style={{
+                          flexShrink: 0,
+                          width: 56, aspectRatio: "3 / 4", borderRadius: 6,
+                          border: `1px dashed ${COLORS.borderSoft}`,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 10, color: COLORS.inkMuted, fontWeight: 600,
+                        }}>+{p.photoCount - photos.length}</div>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </DrawerShell>
+
+      {/* Rejection reason modal */}
+      {rejectModalFor && (
+        <div
+          onClick={() => setRejectModalFor(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 220,
+            background: "rgba(11,11,13,0.42)", backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{
+            width: "calc(100% - 48px)", maxWidth: 460,
+            background: "#fff", borderRadius: 16, padding: 22,
+            boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
+          }}>
+            <div style={{
+              fontFamily: FONTS.display, fontSize: 18, fontWeight: 600,
+              color: COLORS.ink, letterSpacing: -0.2, marginBottom: 6,
+            }}>
+              Reject {rejectModalFor.name}?
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
+              Talent will receive your reason by email. Be specific so they can resubmit.
+            </div>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Photos don't meet quality bar — please resubmit with higher resolution shots."
+              rows={4}
+              autoFocus
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                resize: "vertical", marginBottom: 14,
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button type="button" onClick={() => setRejectModalFor(null)} style={{
+                padding: "9px 16px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                background: "transparent", color: COLORS.ink,
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}>Cancel</button>
+              <button type="button" onClick={confirmReject} disabled={!rejectReason.trim()} style={{
+                padding: "9px 16px", borderRadius: 999, border: "none",
+                background: rejectReason.trim() ? COLORS.red : "rgba(11,11,13,0.10)",
+                color: rejectReason.trim() ? "#fff" : COLORS.inkDim,
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+                cursor: rejectReason.trim() ? "pointer" : "default",
+              }}>Send rejection</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 4 +30 — premium editor components
+// (Identity, SkillsPro, BioTone, Personality, PhotoGalleryPro,
+//  HelloReelEditor, AlbumsEditorPro, SeasonalEditor, RecurringEditor,
+//  PackageRatesEditor, PastClientsEditor, NextTierCoach,
+//  TemplatesPicker, InviteTrackingPanel)
+// ════════════════════════════════════════════════════════════════════
+
+function IdentityEditor({ identity, onChange, isSelf, isFieldLocked }: {
+  identity: ProfileIdentity;
+  onChange: (next: ProfileIdentity) => void;
+  isSelf: boolean;
+  isFieldLocked: (path: string) => boolean;
+}) {
+  const age = deriveAge(identity.dob);
+  const ageRange = ageRangeFor(age);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+      <FieldRow label="Stage / professional name" hint="What clients see on the public profile.">
+        <input data-pshell-field="stageName"
+          placeholder="First Last"
+          value={identity.stageName}
+          onChange={(e) => onChange({ ...identity, stageName: e.target.value })}
+          disabled={isFieldLocked("identity.stageName")}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "10px 12px",
+            borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+            opacity: isFieldLocked("identity.stageName") ? 0.55 : 1,
+          }}
+        />
+      </FieldRow>
+
+      <FieldRow label="Legal name" optional hint={isSelf ? "Used for contracts. Never on the public profile." : "KYC. Admin-only."}>
+        <input
+          placeholder="Sofia Lupo García"
+          value={identity.legalName}
+          onChange={(e) => onChange({ ...identity, legalName: e.target.value })}
+          disabled={isFieldLocked("identity.legalName")}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "10px 12px",
+            borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+            opacity: isFieldLocked("identity.legalName") ? 0.55 : 1,
+          }}
+        />
+        {isFieldLocked("identity.legalName") && <LockedHint />}
+      </FieldRow>
+
+      <FieldRow label="Pronunciation" optional hint={`Phonetic — e.g. "soh-FEE-ah loo-PO".`}>
+        <input
+          placeholder="soh-FEE-ah loo-PO"
+          value={identity.pronunciation}
+          onChange={(e) => onChange({ ...identity, pronunciation: e.target.value })}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "10px 12px",
+            borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+          }}
+        />
+      </FieldRow>
+
+      <FieldRow label="Pronouns" optional>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {PRONOUNS_OPTIONS.map(opt => {
+            const active = identity.pronouns === opt.id;
+            return (
+              <button key={opt.id} type="button" onClick={() => onChange({ ...identity, pronouns: active ? null : opt.id })} style={{
+                padding: "6px 11px", borderRadius: 999,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>{opt.label}</button>
+            );
+          })}
+        </div>
+        {identity.pronouns === "custom" && (
+          <input
+            placeholder="e.g. xe / xem"
+            value={identity.pronounsCustom ?? ""}
+            onChange={(e) => onChange({ ...identity, pronounsCustom: e.target.value })}
+            style={{
+              marginTop: 6, width: "100%", boxSizing: "border-box", padding: "8px 12px",
+              borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+            }}
+          />
+        )}
+      </FieldRow>
+
+      <FieldRow label="Gender" optional>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {GENDER_OPTIONS.map(opt => {
+            const active = identity.gender === opt.id;
+            return (
+              <button key={opt.id} type="button" onClick={() => onChange({ ...identity, gender: active ? null : opt.id })} style={{
+                padding: "6px 11px", borderRadius: 999,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}>{opt.label}</button>
+            );
+          })}
+        </div>
+      </FieldRow>
+
+      <FieldRow label="Date of birth" optional hint="Used to compute age. You control how it shows.">
+        <input
+          type="date"
+          value={identity.dob ?? ""}
+          onChange={(e) => onChange({ ...identity, dob: e.target.value || null })}
+          style={{
+            padding: "10px 12px", borderRadius: 10,
+            border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+            background: "#fff",
+          }}
+        />
+        {age != null && (
+          <div style={{
+            marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
+          }}>
+            <span style={{ fontSize: 11, color: COLORS.inkMuted, marginRight: 4 }}>Show on profile as:</span>
+            {([
+              { id: "exact" as const,  label: `Exact (${age})` },
+              { id: "range" as const,  label: ageRange ? `Range (${ageRange})` : "Range" },
+              { id: "hidden" as const, label: "Hidden" },
+            ]).map(opt => {
+              const active = identity.ageDisplay === opt.id;
+              return (
+                <button key={opt.id} type="button" onClick={() => onChange({ ...identity, ageDisplay: opt.id })} style={{
+                  padding: "5px 10px", borderRadius: 999,
+                  border: `1px solid ${active ? COLORS.indigo : COLORS.borderSoft}`,
+                  background: active ? COLORS.indigoSoft : "#fff",
+                  color: active ? COLORS.indigoDeep : COLORS.ink,
+                  fontSize: 11, fontWeight: 500, cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}>{opt.label}</button>
+              );
+            })}
+          </div>
+        )}
+      </FieldRow>
+    </div>
+  );
+}
+
+function LockedHint() {
+  return (
+    <div style={{
+      marginTop: 4, display: "inline-flex", alignItems: "center", gap: 4,
+      fontSize: 10.5, color: COLORS.amberDeep, fontFamily: FONTS.body,
+    }}>🔒 Locked by your agency</div>
+  );
+}
+
+// ── Skills Pro — 3-bucket proficiency ────────────────────────────────
+function SkillsProEditor({ entries, onChange }: {
+  entries: SkillEntry[];
+  onChange: (skillId: string, prof: SkillProficiency | null) => void;
+}) {
+  const profOf = (id: string): SkillProficiency | null =>
+    entries.find(e => e.skillId === id)?.proficiency ?? null;
+  const profCycle: Record<SkillProficiency, SkillProficiency | null> = {
+    great:    "can_do",
+    can_do:   "learning",
+    learning: null,
+  };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, fontFamily: FONTS.body }}>
+      {(["great", "can_do", "learning"] as SkillProficiency[]).map(p => {
+        const meta = PROFICIENCY_META[p];
+        const inThisBucket = entries.filter(e => e.proficiency === p);
+        return (
+          <div key={p}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 6,
+              fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+              color: meta.fg,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: meta.fg }} />
+              {meta.label}
+              <span style={{ color: COLORS.inkDim, fontWeight: 500, letterSpacing: 0 }}>· {inThisBucket.length}</span>
+            </div>
+            <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginBottom: 6 }}>
+              {meta.helper}
+            </div>
+            {inThisBucket.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 6 }}>
+                {inThisBucket.map(e => {
+                  const item = SKILL_CATALOG.find(s => s.id === e.skillId);
+                  if (!item) return null;
+                  return (
+                    <button key={e.skillId} type="button"
+                      onClick={() => onChange(e.skillId, profCycle[p])}
+                      style={{
+                        padding: "5px 10px", borderRadius: 999,
+                        border: `1.5px solid ${meta.fg}`,
+                        background: meta.bg, color: meta.fg,
+                        fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                      }}>{item.label}</button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <div style={{
+        borderTop: `1px solid ${COLORS.borderSoft}`, paddingTop: 10,
+      }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+          Catalog · tap to start at "Great at" then cycle to lower tiers
+        </div>
+        <CatalogChips
+          items={SKILL_CATALOG.filter(s => !entries.some(e => e.skillId === s.id))}
+          selected={new Set([])}
+          onToggle={(id) => onChange(id, "great")}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Bio tone selector ────────────────────────────────────────────────
+function BioToneSelector({ value, onChange }: {
+  value: BioTone;
+  onChange: (t: BioTone) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, fontFamily: FONTS.body }}>
+      {BIO_TONES.map(t => {
+        const active = value === t.id;
+        return (
+          <button key={t.id} type="button" onClick={() => onChange(t.id)} style={{
+            padding: "5px 11px", borderRadius: 999,
+            border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+            background: active ? "rgba(15,79,62,0.08)" : "#fff",
+            color: active ? COLORS.accentDeep : COLORS.ink,
+            fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+            display: "inline-flex", alignItems: "center", gap: 4,
+          }}>
+            <span aria-hidden style={{ fontSize: 12 }}>{t.emoji}</span>
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Personality (love / avoid) ───────────────────────────────────────
+function PersonalityEditor({ value, onChange }: {
+  value: Personality;
+  onChange: (p: Personality) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+          ❤️  I love
+        </div>
+        <ChipsInput label="" placeholder="e.g. Champagne service, French villas, late-night gigs"
+          values={value.loves} onChange={(v) => onChange({ ...value, loves: v })} />
+      </div>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+          ⊘  I avoid
+        </div>
+        <ChipsInput label="" placeholder="e.g. Photoshoots before 10am, smoking environments"
+          values={value.avoids} onChange={(v) => onChange({ ...value, avoids: v })} />
+      </div>
+    </div>
+  );
+}
+
+// ── Hello reel + per-photo metadata ─────────────────────────────────
+function HelloReelEditor({ reel, onChange }: {
+  reel: VideoSlot | null;
+  onChange: (r: VideoSlot | null) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <div style={{ marginBottom: 12, fontFamily: FONTS.body }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+        ✦  Hello reel · 30 sec intro
+      </div>
+      {reel ? (
+        <div style={{
+          padding: 12, borderRadius: 12,
+          background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: COLORS.accent, color: "#fff",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18, flexShrink: 0,
+          }}>▶</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>Reel uploaded</div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>
+              {reel.durationSec ? `~${reel.durationSec}s` : "Ready"} · {reel.url.startsWith("blob:") ? "local preview" : "linked"}
+            </div>
+          </div>
+          <button type="button" onClick={() => onChange(null)} style={{
+            padding: "5px 10px", borderRadius: 8, border: "none",
+            background: "transparent", color: COLORS.inkMuted,
+            fontSize: 11, fontWeight: 600, cursor: "pointer",
+          }}>Replace</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => fileRef.current?.click()} style={{
+          width: "100%", padding: "16px 12px", borderRadius: 12,
+          border: `1.5px dashed ${COLORS.borderSoft}`,
+          background: "#fff", cursor: "pointer",
+          fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, fontWeight: 500,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        }}>
+          <span style={{ fontSize: 18 }}>+</span>
+          Drop or pick a 30-sec hello reel
+        </button>
+      )}
+      <input ref={fileRef} type="file" accept="video/*" style={{ display: "none" }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onChange({ url: URL.createObjectURL(f), durationSec: 30 });
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
+function PhotoGalleryPro({ items, onChange }: {
+  items: PhotoMeta[];
+  onChange: (items: PhotoMeta[]) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+
+  const addFiles = (files: FileList | File[]) => {
+    const arr = Array.from(files).slice(0, 8 - items.length);
+    const additions: PhotoMeta[] = arr.map(f => ({
+      url: URL.createObjectURL(f),
+    }));
+    onChange([...items, ...additions]);
+  };
+  const onPick = () => fileInputRef.current?.click();
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
+  };
+
+  const removeAt = (i: number) => onChange(items.filter((_, idx) => idx !== i));
+  const movePhoto = (from: number, to: number) => {
+    if (from === to) return;
+    const next = [...items];
+    const [it] = next.splice(from, 1);
+    next.splice(to, 0, it);
+    onChange(next);
+  };
+  const makeMain = (i: number) => movePhoto(i, 0);
+  const updateAt = (i: number, patch: Partial<PhotoMeta>) =>
+    onChange(items.map((it, idx) => idx === i ? { ...it, ...patch } : it));
+
+  return (
+    <div onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+         onDragLeave={() => setDragOver(false)}
+         onDrop={onDrop}
+         style={{
+           position: "relative",
+           padding: dragOver ? 8 : 0,
+           borderRadius: dragOver ? 12 : 0,
+           background: dragOver ? "rgba(15,79,62,0.05)" : "transparent",
+           transition: "all .12s",
+         }}
+    >
+      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" multiple style={{ display: "none" }}
+        onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
+      />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+        {items.map((it, i) => (
+          <div
+            key={`${i}-${it.url}`}
+            draggable
+            onDragStart={(e) => { setDraggingIdx(i); e.dataTransfer.effectAllowed = "move"; }}
+            onDragEnd={() => setDraggingIdx(null)}
+            onDragEnter={(e) => { e.preventDefault(); }}
+            onDragOver={(e) => { e.preventDefault(); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggingIdx !== null && draggingIdx !== i) movePhoto(draggingIdx, i);
+              setDraggingIdx(null);
+            }}
+            style={{
+              position: "relative", aspectRatio: "3 / 4", borderRadius: 8,
+              background: `url(${it.url}) center/cover, ${COLORS.surfaceAlt}`,
+              border: i === 0 ? `2px solid ${COLORS.accent}` : `1px solid ${COLORS.borderSoft}`,
+              overflow: "hidden",
+              cursor: "grab",
+              opacity: draggingIdx === i ? 0.4 : 1,
+              transition: "opacity .12s",
+            }}
+            onClick={() => setEditIdx(i)}
+          >
+            {i === 0 && (
+              <span style={{
+                position: "absolute", top: 4, left: 4,
+                fontSize: 9, fontWeight: 700, fontFamily: FONTS.body,
+                padding: "2px 6px", borderRadius: 999,
+                background: COLORS.accent, color: "#fff",
+              }}>★ MAIN</span>
+            )}
+            {it.tag && (
+              <span style={{
+                position: "absolute", bottom: 4, left: 4,
+                fontSize: 9, fontWeight: 600, fontFamily: FONTS.body,
+                padding: "2px 6px", borderRadius: 999,
+                background: "rgba(11,11,13,0.65)", color: "#fff",
+                backdropFilter: "blur(4px)",
+              }}>{PHOTO_TAG_META[it.tag].emoji} {PHOTO_TAG_META[it.tag].label}</span>
+            )}
+            <button type="button" onClick={(e) => { e.stopPropagation(); removeAt(i); }} aria-label="Remove"
+              style={{
+                position: "absolute", top: 4, right: 4,
+                width: 22, height: 22, borderRadius: "50%",
+                border: "none", background: "rgba(11,11,13,0.55)", color: "#fff",
+                fontSize: 12, cursor: "pointer", lineHeight: 1, fontWeight: 600,
+              }}>×</button>
+          </div>
+        ))}
+        {items.length < 8 && (
+          <button type="button" onClick={onPick} style={{
+            aspectRatio: "3 / 4", borderRadius: 8,
+            border: `1.5px dashed ${COLORS.borderSoft}`,
+            background: dragOver ? "rgba(15,79,62,0.08)" : "#fff",
+            cursor: "pointer",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+            fontSize: 10.5, color: COLORS.inkMuted, fontWeight: 600, fontFamily: FONTS.body,
+            transition: "background .12s",
+          }}>
+            <span style={{ fontSize: 18 }}>+</span>
+            <span>{dragOver ? "Drop here" : "Pick · drop · capture"}</span>
+          </button>
+        )}
+      </div>
+      <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.4, fontFamily: FONTS.body }}>
+        Tap a tile to add tag + alt text + caption. Drag to reorder. Mobile camera supported.
+      </div>
+
+      {editIdx !== null && items[editIdx] && (
+        <PhotoMetaModal
+          item={items[editIdx]}
+          onClose={() => setEditIdx(null)}
+          onSave={(patch) => { updateAt(editIdx, patch); setEditIdx(null); }}
+          onMakeMain={editIdx > 0 ? () => { makeMain(editIdx); setEditIdx(null); } : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+function PhotoMetaModal({ item, onClose, onSave, onMakeMain }: {
+  item: PhotoMeta;
+  onClose: () => void;
+  onSave: (patch: Partial<PhotoMeta>) => void;
+  onMakeMain?: () => void;
+}) {
+  const [tag, setTag] = useState<PhotoTag | undefined>(item.tag);
+  const [altText, setAltText] = useState(item.altText ?? "");
+  const [caption, setCaption] = useState(item.caption ?? "");
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 270,
+      background: "rgba(11,11,13,0.55)", backdropFilter: "blur(10px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: "#fff", borderRadius: 14, padding: 18,
+        maxWidth: 460, width: "92%",
+        boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: COLORS.ink }}>Photo details</h3>
+          <button type="button" onClick={onClose} aria-label="Close" style={{
+            background: "transparent", border: "none", padding: 4, cursor: "pointer", fontSize: 16, color: COLORS.inkMuted,
+          }}>✕</button>
+        </div>
+        <div style={{
+          width: "100%", aspectRatio: "4 / 3", borderRadius: 10, marginBottom: 12,
+          background: `url(${item.url}) center/cover, ${COLORS.surfaceAlt}`,
+          border: `1px solid ${COLORS.borderSoft}`,
+        }} />
+        <FieldRow label="Tag">
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {(Object.keys(PHOTO_TAG_META) as PhotoTag[]).map(t => {
+              const active = tag === t;
+              const m = PHOTO_TAG_META[t];
+              return (
+                <button key={t} type="button" onClick={() => setTag(active ? undefined : t)} style={{
+                  padding: "6px 11px", borderRadius: 999,
+                  border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                  background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                  color: active ? COLORS.accentDeep : COLORS.ink,
+                  fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}>
+                  <span aria-hidden>{m.emoji}</span>
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+        </FieldRow>
+        <FieldRow label="Alt text" hint="One sentence describing what's in the photo. Helps screen readers + AI search.">
+          <input type="text" value={altText}
+            onChange={(e) => setAltText(e.target.value)}
+            placeholder="Sofia in studio for the Mango SS24 campaign"
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "10px 12px",
+              borderRadius: 10, border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+            }}
+          />
+        </FieldRow>
+        <FieldRow label="Caption" optional>
+          <input type="text" value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Editorial · ph. Marco Russo"
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "10px 12px",
+              borderRadius: 10, border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+            }}
+          />
+        </FieldRow>
+        <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
+          {onMakeMain ? (
+            <button type="button" onClick={onMakeMain} style={{
+              padding: "8px 12px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff", color: COLORS.ink,
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+            }}>★ Make main</button>
+          ) : <span />}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={onClose} style={{
+              padding: "9px 14px", borderRadius: 999,
+              border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}>Cancel</button>
+            <button type="button" onClick={() => onSave({ tag, altText, caption })} style={{
+              padding: "9px 16px", borderRadius: 999, border: "none",
+              background: COLORS.fill, color: "#fff",
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}>Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Albums Pro — uses albumsPro shape ────────────────────────────────
+function AlbumsEditorPro({ albums, activeId, onActivate, onChange }: {
+  albums: { id: string; name: string; items: PhotoMeta[] }[];
+  activeId: string;
+  onActivate: (id: string) => void;
+  onChange: (a: { id: string; name: string; items: PhotoMeta[] }[]) => void;
+}) {
+  const [newName, setNewName] = useState("");
+  const addAlbum = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const id = name.toLowerCase().replace(/\s+/g, "-").slice(0, 30) + "-" + Math.random().toString(36).slice(2, 6);
+    onChange([...albums, { id, name, items: [] }]);
+    setNewName("");
+  };
+  const renameAlbum = (id: string, name: string) =>
+    onChange(albums.map(a => a.id === id ? { ...a, name } : a));
+  const deleteAlbum = (id: string) => {
+    if (albums.length <= 1) return;
+    onChange(albums.filter(a => a.id !== id));
+    if (activeId === id) onActivate(albums[0].id);
+  };
+
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+        {albums.map(a => {
+          const active = a.id === activeId;
+          return (
+            <button key={a.id} type="button" onClick={() => onActivate(a.id)} style={{
+              padding: "6px 11px", borderRadius: 999,
+              border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+              background: active ? "rgba(15,79,62,0.08)" : "#fff",
+              color: active ? COLORS.accentDeep : COLORS.ink,
+              fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}>
+              {a.name} <span style={{ color: COLORS.inkDim, fontWeight: 500 }}>· {a.items.length}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{
+        background: COLORS.surface, padding: 14, borderRadius: 10,
+        border: `1px solid ${COLORS.borderSoft}`,
+      }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 8 }}>
+          Manage albums
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+          {albums.map(a => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="text" value={a.name}
+                onChange={(e) => renameAlbum(a.id, e.target.value)}
+                style={{
+                  flex: 1, padding: "7px 10px", borderRadius: 8,
+                  border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                  fontSize: 12.5, color: COLORS.ink, outline: "none", background: "#fff",
+                }}
+              />
+              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{a.items.length} photo{a.items.length === 1 ? "" : "s"}</span>
+              {albums.length > 1 && (
+                <button type="button" onClick={() => deleteAlbum(a.id)} aria-label="Delete album" style={{
+                  width: 24, height: 24, borderRadius: 6,
+                  border: "none", background: "transparent", color: COLORS.inkMuted,
+                  fontSize: 14, cursor: "pointer", padding: 0,
+                }}>×</button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input type="text" value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAlbum(); } }}
+            placeholder="e.g. Editorial, Lookbook, Behind-the-scenes…"
+            style={{
+              flex: 1, padding: "9px 12px", borderRadius: 8,
+              border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+              fontSize: 12.5, color: COLORS.ink, outline: "none",
+            }}
+          />
+          <button type="button" onClick={addAlbum} disabled={!newName.trim()} style={{
+            padding: "0 14px", borderRadius: 8, border: "none",
+            background: newName.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
+            color: newName.trim() ? "#fff" : COLORS.inkDim,
+            fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+            cursor: newName.trim() ? "pointer" : "default",
+          }}>Add album</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Aspirations editor ───────────────────────────────────────────────
+function AspirationsEditor({ allowedParents, primaryType, secondaryTypes, value, onToggle }: {
+  allowedParents: TaxonomyParent[];
+  primaryType: string | null;
+  secondaryTypes: string[];
+  value: string[];
+  onToggle: (id: string) => void;
+}) {
+  const exclude = new Set([primaryType, ...secondaryTypes].filter(Boolean) as string[]);
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 5, fontFamily: FONTS.body }}>
+      {allowedParents.flatMap(p => p.children).filter(c => !exclude.has(c.id)).map(c => {
+        const active = value.includes(c.id);
+        return (
+          <button key={c.id} type="button" onClick={() => onToggle(c.id)} style={{
+            padding: "5px 11px", borderRadius: 999,
+            border: `1px ${active ? "solid" : "dashed"} ${active ? COLORS.indigo : COLORS.border}`,
+            background: active ? COLORS.indigoSoft : "transparent",
+            color: active ? COLORS.indigoDeep : COLORS.inkMuted,
+            fontSize: 11, fontWeight: 500, cursor: "pointer",
+          }}>{c.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Seasonal availability ────────────────────────────────────────────
+function SeasonalEditor({ windows, onChange }: {
+  windows: SeasonalWindow[];
+  onChange: (w: SeasonalWindow[]) => void;
+}) {
+  const [draft, setDraft] = useState<{ city: string; startMonth: number; endMonth: number }>({ city: "", startMonth: 11, endMonth: 4 });
+  const monthName = (m: number) => ["", "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m] ?? String(m);
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      {windows.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+          {windows.map(w => (
+            <div key={w.id} style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 10px", borderRadius: 10,
+              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, flex: 1 }}>
+                {w.city} · {monthName(w.startMonth)}–{monthName(w.endMonth)}
+              </span>
+              <button type="button" onClick={() => onChange(windows.filter(x => x.id !== w.id))} aria-label="Remove" style={{
+                background: "transparent", border: "none", padding: 0, cursor: "pointer",
+                color: COLORS.inkMuted, fontSize: 14, lineHeight: 1, fontWeight: 700, width: 20,
+              }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+        <input type="text" value={draft.city} onChange={(e) => setDraft(d => ({ ...d, city: e.target.value }))}
+          placeholder="City — e.g. Tulum"
+          style={{
+            flex: 1, minWidth: 140, padding: "8px 12px", borderRadius: 8,
+            border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+            fontSize: 12.5, color: COLORS.ink, outline: "none",
+          }}
+        />
+        <select value={draft.startMonth} onChange={(e) => setDraft(d => ({ ...d, startMonth: Number(e.target.value) }))}
+          style={{ padding: "8px 8px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, color: COLORS.ink, background: "#fff" }}>
+          {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{monthName(i+1)}</option>)}
+        </select>
+        <span style={{ color: COLORS.inkDim, fontSize: 11 }}>→</span>
+        <select value={draft.endMonth} onChange={(e) => setDraft(d => ({ ...d, endMonth: Number(e.target.value) }))}
+          style={{ padding: "8px 8px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, color: COLORS.ink, background: "#fff" }}>
+          {Array.from({ length: 12 }).map((_, i) => <option key={i+1} value={i+1}>{monthName(i+1)}</option>)}
+        </select>
+        <button type="button" onClick={() => {
+          if (!draft.city.trim()) return;
+          onChange([...windows, { id: `season-${Date.now()}`, ...draft }]);
+          setDraft({ city: "", startMonth: 11, endMonth: 4 });
+        }} disabled={!draft.city.trim()} style={{
+          padding: "8px 14px", borderRadius: 8, border: "none",
+          background: draft.city.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
+          color: draft.city.trim() ? "#fff" : COLORS.inkDim,
+          fontSize: 12, fontWeight: 600, cursor: draft.city.trim() ? "pointer" : "default",
+        }}>Add</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Recurring + vacation ─────────────────────────────────────────────
+function RecurringPatternEditor({ value, vacation, onChange, onVacationChange }: {
+  value: RecurringPattern;
+  vacation: VacationWindow | null;
+  onChange: (r: RecurringPattern) => void;
+  onVacationChange: (v: VacationWindow | null) => void;
+}) {
+  const dows = ["S", "M", "T", "W", "T", "F", "S"];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+          Recurring pattern
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+          {([
+            { id: "none" as const,           label: "No pattern" },
+            { id: "weekends-only" as const,  label: "Weekends only" },
+            { id: "weekdays-only" as const,  label: "Weekdays only" },
+            { id: "weekly-busy" as const,    label: "Weekly busy days" },
+          ]).map(o => {
+            const active = value.kind === o.id;
+            return (
+              <button key={o.id} type="button" onClick={() => onChange({ kind: o.id, busyDays: o.id === "weekly-busy" ? value.busyDays ?? [] : undefined })} style={{
+                padding: "6px 11px", borderRadius: 999,
+                border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                color: active ? COLORS.accentDeep : COLORS.ink,
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+              }}>{o.label}</button>
+            );
+          })}
+        </div>
+        {value.kind === "weekly-busy" && (
+          <div style={{ marginTop: 8, display: "flex", gap: 4 }}>
+            {dows.map((d, i) => {
+              const active = value.busyDays?.includes(i) ?? false;
+              return (
+                <button key={i} type="button" onClick={() => {
+                  const cur = value.busyDays ?? [];
+                  const next = active ? cur.filter(x => x !== i) : [...cur, i];
+                  onChange({ kind: "weekly-busy", busyDays: next });
+                }} style={{
+                  width: 32, height: 32, borderRadius: "50%", border: "none",
+                  background: active ? COLORS.amberDeep : COLORS.surface,
+                  color: active ? "#fff" : COLORS.inkMuted,
+                  fontSize: 11, fontWeight: 700, cursor: "pointer",
+                }}>{d}</button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6 }}>
+          Vacation mode
+        </div>
+        {vacation ? (
+          <div style={{
+            padding: "10px 12px", borderRadius: 10,
+            background: COLORS.indigoSoft, border: `1px solid rgba(91,107,160,0.18)`,
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.indigoDeep, flex: 1 }}>
+              Out {vacation.start} → {vacation.end}
+            </span>
+            <button type="button" onClick={() => onVacationChange(null)} style={{
+              padding: "5px 10px", borderRadius: 8, border: "none",
+              background: "#fff", color: COLORS.indigoDeep,
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
+            }}>Cancel</button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input type="date" id="vacstart" style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
+            <span style={{ color: COLORS.inkDim, fontSize: 11 }}>→</span>
+            <input type="date" id="vacend"   style={{ padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12 }} />
+            <button type="button" onClick={() => {
+              const s = (document.getElementById("vacstart") as HTMLInputElement)?.value;
+              const e = (document.getElementById("vacend") as HTMLInputElement)?.value;
+              if (s && e) onVacationChange({ start: s, end: e });
+            }} style={{
+              padding: "8px 14px", borderRadius: 8, border: "none",
+              background: COLORS.fill, color: "#fff",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+            }}>Set vacation</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Package rates ────────────────────────────────────────────────────
+function PackageRatesEditor({ packages, onChange }: {
+  packages: PackageRate[];
+  onChange: (p: PackageRate[]) => void;
+}) {
+  const add = () => onChange([...packages, {
+    id: `pkg-${Date.now()}`, name: "", description: "", amount: 0, currency: "EUR",
+  }]);
+  const update = (id: string, p: Partial<PackageRate>) =>
+    onChange(packages.map(x => x.id === id ? { ...x, ...p } : x));
+  const remove = (id: string) => onChange(packages.filter(x => x.id !== id));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
+      {packages.map(p => (
+        <div key={p.id} style={{
+          padding: 12, borderRadius: 10,
+          border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+        }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <input type="text" value={p.name} onChange={(e) => update(p.id, { name: e.target.value })}
+              placeholder="Package name — e.g. 1-day shoot + social repost"
+              style={{
+                flex: 1, padding: "9px 12px", borderRadius: 8,
+                border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, color: COLORS.ink, outline: "none",
+              }}
+            />
+            <button type="button" onClick={() => remove(p.id)} aria-label="Remove" style={{
+              width: 32, height: 32, borderRadius: 8, border: "none",
+              background: "transparent", color: COLORS.inkMuted, fontSize: 16, cursor: "pointer",
+            }}>×</button>
+          </div>
+          <textarea value={p.description} onChange={(e) => update(p.id, { description: e.target.value })}
+            placeholder="What's included — e.g. 1 day on set + 1 Instagram repost within 7 days"
+            rows={2}
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "9px 12px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+              fontSize: 12, color: COLORS.ink, outline: "none", resize: "vertical",
+              marginBottom: 6,
+            }}
+          />
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <select value={p.currency} onChange={(e) => update(p.id, { currency: e.target.value })} style={{
+              padding: "8px 10px", borderRadius: 8, border: `1px solid ${COLORS.borderSoft}`,
+              background: "#fff", fontSize: 12, color: COLORS.ink,
+            }}>
+              <option value="EUR">€ EUR</option>
+              <option value="USD">$ USD</option>
+              <option value="GBP">£ GBP</option>
+              <option value="MXN">$ MXN</option>
+            </select>
+            <input type="number" min={0} value={p.amount} onChange={(e) => update(p.id, { amount: Number(e.target.value) })}
+              placeholder="0"
+              style={{
+                flex: 1, padding: "8px 12px", borderRadius: 8,
+                border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                fontSize: 13, color: COLORS.ink, outline: "none",
+              }}
+            />
+            <input type="text" value={p.conditions ?? ""} onChange={(e) => update(p.id, { conditions: e.target.value })}
+              placeholder="Conditions"
+              style={{
+                flex: 1, padding: "8px 12px", borderRadius: 8,
+                border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                fontSize: 12, color: COLORS.ink, outline: "none",
+              }}
+            />
+          </div>
+        </div>
+      ))}
+      <button type="button" onClick={add} style={{
+        padding: "9px 14px", borderRadius: 10,
+        background: "transparent", border: `1.5px dashed ${COLORS.border}`,
+        color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
+      }}>+ Add package</button>
+    </div>
+  );
+}
+
+// ── Past clients + testimonials ──────────────────────────────────────
+function PastClientsEditor({ clients, onChange }: {
+  clients: PastClient[];
+  onChange: (c: PastClient[]) => void;
+}) {
+  const add = () => onChange([...clients, { id: `pc-${Date.now()}`, name: "", testimonial: "", testimonialBy: "" }]);
+  const update = (id: string, p: Partial<PastClient>) =>
+    onChange(clients.map(x => x.id === id ? { ...x, ...p } : x));
+  const remove = (id: string) => onChange(clients.filter(x => x.id !== id));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontFamily: FONTS.body }}>
+      {clients.map(c => (
+        <div key={c.id} style={{
+          padding: 12, borderRadius: 10,
+          border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+        }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 6 }}>
+            <input type="text" value={c.name} onChange={(e) => update(c.id, { name: e.target.value })}
+              placeholder="Client name — e.g. Mango"
+              style={{
+                flex: 1, padding: "9px 12px", borderRadius: 8,
+                border: `1.5px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, color: COLORS.ink, outline: "none",
+              }}
+            />
+            {c.verified && (
+              <span style={{
+                fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999,
+                background: COLORS.successSoft, color: COLORS.successDeep,
+              }}>✓ Verified booking</span>
+            )}
+            <button type="button" onClick={() => remove(c.id)} aria-label="Remove" style={{
+              width: 28, height: 28, borderRadius: 8, border: "none",
+              background: "transparent", color: COLORS.inkMuted, fontSize: 14, cursor: "pointer",
+            }}>×</button>
+          </div>
+          <textarea value={c.testimonial ?? ""} onChange={(e) => update(c.id, { testimonial: e.target.value })}
+            placeholder="One-line testimonial…"
+            rows={2}
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+              fontSize: 12, color: COLORS.ink, outline: "none", resize: "vertical",
+              marginBottom: 6,
+            }}
+          />
+          <input type="text" value={c.testimonialBy ?? ""} onChange={(e) => update(c.id, { testimonialBy: e.target.value })}
+            placeholder="By — e.g. Marco Russo, photographer"
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "8px 10px", borderRadius: 8,
+              border: `1px solid ${COLORS.borderSoft}`, fontFamily: FONTS.body,
+              fontSize: 11.5, color: COLORS.inkMuted, outline: "none",
+            }}
+          />
+        </div>
+      ))}
+      <button type="button" onClick={add} style={{
+        padding: "9px 14px", borderRadius: 10,
+        background: "transparent", border: `1.5px dashed ${COLORS.border}`,
+        color: COLORS.inkMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
+      }}>+ Add client</button>
+    </div>
+  );
+}
+
+// ── Next-tier coach (in trust section) ──────────────────────────────
+function NextTierCoach({ tier, verifications }: {
+  tier: TrustTier;
+  verifications: Verifications;
+}) {
+  if (tier === "gold") {
+    return (
+      <div style={{
+        padding: 12, borderRadius: 10, marginTop: 12,
+        background: "rgba(184,135,49,0.10)",
+        border: "1px solid rgba(184,135,49,0.25)",
+        fontSize: 12, color: "#7A5A1F", fontFamily: FONTS.body, lineHeight: 1.5,
+      }}>★ You've reached the top tier. Keep delivering on bookings to stay there.</div>
+    );
+  }
+  let nextSteps: string[] = [];
+  if (tier === "basic") {
+    if (!verifications.idSubmitted)     nextSteps.push("Submit a government ID");
+    if (!verifications.payoutConnected) nextSteps.push("Connect a payout method");
+  } else if (tier === "verified") {
+    nextSteps.push("Complete 1 booking on Tulala to reach Silver");
+  } else if (tier === "silver") {
+    if (verifications.bookingsCount < 5) {
+      nextSteps.push(`${5 - verifications.bookingsCount} more bookings`);
+    }
+    if (!verifications.hasFundedClient) {
+      nextSteps.push("1 funded-account client booking");
+    }
+  }
+  if (nextSteps.length === 0) return null;
+  const targetTier: TrustTier = tier === "basic" ? "verified" : tier === "verified" ? "silver" : "gold";
+  const targetMeta = TALENT_TRUST_META[targetTier];
+  return (
+    <div style={{
+      padding: 12, borderRadius: 10, marginTop: 12,
+      background: targetMeta.bg, border: `1px solid ${targetMeta.fg}30`,
+      fontFamily: FONTS.body,
+    }}>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: targetMeta.fg, marginBottom: 6 }}>
+        Reach {targetMeta.label} {targetMeta.emoji}
+      </div>
+      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: COLORS.ink, lineHeight: 1.55 }}>
+        {nextSteps.map(s => <li key={s}>{s}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+// ── Profile templates picker (admin) ─────────────────────────────────
+// 2026 #1 — Native popover. Browser handles outside-click + Esc + a11y.
+function TemplatesPicker({ onApply }: {
+  onApply: (tpl: ProfileTemplate) => void;
+}) {
+  const popoverId = React.useId();
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  return (
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <button type="button"
+        {...({ popoverTarget: popoverId } as Record<string, string>)}
+        style={{
+          padding: "5px 11px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
+          background: "#fff", color: COLORS.ink,
+          fontSize: 11, fontWeight: 600, cursor: "pointer",
+          fontFamily: FONTS.body,
+        }}>📋 Use template ▾</button>
+      <div
+        ref={popoverRef}
+        id={popoverId}
+        {...({ popover: "auto" } as Record<string, string>)}
+        style={{
+          position: "absolute", top: "calc(100% + 4px)", right: 0,
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
+          boxShadow: "0 10px 30px -8px rgba(11,11,13,0.18)",
+          minWidth: 280, padding: 4, fontFamily: FONTS.body,
+          margin: 0, inset: "auto",
+        }}>
+        {PROFILE_TEMPLATES.map(t => (
+          <button key={t.id} type="button" onClick={() => {
+            onApply(t);
+            popoverRef.current?.hidePopover?.();
+          }} style={{
+            width: "100%", padding: "10px 12px", borderRadius: 6,
+            background: "transparent", border: "none", cursor: "pointer", textAlign: "left",
+            fontSize: 12.5, color: COLORS.ink,
+          }}>
+            <div style={{ fontWeight: 600 }}>{t.name}</div>
+            <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2 }}>
+              {t.serviceArea?.homeBase} · {(t.contexts ?? []).slice(0, 2).join(", ")}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Field-lock toggle (admin) ────────────────────────────────────────
+function FieldLockToggle({ path, locks, onChange }: {
+  path: FieldLockPath;
+  locks: FieldLockPath[];
+  onChange: (next: FieldLockPath[]) => void;
+}) {
+  const isLocked = locks.includes(path);
+  return (
+    <button type="button" onClick={() => onChange(isLocked ? locks.filter(x => x !== path) : [...locks, path])} style={{
+      padding: "4px 9px", borderRadius: 999,
+      border: `1px solid ${isLocked ? COLORS.amberDeep : COLORS.borderSoft}`,
+      background: isLocked ? COLORS.amberSoft : "#fff",
+      color: isLocked ? COLORS.amberDeep : COLORS.inkMuted,
+      fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+      fontFamily: FONTS.body,
+      display: "inline-flex", alignItems: "center", gap: 4,
+    }}>{isLocked ? "🔒 Locked" : "🔓 Lock for talent"}</button>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Branding
 // ════════════════════════════════════════════════════════════════════
 
@@ -1470,7 +8676,7 @@ function BrandingDrawer() {
                 width: 56,
                 height: 56,
                 borderRadius: 8,
-                background: COLORS.ink,
+                background: COLORS.fill,
                 color: "#fff",
                 display: "inline-flex",
                 alignItems: "center",
@@ -1953,40 +9159,1154 @@ function ToggleRow({ label, defaultOn = false }: { label: string; defaultOn?: bo
   );
 }
 
+// ════════════════════════════════════════════════════════════════════
+// NewTalentDrawer (admin "Quick Add") — proper 1-screen quick-add.
+// Captures contact essentials (first/last/display name, email, phone,
+// photo) + Talent Type + Home Base + management method.
+// CTAs adapt to method: invite / continue editing / save draft.
+// ════════════════════════════════════════════════════════════════════
+
 function NewTalentDrawer() {
-  const { closeDrawer } = useProto();
-  const onSave = useSaveAndClose("Talent profile created");
+  const { state, closeDrawer, openDrawer, toast, bulkAddTalent } = useProto();
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState("+34");
+  const [pronunciation, setPronunciation] = useState("");
+  const [primaryType, setPrimaryType] = useState<string | null>(null);
+  const [homeBase, setHomeBase] = useState("");
+  // Default to "agency" so the most-used path (admin fills full profile)
+  // is the visible default — the field-list preview spells out exactly
+  // what the admin will get on the next screen.
+  const [method, setMethod] = useState<"agency" | "invited" | "draft">("agency");
+  const [showMore, setShowMore] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  // #12 — Tab between single-talent quick-add and CSV bulk import.
+  const [addMode, setAddMode] = useState<"single" | "csv">("single");
+
+  // Live taxonomy (PR-A) — picker source.
+  const live = useLiveTaxonomy();
+  const planRank = (p: "free" | "studio" | "agency" | "network") =>
+    ({ free: 0, studio: 1, agency: 2, network: 3 } as const)[p];
+  const currentRank = planRank(state.plan as "free" | "studio" | "agency" | "network");
+  const allowedParentIds = new Set(
+    WORKSPACE_TAXONOMY_DEFAULT
+      .filter(s => s.isEnabled && s.showInRegistration)
+      .map(s => s.parentId as string)
+  );
+  const filterByWorkspace = (lp: LiveTaxonomyParent) =>
+    allowedParentIds.has(lp.raw.slug) || lp.display.id === lp.raw.slug;
+  const visibleParentsLP = live.visibleParents.filter(filterByWorkspace).filter(lp => planRank(lp.display.minPlan) <= currentRank);
+  const restParentsLP = live.restParents.filter(filterByWorkspace).filter(lp => planRank(lp.display.minPlan) <= currentRank);
+  const allowedParents = (showMore ? [...visibleParentsLP, ...restParentsLP] : visibleParentsLP).map(lp => lp.display);
+
+  const computedDisplayName = displayName.trim() || `${firstName.trim()} ${lastName.trim()}`.trim();
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const minimumValid = firstName.trim().length > 0 && lastName.trim().length > 0 && !!primaryType && homeBase.trim().length > 0;
+  const inviteValid = minimumValid && emailValid;
+
+  // #4 — Sync QuickAdd state into the shared draft store (debounced).
+  // Shell reads from this on mount so first/last/email/phone/photo flow
+  // through without lossy seed-data prop-drilling.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      patchProfileDraft("default", {
+        firstName, lastName, displayName,
+        pronunciation, email, phone, phoneCountry,
+        primaryType, homeBase, method,
+        photoUrl, photoCount: photoUrl ? 1 : 0,
+      } as Partial<ProfileDraft>, "quick-add");
+    }, 350);
+    return () => clearTimeout(t);
+  }, [firstName, lastName, displayName, pronunciation, email, phone, phoneCountry, primaryType, homeBase, method, photoUrl]);
+
+  const seedForShell = () => ({
+    stageName: computedDisplayName,
+    primaryType: primaryType ?? undefined,
+    homeBase,
+    method,
+    contact: email,
+  });
+
+  const sendInvite = () => {
+    if (!inviteValid) return;
+    toast(`Invite sent to ${email}`);
+    clearProfileDraft("default");
+    closeDrawer();
+  };
+  const continueEditing = () => {
+    if (!minimumValid) return;
+    closeDrawer();
+    openDrawer("talent-profile-shell", { mode: "create", seed: seedForShell() });
+  };
+  const saveDraft = () => {
+    if (!minimumValid) return;
+    toast(`${computedDisplayName || "Talent"} saved as draft`);
+    closeDrawer();
+  };
+
+  // Primary CTA copy is intentionally explicit so admins know what
+  // happens next. Invited → email goes out and talent finishes their
+  // own profile. Agency-managed → drawer hands off to the full Profile
+  // Shell where admin completes everything. Draft → quietly saves.
+  const primaryAction = method === "invited"
+    ? { label: "Send claim invite", run: sendInvite, enabled: inviteValid }
+    : method === "draft"
+    ? { label: "Save as draft", run: saveDraft, enabled: minimumValid }
+    : { label: "Create + open full profile", run: continueEditing, enabled: minimumValid };
+
+  // #11 — Paste a vCard / Instagram handle / LinkedIn URL / plain text
+  // contact. Parser detects shape and autofills first name + last name +
+  // email + phone. Saves admins ~30 seconds per add when they're working
+  // from a contact card or social page.
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const applyPaste = (raw: string) => {
+    const text = raw.trim();
+    if (!text) return;
+    let firstParsed = "", lastParsed = "", emailParsed = "", phoneParsed = "";
+    // 1. vCard
+    if (/BEGIN:VCARD/i.test(text)) {
+      const fnLine = /(?:^|\n)FN[:;].*?:(.+)/i.exec(text);
+      if (fnLine) {
+        const parts = fnLine[1].trim().split(/\s+/);
+        firstParsed = parts[0] ?? "";
+        lastParsed = parts.slice(1).join(" ");
+      }
+      const emailLine = /(?:^|\n)EMAIL[:;].*?:([^\s\n]+)/i.exec(text);
+      if (emailLine) emailParsed = emailLine[1];
+      const telLine = /(?:^|\n)TEL[:;].*?:([+\d\s()-]+)/i.exec(text);
+      if (telLine) phoneParsed = telLine[1].trim();
+    } else if (/@[\w.]+|instagram\.com|linkedin\.com/i.test(text)) {
+      // 2. IG handle / LinkedIn URL — extract handle as a hint, no email.
+      const igMatch = /(?:instagram\.com\/|^@)([\w.]+)/i.exec(text);
+      if (igMatch) {
+        const handle = igMatch[1];
+        // Best-effort: capitalize handle as a name guess
+        firstParsed = handle.split(".")[0].replace(/^\w/, c => c.toUpperCase());
+      }
+      const liMatch = /linkedin\.com\/in\/([\w-]+)/i.exec(text);
+      if (liMatch) {
+        const slug = liMatch[1];
+        const parts = slug.split("-");
+        firstParsed = (parts[0] ?? "").replace(/^\w/, c => c.toUpperCase());
+        lastParsed = parts.slice(1).map(p => p.replace(/^\w/, c => c.toUpperCase())).join(" ");
+      }
+    } else {
+      // 3. Plain text — pull email + phone + first non-email-or-phone line as name
+      const emailHit = /[\w.+-]+@[\w-]+\.[\w.-]+/.exec(text);
+      if (emailHit) emailParsed = emailHit[0];
+      const phoneHit = /(\+?\d[\d\s().-]{7,})/.exec(text);
+      if (phoneHit) phoneParsed = phoneHit[1].trim();
+      const lines = text.split(/\n+/).map(l => l.trim()).filter(Boolean);
+      const nameLine = lines.find(l => l !== emailParsed && !l.includes(phoneParsed) && !/[@+]/.test(l));
+      if (nameLine) {
+        const parts = nameLine.split(/\s+/);
+        firstParsed = parts[0] ?? "";
+        lastParsed = parts.slice(1).join(" ");
+      }
+    }
+    if (firstParsed) setFirstName(firstParsed);
+    if (lastParsed) setLastName(lastParsed);
+    if (emailParsed) setEmail(emailParsed);
+    if (phoneParsed) setPhone(phoneParsed.replace(/^\+\d+\s?/, ""));
+    setPasteOpen(false);
+    const filled: string[] = [];
+    if (firstParsed || lastParsed) filled.push("name");
+    if (emailParsed) filled.push("email");
+    if (phoneParsed) filled.push("phone");
+    toast(filled.length ? `Pasted: ${filled.join(", ")}` : "No fields recognized");
+  };
+  const handlePasteFromClipboard = async () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        applyPaste(text);
+      } catch {
+        setPasteOpen(true);
+      }
+    } else {
+      setPasteOpen(true);
+    }
+  };
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Add talent"
-      description="Create a roster profile. You can publish now or invite the talent to claim later."
-      footer={<StandardFooter onSave={onSave} saveLabel="Create profile" />}
+      description="Just the essentials here. Everything else — bio, photos, location, type-specific fields, languages, rates — lives in the full profile, opened next."
+      width={620}
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          {method !== "invited" && method !== "agency" && (
+            <SecondaryButton onClick={continueEditing}>Continue editing</SecondaryButton>
+          )}
+          <PrimaryButton onClick={primaryAction.run}>{primaryAction.label}</PrimaryButton>
+        </>
+      }
     >
-      <Section title="Basics" framed>
-        <FieldRow label="Stage name">
-          <TextInput placeholder="First Last" />
+      {/* #12 — Tab strip: Single talent / Bulk via CSV. Single tab keeps
+          the existing form; CSV tab shows a paste/upload area + preview
+          table + bulk-create CTA. */}
+      <div style={{
+        display: "inline-flex", padding: 3, borderRadius: 999,
+        background: "rgba(11,11,13,0.04)", marginBottom: 14,
+        fontFamily: FONTS.body,
+      }}>
+        {([
+          { id: "single" as const, label: "Single talent" },
+          { id: "csv" as const,    label: "Bulk via CSV" },
+        ]).map(t => {
+          const active = addMode === t.id;
+          return (
+            <button key={t.id} type="button" onClick={() => setAddMode(t.id)} style={{
+              padding: "6px 14px", borderRadius: 999, border: "none",
+              background: active ? "#fff" : "transparent",
+              color: active ? COLORS.ink : COLORS.inkMuted,
+              fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+              cursor: "pointer",
+              boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
+            }}>{t.label}</button>
+          );
+        })}
+      </div>
+
+      {addMode === "csv" && (
+        <CsvBulkAddPanel
+          allowedParents={allowedParents}
+          onComplete={(rows, defaultType) => {
+            // Map CSV "type" column → taxonomy slug. Falls back to defaultType.
+            const allTypes = allowedParents.flatMap(p => p.children);
+            const matchType = (label: string): string | undefined => {
+              if (!label) return undefined;
+              const norm = label.toLowerCase().replace(/[\s_-]+/g, "-");
+              return allTypes.find(c =>
+                c.id === norm
+                || c.label.toLowerCase().replace(/[\s_-]+/g, "-") === norm
+                || c.label.toLowerCase().includes(label.toLowerCase())
+              )?.id;
+            };
+            const enriched = rows.map(r => ({
+              firstName: r.firstName,
+              lastName: r.lastName,
+              email: r.email,
+              primaryType: matchType(r.type) ?? defaultType ?? undefined,
+              city: r.city,
+            }));
+            const created = bulkAddTalent(enriched);
+            if (created > 0) {
+              toast(`Created ${created} draft${created === 1 ? "" : "s"} · review in Approvals`);
+              closeDrawer();
+              openDrawer("talent-approvals");
+            } else {
+              toast("No valid rows — each row needs first name + email");
+            }
+          }}
+        />
+      )}
+
+      {addMode === "single" && (
+        <>
+      {/* Power-user shortcut bar */}
+      <div style={{
+        display: "flex", gap: 6, alignItems: "center", marginBottom: 14,
+        flexWrap: "wrap", fontFamily: FONTS.body,
+      }}>
+        <button type="button" onClick={handlePasteFromClipboard} title="Paste vCard / IG handle / LinkedIn URL / plain text" style={{
+          padding: "6px 12px", borderRadius: 999,
+          border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
+          fontSize: 12, fontWeight: 600, cursor: "pointer",
+        }}>📋 Paste contact</button>
+        <span style={{ fontSize: 11, color: COLORS.inkDim }}>
+          vCard · @handle · linkedin.com/in/… · plain text
+        </span>
+      </div>
+
+      {/* Hero — photo + name + display + pronunciation */}
+      <div style={{
+        display: "flex", gap: 14, alignItems: "flex-start",
+        padding: 14, borderRadius: 14,
+        background: COLORS.surface,
+        border: `1px solid ${COLORS.borderSoft}`,
+        marginBottom: 16,
+      }}>
+        <button type="button" onClick={() => fileRef.current?.click()} aria-label="Upload photo" style={{
+          width: 88, height: 88, flexShrink: 0,
+          borderRadius: 14,
+          background: photoUrl
+            ? `url(${photoUrl}) center/cover, ${COLORS.surfaceAlt}`
+            : COLORS.surfaceAlt,
+          border: photoUrl ? "none" : `1.5px dashed ${COLORS.borderSoft}`,
+          cursor: "pointer", color: COLORS.inkMuted,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4,
+          fontFamily: FONTS.body, fontSize: 10, fontWeight: 600,
+          position: "relative", overflow: "hidden",
+        }}>
+          {!photoUrl && (<>
+            <span style={{ fontSize: 22, lineHeight: 1 }}>+</span>
+            <span>Photo</span>
+          </>)}
+          {photoUrl && (
+            <span style={{
+              position: "absolute", bottom: 4, right: 4,
+              padding: "2px 6px", borderRadius: 999,
+              background: "rgba(11,11,13,0.65)", color: "#fff",
+              fontSize: 9, fontWeight: 600,
+            }}>Replace</span>
+          )}
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" capture="user" style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) setPhotoUrl(URL.createObjectURL(f));
+            e.target.value = "";
+          }}
+        />
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input type="text" placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)}
+              style={qaInputStyle()}
+            />
+            <input type="text" placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)}
+              style={qaInputStyle()}
+            />
+          </div>
+          <input type="text"
+            placeholder={firstName || lastName ? `Display name · defaults to ${computedDisplayName}` : "Display name (optional)"}
+            value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+            style={qaInputStyle()}
+          />
+          <input type="text" placeholder="Pronunciation — optional, e.g. soh-FEE-ah loo-PO"
+            value={pronunciation} onChange={(e) => setPronunciation(e.target.value)}
+            style={{ ...qaInputStyle(), fontSize: 12, color: COLORS.inkMuted }}
+          />
+        </div>
+      </div>
+
+      {/* Contact */}
+      <Section title="Contact" framed>
+        <FieldRow label="Email"
+          hint={method === "invited" ? "Required — they'll receive a claim link." : "Optional — used for booking comms."}
+        >
+          <div style={{ position: "relative" }}>
+            <input type="email" placeholder="talent@example.com"
+              value={email} onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                padding: "10px 90px 10px 12px", borderRadius: 10,
+                border: `1px solid ${email && !emailValid ? COLORS.amberDeep : COLORS.border}`,
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                background: "#fff",
+              }}
+            />
+            {email && (
+              <span style={{
+                position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                fontSize: 10.5, fontWeight: 600,
+                color: emailValid ? COLORS.successDeep : COLORS.amberDeep,
+              }}>{emailValid ? "✓ valid" : "check format"}</span>
+            )}
+          </div>
         </FieldRow>
-        <FieldRow label="Height" optional>
-          <TextInput placeholder="5'9&quot;" />
-        </FieldRow>
-        <FieldRow label="City" optional>
-          <TextInput placeholder="Madrid" />
+        <FieldRow label="Phone" optional hint="Used for SMS verification + day-of booking comms.">
+          <div style={{ display: "flex", gap: 6 }}>
+            <select value={phoneCountry} onChange={(e) => setPhoneCountry(e.target.value)} style={{
+              padding: "10px 10px", borderRadius: 10,
+              border: `1px solid ${COLORS.border}`, background: "#fff",
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+              flexShrink: 0,
+            }}>
+              <option value="+34">🇪🇸 +34</option>
+              <option value="+52">🇲🇽 +52</option>
+              <option value="+1">🇺🇸 +1</option>
+              <option value="+44">🇬🇧 +44</option>
+              <option value="+33">🇫🇷 +33</option>
+              <option value="+39">🇮🇹 +39</option>
+              <option value="+49">🇩🇪 +49</option>
+              <option value="+351">🇵🇹 +351</option>
+            </select>
+            <input type="tel" placeholder="612 345 678"
+              value={phone} onChange={(e) => setPhone(e.target.value)}
+              style={qaInputStyle()}
+            />
+          </div>
         </FieldRow>
       </Section>
 
-      <Section title="How will this profile be managed?">
-        <RadioCardGroup
-          options={[
-            { id: "agency", title: "Agency-managed", desc: "You write the profile and publish it. Talent doesn't need an account." },
-            { id: "invited", title: "Invite talent to claim", desc: "We email them so they can claim, edit, and approve." },
-            { id: "draft", title: "Save as draft", desc: "Not published. Edit later." },
-          ]}
-          defaultId="agency"
-        />
+      {/* Talent Type */}
+      <Section title="Primary Talent Type" framed>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
+          What clients book this person as. Secondary roles + specialties are added in the full profile.
+        </div>
+        <PrimaryTalentTypeGrid parents={allowedParents} selected={primaryType} onPick={(id) => setPrimaryType(id)} />
+        {restParentsLP.length > 0 && (
+          <button type="button" onClick={() => setShowMore(s => !s)} style={{
+            marginTop: 10, padding: "6px 12px", borderRadius: 999,
+            background: "transparent", border: `1px dashed ${COLORS.border}`,
+            color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>
+            {showMore ? `– Hide ${restParentsLP.length} more` : `+ More… (${restParentsLP.length})`}
+          </button>
+        )}
+        <div style={{ marginTop: 6, fontSize: 10.5, color: COLORS.inkDim }}>
+          {live.source === "live" ? "Live taxonomy ·" : "Local fixture ·"} {visibleParentsLP.length} visible · {restParentsLP.length} more
+        </div>
       </Section>
+
+      {/* Home base */}
+      <Section title="Home base" framed>
+        <FieldRow label="Where is this talent based?" hint="Service areas + travel radius are set in the full profile.">
+          <input type="text" placeholder="e.g. Playa del Carmen"
+            value={homeBase} onChange={(e) => setHomeBase(e.target.value)}
+            style={qaInputStyle()}
+          />
+        </FieldRow>
+      </Section>
+
+      {/* Management */}
+      <Section title="Management method">
+        <ManagementMethodPicker value={method} onChange={setMethod} />
+      </Section>
+
+      {/* Power-user: registration link */}
+      <Section title="Or send the registration link" framed>
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          fontFamily: FONTS.body,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>
+              Mobile-first self-registration
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>
+              The talent fills out their own profile. Goes to your approval queue.
+            </div>
+          </div>
+          <button type="button" onClick={() => openDrawer("talent-registration")} style={{
+            padding: "9px 14px", borderRadius: 999,
+            background: COLORS.fill, color: "#fff", border: "none",
+            fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+          }}>Preview</button>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <button type="button" onClick={() => toast("Registration link copied")} style={{
+            width: "100%", padding: "10px 14px", borderRadius: 10,
+            background: "transparent", color: COLORS.ink,
+            border: `1px dashed ${COLORS.border}`,
+            fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
+            textAlign: "left",
+          }}>
+            tulala.digital/{TENANT.slug}/join · copy link
+          </button>
+        </div>
+      </Section>
+        </>
+      )}
+
+      {/* #11 — Paste-anywhere fallback when clipboard.readText is denied */}
+      {pasteOpen && (
+        <PasteContactModal
+          onClose={() => setPasteOpen(false)}
+          onApply={applyPaste}
+        />
+      )}
     </DrawerShell>
+  );
+}
+
+// #12 — CSV bulk add panel. Paste OR upload a CSV; preview the first
+// rows; Create N talents at once. Header parsing is heuristic — looks
+// for first/last/email/phone/type/city columns case-insensitively.
+function CsvBulkAddPanel({ allowedParents, onComplete }: {
+  allowedParents: TaxonomyParent[];
+  onComplete: (rows: { firstName: string; lastName: string; email: string; phone: string; type: string; city: string }[], defaultType: string | null) => void;
+}) {
+  const [raw, setRaw] = useState("");
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [defaultType, setDefaultType] = useState<string | null>(null);
+  // Parse CSV — naive split on newlines + commas. Quotes ignored to
+  // keep this prototype-tight; production wires papaparse.
+  type Row = { firstName: string; lastName: string; email: string; phone: string; type: string; city: string };
+  const parsed: Row[] = (() => {
+    if (!raw.trim()) return [];
+    const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return [];
+    const headerLine = lines[0].toLowerCase();
+    const cols = headerLine.split(",").map(c => c.trim());
+    const indexOf = (...names: string[]) => {
+      for (const n of names) {
+        const idx = cols.findIndex(c => c === n || c.startsWith(n));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+    const iFirst = indexOf("first", "firstname", "first name", "given");
+    const iLast  = indexOf("last", "lastname", "last name", "surname", "family");
+    const iName  = indexOf("name", "full name", "displayname");
+    const iEmail = indexOf("email", "e-mail");
+    const iPhone = indexOf("phone", "tel", "mobile");
+    const iType  = indexOf("type", "role", "talent type", "primary");
+    const iCity  = indexOf("city", "base", "homebase", "home base");
+    const dataLines = lines.slice(1);
+    return dataLines.map(line => {
+      const cells = line.split(",").map(c => c.trim());
+      let firstName = iFirst >= 0 ? cells[iFirst] ?? "" : "";
+      let lastName  = iLast  >= 0 ? cells[iLast]  ?? "" : "";
+      if (!firstName && !lastName && iName >= 0) {
+        const n = cells[iName] ?? "";
+        const parts = n.split(/\s+/);
+        firstName = parts[0] ?? "";
+        lastName  = parts.slice(1).join(" ");
+      }
+      return {
+        firstName,
+        lastName,
+        email: iEmail >= 0 ? cells[iEmail] ?? "" : "",
+        phone: iPhone >= 0 ? cells[iPhone] ?? "" : "",
+        type:  iType  >= 0 ? cells[iType]  ?? "" : "",
+        city:  iCity  >= 0 ? cells[iCity]  ?? "" : "",
+      } as Row;
+    }).filter(r => r.firstName || r.lastName || r.email);
+  })();
+  const valid = parsed.filter(r => r.firstName.trim() && r.email.trim()).length;
+  const sample = `firstName,lastName,email,phone,type,city
+Sofia,Lupo,sofia@example.com,+34 612 345 678,Fashion model,Madrid
+Carlos,Pérez,carlos@example.com,+52 555 123 4567,DJ,Tulum
+Yuna,Park,yuna@example.com,+44 7700 900123,VIP host,London`;
+
+  const handleFile = async (f: File) => {
+    const text = await f.text();
+    setRaw(text);
+  };
+
+  return (
+    <div style={{ fontFamily: FONTS.body }}>
+      <div style={{
+        padding: 14, borderRadius: 12,
+        background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+        marginBottom: 14,
+      }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
+          Paste or upload a CSV
+        </div>
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+          Headers we recognize: <code style={{ fontFamily: FONTS.mono }}>firstName, lastName, email, phone, type, city</code>.
+          Other column orders work too.
+        </div>
+        <textarea value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+          placeholder={sample}
+          rows={6}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "10px 12px",
+            borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.mono, fontSize: 11.5, color: COLORS.ink, outline: "none",
+            resize: "vertical", background: "#fff",
+          }}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button type="button" onClick={() => fileRef.current?.click()} style={{
+            padding: "7px 12px", borderRadius: 999,
+            border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
+            fontSize: 12, fontWeight: 600, cursor: "pointer",
+          }}>📎 Upload .csv file</button>
+          <button type="button" onClick={() => setRaw(sample)} style={{
+            padding: "7px 12px", borderRadius: 999,
+            border: `1px dashed ${COLORS.border}`, background: "transparent",
+            color: COLORS.inkMuted,
+            fontSize: 12, fontWeight: 500, cursor: "pointer",
+          }}>Use sample</button>
+          {raw && (
+            <button type="button" onClick={() => setRaw("")} style={{
+              padding: "7px 12px", borderRadius: 999, border: "none",
+              background: "transparent", color: COLORS.inkMuted,
+              fontSize: 12, fontWeight: 500, cursor: "pointer",
+            }}>Clear</button>
+          )}
+          <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+          />
+        </div>
+      </div>
+
+      {parsed.length > 0 && (
+        <>
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            marginBottom: 8,
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase" }}>
+              Preview · {parsed.length} row{parsed.length === 1 ? "" : "s"} ({valid} valid)
+            </div>
+            <select value={defaultType ?? ""} onChange={(e) => setDefaultType(e.target.value || null)} style={{
+              padding: "5px 9px", borderRadius: 6,
+              border: `1px solid ${COLORS.borderSoft}`, background: "#fff",
+              fontSize: 11, color: COLORS.ink, outline: "none", fontFamily: FONTS.body,
+            }}>
+              <option value="">Default type · skip</option>
+              {allowedParents.flatMap(p => p.children).map(c => (
+                <option key={c.id} value={c.id}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{
+            border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
+            overflow: "hidden", marginBottom: 14,
+            background: "#fff",
+          }}>
+            <div style={{ maxHeight: 260, overflowY: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FONTS.body, fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: COLORS.surface }}>
+                    <th style={csvCellStyle(true)}>Name</th>
+                    <th style={csvCellStyle(true)}>Email</th>
+                    <th style={csvCellStyle(true)}>Phone</th>
+                    <th style={csvCellStyle(true)}>Type</th>
+                    <th style={csvCellStyle(true)}>City</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsed.slice(0, 50).map((r, i) => {
+                    const isValid = !!(r.firstName && r.email);
+                    return (
+                      <tr key={i} style={{ borderTop: `1px solid ${COLORS.borderSoft}`, opacity: isValid ? 1 : 0.55 }}>
+                        <td style={csvCellStyle(false)}>
+                          {`${r.firstName} ${r.lastName}`.trim() || <span style={{ color: COLORS.amberDeep }}>missing name</span>}
+                        </td>
+                        <td style={csvCellStyle(false)}>
+                          {r.email || <span style={{ color: COLORS.amberDeep }}>missing email</span>}
+                        </td>
+                        <td style={csvCellStyle(false)}>{r.phone || "—"}</td>
+                        <td style={csvCellStyle(false)}>{r.type || (defaultType && allowedParents.flatMap(p => p.children).find(c => c.id === defaultType)?.label) || <span style={{ color: COLORS.inkDim }}>—</span>}</td>
+                        <td style={csvCellStyle(false)}>{r.city || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <button type="button" onClick={() => onComplete(parsed, defaultType)} disabled={valid === 0} style={{
+            width: "100%", padding: "11px 18px", borderRadius: 10, border: "none",
+            background: valid > 0 ? COLORS.fill : "rgba(11,11,13,0.10)",
+            color: valid > 0 ? "#fff" : COLORS.inkDim,
+            fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+            cursor: valid > 0 ? "pointer" : "default",
+          }}>{valid === 0 ? "Add a name + email per row to continue" : `Create ${valid} talent${valid === 1 ? "" : "s"}`}</button>
+        </>
+      )}
+
+      {parsed.length === 0 && raw.trim() && (
+        <div style={{
+          padding: 12, borderRadius: 10,
+          background: COLORS.amberSoft, color: COLORS.amberDeep,
+          fontSize: 12, lineHeight: 1.5,
+        }}>
+          Couldn't parse this. The first row should be column headers (firstName, lastName, email, …).
+        </div>
+      )}
+    </div>
+  );
+}
+
+function csvCellStyle(isHeader: boolean): React.CSSProperties {
+  return {
+    padding: isHeader ? "8px 10px" : "9px 10px",
+    fontSize: isHeader ? 10.5 : 11.5,
+    fontWeight: isHeader ? 600 : 500,
+    letterSpacing: isHeader ? 0.4 : 0,
+    textTransform: isHeader ? "uppercase" : "none",
+    color: isHeader ? COLORS.inkMuted : COLORS.ink,
+    textAlign: "left",
+    whiteSpace: "nowrap",
+    maxWidth: 180,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+  };
+}
+
+function PasteContactModal({ onClose, onApply }: {
+  onClose: () => void;
+  onApply: (text: string) => void;
+}) {
+  const [text, setText] = useState("");
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, zIndex: 250,
+      background: "rgba(11,11,13,0.55)", backdropFilter: "blur(10px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 480,
+        background: "#fff", borderRadius: 14, padding: 20,
+        boxShadow: "0 30px 60px -10px rgba(11,11,13,0.4)",
+      }}>
+        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Paste a contact</h3>
+        <p style={{ margin: "6px 0 12px", fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          vCard · Instagram handle (@user) · linkedin.com/in/slug · or just paste a name + email + phone.
+          We'll extract what we can.
+        </p>
+        <textarea autoFocus value={text} onChange={e => setText(e.target.value)}
+          placeholder="Sofia Lupo&#10;sofia@example.com&#10;+34 612 345 678&#10;@sofia.lupo"
+          rows={6}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "10px 12px",
+            borderRadius: 10, border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.mono, fontSize: 12, color: COLORS.ink, outline: "none",
+            resize: "vertical",
+          }}
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+          <button type="button" onClick={onClose} style={{
+            padding: "9px 14px", borderRadius: 999,
+            border: `1px solid ${COLORS.border}`, background: "#fff", color: COLORS.ink,
+            fontSize: 13, fontWeight: 600, cursor: "pointer",
+          }}>Cancel</button>
+          <button type="button" onClick={() => onApply(text)} disabled={!text.trim()} style={{
+            padding: "9px 16px", borderRadius: 999, border: "none",
+            background: text.trim() ? COLORS.fill : "rgba(11,11,13,0.10)",
+            color: text.trim() ? "#fff" : COLORS.inkDim,
+            fontSize: 13, fontWeight: 600, cursor: text.trim() ? "pointer" : "default",
+          }}>Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function qaInputStyle(): React.CSSProperties {
+  return {
+    flex: 1, width: "100%", boxSizing: "border-box",
+    padding: "10px 12px", borderRadius: 10,
+    border: `1px solid ${COLORS.border}`,
+    fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+    background: "#fff",
+  };
+}
+
+// Talent Type picker — grouped by parent, mobile-first chip grid.
+// Used in NewTalentDrawer + (later) TalentProfileShell.
+// ════════════════════════════════════════════════════════════════════
+// SmartTalentTypePicker — replaces the old "show every type, all the
+// time" grid. New shape:
+//   1. Search bar with autocomplete across all child types
+//   2. "Popular" row — top 8 most-picked (mock frequency for prototype)
+//   3. Per-parent collapsed columns; parent header shows count + click
+//      to expand the full child list of that parent only
+//   4. "Show all" button to reveal every type at once
+//
+// Performance + cognitive load fix: instead of 200 chips on screen,
+// admin sees ~8 popular + a search bar. Power-users type to find.
+// ════════════════════════════════════════════════════════════════════
+
+/** Mock popularity score per type id. Higher = more frequently picked. */
+const TYPE_POPULARITY: Record<string, number> = {
+  fashion: 95, vip_host: 88, dj: 82, promotional: 78, private_chef: 70,
+  fire: 65, dancer: 62, photographer: 58, content: 55, commercial: 52,
+  brand_amb: 48, mc: 44, chauffeur: 38, massage: 36, singer: 34,
+  belly_dancer: 32, swimwear: 30, yoga: 26, videographer: 24, housekeeper: 20,
+  trade_show: 18, butler: 14, airport: 12, mixologist: 10, pastry: 8,
+};
+
+function PrimaryTalentTypeGrid({ parents, selected, onPick }: {
+  parents: TaxonomyParent[];
+  selected: string | null;
+  onPick: (id: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [expandedParentId, setExpandedParentId] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Build flat list of all (parent, child) pairs
+  type FlatType = { parent: TaxonomyParent; child: TaxonomyChild; popularity: number };
+  const flatTypes: FlatType[] = parents.flatMap(p =>
+    p.children.map(c => ({
+      parent: p,
+      child: c,
+      popularity: TYPE_POPULARITY[c.id] ?? 5,
+    }))
+  );
+
+  const q = query.trim().toLowerCase();
+  const matched = q.length === 0 ? [] : flatTypes
+    .filter(t =>
+      t.child.label.toLowerCase().includes(q) ||
+      t.parent.label.toLowerCase().includes(q) ||
+      (t.child.specialties ?? []).some(s => s.toLowerCase().includes(q))
+    )
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, 12);
+
+  const popularTop = flatTypes
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, 8);
+
+  // If something is selected, show ONLY its pill (matches existing parent-cleared UI)
+  const selectedPair = selected ? flatTypes.find(t => t.child.id === selected) : null;
+
+  // Quick-pick chip helper
+  const renderChip = (t: FlatType) => {
+    const active = selected === t.child.id;
+    return (
+      <button key={t.child.id} type="button" onClick={() => onPick(t.child.id)} style={{
+        padding: "8px 13px", borderRadius: 999,
+        border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+        background: active ? "rgba(15,79,62,0.08)" : "#fff",
+        color: active ? COLORS.accentDeep : COLORS.ink,
+        fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+        cursor: "pointer",
+        display: "inline-flex", alignItems: "center", gap: 5,
+      }}>
+        <span aria-hidden style={{ fontSize: 13, opacity: 0.85 }}>{t.parent.emoji}</span>
+        {t.child.label}
+      </button>
+    );
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+      {/* Search */}
+      <div style={{ position: "relative" }}>
+        <input
+          ref={inputRef}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search talent types — e.g. fashion, host, DJ, chef…"
+          style={{
+            width: "100%", boxSizing: "border-box",
+            padding: "10px 36px 10px 36px", borderRadius: 10,
+            border: `1px solid ${COLORS.border}`,
+            fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+            background: "#fff",
+          }}
+        />
+        <span aria-hidden style={{
+          position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+          color: COLORS.inkMuted, fontSize: 14, pointerEvents: "none",
+        }}>🔍</span>
+        {query && (
+          <button type="button" onClick={() => { setQuery(""); inputRef.current?.focus(); }}
+            aria-label="Clear search"
+            style={{
+              position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+              width: 22, height: 22, borderRadius: "50%", border: "none",
+              background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+              fontSize: 12, lineHeight: 1, fontWeight: 600, cursor: "pointer",
+            }}>×</button>
+        )}
+        {/* Autocomplete dropdown */}
+        {q.length > 0 && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 30,
+            background: "#fff", borderRadius: 12,
+            border: `1px solid ${COLORS.borderSoft}`,
+            boxShadow: "0 14px 36px -10px rgba(11,11,13,0.18)",
+            maxHeight: 320, overflowY: "auto",
+            padding: 4,
+          }}>
+            {matched.length === 0 ? (
+              <div style={{ padding: "10px 12px", fontSize: 12, color: COLORS.inkMuted }}>
+                No matches. Try a broader search.
+              </div>
+            ) : (
+              matched.map(t => {
+                const active = selected === t.child.id;
+                return (
+                  <button key={t.child.id} type="button"
+                    onClick={() => { onPick(t.child.id); setQuery(""); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 10px", borderRadius: 8,
+                      background: active ? "rgba(15,79,62,0.06)" : "transparent",
+                      border: "none", width: "100%", textAlign: "left",
+                      cursor: "pointer", fontFamily: FONTS.body,
+                    }}
+                    onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = COLORS.surfaceAlt; }}
+                    onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>{t.parent.emoji}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                        {t.child.label}
+                      </span>
+                      <span style={{ display: "block", fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                        {t.parent.label}{t.child.specialties && t.child.specialties.length > 0 ? ` · ${t.child.specialties.slice(0, 3).join(", ")}` : ""}
+                      </span>
+                    </span>
+                    {t.popularity >= 50 && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 600, padding: "2px 6px", borderRadius: 999,
+                        background: COLORS.amberSoft, color: COLORS.amberDeep, flexShrink: 0,
+                      }}>★ Popular</span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* When search is empty: show Popular + per-parent collapsed columns */}
+      {q.length === 0 && !showAll && (
+        <>
+          {/* Popular */}
+          <div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+              color: COLORS.inkMuted, marginBottom: 6,
+            }}>
+              <span style={{ fontSize: 13 }}>★</span>
+              Popular
+              <span style={{ fontWeight: 500, letterSpacing: 0, color: COLORS.inkDim }}>· top {popularTop.length}</span>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {popularTop.map(renderChip)}
+            </div>
+          </div>
+
+          {/* Per-parent rolled-up rows */}
+          <div style={{
+            background: COLORS.surface, borderRadius: 12,
+            border: `1px solid ${COLORS.borderSoft}`,
+            overflow: "hidden",
+          }}>
+            {parents.map((parent, i) => {
+              const isOpen = expandedParentId === parent.id;
+              return (
+                <div key={parent.id} style={{
+                  borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                }}>
+                  <button type="button" onClick={() => setExpandedParentId(isOpen ? null : parent.id)} style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 10,
+                    padding: "10px 14px", border: "none",
+                    background: "transparent", cursor: "pointer", textAlign: "left",
+                    fontFamily: FONTS.body,
+                  }}>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>{parent.emoji}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                        {parent.label}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                        {parent.children.length} type{parent.children.length === 1 ? "" : "s"} · {parent.helper}
+                      </div>
+                    </div>
+                    <span style={{
+                      color: COLORS.inkMuted, fontSize: 14,
+                      transform: isOpen ? "rotate(90deg)" : "none",
+                      transition: "transform .15s",
+                    }}>›</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ padding: "0 14px 12px", display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {parent.children.map(c => {
+                        const active = selected === c.id;
+                        return (
+                          <button key={c.id} type="button" onClick={() => onPick(c.id)} style={{
+                            padding: "6px 11px", borderRadius: 999,
+                            border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                            background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                            color: active ? COLORS.accentDeep : COLORS.ink,
+                            fontSize: 12, fontWeight: 600, cursor: "pointer",
+                            fontFamily: FONTS.body,
+                          }}>
+                            {c.label}
+                            {(TYPE_POPULARITY[c.id] ?? 0) >= 50 && (
+                              <span style={{ marginLeft: 5, fontSize: 9, color: COLORS.amberDeep }}>★</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <button type="button" onClick={() => setShowAll(true)} style={{
+            alignSelf: "flex-start", padding: "6px 12px", borderRadius: 999,
+            background: "transparent", border: `1px dashed ${COLORS.border}`,
+            color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>Show all types ({flatTypes.length})</button>
+        </>
+      )}
+
+      {/* Show-all view */}
+      {showAll && q.length === 0 && (
+        <>
+          <button type="button" onClick={() => setShowAll(false)} style={{
+            alignSelf: "flex-start", padding: "6px 12px", borderRadius: 999,
+            background: "transparent", border: `1px dashed ${COLORS.border}`,
+            color: COLORS.inkMuted, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+            fontFamily: FONTS.body,
+          }}>← Back to popular</button>
+          {parents.map(parent => (
+            <div key={parent.id}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+                color: COLORS.inkMuted, marginBottom: 6,
+              }}>
+                <span style={{ fontSize: 13 }}>{parent.emoji}</span>
+                {parent.label}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {parent.children.map(c => {
+                  const active = selected === c.id;
+                  return (
+                    <button key={c.id} type="button" onClick={() => onPick(c.id)} style={{
+                      padding: "8px 13px", borderRadius: 999,
+                      border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                      background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                      color: active ? COLORS.accentDeep : COLORS.ink,
+                      fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+                      cursor: "pointer",
+                    }}>{c.label}</button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Selection acknowledgment */}
+      {selectedPair && (
+        <div style={{ fontSize: 11, color: COLORS.inkDim }}>
+          ✓ Selected: <strong style={{ color: COLORS.ink, fontWeight: 600 }}>{selectedPair.child.label}</strong> under {selectedPair.parent.label}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManagementMethodPicker({
+  value, onChange,
+}: {
+  value: "agency" | "invited" | "draft";
+  onChange: (v: "agency" | "invited" | "draft") => void;
+}) {
+  // Each method spells out what happens next + which fields are coming.
+  // Eliminates the "wait, do I lose data if I switch?" ambiguity.
+  const options: {
+    id: "agency" | "invited" | "draft";
+    title: string;
+    desc: string;
+    cta: string;
+    nextFields: string[];
+    emoji: string;
+  }[] = [
+    {
+      id: "agency", emoji: "✍️",
+      title: "Agency-managed",
+      desc: "You fill in the full profile right now. Talent can claim ownership of it later — when they're ready, or when you decide they should self-edit.",
+      cta: "Opens the full Profile Builder next",
+      nextFields: [
+        "Cover photo + portfolio gallery (up to 8 + albums)",
+        "Service areas + travel radius",
+        "Bio in any language",
+        "Type-specific fields (height, measurements, vehicle, cuisine, etc.)",
+        "Languages with levels + role flags",
+        "Skills + best-for contexts",
+        "Rates + availability calendar",
+        "Files (comp cards, contracts, certifications)",
+        "Custom workspace fields",
+        "Status + admin controls",
+        "↗ Send claim invite later — talent takes ownership any time",
+      ],
+    },
+    {
+      id: "invited", emoji: "📧",
+      title: "Invite talent to claim",
+      desc: "Email them a claim link. They edit and approve their own profile.",
+      cta: "Sends a claim email · talent fills the rest",
+      nextFields: [
+        "Talent receives email with claim link",
+        "They complete their profile via Talent Registration wizard",
+        "Submission lands in your Pending Approvals queue",
+        "You approve or request changes",
+      ],
+    },
+    {
+      id: "draft", emoji: "💾",
+      title: "Save as draft",
+      desc: "Not published. Pick this back up later.",
+      cta: "Quietly saves what you've entered",
+      nextFields: [
+        "Lives in Roster as a Draft",
+        "Open any time to continue editing",
+        "Never visible on the storefront until published",
+      ],
+    },
+  ];
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {options.map((o) => {
+        const active = value === o.id;
+        return (
+          <button key={o.id} type="button" onClick={() => onChange(o.id)} style={{
+            background: active ? "rgba(15,79,62,0.04)" : "#fff",
+            border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+            borderRadius: 12, padding: 14, cursor: "pointer",
+            fontFamily: FONTS.body, textAlign: "left",
+            display: "flex", flexDirection: "column", gap: active ? 10 : 0,
+            transition: `border-color ${TRANSITION.micro}, background ${TRANSITION.micro}`,
+          }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <span style={{
+                width: 20, height: 20, borderRadius: "50%",
+                border: `1.5px solid ${active ? COLORS.accent : "rgba(11,11,13,0.18)"}`,
+                background: active ? COLORS.fill : "transparent",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, marginTop: 1,
+              }}>
+                {active && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />}
+              </span>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <span style={{ fontSize: 14 }}>{o.emoji}</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{o.title}</span>
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>{o.desc}</div>
+              </div>
+            </div>
+            {active && (
+              <div style={{
+                marginLeft: 32, paddingTop: 10,
+                borderTop: `1px solid ${COLORS.borderSoft}`,
+              }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+                  color: COLORS.accentDeep, marginBottom: 8, textTransform: "uppercase",
+                }}>
+                  ↗ {o.cta}
+                </div>
+                <ul style={{
+                  margin: 0, paddingLeft: 14,
+                  display: "flex", flexDirection: "column", gap: 4,
+                  fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5,
+                  listStyle: "disc",
+                }}>
+                  {o.nextFields.map((f) => (<li key={f}>{f}</li>))}
+                </ul>
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -2002,7 +10322,7 @@ function RadioCardGroup({ options, defaultId }: { options: { id: string; title: 
             onClick={() => setSelected(o.id)}
             style={{
               background: "#fff",
-              border: `1.5px solid ${isSelected ? COLORS.ink : COLORS.borderSoft}`,
+              border: `1.5px solid ${isSelected ? COLORS.accent : COLORS.borderSoft}`,
               borderRadius: 10,
               padding: 12,
               cursor: "pointer",
@@ -2018,8 +10338,8 @@ function RadioCardGroup({ options, defaultId }: { options: { id: string; title: 
                 width: 18,
                 height: 18,
                 borderRadius: "50%",
-                border: `1.5px solid ${isSelected ? COLORS.ink : "rgba(11,11,13,0.18)"}`,
-                background: isSelected ? COLORS.ink : "transparent",
+                border: `1.5px solid ${isSelected ? COLORS.accent : "rgba(11,11,13,0.18)"}`,
+                background: isSelected ? COLORS.fill : "transparent",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -2168,6 +10488,9 @@ function InquiryPeekDrawer() {
         </div>
       </Section>
 
+      {/* Trust panel — coordinator sees both sides */}
+      <InquiryTrustPanel clientName={inquiry.client} talentNames={inquiry.talent} />
+
       <Section title="Talent on this inquiry">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {inquiry.talent.map((t) => (
@@ -2205,6 +10528,58 @@ function InquiryPeekDrawer() {
         </div>
       </Section>
     </DrawerShell>
+  );
+}
+
+/**
+ * Two-column trust panel for the inquiry detail drawer. Coordinator-facing
+ * view showing both client trust + talent trust at a glance, so they can
+ * judge risk and priority without leaving the inquiry.
+ */
+function InquiryTrustPanel({ clientName, talentNames }: { clientName: string; talentNames: string[] }) {
+  const { getTrustSummary, getRiskScore } = useProto();
+  const allRoster = [...ROSTER_AGENCY, ...ROSTER_FREE];
+  // Resolve first talent (most inquiries are single-talent for the demo)
+  const talentName = talentNames[0];
+  const talentId = talentName ? allRoster.find(r => r.name === talentName)?.id : undefined;
+  const talentTrust = talentId ? getTrustSummary("talent_profile", talentId) : null;
+  // Client trust — Vogue Italia is the seeded business-verified
+  const clientId = clientName === "Vogue Italia" ? "c1" : `c-${clientName.toLowerCase().replace(/\s+/g, "-")}`;
+  const clientTrust = getTrustSummary("client_profile", clientId);
+  const clientRisk = getRiskScore("client_profile", clientId);
+  const talentRisk = talentId ? getRiskScore("talent_profile", talentId) : null;
+  return (
+    <Section title="Trust state">
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
+        fontFamily: FONTS.body,
+      }}>
+        <div style={{
+          padding: 12, borderRadius: 10,
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 4 }}>Client</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>{clientName}</div>
+          <TrustBadgeGroup trust={clientTrust} surface="coordinator_workspace" size="sm" max={3} />
+          <div style={{ marginTop: 8 }}><RiskScorePill score={clientRisk} label="Score" /></div>
+        </div>
+        <div style={{
+          padding: 12, borderRadius: 10,
+          background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 4 }}>Talent</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>{talentName ?? "—"}</div>
+          {talentTrust ? (
+            <>
+              <TrustBadgeGroup trust={talentTrust} surface="coordinator_workspace" size="sm" max={3} />
+              {talentRisk !== null && <div style={{ marginTop: 8 }}><RiskScorePill score={talentRisk} label="Score" /></div>}
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Not on roster</span>
+          )}
+        </div>
+      </div>
+    </Section>
   );
 }
 
@@ -2265,7 +10640,7 @@ function ConversationBubble({
       <div
         style={{
           flex: 1,
-          background: mine ? COLORS.ink : "#fff",
+          background: mine ? COLORS.fill : "#fff",
           color: mine ? "#fff" : COLORS.ink,
           border: `1px solid ${mine ? "transparent" : COLORS.borderSoft}`,
           borderRadius: 10,
@@ -2314,77 +10689,13 @@ function NewInquiryDrawer() {
       title="New inquiry"
       description="Capture a lead from a client. Send an offer when ready."
       width={560}
-      footer={<StandardFooter onSave={onSave} saveLabel="Save draft" />}
     >
-      <InquiryTemplatesPicker onPick={handlePickTemplate} />
-      <Section title="Client">
-        <FieldRow label="Client name" required>
-          <TextInput
-            placeholder="Vogue Italia"
-            value={client}
-            onChange={(e) => setClient(e.target.value)}
-          />
-        </FieldRow>
-        <FieldRow label="Contact" optional>
-          <TextInput placeholder="Sara Bianchi · sara@vogue.it" />
-        </FieldRow>
-      </Section>
-
-      <Section title="Brief">
-        <FieldRow label="Project type" required>
-          <SelectInput options={["Editorial", "Commercial", "Lookbook", "Runway", "Showroom"]} />
-        </FieldRow>
-        <FieldRow label="Brief" required>
-          <TextArea
-            rows={3}
-            placeholder="Spring editorial spread. Half-day shoot in Madrid. Digital + print, 6 months EU."
-            value={brief}
-            onChange={(e) => setBrief(e.target.value)}
-          />
-        </FieldRow>
-        <FieldRow label="Date" optional>
-          <TextInput
-            placeholder="May 14"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </FieldRow>
-        <FieldRow label="Budget" optional>
-          <TextInput placeholder="€4,200" />
-        </FieldRow>
-      </Section>
-
-      <Section title="Talent" description="Suggest the talent that fits.">
-        {conflictTalent && (
-          <div style={{ marginBottom: 10 }}>
-            <DoubleBookingWarning
-              talentName={conflictTalent}
-              conflictTitle="Mango — Spring lookbook"
-              conflictDates="May 14 · all day"
-            />
-          </div>
-        )}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {roster.slice(0, 5).map((t) => (
-            <button
-              key={t.id}
-              onClick={() => pickTalent(t.name)}
-              style={{
-                background: "#fff",
-                border: `1px solid ${COLORS.borderSoft}`,
-                padding: "6px 12px",
-                borderRadius: 999,
-                fontFamily: FONTS.body,
-                fontSize: 12,
-                color: COLORS.ink,
-                cursor: "pointer",
-              }}
-            >
-              + {t.name}
-            </button>
-          ))}
-        </div>
-      </Section>
+      <InquiryComposerLazyD
+        mode="admin"
+        embedded
+        onCancel={closeDrawer}
+        onSubmit={() => { onSave(); }}
+      />
     </DrawerShell>
   );
 }
@@ -2444,36 +10755,14 @@ function DayDetailDrawer() {
       }
     >
       {dayInquiries.length === 0 ? (
-        <div
-          style={{
-            padding: "32px 16px",
-            textAlign: "center",
-            fontFamily: FONTS.body,
-            fontSize: 13,
-            color: COLORS.inkMuted,
-          }}
-        >
-          Nothing scheduled for this day.
-          <br />
-          <button
-            type="button"
-            onClick={() => openDrawer("new-booking")}
-            style={{
-              marginTop: 12,
-              padding: "8px 16px",
-              background: COLORS.ink,
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Log a booking
-          </button>
-        </div>
+        <EmptyState
+          icon="calendar"
+          title="Nothing scheduled for this day"
+          body="Log a booking or block time using the buttons below."
+          primaryLabel="Log a booking"
+          onPrimary={() => openDrawer("new-booking")}
+          compact
+        />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {dayInquiries.map((inq) => {
@@ -2603,29 +10892,192 @@ function NewBookingDrawer() {
 }
 
 function ClientProfileDrawer() {
-  const { state, closeDrawer } = useProto();
+  const { state, closeDrawer, toast } = useProto();
   const id = state.drawer.payload?.id as string | undefined;
   const isNew = id === "new" || !id;
   const client = isNew ? null : getClients(state.plan).find((c) => c.id === id) ?? null;
   const onSave = useSaveAndClose(isNew ? "Client created" : "Client saved");
   const trust = client?.trust ?? "basic";
+
+  // 2026 redesign — Add Client mirrors Add Talent's hierarchy:
+  // Display name → Industry (the "what kind of client") → Home base
+  // → Engagement method. Each section is hairline, premium, mobile-first.
+  const [name, setName] = useState(client?.name ?? "");
+  const [contact, setContact] = useState(client?.contact ?? "");
+  const [industry, setIndustry] = useState<string | null>(null);
+  const [homeBase, setHomeBase] = useState("");
+  const [method, setMethod] = useState<"direct" | "referral" | "import">("direct");
+  const [notes, setNotes] = useState("");
+
+  // Industry options — the client equivalent of Talent Type. Drives
+  // Discover matching ("hotels need …", "beach clubs need…").
+  const INDUSTRIES = [
+    { id: "hotel",       label: "Hotel",         emoji: "🏨" },
+    { id: "beach_club",  label: "Beach club",    emoji: "🏖" },
+    { id: "restaurant",  label: "Restaurant",    emoji: "🍽" },
+    { id: "brand",       label: "Brand",         emoji: "🏷" },
+    { id: "agency",      label: "Agency",        emoji: "🎬" },
+    { id: "publication", label: "Publication",   emoji: "📰" },
+    { id: "venue",       label: "Venue · event", emoji: "🎉" },
+    { id: "personal",    label: "Personal",      emoji: "✨" },
+  ];
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
-      title={isNew ? "New client" : client?.name ?? "Client"}
-      description={isNew ? "Track a relationship." : `${client?.contact ?? ""} · ${client?.bookingsYTD ?? 0} bookings YTD`}
+      title={isNew ? "Add client" : client?.name ?? "Client"}
+      description={isNew
+        ? "Industry + home base first. Full profile builder opens after this step."
+        : `${client?.contact ?? ""} · ${client?.bookingsYTD ?? 0} bookings YTD`}
       toolbar={!isNew ? <ClientTrustChip level={trust} /> : undefined}
-      footer={<StandardFooter onSave={onSave} saveLabel={isNew ? "Create" : "Save"} />}
+      footer={isNew ? (
+        <>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <PrimaryButton
+            onClick={() => {
+              if (!name.trim() || !industry) {
+                toast("Add at least a name + industry");
+                return;
+              }
+              onSave();
+            }}
+          >
+            Create client
+          </PrimaryButton>
+        </>
+      ) : <StandardFooter onSave={onSave} saveLabel="Save" />}
     >
-      <Section title="Identity">
-        <FieldRow label="Client name">
-          <TextInput defaultValue={client?.name ?? ""} placeholder="Brand or company" />
-        </FieldRow>
-        <FieldRow label="Primary contact">
-          <TextInput defaultValue={client?.contact ?? ""} placeholder="Name · email" />
-        </FieldRow>
-      </Section>
+      {/* New-client guided flow */}
+      {isNew && (
+        <>
+          <Section title="Display name" framed>
+            <FieldRow label="Client / brand name">
+              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Bvlgari · Mango · Martina Beach Club" />
+            </FieldRow>
+            <FieldRow label="Primary contact" optional>
+              <TextInput value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Name · email" />
+            </FieldRow>
+          </Section>
+
+          <Section title="Industry" framed>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
+              Drives Discover matching, brief templates, and which talent gets recommended.
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {INDUSTRIES.map((it) => {
+                const active = industry === it.id;
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => setIndustry(it.id)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 13px",
+                      borderRadius: 999,
+                      border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                      background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                      color: active ? COLORS.accentDeep : COLORS.ink,
+                      fontFamily: FONTS.body,
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span aria-hidden style={{ fontSize: 14 }}>{it.emoji}</span>
+                    {it.label}
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+
+          <Section title="Home base" framed>
+            <FieldRow label="Where do they operate?">
+              <TextInput value={homeBase} onChange={(e) => setHomeBase(e.target.value)} placeholder="e.g. Tulum · Madrid · Global" />
+            </FieldRow>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: -2, lineHeight: 1.5 }}>
+              Multiple regions can be set in the full profile builder.
+            </div>
+          </Section>
+
+          <Section title="How did this client come to you?">
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {([
+                { id: "direct" as const,   title: "Direct inquiry",        desc: "Found you through your storefront or directory." },
+                { id: "referral" as const, title: "Referral / partner",     desc: "Recommended by another agency, talent, or peer." },
+                { id: "import" as const,   title: "Imported relationship",  desc: "Existing client moved over from another tool." },
+              ]).map((o) => {
+                const active = method === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => setMethod(o.id)}
+                    style={{
+                      background: "#fff",
+                      border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                      borderRadius: 10,
+                      padding: 12,
+                      cursor: "pointer",
+                      fontFamily: FONTS.body,
+                      textAlign: "left",
+                      display: "flex",
+                      gap: 10,
+                      transition: `border-color ${TRANSITION.micro}`,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        border: `1.5px solid ${active ? COLORS.accent : "rgba(11,11,13,0.18)"}`,
+                        background: active ? COLORS.fill : "transparent",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                        marginTop: 2,
+                      }}
+                    >
+                      {active && <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{o.title}</div>
+                      <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.5 }}>{o.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+
+          <Section title="Internal notes" framed>
+            <TextArea
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Preferences, do-not-book talent, special pricing — visible to your team only."
+            />
+          </Section>
+        </>
+      )}
+
+      {/* Existing-client edit view (unchanged behavior) */}
+      {!isNew && (
+        <Section title="Identity">
+          <FieldRow label="Client name">
+            <TextInput defaultValue={client?.name ?? ""} placeholder="Brand or company" />
+          </FieldRow>
+          <FieldRow label="Primary contact">
+            <TextInput defaultValue={client?.contact ?? ""} placeholder="Name · email" />
+          </FieldRow>
+        </Section>
+      )}
       {!isNew && (
         <Section
           title="Trust level"
@@ -2723,9 +11175,7 @@ function TodayPulseDrawer() {
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.length === 0 && (
-          <div style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.inkMuted }}>
-            All clear. Nothing waiting.
-          </div>
+          <EmptyState icon="sparkle" title="All clear" body="Nothing needs your attention right now." compact />
         )}
         {items.map((it) => (
           <button
@@ -3201,7 +11651,7 @@ function NotificationsDrawer() {
               onClick={() => setFilter(f.id)}
               style={{
                 padding: "5px 11px",
-                background: active ? COLORS.ink : "rgba(11,11,13,0.04)",
+                background: active ? COLORS.fill : "rgba(11,11,13,0.04)",
                 color: active ? "#fff" : COLORS.ink,
                 border: "none",
                 borderRadius: 999,
@@ -3239,17 +11689,18 @@ function NotificationsDrawer() {
 
 function ActivityFeedDrawer({ kind }: { kind: "team" | "talent" }) {
   const { closeDrawer } = useProto();
-  const teamItems = [
-    { who: "Sara Bianchi", what: "sent an offer to Vogue Italia", when: "1h ago" },
-    { who: "Daniel Ferrer", what: "added Tomás Navarro to the roster", when: "3h ago" },
-    { who: "You", what: "approved Lina Park's profile changes", when: "yesterday" },
-    { who: "Andrés Lopez", what: "joined the team as Editor", when: "yesterday" },
-    { who: "Mira Soto", what: "reviewed the Pages section", when: "2d ago" },
+  type FeedItem = { actor: string; action: string; target: string; timestamp: string; iconName: "mail" | "check" | "user" | "team" | "settings" | "calendar" };
+  const teamItems: FeedItem[] = [
+    { actor: "Sara Bianchi",  action: "sent an offer to",         target: "Vogue Italia",                timestamp: "1h ago",   iconName: "mail"     },
+    { actor: "Daniel Ferrer", action: "added",                    target: "Tomás Navarro to roster",      timestamp: "3h ago",   iconName: "user"     },
+    { actor: "You",           action: "approved",                 target: "Lina Park's profile changes", timestamp: "yesterday", iconName: "check"    },
+    { actor: "Andrés Lopez",  action: "joined the team as",       target: "Editor",                      timestamp: "yesterday", iconName: "team"     },
+    { actor: "Mira Soto",     action: "reviewed",                 target: "Pages section",               timestamp: "2d ago",   iconName: "settings" },
   ];
-  const talentItems = [
-    { who: "Lina Park", what: "submitted profile changes for review", when: "1h ago" },
-    { who: "Kai Lin", what: "accepted booking with Bvlgari", when: "3h ago" },
-    { who: "Marta Reyes", what: "updated her travel availability", when: "yesterday" },
+  const talentItems: FeedItem[] = [
+    { actor: "Lina Park",    action: "submitted",              target: "profile changes for review", timestamp: "1h ago",    iconName: "user"     },
+    { actor: "Kai Lin",      action: "accepted booking with",  target: "Bvlgari",                   timestamp: "3h ago",    iconName: "check"    },
+    { actor: "Marta Reyes",  action: "updated",                target: "travel availability",       timestamp: "yesterday", iconName: "calendar" },
   ];
   const items = kind === "team" ? teamItems : talentItems;
 
@@ -3261,24 +11712,16 @@ function ActivityFeedDrawer({ kind }: { kind: "team" | "talent" }) {
       description={kind === "team" ? "What teammates and clients did recently." : "Updates from talent on your roster."}
       footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", flexDirection: "column" }}>
         {items.map((it, idx) => (
-          <div
-            key={idx}
-            style={{
-              display: "flex",
-              gap: 12,
-              alignItems: "flex-start",
-              padding: "10px 0",
-              borderBottom: idx < items.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
-            }}
-          >
-            <Avatar initials={it.who.split(" ").map(w => w[0]).slice(0, 2).join("")} size={28} />
-            <div style={{ flex: 1, fontFamily: FONTS.body, fontSize: 13 }}>
-              <span style={{ color: COLORS.ink, fontWeight: 600 }}>{it.who}</span>{" "}
-              <span style={{ color: COLORS.inkMuted }}>{it.what}</span>
-              <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 2 }}>{it.when}</div>
-            </div>
+          <div key={idx} style={{ borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
+            <ActivityFeedItem
+              actor={it.actor}
+              action={it.action}
+              target={it.target}
+              timestamp={it.timestamp}
+              iconName={it.iconName}
+            />
           </div>
         ))}
       </div>
@@ -3366,8 +11809,8 @@ function MyActivityDrawer() {
               style={{
                 padding: "4px 10px",
                 borderRadius: 999,
-                border: active ? `1.5px solid ${COLORS.ink}` : `1px solid ${COLORS.border}`,
-                background: active ? COLORS.ink : "transparent",
+                border: active ? `1.5px solid ${COLORS.accent}` : `1px solid ${COLORS.border}`,
+                background: active ? COLORS.fill : "transparent",
                 color: active ? "#fff" : COLORS.inkMuted,
                 fontFamily: FONTS.body,
                 fontSize: 11.5,
@@ -3381,81 +11824,31 @@ function MyActivityDrawer() {
         })}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {filtered.map((action) => (
-          <div
-            key={action.id}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 10,
-              padding: "10px 12px",
-              borderRadius: 10,
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-            }}
-          >
-            {/* Category-tinted icon */}
-            <span
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: CAT_COLOR[action.category],
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                marginTop: 1,
-              }}
-            >
-              <Icon name={action.icon} size={14} color={CAT_FG[action.category]} stroke={1.8} />
-            </span>
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontFamily: FONTS.body,
-                  fontSize: 12.5,
-                  fontWeight: 500,
-                  color: COLORS.ink,
-                  lineHeight: 1.4,
-                }}
-              >
-                {action.label}
-              </div>
-              {action.sub && (
-                <div style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
-                  {action.sub}
-                </div>
-              )}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {filtered.map((action, idx) => {
+          // Map MyAction.icon → ActivityFeedItem iconName (drop "plus" → "bolt")
+          type AFIName = "mail" | "check" | "bolt" | "calendar" | "settings" | "user" | "archive" | "alert";
+          const iconName: AFIName = action.icon === "plus" ? "bolt" : (action.icon as AFIName);
+          return (
+            <div key={action.id} style={{ borderTop: idx > 0 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
+              <ActivityFeedItem
+                iconName={iconName}
+                actor="You"
+                action={action.label}
+                target=""
+                timestamp={action.sub ? `${action.sub} · ${action.ts}` : action.ts}
+              />
             </div>
-
-            <span
-              style={{
-                fontFamily: FONTS.body,
-                fontSize: 10.5,
-                color: COLORS.inkDim,
-                flexShrink: 0,
-                marginTop: 2,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {action.ts}
-            </span>
-          </div>
-        ))}
+          );
+        })}
 
         {filtered.length === 0 && (
-          <div style={{
-            padding: "32px 20px",
-            textAlign: "center",
-            fontFamily: FONTS.body,
-            fontSize: 12.5,
-            color: COLORS.inkMuted,
-          }}>
-            No {category} actions yet.
-          </div>
+          <EmptyState
+            icon="info"
+            title={`No ${category} actions yet`}
+            body="Actions will appear here as the inquiry moves through the pipeline."
+            compact
+          />
         )}
       </div>
     </DrawerShell>
@@ -3780,56 +12173,3063 @@ function SeoDrawer() {
   );
 }
 
+// 2026 redesign — the Field Catalog answers "what fields does the profile
+// already have, and how do I add agency-specific extras?". Three sections:
+//   1. CORE FIELDS — built-in, read-only here. Saves admins from
+//      adding duplicates of fields the profile already captures.
+//   2. TYPE-SPECIFIC FIELDS — auto-rendered in the Profile Shell when a
+//      talent's primary or secondary type matches. Listed grouped by type
+//      so admins know what fields kick in for which roles.
+//   3. CUSTOM FIELDS — agency-defined extras (Agency tier feature) with
+//      a real add/edit/remove flow.
+
+type CustomFieldKind = "Text" | "Number" | "Select" | "Multi-select" | "Date" | "Toggle";
+type CustomFieldAppliesTo = "Talent" | "Client" | "Booking" | "Inquiry";
+
+type CustomField = {
+  id: string;
+  name: string;
+  kind: CustomFieldKind;
+  appliesTo: CustomFieldAppliesTo;
+  required: boolean;
+  helper?: string;
+};
+
 function FieldCatalogDrawer() {
-  const { closeDrawer } = useProto();
-  const fields = [
-    { name: "Height", type: "Text", on: "Talent", required: true },
-    { name: "Eye color", type: "Select", on: "Talent", required: false },
-    { name: "Niches", type: "Multi-select", on: "Talent", required: false },
-    { name: "Brand tier", type: "Select", on: "Client", required: true },
-    { name: "Region", type: "Select", on: "Client", required: false },
+  const { state, closeDrawer, toast, customFields, addCustomField, removeCustomField } = useProto();
+  const isAgency = state.plan === "agency" || state.plan === "network";
+
+  const coreFields: { name: string; section: string; kind: CustomFieldKind }[] = [
+    { name: "Stage / professional name", section: "Identity",   kind: "Text" },
+    { name: "Pronunciation",             section: "Identity",   kind: "Text" },
+    { name: "Tagline",                   section: "Identity",   kind: "Text" },
+    { name: "Primary Talent Type",       section: "Services",   kind: "Select" },
+    { name: "Secondary Talent Types",    section: "Services",   kind: "Multi-select" },
+    { name: "Specialties",               section: "Services",   kind: "Multi-select" },
+    { name: "Home base",                 section: "Location",   kind: "Text" },
+    { name: "Service areas",             section: "Location",   kind: "Multi-select" },
+    { name: "Travel radius",             section: "Location",   kind: "Number" },
+    { name: "Photo gallery",             section: "Media",      kind: "Multi-select" },
+    { name: "Bio (per locale)",          section: "About",      kind: "Text" },
+    { name: "Languages + level",         section: "Languages",  kind: "Multi-select" },
+    { name: "Skills",                    section: "Refinement", kind: "Multi-select" },
+    { name: "Contexts",                  section: "Refinement", kind: "Multi-select" },
   ];
+
+  // customFields / addCustomField / removeCustomField come from proto
+  // context (destructured at the top of this drawer) — Profile Shell
+  // reads the same list so adds here surface in profile editing.
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState<Partial<CustomField>>({
+    kind: "Text", appliesTo: "Talent", required: false,
+  });
+
+  const startAdd = () => {
+    setDraft({ kind: "Text", appliesTo: "Talent", required: false });
+    setAdding(true);
+  };
+  const saveAdd = () => {
+    if (!draft.name?.trim() || !draft.kind || !draft.appliesTo) {
+      toast("Add a name + pick a type");
+      return;
+    }
+    addCustomField({
+      name: draft.name!.trim(),
+      kind: draft.kind as CustomFieldKind,
+      appliesTo: draft.appliesTo as CustomFieldAppliesTo,
+      required: !!draft.required,
+      helper: draft.helper?.trim() || undefined,
+    });
+    setAdding(false);
+    toast(`Added ${draft.name} — appears next time you edit a ${draft.appliesTo}`);
+  };
+  const removeField = (id: string) => {
+    const f = customFields.find((x) => x.id === id);
+    removeCustomField(id);
+    if (f) toast(`Removed ${f.name}`);
+  };
+
+  const coreBySection: Record<string, typeof coreFields> = {};
+  for (const f of coreFields) (coreBySection[f.section] ??= []).push(f);
+
   return (
     <DrawerShell
       open
       onClose={closeDrawer}
       title="Field catalog"
-      description="Custom fields applied across talent and clients."
+      description="What the profile captures, and where to add agency-specific extras."
+      width={640}
       footer={
         <>
           <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
-          <PrimaryButton onClick={closeDrawer}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <Icon name="plus" size={12} stroke={2} />
-              Add field
-            </span>
-          </PrimaryButton>
+          {isAgency && !adding && (
+            <PrimaryButton onClick={startAdd}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icon name="plus" size={12} stroke={2} />
+                Add custom field
+              </span>
+            </PrimaryButton>
+          )}
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {fields.map((f, idx) => (
-          <div
-            key={idx}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 80px 50px",
-              alignItems: "center",
-              gap: 12,
-              padding: 12,
-              background: "#fff",
-              border: `1px solid ${COLORS.borderSoft}`,
-              borderRadius: 8,
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-            }}
-          >
-            <span style={{ fontWeight: 600, color: COLORS.ink }}>{f.name}</span>
-            <span style={{ color: COLORS.inkMuted }}>{f.type}</span>
-            <span style={{ color: COLORS.inkMuted }}>On: {f.on}</span>
-            {f.required && <StateChipMini label="Required" tone="amber" />}
+      {/* Built-in core fields */}
+      <Section title="Built-in profile fields">
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+          Captured automatically by the profile shell. You see these on every talent. No setup.
+        </div>
+        <div style={{ background: "#fff", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden" }}>
+          {Object.entries(coreBySection).map(([section, items], i) => (
+            <div key={section} style={{ borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}` }}>
+              <div style={{
+                padding: "8px 12px", fontFamily: FONTS.body,
+                fontSize: 10.5, fontWeight: 600, letterSpacing: 0.6,
+                textTransform: "uppercase", color: COLORS.inkMuted,
+                background: "rgba(11,11,13,0.02)",
+              }}>{section}</div>
+              {items.map((f) => (
+                <div key={f.name} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "8px 12px",
+                  fontFamily: FONTS.body, fontSize: 12.5,
+                }}>
+                  <span style={{ fontWeight: 500, color: COLORS.ink, flex: 1 }}>{f.name}</span>
+                  <span style={{ fontSize: 10.5, color: COLORS.inkMuted }}>{f.kind}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* Type-specific fields */}
+      <Section title="Type-specific fields">
+        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+          These appear in the profile's "Profile details" section automatically when the talent's primary or secondary type matches. Maintained by Tulala so the same field means the same thing across the network.
+        </div>
+        <div style={{ background: "#fff", borderRadius: 12, border: `1px solid ${COLORS.borderSoft}`, overflow: "hidden" }}>
+          {TAXONOMY.filter((p) => (TAXONOMY_FIELDS[p.id] ?? []).length > 0).map((parent, i) => {
+            const fields = TAXONOMY_FIELDS[parent.id] ?? [];
+            return (
+              <div key={parent.id} style={{ borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}` }}>
+                <div style={{
+                  padding: "8px 12px", display: "flex", alignItems: "center", gap: 8,
+                  background: "rgba(11,11,13,0.02)",
+                }}>
+                  <span style={{ fontSize: 14 }}>{parent.emoji}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.inkMuted }}>
+                    {parent.label}
+                  </span>
+                  <span style={{ fontSize: 10.5, color: COLORS.inkDim, marginLeft: "auto" }}>
+                    {fields.length} field{fields.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5, padding: "8px 12px" }}>
+                  {fields.map((f) => (
+                    <span key={f.id} style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      padding: "4px 9px", borderRadius: 999,
+                      background: "rgba(11,11,13,0.05)",
+                      fontFamily: FONTS.body, fontSize: 11, fontWeight: 500, color: COLORS.ink,
+                    }}>
+                      {f.label}
+                      {!f.optional && <span style={{ fontSize: 9, color: COLORS.amberDeep, marginLeft: 1 }}>★</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 6 }}>
+          ★ = required for that Talent Type to publish. Network-wide schema; not editable.
+        </div>
+      </Section>
+
+      {/* Custom workspace fields */}
+      <Section title="Custom workspace fields">
+        {!isAgency ? (
+          <div style={{
+            padding: 14, borderRadius: 10,
+            background: "rgba(184,135,49,0.10)",
+            border: "1px solid rgba(184,135,49,0.20)",
+            fontFamily: FONTS.body,
+          }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "2px 8px", borderRadius: 999,
+              background: "#fff", color: "#7A5A1F",
+              fontSize: 10, fontWeight: 700, marginBottom: 8,
+              textTransform: "uppercase", letterSpacing: 0.5,
+            }}>
+              <span aria-hidden style={{ fontSize: 10 }}>🔒</span> Agency
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.ink, fontWeight: 600, marginBottom: 4 }}>
+              Custom fields are an Agency-tier feature
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+              Add fields specific to how your agency books — contract terms, insurance numbers, internal niches, regional flags. Each becomes a column in CSV exports + a row in talent profiles.
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+              Add agency-specific fields. They render in the profile shell's "Profile details" section, alongside the type-specific fields. Visible to your team only.
+            </div>
+            {customFields.length === 0 && !adding && (
+              <div style={{
+                padding: "20px 14px", textAlign: "center",
+                background: COLORS.surface, borderRadius: 10,
+                border: `1px dashed ${COLORS.borderSoft}`,
+                fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted,
+              }}>
+                No custom fields yet. Tap <strong>Add custom field</strong> below to start.
+              </div>
+            )}
+
+            {customFields.length > 0 && (
+              <div style={{
+                background: "#fff", borderRadius: 12,
+                border: `1px solid ${COLORS.borderSoft}`,
+                overflow: "hidden", marginBottom: adding ? 12 : 0,
+              }}>
+                {customFields.map((f, i) => (
+                  <div key={f.id} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "10px 12px",
+                    borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                    fontFamily: FONTS.body,
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                        {f.name}
+                        {f.required && (
+                          <span style={{
+                            marginLeft: 6, fontSize: 9, fontWeight: 700,
+                            color: COLORS.amberDeep, padding: "1px 6px",
+                            borderRadius: 999, background: COLORS.amberSoft,
+                          }}>REQUIRED</span>
+                        )}
+                      </div>
+                      {f.helper && (
+                        <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{f.helper}</div>
+                      )}
+                      <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 3 }}>
+                        {f.kind} · on {f.appliesTo}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => removeField(f.id)} aria-label="Remove" style={{
+                      background: "transparent", border: "none", cursor: "pointer",
+                      color: COLORS.inkMuted, fontSize: 16, lineHeight: 1,
+                      padding: 4, fontWeight: 600,
+                    }}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {adding && (
+              <div style={{
+                background: "#fff", borderRadius: 12,
+                border: `1.5px solid ${COLORS.accent}`,
+                padding: 14, fontFamily: FONTS.body,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accentDeep, marginBottom: 10 }}>
+                  New custom field
+                </div>
+                <FieldRow label="Field name">
+                  <TextInput
+                    placeholder="e.g. Insurance number · Contract date · Niche"
+                    value={draft.name ?? ""}
+                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                  />
+                </FieldRow>
+                <FieldRow label="Helper text" optional hint="Shown next to the field while editing.">
+                  <TextInput
+                    placeholder="What format / what values"
+                    value={draft.helper ?? ""}
+                    onChange={(e) => setDraft({ ...draft, helper: e.target.value })}
+                  />
+                </FieldRow>
+                <FieldRow label="Field type">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                    {(["Text", "Number", "Select", "Multi-select", "Date", "Toggle"] as CustomFieldKind[]).map((k) => {
+                      const active = draft.kind === k;
+                      return (
+                        <button key={k} type="button" onClick={() => setDraft({ ...draft, kind: k })} style={{
+                          padding: "6px 11px", borderRadius: 999,
+                          border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                          background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                          color: active ? COLORS.accentDeep : COLORS.ink,
+                          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
+                        }}>{k}</button>
+                      );
+                    })}
+                  </div>
+                </FieldRow>
+                <FieldRow label="Applies to">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                    {(["Talent", "Client", "Booking", "Inquiry"] as CustomFieldAppliesTo[]).map((a) => {
+                      const active = draft.appliesTo === a;
+                      return (
+                        <button key={a} type="button" onClick={() => setDraft({ ...draft, appliesTo: a })} style={{
+                          padding: "6px 11px", borderRadius: 999,
+                          border: `1.5px solid ${active ? COLORS.accent : COLORS.borderSoft}`,
+                          background: active ? "rgba(15,79,62,0.08)" : "#fff",
+                          color: active ? COLORS.accentDeep : COLORS.ink,
+                          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
+                        }}>{a}</button>
+                      );
+                    })}
+                  </div>
+                </FieldRow>
+                <FieldRow label="Required" optional>
+                  <button type="button" onClick={() => setDraft({ ...draft, required: !draft.required })}
+                    aria-pressed={!!draft.required}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 8,
+                      padding: 0, background: "transparent", border: "none", cursor: "pointer",
+                      fontFamily: FONTS.body,
+                    }}>
+                    <span style={{
+                      width: 36, height: 22, borderRadius: 999,
+                      background: draft.required ? COLORS.accent : "rgba(11,11,13,0.12)",
+                      position: "relative", flexShrink: 0,
+                    }}>
+                      <span style={{
+                        position: "absolute", top: 2, left: draft.required ? 16 : 2,
+                        width: 18, height: 18, borderRadius: "50%",
+                        background: "#fff", transition: "left 0.15s",
+                      }} />
+                    </span>
+                    <span style={{ fontSize: 12.5, color: COLORS.ink }}>
+                      {draft.required ? "Required to publish" : "Optional"}
+                    </span>
+                  </button>
+                </FieldRow>
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+                  <button type="button" onClick={() => setAdding(false)} style={{
+                    padding: "8px 14px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                    background: "transparent", color: COLORS.ink,
+                    fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                  }}>Cancel</button>
+                  <button type="button" onClick={saveAdd} style={{
+                    padding: "8px 14px", borderRadius: 999, border: "none",
+                    background: COLORS.fill, color: "#fff",
+                    fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                  }}>Add field</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </Section>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Field Privacy — what's public on your storefront, what admins see,
+// what's hidden entirely. Per-workspace overrides on built-in fields,
+// plus visibility toggles for custom fields. Plan-tier gated.
+// ════════════════════════════════════════════════════════════════════
+
+function FieldPrivacyDrawer() {
+  const {
+    state, closeDrawer, openDrawer, toast,
+    customFields, setCustomFieldVisibility,
+    setFieldVisibility, effectiveFieldVisibility,
+  } = useProto();
+  const rules = FIELD_PRIVACY_PLAN_RULES[state.plan as "free" | "studio" | "agency" | "network"]
+    ?? FIELD_PRIVACY_PLAN_RULES.free;
+  const isAgency = state.plan === "agency" || state.plan === "network";
+
+  // Group built-in fields by section.
+  const fieldsBySection: Record<string, ProfileFieldId[]> = {};
+  for (const id of Object.keys(PROFILE_FIELD_META) as ProfileFieldId[]) {
+    const sec = PROFILE_FIELD_META[id].section;
+    (fieldsBySection[sec] ??= []).push(id);
+  }
+  const sectionOrder = ["Identity", "Services", "Location", "Media", "About", "Languages", "Refinement", "Physical", "Contact", "Money", "Compliance", "Engagement", "Files"];
+
+  const setBuiltIn = (id: ProfileFieldId, vis: FieldVisibility) => {
+    if (!rules.canFlipPublicInternal && vis !== DEFAULT_FIELD_VISIBILITY[id]) {
+      toast("Studio plan to change field visibility");
+      return;
+    }
+    if (vis === "hidden" && !rules.canHide) {
+      toast("Agency plan to hide fields entirely");
+      return;
+    }
+    setFieldVisibility(id, vis);
+  };
+
+  // Counts for the summary strip
+  const allBuiltIn = Object.keys(PROFILE_FIELD_META) as ProfileFieldId[];
+  const counts = {
+    public:   allBuiltIn.filter(id => effectiveFieldVisibility(id) === "public").length,
+    internal: allBuiltIn.filter(id => effectiveFieldVisibility(id) === "internal").length,
+    hidden:   allBuiltIn.filter(id => effectiveFieldVisibility(id) === "hidden").length,
+  };
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title="Field privacy"
+      description="What's public on your storefront, what admins can see, and what's hidden. Talent sees this list before they sign up."
+      width={680}
+      footer={
+        <>
+          <SecondaryButton onClick={() => openDrawer("field-catalog")}>Field catalog</SecondaryButton>
+          <PrimaryButton onClick={() => { toast("Privacy settings saved"); closeDrawer(); }}>Done</PrimaryButton>
+        </>
+      }
+    >
+      {/* Summary strip — shows what your storefront currently exposes */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 0,
+        background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 12, overflow: "hidden", marginBottom: 16,
+        fontFamily: FONTS.body,
+      }}>
+        <FieldPrivacyCount label="On storefront" count={counts.public}
+          icon="🌐" tone={COLORS.successDeep} bg={COLORS.successSoft} />
+        <FieldPrivacyCount label="Admin-only" count={counts.internal}
+          icon="🔒" tone={COLORS.amberDeep} bg={COLORS.amberSoft} borderLeft />
+        <FieldPrivacyCount label="Hidden" count={counts.hidden}
+          icon="–" tone={COLORS.inkMuted} bg="rgba(11,11,13,0.04)" borderLeft />
+      </div>
+
+      {/* Plan-tier hint */}
+      {!rules.canFlipPublicInternal && (
+        <div style={{
+          padding: "12px 14px", borderRadius: 10,
+          background: "rgba(91,107,160,0.10)",
+          border: "1px solid rgba(91,107,160,0.18)",
+          fontFamily: FONTS.body, fontSize: 12.5, color: "#3B4A75",
+          marginBottom: 16, lineHeight: 1.5,
+        }}>
+          <strong>Free plan defaults are locked.</strong> Upgrade to Studio to flip fields between public and admin-only. Agency tier unlocks hiding fields entirely + custom field creation.
+          <button type="button" onClick={() => openDrawer("plan-billing")} style={{
+            marginLeft: 8, padding: "4px 10px", borderRadius: 999,
+            background: "#3B4A75", color: "#fff", border: "none",
+            fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, cursor: "pointer",
+          }}>Compare plans</button>
+        </div>
+      )}
+
+      {/* Built-in fields grouped by section */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {sectionOrder.filter(s => fieldsBySection[s]?.length > 0).map((section) => (
+          <div key={section}>
+            <div style={{
+              fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
+              color: COLORS.inkMuted, textTransform: "uppercase",
+              marginBottom: 6, paddingLeft: 4,
+            }}>{section}</div>
+            <div style={{
+              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12, overflow: "hidden",
+            }}>
+              {fieldsBySection[section]!.map((fieldId, i) => (
+                <FieldPrivacyRow
+                  key={fieldId}
+                  isFirst={i === 0}
+                  label={PROFILE_FIELD_META[fieldId].label}
+                  description={PROFILE_FIELD_META[fieldId].description}
+                  defaultVis={DEFAULT_FIELD_VISIBILITY[fieldId]}
+                  current={effectiveFieldVisibility(fieldId)}
+                  onChange={(v) => setBuiltIn(fieldId, v)}
+                  canFlip={rules.canFlipPublicInternal}
+                  canHide={rules.canHide}
+                />
+              ))}
+            </div>
           </div>
         ))}
+
+        {/* Custom workspace fields */}
+        {customFields.length > 0 && (
+          <div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
+              color: COLORS.inkMuted, textTransform: "uppercase",
+              marginBottom: 6, paddingLeft: 4,
+            }}>
+              ✦ Custom fields
+              <span style={{
+                fontSize: 9, padding: "1px 7px", borderRadius: 999,
+                background: "rgba(184,135,49,0.14)", color: "#7A5A1F",
+                letterSpacing: 0.5,
+              }}>AGENCY</span>
+            </div>
+            <div style={{
+              background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+              borderRadius: 12, overflow: "hidden",
+            }}>
+              {customFields.map((cf, i) => (
+                <FieldPrivacyRow
+                  key={cf.id}
+                  isFirst={i === 0}
+                  label={cf.name}
+                  description={`${cf.kind} · on ${cf.appliesTo}` + (cf.helper ? ` · ${cf.helper}` : "")}
+                  defaultVis="internal"
+                  current={cf.visibility ?? "internal"}
+                  onChange={(v) => setCustomFieldVisibility(cf.id, v)}
+                  canFlip={isAgency}
+                  canHide={isAgency}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button type="button" onClick={() => openDrawer("field-catalog")} style={{
+          alignSelf: "flex-start", padding: "8px 14px", borderRadius: 999,
+          background: "transparent", border: `1px dashed ${COLORS.border}`,
+          color: COLORS.inkMuted,
+          fontFamily: FONTS.body, fontSize: 12, fontWeight: 500, cursor: "pointer",
+        }}>+ Manage custom fields</button>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function FieldPrivacyCount({
+  label, count, icon, tone, bg, borderLeft,
+}: { label: string; count: number; icon: string; tone: string; bg: string; borderLeft?: boolean }) {
+  return (
+    <div style={{
+      padding: "12px 14px",
+      borderLeft: borderLeft ? `1px solid ${COLORS.borderSoft}` : "none",
+      background: bg,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 6,
+        fontSize: 11, fontWeight: 600, color: tone, marginBottom: 4,
+      }}>
+        <span>{icon}</span>
+        {label}
+      </div>
+      <div style={{
+        fontFamily: FONTS.display, fontSize: 22, fontWeight: 500,
+        color: tone, letterSpacing: -0.4, lineHeight: 1,
+      }}>{count}</div>
+    </div>
+  );
+}
+
+function FieldPrivacyRow({
+  isFirst, label, description, defaultVis, current, onChange, canFlip, canHide,
+}: {
+  isFirst: boolean;
+  label: string;
+  description?: string;
+  defaultVis: FieldVisibility;
+  current: FieldVisibility;
+  onChange: (v: FieldVisibility) => void;
+  canFlip: boolean;
+  canHide: boolean;
+}) {
+  const isOverridden = current !== defaultVis;
+  const options: { id: FieldVisibility; label: string; emoji: string; tone: string; bg: string; available: boolean }[] = [
+    { id: "public",   label: "Public",   emoji: "🌐", tone: COLORS.successDeep, bg: COLORS.successSoft, available: canFlip || defaultVis === "public" },
+    { id: "internal", label: "Admin",    emoji: "🔒", tone: COLORS.amberDeep,   bg: COLORS.amberSoft,   available: canFlip || defaultVis === "internal" },
+    { id: "hidden",   label: "Off",      emoji: "–",  tone: COLORS.inkMuted,    bg: "rgba(11,11,13,0.06)", available: canHide || defaultVis === "hidden" },
+  ];
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12,
+      padding: "10px 14px",
+      borderTop: isFirst ? "none" : `1px solid ${COLORS.borderSoft}`,
+      fontFamily: FONTS.body,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{label}</span>
+          {isOverridden && (
+            <span style={{
+              fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 999,
+              background: COLORS.indigoSoft, color: COLORS.indigoDeep,
+              letterSpacing: 0.4, textTransform: "uppercase",
+            }}>changed</span>
+          )}
+        </div>
+        {description && (
+          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2, lineHeight: 1.4 }}>{description}</div>
+        )}
+      </div>
+      <div style={{ display: "inline-flex", padding: 2, borderRadius: 999, background: "rgba(11,11,13,0.04)" }}>
+        {options.map((o) => {
+          const active = current === o.id;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => o.available && onChange(o.id)}
+              disabled={!o.available}
+              title={!o.available ? `Upgrade plan to use "${o.label}"` : `${o.label}: ${o.id === "public" ? "shows on storefront" : o.id === "internal" ? "admins only" : "off entirely"}`}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "5px 11px", borderRadius: 999, border: "none",
+                background: active ? o.bg : "transparent",
+                color: active ? o.tone : (o.available ? COLORS.inkMuted : COLORS.inkDim),
+                fontSize: 11, fontWeight: 600, cursor: o.available ? "pointer" : "not-allowed",
+                opacity: o.available ? 1 : 0.5,
+                fontFamily: FONTS.body,
+              }}
+            >
+              <span aria-hidden style={{ fontSize: 11 }}>{o.emoji}</span>
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Trust & Verification Queue — admin review surface for verification
+// requests. Tabs by status, drawer-based detail with approve/reject/info.
+// ════════════════════════════════════════════════════════════════════
+
+const VR_STATUS_META: Record<VerificationRequestStatus, { label: string; tone: "amber" | "green" | "dim" }> = {
+  draft:               { label: "Draft",            tone: "dim" },
+  pending_user_action: { label: "Pending user",     tone: "amber" },
+  submitted:           { label: "Submitted",        tone: "amber" },
+  in_review:           { label: "In review",        tone: "amber" },
+  approved:            { label: "Approved",         tone: "green" },
+  rejected:            { label: "Rejected",         tone: "amber" },
+  expired:             { label: "Expired",          tone: "dim" },
+  cancelled:           { label: "Cancelled",        tone: "dim" },
+  needs_more_info:     { label: "Needs more info",  tone: "amber" },
+};
+
+// Activity log — timeline derived from a request's lifecycle fields.
+// We don't store full event history yet; instead we synthesize the
+// likely sequence from createdAt/updatedAt/reviewedAt + current status.
+// Compact risk-score row for admin detail panels — pulls live from
+// getRiskScore. Admin-only — never shown publicly.
+function SubjectRiskScoreRow({ subjectType, subjectId }: { subjectType: VerificationRequest["subjectType"]; subjectId: string }) {
+  const { getRiskScore } = useProto();
+  const score = getRiskScore(subjectType, subjectId);
+  return (
+    <div style={{ marginTop: 14, marginBottom: 4, fontFamily: FONTS.body }}>
+      <RiskScorePill score={score} />
+    </div>
+  );
+}
+
+function ActivityLogPanel({ request }: { request: VerificationRequest }) {
+  type Event = { label: string; ts?: string | null; tone: "ink" | "amber" | "green" | "red" | "dim" };
+  const events: Event[] = [];
+
+  events.push({ label: "Request created", ts: request.createdAt, tone: "ink" });
+
+  if (request.status === "pending_user_action") {
+    events.push({ label: "Awaiting talent action", ts: null, tone: "amber" });
+  }
+  if (request.status === "submitted" || request.status === "in_review"
+      || request.status === "approved" || request.status === "rejected"
+      || request.status === "needs_more_info") {
+    events.push({ label: "Submitted by talent", ts: request.updatedAt, tone: "ink" });
+  }
+  if (request.status === "in_review") {
+    events.push({ label: "Marked in review by admin", ts: request.updatedAt, tone: "amber" });
+  }
+  if (request.status === "needs_more_info") {
+    events.push({ label: "Admin requested more info", ts: request.updatedAt, tone: "amber" });
+  }
+  if (request.status === "approved") {
+    events.push({ label: "Approved by Tulala admin", ts: request.reviewedAt ?? request.updatedAt, tone: "green" });
+    events.push({ label: "Verification badge issued", ts: request.reviewedAt ?? request.updatedAt, tone: "green" });
+  }
+  if (request.status === "rejected") {
+    events.push({ label: "Rejected by Tulala admin", ts: request.reviewedAt ?? request.updatedAt, tone: "red" });
+  }
+  if (request.status === "expired") {
+    events.push({ label: "Request expired (72h window)", ts: request.updatedAt, tone: "dim" });
+  }
+  if (request.status === "cancelled") {
+    events.push({ label: "Cancelled by talent", ts: request.updatedAt, tone: "dim" });
+  }
+
+  const fmt = (iso?: string | null) => {
+    if (!iso) return "—";
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  };
+  const dotColor = (tone: Event["tone"]) => {
+    if (tone === "green") return COLORS.successDeep;
+    if (tone === "amber") return COLORS.amberDeep;
+    if (tone === "red")   return COLORS.red;
+    if (tone === "dim")   return COLORS.inkDim;
+    return COLORS.ink;
+  };
+
+  return (
+    <div style={{
+      marginTop: 16, padding: "12px 14px",
+      borderRadius: 12, background: COLORS.surface,
+      border: `1px solid ${COLORS.borderSoft}`,
+    }}>
+      <div style={{
+        fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+        color: COLORS.inkDim, marginBottom: 10,
+      }}>Activity</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {events.map((ev, i) => {
+          const last = i === events.length - 1;
+          return (
+            <div key={i} style={{ display: "flex", gap: 10, alignItems: "stretch" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 12, flexShrink: 0 }}>
+                <div style={{
+                  width: 9, height: 9, borderRadius: "50%",
+                  background: dotColor(ev.tone),
+                  marginTop: 4, flexShrink: 0,
+                  boxShadow: `0 0 0 2px #fff`,
+                }} />
+                {!last && (
+                  <div style={{ flex: 1, width: 1, background: COLORS.borderSoft, marginTop: 2, marginBottom: 2 }} />
+                )}
+              </div>
+              <div style={{ flex: 1, paddingBottom: last ? 0 : 12 }}>
+                <div style={{ fontSize: 12.5, color: COLORS.ink, fontWeight: 500, lineHeight: 1.3 }}>
+                  {ev.label}
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 2 }}>
+                  {ev.ts ? fmt(ev.ts) : "—"}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function TrustVerificationQueueDrawer() {
+  const { closeDrawer, verificationRequests, approveVerificationRequest, rejectVerificationRequest, updateVerificationRequest, toast, isVerificationMethodEnabled } = useProto();
+  type Tab = "all" | "submitted" | "in_review" | "needs_more_info" | "approved" | "rejected";
+  const [activeTab, setActiveTab] = useState<Tab>("submitted");
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [rejectReasonModal, setRejectReasonModal] = useState<{ id: string; talent: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [search, setSearch] = useState("");
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [methodFilter, setMethodFilter] = useState<VerificationType | "all">("all");
+
+  const allRoster = useMemo(() => [...ROSTER_AGENCY, ...ROSTER_FREE], []);
+  const talentNameForId = (id: string) => allRoster.find(t => t.id === id)?.name ?? id;
+
+  const q = search.trim().toLowerCase();
+  const filtered = verificationRequests.filter(r => {
+    if (activeTab === "all") {
+      // skip nothing on All tab
+    } else if (activeTab === "submitted") {
+      if (r.status !== "submitted" && r.status !== "pending_user_action") return false;
+    } else if (r.status !== activeTab) {
+      return false;
+    }
+    if (methodFilter !== "all" && r.verificationType !== methodFilter) return false;
+    if (!q) return true;
+    return talentNameForId(r.subjectId).toLowerCase().includes(q)
+      || (r.claimedIdentifier ?? "").toLowerCase().includes(q)
+      || (r.verificationCode ?? "").toLowerCase().includes(q)
+      || r.verificationType.includes(q)
+      || r.method.includes(q);
+  }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+  const cur = activeId ? verificationRequests.find(r => r.id === activeId) ?? null : (filtered[0] ?? null);
+  const tabs: { id: Tab; label: string; count: number }[] = [
+    { id: "submitted",       label: "Pending",     count: verificationRequests.filter(r => r.status === "submitted" || r.status === "pending_user_action").length },
+    { id: "in_review",       label: "In review",   count: verificationRequests.filter(r => r.status === "in_review").length },
+    { id: "needs_more_info", label: "Needs info",  count: verificationRequests.filter(r => r.status === "needs_more_info").length },
+    { id: "approved",        label: "Approved",    count: verificationRequests.filter(r => r.status === "approved").length },
+    { id: "rejected",        label: "Rejected",    count: verificationRequests.filter(r => r.status === "rejected").length },
+    { id: "all",             label: "All",         count: verificationRequests.length },
+  ];
+
+  const talentNameFor = (id: string) => talentNameForId(id);
+
+  const onApprove = (req: VerificationRequest) => {
+    approveVerificationRequest(req.id);
+    toast(`Approved ${VERIFICATION_TYPE_META[req.verificationType].label} for ${talentNameFor(req.subjectId)}`);
+  };
+  const onMarkInReview = (req: VerificationRequest) => {
+    updateVerificationRequest(req.id, { status: "in_review" });
+    toast(`Marked in review`);
+  };
+  const onRequestMoreInfo = (req: VerificationRequest) => {
+    const msg = window.prompt("What does the talent need to add or fix?");
+    if (!msg) return;
+    updateVerificationRequest(req.id, { status: "needs_more_info", publicMessage: msg });
+    toast(`Asked ${talentNameFor(req.subjectId)} for more info`);
+  };
+  const startReject = (req: VerificationRequest) => {
+    setRejectReason("");
+    setRejectModalOpen(true);
+    setRejectReasonModal({ id: req.id, talent: talentNameFor(req.subjectId) });
+  };
+  const [, setRejectModalOpen] = useState(false);
+  const confirmReject = () => {
+    if (!rejectReasonModal || !rejectReason.trim()) {
+      toast("Add a reason — talent will see it");
+      return;
+    }
+    rejectVerificationRequest(rejectReasonModal.id, rejectReason, rejectReason);
+    toast(`Rejected — reason sent to ${rejectReasonModal.talent}`);
+    setRejectReasonModal(null);
+    setRejectReason("");
+  };
+
+  return (
+    <>
+      <DrawerShell
+        open
+        onClose={closeDrawer}
+        title="Trust & Verification queue"
+        description={`${verificationRequests.length} total requests · ${tabs[0].count} need your review`}
+        width={760}
+        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      >
+        {/* Tabs */}
+        <div style={{
+          display: "flex", gap: 4, padding: 4,
+          background: "rgba(11,11,13,0.04)", borderRadius: 999,
+          marginBottom: 14, overflowX: "auto", scrollbarWidth: "none",
+        }}>
+          {tabs.map(t => {
+            const active = activeTab === t.id;
+            return (
+              <button key={t.id} type="button" onClick={() => { setActiveTab(t.id); setActiveId(null); }} style={{
+                flexShrink: 0,
+                padding: "6px 12px", borderRadius: 999, border: "none",
+                background: active ? "#fff" : "transparent",
+                color: active ? COLORS.ink : COLORS.inkMuted,
+                fontFamily: FONTS.body, fontSize: 12, fontWeight: active ? 600 : 500,
+                cursor: "pointer",
+                boxShadow: active ? "0 1px 2px rgba(11,11,13,0.06)" : "none",
+                display: "inline-flex", alignItems: "center", gap: 5,
+              }}>
+                {t.label}
+                {t.count > 0 && (
+                  <span style={{
+                    fontSize: 10, padding: "1px 6px", borderRadius: 999,
+                    background: active ? "rgba(11,11,13,0.06)" : "rgba(11,11,13,0.08)",
+                    color: COLORS.inkMuted, fontWeight: 700,
+                  }}>{t.count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Toolbar: search + bulk actions */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+            <span aria-hidden style={{
+              position: "absolute", top: "50%", left: 12, transform: "translateY(-50%)",
+              color: COLORS.inkMuted, fontSize: 13, pointerEvents: "none",
+            }}>⌕</span>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, IG handle, code, type…"
+              style={{
+                width: "100%", boxSizing: "border-box",
+                padding: "8px 30px 8px 32px", borderRadius: 999,
+                border: `1px solid ${COLORS.borderSoft}`,
+                fontFamily: FONTS.body, fontSize: 12.5,
+                color: COLORS.ink, outline: "none", background: "#fff",
+              }}
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch("")} aria-label="Clear" style={{
+                position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)",
+                width: 22, height: 22, borderRadius: "50%", border: "none",
+                background: "rgba(11,11,13,0.06)", color: COLORS.inkMuted,
+                fontSize: 12, lineHeight: 1, cursor: "pointer",
+              }}>×</button>
+            )}
+          </div>
+          <select value={methodFilter} onChange={(e) => setMethodFilter(e.target.value as VerificationType | "all")} style={{
+            padding: "7px 10px", borderRadius: 999, border: `1px solid ${COLORS.borderSoft}`,
+            background: "#fff", color: COLORS.ink, fontFamily: FONTS.body, fontSize: 12,
+            cursor: "pointer",
+          }}>
+            <option value="all">All methods</option>
+            {(["instagram_verified","tulala_verified","agency_confirmed","phone_verified","id_verified","business_verified","domain_verified","payment_verified"] as const)
+              .filter(t => isVerificationMethodEnabled(t))
+              .map(t => (
+                <option key={t} value={t}>{VERIFICATION_TYPE_META[t].label}</option>
+              ))}
+          </select>
+          {bulkSelected.size > 0 && (
+            <>
+              <span style={{ fontSize: 11.5, color: COLORS.inkMuted, fontWeight: 500 }}>
+                {bulkSelected.size} selected
+              </span>
+              <button type="button" onClick={() => {
+                bulkSelected.forEach((id) => approveVerificationRequest(id));
+                toast(`Approved ${bulkSelected.size} requests`);
+                setBulkSelected(new Set());
+              }} style={{
+                padding: "5px 11px", borderRadius: 999, border: "none",
+                background: COLORS.accent, color: "#fff",
+                fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+              }}>Approve all</button>
+              <button type="button" onClick={() => setBulkSelected(new Set())} style={{
+                padding: "5px 11px", borderRadius: 999,
+                background: "transparent", color: COLORS.inkMuted,
+                border: `1px solid ${COLORS.borderSoft}`,
+                fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+              }}>Clear</button>
+            </>
+          )}
+        </div>
+
+        {/* Two-pane on desktop, stacked on mobile */}
+        <div data-tulala-tvq-body style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 14, minHeight: 400 }}>
+          <style>{`
+            @media (max-width: 760px) {
+              [data-tulala-tvq-body] { grid-template-columns: 1fr !important; }
+            }
+          `}</style>
+          {/* List */}
+          <div style={{
+            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12, overflow: "hidden",
+            display: "flex", flexDirection: "column",
+          }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: 24, textAlign: "center", fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted }}>
+                Nothing here.
+              </div>
+            ) : filtered.map((r, i) => {
+              const isActive = (cur?.id) === r.id;
+              const meta = VR_STATUS_META[r.status];
+              const typeMeta = VERIFICATION_TYPE_META[r.verificationType];
+              const isApprovable = r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info";
+              const isSelected = bulkSelected.has(r.id);
+              return (
+                <div key={r.id} style={{
+                  padding: "10px 12px",
+                  background: isActive ? "rgba(15,79,62,0.04)" : "#fff",
+                  borderTop: i === 0 ? "none" : `1px solid ${COLORS.borderSoft}`,
+                  borderLeft: isActive ? `3px solid ${COLORS.accent}` : "3px solid transparent",
+                  fontFamily: FONTS.body,
+                  display: "flex", gap: 8, alignItems: "flex-start",
+                }}>
+                  {isApprovable && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBulkSelected((s) => {
+                          const next = new Set(s);
+                          if (next.has(r.id)) next.delete(r.id); else next.add(r.id);
+                          return next;
+                        });
+                      }}
+                      aria-label={isSelected ? "Deselect" : "Select for bulk"}
+                      style={{
+                        width: 16, height: 16, borderRadius: 4, marginTop: 2,
+                        border: `1.5px solid ${isSelected ? COLORS.accent : COLORS.borderSoft}`,
+                        background: isSelected ? COLORS.accent : "#fff",
+                        cursor: "pointer", padding: 0, flexShrink: 0,
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                      {isSelected && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setActiveId(r.id)} style={{
+                    flex: 1, minWidth: 0,
+                    padding: 0, background: "transparent", border: "none",
+                    cursor: "pointer", textAlign: "left",
+                    fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 4,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {talentNameFor(r.subjectId)}
+                      </span>
+                      <StateChipMini label={meta.label} tone={meta.tone} />
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span>{typeMeta.emoji} {typeMeta.shortLabel}</span>
+                      {r.claimedIdentifier && <span style={{ color: COLORS.inkDim }}>· {r.claimedIdentifier}</span>}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: COLORS.inkDim }}>
+                      {new Date(r.createdAt).toLocaleDateString()} · code {r.verificationCode ?? "—"}
+                    </div>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Detail */}
+          <div style={{
+            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+            borderRadius: 12, padding: 16,
+            fontFamily: FONTS.body,
+          }}>
+            {!cur ? (
+              <div style={{ color: COLORS.inkMuted, fontSize: 12 }}>Select a request to review.</div>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>
+                    {talentNameFor(cur.subjectId)}
+                  </span>
+                  <StateChipMini label={VR_STATUS_META[cur.status].label} tone={VR_STATUS_META[cur.status].tone} />
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 16 }}>
+                  {VERIFICATION_TYPE_META[cur.verificationType].emoji} {VERIFICATION_TYPE_META[cur.verificationType].label}
+                  {" · "}via {cur.method.replace(/_/g, " ")}
+                </div>
+
+                {/* Profile preview */}
+                {cur.method === "instagram_dm" && (
+                  <div style={{
+                    padding: "12px 14px", borderRadius: 10,
+                    background: COLORS.surface,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    marginBottom: 14, fontFamily: FONTS.body,
+                  }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, marginBottom: 6, textTransform: "uppercase" }}>
+                      What talent was instructed to do
+                    </div>
+                    <div style={{ fontSize: 12, color: COLORS.ink, lineHeight: 1.5 }}>
+                      Send a DM from <strong>{cur.claimedIdentifier ?? "(handle)"}</strong> to <strong>@tulala.digital</strong> with this code:
+                    </div>
+                    <div style={{
+                      marginTop: 8, padding: "8px 12px",
+                      background: "#fff", borderRadius: 8,
+                      border: `1px solid ${COLORS.borderSoft}`,
+                      fontFamily: FONTS.mono ?? FONTS.body, fontSize: 14, fontWeight: 700, color: COLORS.ink,
+                      textAlign: "center", letterSpacing: 1,
+                    }}>{cur.verificationCode ?? "—"}</div>
+                    <div style={{ marginTop: 8, fontSize: 11, color: COLORS.inkMuted }}>
+                      Profile: <a href={cur.targetUrl ?? "#"} style={{ color: COLORS.accentDeep, textDecoration: "none" }}>{cur.targetUrl ?? "—"}</a>
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 11, color: COLORS.inkDim }}>
+                      Manual review: confirm DM was received, sender matches handle, code matches.
+                    </div>
+                  </div>
+                )}
+
+                {cur.method === "manual_review" && (
+                  <div style={{
+                    padding: "12px 14px", borderRadius: 10,
+                    background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+                    marginBottom: 14, fontSize: 12, color: COLORS.ink, lineHeight: 1.5,
+                  }}>
+                    <strong>Manual review.</strong> Open the profile and confirm: 3+ photos, bio, primary type, no suspicious content.
+                  </div>
+                )}
+
+                {(cur.evidenceUrl || cur.evidenceNote) && (
+                  <div style={{
+                    marginBottom: 14, padding: "10px 12px", borderRadius: 10,
+                    background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+                  }}>
+                    <div style={{
+                      fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4,
+                      textTransform: "uppercase", color: COLORS.inkDim, marginBottom: 6,
+                    }}>Evidence from talent</div>
+                    {cur.evidenceUrl && (
+                      <div style={{ marginBottom: cur.evidenceNote ? 6 : 0, fontSize: 12 }}>
+                        <a href={cur.evidenceUrl} target="_blank" rel="noopener noreferrer" style={{
+                          color: COLORS.accentDeep, textDecoration: "none", fontWeight: 600, wordBreak: "break-all",
+                        }}>
+                          ↗ {cur.evidenceUrl}
+                        </a>
+                      </div>
+                    )}
+                    {cur.evidenceNote && (
+                      <div style={{ fontSize: 12, color: COLORS.ink, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+                        {cur.evidenceNote}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {cur.publicMessage && (
+                  <div style={{ marginBottom: 14, fontSize: 11.5, color: COLORS.inkMuted }}>
+                    <strong>Public message:</strong> {cur.publicMessage}
+                  </div>
+                )}
+                {cur.adminNotes && (
+                  <div style={{
+                    marginBottom: 14, padding: "8px 11px", borderRadius: 8,
+                    background: COLORS.amberSoft, fontSize: 11.5, color: COLORS.amberDeep, lineHeight: 1.5,
+                  }}>
+                    <strong>Admin notes:</strong> {cur.adminNotes}
+                  </div>
+                )}
+
+                {/* Risk/health score for the subject — admin-only signal. */}
+                <SubjectRiskScoreRow subjectType={cur.subjectType} subjectId={cur.subjectId} />
+
+                {/* Activity log — derived from request lifecycle fields. */}
+                <ActivityLogPanel request={cur} />
+
+                {/* Decision panel */}
+                {(cur.status === "submitted" || cur.status === "in_review" || cur.status === "needs_more_info") && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 16 }}>
+                    {cur.status !== "in_review" && (
+                      <SecondaryButton onClick={() => onMarkInReview(cur)}>Mark in review</SecondaryButton>
+                    )}
+                    <SecondaryButton onClick={() => onRequestMoreInfo(cur)}>Request more info</SecondaryButton>
+                    <SecondaryButton onClick={() => startReject(cur)}>Reject</SecondaryButton>
+                    <PrimaryButton onClick={() => onApprove(cur)}>Approve</PrimaryButton>
+                  </div>
+                )}
+                {cur.status === "approved" && cur.reviewedAt && (
+                  <div style={{
+                    padding: "10px 12px", borderRadius: 10, marginTop: 16,
+                    background: COLORS.successSoft, color: COLORS.successDeep,
+                    fontSize: 12, fontWeight: 600,
+                  }}>
+                    ✓ Approved · {new Date(cur.reviewedAt).toLocaleString()}
+                  </div>
+                )}
+                {cur.status === "rejected" && cur.rejectionReason && (
+                  <div style={{
+                    padding: "10px 12px", borderRadius: 10, marginTop: 16,
+                    background: "rgba(200,40,40,0.08)", color: COLORS.red,
+                    fontSize: 12, lineHeight: 1.5,
+                  }}>
+                    <strong>Rejected.</strong> {cur.rejectionReason}
+                  </div>
+                )}
+                {cur.status === "pending_user_action" && (
+                  <div style={{
+                    padding: "10px 12px", borderRadius: 10, marginTop: 16,
+                    background: COLORS.amberSoft, color: COLORS.amberDeep,
+                    fontSize: 12,
+                  }}>
+                    Waiting for talent to send the DM and tap "I sent it."
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </DrawerShell>
+
+      {/* Rejection reason modal */}
+      {rejectReasonModal && (
+        <div onClick={() => setRejectReasonModal(null)} style={{
+          position: "fixed", inset: 0, zIndex: 220,
+          background: "rgba(11,11,13,0.42)", backdropFilter: "blur(6px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: FONTS.body,
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            width: "calc(100% - 48px)", maxWidth: 460,
+            background: "#fff", borderRadius: 16, padding: 22,
+            boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
+          }}>
+            <div style={{
+              fontFamily: FONTS.display, fontSize: 18, fontWeight: 600,
+              color: COLORS.ink, letterSpacing: -0.2, marginBottom: 6,
+            }}>Reject {rejectReasonModal.talent}'s verification?</div>
+            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
+              Talent will see this reason. Be specific so they can fix it and resubmit.
+            </div>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. DM not received from claimed handle. Make sure you sent the message from @your-handle, not a different account."
+              rows={4} autoFocus
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                resize: "vertical", marginBottom: 14,
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setRejectReasonModal(null)} style={{
+                padding: "9px 16px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                background: "transparent", color: COLORS.ink,
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}>Cancel</button>
+              <button type="button" onClick={confirmReject} disabled={!rejectReason.trim()} style={{
+                padding: "9px 16px", borderRadius: 999, border: "none",
+                background: rejectReason.trim() ? COLORS.red : "rgba(11,11,13,0.10)",
+                color: rejectReason.trim() ? "#fff" : COLORS.inkDim,
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+                cursor: rejectReason.trim() ? "pointer" : "default",
+              }}>Send rejection</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Disputed Claims — admin queue for resolving talent-disputed agency
+// claims. Three outcomes:
+//   "release" — talent is right, agency loses ownership.
+//   "uphold"  — agency is right, claim returns to pending state.
+//   "remove"  — neither owns it; profile is taken down.
+// ════════════════════════════════════════════════════════════════════
+
+function DisputedClaimsDrawer() {
+  const { closeDrawer, profileClaims, resolveProfileClaimDispute, toast } = useProto();
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [adminNotes, setAdminNotes] = useState("");
+
+  const allRoster = useMemo(() => [...ROSTER_AGENCY, ...ROSTER_FREE], []);
+  const talentNameForId = (id: string) => allRoster.find(t => t.id === id)?.name ?? id;
+
+  const disputed = profileClaims.filter(c => c.status === "disputed").sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
+  const cur = activeId ? profileClaims.find(c => c.id === activeId) ?? null : (disputed[0] ?? null);
+
+  const handleResolve = (outcome: "release" | "uphold" | "remove") => {
+    if (!cur) return;
+    const labels = {
+      release: "Released to talent",
+      uphold:  "Agency claim upheld",
+      remove:  "Profile removed",
+    };
+    resolveProfileClaimDispute(cur.id, outcome, adminNotes || undefined);
+    toast(labels[outcome]);
+    setAdminNotes("");
+    setActiveId(null);
+  };
+
+  const fmt = (iso: string) => { try { return new Date(iso).toLocaleString(); } catch { return iso; } };
+
+  return (
+    <DrawerShell
+      open
+      onClose={closeDrawer}
+      title="Disputed claims"
+      description={`${disputed.length} claim${disputed.length === 1 ? "" : "s"} need admin review`}
+      width={760}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+    >
+      {disputed.length === 0 ? (
+        <div style={{
+          padding: "24px 18px", borderRadius: 12,
+          background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+          textAlign: "center", color: COLORS.inkMuted, fontSize: 13,
+        }}>
+          No disputed claims. When a talent flags an agency-created profile as not theirs, it will appear here for review.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(220px, 0.9fr) 1.6fr", gap: 14 }}>
+          {/* List */}
+          <div style={{
+            border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
+            background: "#fff", maxHeight: "70vh", overflowY: "auto",
+          }}>
+            {disputed.map(c => {
+              const active = cur?.id === c.id;
+              return (
+                <button key={c.id} type="button" onClick={() => setActiveId(c.id)} style={{
+                  display: "block", width: "100%", textAlign: "left",
+                  padding: "10px 12px", border: "none", background: active ? COLORS.surface : "transparent",
+                  borderBottom: `1px solid ${COLORS.borderSoft}`, cursor: "pointer",
+                  fontFamily: FONTS.body,
+                }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                    {talentNameForId(c.profileId)}
+                  </div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                    {c.email ?? c.phone ?? "—"}
+                  </div>
+                  <div style={{ fontSize: 11, color: COLORS.red, marginTop: 4, fontWeight: 600 }}>
+                    Disputed · {fmt(c.updatedAt)}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Detail */}
+          <div style={{
+            border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
+            background: "#fff", padding: 16,
+          }}>
+            {!cur ? (
+              <div style={{ color: COLORS.inkMuted, fontSize: 12.5 }}>Pick a claim to review.</div>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+                  <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>
+                    {talentNameForId(cur.profileId)}
+                  </div>
+                  <div style={{ fontSize: 11, color: COLORS.red, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>
+                    Disputed
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>
+                  Claim invitation {cur.id} · invited by agency on {fmt(cur.createdAt)}
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <SubjectRiskScoreRow subjectType="talent_profile" subjectId={cur.profileId} />
+                </div>
+
+                <div style={{
+                  padding: "10px 12px", borderRadius: 10,
+                  background: "rgba(200,40,40,0.06)", border: `1px solid rgba(200,40,40,0.20)`,
+                  fontSize: 12.5, color: COLORS.ink, lineHeight: 1.5, marginBottom: 14,
+                }}>
+                  <strong style={{ color: COLORS.red }}>Talent's report.</strong> They followed the invite link, saw a profile listed under {cur.email ?? "this address"}, and flagged it as not theirs.
+                </div>
+
+                <div style={{
+                  display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
+                  padding: "12px 14px", borderRadius: 10,
+                  background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+                  marginBottom: 14, fontSize: 12,
+                }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 2 }}>Invite sent to</div>
+                    <div style={{ color: COLORS.ink, fontWeight: 600 }}>{cur.email ?? cur.phone ?? "—"}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 2 }}>Invited by</div>
+                    <div style={{ color: COLORS.ink, fontWeight: 600 }}>{cur.invitedByAgencyId ?? "—"}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 2 }}>Created</div>
+                    <div style={{ color: COLORS.ink }}>{fmt(cur.createdAt)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 2 }}>Disputed</div>
+                    <div style={{ color: COLORS.ink }}>{fmt(cur.updatedAt)}</div>
+                  </div>
+                </div>
+
+                <div style={{
+                  fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+                  color: COLORS.inkDim, marginBottom: 8,
+                }}>Admin notes (internal)</div>
+                <textarea
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Outcome reasoning. Visible to admins only."
+                  style={{
+                    width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                    borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                    fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+                    resize: "vertical", marginBottom: 14,
+                  }}
+                />
+
+                <div style={{
+                  fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+                  color: COLORS.inkDim, marginBottom: 8,
+                }}>Resolution</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button type="button" onClick={() => handleResolve("release")} style={{
+                    textAlign: "left", padding: "10px 14px", borderRadius: 10,
+                    border: `1px solid ${COLORS.border}`, background: "#fff",
+                    cursor: "pointer", fontFamily: FONTS.body,
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Release to talent</div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                      Talent is right. Profile is freed from agency control. Status → Released.
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => handleResolve("uphold")} style={{
+                    textAlign: "left", padding: "10px 14px", borderRadius: 10,
+                    border: `1px solid ${COLORS.border}`, background: "#fff",
+                    cursor: "pointer", fontFamily: FONTS.body,
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Uphold agency claim</div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                      Agency is right (paperwork checks out). Re-issue invite. Status → Invite sent.
+                    </div>
+                  </button>
+                  <button type="button" onClick={() => handleResolve("remove")} style={{
+                    textAlign: "left", padding: "10px 14px", borderRadius: 10,
+                    border: `1px solid rgba(200,40,40,0.30)`, background: "rgba(200,40,40,0.04)",
+                    cursor: "pointer", fontFamily: FONTS.body,
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.red }}>Remove profile</div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                      Neither party owns it. Take the profile down entirely.
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Talent Trust Detail — talent-side view of their own verification
+// state with CTAs to start each flow. Verify Instagram opens a modal
+// with DM instructions + a unique code; "I sent it" flips request to
+// submitted, where it lands in the admin queue.
+// ════════════════════════════════════════════════════════════════════
+
+// Trust Health panel — talent-facing summary card. Shows the same
+// risk score admins see (transparently, with friendly framing) plus
+// the next 1-3 verifications that would lift the score the most.
+// Each suggestion is an actionable button that opens the right drawer.
+function TalentTrustHealthPanel({ talentId }: { talentId: string }) {
+  const { getTrustSummary, getRiskScore, listEnabledMethods, openDrawer } = useProto();
+  const trust = getTrustSummary("talent_profile", talentId);
+  const score = getRiskScore("talent_profile", talentId);
+  const activeBadgeCount = trust.badges.filter(b => b.status === "active" && b.methodEnabled !== false).length;
+
+  // Build suggestions — methods enabled platform-wide that the talent
+  // doesn't have yet. Ranked by approximate score lift.
+  const SUGGESTION_META: Record<VerificationType, { lift: number; emoji: string; copy: string; drawer: DrawerSuggestion }> = {
+    instagram_verified: { lift: 12, emoji: "📸", copy: "Verify your Instagram",       drawer: "talent-trust-detail" },
+    tulala_verified:    { lift: 12, emoji: "✓",  copy: "Request Tulala Review",       drawer: "talent-trust-detail" },
+    agency_confirmed:   { lift: 10, emoji: "✦",  copy: "Get agency confirmation",     drawer: "talent-trust-detail" },
+    phone_verified:     { lift: 5,  emoji: "📱", copy: "Verify your phone",           drawer: "talent-phone-verify" },
+    id_verified:        { lift: 12, emoji: "🪪", copy: "Verify your ID",              drawer: "talent-id-verify" },
+    business_verified:  { lift: 10, emoji: "🏢", copy: "Verify your business",        drawer: "talent-business-verify" },
+    domain_verified:    { lift: 8,  emoji: "🌐", copy: "Verify your domain",          drawer: "talent-domain-verify" },
+    payment_verified:   { lift: 5,  emoji: "💳", copy: "Verify payment account",      drawer: "talent-payment-verify" },
+  };
+  const enabled = listEnabledMethods();
+  const hasType = (t: VerificationType) => trust.badges.some(b => b.type === t && b.status === "active");
+  const suggestions = enabled
+    .filter(t => !hasType(t))
+    .filter(t => SUGGESTION_META[t].drawer !== "talent-trust-detail" || t === "instagram_verified" || t === "tulala_verified")
+    .map(t => ({ type: t, ...SUGGESTION_META[t] }))
+    .sort((a, b) => b.lift - a.lift)
+    .slice(0, 3);
+
+  return (
+    <Section title="Trust health" framed>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: suggestions.length > 0 ? 14 : 0 }}>
+        <RiskScorePill score={score} label="Score" />
+        <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+          {activeBadgeCount === 0
+            ? "No active badges yet. Verifying lifts your score and your inquiry priority."
+            : `${activeBadgeCount} active badge${activeBadgeCount === 1 ? "" : "s"}. Score blends verifications, claim status, and account history.`}
+        </div>
+      </div>
+      {suggestions.length > 0 && (
+        <>
+          <div style={{
+            fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+            color: COLORS.inkDim, marginBottom: 8,
+          }}>Earn more trust</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+            {suggestions.map(s => (
+              <button key={s.type} type="button" onClick={() => openDrawer(s.drawer as DrawerSuggestion)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                  borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`,
+                  background: "#fff", cursor: "pointer",
+                  fontFamily: FONTS.body, textAlign: "left",
+                }}>
+                <span style={{ fontSize: 18 }}>{s.emoji}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{s.copy}</div>
+                  <div style={{ fontSize: 11, color: COLORS.successDeep, marginTop: 1, fontWeight: 600 }}>+{s.lift} score</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </Section>
+  );
+}
+
+// Subset of DrawerId we route to from suggestions — keeps the type
+// narrow at the call site without dragging the whole DrawerId union in.
+type DrawerSuggestion =
+  | "talent-trust-detail"
+  | "talent-phone-verify"
+  | "talent-id-verify"
+  | "talent-business-verify"
+  | "talent-domain-verify"
+  | "talent-payment-verify";
+
+function TalentTrustDetailDrawer() {
+  const { state, closeDrawer, toast, getTrustSummary, getRiskScore, createVerificationRequest, updateVerificationRequest, verificationRequests, isVerificationMethodEnabled, openDrawer, getTalentContactGate, setTalentContactGate } = useProto();
+  const open = state.drawer.drawerId === "talent-trust-detail";
+  // Demo: prototype's "current talent" is roster id t1 (Marta).
+  const TALENT_ID = "t1";
+  const trust = getTrustSummary("talent_profile", TALENT_ID);
+  const [igModalOpen, setIgModalOpen] = useState(false);
+  const [igHandle, setIgHandle] = useState("");
+  const [igEvidenceUrl, setIgEvidenceUrl] = useState("");
+  const [igEvidenceNote, setIgEvidenceNote] = useState("");
+
+  // Existing IG request, if any
+  const existingIgRequest = verificationRequests.find(r =>
+    r.subjectType === "talent_profile" && r.subjectId === TALENT_ID && r.verificationType === "instagram_verified"
+    && (r.status === "pending_user_action" || r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info")
+  );
+  const igActive = trust.badges.some(b => b.type === "instagram_verified" && b.status === "active");
+  const tulalaActive = trust.badges.some(b => b.type === "tulala_verified" && b.status === "active");
+  const tulalaRequest = verificationRequests.find(r =>
+    r.subjectType === "talent_profile" && r.subjectId === TALENT_ID && r.verificationType === "tulala_verified"
+    && (r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info")
+  );
+
+  const startIgFlow = () => {
+    setIgHandle("");
+    setIgEvidenceUrl("");
+    setIgEvidenceNote("");
+    setIgModalOpen(true);
+  };
+  const submitIgRequest = () => {
+    if (!igHandle.trim().startsWith("@")) {
+      toast("Handle should start with @ (e.g. @yourname)");
+      return;
+    }
+    // Generate a TUL-XXXX code
+    const code = "TUL-" + Math.floor(1000 + Math.random() * 9000);
+    createVerificationRequest({
+      subjectType: "talent_profile",
+      subjectId: TALENT_ID,
+      requestedByUserId: "u-current-talent",
+      context: "agency",
+      method: "instagram_dm",
+      verificationType: "instagram_verified",
+      verificationCode: code,
+      claimedIdentifier: igHandle.trim(),
+      targetUrl: "https://atelier-roma.tulala.app/marta-reyes",
+      evidenceUrl: igEvidenceUrl.trim() || null,
+      evidenceNote: igEvidenceNote.trim() || null,
+      status: "pending_user_action",
+      expiresAt: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
+    });
+    toast(`Verification code generated · send the DM to @tulala.digital`);
+  };
+  const markIgSent = (id: string) => {
+    updateVerificationRequest(id, { status: "submitted" });
+    toast(`Marked as sent · Tulala will review within 24h`);
+  };
+  const cancelRequest = (id: string) => {
+    updateVerificationRequest(id, { status: "cancelled" });
+    toast("Request cancelled");
+  };
+  const requestTulalaReview = () => {
+    createVerificationRequest({
+      subjectType: "talent_profile",
+      subjectId: TALENT_ID,
+      requestedByUserId: "u-current-talent",
+      context: "agency",
+      method: "manual_review",
+      verificationType: "tulala_verified",
+      status: "submitted",
+    });
+    toast("Tulala Review requested · admins notified");
+  };
+
+  return (
+    <>
+      <DrawerShell
+        open={open}
+        onClose={closeDrawer}
+        title="Trust & Verification"
+        description="Get verified to win more bookings. Verified profiles get 3× more inquiries on Tulala."
+        width={580}
+        footer={<SecondaryButton onClick={closeDrawer}>Done</SecondaryButton>}
+      >
+        {/* Account email — top-of-card status */}
+        <div style={{
+          padding: "12px 14px", borderRadius: 10,
+          background: trust.account?.emailVerified ? COLORS.successSoft : "rgba(11,11,13,0.03)",
+          marginBottom: 16, fontFamily: FONTS.body,
+        }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            fontSize: 12.5, fontWeight: 600,
+            color: trust.account?.emailVerified ? COLORS.successDeep : COLORS.inkMuted,
+          }}>
+            <span>✉</span>
+            {trust.account?.emailVerified ? "Account email verified" : "Account email not verified"}
+          </div>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4, lineHeight: 1.5 }}>
+            Email is account security only — it doesn't appear as a public verification badge.
+          </div>
+        </div>
+
+        {/* Profile claim status */}
+        {trust.claimStatus && (
+          <Section title="Profile ownership" framed>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              fontFamily: FONTS.body,
+            }}>
+              <span style={{ fontSize: 18 }}>👤</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>
+                  {trust.claimStatus === "claimed" && "You own this profile."}
+                  {trust.claimStatus === "invite_sent" && "Claim invite pending."}
+                  {trust.claimStatus === "unclaimed" && "Profile not yet claimed."}
+                  {trust.claimStatus === "disputed" && "Disputed — admin reviewing."}
+                  {trust.claimStatus === "released" && "You released ownership."}
+                </div>
+                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                  {trust.claimStatus === "claimed"
+                    ? "You can edit your profile and accept inquiries directly."
+                    : "Atelier Roma created this profile. Claim it to take ownership."}
+                </div>
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {/* Trust Health — your own score + earn-+X suggestions. */}
+        <TalentTrustHealthPanel talentId={TALENT_ID} />
+
+        {/* Instagram Verified */}
+        {isVerificationMethodEnabled("instagram_verified") && (
+        <Section title="Instagram Verified" framed>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 12, lineHeight: 1.5 }}>
+            Tulala confirms you control the Instagram account on your profile. Public badge appears on your storefront card.
+          </div>
+          {igActive && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "12px 14px", borderRadius: 10,
+              background: COLORS.successSoft,
+              fontFamily: FONTS.body,
+            }}>
+              <span style={{ fontSize: 18 }}>📸</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.successDeep }}>Verified</div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>Public badge live</div>
+              </div>
+            </div>
+          )}
+          {!igActive && existingIgRequest && (
+            <ExistingRequestRow
+              request={existingIgRequest}
+              onMarkSent={() => markIgSent(existingIgRequest.id)}
+              onCancel={() => cancelRequest(existingIgRequest.id)}
+            />
+          )}
+          {!igActive && !existingIgRequest && (
+            <button type="button" onClick={startIgFlow} style={{
+              padding: "10px 16px", borderRadius: 999,
+              background: COLORS.fill, color: "#fff", border: "none",
+              fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+            }}>
+              📸 Verify Instagram
+            </button>
+          )}
+        </Section>
+        )}
+
+        {/* Tulala Review */}
+        {isVerificationMethodEnabled("tulala_verified") && (
+        <Section title="Tulala Review" framed>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 12, lineHeight: 1.5 }}>
+            Tulala manually reviews your profile for authenticity, completeness, and quality. Verified profiles get featured placement and the highest trust signal.
+          </div>
+          {tulalaActive && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "12px 14px", borderRadius: 10,
+              background: COLORS.successSoft, fontFamily: FONTS.body,
+            }}>
+              <span style={{ fontSize: 18 }}>✓</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.successDeep }}>Tulala Verified</div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>Public badge live</div>
+              </div>
+            </div>
+          )}
+          {!tulalaActive && tulalaRequest && (
+            <div style={{
+              padding: "12px 14px", borderRadius: 10,
+              background: COLORS.amberSoft, fontFamily: FONTS.body,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, color: COLORS.amberDeep }}>
+                <span>◌</span>
+                {tulalaRequest.status === "needs_more_info" ? "Needs more info" : "In review"}
+              </div>
+              {tulalaRequest.publicMessage && (
+                <div style={{ fontSize: 11.5, color: COLORS.ink, marginTop: 6, lineHeight: 1.5 }}>
+                  <strong>Tulala's note:</strong> {tulalaRequest.publicMessage}
+                </div>
+              )}
+            </div>
+          )}
+          {!tulalaActive && !tulalaRequest && (
+            <button type="button" onClick={requestTulalaReview} style={{
+              padding: "10px 16px", borderRadius: 999,
+              background: COLORS.fill, color: "#fff", border: "none",
+              fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+            }}>
+              ✓ Request Tulala Review
+            </button>
+          )}
+        </Section>
+        )}
+
+        {/* Phase 2 — extra verification methods (Phone / ID / Business / Domain / Payment).
+            Each one is gated on the platform-admin enable toggle. */}
+        {(isVerificationMethodEnabled("phone_verified")
+          || isVerificationMethodEnabled("id_verified")
+          || isVerificationMethodEnabled("business_verified")
+          || isVerificationMethodEnabled("domain_verified")
+          || isVerificationMethodEnabled("payment_verified")) && (
+          <Section title="More verifications" framed>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 12, lineHeight: 1.5 }}>
+              Add more trust signals. Some are private (used for security + risk scoring), others get a public badge.
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
+              {[
+                { type: "phone_verified"   as const, drawer: "talent-phone-verify"    as const, emoji: "📱", label: "Verify phone" },
+                { type: "id_verified"      as const, drawer: "talent-id-verify"       as const, emoji: "🪪", label: "Verify ID" },
+                { type: "business_verified" as const, drawer: "talent-business-verify" as const, emoji: "🏢", label: "Verify business" },
+                { type: "domain_verified"  as const, drawer: "talent-domain-verify"   as const, emoji: "🌐", label: "Verify domain" },
+                { type: "payment_verified" as const, drawer: "talent-payment-verify"  as const, emoji: "💳", label: "Verify payment" },
+              ].filter(m => isVerificationMethodEnabled(m.type)).map(m => {
+                const active = trust.badges.some(b => b.type === m.type && b.status === "active");
+                return (
+                  <button key={m.type} type="button" onClick={() => openDrawer(m.drawer)}
+                    disabled={active}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10, padding: "11px 14px",
+                      borderRadius: 10, border: `1px solid ${COLORS.borderSoft}`,
+                      background: active ? COLORS.successSoft : "#fff",
+                      color: active ? COLORS.successDeep : COLORS.ink,
+                      fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+                      cursor: active ? "default" : "pointer",
+                      textAlign: "left",
+                    }}>
+                    <span style={{ fontSize: 16 }}>{m.emoji}</span>
+                    <span style={{ flex: 1 }}>{active ? "Verified" : m.label}</span>
+                    {!active && <span aria-hidden style={{ color: COLORS.inkDim }}>→</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+        )}
+
+        {/* Contact gate — talent decides who can DM them. Default open. */}
+        <Section title="Who can contact you" framed>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 12, lineHeight: 1.5 }}>
+            Restrict inquiries based on the client's trust level. Tulala blocks the Send-inquiry button for clients who don't meet your gate.
+          </div>
+          {(["open", "verified_only", "trusted_only"] as const).map(g => {
+            const cur = getTalentContactGate(TALENT_ID);
+            const active = cur === g;
+            const label = g === "open" ? "Anyone" : g === "verified_only" ? "Verified clients only" : "Trusted clients only (score ≥ 60)";
+            const help = g === "open" ? "Default. Any client can send an inquiry." : g === "verified_only" ? "Client must have at least one active verification badge." : "Client must have multiple trust signals (verifications + claimed status).";
+            return (
+              <button key={g} type="button" onClick={() => { setTalentContactGate(TALENT_ID, g); toast(`Contact gate set to ${label}`); }}
+                style={{
+                  display: "flex", width: "100%", textAlign: "left", gap: 10,
+                  padding: "10px 12px", borderRadius: 10, marginBottom: 6,
+                  border: `1px solid ${active ? COLORS.successDeep : COLORS.borderSoft}`,
+                  background: active ? "rgba(15,79,62,0.06)" : "#fff",
+                  cursor: "pointer", fontFamily: FONTS.body, alignItems: "flex-start",
+                }}>
+                <span aria-hidden style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${active ? COLORS.successDeep : COLORS.border}`, background: active ? COLORS.successDeep : "#fff", marginTop: 2, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: active ? COLORS.successDeep : COLORS.ink }}>{label}</div>
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{help}</div>
+                </div>
+              </button>
+            );
+          })}
+        </Section>
+
+        {/* What admins see — informational */}
+        <div style={{
+          padding: "10px 12px", borderRadius: 8,
+          background: "rgba(91,107,160,0.08)",
+          fontFamily: FONTS.body, fontSize: 11, color: COLORS.indigoDeep, lineHeight: 1.5,
+          marginTop: 8,
+        }}>
+          <strong>Tulala admins review every request manually.</strong> Most decisions land within 24 hours.
+        </div>
+      </DrawerShell>
+
+      {/* Instagram DM instructions modal */}
+      {igModalOpen && (
+        <InstagramVerificationInstructions
+          existingHandle={igHandle}
+          onChangeHandle={setIgHandle}
+          evidenceUrl={igEvidenceUrl}
+          onChangeEvidenceUrl={setIgEvidenceUrl}
+          evidenceNote={igEvidenceNote}
+          onChangeEvidenceNote={setIgEvidenceNote}
+          onSubmit={() => { submitIgRequest(); setIgModalOpen(false); }}
+          onCancel={() => setIgModalOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+function ExistingRequestRow({
+  request, onMarkSent, onCancel,
+}: {
+  request: VerificationRequest;
+  onMarkSent: () => void;
+  onCancel: () => void;
+}) {
+  const tone = request.status === "needs_more_info" ? "amber" : "amber";
+  const heading =
+    request.status === "pending_user_action" ? "Almost there — send the DM"
+    : request.status === "submitted" ? "Submitted · awaiting admin review"
+    : request.status === "in_review" ? "In review"
+    : request.status === "needs_more_info" ? "Needs more info"
+    : request.status;
+  return (
+    <div style={{
+      padding: "12px 14px", borderRadius: 10,
+      background: COLORS.amberSoft, fontFamily: FONTS.body,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, fontWeight: 600, color: COLORS.amberDeep, marginBottom: 6 }}>
+        <span>◌</span>
+        {heading}
+      </div>
+      {request.claimedIdentifier && request.verificationCode && (
+        <div style={{ fontSize: 11.5, color: COLORS.ink, marginBottom: 8, lineHeight: 1.5 }}>
+          DM <strong>@tulala.digital</strong> from <strong>{request.claimedIdentifier}</strong> with code <strong style={{ fontFamily: FONTS.mono ?? FONTS.body, letterSpacing: 1 }}>{request.verificationCode}</strong>
+        </div>
+      )}
+      {request.publicMessage && (
+        <div style={{ fontSize: 11.5, color: COLORS.ink, marginTop: 4, marginBottom: 8, lineHeight: 1.5 }}>
+          <strong>Note:</strong> {request.publicMessage}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6 }}>
+        {request.status === "pending_user_action" && (
+          <button type="button" onClick={onMarkSent} style={{
+            padding: "7px 12px", borderRadius: 999, border: "none",
+            background: COLORS.fill, color: "#fff",
+            fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+          }}>I sent the DM</button>
+        )}
+        <button type="button" onClick={onCancel} style={{
+          padding: "7px 12px", borderRadius: 999,
+          background: "transparent", color: COLORS.inkMuted,
+          border: `1px solid ${COLORS.borderSoft}`,
+          fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+        }}>Cancel request</button>
+      </div>
+    </div>
+  );
+}
+
+function InstagramVerificationInstructions({
+  existingHandle, onChangeHandle, onSubmit, onCancel,
+  evidenceUrl, onChangeEvidenceUrl,
+  evidenceNote, onChangeEvidenceNote,
+}: {
+  existingHandle: string;
+  onChangeHandle: (h: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+  evidenceUrl: string;
+  onChangeEvidenceUrl: (v: string) => void;
+  evidenceNote: string;
+  onChangeEvidenceNote: (v: string) => void;
+}) {
+  // Show a placeholder code preview — real code is generated on submit.
+  const previewCode = "TUL-" + Math.floor(1000 + Math.random() * 9000);
+  return (
+    <div onClick={onCancel} style={{
+      position: "fixed", inset: 0, zIndex: 220,
+      background: "rgba(11,11,13,0.42)", backdropFilter: "blur(6px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: FONTS.body,
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "calc(100% - 48px)", maxWidth: 480,
+        background: "#fff", borderRadius: 16, padding: 22,
+        boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
+      }}>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "3px 10px", borderRadius: 999,
+          background: "linear-gradient(135deg, #F09433 0%, #E6683C 25%, #DC2743 50%, #CC2366 75%, #BC1888 100%)",
+          color: "#fff", fontSize: 10.5, fontWeight: 700,
+          marginBottom: 10, letterSpacing: 0.5, textTransform: "uppercase",
+        }}>
+          <span aria-hidden style={{ fontSize: 11 }}>📸</span> Instagram Verified
+        </div>
+        <div style={{
+          fontFamily: FONTS.display, fontSize: 20, fontWeight: 600,
+          color: COLORS.ink, letterSpacing: -0.2, marginBottom: 6,
+        }}>Verify your Instagram</div>
+        <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 16, lineHeight: 1.5 }}>
+          Send a DM from your Instagram account to <strong>@tulala.digital</strong> with the code we'll generate. Tulala admins manually confirm the DM matches before approving.
+        </div>
+
+        {/* Step 1: handle */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 6, display: "block" }}>
+            1 · Your Instagram handle
+          </label>
+          <input
+            type="text"
+            value={existingHandle}
+            onChange={(e) => onChangeHandle(e.target.value)}
+            placeholder="@yourname"
+            autoFocus
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "10px 12px", borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+            }}
+          />
+        </div>
+
+        {/* Step 2: send DM */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 6, display: "block" }}>
+            2 · Send this DM
+          </label>
+          <div style={{
+            padding: "12px 14px", borderRadius: 10,
+            background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+            fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+            lineHeight: 1.55,
+          }}>
+            <div style={{ marginBottom: 6 }}>
+              To: <strong>@tulala.digital</strong>
+            </div>
+            <div style={{ color: COLORS.inkMuted, fontFamily: FONTS.mono ?? FONTS.body, fontSize: 12 }}>
+              Verify my Tulala profile:<br />
+              https://atelier-roma.tulala.app/{(existingHandle || "marta").replace("@", "")}<br />
+              <br />
+              Verification code: <strong style={{ color: COLORS.ink }}>{previewCode}</strong>
+            </div>
+          </div>
+          <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 6 }}>
+            ↗ Code is locked when you confirm. Expires in 72h.
+          </div>
+        </div>
+
+        {/* Step 3: optional evidence */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 6, display: "block" }}>
+            3 · Evidence (optional · speeds up review)
+          </label>
+          <input
+            type="url"
+            value={evidenceUrl}
+            onChange={(e) => onChangeEvidenceUrl(e.target.value)}
+            placeholder="https://… screenshot or proof URL"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "9px 12px", borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+              marginBottom: 6,
+            }}
+          />
+          <textarea
+            value={evidenceNote}
+            onChange={(e) => onChangeEvidenceNote(e.target.value)}
+            placeholder="Note for the reviewer — e.g. 'DM sent at 14:02 GMT from @marta.studio'"
+            rows={2}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "9px 12px", borderRadius: 10,
+              border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+              resize: "vertical",
+            }}
+          />
+        </div>
+
+        {/* Step 4: confirm */}
+        <div style={{
+          padding: "10px 12px", borderRadius: 8,
+          background: "rgba(91,107,160,0.08)",
+          fontFamily: FONTS.body, fontSize: 11, color: COLORS.indigoDeep, lineHeight: 1.5,
+          marginBottom: 14,
+        }}>
+          <strong>4 · Confirm.</strong> Tulala admins verify the DM was received from your handle and matches the code. Most decisions in &lt;24h.
+        </div>
+
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onCancel} style={{
+            padding: "9px 16px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+            background: "transparent", color: COLORS.ink,
+            fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+          }}>Cancel</button>
+          <button type="button" onClick={onSubmit} disabled={!existingHandle.trim().startsWith("@")} style={{
+            padding: "9px 16px", borderRadius: 999, border: "none",
+            background: existingHandle.trim().startsWith("@") ? COLORS.fill : "rgba(11,11,13,0.10)",
+            color: existingHandle.trim().startsWith("@") ? "#fff" : COLORS.inkDim,
+            fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600,
+            cursor: existingHandle.trim().startsWith("@") ? "pointer" : "default",
+          }}>Generate code & continue</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Talent Claim Invite — talent-side acceptance flow when agency creates
+// a profile and emails the talent. Three actions: Accept · Not me · Report.
+// ════════════════════════════════════════════════════════════════════
+
+function TalentClaimInviteDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "talent-claim-invite";
+  const [step, setStep] = useState<"review" | "claim" | "dispute">("review");
+  const [email, setEmail] = useState("amelia.dorsey@example.com");
+  const [agreed, setAgreed] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+
+  const profileName = "Amelia Dorsey";
+  const agencyName = "Atelier Roma";
+
+  const accept = () => {
+    if (!agreed) { toast("Confirm you reviewed what's collected"); return; }
+    toast(`Welcome, ${profileName.split(" ")[0]} · profile is yours`);
+    closeDrawer();
+  };
+
+  const submitDispute = () => {
+    if (!disputeReason.trim()) { toast("Add a reason — admin will review"); return; }
+    toast("Reported · Tulala admin will resolve");
+    closeDrawer();
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={step === "review" ? `Claim ${profileName}'s profile`
+        : step === "claim" ? "Confirm + sign in"
+        : "This isn't me"}
+      description={step === "review"
+        ? `${agencyName} created a profile for you on Tulala. Review and claim it.`
+        : step === "claim" ? "One last step to take ownership."
+        : "Tell us what happened."}
+      width={520}
+      footer={
+        step === "review" ? (
+          <>
+            <SecondaryButton onClick={() => setStep("dispute")}>This isn't me</SecondaryButton>
+            <PrimaryButton onClick={() => setStep("claim")}>Claim this profile →</PrimaryButton>
+          </>
+        ) : step === "claim" ? (
+          <>
+            <SecondaryButton onClick={() => setStep("review")}>Back</SecondaryButton>
+            <PrimaryButton onClick={accept}>Confirm + sign in</PrimaryButton>
+          </>
+        ) : (
+          <>
+            <SecondaryButton onClick={() => setStep("review")}>Back</SecondaryButton>
+            <PrimaryButton onClick={submitDispute}>Send report</PrimaryButton>
+          </>
+        )
+      }
+    >
+      {step === "review" && (
+        <>
+          {/* Profile preview */}
+          <div style={{
+            padding: 16, borderRadius: 12,
+            background: "#fff", border: `1px solid ${COLORS.borderSoft}`,
+            marginBottom: 14, fontFamily: FONTS.body,
+          }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+              <span style={{
+                width: 56, height: 56, borderRadius: "50%",
+                background: `url(https://i.pravatar.cc/200?img=23) center/cover, ${COLORS.surfaceAlt}`,
+                flexShrink: 0,
+              }} />
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>{profileName}</div>
+                <div style={{ fontSize: 12, color: COLORS.accentDeep, fontWeight: 600 }}>Promotional model · Lisbon</div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>Created by {agencyName} · 5 days ago</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase", marginBottom: 6 }}>
+              What's already on your profile
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {["3 photos", "Lisbon", "5'8\"", "EN · PT", "Trade-show staff"].map((c) => (
+                <span key={c} style={{
+                  fontSize: 10.5, padding: "2px 8px", borderRadius: 999,
+                  background: "rgba(11,11,13,0.05)", color: COLORS.ink, fontWeight: 500,
+                }}>{c}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Permissions / what they'll capture */}
+          <Section title={`What ${agencyName} will manage`} framed>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5, marginBottom: 8 }}>
+              By claiming, you agree this agency can edit your profile and represent you for bookings until you say otherwise.
+            </div>
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: COLORS.ink, lineHeight: 1.6 }}>
+              <li>Send inquiries on your behalf</li>
+              <li>Edit your profile fields you don't lock</li>
+              <li>Add Agency Confirmed badge to your profile</li>
+              <li>Pause/unpause your visibility</li>
+            </ul>
+            <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 8, lineHeight: 1.5 }}>
+              You can release ownership any time from your Talent settings.
+            </div>
+          </Section>
+        </>
+      )}
+
+      {step === "claim" && (
+        <>
+          <FieldRow label="Your email">
+            <TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+          </FieldRow>
+          <div style={{
+            padding: 12, borderRadius: 10,
+            background: COLORS.indigoSoft, border: "1px solid rgba(91,107,160,0.18)",
+            fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5, marginBottom: 14,
+          }}>
+            We'll email you a one-tap sign-in link. Once you click it, the profile is yours — {agencyName} keeps editing access until you change it.
+          </div>
+          <label style={{
+            display: "flex", alignItems: "flex-start", gap: 8,
+            cursor: "pointer", fontFamily: FONTS.body, fontSize: 12, color: COLORS.ink, lineHeight: 1.5,
+          }}>
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: 3 }} />
+            <span>
+              I confirm I am {profileName} and I've reviewed what {agencyName} will manage on my behalf.
+            </span>
+          </label>
+        </>
+      )}
+
+      {step === "dispute" && (
+        <>
+          <Section title="What's wrong?" framed>
+            <textarea
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+              placeholder="e.g. I'm not Amelia. I don't know this agency. The photos aren't mine."
+              rows={4}
+              autoFocus
+              style={{
+                width: "100%", boxSizing: "border-box", padding: "10px 12px",
+                borderRadius: 10, border: `1px solid ${COLORS.border}`,
+                fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+                resize: "vertical",
+              }}
+            />
+          </Section>
+          <div style={{
+            padding: 12, borderRadius: 10,
+            background: "rgba(200,40,40,0.08)",
+            fontSize: 11.5, color: COLORS.red, lineHeight: 1.5,
+          }}>
+            Reporting takes the profile offline immediately and notifies Tulala admins. We'll resolve within 1 business day.
+          </div>
+        </>
+      )}
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Platform-admin Verification Methods console
+// ────────────────────────────────────────────────────────────────────
+// Source-of-truth registry. Toggle methods on/off, change review mode,
+// visibility, tier-gating, and evidence requirements. Every change
+// emits an audit entry.
+// ════════════════════════════════════════════════════════════════════
+
+const REVIEW_MODE_LABEL: Record<"automated" | "manual" | "hybrid", string> = {
+  automated: "Automated",
+  manual:    "Manual review",
+  hybrid:    "Hybrid",
+};
+const VISIBILITY_LABEL: Record<"public_profile" | "admin_only" | "internal", string> = {
+  public_profile: "Public profile",
+  admin_only:     "Admin only",
+  internal:       "Internal",
+};
+const TIER_LABEL: Record<"basic" | "pro" | "portfolio" | "all", string> = {
+  basic:     "Basic",
+  pro:       "Pro",
+  portfolio: "Portfolio",
+  all:       "All tiers",
+};
+
+function PlatformVerificationMethodsDrawer() {
+  const { closeDrawer, verificationMethodConfigs, verificationMethodAudit, updateVerificationMethod, profileVerifications, toast } = useProto();
+  const [activeId, setActiveId] = useState<VerificationType | null>(null);
+  const [confirmDisable, setConfirmDisable] = useState<{ type: VerificationType; label: string; activeCount: number } | null>(null);
+
+  const cur: VerificationMethodConfig | null = activeId ? verificationMethodConfigs.find(c => c.type === activeId) ?? null : verificationMethodConfigs[0];
+  const fmt = (iso: string) => { try { return new Date(iso).toLocaleString(); } catch { return iso; } };
+
+  const activeBadgeCountFor = (type: VerificationType) =>
+    profileVerifications.filter(pv => pv.verificationType === type && pv.status === "active").length;
+
+  const onToggleEnabled = (type: VerificationType, next: boolean) => {
+    if (!next) {
+      const count = activeBadgeCountFor(type);
+      const meta = VERIFICATION_TYPE_META[type];
+      if (count > 0) {
+        setConfirmDisable({ type, label: meta.label, activeCount: count });
+        return;
+      }
+    }
+    updateVerificationMethod(type, { enabled: next });
+    const m = VERIFICATION_TYPE_META[type];
+    toast(`${m.label} ${next ? "enabled" : "disabled"} platform-wide`);
+  };
+
+  const confirmDisableMethod = () => {
+    if (!confirmDisable) return;
+    updateVerificationMethod(confirmDisable.type, { enabled: false });
+    toast(`${confirmDisable.label} disabled · ${confirmDisable.activeCount} active badges remain valid until expiry`);
+    setConfirmDisable(null);
+  };
+
+  const enabledCount = verificationMethodConfigs.filter(c => c.enabled).length;
+  const filteredAudit = activeId ? verificationMethodAudit.filter(a => a.methodType === activeId) : verificationMethodAudit;
+
+  return (
+    <>
+      <DrawerShell
+        open
+        onClose={closeDrawer}
+        title="Verification methods"
+        description={`${enabledCount} of ${verificationMethodConfigs.length} methods enabled · platform-wide registry`}
+        width={820}
+        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      >
+        <div style={{
+          padding: "10px 12px", borderRadius: 10, marginBottom: 14,
+          background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`,
+          fontSize: 12, color: COLORS.indigoDeep, lineHeight: 1.55,
+        }}>
+          Enable methods that talent and clients can use to build trust on Tulala. Disabled methods disappear from talent CTAs and admin queues. Active badges of disabled methods stay valid until expiry.
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(260px, 1fr) 1.4fr", gap: 14 }}>
+          {/* List */}
+          <div style={{
+            border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
+            background: "#fff", maxHeight: "70vh", overflowY: "auto",
+          }}>
+            {verificationMethodConfigs.map(c => {
+              const meta = VERIFICATION_TYPE_META[c.type];
+              const active = (cur?.type ?? null) === c.type;
+              return (
+                <button key={c.type} type="button" onClick={() => setActiveId(c.type)} style={{
+                  display: "flex", width: "100%", textAlign: "left", gap: 10,
+                  padding: "12px 14px", border: "none",
+                  background: active ? COLORS.surface : "transparent",
+                  borderBottom: `1px solid ${COLORS.borderSoft}`,
+                  cursor: "pointer", fontFamily: FONTS.body, alignItems: "flex-start",
+                }}>
+                  <span aria-hidden style={{ fontSize: 18, lineHeight: "20px" }}>{meta.emoji}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{meta.label}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 999,
+                        background: c.enabled ? "rgba(15,79,62,0.12)" : "rgba(11,11,13,0.06)",
+                        color: c.enabled ? COLORS.successDeep : COLORS.inkDim,
+                      }}>{c.enabled ? "ON" : "OFF"}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>
+                      {REVIEW_MODE_LABEL[c.reviewMode]} · {c.visibleOn.map(v => VISIBILITY_LABEL[v]).join(" · ")}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: COLORS.inkDim, marginTop: 2 }}>
+                      {c.availableToTiers.map(t => TIER_LABEL[t]).join(", ")}{c.evidenceRequired ? " · evidence" : ""}{c.expiresAfterDays ? ` · expires ${c.expiresAfterDays}d` : ""}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Detail */}
+          <div style={{
+            border: `1px solid ${COLORS.borderSoft}`, borderRadius: 12,
+            background: "#fff", padding: 16,
+          }}>
+            {!cur ? (
+              <div style={{ color: COLORS.inkMuted, fontSize: 12.5 }}>Pick a method to configure.</div>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+                  <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, letterSpacing: -0.2 }}>
+                    {VERIFICATION_TYPE_META[cur.type].label}
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
+                  {VERIFICATION_TYPE_META[cur.type].tooltip}
+                </div>
+
+                {/* Enabled toggle */}
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 12px", borderRadius: 10, background: COLORS.surface,
+                  border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14,
+                }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Enabled platform-wide</div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                      {cur.enabled ? "Talent and admins can use this method." : "Hidden from talent CTAs and admin queues."}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => onToggleEnabled(cur.type, !cur.enabled)} style={{
+                    width: 44, height: 24, borderRadius: 999,
+                    background: cur.enabled ? COLORS.successDeep : "rgba(11,11,13,0.18)",
+                    border: "none", cursor: "pointer", position: "relative",
+                    transition: "background 0.15s",
+                  }} aria-label="Toggle enabled">
+                    <span style={{
+                      position: "absolute", top: 3, left: cur.enabled ? 23 : 3,
+                      width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                      transition: "left 0.15s",
+                      boxShadow: "0 1px 2px rgba(11,11,13,0.20)",
+                    }} />
+                  </button>
+                </div>
+
+                <ConfigRow label="Review mode" hint="Automated runs without a human; manual goes through the admin queue.">
+                  <select value={cur.reviewMode} onChange={(e) => updateVerificationMethod(cur.type, { reviewMode: e.target.value as "automated" | "manual" | "hybrid" })} style={vmSelectStyle()}>
+                    {(["automated", "manual", "hybrid"] as const).map(m => <option key={m} value={m}>{REVIEW_MODE_LABEL[m]}</option>)}
+                  </select>
+                </ConfigRow>
+
+                <ConfigRow label="Visible on" hint="Public_profile = badge appears on storefront; admin_only = trust signal not shown publicly.">
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {(["public_profile", "admin_only", "internal"] as const).map(v => {
+                      const on = cur.visibleOn.includes(v);
+                      return (
+                        <button key={v} type="button" onClick={() => {
+                          const next = on ? cur.visibleOn.filter(x => x !== v) : [...cur.visibleOn, v];
+                          if (next.length === 0) return;
+                          updateVerificationMethod(cur.type, { visibleOn: next });
+                        }} style={vmChipStyle(on)}>{VISIBILITY_LABEL[v]}</button>
+                      );
+                    })}
+                  </div>
+                </ConfigRow>
+
+                <ConfigRow label="Available to tiers" hint='"All" overrides specific tiers.'>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {(["all", "basic", "pro", "portfolio"] as const).map(t => {
+                      const on = cur.availableToTiers.includes(t);
+                      return (
+                        <button key={t} type="button" onClick={() => {
+                          const next = on
+                            ? cur.availableToTiers.filter(x => x !== t)
+                            : t === "all" ? ["all" as const] : [...cur.availableToTiers.filter(x => x !== "all"), t];
+                          if (next.length === 0) return;
+                          updateVerificationMethod(cur.type, { availableToTiers: next });
+                        }} style={vmChipStyle(on)}>{TIER_LABEL[t]}</button>
+                      );
+                    })}
+                  </div>
+                </ConfigRow>
+
+                <ConfigRow label="Evidence required" hint="Talent must attach a URL or upload to submit.">
+                  <input type="checkbox" checked={cur.evidenceRequired}
+                    onChange={(e) => updateVerificationMethod(cur.type, { evidenceRequired: e.target.checked })} />
+                </ConfigRow>
+
+                <ConfigRow label="Expires after (days)" hint="Blank = badge never expires.">
+                  <input type="number" min={0} value={cur.expiresAfterDays ?? ""} placeholder="never"
+                    onChange={(e) => updateVerificationMethod(cur.type, { expiresAfterDays: e.target.value === "" ? null : Number(e.target.value) })}
+                    style={{ width: 120, padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12.5 }}
+                  />
+                </ConfigRow>
+
+                {/* Audit log */}
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${COLORS.borderSoft}` }}>
+                  <div style={{
+                    fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase",
+                    color: COLORS.inkDim, marginBottom: 8,
+                  }}>Recent changes</div>
+                  {filteredAudit.length === 0 ? (
+                    <div style={{ fontSize: 12, color: COLORS.inkDim }}>No changes logged.</div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {filteredAudit.slice(0, 8).map(a => (
+                        <div key={a.id} style={{ fontSize: 11.5, color: COLORS.ink, lineHeight: 1.5 }}>
+                          <span style={{ color: COLORS.inkMuted }}>{fmt(a.at)}</span> · <strong>{a.changeKind.replace(/_/g, " ")}</strong>: {a.before} → {a.after}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </DrawerShell>
+
+      {confirmDisable && (
+        <div onClick={() => setConfirmDisable(null)} style={{
+          position: "fixed", inset: 0, zIndex: 220,
+          background: "rgba(11,11,13,0.42)", backdropFilter: "blur(6px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontFamily: FONTS.body,
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            width: "calc(100% - 48px)", maxWidth: 460,
+            background: "#fff", borderRadius: 16, padding: 22,
+            boxShadow: "0 24px 80px -20px rgba(11,11,13,0.45)",
+          }}>
+            <div style={{ fontFamily: FONTS.display, fontSize: 18, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>
+              Disable {confirmDisable.label}?
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 14, lineHeight: 1.5 }}>
+              <strong style={{ color: COLORS.ink }}>{confirmDisable.activeCount} active badge{confirmDisable.activeCount === 1 ? "" : "s"}</strong> will stay valid until expiry, but they'll be hidden from public profiles right away. New requests of this type will be blocked.
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={() => setConfirmDisable(null)} style={{
+                padding: "9px 16px", borderRadius: 999, border: `1px solid ${COLORS.border}`,
+                background: "transparent", color: COLORS.ink,
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}>Cancel</button>
+              <button type="button" onClick={confirmDisableMethod} style={{
+                padding: "9px 16px", borderRadius: 999, border: "none",
+                background: COLORS.red, color: "#fff",
+                fontFamily: FONTS.body, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}>Disable</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ConfigRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: 12,
+      padding: "10px 0", borderBottom: `1px solid ${COLORS.borderSoft}`,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{label}</div>
+        {hint && <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{hint}</div>}
+      </div>
+      <div style={{ flexShrink: 0 }}>{children}</div>
+    </div>
+  );
+}
+function vmSelectStyle(): React.CSSProperties {
+  return {
+    padding: "7px 10px", borderRadius: 8, border: `1px solid ${COLORS.border}`,
+    fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+    background: "#fff", cursor: "pointer",
+  };
+}
+function vmChipStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: "5px 11px", borderRadius: 999,
+    border: `1px solid ${active ? COLORS.successDeep : COLORS.border}`,
+    background: active ? "rgba(15,79,62,0.10)" : "#fff",
+    color: active ? COLORS.successDeep : COLORS.inkMuted,
+    fontFamily: FONTS.body, fontSize: 11.5, fontWeight: 600,
+    cursor: "pointer",
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Phone OTP, ID, Business, Domain, Payment verification drawers.
+// ════════════════════════════════════════════════════════════════════
+
+function MethodDisabledNotice() {
+  return (
+    <div style={{
+      padding: "20px 18px", borderRadius: 12,
+      background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+      textAlign: "center", color: COLORS.inkMuted, fontSize: 13, lineHeight: 1.55,
+    }}>
+      This verification method isn't enabled on Tulala right now.<br />Check back later — platform admins decide which methods are available.
+    </div>
+  );
+}
+function VmFieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label style={{
+      fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted,
+      textTransform: "uppercase", marginBottom: 6, marginTop: 12, display: "block",
+    }}>{children}</label>
+  );
+}
+function vmTextInputStyle(): React.CSSProperties {
+  return {
+    width: "100%", boxSizing: "border-box",
+    padding: "10px 12px", borderRadius: 10,
+    border: `1px solid ${COLORS.border}`,
+    fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, outline: "none",
+    marginBottom: 4,
+  };
+}
+function vmSmallHelpStyle(): React.CSSProperties {
+  return { fontSize: 11, color: COLORS.inkMuted, marginBottom: 14, marginTop: 4 };
+}
+
+function TalentPhoneVerifyDrawer() {
+  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useProto();
+  const open = state.drawer.drawerId === "talent-phone-verify";
+  const TALENT_ID = "t1";
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [stage, setStage] = useState<"phone" | "code" | "done">("phone");
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [requestId, setRequestId] = useState<string | null>(null);
+
+  if (!isVerificationMethodEnabled("phone_verified")) {
+    return (
+      <DrawerShell open={open} onClose={closeDrawer} title="Phone Verification" width={520}
+        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+        <MethodDisabledNotice />
+      </DrawerShell>
+    );
+  }
+
+  const sendCode = () => {
+    if (!/^\+?\d{6,}$/.test(phone.replace(/\s/g, ""))) {
+      toast("Enter a valid phone number with country code");
+      return;
+    }
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    setGeneratedCode(otp);
+    const req = createVerificationRequest({
+      subjectType: "talent_profile", subjectId: TALENT_ID,
+      requestedByUserId: "u-current-talent", context: "agency",
+      method: "phone", verificationType: "phone_verified",
+      verificationCode: otp, claimedIdentifier: phone.trim(),
+      status: "pending_user_action",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    });
+    setRequestId(req.id);
+    setStage("code");
+    toast(`Code sent to ${phone} (demo: ${otp})`);
+  };
+
+  const verifyCode = () => {
+    if (code.trim() === generatedCode && requestId) {
+      approveVerificationRequest(requestId);
+      setStage("done");
+      toast("Phone verified");
+    } else {
+      toast("Wrong code · try again");
+    }
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Verify your phone"
+      description="Confirm a working phone number — used for security alerts. Stays internal — never shown publicly."
+      width={520}
+      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? "Close" : "Cancel"}</SecondaryButton>}
+    >
+      {stage === "phone" && (
+        <>
+          <VmFieldLabel>Phone number</VmFieldLabel>
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+            placeholder="+34 600 000 000" autoFocus style={vmTextInputStyle()} />
+          <div style={vmSmallHelpStyle()}>Include country code. Standard SMS rates apply.</div>
+          <PrimaryButton onClick={sendCode}>Send code</PrimaryButton>
+        </>
+      )}
+      {stage === "code" && (
+        <>
+          <div style={{ marginBottom: 14, padding: "10px 12px", borderRadius: 10, background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`, fontSize: 12, color: COLORS.ink }}>
+            Code sent to <strong>{phone}</strong>. Expires in 10 min. Demo code: <strong>{generatedCode}</strong>
+          </div>
+          <VmFieldLabel>6-digit code</VmFieldLabel>
+          <input type="text" inputMode="numeric" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            autoFocus style={{ ...vmTextInputStyle(), letterSpacing: 6, fontSize: 18, textAlign: "center" }} />
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <SecondaryButton onClick={() => setStage("phone")}>Change number</SecondaryButton>
+            <PrimaryButton onClick={verifyCode}>Verify</PrimaryButton>
+          </div>
+        </>
+      )}
+      {stage === "done" && (
+        <div style={{
+          padding: 20, borderRadius: 12, background: COLORS.successSoft, color: COLORS.successDeep,
+          fontSize: 13, textAlign: "center", fontWeight: 600,
+        }}>
+          ✓ Phone verified. Your account security level just went up.
+        </div>
+      )}
+    </DrawerShell>
+  );
+}
+
+function TalentIdVerifyDrawer() {
+  const { state, closeDrawer, toast, createVerificationRequest, isVerificationMethodEnabled, getVerificationMethodConfig } = useProto();
+  const open = state.drawer.drawerId === "talent-id-verify";
+  const TALENT_ID = "t1";
+  const [docType, setDocType] = useState<"passport" | "drivers_license" | "national_id">("passport");
+  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [evidenceNote, setEvidenceNote] = useState("");
+
+  if (!isVerificationMethodEnabled("id_verified")) {
+    return (
+      <DrawerShell open={open} onClose={closeDrawer} title="ID Verification" width={560}
+        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+        <MethodDisabledNotice />
+      </DrawerShell>
+    );
+  }
+  const cfg = getVerificationMethodConfig("id_verified");
+  const submit = () => {
+    if (cfg.evidenceRequired && !evidenceUrl.trim()) {
+      toast("Upload URL required");
+      return;
+    }
+    createVerificationRequest({
+      subjectType: "talent_profile", subjectId: TALENT_ID,
+      requestedByUserId: "u-current-talent", context: "agency",
+      method: "manual_review", verificationType: "id_verified",
+      claimedIdentifier: docType,
+      evidenceUrl: evidenceUrl.trim() || null,
+      evidenceNote: evidenceNote.trim() || null,
+      status: "submitted",
+      expiresAt: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString(),
+    });
+    toast("ID submitted · admin review within 48h");
+    closeDrawer();
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Verify your ID"
+      description="Upload a government-issued ID. Stays internal — never shown publicly. Used to confirm name + age + identity uniqueness."
+      width={560}
+      footer={<><SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton><PrimaryButton onClick={submit}>Submit for review</PrimaryButton></>}
+    >
+      <div style={{
+        padding: "10px 12px", borderRadius: 10, marginBottom: 14,
+        background: "rgba(91,107,160,0.06)", border: `1px solid rgba(91,107,160,0.18)`,
+        fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+      }}>
+        🔒 Documents are encrypted, viewed only by trained reviewers, and deleted 30 days after decision.
+      </div>
+
+      <VmFieldLabel>Document type</VmFieldLabel>
+      <select value={docType} onChange={(e) => setDocType(e.target.value as "passport" | "drivers_license" | "national_id")} style={{ ...vmTextInputStyle(), cursor: "pointer" }}>
+        <option value="passport">Passport</option>
+        <option value="drivers_license">Driver's license</option>
+        <option value="national_id">National ID card</option>
+      </select>
+
+      <VmFieldLabel>Document URL{cfg.evidenceRequired ? " *" : ""}</VmFieldLabel>
+      <input type="url" value={evidenceUrl} onChange={(e) => setEvidenceUrl(e.target.value)}
+        placeholder="https://… secure upload link" style={vmTextInputStyle()} />
+      <div style={vmSmallHelpStyle()}>In production this is a direct upload. Prototype expects a secure URL (e.g. signed S3 / Drive link).</div>
+
+      <VmFieldLabel>Note for reviewer (optional)</VmFieldLabel>
+      <textarea value={evidenceNote} onChange={(e) => setEvidenceNote(e.target.value)} rows={3}
+        placeholder="e.g. Name in document is 'María Reyes' — same as profile."
+        style={{ ...vmTextInputStyle(), resize: "vertical" }} />
+    </DrawerShell>
+  );
+}
+
+function TalentBusinessVerifyDrawer() {
+  const { state, closeDrawer, toast, createVerificationRequest, isVerificationMethodEnabled, getVerificationMethodConfig } = useProto();
+  const open = state.drawer.drawerId === "talent-business-verify";
+  const TALENT_ID = "t1";
+  const [legalName, setLegalName] = useState("");
+  const [vat, setVat] = useState("");
+  const [registryUrl, setRegistryUrl] = useState("");
+
+  if (!isVerificationMethodEnabled("business_verified")) {
+    return (
+      <DrawerShell open={open} onClose={closeDrawer} title="Business Verification" width={560}
+        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+        <MethodDisabledNotice />
+      </DrawerShell>
+    );
+  }
+  const cfg = getVerificationMethodConfig("business_verified");
+  const submit = () => {
+    if (!legalName.trim() || !vat.trim()) { toast("Legal name + VAT/registration number required"); return; }
+    if (cfg.evidenceRequired && !registryUrl.trim()) { toast("Public registry URL required by platform policy"); return; }
+    createVerificationRequest({
+      subjectType: "talent_profile", subjectId: TALENT_ID,
+      requestedByUserId: "u-current-talent", context: "agency",
+      method: "manual_review", verificationType: "business_verified",
+      claimedIdentifier: vat.trim(),
+      evidenceUrl: registryUrl.trim() || null,
+      evidenceNote: `Legal name: ${legalName.trim()}`,
+      status: "submitted",
+      expiresAt: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString(),
+    });
+    toast("Business details submitted · review within 3 business days");
+    closeDrawer();
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Verify your business"
+      description="Confirm the registered legal entity behind your work. Public badge."
+      width={560}
+      footer={<><SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton><PrimaryButton onClick={submit}>Submit</PrimaryButton></>}
+    >
+      <VmFieldLabel>Legal entity name *</VmFieldLabel>
+      <input type="text" value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder="e.g. Reyes Studio S.L." style={vmTextInputStyle()} />
+
+      <VmFieldLabel>VAT / registration number *</VmFieldLabel>
+      <input type="text" value={vat} onChange={(e) => setVat(e.target.value)} placeholder="e.g. ESB12345678" style={vmTextInputStyle()} />
+
+      <VmFieldLabel>Public registry URL{cfg.evidenceRequired ? " *" : " (optional)"}</VmFieldLabel>
+      <input type="url" value={registryUrl} onChange={(e) => setRegistryUrl(e.target.value)} placeholder="https://… link to registry record" style={vmTextInputStyle()} />
+      <div style={vmSmallHelpStyle()}>e.g. Companies House, DIC, Sociedades Mercantiles.{cfg.evidenceRequired ? " Required by platform policy." : ""}</div>
+    </DrawerShell>
+  );
+}
+
+function TalentDomainVerifyDrawer() {
+  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useProto();
+  const open = state.drawer.drawerId === "talent-domain-verify";
+  const TALENT_ID = "t1";
+  const [domain, setDomain] = useState("");
+  const [stage, setStage] = useState<"input" | "instructions" | "checking" | "done">("input");
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [txtValue, setTxtValue] = useState("");
+
+  if (!isVerificationMethodEnabled("domain_verified")) {
+    return (
+      <DrawerShell open={open} onClose={closeDrawer} title="Domain Verification" width={560}
+        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+        <MethodDisabledNotice />
+      </DrawerShell>
+    );
+  }
+  const startCheck = () => {
+    if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain.trim())) {
+      toast("Enter a valid domain (e.g. martareyes.com)");
+      return;
+    }
+    const txt = `tulala-verify=${Math.random().toString(36).slice(2, 14)}`;
+    setTxtValue(txt);
+    const req = createVerificationRequest({
+      subjectType: "talent_profile", subjectId: TALENT_ID,
+      requestedByUserId: "u-current-talent", context: "agency",
+      method: "domain", verificationType: "domain_verified",
+      claimedIdentifier: domain.trim(),
+      verificationCode: txt,
+      status: "pending_user_action",
+      expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+    });
+    setRequestId(req.id);
+    setStage("instructions");
+  };
+  const runCheck = () => {
+    setStage("checking");
+    setTimeout(() => {
+      if (requestId) approveVerificationRequest(requestId);
+      setStage("done");
+      toast("DNS record found · domain verified");
+    }, 1500);
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Verify your domain"
+      description="Prove you control a domain (e.g. martareyes.com). Public badge — adds credibility."
+      width={560}
+      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? "Close" : "Cancel"}</SecondaryButton>}
+    >
+      {stage === "input" && (
+        <>
+          <VmFieldLabel>Domain</VmFieldLabel>
+          <input type="text" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="martareyes.com" autoFocus style={vmTextInputStyle()} />
+          <div style={vmSmallHelpStyle()}>Just the domain — no https:// or paths.</div>
+          <PrimaryButton onClick={startCheck}>Get DNS instructions</PrimaryButton>
+        </>
+      )}
+      {stage === "instructions" && (
+        <>
+          <div style={{ fontSize: 13, color: COLORS.ink, marginBottom: 10 }}>Add this TXT record to <strong>{domain}</strong>:</div>
+          <div style={{
+            padding: "12px 14px", borderRadius: 10, background: COLORS.surface,
+            border: `1px solid ${COLORS.borderSoft}`, marginBottom: 14,
+            fontFamily: FONTS.mono ?? FONTS.body, fontSize: 12, color: COLORS.ink, lineHeight: 1.6,
+          }}>
+            <div><strong>Type:</strong> TXT</div>
+            <div><strong>Host:</strong> @</div>
+            <div><strong>Value:</strong> {txtValue}</div>
+            <div><strong>TTL:</strong> 3600</div>
+          </div>
+          <div style={vmSmallHelpStyle()}>DNS can take 5–30 minutes to propagate. Once added, click below.</div>
+          <PrimaryButton onClick={runCheck}>I've added the record · check now</PrimaryButton>
+        </>
+      )}
+      {stage === "checking" && (
+        <div style={{ textAlign: "center", padding: 30, color: COLORS.inkMuted, fontSize: 13 }}>
+          Looking up TXT record on {domain}…
+        </div>
+      )}
+      {stage === "done" && (
+        <div style={{
+          padding: 20, borderRadius: 12, background: COLORS.successSoft, color: COLORS.successDeep,
+          fontSize: 13, textAlign: "center", fontWeight: 600,
+        }}>
+          ✓ {domain} verified. Domain badge is live.
+        </div>
+      )}
+    </DrawerShell>
+  );
+}
+
+function TalentPaymentVerifyDrawer() {
+  const { state, closeDrawer, toast, createVerificationRequest, approveVerificationRequest, isVerificationMethodEnabled } = useProto();
+  const open = state.drawer.drawerId === "talent-payment-verify";
+  const TALENT_ID = "t1";
+  const [stage, setStage] = useState<"intro" | "running" | "done">("intro");
+
+  if (!isVerificationMethodEnabled("payment_verified")) {
+    return (
+      <DrawerShell open={open} onClose={closeDrawer} title="Payment Verification" width={520}
+        footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}>
+        <MethodDisabledNotice />
+      </DrawerShell>
+    );
+  }
+  const run = () => {
+    setStage("running");
+    setTimeout(() => {
+      const req = createVerificationRequest({
+        subjectType: "talent_profile", subjectId: TALENT_ID,
+        requestedByUserId: "u-current-talent", context: "agency",
+        method: "payment", verificationType: "payment_verified",
+        claimedIdentifier: "stripe_acct_demo",
+        status: "submitted",
+        expiresAt: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
+      });
+      approveVerificationRequest(req.id);
+      setStage("done");
+      toast("Payment account verified");
+    }, 1500);
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Verify payment account"
+      description="Confirm a working payout method. Internal only — improves your trust score for clients."
+      width={520}
+      footer={<SecondaryButton onClick={closeDrawer}>{stage === "done" ? "Close" : "Cancel"}</SecondaryButton>}
+    >
+      {stage === "intro" && (
+        <>
+          <div style={{ fontSize: 13, color: COLORS.ink, lineHeight: 1.6, marginBottom: 14 }}>
+            We'll attempt a €1 hold on your connected payout method, then immediately refund it. Nothing actually moves.
+          </div>
+          <PrimaryButton onClick={run}>Run check</PrimaryButton>
+        </>
+      )}
+      {stage === "running" && (
+        <div style={{ textAlign: "center", padding: 30, color: COLORS.inkMuted, fontSize: 13 }}>
+          Pinging Stripe…
+        </div>
+      )}
+      {stage === "done" && (
+        <div style={{
+          padding: 20, borderRadius: 12, background: COLORS.successSoft, color: COLORS.successDeep,
+          fontSize: 13, textAlign: "center", fontWeight: 600,
+        }}>
+          ✓ Payment account verified.
+        </div>
+      )}
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-25.2 — Bulk client CSV import
+// Pattern parallels NewTalentDrawer's CSV mode but slimmer: clients are
+// just (name, contact, email) records — no taxonomy mapping, no
+// approval queue. Imports go straight into `importedClients` and
+// surface in the Clients page.
+// ════════════════════════════════════════════════════════════════════
+
+function ClientCsvBulkAddDrawer() {
+  const { state, closeDrawer, bulkAddClient, toast } = useProto();
+  const open = state.drawer.drawerId === "client-csv-bulk-add";
+  const [raw, setRaw] = useState("");
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  type Row = { name: string; contact: string; email: string };
+  const parsed: Row[] = (() => {
+    if (!raw.trim()) return [];
+    const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return [];
+    const headerLine = lines[0].toLowerCase();
+    const cols = headerLine.split(",").map(c => c.trim());
+    const indexOf = (...names: string[]) => {
+      for (const n of names) {
+        const idx = cols.findIndex(c => c === n || c.startsWith(n));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+    const iName    = indexOf("name", "company", "client", "brand");
+    const iContact = indexOf("contact", "person", "buyer");
+    const iEmail   = indexOf("email", "e-mail");
+    return lines.slice(1).map(line => {
+      const cells = line.split(",").map(c => c.trim());
+      return {
+        name:    iName    >= 0 ? cells[iName]    ?? "" : "",
+        contact: iContact >= 0 ? cells[iContact] ?? "" : "",
+        email:   iEmail   >= 0 ? cells[iEmail]   ?? "" : "",
+      };
+    }).filter(r => r.name || r.contact || r.email);
+  })();
+  const valid = parsed.filter(r => r.name.trim() && (r.contact.trim() || r.email.trim())).length;
+  const sample = `name,contact,email
+Vogue Italia,Sara Bianchi,sara@vogue.it
+Mango,Joana Rivera,joana@mango.com
+Net-a-Porter,Helena Ross,helena@net-a-porter.com`;
+
+  const handleFile = async (f: File) => {
+    const text = await f.text();
+    setRaw(text);
+  };
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+      <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+      <PrimaryButton
+        disabled={valid === 0}
+        onClick={() => {
+          const created = bulkAddClient(parsed.map(r => ({ name: r.name, contact: r.contact, email: r.email })));
+          if (created > 0) {
+            toast(`Imported ${created} client${created === 1 ? "" : "s"}`);
+            closeDrawer();
+          } else {
+            toast("No valid rows — each row needs a name + contact or email");
+          }
+        }}
+      >
+        Import {valid > 0 ? `${valid} client${valid === 1 ? "" : "s"}` : "clients"}
+      </PrimaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Bulk import clients" description="Paste or upload a CSV of clients to add to your workspace." footer={footer}>
+      <div style={{ padding: 20, fontFamily: FONTS.body }}>
+        <div style={{
+          padding: 14, borderRadius: 12,
+          background: COLORS.surface, border: `1px solid ${COLORS.borderSoft}`,
+          marginBottom: 14,
+        }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
+            Paste or upload a CSV
+          </div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10, lineHeight: 1.5 }}>
+            Headers we recognize: <code style={{ fontFamily: FONTS.mono }}>name, contact, email</code>.
+            Other column orders work too.
+          </div>
+          <textarea value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            placeholder={sample}
+            rows={6}
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "10px 12px",
+              borderRadius: 10, border: `1px solid ${COLORS.border}`,
+              fontFamily: FONTS.mono, fontSize: 11.5, color: COLORS.ink, outline: "none",
+              resize: "vertical", background: "#fff",
+            }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button type="button" onClick={() => fileRef.current?.click()} style={{
+              padding: "7px 12px", borderRadius: 999,
+              border: `1px solid ${COLORS.borderSoft}`, background: "#fff", color: COLORS.ink,
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+            }}>📎 Upload .csv file</button>
+            <button type="button" onClick={() => setRaw(sample)} style={{
+              padding: "7px 12px", borderRadius: 999,
+              border: `1px dashed ${COLORS.border}`, background: "transparent",
+              color: COLORS.inkMuted,
+              fontSize: 12, fontWeight: 500, cursor: "pointer",
+            }}>Use sample</button>
+            {raw && (
+              <button type="button" onClick={() => setRaw("")} style={{
+                padding: "7px 12px", borderRadius: 999, border: "none",
+                background: "transparent", color: COLORS.inkMuted,
+                fontSize: 12, fontWeight: 500, cursor: "pointer",
+              }}>Clear</button>
+            )}
+            <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
+            />
+          </div>
+        </div>
+
+        {parsed.length > 0 && (
+          <>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              marginBottom: 8,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, color: COLORS.inkMuted, textTransform: "uppercase" }}>
+                Preview · {parsed.length} row{parsed.length === 1 ? "" : "s"} ({valid} valid)
+              </div>
+            </div>
+            <div style={{
+              border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10,
+              maxHeight: 300, overflowY: "auto",
+            }}>
+              {parsed.map((r, i) => {
+                const isValid = r.name.trim() && (r.contact.trim() || r.email.trim());
+                return (
+                  <div key={i} style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.2fr 1fr 1.4fr 18px",
+                    gap: 10, padding: "8px 12px", alignItems: "center",
+                    borderBottom: i < parsed.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+                    background: isValid ? "#fff" : COLORS.amberSoft,
+                    fontSize: 11.5,
+                  }}>
+                    <span style={{ fontWeight: 600, color: COLORS.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name || "—"}</span>
+                    <span style={{ color: COLORS.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.contact || "—"}</span>
+                    <span style={{ color: COLORS.inkMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.email || "—"}</span>
+                    <span style={{ color: isValid ? COLORS.successDeep : COLORS.amberDeep, fontWeight: 700, textAlign: "center" }}>{isValid ? "✓" : "!"}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </DrawerShell>
   );
@@ -3921,7 +15321,7 @@ function WidgetsDrawer() {
       <Section title="Embed code">
         <div
           style={{
-            background: "#15151A",
+            background: COLORS.fillDeep,
             color: "#9DD9C7",
             padding: 12,
             borderRadius: 8,
@@ -5166,7 +16566,7 @@ function PayoutReceiverPickerDrawer() {
                   gap: 12,
                   padding: 12,
                   background: isSelected ? "rgba(11,11,13,0.04)" : "#fff",
-                  border: `1px solid ${isSelected ? COLORS.ink : COLORS.borderSoft}`,
+                  border: `1px solid ${isSelected ? COLORS.accent : COLORS.borderSoft}`,
                   borderRadius: 10,
                   cursor: eligible ? "pointer" : "not-allowed",
                   opacity: eligible ? 1 : 0.6,
@@ -5480,7 +16880,7 @@ function ClientTrustDetailDrawer() {
           <div style={{ padding: "14px 16px", background: "rgba(11,11,13,0.02)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 10, fontFamily: FONTS.body }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>Unlock {next.label}</div>
             <div style={{ fontSize: 12, color: COLORS.inkMuted, marginBottom: 10 }}>{next.requirements.join(", ")}</div>
-            <button type="button" onClick={() => openDrawer("kyc-verification")} style={{ padding: "8px 16px", background: COLORS.ink, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <button type="button" onClick={() => openDrawer("kyc-verification")} style={{ padding: "8px 16px", background: COLORS.fill, color: "#fff", border: "none", borderRadius: 7, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               Start verification →
             </button>
           </div>
@@ -5511,7 +16911,7 @@ function EscrowDetailDrawer() {
         {steps.map((s, i) => (
           <div key={s.id} style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: s.done ? COLORS.green : s.active ? COLORS.ink : "rgba(11,11,13,0.06)", color: s.done || s.active ? "#fff" : COLORS.inkDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: s.done ? 14 : 16, fontWeight: 700 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: s.done ? COLORS.green : s.active ? COLORS.fill : "rgba(11,11,13,0.06)", color: s.done || s.active ? "#fff" : COLORS.inkDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: s.done ? 14 : 16, fontWeight: 700 }}>
                 {s.done ? "✓" : s.icon}
               </div>
               {i < steps.length - 1 && <div style={{ width: 2, height: 28, background: s.done ? COLORS.green : COLORS.borderSoft, margin: "4px 0" }} />}
@@ -5554,7 +16954,7 @@ function RefundFlowDrawer() {
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         <div style={{ display: "flex", gap: 8 }}>
           {(["full","partial"] as const).map((t) => (
-            <button key={t} type="button" onClick={() => setAmount(t)} style={{ flex: 1, padding: "10px 0", border: `1px solid ${amount===t ? COLORS.ink : COLORS.borderSoft}`, background: amount===t ? COLORS.ink : "transparent", color: amount===t ? "#fff" : COLORS.ink, borderRadius: 8, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer", textTransform: "capitalize" as const }}>{t} refund</button>
+            <button key={t} type="button" onClick={() => setAmount(t)} style={{ flex: 1, padding: "10px 0", border: `1px solid ${amount===t ? COLORS.accent : COLORS.borderSoft}`, background: amount===t ? COLORS.fill : "transparent", color: amount===t ? "#fff" : COLORS.ink, borderRadius: 8, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer", textTransform: "capitalize" as const }}>{t} refund</button>
           ))}
         </div>
         <select value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 13, color: reason ? COLORS.ink : COLORS.inkMuted, background: "#fff" }}>
@@ -5588,14 +16988,14 @@ function DisputeFlowDrawer() {
         <div style={{ display: "flex", gap: 8, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${COLORS.borderSoft}` }}>
           {([1,2,3] as const).map((s) => (
             <div key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: s < step ? COLORS.green : s === step ? COLORS.ink : "rgba(11,11,13,0.06)", color: s <= step ? "#fff" : COLORS.inkDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{s < step ? "✓" : s}</div>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: s < step ? COLORS.green : s === step ? COLORS.fill : "rgba(11,11,13,0.06)", color: s <= step ? "#fff" : COLORS.inkDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{s < step ? "✓" : s}</div>
               <span style={{ fontSize: 12, color: s === step ? COLORS.ink : COLORS.inkMuted, fontWeight: s === step ? 600 : 400 }}>{s === 1 ? "Type" : s === 2 ? "Evidence" : "Review"}</span>
               {s < 3 && <div style={{ width: 20, height: 1, background: COLORS.borderSoft }} />}
             </div>
           ))}
         </div>
-        {step === 1 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{types.map((d) => (<button key={d.id} type="button" onClick={() => setType(d.id)} style={{ padding: "12px 14px", border: `1px solid ${type===d.id ? COLORS.ink : COLORS.borderSoft}`, background: type===d.id ? "rgba(11,11,13,0.04)" : "#fff", borderRadius: 9, textAlign: "left" as const, cursor: "pointer", fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{d.label}</button>))}<button type="button" disabled={!type} onClick={() => setStep(2)} style={{ marginTop: 8, padding: "10px", background: type ? COLORS.ink : COLORS.borderSoft, border: "none", borderRadius: 8, color: type ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: type ? "pointer" : "default" }}>Continue →</button></div>}
-        {step === 2 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => { toast("File picker"); setStep(3); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 28 }}>📎</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Upload evidence</div><div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>Photos, emails, contracts, call recordings</div></div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
+        {step === 1 && <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{types.map((d) => (<button key={d.id} type="button" onClick={() => setType(d.id)} style={{ padding: "12px 14px", border: `1px solid ${type===d.id ? COLORS.accent : COLORS.borderSoft}`, background: type===d.id ? "rgba(11,11,13,0.04)" : "#fff", borderRadius: 9, textAlign: "left" as const, cursor: "pointer", fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{d.label}</button>))}<button type="button" disabled={!type} onClick={() => setStep(2)} style={{ marginTop: 8, padding: "10px", background: type ? COLORS.fill : COLORS.borderSoft, border: "none", borderRadius: 8, color: type ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: type ? "pointer" : "default" }}>Continue →</button></div>}
+        {step === 2 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => { toast("File picker"); setStep(3); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 28 }}>📎</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Upload evidence</div><div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>Photos, emails, contracts, call recordings</div></div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(1)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => setStep(3)} style={{ flex: 1, padding: "10px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Continue →</button></div></div>}
         {step === 3 && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div style={{ padding: "14px", background: "rgba(176,48,58,0.05)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.6 }}><strong style={{ color: "#7A2026" }}>Opening a dispute freezes the escrow.</strong> Funds won't be released until resolved (2–5 business days).</div><div style={{ display: "flex", gap: 8 }}><button type="button" onClick={() => setStep(2)} style={{ flex: 1, padding: "10px", border: `1px solid ${COLORS.border}`, borderRadius: 8, background: "transparent", fontFamily: FONTS.body, fontSize: 13, cursor: "pointer", color: COLORS.ink }}>Back</button><button type="button" onClick={() => { toast("Dispute opened — escrow frozen"); closeDrawer(); }} style={{ flex: 1, padding: "10px", background: COLORS.red, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Confirm dispute</button></div></div>}
       </div>
     </DrawerShell>
@@ -5609,10 +17009,10 @@ function KycVerificationDrawer() {
   return (
     <DrawerShell open={open} onClose={closeDrawer} title="Identity Verification" description="Secure · Encrypted · ~3 minutes" defaultSize="compact">
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 20 }}>
-        {step === "intro" && <>{[{icon:"🪪",title:"Government-issued ID",desc:"Passport, driving licence, or national ID"},{icon:"🤳",title:"Selfie with your ID",desc:"A clear photo of you holding your document"},{icon:"🔒",title:"Secure & private",desc:"Encrypted, deleted after verification"}].map((i) => (<div key={i.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}><span style={{ fontSize: 22 }}>{i.icon}</span><div><div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{i.title}</div><div style={{ fontSize: 12, color: COLORS.inkMuted }}>{i.desc}</div></div></div>))}<button type="button" onClick={() => setStep("id")} style={{ padding: "11px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Start verification →</button></>}
+        {step === "intro" && <>{[{icon:"🪪",title:"Government-issued ID",desc:"Passport, driving licence, or national ID"},{icon:"🤳",title:"Selfie with your ID",desc:"A clear photo of you holding your document"},{icon:"🔒",title:"Secure & private",desc:"Encrypted, deleted after verification"}].map((i) => (<div key={i.title} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}><span style={{ fontSize: 22 }}>{i.icon}</span><div><div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{i.title}</div><div style={{ fontSize: 12, color: COLORS.inkMuted }}>{i.desc}</div></div></div>))}<button type="button" onClick={() => setStep("id")} style={{ padding: "11px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13.5, fontWeight: 600, cursor: "pointer" }}>Start verification →</button></>}
         {step === "id" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => { toast("File picker — select ID document"); setStep("selfie"); }} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🪪</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Tap to upload or take a photo</div></div></div>}
         {step === "selfie" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}><div onClick={() => setStep("done")} style={{ padding: "40px 20px", border: `2px dashed ${COLORS.border}`, borderRadius: 10, textAlign: "center" as const, cursor: "pointer" }}><div style={{ fontSize: 36 }}>🤳</div><div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink, marginTop: 8 }}>Selfie holding your ID</div><div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>Both your face and document must be clearly visible</div></div></div>}
-        {step === "done" && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, textAlign: "center" as const }}><span style={{ fontSize: 48 }}>✅</span><div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Submitted</div><div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Review within 24 hours. You'll be notified once verified.</div><button type="button" onClick={closeDrawer} style={{ padding: "10px 24px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button></div>}
+        {step === "done" && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, paddingTop: 20, textAlign: "center" as const }}><span style={{ fontSize: 48 }}>✅</span><div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Submitted</div><div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Review within 24 hours. You'll be notified once verified.</div><button type="button" onClick={closeDrawer} style={{ padding: "10px 24px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button></div>}
       </div>
     </DrawerShell>
   );
@@ -5625,7 +17025,7 @@ function ProofOfFundsDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="Proof of Funds" description="Required for Silver and Gold trust tiers" defaultSize="compact">
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Demonstrate available funds via bank link (instant) or wire deposit (1–3 business days).</div>
-        <button type="button" onClick={() => toast("Bank link — opens Plaid / TrueLayer")} style={{ padding: "12px 16px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" as const }}>🏦 Link bank account (instant)</button>
+        <button type="button" onClick={() => toast("Bank link — opens Plaid / TrueLayer")} style={{ padding: "12px 16px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" as const }}>🏦 Link bank account (instant)</button>
         <button type="button" onClick={() => toast("Wire instructions sent to your email")} style={{ padding: "12px 16px", background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.ink, fontFamily: FONTS.body, fontSize: 13, fontWeight: 500, cursor: "pointer", textAlign: "left" as const }}>💸 Wire deposit (1–3 days)</button>
       </div>
     </DrawerShell>
@@ -5641,7 +17041,7 @@ function PayoutMethodFailureDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="Payout Failed" description="Action required to receive your payment" defaultSize="compact">
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ padding: "12px 14px", background: "rgba(176,48,58,0.06)", border: "1px solid rgba(176,48,58,0.18)", borderRadius: 10, fontSize: 13, color: "#7A2026", lineHeight: 1.5 }}>⚠️ {msgs[reason] ?? "An error occurred."}</div>
-        <button type="button" onClick={() => toast("Payment method editor")} style={{ padding: "11px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Update payout method →</button>
+        <button type="button" onClick={() => toast("Payment method editor")} style={{ padding: "11px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Update payout method →</button>
         <button type="button" onClick={() => toast("Support ticket opened")} style={{ padding: "10px", background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer" }}>Contact support</button>
       </div>
     </DrawerShell>
@@ -5653,8 +17053,8 @@ function SubscriptionLifecycleDrawer() {
   const open  = state.drawer.drawerId === "subscription-lifecycle";
   const phase = (state.drawer.payload?.phase as string) ?? "active";
   const phases: Record<string, { title: string; desc: string; cta: string; ctaColor: string }> = {
-    trial:     { title: "Trial ending soon",          desc: "Your trial ends in 3 days. Upgrade to keep access.",                              cta: "Upgrade now",    ctaColor: COLORS.ink },
-    active:    { title: "Studio · Active",             desc: "Renews June 14, 2026 · €59/month. All features active.",                         cta: "Manage plan",    ctaColor: COLORS.ink },
+    trial:     { title: "Trial ending soon",          desc: "Your trial ends in 3 days. Upgrade to keep access.",                              cta: "Upgrade now",    ctaColor: COLORS.accent },
+    active:    { title: "Studio · Active",             desc: "Renews June 14, 2026 · €59/month. All features active.",                         cta: "Manage plan",    ctaColor: COLORS.accent },
     paused:    { title: "Plan paused",                desc: "Features are read-only. Resume any time — billing picks up from today.",          cta: "Resume plan",    ctaColor: COLORS.green },
     cancelled: { title: "Plan cancelled",             desc: "Expires June 14. After that you lose Studio features.",                           cta: "Reactivate",     ctaColor: COLORS.green },
     grace:     { title: "Payment failed — grace",     desc: "Couldn't charge your card. Update payment within 7 days to avoid restriction.",   cta: "Update payment", ctaColor: COLORS.red },
@@ -5708,13 +17108,13 @@ function AiDraftAssistDrawer() {
     <DrawerShell open={open} onClose={closeDrawer} title="AI Draft Assist" description="Generate a first draft — you edit, then send" defaultSize="half">
       <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
         <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder='e.g. "nudge client about offer" or "confirm date with talent"' rows={3} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, resize: "none" as const, outline: "none", boxSizing: "border-box" as const }} />
-        <button type="button" onClick={generate} disabled={loading || !prompt.trim()} style={{ padding: "10px", background: prompt.trim() ? COLORS.ink : COLORS.borderSoft, border: "none", borderRadius: 8, color: prompt.trim() ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: prompt.trim() ? "pointer" : "default" }}>{loading ? "Drafting…" : "Generate draft"}</button>
+        <button type="button" onClick={generate} disabled={loading || !prompt.trim()} style={{ padding: "10px", background: prompt.trim() ? COLORS.fill : COLORS.borderSoft, border: "none", borderRadius: 8, color: prompt.trim() ? "#fff" : COLORS.inkDim, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: prompt.trim() ? "pointer" : "default" }}>{loading ? "Drafting…" : "Generate draft"}</button>
         {result && (
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" as const, color: COLORS.inkMuted, marginBottom: 6 }}>Draft — edit before sending</div>
             <textarea value={result} onChange={(e) => setResult(e.target.value)} rows={6} style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(79,70,229,0.35)", fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink, resize: "vertical" as const, outline: "none", background: "rgba(79,70,229,0.03)", boxSizing: "border-box" as const }} />
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button type="button" onClick={() => { toast("Draft copied to composer"); closeDrawer(); }} style={{ flex: 1, padding: "9px", background: COLORS.ink, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Use draft →</button>
+              <button type="button" onClick={() => { toast("Draft copied to composer"); closeDrawer(); }} style={{ flex: 1, padding: "9px", background: COLORS.fill, border: "none", borderRadius: 8, color: "#fff", fontFamily: FONTS.body, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Use draft →</button>
               <button type="button" onClick={() => setResult("")} style={{ padding: "9px 14px", background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: 8, color: COLORS.inkMuted, fontFamily: FONTS.body, fontSize: 13, cursor: "pointer" }}>Clear</button>
             </div>
           </div>
@@ -5734,6 +17134,5865 @@ function AiSearchExplainDrawer() {
       <div style={{ fontFamily: FONTS.body, display: "flex", flexDirection: "column", gap: 14 }}>
         {query && <div style={{ padding: "10px 12px", background: "rgba(11,11,13,0.03)", border: `1px solid ${COLORS.borderSoft}`, borderRadius: 8, fontSize: 13, color: COLORS.ink }}>&ldquo;{query}&rdquo;</div>}
         <div style={{ fontSize: 13, color: COLORS.inkMuted, lineHeight: 1.6 }}>Searched across name, agency, brief, status, and location. Found <strong style={{ color: COLORS.ink }}>{results} results</strong>. Try date ranges, status filters, or talent names for precision.</div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ─── WS-18.6 — AI Weekly Digest drawer ──────────────────────────────────────
+// Shows a mock AI-generated "what changed this week" recap.
+// In production this would be generated server-side from the activity_log table.
+
+function AiWeeklyDigestDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "ai-weekly-digest";
+
+  const DIGEST_SECTIONS = [
+    {
+      label: "Inquiries",
+      icon: "bolt" as const,
+      items: [
+        "3 new inquiries arrived — Net-a-Porter, Bvlgari, and Valentino.",
+        "Offer v3 accepted by Net-a-Porter. Booking BK-205 confirmed.",
+        "Vogue Italia is awaiting your counter-offer (sent 2d ago).",
+      ],
+    },
+    {
+      label: "Roster",
+      icon: "user" as const,
+      items: [
+        "Kai Lin updated measurements and submitted 4 new portfolio images.",
+        "Lina Park's profile changes approved and published.",
+        "Tomás Navarro added as a new face — awaiting agency verification.",
+      ],
+    },
+    {
+      label: "Payments",
+      icon: "credit" as const,
+      items: [
+        "€7,913 net payout for BK-203 (Kai Lin · Bvlgari) is processing.",
+        "€3,400 payout for BK-205 is in escrow — releases on May 15.",
+      ],
+    },
+    {
+      label: "Team",
+      icon: "team" as const,
+      items: [
+        "Sara Bianchi handled 14 messages this week — highest on the team.",
+        "Andrés Lopez joined as Editor 3 days ago. No actions yet.",
+      ],
+    },
+  ] as const;
+
+  const ACTIONS = [
+    "Vogue Italia — send counter-offer",
+    "BK-203 payout — confirm receiver",
+    "Tomás Navarro — complete verification",
+  ];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Weekly digest"
+      description="AI-generated summary of what changed in your workspace this week. Generated Mon, Apr 28."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+        {/* AI header */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 14px",
+            background: COLORS.royalSoft,
+            borderRadius: RADIUS.lg,
+            border: "1px solid rgba(95,75,139,0.18)",
+          }}
+        >
+          <Icon name="sparkle" size={14} color={COLORS.royal} stroke={1.7} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.royal }}>
+              AI-generated · not saved · Apr 21 – Apr 28
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.royal, opacity: 0.75, marginTop: 1 }}>
+              Pulled from 47 activity events, 12 messages, 3 inquiry updates.
+            </div>
+          </div>
+        </div>
+
+        {/* Outstanding actions */}
+        <div>
+          <CapsLabel>Outstanding actions · {ACTIONS.length}</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+            {ACTIONS.map((action, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 12px",
+                  background: COLORS.coralSoft,
+                  border: `1px solid rgba(194,106,69,0.2)`,
+                  borderRadius: RADIUS.md,
+                  fontFamily: FONTS.body,
+                  fontSize: 12.5,
+                  color: COLORS.coralDeep,
+                  fontWeight: 500,
+                }}
+              >
+                <Icon name="alert" size={12} color={COLORS.coral} stroke={1.8} />
+                {action}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section summaries */}
+        {DIGEST_SECTIONS.map((section) => (
+          <div key={section.label}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginBottom: 8,
+              }}
+            >
+              <Icon name={section.icon} size={13} color={COLORS.inkMuted} stroke={1.8} />
+              <span
+                style={{
+                  fontFamily: FONTS.body,
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                  color: COLORS.inkMuted,
+                }}
+              >
+                {section.label}
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {section.items.map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    padding: "8px 10px",
+                    background: COLORS.surfaceAlt,
+                    borderRadius: RADIUS.md,
+                    border: `1px solid ${COLORS.borderSoft}`,
+                    fontFamily: FONTS.body,
+                    fontSize: 12.5,
+                    color: COLORS.ink,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: COLORS.inkDim,
+                      flexShrink: 0,
+                      marginTop: 6,
+                    }}
+                  />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-19 — Reporting & analytics drawers
+// ════════════════════════════════════════════════════════════════════
+
+function WorkspaceRevenueDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "workspace-revenue";
+
+  const MONTHLY = [
+    { month: "Nov", revenue: 12400 },
+    { month: "Dec", revenue: 18200 },
+    { month: "Jan", revenue: 9800 },
+    { month: "Feb", revenue: 14600 },
+    { month: "Mar", revenue: 21300 },
+    { month: "Apr", revenue: 17900 },
+  ];
+  const ytd = MONTHLY.reduce((s, m) => s + m.revenue, 0);
+  const mrr = MONTHLY[MONTHLY.length - 1].revenue;
+  const avgBooking = Math.round(ytd / 23);
+
+  const CATEGORIES = [
+    { label: "Commercial", value: 52400, pct: 54 },
+    { label: "Editorial",  value: 29800, pct: 31 },
+    { label: "Runway",     value: 14600, pct: 15 },
+  ];
+
+  const BAR_W = 280;
+  const BAR_H = 80;
+  const maxRev = Math.max(...MONTHLY.map((m) => m.revenue));
+  const barW = Math.floor(BAR_W / MONTHLY.length) - 6;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Revenue analytics"
+      description="Workspace revenue — bookings processed, net of cancellations. Updated hourly."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+        {/* KPI tiles */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {[
+            { label: "MRR (this month)",  value: `€${mrr.toLocaleString()}`,            sub: "+12% vs last month",    subColor: COLORS.successDeep },
+            { label: "ARR (projected)",   value: `€${((mrr * 12) / 1000).toFixed(0)}k`, sub: "based on current MRR" },
+            { label: "YTD revenue",       value: `€${(ytd / 1000).toFixed(1)}k`,        sub: "last 6 months",         subColor: COLORS.indigoDeep },
+            { label: "Avg booking value", value: `€${avgBooking.toLocaleString()}`,      sub: "across 23 bookings" },
+          ].map((tile) => (
+            <div
+              key={tile.label}
+              style={{
+                background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+                padding: "14px 16px", border: `1px solid ${COLORS.border}`,
+              }}
+            >
+              <div style={{ fontSize: 10.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                {tile.label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink, marginBottom: 2 }}>
+                {tile.value}
+              </div>
+              <div style={{ fontSize: 11, color: (tile as { subColor?: string }).subColor ?? COLORS.inkMuted }}>
+                {tile.sub}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Monthly bar chart */}
+        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "14px 16px", border: `1px solid ${COLORS.border}` }}>
+          <CapsLabel>Monthly revenue · last 6 months</CapsLabel>
+          <div style={{ marginTop: 12 }}>
+            <svg width={BAR_W} height={BAR_H + 20} style={{ display: "block", overflow: "visible" }}>
+              {MONTHLY.map((m, i) => {
+                const x = i * (BAR_W / MONTHLY.length) + 3;
+                const barHeight = Math.round((m.revenue / maxRev) * BAR_H);
+                const y = BAR_H - barHeight;
+                const isLatest = i === MONTHLY.length - 1;
+                return (
+                  <g key={m.month}>
+                    <rect
+                      x={x} y={y}
+                      width={barW} height={barHeight}
+                      rx={3}
+                      fill={isLatest ? COLORS.accent : COLORS.indigo}
+                      opacity={isLatest ? 1 : 0.5}
+                    />
+                    <text x={x + barW / 2} y={BAR_H + 14} textAnchor="middle" fontSize={9} fill={COLORS.inkMuted}>
+                      {m.month}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 10.5, color: COLORS.inkMuted }}>
+            <span>€0</span>
+            <span>€{(maxRev / 1000).toFixed(0)}k</span>
+          </div>
+        </div>
+
+        {/* Revenue by category */}
+        <div>
+          <CapsLabel>Revenue by category</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+            {CATEGORIES.map((cat) => (
+              <div key={cat.label}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12.5, color: COLORS.ink }}>
+                  <span style={{ fontWeight: 500 }}>{cat.label}</span>
+                  <span style={{ color: COLORS.inkMuted }}>€{cat.value.toLocaleString()} · {cat.pct}%</span>
+                </div>
+                <div style={{ background: COLORS.borderSoft, borderRadius: 3, height: 6, overflow: "hidden" }}>
+                  <div style={{ background: COLORS.accent, width: `${cat.pct}%`, height: "100%", borderRadius: 3, transition: TRANSITION.layout }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ConversionFunnelDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "conversion-funnel";
+
+  const STAGES = [
+    { label: "Inquiries received", count: 48, pct: 100, dropPct: null  as number | null },
+    { label: "Offer sent",         count: 31, pct: 65,  dropPct: 35   as number | null },
+    { label: "Client approved",    count: 22, pct: 46,  dropPct: 29   as number | null },
+    { label: "Booking confirmed",  count: 17, pct: 35,  dropPct: 23   as number | null },
+  ];
+  const FUNNEL_W = 280;
+  const STAGE_H = 48;
+  const GAP = 6;
+  const STAGE_COLORS = [COLORS.accent, COLORS.indigo, COLORS.success, COLORS.green];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Conversion funnel"
+      description="Inquiry-to-booking conversion — last 90 days. Drop-off shows where deals are lost."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+        {/* Summary KPIs */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[
+            { label: "Overall conversion", value: "35%",  sub: "inquiry → booking" },
+            { label: "Avg time to close",  value: "8.2d", sub: "inquiry → confirmed" },
+            { label: "Lost deals",         value: "31",   sub: "last 90 days", warn: true },
+          ].map((tile) => (
+            <div
+              key={tile.label}
+              style={{
+                background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+                padding: "12px 14px", border: `1px solid ${COLORS.border}`,
+              }}
+            >
+              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                {tile.label}
+              </div>
+              <div style={{ fontSize: 19, fontWeight: 800, color: (tile as { warn?: boolean }).warn ? COLORS.coral : COLORS.ink, marginBottom: 2 }}>
+                {tile.value}
+              </div>
+              <div style={{ fontSize: 10.5, color: COLORS.inkMuted }}>{tile.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* SVG funnel */}
+        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "16px", border: `1px solid ${COLORS.border}` }}>
+          <CapsLabel>Pipeline funnel · last 90 days</CapsLabel>
+          <div style={{ marginTop: 14 }}>
+            <svg
+              width={FUNNEL_W}
+              height={STAGES.length * (STAGE_H + GAP)}
+              style={{ display: "block", overflow: "visible" }}
+            >
+              {STAGES.map((stage, i) => {
+                const w = Math.round((stage.pct / 100) * FUNNEL_W);
+                const x = (FUNNEL_W - w) / 2;
+                const y = i * (STAGE_H + GAP);
+                return (
+                  <g key={stage.label}>
+                    <rect x={x} y={y} width={w} height={STAGE_H} rx={6}
+                      fill={STAGE_COLORS[i] ?? COLORS.accent}
+                      opacity={1 - i * 0.07}
+                    />
+                    <text x={FUNNEL_W / 2} y={y + STAGE_H / 2 - 5}
+                      textAnchor="middle" fontSize={11} fontWeight="600" fill="#fff">
+                      {stage.label}
+                    </text>
+                    <text x={FUNNEL_W / 2} y={y + STAGE_H / 2 + 10}
+                      textAnchor="middle" fontSize={10} fill="rgba(255,255,255,0.85)">
+                      {stage.count} · {stage.pct}%
+                    </text>
+                    {stage.dropPct !== null && (
+                      <text x={FUNNEL_W - 2} y={y - 1}
+                        textAnchor="end" fontSize={9.5} fill={COLORS.coral}>
+                        −{stage.dropPct}%
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        </div>
+
+        {/* Stage detail rows */}
+        <div>
+          <CapsLabel>Stage breakdown</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+            {STAGES.map((stage, i) => (
+              <div
+                key={stage.label}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 14px", background: COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: STAGE_COLORS[i] ?? COLORS.accent, flexShrink: 0,
+                  }} />
+                  <span style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{stage.label}</span>
+                </div>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{stage.count}</span>
+                  {stage.dropPct !== null ? (
+                    <span style={{ fontSize: 11, color: COLORS.coral }}>−{stage.dropPct}% drop</span>
+                  ) : (
+                    <span style={{ fontSize: 11, color: COLORS.inkMuted }}>entry stage</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function TopPerformersDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "top-performers";
+  const [tab, setTab] = useState<"talent" | "clients">("talent");
+
+  const TALENT_ROWS = [
+    { name: "Marta Reyes",    bookings: 11, revenue: 28400, trend: "+18%" },
+    { name: "Kai Lin",        bookings: 8,  revenue: 21000, trend: "+7%"  },
+    { name: "Sofia Andrade",  bookings: 7,  revenue: 17600, trend: "+3%"  },
+    { name: "Tomás Navarro",  bookings: 5,  revenue: 12200, trend: "−2%"  },
+    { name: "Hana Matsumoto", bookings: 4,  revenue: 9800,  trend: "+11%" },
+  ];
+  const CLIENT_ROWS = [
+    { name: "Vogue Italia",  bookings: 6, spend: 18200, trend: "+22%" },
+    { name: "Bvlgari",       bookings: 4, spend: 14600, trend: "+5%"  },
+    { name: "H&M Studio",    bookings: 5, spend: 11400, trend: "−8%"  },
+    { name: "Zara Campaign", bookings: 3, spend: 9200,  trend: "+16%" },
+    { name: "L'Oréal Paris", bookings: 2, spend: 7800,  trend: "0%"   },
+  ];
+  const maxRevenue = Math.max(...TALENT_ROWS.map((r) => r.revenue));
+  const maxSpend   = Math.max(...CLIENT_ROWS.map((r) => r.spend));
+
+  const trendColor = (t: string) =>
+    t.startsWith("+") ? COLORS.successDeep : t === "0%" ? COLORS.inkMuted : COLORS.coral;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Top performers"
+      description="Ranked by YTD revenue · last 12 months."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Tab toggle */}
+        <div style={{ display: "flex", gap: 4, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 3 }}>
+          {(["talent", "clients"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              style={{
+                flex: 1, padding: "6px 12px",
+                background: tab === t ? "#fff" : "transparent",
+                border: `1px solid ${tab === t ? COLORS.border : "transparent"}`,
+                borderRadius: RADIUS.sm,
+                fontFamily: FONTS.body,
+                fontSize: 12.5, fontWeight: tab === t ? 600 : 400,
+                color: tab === t ? COLORS.ink : COLORS.inkMuted,
+                cursor: "pointer",
+                transition: TRANSITION.sm,
+              }}
+            >
+              {t === "talent" ? "Talent" : "Clients"}
+            </button>
+          ))}
+        </div>
+
+        {/* Talent ranked rows */}
+        {tab === "talent" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {TALENT_ROWS.map((row, i) => (
+              <div
+                key={row.name}
+                style={{
+                  padding: "12px 14px", background: COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{
+                      width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                      background: i === 0 ? COLORS.accent : COLORS.surfaceAlt,
+                      border: `1px solid ${i === 0 ? COLORS.accent : COLORS.border}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 10, fontWeight: 700,
+                      color: i === 0 ? "#fff" : COLORS.inkMuted,
+                    }}>
+                      {i + 1}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.name}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>€{row.revenue.toLocaleString()}</div>
+                    <div style={{ fontSize: 11, color: trendColor(row.trend) }}>{row.trend} YoY</div>
+                  </div>
+                </div>
+                <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden" }}>
+                  <div style={{
+                    background: i === 0 ? COLORS.accent : COLORS.indigo,
+                    width: `${Math.round((row.revenue / maxRevenue) * 100)}%`,
+                    height: "100%", borderRadius: 3,
+                  }} />
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>{row.bookings} bookings YTD</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Client ranked rows */}
+        {tab === "clients" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {CLIENT_ROWS.map((row, i) => (
+              <div
+                key={row.name}
+                style={{
+                  padding: "12px 14px", background: COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{
+                      width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                      background: i === 0 ? COLORS.indigo : COLORS.surfaceAlt,
+                      border: `1px solid ${i === 0 ? COLORS.indigo : COLORS.border}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 10, fontWeight: 700,
+                      color: i === 0 ? "#fff" : COLORS.inkMuted,
+                    }}>
+                      {i + 1}
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.name}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>€{row.spend.toLocaleString()}</div>
+                    <div style={{ fontSize: 11, color: trendColor(row.trend) }}>{row.trend} YoY</div>
+                  </div>
+                </div>
+                <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden" }}>
+                  <div style={{
+                    background: i === 0 ? COLORS.indigo : COLORS.accent,
+                    width: `${Math.round((row.spend / maxSpend) * 100)}%`,
+                    height: "100%", borderRadius: 3,
+                  }} />
+                </div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>{row.bookings} bookings YTD</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function CoordinatorWorkloadDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "coordinator-workload";
+
+  const COORDINATORS = [
+    { name: "Oran Tene",     role: "Admin",       active: 6, messages: 38, avgReply: "1.2h", closed: 4, load: 85 },
+    { name: "Sara Mendes",   role: "Coordinator", active: 4, messages: 22, avgReply: "2.4h", closed: 3, load: 62 },
+    { name: "Luca Ferretti", role: "Coordinator", active: 3, messages: 17, avgReply: "4.1h", closed: 1, load: 44 },
+    { name: "Alina Popescu", role: "Editor",      active: 1, messages: 9,  avgReply: "3.8h", closed: 2, load: 22 },
+  ];
+  const totalActive   = COORDINATORS.reduce((s, c) => s + c.active, 0);
+  const totalMessages = COORDINATORS.reduce((s, c) => s + c.messages, 0);
+
+  const loadColor = (load: number) =>
+    load >= 80 ? COLORS.coral : load >= 50 ? COLORS.amber : COLORS.success;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Coordinator workload"
+      description="Active inquiry load per team member. Updated every 15 minutes."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Summary tiles */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[
+            { label: "Team members",     value: String(COORDINATORS.length) },
+            { label: "Total active",     value: String(totalActive) },
+            { label: "Messages this wk", value: String(totalMessages) },
+          ].map((tile) => (
+            <div
+              key={tile.label}
+              style={{
+                background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+                padding: "12px 14px", border: `1px solid ${COLORS.border}`,
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                {tile.label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.ink }}>{tile.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Per-coordinator rows */}
+        <div>
+          <CapsLabel>Per-coordinator breakdown</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
+            {COORDINATORS.map((coord) => {
+              const color = loadColor(coord.load);
+              return (
+                <div
+                  key={coord.name}
+                  style={{
+                    padding: "14px 16px", background: COLORS.surfaceAlt,
+                    borderRadius: RADIUS.lg, border: `1px solid ${COLORS.borderSoft}`,
+                  }}
+                >
+                  {/* Header row */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{coord.name}</div>
+                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{coord.role}</div>
+                    </div>
+                    <div style={{
+                      fontSize: 11.5, fontWeight: 700, color: color,
+                      background: `${color}1A`, padding: "3px 8px", borderRadius: RADIUS.sm,
+                    }}>
+                      {coord.load}% load
+                    </div>
+                  </div>
+
+                  {/* Load bar */}
+                  <div style={{ background: COLORS.border, borderRadius: 4, height: 6, marginBottom: 10, overflow: "hidden" }}>
+                    <div style={{
+                      width: `${coord.load}%`, height: "100%",
+                      borderRadius: 4, background: color,
+                      transition: TRANSITION.layout,
+                    }} />
+                  </div>
+
+                  {/* Stat row */}
+                  <div style={{ display: "flex", gap: 20 }}>
+                    {[
+                      { label: "Active",    value: String(coord.active) },
+                      { label: "Messages",  value: String(coord.messages) },
+                      { label: "Avg reply", value: coord.avgReply },
+                      { label: "Closed wk", value: String(coord.closed) },
+                    ].map((stat) => (
+                      <div key={stat.label}>
+                        <div style={{ fontSize: 10, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          {stat.label}
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>
+                          {stat.value}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-20 — Operations & workflow automation drawers
+// ════════════════════════════════════════════════════════════════════
+
+function MyQueueDrawer() {
+  const { state, closeDrawer, openDrawer } = useProto();
+  const open = state.drawer.drawerId === "my-queue";
+
+  type QueueItem = {
+    id: string;
+    client: string;
+    talent: string;
+    stage: string;
+    slaLabel: string;
+    slaUrgent: boolean;
+    age: string;
+  };
+  const QUEUE: QueueItem[] = [
+    { id: "RI-201", client: "Vogue Italia",  talent: "Marta Reyes",   stage: "Awaiting client", slaLabel: "Due in 2h",  slaUrgent: true,  age: "4d" },
+    { id: "RI-203", client: "Bvlgari",       talent: "Kai Lin",       stage: "Offer draft",     slaLabel: "Due in 6h",  slaUrgent: true,  age: "1d" },
+    { id: "RI-205", client: "H&M Studio",    talent: "Sofia Andrade", stage: "Negotiating",     slaLabel: "On track",   slaUrgent: false, age: "2d" },
+    { id: "RI-207", client: "Zara Campaign", talent: "Tomás Navarro", stage: "Hold requested",  slaLabel: "Due in 12h", slaUrgent: false, age: "3d" },
+    { id: "RI-209", client: "L'Oréal Paris", talent: "Hana Matsumoto",stage: "First contact",   slaLabel: "On track",   slaUrgent: false, age: "6h" },
+  ];
+  const urgent = QUEUE.filter((q) => q.slaUrgent);
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="My queue"
+      description="Your assigned inquiries sorted by SLA urgency. Tap any row to open the workspace."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Summary */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[
+            { label: "Assigned to me", value: String(QUEUE.length) },
+            { label: "SLA at risk",    value: String(urgent.length), warn: true },
+            { label: "Avg age",        value: "2.4d" },
+          ].map((tile) => (
+            <div key={tile.label} style={{
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+              padding: "12px 14px", border: `1px solid ${COLORS.border}`,
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                {tile.label}
+              </div>
+              <div style={{
+                fontSize: 22, fontWeight: 800,
+                color: (tile as { warn?: boolean }).warn && urgent.length > 0 ? COLORS.coral : COLORS.ink,
+              }}>
+                {tile.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Queue rows */}
+        <div>
+          <CapsLabel>Inquiries · sorted by urgency</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+            {QUEUE.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => { closeDrawer(); openDrawer("inquiry-workspace", { inquiryId: item.id, pov: "admin" }); }}
+                style={{
+                  display: "block", width: "100%", textAlign: "left",
+                  padding: "12px 14px", background: COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md,
+                  border: `1px solid ${item.slaUrgent ? COLORS.coral + "55" : COLORS.borderSoft}`,
+                  cursor: "pointer", transition: TRANSITION.sm,
+                  fontFamily: FONTS.body,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted }}>{item.id}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{item.client}</span>
+                  </div>
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    color: item.slaUrgent ? COLORS.coral : COLORS.inkMuted,
+                    background: item.slaUrgent ? COLORS.coralSoft : COLORS.surfaceAlt,
+                    padding: "2px 7px", borderRadius: RADIUS.sm,
+                  }}>
+                    {item.slaLabel}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 10, fontSize: 11.5, color: COLORS.inkMuted }}>
+                  <span>{item.talent}</span>
+                  <span>·</span>
+                  <span>{item.stage}</span>
+                  <span>·</span>
+                  <span>{item.age} old</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function SlaTimersDrawer() {
+  const { state, closeDrawer, openDrawer } = useProto();
+  const open = state.drawer.drawerId === "sla-timers";
+
+  type SlaRow = { id: string; client: string; stage: string; hoursLeft: number; assignee: string };
+  const ROWS: SlaRow[] = [
+    { id: "RI-201", client: "Vogue Italia",  stage: "Awaiting client reply",    hoursLeft: 2,  assignee: "Oran" },
+    { id: "RI-203", client: "Bvlgari",       stage: "Offer draft overdue",      hoursLeft: 0,  assignee: "Oran" },
+    { id: "RI-207", client: "Zara Campaign", stage: "Hold confirmation pending", hoursLeft: 12, assignee: "Sara" },
+    { id: "RI-210", client: "Chanel",        stage: "Initial response due",      hoursLeft: 18, assignee: "Luca" },
+    { id: "RI-212", client: "Prada",         stage: "Negotiation follow-up",    hoursLeft: 36, assignee: "Sara" },
+  ];
+
+  const breached   = ROWS.filter((r) => r.hoursLeft === 0);
+  const critical   = ROWS.filter((r) => r.hoursLeft > 0 && r.hoursLeft <= 6);
+  const onTrack    = ROWS.filter((r) => r.hoursLeft > 6);
+
+  const slaTone = (h: number): string =>
+    h === 0 ? COLORS.red : h <= 6 ? COLORS.coral : h <= 24 ? COLORS.amber : COLORS.success;
+
+  const slaLabel = (h: number): string =>
+    h === 0 ? "Breached" : h < 1 ? "<1h left" : `${h}h left`;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="SLA timers"
+      description="Response deadline tracker across all active inquiries. Auto-escalates at breach."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Summary strip */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[
+            { label: "Breached",  value: String(breached.length),  color: breached.length > 0 ? COLORS.red : COLORS.ink },
+            { label: "At risk",   value: String(critical.length),  color: critical.length > 0 ? COLORS.coral : COLORS.ink },
+            { label: "On track",  value: String(onTrack.length),   color: COLORS.successDeep },
+          ].map((tile) => (
+            <div key={tile.label} style={{
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+              padding: "12px 14px", border: `1px solid ${COLORS.border}`,
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                {tile.label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* SLA rows */}
+        <div>
+          <CapsLabel>Active SLA timers</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+            {ROWS.map((row) => {
+              const tone = slaTone(row.hoursLeft);
+              const pct = row.hoursLeft === 0 ? 100
+                : row.hoursLeft <= 6  ? Math.round(((6 - row.hoursLeft) / 6) * 60) + 40
+                : Math.round((1 - Math.min(row.hoursLeft, 48) / 48) * 40);
+              return (
+                <div
+                  key={row.id}
+                  style={{
+                    padding: "12px 14px", background: COLORS.surfaceAlt,
+                    borderRadius: RADIUS.md,
+                    border: `1px solid ${row.hoursLeft === 0 ? COLORS.red + "44" : COLORS.borderSoft}`,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <div>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: COLORS.inkMuted, marginRight: 6 }}>{row.id}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{row.client}</span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: tone }}>{slaLabel(row.hoursLeft)}</span>
+                  </div>
+                  {/* Timer bar */}
+                  <div style={{ background: COLORS.border, borderRadius: 3, height: 4, overflow: "hidden", marginBottom: 6 }}>
+                    <div style={{ background: tone, width: `${pct}%`, height: "100%", borderRadius: 3, transition: TRANSITION.layout }} />
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: COLORS.inkMuted }}>
+                    <span>{row.stage}</span>
+                    <span>{row.assignee}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function RulesBuilderDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "rules-builder";
+  const [showNew, setShowNew] = useState(false);
+
+  type Rule = { id: string; name: string; trigger: string; action: string; active: boolean };
+  const [rules, setRules] = useState<Rule[]>([
+    { id: "r1", name: "Auto-assign new inquiries",   trigger: "Inquiry created",            action: "Assign to Oran Tene",               active: true  },
+    { id: "r2", name: "Escalate stale offers",       trigger: "Offer unseen > 48h",         action: "Notify admin + flag as urgent",     active: true  },
+    { id: "r3", name: "Archive expired inquiries",   trigger: "Inquiry stage = expired",    action: "Move to archived + close thread",   active: true  },
+    { id: "r4", name: "Welcome message on inquiry",  trigger: "New inquiry from new client", action: "Send saved reply: 'Client welcome'",active: false },
+  ]);
+
+  const TRIGGER_OPTIONS = [
+    "Inquiry created", "Offer sent", "Offer unseen > 48h", "Booking confirmed",
+    "Inquiry stage = expired", "New inquiry from new client", "Payment received",
+  ];
+  const ACTION_OPTIONS = [
+    "Assign to coordinator", "Notify admin", "Send saved reply", "Flag as urgent",
+    "Move to archived", "Add tag", "Send webhook",
+  ];
+  const [newTrigger, setNewTrigger] = useState(TRIGGER_OPTIONS[0]);
+  const [newAction,  setNewAction]  = useState(ACTION_OPTIONS[0]);
+  const [newName,    setNewName]    = useState("");
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Automation rules"
+      description="Trigger-action rules that run automatically. Changes apply within 60 seconds."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Done</SecondaryButton>
+          <GhostButton onClick={() => setShowNew(true)}>+ New rule</GhostButton>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* New rule form */}
+        {showNew && (
+          <div style={{
+            padding: "14px 16px", background: COLORS.royalSoft,
+            borderRadius: RADIUS.lg, border: `1px solid rgba(95,75,139,0.2)`,
+            display: "flex", flexDirection: "column", gap: 10,
+          }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: COLORS.royalDeep, marginBottom: 2 }}>New rule</div>
+            <FieldRow label="Rule name">
+              <TextInput
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Auto-archive stale drafts"
+              />
+            </FieldRow>
+            <FieldRow label="When">
+              <select
+                value={newTrigger}
+                onChange={(e) => setNewTrigger(e.target.value)}
+                style={{
+                  fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+                  background: "#fff", border: `1px solid ${COLORS.border}`,
+                  borderRadius: RADIUS.sm, padding: "7px 10px", width: "100%",
+                }}
+              >
+                {TRIGGER_OPTIONS.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </FieldRow>
+            <FieldRow label="Then">
+              <select
+                value={newAction}
+                onChange={(e) => setNewAction(e.target.value)}
+                style={{
+                  fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+                  background: "#fff", border: `1px solid ${COLORS.border}`,
+                  borderRadius: RADIUS.sm, padding: "7px 10px", width: "100%",
+                }}
+              >
+                {ACTION_OPTIONS.map((a) => <option key={a}>{a}</option>)}
+              </select>
+            </FieldRow>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!newName.trim()) { toast("Give the rule a name"); return; }
+                  setRules((prev) => [...prev, { id: `r${Date.now()}`, name: newName.trim(), trigger: newTrigger, action: newAction, active: true }]);
+                  setNewName("");
+                  setShowNew(false);
+                  toast("Rule created");
+                }}
+                style={{
+                  padding: "8px 16px", background: COLORS.fill, border: "none",
+                  borderRadius: RADIUS.sm, color: "#fff", fontFamily: FONTS.body,
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                Create
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowNew(false)}
+                style={{
+                  padding: "8px 14px", background: "transparent",
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: RADIUS.sm, color: COLORS.inkMuted, fontFamily: FONTS.body,
+                  fontSize: 13, cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Rule list */}
+        <div>
+          <CapsLabel>{rules.length} rules configured</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+            {rules.map((rule) => (
+              <div
+                key={rule.id}
+                style={{
+                  padding: "12px 14px", background: COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                  display: "flex", alignItems: "flex-start", gap: 12,
+                }}
+              >
+                <Toggle
+                  on={rule.active}
+                  onChange={(v) => setRules((prev) => prev.map((r) => r.id === rule.id ? { ...r, active: v } : r))}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: rule.active ? COLORS.ink : COLORS.inkMuted }}>{rule.name}</div>
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>
+                    <span style={{ fontWeight: 500 }}>When</span> {rule.trigger} → <span style={{ fontWeight: 500 }}>then</span> {rule.action}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setRules((prev) => prev.filter((r) => r.id !== rule.id)); toast("Rule deleted"); }}
+                  style={{ background: "transparent", border: "none", color: COLORS.inkDim, cursor: "pointer", padding: 0, lineHeight: 0 }}
+                  aria-label="Delete rule"
+                >
+                  <Icon name="x" size={14} stroke={1.8} color={COLORS.inkDim} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Info note */}
+        <div style={{
+          padding: "10px 14px", background: COLORS.indigoSoft,
+          borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
+          fontSize: 12, color: COLORS.indigoDeep, lineHeight: 1.5,
+        }}>
+          Rules run in order. Toggle off to pause without deleting. Webhooks require an endpoint configured in Settings → Integrations.
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function SavedRepliesDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "saved-replies";
+  const [search, setSearch] = useState("");
+
+  type Reply = { id: string; name: string; body: string; category: string };
+  const REPLIES: Reply[] = [
+    { id: "sr1", name: "Client welcome",    category: "Onboarding",    body: "Hi {{client_name}}, thank you for reaching out to {{agency_name}}. We've received your inquiry and will get back to you with availability and rates within 24 hours." },
+    { id: "sr2", name: "Hold confirmation", category: "Scheduling",    body: "We've placed a hold on {{talent_name}}'s calendar for {{dates}}. Please confirm within 48 hours to secure the booking." },
+    { id: "sr3", name: "Rate negotiation",  category: "Commercial",    body: "Thank you for the brief. Our rate for this type of project typically starts at {{rate}}. Happy to discuss based on usage and exclusivity requirements." },
+    { id: "sr4", name: "Booking confirmed", category: "Confirmation",  body: "Great news — {{talent_name}} is confirmed for {{project}}. You'll receive the contract shortly. Please let us know if you have any questions." },
+    { id: "sr5", name: "Counter-offer",     category: "Commercial",    body: "Thank you for your offer. After reviewing the brief, we're proposing {{counter_rate}} to reflect {{reason}}. Let us know if that works." },
+    { id: "sr6", name: "Follow-up",         category: "Chase",         body: "Just following up on our previous message regarding {{project}}. Please let us know if you need any additional information to proceed." },
+  ];
+  const [copied, setCopied] = useState<string | null>(null);
+  const filtered = REPLIES.filter(
+    (r) => search === "" || r.name.toLowerCase().includes(search.toLowerCase()) || r.category.toLowerCase().includes(search.toLowerCase()),
+  );
+  const categories = Array.from(new Set(REPLIES.map((r) => r.category)));
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Saved replies"
+      description="Reusable message templates. Variables in {{brackets}} are filled at send time."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Done</SecondaryButton>
+          <GhostButton onClick={() => toast("New reply editor — coming up")}>+ New reply</GhostButton>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        {/* Search */}
+        <TextInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search replies…"
+        />
+
+        {/* Grouped by category */}
+        {categories.map((cat) => {
+          const catReplies = filtered.filter((r) => r.category === cat);
+          if (catReplies.length === 0) return null;
+          return (
+            <div key={cat}>
+              <CapsLabel>{cat}</CapsLabel>
+              <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 6 }}>
+                {catReplies.map((reply) => (
+                  <div
+                    key={reply.id}
+                    style={{
+                      padding: "12px 14px", background: COLORS.surfaceAlt,
+                      borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{reply.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCopied(reply.id);
+                          toast(`Copied "${reply.name}"`);
+                          setTimeout(() => setCopied(null), 1500);
+                        }}
+                        style={{
+                          fontSize: 11.5, fontWeight: 600,
+                          color: copied === reply.id ? COLORS.successDeep : COLORS.accent,
+                          background: "transparent", border: "none", cursor: "pointer",
+                          fontFamily: FONTS.body,
+                        }}
+                      >
+                        {copied === reply.id ? "Copied ✓" : "Copy"}
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.5, maxHeight: 44, overflow: "hidden" }}>
+                      {reply.body.slice(0, 120)}{reply.body.length > 120 ? "…" : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {filtered.length === 0 && (
+          <EmptyState
+            icon="mail"
+            title="No replies found"
+            body="Try a different search term."
+            compact
+          />
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function VacationHandoverDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "vacation-handover";
+  const [fromDate, setFromDate] = useState("2026-05-12");
+  const [toDate,   setToDate]   = useState("2026-05-19");
+  const [handoverTo, setHandoverTo] = useState("Sara Mendes");
+  const [note, setNote] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const TEAM = ["Sara Mendes", "Luca Ferretti", "Alina Popescu"];
+  const OPEN_COUNT = 6;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Vacation handover"
+      description="Reassign your active inquiries and set an out-of-office while you're away."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          {saved
+            ? <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+            : (
+              <>
+                <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+                <button
+                  type="button"
+                  onClick={() => { setSaved(true); toast(`Handover set — ${OPEN_COUNT} inquiries reassigned to ${handoverTo}`); }}
+                  style={{
+                    padding: "9px 18px", background: COLORS.fill, border: "none",
+                    borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                    fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  Save handover
+                </button>
+              </>
+            )}
+        </div>
+      }
+      defaultSize="compact"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {saved ? (
+          <div style={{
+            padding: "16px 18px", background: COLORS.successSoft,
+            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep }}>✓ Handover active</div>
+            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
+              {OPEN_COUNT} inquiries reassigned to <strong>{handoverTo}</strong> · {fromDate} – {toDate}
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
+              Auto-reply enabled. You&apos;ll be re-assigned automatically when you return.
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Date range */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <FieldRow label="From"><TextInput value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></FieldRow>
+              <FieldRow label="To"><TextInput value={toDate}   onChange={(e) => setToDate(e.target.value)} /></FieldRow>
+            </div>
+
+            {/* Handover assignee */}
+            <FieldRow label="Hand over to">
+              <select
+                value={handoverTo}
+                onChange={(e) => setHandoverTo(e.target.value)}
+                style={{
+                  fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+                  background: "#fff", border: `1px solid ${COLORS.border}`,
+                  borderRadius: RADIUS.sm, padding: "7px 10px", width: "100%",
+                }}
+              >
+                {TEAM.map((m) => <option key={m}>{m}</option>)}
+              </select>
+            </FieldRow>
+
+            {/* Impact summary */}
+            <div style={{
+              padding: "10px 14px", background: COLORS.amberSoft,
+              borderRadius: RADIUS.md, border: `1px solid rgba(82,96,109,0.2)`,
+              fontSize: 12.5, color: COLORS.amberDeep, lineHeight: 1.5,
+            }}>
+              <strong>{OPEN_COUNT} active inquiries</strong> will be reassigned to {handoverTo}. They&apos;ll receive a notification with context on each.
+            </div>
+
+            {/* Out-of-office note */}
+            <FieldRow label="Out-of-office message (optional)">
+              <TextArea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="I'm away 12–19 May. For urgent matters contact Sara Mendes."
+                rows={3}
+              />
+            </FieldRow>
+          </>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function OnCallRotationDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "on-call-rotation";
+  const [activeTab, setActiveTab] = useState<"schedule" | "escalation">("schedule");
+
+  type Slot = { day: string; name: string; hours: string; isToday: boolean };
+  const SCHEDULE: Slot[] = [
+    { day: "Mon", name: "Oran Tene",     hours: "09:00–18:00", isToday: false },
+    { day: "Tue", name: "Sara Mendes",   hours: "09:00–18:00", isToday: false },
+    { day: "Wed", name: "Luca Ferretti", hours: "09:00–18:00", isToday: false },
+    { day: "Thu", name: "Sara Mendes",   hours: "09:00–18:00", isToday: false },
+    { day: "Fri", name: "Oran Tene",     hours: "09:00–18:00", isToday: true  },
+    { day: "Sat", name: "On-call only",  hours: "Emergency",   isToday: false },
+    { day: "Sun", name: "On-call only",  hours: "Emergency",   isToday: false },
+  ];
+  const ESCALATION = [
+    { level: "L1", label: "First response",  target: "Assigned coordinator",  sla: "2h" },
+    { level: "L2", label: "Escalate if no response", target: "Team admin (Oran)", sla: "+4h" },
+    { level: "L3", label: "Critical breach", target: "All admins + SMS alert", sla: "+8h" },
+  ];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="On-call rotation"
+      description="Who's responsible today and how unresolved inquiries escalate over time."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <GhostButton onClick={() => toast("Rotation editor — coming in ops v2")}>Edit rotation</GhostButton>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Tab toggle */}
+        <div style={{ display: "flex", gap: 4, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 3 }}>
+          {(["schedule", "escalation"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setActiveTab(t)}
+              style={{
+                flex: 1, padding: "6px 12px",
+                background: activeTab === t ? "#fff" : "transparent",
+                border: `1px solid ${activeTab === t ? COLORS.border : "transparent"}`,
+                borderRadius: RADIUS.sm,
+                fontFamily: FONTS.body,
+                fontSize: 12.5, fontWeight: activeTab === t ? 600 : 400,
+                color: activeTab === t ? COLORS.ink : COLORS.inkMuted,
+                cursor: "pointer",
+                transition: TRANSITION.sm,
+              }}
+            >
+              {t === "schedule" ? "Schedule" : "Escalation"}
+            </button>
+          ))}
+        </div>
+
+        {/* Schedule tab */}
+        {activeTab === "schedule" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {SCHEDULE.map((slot) => (
+              <div
+                key={slot.day}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 14px", background: slot.isToday ? COLORS.accentSoft : COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md,
+                  border: `1px solid ${slot.isToday ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{
+                    width: 32, fontSize: 11, fontWeight: 700,
+                    color: slot.isToday ? COLORS.accent : COLORS.inkMuted,
+                    textTransform: "uppercase", letterSpacing: "0.05em",
+                  }}>
+                    {slot.day}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: slot.isToday ? 700 : 500, color: COLORS.ink }}>
+                    {slot.name}
+                  </span>
+                  {slot.isToday && (
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, color: COLORS.accent,
+                      background: COLORS.accentSoft, padding: "1px 6px",
+                      borderRadius: RADIUS.sm, textTransform: "uppercase",
+                    }}>
+                      Today
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: 11.5, color: COLORS.inkMuted }}>{slot.hours}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Escalation tab */}
+        {activeTab === "escalation" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {ESCALATION.map((step, i) => (
+              <div key={step.level} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                {/* Connector */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                    background: i === 0 ? COLORS.success : i === 1 ? COLORS.amber : COLORS.red,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, fontWeight: 800, color: "#fff",
+                  }}>
+                    {step.level}
+                  </div>
+                  {i < ESCALATION.length - 1 && (
+                    <div style={{ width: 2, height: 20, background: COLORS.borderSoft, marginTop: 2 }} />
+                  )}
+                </div>
+                <div style={{ flex: 1, paddingTop: 4 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: COLORS.ink }}>{step.label}</div>
+                  <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 2 }}>{step.target}</div>
+                  <div style={{ fontSize: 11, color: COLORS.indigoDeep, marginTop: 2 }}>SLA: {step.sla}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-21 — Compliance, legal, audit drawers
+// ════════════════════════════════════════════════════════════════════
+
+function GdprExportDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "gdpr-export";
+
+  type DataType = { id: string; label: string; description: string; size: string; selected: boolean };
+  const [types, setTypes] = useState<DataType[]>([
+    { id: "profile",  label: "Profile & measurements", description: "Name, photos, body data, skills, credits.",  size: "~2 MB",  selected: true  },
+    { id: "messages", label: "Messages & threads",     description: "All inquiry and booking conversations.",     size: "~18 MB", selected: true  },
+    { id: "bookings", label: "Bookings & contracts",   description: "Confirmed bookings, offers, signed PDFs.",   size: "~4 MB",  selected: true  },
+    { id: "payments", label: "Payment history",        description: "Invoices, payouts, transaction log.",        size: "~1 MB",  selected: false },
+    { id: "activity", label: "Audit & activity log",   description: "All login events, edits, access records.",   size: "~3 MB",  selected: false },
+    { id: "consents", label: "Consent history",        description: "Marketing opt-ins, cookie preferences.",     size: "<1 MB",  selected: false },
+  ]);
+  const [format, setFormat] = useState<"zip" | "json" | "csv">("zip");
+  const [submitted, setSubmitted] = useState(false);
+  const selectedCount = types.filter((t) => t.selected).length;
+
+  const toggleType = (id: string) =>
+    setTypes((prev) => prev.map((t) => t.id === id ? { ...t, selected: !t.selected } : t));
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Export your data"
+      description="GDPR / CCPA data portability. A download link will be emailed to you within 24 hours."
+      footer={
+        submitted ? (
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+            <button
+              type="button"
+              disabled={selectedCount === 0}
+              onClick={() => { setSubmitted(true); toast("Export request submitted — download link in 24h"); }}
+              style={{
+                padding: "9px 18px",
+                background: selectedCount === 0 ? COLORS.inkDim : COLORS.fill,
+                border: "none", borderRadius: RADIUS.md, color: "#fff",
+                fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+                cursor: selectedCount === 0 ? "not-allowed" : "pointer",
+              }}
+            >
+              Request export ({selectedCount} types)
+            </button>
+          </div>
+        )
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {submitted ? (
+          <div style={{
+            padding: "16px 18px", background: COLORS.successSoft,
+            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep }}>✓ Export queued</div>
+            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
+              You'll receive a download link at your registered email within 24 hours. Links expire after 72 hours.
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
+              Per GDPR Article 20, exports are provided in machine-readable format and free of charge.
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Format picker */}
+            <div>
+              <CapsLabel>Export format</CapsLabel>
+              <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
+                {(["zip", "json", "csv"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFormat(f)}
+                    style={{
+                      padding: "6px 14px",
+                      background: format === f ? COLORS.fill : COLORS.surfaceAlt,
+                      border: `1px solid ${format === f ? COLORS.accent : COLORS.border}`,
+                      borderRadius: RADIUS.sm, fontFamily: FONTS.body,
+                      fontSize: 12.5, fontWeight: format === f ? 600 : 400,
+                      color: format === f ? "#fff" : COLORS.inkMuted,
+                      cursor: "pointer", transition: TRANSITION.sm,
+                    }}
+                  >
+                    {f.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Data type checklist */}
+            <div>
+              <CapsLabel>Data types · select to include</CapsLabel>
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+                {types.map((dt) => (
+                  <button
+                    key={dt.id}
+                    type="button"
+                    onClick={() => toggleType(dt.id)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "12px 14px", width: "100%", textAlign: "left",
+                      background: dt.selected ? COLORS.accentSoft : COLORS.surfaceAlt,
+                      border: `1px solid ${dt.selected ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                      borderRadius: RADIUS.md, cursor: "pointer",
+                      fontFamily: FONTS.body, transition: TRANSITION.sm,
+                    }}
+                  >
+                    <div style={{
+                      width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+                      background: dt.selected ? COLORS.accent : "#fff",
+                      border: `1.5px solid ${dt.selected ? COLORS.accent : COLORS.border}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {dt.selected && <Icon name="check" size={11} color="#fff" stroke={2.5} />}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{dt.label}</div>
+                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{dt.description}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, flexShrink: 0 }}>{dt.size}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{
+              padding: "10px 14px", background: COLORS.indigoSoft,
+              borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
+              fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+            }}>
+              Satisfies GDPR Art. 20, CCPA §1798.100, LGPD Art. 18. Processed within 24h. Maximum 1 request per 30 days.
+            </div>
+          </>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ConsentLogDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "consent-log";
+
+  type ConsentEntry = { channel: string; status: "opted-in" | "opted-out" | "pending"; timestamp: string; method: string };
+  const CONSENTS: ConsentEntry[] = [
+    { channel: "Marketing emails",     status: "opted-in",  timestamp: "2024-11-14 · 09:32", method: "Signup form"        },
+    { channel: "Product updates",      status: "opted-in",  timestamp: "2024-11-14 · 09:32", method: "Signup form"        },
+    { channel: "SMS notifications",    status: "opted-out", timestamp: "2025-02-08 · 14:11", method: "Preferences center" },
+    { channel: "Partner offers",       status: "opted-out", timestamp: "2024-11-14 · 09:32", method: "Signup form"        },
+    { channel: "In-app announcements", status: "opted-in",  timestamp: "2025-01-21 · 11:05", method: "Banner"             },
+    { channel: "Booking reminders",    status: "opted-in",  timestamp: "2024-11-14 · 09:32", method: "Signup form"        },
+    { channel: "Research & surveys",   status: "pending",   timestamp: "—",                  method: "Not yet presented"  },
+  ];
+
+  const toneFor = (s: ConsentEntry["status"]) =>
+    s === "opted-in" ? COLORS.successDeep : s === "opted-out" ? COLORS.inkMuted : COLORS.amber;
+  const bgFor = (s: ConsentEntry["status"]) =>
+    s === "opted-in" ? COLORS.successSoft : s === "opted-out" ? COLORS.surfaceAlt : COLORS.amberSoft;
+  const labelFor = (s: ConsentEntry["status"]) =>
+    s === "opted-in" ? "Opted in" : s === "opted-out" ? "Opted out" : "Pending";
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Consent log"
+      description="Marketing and communication preferences — timestamped and auditable."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <GhostButton onClick={() => toast("Consent log exported as CSV")}>Export CSV</GhostButton>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[
+            { label: "Opted in",  value: String(CONSENTS.filter((c) => c.status === "opted-in").length),  color: COLORS.successDeep },
+            { label: "Opted out", value: String(CONSENTS.filter((c) => c.status === "opted-out").length), color: COLORS.inkMuted    },
+            { label: "Pending",   value: String(CONSENTS.filter((c) => c.status === "pending").length),   color: COLORS.amber       },
+          ].map((tile) => (
+            <div key={tile.label} style={{
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+              padding: "12px 14px", border: `1px solid ${COLORS.border}`, textAlign: "center",
+            }}>
+              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                {tile.label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <CapsLabel>Per-channel consent history</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+            {CONSENTS.map((entry) => (
+              <div
+                key={entry.channel}
+                style={{
+                  padding: "10px 14px", background: bgFor(entry.status),
+                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{entry.channel}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{entry.timestamp} · {entry.method}</div>
+                </div>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: toneFor(entry.status),
+                  padding: "2px 8px", borderRadius: RADIUS.sm,
+                  background: `${toneFor(entry.status)}18`,
+                }}>
+                  {labelFor(entry.status)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{
+          padding: "10px 14px", background: COLORS.indigoSoft,
+          borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
+          fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+        }}>
+          Consent records are immutable. Withdrawals update future sends — they do not erase prior consent events. Records retained 7 years per GDPR Recital 42.
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ContractTemplatesDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "contract-templates";
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  type Template = { id: string; name: string; category: string; fields: string[]; body: string };
+  const TEMPLATES: Template[] = [
+    {
+      id: "t1", name: "Standard model agreement", category: "Talent",
+      fields: ["{{talent_name}}", "{{agency_name}}", "{{contract_date}}", "{{day_rate}}", "{{usage_rights}}"],
+      body: "This agreement is entered into between {{agency_name}} and {{talent_name}} (\"Talent\"). The Talent agrees to provide services as detailed in each booking brief, at a day rate of {{day_rate}}.",
+    },
+    {
+      id: "t2", name: "Client booking contract", category: "Client",
+      fields: ["{{client_name}}", "{{project_name}}", "{{talent_name}}", "{{booking_date}}", "{{total_fee}}"],
+      body: "This booking confirmation is issued by {{agency_name}} to {{client_name}} for the project '{{project_name}}'. Services to be provided by {{talent_name}} on {{booking_date}}.",
+    },
+    {
+      id: "t3", name: "Exclusivity clause addendum", category: "Legal",
+      fields: ["{{talent_name}}", "{{exclusivity_period}}", "{{market}}", "{{competitor_clause}}"],
+      body: "During the exclusivity period of {{exclusivity_period}}, {{talent_name}} agrees not to represent or appear for {{competitor_clause}} within the {{market}} market.",
+    },
+    {
+      id: "t4", name: "Usage rights license", category: "Legal",
+      fields: ["{{usage_type}}", "{{territory}}", "{{duration}}", "{{fee}}"],
+      body: "This license grants {{client_name}} the right to use approved images/footage for {{usage_type}} purposes within {{territory}} for a period of {{duration}}.",
+    },
+  ];
+
+  const active = TEMPLATES.find((t) => t.id === activeId) ?? null;
+  const categories = Array.from(new Set(TEMPLATES.map((t) => t.category)));
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Contract templates"
+      description="Workspace-wide reusable templates. Variables in {{brackets}} are filled at generation time."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          {activeId ? (
+            <>
+              <SecondaryButton onClick={() => setActiveId(null)}>← Back</SecondaryButton>
+              <button
+                type="button"
+                onClick={() => toast(`Template "${active?.name}" used`)}
+                style={{
+                  padding: "9px 18px", background: COLORS.fill, border: "none",
+                  borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                Use template
+              </button>
+            </>
+          ) : (
+            <>
+              <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+              <GhostButton onClick={() => toast("Template editor — coming in legal v2")}>+ New template</GhostButton>
+            </>
+          )}
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        {active ? (
+          <>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 4 }}>{active.name}</div>
+              <div style={{
+                display: "inline-block", fontSize: 10.5, fontWeight: 700,
+                color: COLORS.indigoDeep, background: COLORS.indigoSoft,
+                padding: "2px 8px", borderRadius: RADIUS.sm,
+                textTransform: "uppercase", letterSpacing: "0.05em",
+              }}>
+                {active.category}
+              </div>
+            </div>
+
+            <div>
+              <CapsLabel>Merge fields ({active.fields.length})</CapsLabel>
+              <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 5 }}>
+                {active.fields.map((f) => (
+                  <span key={f} style={{
+                    fontSize: 11.5, fontFamily: "monospace",
+                    background: COLORS.amberSoft, color: COLORS.amberDeep,
+                    padding: "3px 8px", borderRadius: RADIUS.sm,
+                    border: `1px solid rgba(82,96,109,0.2)`,
+                  }}>
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div style={{
+              padding: "14px 16px", background: COLORS.surfaceAlt,
+              borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}`,
+              fontSize: 12.5, color: COLORS.ink, lineHeight: 1.65,
+            }}>
+              {active.body} <span style={{ color: COLORS.inkDim }}>…[continues]</span>
+            </div>
+
+            <div style={{
+              padding: "10px 14px", background: COLORS.indigoSoft,
+              borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
+              fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+            }}>
+              Templates are not legal advice. Have your legal counsel review before use in production.
+            </div>
+          </>
+        ) : (
+          <>
+            {categories.map((cat) => (
+              <div key={cat}>
+                <CapsLabel>{cat}</CapsLabel>
+                <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 5 }}>
+                  {TEMPLATES.filter((t) => t.category === cat).map((tmpl) => (
+                    <button
+                      key={tmpl.id}
+                      type="button"
+                      onClick={() => setActiveId(tmpl.id)}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "12px 14px", background: COLORS.surfaceAlt, width: "100%",
+                        borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                        cursor: "pointer", fontFamily: FONTS.body, textAlign: "left",
+                        transition: TRANSITION.sm,
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{tmpl.name}</div>
+                        <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                          {tmpl.fields.length} merge fields
+                        </div>
+                      </div>
+                      <Icon name="arrow-right" size={14} color={COLORS.inkDim} stroke={1.8} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ReportContentDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "report-content";
+  const [category, setCategory] = useState("Fake or misleading profile");
+  const [detail, setDetail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+
+  const targetName = (state.drawer.payload?.targetName as string) ?? "this profile";
+  const targetType = (state.drawer.payload?.targetType as string) ?? "profile";
+
+  const CATEGORIES = [
+    "Fake or misleading profile",
+    "AI-generated or stolen photos",
+    "Harassment or threatening behavior",
+    "Spam or unsolicited contact",
+    "Fraudulent booking or payment",
+    "Copyright / image rights violation",
+    "Other",
+  ];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={`Report ${targetType}`}
+      description={`Report ${targetName} to the Tulala trust & safety team. Reports are confidential.`}
+      footer={
+        submitted ? (
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+            <button
+              type="button"
+              onClick={() => { setSubmitted(true); toast("Report submitted — trust & safety team notified"); }}
+              style={{
+                padding: "9px 18px", background: COLORS.red, border: "none",
+                borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Submit report
+            </button>
+          </div>
+        )
+      }
+      defaultSize="compact"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        {submitted ? (
+          <div style={{
+            padding: "16px 18px", background: COLORS.successSoft,
+            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep }}>✓ Report received</div>
+            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
+              Our trust & safety team will review within 24–48 hours. You'll receive a notification with the outcome.
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted, marginTop: 4 }}>
+              For urgent matters, contact support@tulala.digital.
+            </div>
+          </div>
+        ) : (
+          <>
+            <FieldRow label="Category">
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                style={{
+                  fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+                  background: "#fff", border: `1px solid ${COLORS.border}`,
+                  borderRadius: RADIUS.sm, padding: "7px 10px", width: "100%",
+                }}
+              >
+                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </FieldRow>
+
+            <FieldRow label="Additional detail (optional)">
+              <TextArea
+                value={detail}
+                onChange={(e) => setDetail(e.target.value)}
+                placeholder="Describe what you observed. Be specific — screenshots help."
+                rows={4}
+              />
+            </FieldRow>
+
+            <div style={{
+              padding: "10px 14px", background: COLORS.amberSoft,
+              borderRadius: RADIUS.md, border: `1px solid rgba(82,96,109,0.2)`,
+              fontSize: 11.5, color: COLORS.amberDeep, lineHeight: 1.5,
+            }}>
+              Reports are confidential. False or malicious reports may result in your own account being reviewed. For commercial disputes, use the dispute flow instead.
+            </div>
+          </>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-22 — Email + transactional comms drawers
+// ════════════════════════════════════════════════════════════════════
+
+function EmailTemplatesDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "email-templates";
+  const [search, setSearch] = useState("");
+
+  type EmailTemplate = { id: string; name: string; trigger: string; category: string; status: "live" | "draft" | "paused" };
+  const TEMPLATES: EmailTemplate[] = [
+    { id: "e01", name: "Welcome — new workspace",    trigger: "Workspace created",          category: "Onboarding",    status: "live"   },
+    { id: "e02", name: "Invite team member",         trigger: "Team invite sent",           category: "Onboarding",    status: "live"   },
+    { id: "e03", name: "Talent added to roster",     trigger: "Talent profile created",     category: "Onboarding",    status: "live"   },
+    { id: "e04", name: "Inquiry received — client",  trigger: "Inquiry submitted",          category: "Inquiry",       status: "live"   },
+    { id: "e05", name: "Offer sent — client",        trigger: "Offer created",              category: "Inquiry",       status: "live"   },
+    { id: "e06", name: "Client approved offer",      trigger: "Offer approved",             category: "Inquiry",       status: "live"   },
+    { id: "e07", name: "Booking confirmed",          trigger: "Booking status = confirmed", category: "Booking",       status: "live"   },
+    { id: "e08", name: "Booking reminder — 24h",     trigger: "24h before booking start",   category: "Booking",       status: "live"   },
+    { id: "e09", name: "Payment received",           trigger: "Payment succeeded",          category: "Payments",      status: "live"   },
+    { id: "e10", name: "Payout sent",               trigger: "Payout processed",           category: "Payments",      status: "live"   },
+    { id: "e11", name: "Payment failed — retry 1",   trigger: "Payment failed",             category: "Dunning",       status: "live"   },
+    { id: "e12", name: "Payment failed — retry 2",   trigger: "+3 days after e11",          category: "Dunning",       status: "draft"  },
+    { id: "e13", name: "Subscription paused",        trigger: "Plan paused",                category: "Dunning",       status: "draft"  },
+    { id: "e14", name: "Win-back — 30 days inactive",trigger: "30d no login",              category: "Re-engagement", status: "paused" },
+    { id: "e15", name: "Win-back — 60 days",         trigger: "60d no login",              category: "Re-engagement", status: "paused" },
+  ];
+
+  const filtered = TEMPLATES.filter(
+    (t) => search === "" ||
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      t.category.toLowerCase().includes(search.toLowerCase()),
+  );
+  const categories = Array.from(new Set(TEMPLATES.map((t) => t.category)));
+
+  const statusColor = (s: EmailTemplate["status"]) =>
+    s === "live" ? COLORS.successDeep : s === "draft" ? COLORS.amber : COLORS.inkMuted;
+  const statusBg = (s: EmailTemplate["status"]) =>
+    s === "live" ? COLORS.successSoft : s === "draft" ? COLORS.amberSoft : COLORS.surfaceAlt;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Email templates"
+      description={`${TEMPLATES.length} transactional email types. Templates are role-aware and workspace-branded.`}
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <GhostButton onClick={() => toast("Template editor — coming in email v2")}>+ New template</GhostButton>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        {/* Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          {[
+            { label: "Live",   value: String(TEMPLATES.filter((t) => t.status === "live").length),   color: COLORS.successDeep },
+            { label: "Draft",  value: String(TEMPLATES.filter((t) => t.status === "draft").length),  color: COLORS.amber       },
+            { label: "Paused", value: String(TEMPLATES.filter((t) => t.status === "paused").length), color: COLORS.inkMuted    },
+          ].map((tile) => (
+            <div key={tile.label} style={{
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.md,
+              padding: "10px 12px", border: `1px solid ${COLORS.border}`, textAlign: "center",
+            }}>
+              <div style={{ fontSize: 9, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>{tile.label}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: tile.color }}>{tile.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <TextInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search templates…"
+        />
+
+        {categories.map((cat) => {
+          const catItems = filtered.filter((t) => t.category === cat);
+          if (catItems.length === 0) return null;
+          return (
+            <div key={cat}>
+              <CapsLabel>{cat}</CapsLabel>
+              <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4 }}>
+                {catItems.map((tmpl) => (
+                  <div
+                    key={tmpl.id}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 14px", background: COLORS.surfaceAlt,
+                      borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{tmpl.name}</div>
+                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>Trigger: {tmpl.trigger}</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        fontSize: 10.5, fontWeight: 700,
+                        color: statusColor(tmpl.status), background: statusBg(tmpl.status),
+                        padding: "2px 7px", borderRadius: RADIUS.sm, textTransform: "capitalize",
+                      }}>
+                        {tmpl.status}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toast(`Editing "${tmpl.name}"`)}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", padding: 0, lineHeight: 0 }}
+                      >
+                        <Icon name="settings" size={13} color={COLORS.inkDim} stroke={1.7} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function EmailBrandingDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "email-branding";
+  const [senderName,  setSenderName]  = useState(TENANT.name);
+  const [senderEmail, setSenderEmail] = useState(`hello@${TENANT.name.toLowerCase().replace(/\s/g, "")}.com`);
+  const [footerText,  setFooterText]  = useState(`© ${new Date().getFullYear()} ${TENANT.name}. All rights reserved.`);
+  const [accentColor, setAccentColor] = useState("#0F4F3E");
+  const save = useSaveAndClose("Email branding saved");
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Email branding"
+      description="Customize how your emails look and who they're from. Changes apply to all outgoing emails."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <button
+            type="button" onClick={save}
+            style={{
+              padding: "9px 18px", background: COLORS.fill, border: "none",
+              borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            Save
+          </button>
+        </div>
+      }
+      defaultSize="compact"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        {/* Preview */}
+        <div style={{
+          padding: "16px 18px", background: "#fff",
+          borderRadius: RADIUS.lg, border: `2px solid ${COLORS.border}`,
+        }}>
+          <div style={{
+            borderBottom: `3px solid ${accentColor}`,
+            paddingBottom: 12, marginBottom: 12,
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 6,
+              background: accentColor, display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <span style={{ color: "#fff", fontSize: 14, fontWeight: 800 }}>
+                {senderName.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{senderName}</div>
+          </div>
+          <div style={{ fontSize: 12.5, color: COLORS.ink, marginBottom: 8 }}>
+            Hi [Talent Name], your booking for [Project] has been confirmed…
+          </div>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted }}>{footerText}</div>
+        </div>
+
+        <FieldRow label="Sender name">
+          <TextInput value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Your agency name" />
+        </FieldRow>
+
+        <FieldRow label="Sender email">
+          <TextInput value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="hello@youragency.com" />
+        </FieldRow>
+
+        <FieldRow label="Accent color (hex)">
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="color"
+              value={accentColor}
+              onChange={(e) => setAccentColor(e.target.value)}
+              style={{ width: 36, height: 36, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, cursor: "pointer", padding: 2 }}
+            />
+            <TextInput value={accentColor} onChange={(e) => setAccentColor(e.target.value)} />
+          </div>
+        </FieldRow>
+
+        <FieldRow label="Footer text">
+          <TextArea
+            value={footerText}
+            onChange={(e) => setFooterText(e.target.value)}
+            placeholder="© 2026 Your Agency. All rights reserved."
+            rows={2}
+          />
+        </FieldRow>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function EmailSequencesDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "email-sequences";
+
+  type Sequence = { id: string; name: string; trigger: string; steps: number; active: boolean; description: string };
+  const [sequences, setSequences] = useState<Sequence[]>([
+    { id: "s1", name: "Onboarding — workspace",    trigger: "Workspace created",          steps: 5, active: true,  description: "Day 1, 3, 7, 14, 30 — guides admin through setup milestones." },
+    { id: "s2", name: "Onboarding — talent",       trigger: "Talent profile created",     steps: 4, active: true,  description: "Profile completion nudges, first booking tips, agency tour." },
+    { id: "s3", name: "Onboarding — client",       trigger: "Client first login",         steps: 3, active: false, description: "Search intro, first shortlist prompt, inquiry guide." },
+    { id: "s4", name: "Dunning — payment failure", trigger: "Payment failed",             steps: 4, active: true,  description: "Immediate, +3d, +7d, +14d. Escalates to account pause at step 4." },
+    { id: "s5", name: "Win-back — dormant",        trigger: "30d no activity",           steps: 3, active: false, description: "30d, 60d, 90d. Personalised digest of what they missed." },
+    { id: "s6", name: "Booking day reminder",      trigger: "24h + 1h before booking",   steps: 2, active: true,  description: "24-hour reminder and on-day 1-hour reminder." },
+  ]);
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Email sequences"
+      description="Multi-step automated email campaigns. Toggle to pause without deleting."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <GhostButton onClick={() => toast("Sequence builder — coming in email v2")}>+ New sequence</GhostButton>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontFamily: FONTS.body }}>
+        {sequences.map((seq) => (
+          <div
+            key={seq.id}
+            style={{
+              padding: "14px 16px", background: COLORS.surfaceAlt,
+              borderRadius: RADIUS.lg, border: `1px solid ${COLORS.borderSoft}`,
+              display: "flex", gap: 12, alignItems: "flex-start",
+            }}
+          >
+            <Toggle
+              on={seq.active}
+              onChange={(v) => setSequences((prev) => prev.map((s) => s.id === seq.id ? { ...s, active: v } : s))}
+            />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: seq.active ? COLORS.ink : COLORS.inkMuted }}>{seq.name}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 700,
+                  color: seq.active ? COLORS.successDeep : COLORS.inkMuted,
+                  background: seq.active ? COLORS.successSoft : COLORS.surfaceAlt,
+                  padding: "1px 6px", borderRadius: RADIUS.sm, textTransform: "uppercase",
+                }}>
+                  {seq.active ? "Active" : "Paused"}
+                </span>
+              </div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 4 }}>
+                Trigger: {seq.trigger} · {seq.steps} emails
+              </div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, lineHeight: 1.45 }}>{seq.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function NotificationPrefsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "notification-prefs";
+
+  type PrefRow = { id: string; label: string; description: string; email: boolean; push: boolean; sms: boolean };
+  const [prefs, setPrefs] = useState<PrefRow[]>([
+    { id: "inquiry",    label: "New inquiry",         description: "When a client submits an inquiry.",          email: true,  push: true,  sms: false },
+    { id: "offer",      label: "Offer update",        description: "When a client approves or rejects.",         email: true,  push: true,  sms: false },
+    { id: "booking",    label: "Booking confirmed",   description: "When a booking is confirmed.",               email: true,  push: true,  sms: true  },
+    { id: "message",    label: "New message",         description: "Unread message in any thread.",              email: false, push: true,  sms: false },
+    { id: "payment",    label: "Payment",             description: "Successful payment or payout.",              email: true,  push: false, sms: false },
+    { id: "reminder",   label: "Booking reminders",   description: "24h and 1h before scheduled bookings.",      email: true,  push: true,  sms: true  },
+    { id: "team",       label: "Team activity",       description: "Colleague actions on your inquiries.",       email: false, push: false, sms: false },
+    { id: "platform",   label: "Platform updates",    description: "New features, policy changes, maintenance.", email: true,  push: false, sms: false },
+  ]);
+
+  // WS-11.2 — batching: collapse "3 from Casa Pero" instead of 3 entries
+  const [batchingEnabled, setBatchingEnabled] = useState(true);
+  // WS-11.4 — DND / quiet hours
+  const [dndEnabled, setDndEnabled] = useState(false);
+  const [dndStart, setDndStart] = useState("22:00");
+  const [dndEnd, setDndEnd] = useState("08:00");
+  // WS-11.5 — preview vs lock-screen privacy
+  const [previewMode, setPreviewMode] = useState<"full" | "sender-only" | "hidden">("full");
+
+  const toggle = (id: string, channel: "email" | "push" | "sms") =>
+    setPrefs((prev) => prev.map((p) => p.id === id ? { ...p, [channel]: !p[channel] } : p));
+
+  const CHANNELS: ("email" | "push" | "sms")[] = ["email", "push", "sms"];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Notification preferences"
+      description="Choose how and when you hear from Tulala. Email, push, and SMS can be toggled independently."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <button
+            type="button"
+            onClick={() => { toast("Preferences saved"); closeDrawer(); }}
+            style={{
+              padding: "9px 18px", background: COLORS.fill, border: "none",
+              borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            Save
+          </button>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ fontFamily: FONTS.body }}>
+        {/* Channel header row */}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 16, paddingRight: 2, marginBottom: 8 }}>
+          {CHANNELS.map((ch) => (
+            <div key={ch} style={{ width: 38, textAlign: "center", fontSize: 10, fontWeight: 700, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {ch}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          {prefs.map((pref) => (
+            <div
+              key={pref.id}
+              style={{
+                display: "flex", alignItems: "center",
+                padding: "11px 14px", background: COLORS.surfaceAlt,
+                borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                gap: 12, marginBottom: 4,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{pref.label}</div>
+                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{pref.description}</div>
+              </div>
+              <div style={{ display: "flex", gap: 16, flexShrink: 0 }}>
+                {CHANNELS.map((ch) => (
+                  <div key={ch} style={{ width: 38, display: "flex", justifyContent: "center" }}>
+                    <Toggle on={pref[ch]} onChange={() => toggle(pref.id, ch)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── WS-11 advanced controls ── */}
+        <div style={{ marginTop: 24, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: COLORS.inkMuted, marginBottom: 8 }}>
+          Delivery & quiet time
+        </div>
+
+        {/* WS-11.2 — Batching */}
+        <div style={{
+          padding: "11px 14px", background: COLORS.surfaceAlt,
+          borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+          display: "flex", alignItems: "center", gap: 12, marginBottom: 4,
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Batch similar notifications</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+              Collapse "3 new messages from Casa Pero" instead of sending each separately.
+            </div>
+          </div>
+          <Toggle on={batchingEnabled} onChange={setBatchingEnabled} />
+        </div>
+
+        {/* WS-11.4 — DND / quiet hours */}
+        <div style={{
+          padding: "11px 14px", background: COLORS.surfaceAlt,
+          borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+          marginBottom: 4,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Quiet hours</div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>
+                Pause push and SMS during these hours. Email is always allowed.
+              </div>
+            </div>
+            <Toggle on={dndEnabled} onChange={setDndEnabled} />
+          </div>
+          {dndEnabled && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 12.5, color: COLORS.ink }}>
+              <span>From</span>
+              <input type="time" value={dndStart} onChange={(e) => setDndStart(e.target.value)} style={{
+                padding: "4px 8px", borderRadius: RADIUS.sm,
+                border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12,
+                background: "#fff", color: COLORS.ink, outline: "none",
+              }} />
+              <span>to</span>
+              <input type="time" value={dndEnd} onChange={(e) => setDndEnd(e.target.value)} style={{
+                padding: "4px 8px", borderRadius: RADIUS.sm,
+                border: `1px solid ${COLORS.border}`, fontFamily: FONTS.body, fontSize: 12,
+                background: "#fff", color: COLORS.ink, outline: "none",
+              }} />
+              <span style={{ fontSize: 11, color: COLORS.inkMuted, marginLeft: "auto" }}>workspace timezone</span>
+            </div>
+          )}
+        </div>
+
+        {/* WS-11.5 — Preview / lock-screen privacy */}
+        <div style={{
+          padding: "11px 14px", background: COLORS.surfaceAlt,
+          borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 2 }}>Lock-screen previews</div>
+          <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 10 }}>
+            What appears on your device's lock screen for push notifications.
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {([
+              { value: "full",        label: "Full content",   sub: "Sender + message preview" },
+              { value: "sender-only", label: "Sender only",     sub: "\"Sara Bianchi sent a message\"" },
+              { value: "hidden",      label: "Hidden",          sub: "\"You have a notification\"" },
+            ] as const).map(opt => {
+              const active = previewMode === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPreviewMode(opt.value)}
+                  style={{
+                    flex: 1, minWidth: 110,
+                    padding: "8px 10px", borderRadius: RADIUS.sm,
+                    background: active ? COLORS.fill : "#fff",
+                    border: `1px solid ${active ? COLORS.fill : COLORS.border}`,
+                    color: active ? "#fff" : COLORS.ink,
+                    cursor: "pointer", textAlign: "left",
+                    fontFamily: FONTS.body,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{opt.label}</div>
+                  <div style={{ fontSize: 10.5, opacity: 0.85, marginTop: 1 }}>{opt.sub}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-23 — Marketing & growth drawers
+// ════════════════════════════════════════════════════════════════════
+
+function InviteFlowDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "invite-flow";
+  const [tab, setTab] = useState<"talent" | "client" | "agency">("talent");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const handleSend = () => {
+    if (!email.trim()) { toast("Enter an email address"); return; }
+    setSent(true);
+    toast(`Invite sent to ${email}`);
+  };
+
+  const tabMeta: Record<typeof tab, { label: string; placeholder: string; note: string }> = {
+    talent:  { label: "Talent",  placeholder: "talent@example.com", note: "They'll be invited to create a free talent profile on your roster." },
+    client:  { label: "Client",  placeholder: "client@brand.com",   note: "They'll receive a link to set up a client account and start sending inquiries." },
+    agency:  { label: "Agency",  placeholder: "ops@agency.com",     note: "Agency invite activates network collaboration — shared roster access on approval." },
+  };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={() => { setSent(false); setEmail(""); setName(""); closeDrawer(); }}
+      title="Send invite"
+      description="Invite talent, clients, or partner agencies to join your workspace network."
+      footer={
+        sent ? (
+          <SecondaryButton onClick={() => { setSent(false); setEmail(""); setName(""); }}>Send another</SecondaryButton>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+            <button
+              type="button" onClick={handleSend}
+              style={{
+                padding: "9px 18px", background: COLORS.fill, border: "none",
+                borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Send invite
+            </button>
+          </div>
+        )
+      }
+      defaultSize="compact"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        {sent ? (
+          <div style={{
+            padding: "16px 18px", background: COLORS.successSoft,
+            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
+            display: "flex", flexDirection: "column", gap: 6,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep }}>✓ Invite sent</div>
+            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
+              {name ? name : email} will receive an invite email shortly with a personalized onboarding link.
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Tab */}
+            <div style={{ display: "flex", gap: 4, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 3 }}>
+              {(["talent", "client", "agency"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setTab(t)}
+                  style={{
+                    flex: 1, padding: "6px 10px",
+                    background: tab === t ? "#fff" : "transparent",
+                    border: `1px solid ${tab === t ? COLORS.border : "transparent"}`,
+                    borderRadius: RADIUS.sm, fontFamily: FONTS.body,
+                    fontSize: 12.5, fontWeight: tab === t ? 600 : 400,
+                    color: tab === t ? COLORS.ink : COLORS.inkMuted,
+                    cursor: "pointer", transition: TRANSITION.sm,
+                  }}
+                >
+                  {tabMeta[t].label}
+                </button>
+              ))}
+            </div>
+
+            <FieldRow label="Name (optional)">
+              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Their name" />
+            </FieldRow>
+
+            <FieldRow label="Email address">
+              <TextInput value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tabMeta[tab].placeholder} />
+            </FieldRow>
+
+            <div style={{
+              padding: "10px 14px", background: COLORS.indigoSoft,
+              borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
+              fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+            }}>
+              {tabMeta[tab].note}
+            </div>
+          </>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ReferralDashboardDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "referral-dashboard";
+
+  const REFERRAL_CODE = "IMPRONTA-4X9Z";
+  const REFERRAL_URL  = `https://tulala.digital/join?ref=${REFERRAL_CODE}`;
+
+  type ReferralRow = { name: string; status: "joined" | "pending" | "rewarded"; date: string; reward: string };
+  const REFERRALS: ReferralRow[] = [
+    { name: "Bella Moretti",     status: "rewarded", date: "Apr 14",  reward: "€50 credit" },
+    { name: "Jasper Klein",      status: "joined",   date: "Apr 22",  reward: "Pending 30d" },
+    { name: "Invited via link",  status: "pending",  date: "Apr 26",  reward: "—" },
+    { name: "Invited via link",  status: "pending",  date: "Apr 27",  reward: "—" },
+  ];
+
+  const statusColor = (s: ReferralRow["status"]) =>
+    s === "rewarded" ? COLORS.successDeep : s === "joined" ? COLORS.indigoDeep : COLORS.inkMuted;
+  const statusBg = (s: ReferralRow["status"]) =>
+    s === "rewarded" ? COLORS.successSoft : s === "joined" ? COLORS.indigoSoft : COLORS.surfaceAlt;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Referral program"
+      description="Earn €50 credit for every new workspace that subscribes through your link."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <GhostButton onClick={() => toast("Copied referral link")}>Copy link</GhostButton>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[
+            { label: "Total referred",  value: String(REFERRALS.length), color: COLORS.ink },
+            { label: "Converted",       value: "1",                      color: COLORS.successDeep },
+            { label: "Credits earned",  value: "€50",                    color: COLORS.accentDeep  },
+          ].map((tile) => (
+            <div key={tile.label} style={{
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+              padding: "12px 14px", border: `1px solid ${COLORS.border}`, textAlign: "center",
+            }}>
+              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                {tile.label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Referral link */}
+        <div style={{
+          padding: "12px 14px", background: COLORS.accentSoft,
+          borderRadius: RADIUS.lg, border: `1px solid rgba(15,79,62,0.2)`,
+        }}>
+          <div style={{ fontSize: 11, color: COLORS.accentDeep, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+            Your referral link
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              flex: 1, fontSize: 12.5, fontFamily: "monospace",
+              color: COLORS.accent, background: "#fff",
+              border: `1px solid rgba(15,79,62,0.2)`, borderRadius: RADIUS.sm,
+              padding: "7px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {REFERRAL_URL}
+            </div>
+            <button
+              type="button"
+              onClick={() => toast("Copied")}
+              style={{
+                padding: "7px 12px", background: COLORS.accent, border: "none",
+                borderRadius: RADIUS.sm, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+
+        {/* Referral list */}
+        <div>
+          <CapsLabel>Referral history</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+            {REFERRALS.map((ref, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "10px 14px", background: COLORS.surfaceAlt,
+                borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+              }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{ref.name}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{ref.date} · {ref.reward}</div>
+                </div>
+                <span style={{
+                  fontSize: 10.5, fontWeight: 700,
+                  color: statusColor(ref.status), background: statusBg(ref.status),
+                  padding: "2px 8px", borderRadius: RADIUS.sm, textTransform: "capitalize",
+                }}>
+                  {ref.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function CalendarSyncDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "calendar-sync";
+
+  const ICAL_URL = "https://app.tulala.digital/cal/export/impronta-oran.ics?token=abc123";
+  const INTEGRATIONS = [
+    { name: "Google Calendar",       icon: "calendar" as const, connected: true,  note: "Two-way sync · Last synced 4 min ago" },
+    { name: "Apple Calendar (iCal)", icon: "calendar" as const, connected: false, note: "Subscribe via URL below" },
+    { name: "Outlook / Office 365",  icon: "calendar" as const, connected: false, note: "Connect via Microsoft OAuth" },
+  ];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Calendar sync"
+      description="Sync your Tulala bookings with your personal calendar. Changes appear within 5 minutes."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Integrations */}
+        <div>
+          <CapsLabel>Connected calendars</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+            {INTEGRATIONS.map((intg) => (
+              <div
+                key={intg.name}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "12px 14px", background: COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md, border: `1px solid ${intg.connected ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Icon name={intg.icon} size={16} color={intg.connected ? COLORS.accent : COLORS.inkMuted} stroke={1.6} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{intg.name}</div>
+                    <div style={{ fontSize: 11, color: intg.connected ? COLORS.successDeep : COLORS.inkMuted, marginTop: 1 }}>
+                      {intg.note}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toast(intg.connected ? "Disconnected" : "Connect flow — coming soon")}
+                  style={{
+                    padding: "5px 12px", fontFamily: FONTS.body, fontSize: 12, fontWeight: 600,
+                    color: intg.connected ? COLORS.red : COLORS.accent,
+                    background: "transparent",
+                    border: `1px solid ${intg.connected ? COLORS.red + "44" : COLORS.accent + "44"}`,
+                    borderRadius: RADIUS.sm, cursor: "pointer",
+                  }}
+                >
+                  {intg.connected ? "Disconnect" : "Connect"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* iCal subscription URL */}
+        <div>
+          <CapsLabel>iCal subscription URL</CapsLabel>
+          <div style={{ marginTop: 8, fontSize: 12.5, color: COLORS.inkMuted, marginBottom: 8, lineHeight: 1.5 }}>
+            Add this URL to any calendar app that supports iCal subscriptions (Apple Calendar, Outlook, Fantastical). Read-only, updates every 15 minutes.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{
+              flex: 1, fontSize: 11.5, fontFamily: "monospace",
+              color: COLORS.ink, background: COLORS.surfaceAlt,
+              border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm,
+              padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {ICAL_URL}
+            </div>
+            <button
+              type="button"
+              onClick={() => toast("Copied iCal URL")}
+              style={{
+                padding: "7px 12px", background: COLORS.fill, border: "none",
+                borderRadius: RADIUS.sm, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0,
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function SystemStatusDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "system-status";
+
+  type ComponentStatus = { name: string; status: "operational" | "degraded" | "outage"; latency?: string };
+  const COMPONENTS: ComponentStatus[] = [
+    { name: "API",                  status: "operational", latency: "42ms"  },
+    { name: "Web app",              status: "operational", latency: "180ms" },
+    { name: "Messaging service",    status: "operational", latency: "38ms"  },
+    { name: "File storage",         status: "operational", latency: "95ms"  },
+    { name: "Payment processing",   status: "operational", latency: "210ms" },
+    { name: "Email delivery",       status: "degraded",    latency: "1.2s"  },
+    { name: "Push notifications",   status: "operational", latency: "55ms"  },
+    { name: "Search index",         status: "operational", latency: "88ms"  },
+  ];
+
+  const INCIDENTS = [
+    { date: "Apr 26", title: "Email delivery latency spike",           resolved: false, impact: "Email sends delayed ~90 seconds" },
+    { date: "Apr 18", title: "API slowdown during peak hours (15:00–16:30)", resolved: true,  impact: "P99 latency exceeded 500ms for 90 minutes" },
+    { date: "Apr 05", title: "File upload errors in EU region",         resolved: true,  impact: "~8% of uploads failed over 30 minutes" },
+  ];
+
+  const statusColor = (s: ComponentStatus["status"]) =>
+    s === "operational" ? COLORS.successDeep : s === "degraded" ? COLORS.coral : COLORS.red;
+  const statusBg = (s: ComponentStatus["status"]) =>
+    s === "operational" ? COLORS.successSoft : s === "degraded" ? COLORS.coralSoft : COLORS.criticalSoft;
+  const allOperational = COMPONENTS.every((c) => c.status === "operational");
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="System status"
+      description={`Real-time Tulala infrastructure health. Last updated ${new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}.`}
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Overall status banner */}
+        <div style={{
+          padding: "12px 16px",
+          background: allOperational ? COLORS.successSoft : COLORS.coralSoft,
+          borderRadius: RADIUS.lg,
+          border: `1px solid ${allOperational ? "rgba(46,125,91,0.2)" : "rgba(194,106,69,0.2)"}`,
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <div style={{
+            width: 10, height: 10, borderRadius: "50%", flexShrink: 0,
+            background: allOperational ? COLORS.success : COLORS.coral,
+          }} />
+          <div style={{ fontSize: 13, fontWeight: 700, color: allOperational ? COLORS.successDeep : COLORS.coralDeep }}>
+            {allOperational ? "All systems operational" : "Some systems degraded"}
+          </div>
+        </div>
+
+        {/* Component grid */}
+        <div>
+          <CapsLabel>Components</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            {COMPONENTS.map((comp) => (
+              <div
+                key={comp.name}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "9px 14px", background: COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.ink }}>{comp.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {comp.latency && (
+                    <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{comp.latency}</span>
+                  )}
+                  <span style={{
+                    fontSize: 10.5, fontWeight: 700,
+                    color: statusColor(comp.status), background: statusBg(comp.status),
+                    padding: "2px 7px", borderRadius: RADIUS.sm, textTransform: "capitalize",
+                  }}>
+                    {comp.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Incident log */}
+        <div>
+          <CapsLabel>Recent incidents</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+            {INCIDENTS.map((inc) => (
+              <div
+                key={inc.title}
+                style={{
+                  padding: "12px 14px", background: COLORS.surfaceAlt,
+                  borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{inc.title}</div>
+                  <span style={{
+                    fontSize: 10.5, fontWeight: 700, flexShrink: 0,
+                    color: inc.resolved ? COLORS.successDeep : COLORS.coral,
+                    background: inc.resolved ? COLORS.successSoft : COLORS.coralSoft,
+                    padding: "2px 7px", borderRadius: RADIUS.sm,
+                  }}>
+                    {inc.resolved ? "Resolved" : "Ongoing"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 4 }}>
+                  {inc.date} · {inc.impact}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-24 — Quality & release engineering drawers
+// ════════════════════════════════════════════════════════════════════
+
+function TelemetryDashboardDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "telemetry-dashboard";
+
+  const METRICS = [
+    { label: "Error rate (24h)",    value: "0.08%",  sub: "↓ from 0.12% yesterday",  tone: "green"  as const },
+    { label: "P95 API latency",     value: "142ms",  sub: "Target: <200ms ✓",         tone: "green"  as const },
+    { label: "LCP (Web Vital)",     value: "1.8s",   sub: "Good (<2.5s) ✓",           tone: "green"  as const },
+    { label: "CLS (Web Vital)",     value: "0.04",   sub: "Good (<0.1) ✓",            tone: "green"  as const },
+    { label: "DAU (last 7d avg)",   value: "412",    sub: "+14% WoW",                  tone: "indigo" as const },
+    { label: "Sessions today",      value: "1,240",  sub: "Peak at 14:00",             tone: "indigo" as const },
+  ];
+
+  const EVENT_FUNNEL = [
+    { label: "Sessions",             count: 1240, pct: 100 },
+    { label: "Viewed roster",        count: 892,  pct: 72  },
+    { label: "Opened inquiry form",  count: 203,  pct: 16  },
+    { label: "Submitted inquiry",    count: 87,   pct: 7   },
+  ];
+
+  const toneColor = (t: "green" | "indigo") =>
+    t === "green" ? COLORS.successDeep : COLORS.indigoDeep;
+  const toneBg = (t: "green" | "indigo") =>
+    t === "green" ? COLORS.successSoft : COLORS.indigoSoft;
+
+  const FUNNEL_W = 280;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Telemetry dashboard"
+      description="Production health, Web Vitals, and conversion funnel. Sampled at 10%. Updated every 5 minutes."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+        {/* KPI grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          {METRICS.map((m) => (
+            <div key={m.label} style={{
+              background: toneBg(m.tone), borderRadius: RADIUS.lg,
+              padding: "12px 14px", border: `1px solid ${toneColor(m.tone)}22`,
+            }}>
+              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                {m.label}
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: toneColor(m.tone), marginBottom: 2 }}>
+                {m.value}
+              </div>
+              <div style={{ fontSize: 10.5, color: COLORS.inkMuted }}>{m.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Event funnel */}
+        <div style={{ background: COLORS.surfaceAlt, borderRadius: RADIUS.lg, padding: "14px 16px", border: `1px solid ${COLORS.border}` }}>
+          <CapsLabel>Conversion funnel · today</CapsLabel>
+          <div style={{ marginTop: 12 }}>
+            {EVENT_FUNNEL.map((step, i) => (
+              <div key={step.label} style={{ marginBottom: i < EVENT_FUNNEL.length - 1 ? 10 : 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12.5, color: COLORS.ink }}>
+                  <span style={{ fontWeight: 500 }}>{step.label}</span>
+                  <span style={{ color: COLORS.inkMuted }}>{step.count.toLocaleString()} · {step.pct}%</span>
+                </div>
+                <div style={{ background: COLORS.border, borderRadius: 3, height: 6, overflow: "hidden" }}>
+                  <div style={{
+                    background: i === 0 ? COLORS.accent : i === 1 ? COLORS.indigo : i === 2 ? COLORS.success : COLORS.green,
+                    width: `${step.pct}%`, height: "100%", borderRadius: 3,
+                    transition: TRANSITION.layout,
+                  }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{
+          padding: "10px 14px", background: COLORS.indigoSoft,
+          borderRadius: RADIUS.md, border: `1px solid rgba(91,107,160,0.2)`,
+          fontSize: 11.5, color: COLORS.indigoDeep, lineHeight: 1.5,
+        }}>
+          Full telemetry in Vercel Analytics + Sentry. This drawer shows the subset surfaced to workspace admins. Error detail and traces require HQ access.
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function BetaProgramDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "beta-program";
+
+  type Flag = { id: string; name: string; description: string; rollout: number; enrolled: boolean };
+  const [flags, setFlags] = useState<Flag[]>([
+    { id: "ai-reply",      name: "AI reply suggestions",     description: "Smart reply suggestions in the messaging panel.",              rollout: 25,  enrolled: true  },
+    { id: "bulk-edit",     name: "Bulk talent editor",       description: "Multi-select and edit multiple profiles at once.",             rollout: 10,  enrolled: false },
+    { id: "calendar-v2",  name: "Calendar v2",              description: "Redesigned calendar with drag-to-book and conflict detection.", rollout: 50,  enrolled: true  },
+    { id: "brief-builder", name: "Brief builder (client)",   description: "Structured brief authoring tool for clients.",                 rollout: 5,   enrolled: false },
+    { id: "new-nav",       name: "Redesigned nav (2026)",    description: "Upcoming navigation overhaul — early access.",                rollout: 100, enrolled: false },
+  ]);
+
+  const toggle = (id: string) =>
+    setFlags((prev) => prev.map((f) => f.id === id ? { ...f, enrolled: !f.enrolled } : f));
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Beta program"
+      description="Opt your workspace into early-access features. You can leave any beta at any time."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <button
+            type="button"
+            onClick={() => { toast("Beta preferences saved"); closeDrawer(); }}
+            style={{
+              padding: "9px 18px", background: COLORS.fill, border: "none",
+              borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            Save
+          </button>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontFamily: FONTS.body }}>
+        {flags.map((flag) => (
+          <div
+            key={flag.id}
+            style={{
+              padding: "14px 16px", background: COLORS.surfaceAlt,
+              borderRadius: RADIUS.lg, border: `1px solid ${flag.enrolled ? COLORS.accent + "44" : COLORS.borderSoft}`,
+              display: "flex", gap: 12, alignItems: "flex-start",
+            }}
+          >
+            <Toggle on={flag.enrolled} onChange={() => toggle(flag.id)} />
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{flag.name}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, color: COLORS.indigoDeep,
+                  background: COLORS.indigoSoft, padding: "1px 6px", borderRadius: RADIUS.sm,
+                }}>
+                  {flag.rollout}% rollout
+                </span>
+                {flag.enrolled && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, color: COLORS.successDeep,
+                    background: COLORS.successSoft, padding: "1px 6px", borderRadius: RADIUS.sm,
+                  }}>
+                    Enrolled
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.45 }}>{flag.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-25 — Bulk operations + migration drawers
+// ════════════════════════════════════════════════════════════════════
+
+function CsvImportDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "csv-import";
+  const importType = (state.drawer.payload?.type as "talent" | "clients") ?? "talent";
+  const [step, setStep] = useState<"upload" | "mapping" | "preview" | "done">("upload");
+
+  const TALENT_COLUMNS  = ["First name", "Last name", "Email", "Height (cm)", "Shoe size", "Category", "Instagram"];
+  const CLIENT_COLUMNS  = ["Company name", "Contact name", "Email", "Phone", "Country"];
+  const columns = importType === "talent" ? TALENT_COLUMNS : CLIENT_COLUMNS;
+
+  const PREVIEW_ROWS = importType === "talent" ? [
+    ["Bella", "Moretti",  "bella@model.it",     "178", "39", "Editorial",   "@bellamoretti" ],
+    ["Jasper","Klein",    "jasper@models.de",   "190", "44", "Commercial",  "@jasperklein"  ],
+    ["Yuki",  "Tanaka",   "yuki@agency.jp",     "165", "37", "Runway",      "@yukitanaka"   ],
+  ] : [
+    ["Vogue Italia",  "Anna Rossi",   "anna@vogue.it",    "+39 02 1234",  "IT" ],
+    ["H&M Studio",    "Lena Müller",  "lena@hm.com",      "+46 8 5678",   "SE" ],
+  ];
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={() => { setStep("upload"); closeDrawer(); }}
+      title={`Import ${importType}`}
+      description={`Upload a CSV to bulk-import ${importType === "talent" ? "talent profiles" : "client records"}. Map columns, preview, then commit.`}
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          {step !== "upload" && step !== "done" && (
+            <SecondaryButton onClick={() => setStep(step === "mapping" ? "upload" : step === "preview" ? "mapping" : "preview")}>
+              ← Back
+            </SecondaryButton>
+          )}
+          {step === "done" ? (
+            <SecondaryButton onClick={() => { setStep("upload"); closeDrawer(); }}>Close</SecondaryButton>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (step === "upload")   setStep("mapping");
+                else if (step === "mapping")  setStep("preview");
+                else if (step === "preview")  { setStep("done"); toast(`${PREVIEW_ROWS.length} rows imported`); }
+              }}
+              style={{
+                padding: "9px 18px", background: COLORS.fill, border: "none",
+                borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              {step === "upload" ? "Next: Map columns →" : step === "mapping" ? "Next: Preview →" : "Commit import"}
+            </button>
+          )}
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Step indicator */}
+        <div style={{ display: "flex", gap: 0 }}>
+          {(["upload", "mapping", "preview", "done"] as const).map((s, i) => {
+            const done = ["upload","mapping","preview","done"].indexOf(step) > i;
+            const active = step === s;
+            return (
+              <div key={s} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                <div style={{
+                  width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                  background: done ? COLORS.accent : active ? COLORS.fill : COLORS.borderSoft,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 11, fontWeight: 700,
+                  color: done || active ? "#fff" : COLORS.inkDim,
+                }}>
+                  {done ? "✓" : String(i + 1)}
+                </div>
+                {i < 3 && <div style={{ flex: 1, height: 2, background: done ? COLORS.accent : COLORS.borderSoft }} />}
+              </div>
+            );
+          })}
+        </div>
+
+        {step === "upload" && (
+          <div
+            style={{
+              padding: "32px 20px", textAlign: "center",
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+              border: `2px dashed ${COLORS.border}`,
+            }}
+          >
+            <div style={{ fontSize: 28, marginBottom: 10 }}>📂</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>
+              Drop your CSV here, or click to browse
+            </div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginBottom: 14 }}>
+              Max 5 MB · UTF-8 encoding · First row = headers
+            </div>
+            <button
+              type="button"
+              onClick={() => setStep("mapping")}
+              style={{
+                padding: "8px 18px", background: COLORS.fill, border: "none",
+                borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Browse file
+            </button>
+          </div>
+        )}
+
+        {step === "mapping" && (
+          <div>
+            <CapsLabel>Map CSV columns to Tulala fields</CapsLabel>
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+              {columns.map((col) => (
+                <div key={col} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: COLORS.surfaceAlt, borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}` }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 500, color: COLORS.ink }}>{col}</span>
+                  <span style={{ fontSize: 11.5, color: COLORS.successDeep }}>✓ Auto-matched</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === "preview" && (
+          <div>
+            <CapsLabel>Preview ({PREVIEW_ROWS.length} rows · sample)</CapsLabel>
+            <div style={{ marginTop: 8, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: FONTS.body }}>
+                <thead>
+                  <tr>
+                    {columns.slice(0, 4).map((col) => (
+                      <th key={col} style={{ padding: "6px 10px", textAlign: "left", background: COLORS.surfaceAlt, border: `1px solid ${COLORS.border}`, color: COLORS.inkMuted, fontWeight: 700, fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {PREVIEW_ROWS.map((row, i) => (
+                    <tr key={i}>
+                      {row.slice(0, 4).map((cell, j) => (
+                        <td key={j} style={{ padding: "8px 10px", border: `1px solid ${COLORS.borderSoft}`, color: COLORS.ink }}>
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {step === "done" && (
+          <div style={{
+            padding: "16px 18px", background: COLORS.successSoft,
+            borderRadius: RADIUS.lg, border: `1px solid rgba(46,125,91,0.2)`,
+          }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.successDeep, marginBottom: 4 }}>✓ Import complete</div>
+            <div style={{ fontSize: 12.5, color: COLORS.successDeep }}>
+              {PREVIEW_ROWS.length} {importType} records imported successfully. They appear in your roster immediately.
+            </div>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function MigrationAssistantDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "migration-assistant";
+  const [source, setSource] = useState<"excel" | "whatsapp" | "airtable">("excel");
+  const [analysed, setAnalysed] = useState(false);
+
+  const SOURCE_META = {
+    excel:     { label: "Excel / Google Sheets", icon: "📊", hint: "Export your spreadsheet as .xlsx or .csv" },
+    whatsapp:  { label: "WhatsApp export",        icon: "💬", hint: "Go to WhatsApp Web → Export chat (without media)" },
+    airtable:  { label: "Airtable",               icon: "🗃️", hint: "Export your base as CSV from Airtable → Download" },
+  };
+  const ANALYSIS_RESULT = source === "whatsapp"
+    ? { found: 23, entities: "client conversations", notes: "Detected 23 client threads. AI will map each conversation to a contact + 3 draft inquiries." }
+    : { found: 47, entities: source === "excel" ? "talent rows" : "records", notes: "AI detected 6 columns including 2 that look like measurements. Review the mapping before committing." };
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={() => { setAnalysed(false); closeDrawer(); }}
+      title="Migration assistant"
+      description="AI-assisted import from your existing tools. We parse the structure and map it to Tulala — you review and commit."
+      footer={
+        analysed ? (
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryButton onClick={() => setAnalysed(false)}>← Back</SecondaryButton>
+            <button
+              type="button"
+              onClick={() => { toast("Migration queued — you'll receive an email when it's done"); closeDrawer(); }}
+              style={{
+                padding: "9px 18px", background: COLORS.fill, border: "none",
+                borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Confirm migration
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+            <button
+              type="button"
+              onClick={() => setAnalysed(true)}
+              style={{
+                padding: "9px 18px", background: COLORS.fill, border: "none",
+                borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Analyse file →
+            </button>
+          </div>
+        )
+      }
+      defaultSize="compact"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        {analysed ? (
+          <>
+            <div style={{
+              padding: "14px 16px", background: COLORS.royalSoft,
+              borderRadius: RADIUS.lg, border: `1px solid rgba(95,75,139,0.2)`,
+              display: "flex", gap: 10, alignItems: "flex-start",
+            }}>
+              <Icon name="sparkle" size={14} color={COLORS.royal} stroke={1.7} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.royalDeep, marginBottom: 3 }}>
+                  AI analysis complete
+                </div>
+                <div style={{ fontSize: 12.5, color: COLORS.royalDeep, lineHeight: 1.5 }}>
+                  Found {ANALYSIS_RESULT.found} {ANALYSIS_RESULT.entities}. {ANALYSIS_RESULT.notes}
+                </div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.5 }}>
+              Migration runs in the background. You can close this drawer — we'll notify you when it's done. Existing data is not affected.
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <CapsLabel>Data source</CapsLabel>
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                {(Object.entries(SOURCE_META) as [typeof source, typeof SOURCE_META[typeof source]][]).map(([key, meta]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSource(key)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "12px 14px", background: source === key ? COLORS.accentSoft : COLORS.surfaceAlt,
+                      border: `1px solid ${source === key ? COLORS.accent + "44" : COLORS.borderSoft}`,
+                      borderRadius: RADIUS.md, cursor: "pointer", fontFamily: FONTS.body, textAlign: "left",
+                      transition: TRANSITION.sm,
+                    }}
+                  >
+                    <span style={{ fontSize: 20 }}>{meta.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{meta.label}</div>
+                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1 }}>{meta.hint}</div>
+                    </div>
+                    {source === key && (
+                      <Icon name="check" size={14} color={COLORS.accent} stroke={2.5} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{
+              padding: "32px 20px", textAlign: "center",
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+              border: `2px dashed ${COLORS.border}`,
+            }}>
+              <div style={{ fontSize: 22, marginBottom: 8 }}>{SOURCE_META[source].icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 4 }}>
+                Drop your file here
+              </div>
+              <div style={{ fontSize: 11.5, color: COLORS.inkMuted }}>or click to browse</div>
+            </div>
+          </>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-26 — Brand & creative tools drawers
+// ════════════════════════════════════════════════════════════════════
+
+function BriefBuilderDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "brief-builder";
+  const [projectName, setProjectName] = useState("");
+  const [category, setCategory] = useState("Editorial");
+  const [dates, setDates] = useState("");
+  const [deliverables, setDeliverables] = useState("");
+  const [budget, setBudget] = useState("");
+  const [notes, setNotes] = useState("");
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Brief builder"
+      description="Structured brief for clients. Fill in scope, dates, and requirements — generates a clean PDF and pre-fills the inquiry form."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Cancel</SecondaryButton>
+          <button
+            type="button"
+            onClick={() => { toast("Brief saved — pre-filling inquiry form"); closeDrawer(); }}
+            style={{
+              padding: "9px 18px", background: COLORS.fill, border: "none",
+              borderRadius: RADIUS.md, color: "#fff", fontFamily: FONTS.body,
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            Save brief
+          </button>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        <FieldRow label="Project name">
+          <TextInput value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. SS26 Campaign — Bvlgari" />
+        </FieldRow>
+
+        <FieldRow label="Category">
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{
+              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink,
+              background: "#fff", border: `1px solid ${COLORS.border}`,
+              borderRadius: RADIUS.sm, padding: "7px 10px", width: "100%",
+            }}
+          >
+            {["Editorial", "Commercial", "Runway", "Campaign", "E-commerce", "Event"].map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </FieldRow>
+
+        <FieldRow label="Dates / timeline">
+          <TextInput value={dates} onChange={(e) => setDates(e.target.value)} placeholder="e.g. May 14–16, 2026 · Milan" />
+        </FieldRow>
+
+        <FieldRow label="Budget (approx.)">
+          <TextInput value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="e.g. €8,000 total · €2,000/talent" />
+        </FieldRow>
+
+        <FieldRow label="Deliverables">
+          <TextArea
+            value={deliverables}
+            onChange={(e) => setDeliverables(e.target.value)}
+            placeholder="2× full-day talent · 10–15 final images · usage: digital + print EU 12 months"
+            rows={3}
+          />
+        </FieldRow>
+
+        <FieldRow label="Additional notes">
+          <TextArea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Hair/makeup provided. Talent must be fluent in Italian. No prior exclusivity conflicts with competitor brands."
+            rows={3}
+          />
+        </FieldRow>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function BrandAssetsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "brand-assets";
+  const [filter, setFilter] = useState<"all" | "logo" | "photo" | "doc">("all");
+
+  type Asset = { id: string; name: string; type: "logo" | "photo" | "doc"; size: string; date: string };
+  const ASSETS: Asset[] = [
+    { id: "a1", name: "Logo — primary (SVG)",      type: "logo",  size: "12 KB",   date: "Apr 10" },
+    { id: "a2", name: "Logo — white on dark",      type: "logo",  size: "14 KB",   date: "Apr 10" },
+    { id: "a3", name: "Logo — mark only",          type: "logo",  size: "8 KB",    date: "Apr 10" },
+    { id: "a4", name: "Campaign — Spring 2026",    type: "photo", size: "4.2 MB",  date: "Mar 28" },
+    { id: "a5", name: "HeroImage — homepage",      type: "photo", size: "2.8 MB",  date: "Apr 02" },
+    { id: "a6", name: "Agency overview deck",      type: "doc",   size: "1.6 MB",  date: "Apr 15" },
+    { id: "a7", name: "Rate card template",        type: "doc",   size: "45 KB",   date: "Apr 18" },
+  ];
+
+  const filtered = filter === "all" ? ASSETS : ASSETS.filter((a) => a.type === filter);
+  const typeIcon = (t: Asset["type"]) =>
+    t === "logo" ? "🖼️" : t === "photo" ? "📸" : "📄";
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Brand assets"
+      description="Central library for logos, photography, and documents. Shared across all workspace surfaces."
+      footer={
+        <div style={{ display: "flex", gap: 8 }}>
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          <GhostButton onClick={() => toast("Upload flow — coming in brand v2")}>+ Upload</GhostButton>
+        </div>
+      }
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        {/* Filter tabs */}
+        <div style={{ display: "flex", gap: 4, background: COLORS.surfaceAlt, borderRadius: RADIUS.md, padding: 3 }}>
+          {(["all", "logo", "photo", "doc"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              style={{
+                flex: 1, padding: "6px 10px",
+                background: filter === f ? "#fff" : "transparent",
+                border: `1px solid ${filter === f ? COLORS.border : "transparent"}`,
+                borderRadius: RADIUS.sm, fontFamily: FONTS.body,
+                fontSize: 12.5, fontWeight: filter === f ? 600 : 400,
+                color: filter === f ? COLORS.ink : COLORS.inkMuted,
+                cursor: "pointer", transition: TRANSITION.sm,
+                textTransform: "capitalize",
+              }}
+            >
+              {f === "all" ? "All" : f === "logo" ? "Logos" : f === "photo" ? "Photos" : "Docs"}
+            </button>
+          ))}
+        </div>
+
+        {/* Asset list */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {filtered.map((asset) => (
+            <div
+              key={asset.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "10px 14px", background: COLORS.surfaceAlt,
+                borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+              }}
+            >
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{typeIcon(asset.type)}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{asset.name}</div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{asset.size} · Added {asset.date}</div>
+              </div>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => toast(`Copied link to "${asset.name}"`)}
+                  style={{ background: "transparent", border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "4px 10px", fontFamily: FONTS.body, fontSize: 11.5, color: COLORS.inkMuted, cursor: "pointer" }}
+                >
+                  Copy link
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ApprovalFlowDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "approval-flow";
+
+  type ApprovalItem = { id: string; title: string; requester: string; type: string; status: "pending" | "approved" | "rejected"; daysAgo: number };
+  const [items, setItems] = useState<ApprovalItem[]>([
+    { id: "ap1", title: "Bvlgari SS26 brief",         requester: "Lena Müller (Client)",    type: "Brief",    status: "pending",  daysAgo: 0 },
+    { id: "ap2", title: "Offer v3 — Vogue Italia",    requester: "Sara Mendes (Coord)",     type: "Offer",    status: "pending",  daysAgo: 1 },
+    { id: "ap3", title: "Rate card 2026",              requester: "Alina Popescu (Editor)",  type: "Document", status: "approved", daysAgo: 3 },
+    { id: "ap4", title: "Campaign proposal — Chanel", requester: "Oran Tene (Admin)",       type: "Brief",    status: "rejected", daysAgo: 5 },
+  ]);
+
+  const pending  = items.filter((i) => i.status === "pending");
+  const resolved = items.filter((i) => i.status !== "pending");
+
+  const decide = (id: string, decision: "approved" | "rejected") => {
+    setItems((prev) => prev.map((i) => i.id === id ? { ...i, status: decision } : i));
+    toast(decision === "approved" ? "Approved ✓" : "Rejected");
+  };
+
+  const statusColor = (s: ApprovalItem["status"]) =>
+    s === "approved" ? COLORS.successDeep : s === "rejected" ? COLORS.red : COLORS.amber;
+  const statusBg = (s: ApprovalItem["status"]) =>
+    s === "approved" ? COLORS.successSoft : s === "rejected" ? COLORS.criticalSoft : COLORS.amberSoft;
+
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title="Approval queue"
+      description="Briefs, offers, and documents waiting for your sign-off."
+      footer={<SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>}
+      defaultSize="half"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {/* Summary */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[
+            { label: "Pending",  value: String(pending.length),                                         color: COLORS.amber       },
+            { label: "Approved", value: String(items.filter((i) => i.status === "approved").length),    color: COLORS.successDeep },
+            { label: "Rejected", value: String(items.filter((i) => i.status === "rejected").length),    color: COLORS.red         },
+          ].map((tile) => (
+            <div key={tile.label} style={{
+              background: COLORS.surfaceAlt, borderRadius: RADIUS.lg,
+              padding: "12px 14px", border: `1px solid ${COLORS.border}`, textAlign: "center",
+            }}>
+              <div style={{ fontSize: 9.5, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                {tile.label}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: tile.color }}>{tile.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {pending.length > 0 && (
+          <div>
+            <CapsLabel>Needs your approval</CapsLabel>
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+              {pending.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    padding: "14px 16px", background: COLORS.surfaceAlt,
+                    borderRadius: RADIUS.lg, border: `1px solid ${COLORS.amberSoft}`,
+                  }}
+                >
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{item.title}</div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>
+                      {item.type} · From {item.requester} · {item.daysAgo === 0 ? "Today" : `${item.daysAgo}d ago`}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => decide(item.id, "approved")}
+                      style={{
+                        flex: 1, padding: "7px", background: COLORS.successSoft,
+                        border: `1px solid rgba(46,125,91,0.3)`, borderRadius: RADIUS.sm,
+                        color: COLORS.successDeep, fontFamily: FONTS.body, fontSize: 12.5,
+                        fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Approve ✓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => decide(item.id, "rejected")}
+                      style={{
+                        flex: 1, padding: "7px", background: COLORS.criticalSoft,
+                        border: `1px solid rgba(176,48,58,0.2)`, borderRadius: RADIUS.sm,
+                        color: COLORS.red, fontFamily: FONTS.body, fontSize: 12.5,
+                        fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Reject ✗
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {resolved.length > 0 && (
+          <div>
+            <CapsLabel>Resolved</CapsLabel>
+            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+              {resolved.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "10px 14px", background: COLORS.surfaceAlt,
+                    borderRadius: RADIUS.md, border: `1px solid ${COLORS.borderSoft}`,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.inkMuted }}>{item.title}</div>
+                    <div style={{ fontSize: 11, color: COLORS.inkDim, marginTop: 1 }}>{item.type} · {item.daysAgo}d ago</div>
+                  </div>
+                  <span style={{
+                    fontSize: 10.5, fontWeight: 700,
+                    color: statusColor(item.status), background: statusBg(item.status),
+                    padding: "2px 8px", borderRadius: RADIUS.sm, textTransform: "capitalize",
+                  }}>
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-27 — Site & page-builder management
+// ════════════════════════════════════════════════════════════════════
+
+function SiteContextSwitcherDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "site-context-switcher";
+  const [active, setActive] = React.useState<string>("agency");
+
+  const contexts = [
+    { id: "agency", label: "Agency HQ", url: "tulala.digital", kind: "Agency site", pages: 12, lastEdit: "2h ago", status: "live" },
+    { id: "talent", label: "Model roster", url: "roster.tulala.digital", kind: "Talent hub", pages: 8, lastEdit: "1d ago", status: "live" },
+    { id: "client", label: "Client portal", url: "app.tulala.digital", kind: "Client portal", pages: 5, lastEdit: "3d ago", status: "live" },
+    { id: "casting", label: "Open casting", url: "casting.tulala.digital", kind: "Campaign page", pages: 3, lastEdit: "5d ago", status: "draft" },
+  ] as const;
+
+  const current = contexts.find(c => c.id === active)!;
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <SecondaryButton onClick={() => { toast("Switched context"); closeDrawer(); }}>Open editor</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Site context" description="Switch between your managed web properties." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {contexts.map(ctx => (
+            <div
+              key={ctx.id}
+              onClick={() => setActive(ctx.id)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "12px 14px", borderRadius: RADIUS.md, cursor: "pointer",
+                border: `1.5px solid ${active === ctx.id ? COLORS.accent : COLORS.border}`,
+                background: active === ctx.id ? COLORS.accentSoft : COLORS.surface,
+                transition: TRANSITION.sm,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: RADIUS.sm, background: active === ctx.id ? COLORS.accent : COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name="globe" size={16} color={active === ctx.id ? "#fff" : COLORS.inkMuted} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{ctx.label}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{ctx.url}</div>
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <span style={{
+                  fontSize: 10.5, fontWeight: 700, textTransform: "uppercase",
+                  color: ctx.status === "live" ? COLORS.success : COLORS.amber,
+                  background: ctx.status === "live" ? COLORS.successSoft : `${COLORS.amber}18`,
+                  padding: "2px 7px", borderRadius: RADIUS.sm,
+                }}>
+                  {ctx.status}
+                </span>
+                <div style={{ fontSize: 10, color: COLORS.inkDim, marginTop: 3 }}>{ctx.pages} pages · {ctx.lastEdit}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 16 }}>
+          <CapsLabel>Selected: {current.label}</CapsLabel>
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            {[
+              { label: "Type", value: current.kind },
+              { label: "Domain", value: current.url },
+              { label: "Pages", value: String(current.pages) },
+              { label: "Last edit", value: current.lastEdit },
+            ].map(row => (
+              <div key={row.label} style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function PageSchedulerDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "page-scheduler";
+  const [publishDate, setPublishDate] = React.useState("2026-05-15");
+  const [publishTime, setPublishTime] = React.useState("09:00");
+  const [unpublishDate, setUnpublishDate] = React.useState("");
+  const [timezone, setTimezone] = React.useState("Europe/London");
+
+  const scheduled = [
+    { title: "Spring campaign landing", action: "Publish", when: "15 May · 09:00", status: "pending" },
+    { title: "Winter roster archive", action: "Unpublish", when: "30 Apr · 23:59", status: "pending" },
+    { title: "Awards 2025 recap", action: "Publish", when: "20 Apr · 10:00", status: "published" },
+  ];
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
+      <SecondaryButton onClick={() => { toast("Schedule saved"); closeDrawer(); }}>Save schedule</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Page scheduler" description="Queue publish and unpublish events for any page." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+        <div style={{ background: COLORS.accentSoft, border: `1px solid ${COLORS.accent}`, borderRadius: RADIUS.md, padding: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent }}>Scheduling: Spring campaign landing</div>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>tulala.digital/spring-2026</div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <CapsLabel>Publish date & time</CapsLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <FieldRow label="Date">
+              <TextInput value={publishDate} onChange={(e) => setPublishDate(e.target.value)} placeholder="YYYY-MM-DD" />
+            </FieldRow>
+            <FieldRow label="Time">
+              <TextInput value={publishTime} onChange={(e) => setPublishTime(e.target.value)} placeholder="HH:MM" />
+            </FieldRow>
+          </div>
+          <FieldRow label="Timezone">
+            <TextInput value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="e.g. Europe/London" />
+          </FieldRow>
+        </div>
+
+        <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+          <CapsLabel>Auto-unpublish (optional)</CapsLabel>
+          <FieldRow label="Unpublish date">
+            <TextInput value={unpublishDate} onChange={(e) => setUnpublishDate(e.target.value)} placeholder="YYYY-MM-DD (optional)" />
+          </FieldRow>
+        </div>
+
+        <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 16 }}>
+          <CapsLabel>Upcoming schedule</CapsLabel>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+            {scheduled.map((item, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{item.title}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{item.action} · {item.when}</div>
+                </div>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+                  color: item.status === "published" ? COLORS.success : COLORS.amber,
+                  background: item.status === "published" ? COLORS.successSoft : `${COLORS.amber}18`,
+                  padding: "2px 7px", borderRadius: RADIUS.sm,
+                }}>
+                  {item.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-28 — Casting director
+// ════════════════════════════════════════════════════════════════════
+
+function CastingFlowDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "casting-flow";
+  const [castingType, setCastingType] = React.useState<"open" | "closed">("open");
+  const [rounds, setRounds] = React.useState(2);
+  const [roundCounts, setRoundCounts] = React.useState([50, 12]);
+
+  const updateCount = (idx: number, val: number) => {
+    const next = [...roundCounts];
+    next[idx] = val;
+    setRoundCounts(next);
+  };
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
+      <SecondaryButton onClick={() => { toast("Casting flow saved"); closeDrawer(); }}>Save casting config</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Casting flow" description="Configure casting type, rounds, and throughput targets." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+
+        <div>
+          <CapsLabel>Casting type</CapsLabel>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            {(["open", "closed"] as const).map(t => (
+              <div
+                key={t}
+                onClick={() => setCastingType(t)}
+                style={{
+                  flex: 1, padding: "12px 16px", borderRadius: RADIUS.md, cursor: "pointer",
+                  border: `1.5px solid ${castingType === t ? COLORS.accent : COLORS.border}`,
+                  background: castingType === t ? COLORS.accentSoft : COLORS.surface,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 600, color: castingType === t ? COLORS.accent : COLORS.ink, textTransform: "capitalize" }}>{t}</div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 3 }}>
+                  {t === "open" ? "Anyone may submit" : "Invite-only applicants"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <CapsLabel>Rounds ({rounds})</CapsLabel>
+            <div style={{ display: "flex", gap: 6 }}>
+              <GhostButton onClick={() => { if (rounds > 1) { setRounds(r => r - 1); setRoundCounts(rc => rc.slice(0, -1)); } }}>–</GhostButton>
+              <GhostButton onClick={() => { if (rounds < 5) { setRounds(r => r + 1); setRoundCounts(rc => [...rc, 10]); } }}>+</GhostButton>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {Array.from({ length: rounds }, (_, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>{i + 1}</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>Round {i + 1}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted }}>
+                    {i === 0 ? "Initial applications" : `Callbacks from round ${i}`}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Target:</span>
+                  <GhostButton onClick={() => updateCount(i, Math.max(1, (roundCounts[i] || 10) - 5))}>–</GhostButton>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, minWidth: 28, textAlign: "center" }}>{roundCounts[i] ?? 10}</span>
+                  <GhostButton onClick={() => updateCount(i, (roundCounts[i] || 10) + 5)}>+</GhostButton>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ borderTop: `1px solid ${COLORS.border}`, paddingTop: 16 }}>
+          <CapsLabel>Summary</CapsLabel>
+          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            {[
+              { label: "Type", value: castingType === "open" ? "Open casting" : "Closed/invite" },
+              { label: "Rounds", value: String(rounds) },
+              { label: "Final spots", value: String(roundCounts[rounds - 1] ?? 10) },
+            ].map(item => (
+              <div key={item.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "10px 12px", textAlign: "center" }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.accent }}>{item.value}</div>
+                <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function CallbackTrackerDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "callback-tracker";
+  const [selectedRound, setSelectedRound] = React.useState(1);
+
+  const talentByRound: Record<number, Array<{ name: string; status: "invited" | "confirmed" | "declined" | "pending"; notes: string }>> = {
+    1: [
+      { name: "Amara Osei", status: "confirmed", notes: "Strong presence, great range" },
+      { name: "Lena Voss", status: "confirmed", notes: "Exactly the brief aesthetic" },
+      { name: "Marco Dias", status: "pending", notes: "Awaiting availability check" },
+      { name: "Yuki Tanaka", status: "declined", notes: "Schedule conflict" },
+      { name: "Chiara Bianchi", status: "invited", notes: "" },
+    ],
+    2: [
+      { name: "Amara Osei", status: "confirmed", notes: "Advance to final" },
+      { name: "Lena Voss", status: "pending", notes: "" },
+    ],
+  };
+
+  const statusColor = (s: string) => s === "confirmed" ? COLORS.success : s === "declined" ? COLORS.coral : s === "invited" ? COLORS.indigo : COLORS.amber;
+  const statusBg = (s: string) => s === "confirmed" ? COLORS.successSoft : s === "declined" ? `${COLORS.coral}18` : s === "invited" ? `${COLORS.indigo}18` : `${COLORS.amber}18`;
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <SecondaryButton onClick={() => { toast("Callbacks saved"); closeDrawer(); }}>Save callbacks</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Callback tracker" description="Track talent progress and feedback across casting rounds." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        <div style={{ display: "flex", gap: 6 }}>
+          {[1, 2].map(r => (
+            <div
+              key={r}
+              onClick={() => setSelectedRound(r)}
+              style={{
+                padding: "6px 16px", borderRadius: RADIUS.sm, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                background: selectedRound === r ? COLORS.accent : COLORS.surface,
+                color: selectedRound === r ? "#fff" : COLORS.inkMuted,
+                border: `1px solid ${selectedRound === r ? COLORS.accent : COLORS.border}`,
+              }}
+            >
+              Round {r}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {(talentByRound[selectedRound] || []).map((t, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted }}>{t.name.split(" ").map(n => n[0]).join("")}</span>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.name}</div>
+                {t.notes && <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.notes}</div>}
+              </div>
+              <span style={{ fontSize: 10.5, fontWeight: 700, textTransform: "capitalize", color: statusColor(t.status), background: statusBg(t.status), padding: "2px 8px", borderRadius: RADIUS.sm, flexShrink: 0 }}>
+                {t.status}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+          <CapsLabel>Round {selectedRound} summary</CapsLabel>
+          <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            {["confirmed", "pending", "invited", "declined"].map(s => {
+              const count = (talentByRound[selectedRound] || []).filter(t => t.status === s).length;
+              return (
+                <div key={s} style={{ textAlign: "center", padding: "8px 4px", background: statusBg(s), borderRadius: RADIUS.sm }}>
+                  <div style={{ fontSize: 20, fontWeight: 800, color: statusColor(s) }}>{count}</div>
+                  <div style={{ fontSize: 10, color: statusColor(s), textTransform: "capitalize", marginTop: 1 }}>{s}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-29 — Production team & multi-discipline bookings
+// ════════════════════════════════════════════════════════════════════
+
+function CrewBookingDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "crew-booking";
+  const [projectName, setProjectName] = React.useState("Spring Campaign 2026");
+  const [shootDate, setShootDate] = React.useState("2026-05-20");
+
+  const resources = [
+    { role: "Lead talent", name: "Amara Osei", fee: "£2,400", status: "confirmed" },
+    { role: "Photographer", name: "Lucas Ferreira", fee: "£800", status: "confirmed" },
+    { role: "HMU artist", name: "Nia Clarkson", fee: "£350", status: "pending" },
+    { role: "Stylist", name: "TBD", fee: "£400", status: "unfilled" },
+    { role: "Studio hire", name: "Studio One, Shoreditch", fee: "£600", status: "confirmed" },
+  ];
+
+  const total = resources.reduce((acc, r) => {
+    const num = parseInt(r.fee.replace(/[^0-9]/g, ""), 10);
+    return acc + (isNaN(num) ? 0 : num);
+  }, 0);
+
+  const statusColor = (s: string) => s === "confirmed" ? COLORS.success : s === "unfilled" ? COLORS.coral : COLORS.amber;
+  const statusBg = (s: string) => s === "confirmed" ? COLORS.successSoft : s === "unfilled" ? `${COLORS.coral}18` : `${COLORS.amber}18`;
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
+      <SecondaryButton onClick={() => { toast("Crew booking saved"); closeDrawer(); }}>Save booking</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Crew booking" description="Book talent, crew, and resources for a production day." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <FieldRow label="Project">
+            <TextInput value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Project name" />
+          </FieldRow>
+          <FieldRow label="Shoot date">
+            <TextInput value={shootDate} onChange={(e) => setShootDate(e.target.value)} placeholder="YYYY-MM-DD" />
+          </FieldRow>
+        </div>
+
+        <div>
+          <CapsLabel>Resources</CapsLabel>
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+            {resources.map((r, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: 600 }}>{r.role}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: r.status === "unfilled" ? COLORS.inkDim : COLORS.ink, marginTop: 2 }}>{r.name}</div>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, minWidth: 50, textAlign: "right" }}>{r.fee}</div>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(r.status), background: statusBg(r.status), padding: "2px 8px", borderRadius: RADIUS.sm }}>
+                  {r.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.inkMuted }}>Estimated total</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: COLORS.accent }}>£{total.toLocaleString()}</span>
+          </div>
+          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+            {["confirmed", "pending", "unfilled"].map(s => {
+              const n = resources.filter(r => r.status === s).length;
+              return (
+                <div key={s} style={{ flex: 1, textAlign: "center", padding: "6px 4px", background: statusBg(s), borderRadius: RADIUS.sm }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: statusColor(s) }}>{n}</div>
+                  <div style={{ fontSize: 10, color: statusColor(s), textTransform: "capitalize" }}>{s}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function ProductionTimelineDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "production-timeline";
+
+  const events = [
+    { time: "06:30", label: "Crew call", who: "Photographer, HMU", type: "crew" },
+    { time: "07:00", label: "Studio open", who: "Studio One, Shoreditch", type: "location" },
+    { time: "07:30", label: "HMU begins", who: "Amara Osei, Chiara Bianchi", type: "talent" },
+    { time: "09:00", label: "First look — Editorial", who: "Look 1 of 4 · White backdrop", type: "shoot" },
+    { time: "10:30", label: "Break", who: "15 min", type: "break" },
+    { time: "10:45", label: "Second look — Product", who: "Look 2 of 4 · Seamless grey", type: "shoot" },
+    { time: "12:00", label: "Lunch", who: "45 min", type: "break" },
+    { time: "12:45", label: "Third & fourth looks", who: "Looks 3–4 · Location exterior", type: "shoot" },
+    { time: "15:00", label: "Wrap", who: "Strike set · Return equipment", type: "crew" },
+  ];
+
+  const typeColor = (t: string) => t === "shoot" ? COLORS.accent : t === "talent" ? COLORS.indigo : t === "location" ? COLORS.success : t === "break" ? COLORS.amber : COLORS.inkMuted;
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <SecondaryButton onClick={() => { toast("Timeline exported"); closeDrawer(); }}>Export call sheet</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Production timeline" description="Call-sheet order of events for the shoot day." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 0, fontFamily: FONTS.body }}>
+        {events.map((ev, i) => (
+          <div key={i} style={{ display: "flex", gap: 14, paddingBottom: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 48, flexShrink: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted, paddingTop: 10 }}>{ev.time}</div>
+              {i < events.length - 1 && <div style={{ width: 2, flex: 1, background: COLORS.border, margin: "4px 0" }} />}
+            </div>
+            <div style={{ flex: 1, padding: "10px 0 12px 0", borderBottom: i < events.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: typeColor(ev.type), flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{ev.label}</span>
+              </div>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 3, marginLeft: 16 }}>{ev.who}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-30 — Image rights & post-booking lifecycle
+// ════════════════════════════════════════════════════════════════════
+
+function UsageTrackerDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "usage-tracker";
+  const [filter, setFilter] = React.useState<"all" | "active" | "expiring" | "expired">("all");
+
+  const usages = [
+    { talent: "Amara Osei", campaign: "Spring 2025", regions: "UK, EU", media: "Digital, OOH", expires: "2026-06-30", daysLeft: 63, status: "active" },
+    { talent: "Lena Voss", campaign: "Winter 2024", regions: "Global", media: "Digital", expires: "2026-05-15", daysLeft: 17, status: "expiring" },
+    { talent: "Marco Dias", campaign: "SS24 editorial", regions: "UK", media: "Print", expires: "2026-04-01", daysLeft: -27, status: "expired" },
+    { talent: "Yuki Tanaka", campaign: "Awards 2025", regions: "UK, APAC", media: "Social, Digital", expires: "2027-01-01", daysLeft: 248, status: "active" },
+  ];
+
+  const filtered = filter === "all" ? usages : usages.filter(u => u.status === filter);
+
+  const statusColor = (s: string) => s === "active" ? COLORS.success : s === "expiring" ? COLORS.amber : COLORS.coral;
+  const statusBg = (s: string) => s === "active" ? COLORS.successSoft : s === "expiring" ? `${COLORS.amber}18` : `${COLORS.coral}18`;
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <SecondaryButton onClick={() => { toast("Report exported"); closeDrawer(); }}>Export report</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Usage tracker" description="Monitor image rights and usage licence expiry across bookings." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          {[{ label: "Active", key: "active" as const }, { label: "Expiring soon", key: "expiring" as const }, { label: "Expired", key: "expired" as const }].map(tab => {
+            const count = usages.filter(u => u.status === tab.key).length;
+            return (
+              <div
+                key={tab.key}
+                onClick={() => setFilter(f => f === tab.key ? "all" : tab.key)}
+                style={{
+                  padding: "10px 12px", borderRadius: RADIUS.md, cursor: "pointer", textAlign: "center",
+                  border: `1.5px solid ${filter === tab.key ? statusColor(tab.key) : COLORS.border}`,
+                  background: filter === tab.key ? statusBg(tab.key) : COLORS.surface,
+                }}
+              >
+                <div style={{ fontSize: 20, fontWeight: 800, color: statusColor(tab.key) }}>{count}</div>
+                <div style={{ fontSize: 10.5, color: COLORS.inkMuted, marginTop: 2 }}>{tab.label}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {filtered.map((u, i) => (
+            <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{u.talent}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{u.campaign}</div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(u.status), background: statusBg(u.status), padding: "2px 8px", borderRadius: RADIUS.sm, flexShrink: 0 }}>
+                  {u.status}
+                </span>
+              </div>
+              <div style={{ marginTop: 8, display: "flex", gap: 16 }}>
+                {[{ k: "Regions", v: u.regions }, { k: "Media", v: u.media }, { k: "Expires", v: u.expires }].map(f => (
+                  <div key={f.k}>
+                    <div style={{ fontSize: 10, color: COLORS.inkDim, textTransform: "uppercase", letterSpacing: "0.04em" }}>{f.k}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: COLORS.ink, marginTop: 1 }}>{f.v}</div>
+                  </div>
+                ))}
+              </div>
+              {u.status === "expiring" && (
+                <div style={{ marginTop: 8, fontSize: 11, color: COLORS.amber, fontWeight: 600 }}>
+                  ⚠ Expires in {u.daysLeft} days — renew now
+                </div>
+              )}
+              {u.status === "expired" && (
+                <div style={{ marginTop: 8, fontSize: 11, color: COLORS.coral, fontWeight: 600 }}>
+                  ✕ Expired {Math.abs(u.daysLeft)} days ago — rights no longer valid
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function RelicenseFlowDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "relicense-flow";
+  const [step, setStep] = React.useState<1 | 2 | 3>(1);
+  const [regions, setRegions] = React.useState("UK, EU");
+  const [media, setMedia] = React.useState("Digital, Social");
+  const [duration, setDuration] = React.useState("12");
+  const [fee, setFee] = React.useState("800");
+
+  const steps = ["Select scope", "Set terms", "Send offer"];
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={() => { if (step > 1) setStep(s => (s - 1) as 1 | 2 | 3); else closeDrawer(); }}>
+        {step > 1 ? "Back" : "Cancel"}
+      </GhostButton>
+      <SecondaryButton onClick={() => {
+        if (step < 3) setStep(s => (s + 1) as 1 | 2 | 3);
+        else { toast("Relicence offer sent"); closeDrawer(); }
+      }}>
+        {step === 3 ? "Send offer" : "Next"}
+      </SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Relicence flow" description="Extend or expand usage rights for an existing booking." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+
+        <div style={{ display: "flex", gap: 0 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+                background: step > i + 1 ? COLORS.success : step === i + 1 ? COLORS.accent : COLORS.border,
+                color: step >= i + 1 ? "#fff" : COLORS.inkMuted,
+                fontSize: 12, fontWeight: 700,
+              }}>
+                {step > i + 1 ? "✓" : i + 1}
+              </div>
+              <div style={{ fontSize: 10, color: step === i + 1 ? COLORS.accent : COLORS.inkDim, fontWeight: step === i + 1 ? 700 : 400 }}>{s}</div>
+            </div>
+          ))}
+        </div>
+
+        {step === 1 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: COLORS.accentSoft, border: `1px solid ${COLORS.accent}`, borderRadius: RADIUS.md, padding: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent }}>Lena Voss — Winter 2024</div>
+              <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>Current: Digital · UK only · Expires 15 May 2026</div>
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.ink }}>You are extending the licence for this talent and campaign. Select the new scope below.</div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <FieldRow label="Regions">
+              <TextInput value={regions} onChange={(e) => setRegions(e.target.value)} placeholder="e.g. UK, EU, Global" />
+            </FieldRow>
+            <FieldRow label="Media types">
+              <TextInput value={media} onChange={(e) => setMedia(e.target.value)} placeholder="e.g. Digital, Print, OOH" />
+            </FieldRow>
+            <FieldRow label="Duration (months)">
+              <TextInput value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g. 12" />
+            </FieldRow>
+            <FieldRow label="Relicence fee (£)">
+              <TextInput value={fee} onChange={(e) => setFee(e.target.value)} placeholder="e.g. 800" />
+            </FieldRow>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 16 }}>
+              <CapsLabel>Offer summary</CapsLabel>
+              <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                {[
+                  { k: "Talent", v: "Lena Voss" },
+                  { k: "Campaign", v: "Winter 2024" },
+                  { k: "New regions", v: regions },
+                  { k: "Media", v: media },
+                  { k: "Duration", v: `${duration} months` },
+                  { k: "Fee", v: `£${fee}` },
+                ].map(row => (
+                  <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{row.k}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{row.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: COLORS.inkMuted }}>
+              An offer will be sent to Lena Voss for acceptance. Once accepted, the new usage terms will be recorded automatically.
+            </div>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-31 — Account lifecycle
+// ════════════════════════════════════════════════════════════════════
+
+function OwnershipTransferDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "ownership-transfer";
+  const [newOwnerEmail, setNewOwnerEmail] = React.useState("");
+  const [confirmed, setConfirmed] = React.useState(false);
+  const [step, setStep] = React.useState<1 | 2>(1);
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={() => { if (step === 2) setStep(1); else closeDrawer(); }}>
+        {step === 2 ? "Back" : "Cancel"}
+      </GhostButton>
+      <SecondaryButton
+        onClick={() => {
+          if (step === 1 && newOwnerEmail) setStep(2);
+          else if (step === 2 && confirmed) { toast("Transfer initiated — confirmation emails sent"); closeDrawer(); }
+        }}
+      >
+        {step === 1 ? "Review transfer" : "Confirm transfer"}
+      </SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Ownership transfer" description="Transfer workspace ownership to a different account." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+
+        <div style={{ background: `${COLORS.coral}12`, border: `1px solid ${COLORS.coral}40`, borderRadius: RADIUS.md, padding: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.coral }}>⚠ Irreversible action</div>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+            Transferring ownership removes your admin access and grants full control to the new owner. This cannot be undone without their cooperation.
+          </div>
+        </div>
+
+        {step === 1 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+              <CapsLabel>Current workspace</CapsLabel>
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                {[{ k: "Workspace", v: "Tulala Agency" }, { k: "Current owner", v: "orantene@gmail.com" }, { k: "Plan", v: "Studio" }, { k: "Members", v: "7" }].map(row => (
+                  <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{row.k}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{row.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <FieldRow label="New owner email">
+              <TextInput value={newOwnerEmail} onChange={(e) => setNewOwnerEmail(e.target.value)} placeholder="newowner@example.com" />
+            </FieldRow>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+              <CapsLabel>Transfer summary</CapsLabel>
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+                {[{ k: "From", v: "orantene@gmail.com" }, { k: "To", v: newOwnerEmail }, { k: "Workspace", v: "Tulala Agency" }].map(row => (
+                  <div key={row.k} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 12, color: COLORS.inkMuted }}>{row.k}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.ink }}>{row.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setConfirmed(c => !c)}>
+              <Toggle on={confirmed} onChange={() => setConfirmed(c => !c)} />
+              <span style={{ fontSize: 12, color: COLORS.ink }}>I understand this action is permanent and cannot be undone</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function MinorAccountDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "minor-account";
+  const [guardianName, setGuardianName] = React.useState("");
+  const [guardianEmail, setGuardianEmail] = React.useState("");
+  const [guardianPhone, setGuardianPhone] = React.useState("");
+  const [consentGiven, setConsentGiven] = React.useState(false);
+  const [marketingConsent, setMarketingConsent] = React.useState(false);
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
+      <SecondaryButton onClick={() => { toast("Guardian record saved — verification email sent"); closeDrawer(); }}>Save guardian record</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Minor account setup" description="Attach a parent or guardian co-pilot to this talent account." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+
+        <div style={{ background: `${COLORS.indigo}12`, border: `1px solid ${COLORS.indigo}40`, borderRadius: RADIUS.md, padding: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.indigo }}>ℹ Under-18 account</div>
+          <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 4 }}>
+            A parent or legal guardian must be registered as co-pilot. They will receive booking notifications and must approve all paid engagements.
+          </div>
+        </div>
+
+        <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+          <CapsLabel>Talent (minor)</CapsLabel>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>Sofia Chen</div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted }}>sofia.chen@example.com · Age: 16</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <CapsLabel>Guardian details</CapsLabel>
+          <FieldRow label="Full name">
+            <TextInput value={guardianName} onChange={(e) => setGuardianName(e.target.value)} placeholder="Parent / legal guardian name" />
+          </FieldRow>
+          <FieldRow label="Email">
+            <TextInput value={guardianEmail} onChange={(e) => setGuardianEmail(e.target.value)} placeholder="guardian@example.com" />
+          </FieldRow>
+          <FieldRow label="Phone">
+            <TextInput value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} placeholder="+44 7700 000000" />
+          </FieldRow>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <CapsLabel>Consent</CapsLabel>
+          {[
+            { key: "legal", label: "I confirm I am the legal parent or guardian and have authority to consent", value: consentGiven, setter: () => setConsentGiven(c => !c) },
+            { key: "marketing", label: "Receive email updates about new opportunities (optional)", value: marketingConsent, setter: () => setMarketingConsent(c => !c) },
+          ].map(item => (
+            <div key={item.key} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={item.setter}>
+              <Toggle on={item.value} onChange={item.setter} />
+              <span style={{ fontSize: 12, color: COLORS.ink, lineHeight: "1.4" }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-32 — Discovery & marketplace
+// ════════════════════════════════════════════════════════════════════
+
+function DiscoveryFeedDrawer() {
+  const { state, closeDrawer } = useProto();
+  const open = state.drawer.drawerId === "discovery-feed";
+  const [view, setView] = React.useState<"trending" | "editorial">("trending");
+
+  const trending = [
+    { name: "Amara Osei", tags: ["commercial", "editorial"], bookings: 14, trend: "+3 this week" },
+    { name: "Yuki Tanaka", tags: ["beauty", "luxury"], bookings: 11, trend: "+5 this week" },
+    { name: "Marco Dias", tags: ["fitness", "sport"], bookings: 9, trend: "+2 this week" },
+    { name: "Lena Voss", tags: ["fashion", "editorial"], bookings: 8, trend: "–1 this week" },
+    { name: "Chiara Bianchi", tags: ["lifestyle", "commercial"], bookings: 7, trend: "+1 this week" },
+  ];
+
+  const editorial = [
+    { title: "New faces: March 2026", talent: ["Amara Osei", "Lucas Dias"], type: "Spotlight" },
+    { title: "Luxury beauty roster", talent: ["Yuki Tanaka", "Lena Voss"], type: "Curated" },
+    { title: "Active & fitness", talent: ["Marco Dias", "Chiara Bianchi"], type: "Category" },
+  ];
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Discovery feed" description="Trending talent and editorial picks for client browsing." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["trending", "editorial"] as const).map(v => (
+            <div key={v} onClick={() => setView(v)} style={{
+              padding: "6px 16px", borderRadius: RADIUS.sm, cursor: "pointer", fontSize: 12, fontWeight: 600, textTransform: "capitalize",
+              background: view === v ? COLORS.accent : COLORS.surface,
+              color: view === v ? "#fff" : COLORS.inkMuted,
+              border: `1px solid ${view === v ? COLORS.accent : COLORS.border}`,
+            }}>
+              {v}
+            </div>
+          ))}
+        </div>
+
+        {view === "trending" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {trending.map((t, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: COLORS.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                  {i + 1}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{t.name}</div>
+                  <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap" }}>
+                    {t.tags.map(tag => (
+                      <span key={tag} style={{ fontSize: 10, color: COLORS.inkMuted, background: COLORS.borderSoft, padding: "1px 6px", borderRadius: RADIUS.sm }}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{t.bookings}</div>
+                  <div style={{ fontSize: 10, color: t.trend.startsWith("+") ? COLORS.success : COLORS.coral, marginTop: 1 }}>{t.trend}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {view === "editorial" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {editorial.map((e, i) => (
+              <div key={i} style={{ padding: "14px 16px", background: COLORS.surface, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{e.title}</div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.indigo, background: `${COLORS.indigo}18`, padding: "2px 7px", borderRadius: RADIUS.sm }}>{e.type}</span>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {e.talent.map(name => (
+                    <div key={name} style={{ fontSize: 11, color: COLORS.inkMuted, background: COLORS.borderSoft, padding: "3px 8px", borderRadius: RADIUS.sm }}>{name}</div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function AvailSearchDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "avail-search";
+  const [startDate, setStartDate] = React.useState("2026-05-20");
+  const [endDate, setEndDate] = React.useState("2026-05-22");
+  const [location, setLocation] = React.useState("London");
+  const [searched, setSearched] = React.useState(false);
+
+  const results = [
+    { name: "Amara Osei", avail: "Full", type: "Commercial / Editorial", rate: "£2,400/day" },
+    { name: "Chiara Bianchi", avail: "Partial", type: "Lifestyle", rate: "£1,200/day" },
+    { name: "Yuki Tanaka", avail: "Full", type: "Beauty / Luxury", rate: "£1,800/day" },
+  ];
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
+      <SecondaryButton onClick={() => { setSearched(true); toast("Availability checked"); }}>Search availability</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Availability search" description="Find talent available for a given date range and location." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <FieldRow label="From">
+            <TextInput value={startDate} onChange={(e) => setStartDate(e.target.value)} placeholder="YYYY-MM-DD" />
+          </FieldRow>
+          <FieldRow label="To">
+            <TextInput value={endDate} onChange={(e) => setEndDate(e.target.value)} placeholder="YYYY-MM-DD" />
+          </FieldRow>
+        </div>
+        <FieldRow label="Location / region">
+          <TextInput value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. London, Manchester" />
+        </FieldRow>
+
+        {searched && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <CapsLabel>{results.length} talent available</CapsLabel>
+            {results.map((r, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted }}>{r.name.split(" ").map(n => n[0]).join("")}</span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{r.name}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{r.type}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink }}>{r.rate}</div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: r.avail === "Full" ? COLORS.success : COLORS.amber, background: r.avail === "Full" ? COLORS.successSoft : `${COLORS.amber}18`, padding: "1px 6px", borderRadius: RADIUS.sm }}>
+                    {r.avail}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!searched && (
+          <div style={{ textAlign: "center", padding: "32px 16px", color: COLORS.inkDim, fontSize: 12 }}>
+            Enter dates and location, then tap Search
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-33 — On-set / production-day live
+// ════════════════════════════════════════════════════════════════════
+
+function CallSheetDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "call-sheet";
+
+  const crew = [
+    { name: "Amara Osei", role: "Lead talent", callTime: "07:30", status: "on-set" },
+    { name: "Chiara Bianchi", role: "Supporting talent", callTime: "07:30", status: "in-transit" },
+    { name: "Lucas Ferreira", role: "Photographer", callTime: "06:30", status: "on-set" },
+    { name: "Nia Clarkson", role: "HMU artist", callTime: "06:30", status: "on-set" },
+    { name: "TBD (Stylist)", role: "Stylist", callTime: "07:00", status: "unfilled" },
+    { name: "Studio One", role: "Studio (Shoreditch)", callTime: "07:00", status: "confirmed" },
+  ];
+
+  const statusColor = (s: string) => s === "on-set" ? COLORS.success : s === "unfilled" ? COLORS.coral : s === "in-transit" ? COLORS.amber : COLORS.indigo;
+  const statusBg = (s: string) => s === "on-set" ? COLORS.successSoft : s === "unfilled" ? `${COLORS.coral}18` : s === "in-transit" ? `${COLORS.amber}18` : `${COLORS.indigo}18`;
+  const statusLabel = (s: string) => s === "on-set" ? "On set" : s === "unfilled" ? "Unfilled" : s === "in-transit" ? "In transit" : "Confirmed";
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <SecondaryButton onClick={() => { toast("Call sheet shared"); closeDrawer(); }}>Share call sheet</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Call sheet" description="Live production day roster with real-time check-in status." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        <div style={{ background: COLORS.accentSoft, border: `1px solid ${COLORS.accent}`, borderRadius: RADIUS.md, padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent }}>Spring Campaign 2026</div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>Studio One, Shoreditch · Tue 20 May 2026</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.success }}>{crew.filter(c => c.status === "on-set").length}</div>
+            <div style={{ fontSize: 10, color: COLORS.inkMuted }}>on set now</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {crew.map((c, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ textAlign: "center", minWidth: 36, flexShrink: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.inkMuted }}>{c.callTime}</div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{c.role}</div>
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 700, textTransform: "capitalize", color: statusColor(c.status), background: statusBg(c.status), padding: "2px 8px", borderRadius: RADIUS.sm, flexShrink: 0 }}>
+                {statusLabel(c.status)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+          {["on-set", "in-transit", "confirmed", "unfilled"].map(s => {
+            const n = crew.filter(c => c.status === s).length;
+            return (
+              <div key={s} style={{ textAlign: "center", padding: "8px 4px", background: statusBg(s), borderRadius: RADIUS.sm }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: statusColor(s) }}>{n}</div>
+                <div style={{ fontSize: 9.5, color: statusColor(s), marginTop: 1 }}>{statusLabel(s)}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function OnsetCheckinDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "onset-checkin";
+  const [checkedIn, setCheckedIn] = React.useState<Set<string>>(new Set(["Lucas Ferreira", "Nia Clarkson"]));
+
+  const crew = [
+    { name: "Amara Osei", role: "Lead talent", callTime: "07:30" },
+    { name: "Chiara Bianchi", role: "Supporting talent", callTime: "07:30" },
+    { name: "Lucas Ferreira", role: "Photographer", callTime: "06:30" },
+    { name: "Nia Clarkson", role: "HMU artist", callTime: "06:30" },
+  ];
+
+  const toggle = (name: string) => {
+    setCheckedIn(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  };
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <SecondaryButton onClick={() => { toast(`Check-in saved — ${checkedIn.size} confirmed`); closeDrawer(); }}>Save check-ins</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="On-set check-in" description="Mark talent and crew as arrived on set." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", background: COLORS.accentSoft, borderRadius: RADIUS.md, border: `1px solid ${COLORS.accent}` }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.accent }}>Spring Campaign 2026</div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>Tue 20 May · Studio One</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: COLORS.accent }}>{checkedIn.size}/{crew.length}</div>
+            <div style={{ fontSize: 10, color: COLORS.inkMuted }}>checked in</div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {crew.map((c, i) => {
+            const isIn = checkedIn.has(c.name);
+            return (
+              <div
+                key={i}
+                onClick={() => toggle(c.name)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: RADIUS.sm, cursor: "pointer",
+                  background: isIn ? COLORS.successSoft : COLORS.surface,
+                  border: `1.5px solid ${isIn ? COLORS.success : COLORS.border}`,
+                  transition: TRANSITION.sm,
+                }}
+              >
+                <div style={{
+                  width: 22, height: 22, borderRadius: "50%", border: `2px solid ${isIn ? COLORS.success : COLORS.border}`,
+                  background: isIn ? COLORS.success : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  {isIn && <span style={{ fontSize: 11, color: "#fff" }}>✓</span>}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{c.name}</div>
+                  <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 1 }}>{c.role} · Call: {c.callTime}</div>
+                </div>
+                {isIn && <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.success }}>Checked in</span>}
+              </div>
+            );
+          })}
+        </div>
+
+        {checkedIn.size === crew.length && (
+          <div style={{ background: COLORS.successSoft, border: `1px solid ${COLORS.success}`, borderRadius: RADIUS.md, padding: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.success }}>Full crew on set ✓</div>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 3 }}>All {crew.length} members checked in</div>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-34 — Safety, disputes, incident handling
+// ════════════════════════════════════════════════════════════════════
+
+function IncidentReportDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "incident-report";
+  const [incidentType, setIncidentType] = React.useState<string>("safety");
+  const [severity, setSeverity] = React.useState<"low" | "medium" | "high">("medium");
+  const [description, setDescription] = React.useState("");
+  const [anonymous, setAnonymous] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const incidentTypes = [
+    { key: "safety", label: "On-set safety", icon: "⚠" },
+    { key: "conduct", label: "Unprofessional conduct", icon: "🚫" },
+    { key: "payment", label: "Payment dispute", icon: "💸" },
+    { key: "other", label: "Other", icon: "📝" },
+  ];
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
+      <SecondaryButton onClick={() => { setSubmitted(true); toast("Incident report submitted"); }}>Submit report</SecondaryButton>
+    </div>
+  );
+
+  if (submitted) {
+    return (
+      <DrawerShell open={open} onClose={closeDrawer} title="Incident report" description="" footer={<GhostButton onClick={closeDrawer}>Close</GhostButton>} defaultSize="half">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "40px 24px", fontFamily: FONTS.body, textAlign: "center" }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: COLORS.successSoft, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>✓</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.ink }}>Report submitted</div>
+          <div style={{ fontSize: 12, color: COLORS.inkMuted, maxWidth: 280 }}>
+            Your report has been logged securely. {anonymous ? "Submitted anonymously. " : ""}An admin will review within 24 hours and may reach out if further information is needed.
+          </div>
+          <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "8px 14px" }}>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted }}>Reference</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, fontFamily: "monospace" }}>INC-{Date.now().toString().slice(-6)}</div>
+          </div>
+        </div>
+      </DrawerShell>
+    );
+  }
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Report an incident" description="All reports are treated confidentially. You may submit anonymously." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, fontFamily: FONTS.body }}>
+
+        <div>
+          <CapsLabel>Incident type</CapsLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+            {incidentTypes.map(t => (
+              <div
+                key={t.key}
+                onClick={() => setIncidentType(t.key)}
+                style={{
+                  padding: "10px 12px", borderRadius: RADIUS.sm, cursor: "pointer", textAlign: "center",
+                  border: `1.5px solid ${incidentType === t.key ? COLORS.coral : COLORS.border}`,
+                  background: incidentType === t.key ? `${COLORS.coral}10` : COLORS.surface,
+                }}
+              >
+                <div style={{ fontSize: 18, marginBottom: 4 }}>{t.icon}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: incidentType === t.key ? COLORS.coral : COLORS.ink }}>{t.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <CapsLabel>Severity</CapsLabel>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            {(["low", "medium", "high"] as const).map(s => {
+              const color = s === "low" ? COLORS.success : s === "medium" ? COLORS.amber : COLORS.coral;
+              return (
+                <div
+                  key={s}
+                  onClick={() => setSeverity(s)}
+                  style={{
+                    flex: 1, padding: "8px 12px", borderRadius: RADIUS.sm, cursor: "pointer", textAlign: "center",
+                    border: `1.5px solid ${severity === s ? color : COLORS.border}`,
+                    background: severity === s ? `${color}14` : COLORS.surface,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, textTransform: "capitalize", color: severity === s ? color : COLORS.inkMuted }}>{s}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <FieldRow label="Description">
+          <TextArea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe what happened, when, and who was involved (optional)." rows={4} />
+        </FieldRow>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }} onClick={() => setAnonymous(a => !a)}>
+          <Toggle on={anonymous} onChange={() => setAnonymous(a => !a)} />
+          <span style={{ fontSize: 12, color: COLORS.ink }}>Submit anonymously</span>
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+function DisputeResolutionDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "dispute-resolution";
+  const [selectedDispute, setSelectedDispute] = React.useState<string | null>(null);
+
+  const disputes = [
+    { id: "D-001", parties: "Amara Osei vs. Brand Co.", type: "Late payment", stage: "Mediation", opened: "12 Apr", amount: "£1,200" },
+    { id: "D-002", parties: "Lucas Ferreira vs. Agency", type: "Usage overreach", stage: "Filed", opened: "20 Apr", amount: "£800" },
+    { id: "D-003", parties: "Yuki Tanaka vs. Client X", type: "Contract breach", stage: "Decision", opened: "5 Mar", amount: "£3,400" },
+  ];
+
+  const stageColor = (s: string) => s === "Filed" ? COLORS.coral : s === "Mediation" ? COLORS.amber : s === "Decision" ? COLORS.indigo : COLORS.success;
+  const stages = ["Filed", "Mediation", "Decision", "Resolved"];
+
+  const selected = disputes.find(d => d.id === selectedDispute);
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={() => { if (selectedDispute) setSelectedDispute(null); else closeDrawer(); }}>
+        {selectedDispute ? "Back" : "Close"}
+      </GhostButton>
+      {selectedDispute && (
+        <SecondaryButton onClick={() => { toast("Stage advanced"); setSelectedDispute(null); }}>Advance stage</SecondaryButton>
+      )}
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Dispute resolution" description="Track and manage disputes through staged resolution." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        {!selectedDispute && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {["Filed", "Mediation", "Decision"].map(s => {
+                const n = disputes.filter(d => d.stage === s).length;
+                return (
+                  <div key={s} style={{ textAlign: "center", padding: "10px 8px", background: `${stageColor(s)}12`, borderRadius: RADIUS.sm, border: `1px solid ${stageColor(s)}30` }}>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: stageColor(s) }}>{n}</div>
+                    <div style={{ fontSize: 10, color: stageColor(s), fontWeight: 600, marginTop: 2 }}>{s}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {disputes.map(d => (
+                <div
+                  key={d.id}
+                  onClick={() => setSelectedDispute(d.id)}
+                  style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`, cursor: "pointer" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontFamily: "monospace", color: COLORS.inkMuted }}>{d.id}</div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: stageColor(d.stage), background: `${stageColor(d.stage)}18`, padding: "2px 7px", borderRadius: RADIUS.sm }}>{d.stage}</span>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{d.parties}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                    <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{d.type} · {d.opened}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink }}>{d.amount}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {selectedDispute && selected && (
+          <>
+            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontFamily: "monospace", color: COLORS.inkMuted }}>{selected.id}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.ink, marginTop: 2 }}>{selected.parties}</div>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: COLORS.ink }}>{selected.amount}</div>
+              </div>
+              <div style={{ fontSize: 12, color: COLORS.inkMuted }}>{selected.type} · Opened {selected.opened}</div>
+            </div>
+
+            <div>
+              <CapsLabel>Stage pipeline</CapsLabel>
+              <div style={{ display: "flex", marginTop: 12, alignItems: "center" }}>
+                {stages.map((s, i) => {
+                  const active = s === selected.stage;
+                  const past = stages.indexOf(selected.stage) > i;
+                  const color = past ? COLORS.success : active ? stageColor(s) : COLORS.border;
+                  return (
+                    <React.Fragment key={s}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: "50%", background: past ? COLORS.success : active ? stageColor(s) : COLORS.borderSoft, border: `2px solid ${color}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {past && <span style={{ fontSize: 10, color: "#fff" }}>✓</span>}
+                          {!past && active && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />}
+                        </div>
+                        <div style={{ fontSize: 9, color: active ? stageColor(s) : COLORS.inkDim, fontWeight: active ? 700 : 400, textAlign: "center" }}>{s}</div>
+                      </div>
+                      {i < stages.length - 1 && <div style={{ flex: 1, height: 2, background: past ? COLORS.success : COLORS.borderSoft, marginBottom: 14 }} />}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.md, padding: 14 }}>
+              <CapsLabel>Advance to next stage</CapsLabel>
+              <div style={{ marginTop: 8, fontSize: 12, color: COLORS.inkMuted }}>
+                Moving from <strong>{selected.stage}</strong> to <strong>{stages[stages.indexOf(selected.stage) + 1] || "Resolved"}</strong> will notify both parties and update the dispute record.
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// WS-35 — Production-feature reconciliation
+// ════════════════════════════════════════════════════════════════════
+
+function LocationsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "locations-drawer";
+  const [view, setView] = React.useState<"list" | "add">("list");
+  const [newName, setNewName] = React.useState("");
+  const [newAddress, setNewAddress] = React.useState("");
+  const [newType, setNewType] = React.useState<"studio" | "outdoor" | "venue" | "client">("studio");
+
+  const locations = [
+    { name: "Studio One", address: "12 Shoreditch High St, London E1", type: "studio", capacity: 12, bookings: 34 },
+    { name: "Canary Wharf Rooftop", address: "1 Canada Square, London E14", type: "outdoor", capacity: 8, bookings: 12 },
+    { name: "Soho Loft", address: "45 Wardour St, London W1", type: "studio", capacity: 6, bookings: 19 },
+    { name: "Burlington Arcade", address: "Burlington Arcade, London W1J", type: "venue", capacity: 20, bookings: 7 },
+  ];
+
+  const typeColor = (t: string) => t === "studio" ? COLORS.accent : t === "outdoor" ? COLORS.success : t === "venue" ? COLORS.indigo : COLORS.amber;
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={() => { if (view === "add") setView("list"); else closeDrawer(); }}>
+        {view === "add" ? "Back" : "Close"}
+      </GhostButton>
+      {view === "add" && (
+        <SecondaryButton onClick={() => { toast(`Location "${newName}" saved`); setView("list"); setNewName(""); setNewAddress(""); }}>Save location</SecondaryButton>
+      )}
+      {view === "list" && (
+        <SecondaryButton onClick={() => setView("add")}>Add location</SecondaryButton>
+      )}
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Locations" description="Manage shoot studios, venues, and outdoor locations." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        {view === "list" && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {["studio", "outdoor", "venue", "client"].map(t => {
+                const n = locations.filter(l => l.type === t).length;
+                return (
+                  <div key={t} style={{ textAlign: "center", padding: "8px 4px", background: `${typeColor(t)}12`, borderRadius: RADIUS.sm }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: typeColor(t) }}>{n}</div>
+                    <div style={{ fontSize: 10, color: typeColor(t), textTransform: "capitalize", marginTop: 1 }}>{t}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {locations.map((loc, i) => (
+                <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{loc.name}</span>
+                        <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "capitalize", color: typeColor(loc.type), background: `${typeColor(loc.type)}18`, padding: "1px 6px", borderRadius: RADIUS.sm }}>{loc.type}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: COLORS.inkMuted, marginTop: 2 }}>{loc.address}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{loc.bookings}</div>
+                      <div style={{ fontSize: 10, color: COLORS.inkMuted }}>bookings</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {view === "add" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <FieldRow label="Location name">
+              <TextInput value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Studio Two" />
+            </FieldRow>
+            <FieldRow label="Address">
+              <TextInput value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="Full address" />
+            </FieldRow>
+            <div>
+              <CapsLabel>Type</CapsLabel>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+                {(["studio", "outdoor", "venue", "client"] as const).map(t => (
+                  <div
+                    key={t}
+                    onClick={() => setNewType(t)}
+                    style={{
+                      padding: "10px 12px", borderRadius: RADIUS.sm, cursor: "pointer", textAlign: "center",
+                      border: `1.5px solid ${newType === t ? typeColor(t) : COLORS.border}`,
+                      background: newType === t ? `${typeColor(t)}12` : COLORS.surface,
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 600, textTransform: "capitalize", color: newType === t ? typeColor(t) : COLORS.ink }}>{t}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+function AiWorkspaceDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "ai-workspace";
+  const [activeTab, setActiveTab] = React.useState<"providers" | "usage" | "console">("providers");
+  const [consoleInput, setConsoleInput] = React.useState("");
+
+  const providers = [
+    { name: "Anthropic Claude", model: "claude-opus-4", status: "active", calls: 1847, cost: "£23.40" },
+    { name: "OpenAI GPT-4o", model: "gpt-4o", status: "inactive", calls: 0, cost: "£0.00" },
+    { name: "Stability AI", model: "stable-diffusion-3", status: "active", calls: 312, cost: "£8.90" },
+  ];
+
+  const usageTrend = [320, 280, 410, 390, 450, 480, 520, 610, 590, 640, 700, 720];
+  const maxUsage = Math.max(...usageTrend);
+
+  const consoleLog = [
+    { ts: "14:22:01", type: "info", msg: "Talent match query · 12 results" },
+    { ts: "14:21:47", type: "success", msg: "Bio generation complete · 142 tokens" },
+    { ts: "14:20:33", type: "warn", msg: "Rate limit 80% reached on Anthropic" },
+    { ts: "14:18:11", type: "info", msg: "Image caption batch · 8 images" },
+  ];
+
+  const logColor = (t: string) => t === "success" ? COLORS.success : t === "warn" ? COLORS.amber : t === "error" ? COLORS.coral : COLORS.indigo;
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8 }}>
+      <GhostButton onClick={closeDrawer}>Close</GhostButton>
+      <SecondaryButton onClick={() => { toast("AI settings saved"); closeDrawer(); }}>Save settings</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="AI workspace" description="Manage AI providers, usage controls, and the prompt console." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+
+        <div style={{ display: "flex", gap: 4 }}>
+          {(["providers", "usage", "console"] as const).map(tab => (
+            <div key={tab} onClick={() => setActiveTab(tab)} style={{
+              flex: 1, padding: "7px 12px", borderRadius: RADIUS.sm, cursor: "pointer", textAlign: "center", fontSize: 12, fontWeight: 600, textTransform: "capitalize",
+              background: activeTab === tab ? COLORS.royal : COLORS.surface,
+              color: activeTab === tab ? "#fff" : COLORS.inkMuted,
+              border: `1px solid ${activeTab === tab ? COLORS.royal : COLORS.border}`,
+            }}>
+              {tab}
+            </div>
+          ))}
+        </div>
+
+        {activeTab === "providers" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {providers.map((p, i) => (
+              <div key={i} style={{ padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{p.name}</div>
+                    <div style={{ fontSize: 11, color: COLORS.inkMuted, fontFamily: "monospace", marginTop: 1 }}>{p.model}</div>
+                  </div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, textTransform: "capitalize",
+                    color: p.status === "active" ? COLORS.success : COLORS.inkDim,
+                    background: p.status === "active" ? COLORS.successSoft : COLORS.borderSoft,
+                    padding: "2px 8px", borderRadius: RADIUS.sm,
+                  }}>
+                    {p.status}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: COLORS.inkDim }}>Calls this month</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{p.calls.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, color: COLORS.inkDim }}>Cost this month</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink }}>{p.cost}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === "usage" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <CapsLabel>API calls — last 12 days</CapsLabel>
+              <div style={{ marginTop: 12, display: "flex", alignItems: "flex-end", gap: 4, height: 80 }}>
+                {usageTrend.map((v, i) => (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                    <div style={{ width: "100%", background: COLORS.royal, borderRadius: "2px 2px 0 0", height: `${(v / maxUsage) * 64}px`, opacity: 0.7 + (i / usageTrend.length) * 0.3 }} />
+                    <div style={{ fontSize: 8.5, color: COLORS.inkDim }}>{i + 1}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              {[
+                { label: "Total calls", value: "2,159" },
+                { label: "Total cost", value: "£32.30" },
+                { label: "Avg/day", value: "180" },
+              ].map(stat => (
+                <div key={stat.label} style={{ background: COLORS.surface, border: `1px solid ${COLORS.border}`, borderRadius: RADIUS.sm, padding: "10px 12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.royal }}>{stat.value}</div>
+                  <div style={{ fontSize: 10, color: COLORS.inkMuted, marginTop: 2 }}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <CapsLabel>Controls</CapsLabel>
+              {[
+                { label: "Enable AI-generated bios", key: "bios" },
+                { label: "AI talent match suggestions", key: "match" },
+                { label: "Smart reply drafts", key: "reply" },
+                { label: "Auto-tag uploaded images", key: "tags" },
+              ].map(item => (
+                <div key={item.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", background: COLORS.surface, borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}` }}>
+                  <span style={{ fontSize: 12, color: COLORS.ink }}>{item.label}</span>
+                  <Toggle on={true} onChange={() => toast(`${item.label} toggled`)} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "console" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ background: "#0f1117", borderRadius: RADIUS.md, padding: 14, display: "flex", flexDirection: "column", gap: 6, minHeight: 160 }}>
+              {consoleLog.map((entry, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                  <span style={{ fontSize: 10, color: "#666", fontFamily: "monospace", flexShrink: 0 }}>{entry.ts}</span>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: logColor(entry.type), flexShrink: 0, marginTop: 3 }} />
+                  <span style={{ fontSize: 11, color: "#ccc", fontFamily: "monospace" }}>{entry.msg}</span>
+                </div>
+              ))}
+            </div>
+
+            <FieldRow label="Prompt test">
+              <TextArea value={consoleInput} onChange={(e) => setConsoleInput(e.target.value)} placeholder="Enter a test prompt to send to the active provider…" rows={3} />
+            </FieldRow>
+            <SecondaryButton onClick={() => { toast("Prompt sent — check console for response"); setConsoleInput(""); }}>Run prompt</SecondaryButton>
+          </div>
+        )}
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Feature Controls — agency-admin on/off for every platform feature
+// ════════════════════════════════════════════════════════════════════
+
+type FeatureToggle = {
+  key: string;
+  label: string;
+  desc: string;
+  defaultOn: boolean;
+  badge?: string;
+};
+
+type FeatureGroup = {
+  id: string;
+  label: string;
+  audience: "agency" | "coordinator" | "talent" | "client";
+  features: FeatureToggle[];
+};
+
+const FEATURE_GROUPS: FeatureGroup[] = [
+  {
+    id: "agency-ops",
+    label: "Agency operations",
+    audience: "agency",
+    features: [
+      { key: "analytics-dashboard", label: "Analytics dashboard", desc: "Revenue, conversion funnel, top performers, and workload charts.", defaultOn: true },
+      { key: "sla-timers", label: "SLA timers", desc: "Countdown timers on inquiries; escalate when SLA is breached.", defaultOn: true },
+      { key: "automation-rules", label: "Automation rules", desc: "Trigger actions on status changes, deadlines, or field conditions.", defaultOn: true },
+      { key: "coordinator-queue", label: "My queue", desc: "Per-coordinator task queue with priority sorting.", defaultOn: true },
+      { key: "on-call-rotation", label: "On-call rotation", desc: "Weekly schedule for who covers which hours.", defaultOn: false, badge: "Studio+" },
+      { key: "vacation-handover", label: "Vacation handover", desc: "Temporary task delegation to another coordinator.", defaultOn: true },
+      { key: "bulk-ops", label: "Bulk operations", desc: "Mass-select and update status, tags, or assignee across rows.", defaultOn: true },
+      { key: "csv-import", label: "CSV import", desc: "Import talent, clients, or bookings from a spreadsheet.", defaultOn: true },
+      { key: "audit-log", label: "Audit log", desc: "Full event trail — logins, edits, permission changes.", defaultOn: true, badge: "Agency+" },
+      { key: "ai-workspace", label: "AI workspace", desc: "Provider registry, usage controls, and prompt console.", defaultOn: false, badge: "Studio+" },
+      // ── Coordinator authority model — see CHARTER comment block ──
+      { key: "auto-assign-owner-coordinator", label: "Owner is primary coordinator", desc: "Auto-assign the agency owner as the primary coordinator on every new inquiry. Off → coordinator role auto-falls to the lead talent.", defaultOn: true },
+      { key: "allow-talent-direct-chat", label: "Talent-coordinator can chat with client", desc: "When a talent is the coordinator, allow them to message the client directly. Off restricts them to read-only on the client thread. Default ON for hubs, OFF for agencies.", defaultOn: false },
+      { key: "talent-can-add-crew", label: "Talent-coordinator can add crew", desc: "When a talent is the coordinator, allow them to add talent or crew (e.g., from their Circle) to the booking without admin approval.", defaultOn: false },
+    ],
+  },
+  {
+    id: "booking-pipeline",
+    label: "Booking pipeline",
+    audience: "coordinator",
+    features: [
+      { key: "inquiry-inbox", label: "Unified inbox", desc: "All inquiries, replies, and status changes in one view.", defaultOn: true },
+      { key: "offer-flow", label: "Offer flow", desc: "Send, revise, and accept structured offers.", defaultOn: true },
+      { key: "contract-templates", label: "Contract templates", desc: "Reusable templates with merge fields for bookings.", defaultOn: true },
+      { key: "approval-queue", label: "Approval queue", desc: "Coordinator-submitted items waiting for admin sign-off.", defaultOn: true },
+      { key: "saved-replies", label: "Saved replies", desc: "Canned response library for inbox threads.", defaultOn: true },
+      { key: "email-sequences", label: "Email sequences", desc: "Automated follow-up chains after key booking events.", defaultOn: false, badge: "Studio+" },
+      { key: "casting-flow", label: "Casting flow", desc: "Open/closed casting with configurable rounds.", defaultOn: true },
+      { key: "callback-tracker", label: "Callback tracker", desc: "Per-round talent status with feedback dimensions.", defaultOn: true },
+      { key: "crew-booking", label: "Crew booking", desc: "Book talent, photographer, HMU, and studio in one form.", defaultOn: false, badge: "Studio+" },
+      { key: "production-timeline", label: "Production timeline", desc: "Call-sheet order of events exported as a document.", defaultOn: false, badge: "Studio+" },
+      { key: "dispute-resolution", label: "Dispute resolution", desc: "Track disputes through Filed → Mediation → Decision stages.", defaultOn: true },
+    ],
+  },
+  {
+    id: "talent-features",
+    label: "Talent tools",
+    audience: "talent",
+    features: [
+      { key: "talent-profile", label: "Public profile page", desc: "Canonical talent page at tulala.digital/t/<slug>.", defaultOn: true },
+      { key: "talent-availability", label: "Availability calendar", desc: "Talent can mark available/blocked dates for discovery.", defaultOn: true },
+      { key: "talent-inbox", label: "Talent inbox", desc: "Talent sees and responds to inquiry messages.", defaultOn: true },
+      { key: "talent-bookings", label: "Booking history", desc: "Talent can view confirmed bookings and export invoices.", defaultOn: true },
+      { key: "talent-documents", label: "Document vault", desc: "Talent can upload and download their own contracts/IDs.", defaultOn: true },
+      { key: "talent-analytics", label: "Talent analytics", desc: "Personal stats: views, inquiries, bookings, earnings.", defaultOn: false, badge: "Pro tier" },
+      { key: "talent-portfolio", label: "Portfolio builder", desc: "Extended media grid, case studies, testimonials.", defaultOn: false, badge: "Portfolio tier" },
+      { key: "talent-contact-policy", label: "Contact policy", desc: "Talent sets per-tier who can initiate contact.", defaultOn: true },
+      { key: "minor-guardian", label: "Guardian co-pilot", desc: "Under-18 accounts require attached guardian approval.", defaultOn: true },
+      { key: "talent-agencies", label: "Agency connections", desc: "Talent sees and manages their agency relationships.", defaultOn: true },
+      // ── Circle ──
+      { key: "talent-circle", label: "My Circle", desc: "Personal address book of trusted collaborators. One-tap recommend into bookings instead of searching the whole roster.", defaultOn: true },
+      { key: "talent-circle-recommend", label: "Recommend from Circle", desc: "When talent is on a booking, surface their Circle as the first crew-suggestion source ahead of the global roster.", defaultOn: true },
+    ],
+  },
+  {
+    id: "client-features",
+    label: "Client experience",
+    audience: "client",
+    features: [
+      { key: "client-discovery", label: "Roster discovery", desc: "Clients can browse and filter the public talent roster.", defaultOn: true },
+      { key: "client-shortlist", label: "Shortlists", desc: "Clients can save and share talent shortlists.", defaultOn: true },
+      { key: "client-inquiries", label: "Submit inquiries", desc: "Clients can submit booking requests via the portal.", defaultOn: true },
+      { key: "client-portal", label: "Client portal", desc: "Dedicated portal with dashboard, pipeline, and documents.", defaultOn: true },
+      { key: "client-trust-badges", label: "Trust badges", desc: "Display verification tier (Basic / Verified / Silver / Gold).", defaultOn: true },
+      { key: "client-avail-search", label: "Availability search", desc: "Clients can search talent by date range and location.", defaultOn: true },
+      { key: "client-payments", label: "Online payments", desc: "Clients can pay deposits and fees via the portal.", defaultOn: false, badge: "Studio+" },
+      { key: "client-documents", label: "Document access", desc: "Clients receive signed contracts and receipts.", defaultOn: true },
+      { key: "client-referrals", label: "Referral programme", desc: "Clients earn credits for referring new business.", defaultOn: false, badge: "Studio+" },
+    ],
+  },
+  {
+    id: "site-comms",
+    label: "Site & comms",
+    audience: "agency",
+    features: [
+      { key: "site-context-switcher", label: "Multi-site management", desc: "Manage agency, talent hub, and client portal as separate sites.", defaultOn: true },
+      { key: "page-scheduler", label: "Page scheduler", desc: "Queue publish/unpublish events for any page.", defaultOn: true },
+      { key: "email-branding", label: "Email branding", desc: "Custom from-address, logo, and color in outbound emails.", defaultOn: false, badge: "Studio+" },
+      { key: "notification-prefs", label: "Notification controls", desc: "Per-event email, in-app, and push notification rules.", defaultOn: true },
+      { key: "invite-flow", label: "Talent invite flow", desc: "Send invite links to talent with pre-filled profile data.", defaultOn: true },
+      { key: "referral-dashboard", label: "Referral dashboard", desc: "Track referral links, conversions, and credit balances.", defaultOn: false, badge: "Studio+" },
+      { key: "calendar-sync", label: "Calendar sync", desc: "Two-way sync with Google Calendar and Outlook.", defaultOn: false, badge: "Studio+" },
+      { key: "system-status", label: "System status", desc: "Live uptime, incident feed, and maintenance notices.", defaultOn: true },
+    ],
+  },
+  {
+    id: "rights-safety",
+    label: "Rights & safety",
+    audience: "agency",
+    features: [
+      { key: "usage-tracker", label: "Usage tracker", desc: "Monitor image rights and licence expiry per booking.", defaultOn: true },
+      { key: "relicense-flow", label: "Relicence flow", desc: "Extend or expand usage rights with a structured offer.", defaultOn: true },
+      { key: "incident-report", label: "Incident reports", desc: "On-set safety and conduct reports with anonymous channel.", defaultOn: true },
+      { key: "gdpr-export", label: "GDPR data export", desc: "Download a full data package for a subject on request.", defaultOn: true },
+      { key: "consent-log", label: "Consent log", desc: "Timestamped record of every consent action per user.", defaultOn: true },
+      { key: "call-sheet", label: "Live call sheet", desc: "Real-time production roster with check-in status.", defaultOn: true },
+      { key: "onset-checkin", label: "On-set check-in", desc: "Tap-to-confirm arrival for talent and crew.", defaultOn: true },
+      { key: "locations-db", label: "Locations database", desc: "Studios, venues, and outdoor locations as first-class entities.", defaultOn: true },
+    ],
+  },
+];
+
+const audienceColor = (a: string) =>
+  a === "agency" ? COLORS.accent
+  : a === "coordinator" ? COLORS.indigo
+  : a === "talent" ? COLORS.royal
+  : COLORS.amber;
+
+const audienceLabel = (a: string) =>
+  a === "agency" ? "Agency admin"
+  : a === "coordinator" ? "Coordinators"
+  : a === "talent" ? "Talent"
+  : "Clients";
+
+function FeatureControlsDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "feature-controls";
+
+  // Initialise toggle state from defaults
+  const initToggles = () => {
+    const m: Record<string, boolean> = {};
+    for (const g of FEATURE_GROUPS) {
+      for (const f of g.features) {
+        m[f.key] = f.defaultOn;
+      }
+    }
+    return m;
+  };
+
+  const [toggles, setToggles] = useState<Record<string, boolean>>(initToggles);
+  const [activeGroup, setActiveGroup] = useState<string>("agency-ops");
+  const [search, setSearch] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  const flip = (key: string) => {
+    setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+    setDirty(true);
+  };
+
+  const group = FEATURE_GROUPS.find(g => g.id === activeGroup) ?? FEATURE_GROUPS[0];
+
+  const visibleFeatures = search.trim()
+    ? FEATURE_GROUPS.flatMap(g => g.features.filter(f =>
+        f.label.toLowerCase().includes(search.toLowerCase()) ||
+        f.desc.toLowerCase().includes(search.toLowerCase())
+      ))
+    : group.features;
+
+  const onCount = Object.values(toggles).filter(Boolean).length;
+  const totalCount = Object.values(toggles).length;
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <span style={{ flex: 1, fontSize: 11, color: COLORS.inkMuted }}>{onCount}/{totalCount} features enabled</span>
+      <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
+      <SecondaryButton onClick={() => { toast("Feature settings saved"); setDirty(false); closeDrawer(); }}>
+        {dirty ? "Save changes" : "Close"}
+      </SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Feature controls" description="Turn platform capabilities on or off. Changes take effect immediately for all users in this workspace." footer={footer} defaultSize="full">
+      <div style={{ display: "flex", gap: 0, height: "100%", fontFamily: FONTS.body }}>
+
+        {/* Left sidebar — group nav */}
+        <div style={{
+          width: 200, flexShrink: 0, borderRight: `1px solid ${COLORS.border}`,
+          paddingRight: 0, display: "flex", flexDirection: "column",
+        }}>
+          {/* Search */}
+          <div style={{ padding: "0 0 12px 0" }}>
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search features…"
+                style={{
+                  width: "100%", boxSizing: "border-box", padding: "7px 12px 7px 30px",
+                  borderRadius: RADIUS.sm, border: `1px solid ${COLORS.border}`,
+                  background: COLORS.surface, fontSize: 12, color: COLORS.ink,
+                  fontFamily: FONTS.body, outline: "none",
+                }}
+              />
+              <div style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+                <Icon name="search" size={13} color={COLORS.inkDim} />
+              </div>
+            </div>
+          </div>
+
+          {/* Group list */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {FEATURE_GROUPS.map(g => {
+              const isActive = !search && activeGroup === g.id;
+              const enabledCount = g.features.filter(f => toggles[f.key]).length;
+              return (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => { setActiveGroup(g.id); setSearch(""); }}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "8px 10px", border: "none", background: isActive ? COLORS.accentSoft : "transparent",
+                    borderRadius: RADIUS.sm, cursor: "pointer", textAlign: "left",
+                    borderLeft: `3px solid ${isActive ? COLORS.accent : "transparent"}`,
+                    transition: TRANSITION.sm,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? COLORS.accent : COLORS.ink }}>{g.label}</div>
+                    <div style={{ fontSize: 10, color: audienceColor(g.audience), marginTop: 1 }}>{audienceLabel(g.audience)}</div>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: COLORS.inkMuted }}>{enabledCount}/{g.features.length}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Summary stats */}
+          <div style={{ marginTop: "auto", paddingTop: 16, borderTop: `1px solid ${COLORS.border}` }}>
+            <div style={{ fontSize: 11, color: COLORS.inkMuted, marginBottom: 6 }}>Summary</div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Enabled</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.success }}>{onCount}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
+              <span style={{ fontSize: 11, color: COLORS.inkMuted }}>Disabled</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.coral }}>{totalCount - onCount}</span>
+            </div>
+            <div style={{ marginTop: 8, height: 4, background: COLORS.border, borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${(onCount / totalCount) * 100}%`, background: COLORS.success, borderRadius: 2, transition: TRANSITION.md }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Right — feature list */}
+        <div style={{ flex: 1, paddingLeft: 20, overflowY: "auto", minHeight: 0 }}>
+          {search && (
+            <div style={{ marginBottom: 12 }}>
+              <CapsLabel>Search results for "{search}"</CapsLabel>
+            </div>
+          )}
+          {!search && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.ink }}>{group.label}</span>
+                <span style={{
+                  fontSize: 10.5, fontWeight: 700,
+                  color: audienceColor(group.audience),
+                  background: `${audienceColor(group.audience)}16`,
+                  padding: "2px 8px", borderRadius: RADIUS.sm,
+                }}>
+                  {audienceLabel(group.audience)}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <GhostButton onClick={() => {
+                  const next = { ...toggles };
+                  group.features.forEach(f => { next[f.key] = true; });
+                  setToggles(next); setDirty(true);
+                }}>
+                  Enable all
+                </GhostButton>
+                <GhostButton onClick={() => {
+                  const next = { ...toggles };
+                  group.features.forEach(f => { next[f.key] = false; });
+                  setToggles(next); setDirty(true);
+                }}>
+                  Disable all
+                </GhostButton>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {visibleFeatures.map(f => {
+              const isOn = toggles[f.key] ?? false;
+              // For search results, find which group this feature belongs to
+              const parentGroup = FEATURE_GROUPS.find(g => g.features.some(gf => gf.key === f.key));
+              return (
+                <div
+                  key={f.key}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 14,
+                    padding: "12px 14px",
+                    background: isOn ? COLORS.surface : `${COLORS.coral}06`,
+                    borderRadius: RADIUS.md,
+                    border: `1px solid ${isOn ? COLORS.border : `${COLORS.coral}25`}`,
+                    transition: TRANSITION.sm,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{f.label}</span>
+                      {f.badge && (
+                        <span style={{ fontSize: 9.5, fontWeight: 700, color: COLORS.amber, background: `${COLORS.amber}18`, padding: "1px 6px", borderRadius: RADIUS.sm }}>
+                          {f.badge}
+                        </span>
+                      )}
+                      {search && parentGroup && (
+                        <span style={{ fontSize: 9.5, fontWeight: 600, color: audienceColor(parentGroup.audience), background: `${audienceColor(parentGroup.audience)}14`, padding: "1px 6px", borderRadius: RADIUS.sm }}>
+                          {parentGroup.label}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, lineHeight: "1.45" }}>{f.desc}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: isOn ? COLORS.success : COLORS.coral }}>
+                      {isOn ? "On" : "Off"}
+                    </span>
+                    <Toggle on={isOn} onChange={() => flip(f.key)} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {visibleFeatures.length === 0 && (
+            <div style={{ padding: "40px 0", textAlign: "center", color: COLORS.inkDim, fontSize: 12 }}>
+              No features match "{search}"
+            </div>
+          )}
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CHARTER — Messages, Coordinator Authority & Talent Circle
+// ════════════════════════════════════════════════════════════════════
+//
+// MESSAGE SURFACE PARITY (decision):
+// • All three pov surfaces (Workspace · Talent · Client) use the SAME
+//   underlying components for the conversation thread, composer, and
+//   right rail. The differences are role-driven, not surface-driven.
+// • Workspace pov sees TWO threads per inquiry (private with client +
+//   group with talent) via the WorkspaceBody tab switcher.
+// • Talent + Client pov see ONE thread (their conversation with the
+//   coordinator). Underlying component: ConversationList + ConversationThread
+//   from _talent.tsx (client reuses verbatim with a banner).
+// • The visual language matches across all three: pill segmented tabs,
+//   participant stack, trust badge, status chip, minimal composer
+//   (+ / ✦ / pill input / mic / send), Details/Activity rail tabs.
+//
+// COORDINATOR AUTHORITY MODEL (decision):
+// • Agency owner can: assign a coordinator, BE the coordinator
+//   themselves, add/remove talent at any time.
+// • A coordinator (when assigned) can: add new talent to the inquiry
+//   or booking, talk to the client directly (gated by agency setting).
+// • Hub freelancers (talent without an agency, on a hub directly):
+//   automatically become coordinator on inbound inquiries. The hub
+//   owner acts in the agency-owner role and can intervene/escalate.
+// • Setting `agency.autoAssignOwnerAsCoordinator` (default ON) — when
+//   on, the owner is auto-set as primary coordinator on new inquiries
+//   and can later re-assign. When off, the coordinator role auto-falls
+//   to the most-relevant talent (typically the lead talent on the brief).
+//   Owner retains the right to remove a talent from the coordinator
+//   role at any time.
+// • Setting `agency.allowTalentClientDirectChat` (default OFF for
+//   agencies; ON for hubs) — controls whether talent in the coordinator
+//   role can DM the client directly. When OFF, talent can see the
+//   client thread but cannot send. Hub freelancers (chefs, designers,
+//   hosts who add their own crew to a booking) need this ON.
+//
+// TALENT CIRCLE (new feature):
+// • Each talent maintains a personal "Circle" — a curated address book
+//   of collaborators they've worked with and trust (other talent, HMU,
+//   photographers, stylists, studio managers).
+// • Use cases: (1) recommend a circle member to a coordinator when a
+//   booking needs more roles filled, (2) quickly find a known partner
+//   when adding crew to a self-coordinated booking (hub freelancer).
+// • Each circle entry: name, role, last-collab snippet, trust note.
+// • Search > Add talent to inquiry: when a coordinator is talent-on-hub,
+//   their Circle is the first source surfaced before the global roster.
+//
+// FUTURE WORK (not in this prototype slice):
+// • Per-thread coordinator role display (inline avatar with "Coordinator"
+//   label) so all three povs see who's leading the conversation.
+// • "Hand off to coordinator" affordance for talent who need to escalate.
+// • Per-message permissions audit log for compliance.
+//
+
+const MOCK_CIRCLE: Array<{ id: string; name: string; role: string; tags: string[]; lastCollab: string; note?: string }> = [
+  { id: "c-1", name: "Lucas Ferreira",  role: "Photographer",   tags: ["fashion","editorial"],  lastCollab: "Mar 2026 · Vogue Italia spread",       note: "Knows my best angles." },
+  { id: "c-2", name: "Nia Clarkson",    role: "HMU artist",     tags: ["beauty","clean glam"],  lastCollab: "Feb 2026 · Mango lookbook",            note: "Fast, calm, great with skin." },
+  { id: "c-3", name: "Ana Reyes",       role: "Stylist",        tags: ["editorial","luxury"],   lastCollab: "Feb 2026 · Bvlgari campaign",          note: "Eye for jewelry styling." },
+  { id: "c-4", name: "Tomás Navarro",   role: "Talent",         tags: ["commercial","fitness"], lastCollab: "Jan 2026 · Nike commercial",           note: "Reliable, on-time, books well." },
+  { id: "c-5", name: "Studio One",      role: "Studio (venue)", tags: ["shoreditch","loft"],    lastCollab: "Dec 2025 · 3-day campaign",            note: "Daylight from 9-3pm." },
+  { id: "c-6", name: "Chiara Bianchi",  role: "Talent",         tags: ["lifestyle","commercial"], lastCollab: "Dec 2025 · Stella McCartney",        note: "Pairs well on couple shoots." },
+];
+
+// ── Circle management drawer ──
+// Talent's view of their own circle: search, add, remove, note. Used
+// from talent settings + (in future) auto-opens in the inquiry workspace
+// when a hub-freelancer-coordinator clicks "Add crew".
+function CircleManageDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "circle-manage";
+  const [search, setSearch] = useState("");
+  const [filterRole, setFilterRole] = useState<string>("all");
+
+  const roleFilters = ["all", "Talent", "Photographer", "HMU artist", "Stylist", "Studio (venue)"];
+  const filtered = MOCK_CIRCLE.filter(m => {
+    if (filterRole !== "all" && m.role !== filterRole) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!m.name.toLowerCase().includes(q) && !m.role.toLowerCase().includes(q) && !m.tags.some(t => t.toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{MOCK_CIRCLE.length} people in your circle</span>
+      <SecondaryButton onClick={() => toast("Find someone to add…")}>Add person</SecondaryButton>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="My Circle" description="People you trust to work with — quickly recommend them into bookings." footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+
+        {/* Why this exists */}
+        <div style={{ background: COLORS.royalSoft, border: `1px solid ${COLORS.royalSoft}`, borderRadius: RADIUS.md, padding: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon name="sparkle" size={12} color={COLORS.royal} stroke={1.7} />
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: COLORS.royal }}>About your Circle</span>
+          </div>
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.45 }}>
+            When a coordinator needs more crew, you can recommend someone from your Circle in one tap.
+            They get an invite with your endorsement attached. No more digging through 2,000 profiles.
+          </p>
+        </div>
+
+        {/* Search + filters */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ position: "relative" }}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, role, or tag…"
+              style={{
+                width: "100%", boxSizing: "border-box",
+                padding: "9px 12px 9px 32px", borderRadius: 8,
+                border: `1px solid ${COLORS.border}`, background: COLORS.surface,
+                fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+              }}
+            />
+            <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }}>
+              <Icon name="search" size={13} color={COLORS.inkDim} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 2 }}>
+            {roleFilters.map(r => {
+              const active = filterRole === r;
+              return (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setFilterRole(r)}
+                  style={{
+                    flexShrink: 0,
+                    padding: "5px 11px", borderRadius: 999,
+                    border: `1px solid ${active ? COLORS.accent : COLORS.border}`,
+                    background: active ? COLORS.fill : "transparent",
+                    color: active ? "#fff" : COLORS.inkMuted,
+                    fontSize: 11.5, fontWeight: active ? 600 : 500, fontFamily: FONTS.body,
+                    cursor: "pointer", textTransform: "capitalize",
+                  }}
+                >
+                  {r}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* List */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {filtered.length === 0 && (
+            <div style={{ padding: "24px 12px", textAlign: "center", color: COLORS.inkDim, fontSize: 12 }}>
+              No matches. Try a different search.
+            </div>
+          )}
+          {filtered.map(m => (
+            <div key={m.id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", background: COLORS.surface, borderRadius: RADIUS.md, border: `1px solid ${COLORS.border}` }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: COLORS.borderStrong, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.inkMuted }}>{m.name.split(" ").map(w => w[0]).join("").slice(0, 2)}</span>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{m.name}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: COLORS.inkMuted, background: "rgba(11,11,13,0.05)", padding: "1px 7px", borderRadius: 999 }}>{m.role}</span>
+                </div>
+                <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3 }}>{m.lastCollab}</div>
+                {m.note && (
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 3, fontStyle: "italic" }}>"{m.note}"</div>
+                )}
+                <div style={{ display: "flex", gap: 4, marginTop: 5, flexWrap: "wrap" }}>
+                  {m.tags.map(t => (
+                    <span key={t} style={{ fontSize: 10, color: COLORS.inkMuted, background: COLORS.borderSoft, padding: "1px 6px", borderRadius: 4 }}>{t}</span>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => toast(`${m.name} removed from circle`)}
+                aria-label={`Remove ${m.name}`}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 6, color: COLORS.inkDim, alignSelf: "flex-start" }}
+              >
+                <Icon name="x" size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DrawerShell>
+  );
+}
+
+// ── Recommend from circle drawer ──
+// Used by a coordinator to invite a circle member into a current booking.
+function CircleRecommendDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "circle-recommend";
+  const inquiryId = (state.drawer.payload?.inquiryId as string) ?? "RI-201";
+  const role = (state.drawer.payload?.role as string) ?? "any";
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [note, setNote] = useState("");
+
+  const filtered = MOCK_CIRCLE.filter(m => {
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!m.name.toLowerCase().includes(q) && !m.role.toLowerCase().includes(q)) return false;
+    }
+    if (role !== "any" && !m.role.toLowerCase().includes(role.toLowerCase())) return false;
+    return true;
+  });
+
+  const toggle = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const send = () => {
+    toast(`Recommended ${selected.size} ${selected.size === 1 ? "person" : "people"} to ${inquiryId}`);
+    closeDrawer();
+  };
+
+  const footer = (
+    <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 11, color: COLORS.inkMuted }}>{selected.size} selected</span>
+      <div style={{ display: "flex", gap: 8 }}>
+        <GhostButton onClick={closeDrawer}>Cancel</GhostButton>
+        <SecondaryButton onClick={send}>Send recommendation</SecondaryButton>
+      </div>
+    </div>
+  );
+
+  return (
+    <DrawerShell open={open} onClose={closeDrawer} title="Recommend from your Circle" description={`Invite trusted collaborators into ${inquiryId}.`} footer={footer} defaultSize="half">
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: FONTS.body }}>
+        <div style={{ position: "relative" }}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search your circle…"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "9px 12px 9px 32px", borderRadius: 8,
+              border: `1px solid ${COLORS.border}`, background: COLORS.surface,
+              fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, outline: "none",
+            }}
+          />
+          <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }}>
+            <Icon name="search" size={13} color={COLORS.inkDim} />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {filtered.map(m => {
+            const isSelected = selected.has(m.id);
+            return (
+              <div
+                key={m.id}
+                onClick={() => toggle(m.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "11px 14px", borderRadius: RADIUS.md,
+                  background: isSelected ? COLORS.accentSoft : COLORS.surface,
+                  border: `1.5px solid ${isSelected ? COLORS.accent : COLORS.border}`,
+                  cursor: "pointer", transition: TRANSITION.sm,
+                }}
+              >
+                <div style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  border: `2px solid ${isSelected ? COLORS.accent : COLORS.border}`,
+                  background: isSelected ? COLORS.accent : "transparent",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  {isSelected && <span style={{ fontSize: 11, color: "#fff" }}>✓</span>}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink }}>{m.name}</div>
+                  <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{m.role} · {m.lastCollab}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <FieldRow label="Note to coordinator (optional)">
+          <TextArea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why these people for this brief?" rows={2} />
+        </FieldRow>
       </div>
     </DrawerShell>
   );

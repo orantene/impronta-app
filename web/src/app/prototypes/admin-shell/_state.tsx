@@ -38,6 +38,8 @@ export type WorkspacePage =
   | "calendar"
   | "roster"     // replaces talent
   | "clients"
+  | "operations" // WS-19/20: analytics + workflow automation
+  | "production" // WS-28/29/30/33/34/35: casting, crew, on-set, rights, safety
   | "settings"   // replaces workspace; billing + site folded in via anchor nav
   // ── legacy aliases (hidden from nav, kept for URL compat) ──
   | "inbox"
@@ -71,6 +73,7 @@ export type ClientPage =
   | "shortlists"
   | "inquiries"     // Legacy list view — kept for URL compat
   | "bookings"
+  | "notifications" // #15 — real notifications surface (was a drawer)
   | "settings";
 
 // Platform / Tulala HQ — internal tooling. HQ roles are NOT additive in the
@@ -100,6 +103,8 @@ export const WORKSPACE_PAGES: WorkspacePage[] = [
   "calendar",
   "roster",
   "clients",
+  "operations",
+  "production",
   "settings",
 ];
 
@@ -324,6 +329,8 @@ export const PAGE_META: Record<WorkspacePage, { label: string; icon: string; des
   calendar:  { label: "Calendar",  icon: "calendar", description: "Scheduled shoots, holds, and deadlines" },
   roster:    { label: "Roster",    icon: "users",    description: "Your talent, availability, and performance" },
   clients:   { label: "Clients",   icon: "briefcase", description: "Client accounts, trust tiers, and booking history" },
+  operations:{ label: "Operations",icon: "layers",   description: "Analytics, queues, SLAs, automations, and team workload" },
+  production:{ label: "Production",icon: "camera",   description: "Casting, crew bookings, call sheets, rights, and safety" },
   settings:  { label: "Settings",  icon: "settings", description: "Account, plan, branding, integrations, team, and danger zone" },
   // ── legacy aliases (hidden from nav) ──
   inbox:     { label: "Inbox",     icon: "mail" },
@@ -354,6 +361,7 @@ export const CLIENT_PAGE_META: Record<ClientPage, { label: string }> = {
   shortlists: { label: "Shortlists" },
   inquiries: { label: "Inquiries" },
   bookings: { label: "Bookings" },
+  notifications: { label: "Notifications" },
   settings: { label: "Settings" },
 };
 
@@ -435,6 +443,10 @@ export type DrawerId =
   | "identity"
   | "domain"
   | "team"
+  | "talent-types"   // Phase 2 — workspace taxonomy settings
+  | "talent-registration" // Phase 3 — mobile-first talent registration wizard
+  | "talent-profile-shell" // Phase 4 — full talent profile builder (admin + talent self-edit)
+  | "talent-approvals"     // Phase H — admin approval queue for pending registrations
   | "plan-billing"
   | "talent-profile"
   | "inquiry-peek"
@@ -442,6 +454,8 @@ export type DrawerId =
   | "new-inquiry"
   | "new-booking"
   | "new-talent"
+  // WS-25.2 — Bulk client import via CSV (mirrors talent import)
+  | "client-csv-bulk-add"
   | "my-profile"
   | "design"
   | "homepage"
@@ -452,6 +466,17 @@ export type DrawerId =
   | "translations"
   | "seo"
   | "field-catalog"
+  | "field-privacy"
+  | "trust-verification-queue"
+  | "trust-disputed-claims"
+  | "platform-verification-methods"
+  | "talent-trust-detail"
+  | "talent-claim-invite"
+  | "talent-phone-verify"
+  | "talent-id-verify"
+  | "talent-business-verify"
+  | "talent-domain-verify"
+  | "talent-payment-verify"
   | "taxonomy"
   | "workspace-settings"
   | "client-profile"
@@ -548,6 +573,7 @@ export type DrawerId =
   | "client-send-inquiry"
   | "client-inquiry-detail"
   | "client-counter-offer"
+  | "client-review"
   | "client-booking-detail"
   | "client-contracts"
   | "client-team"
@@ -611,7 +637,77 @@ export type DrawerId =
   | "notification-detail"
   // ── WS-18 AI assist ─────────────────────────────────────────────────
   | "ai-draft-assist"
-  | "ai-search-explain";
+  | "ai-search-explain"
+  | "ai-weekly-digest"
+  // ── WS-19 Reporting & analytics ────────────────────────────────────
+  | "workspace-revenue"
+  | "conversion-funnel"
+  | "top-performers"
+  | "coordinator-workload"
+  // ── WS-20 Operations & workflow ──────────────────────────────────────
+  | "my-queue"            // coordinator's personal inquiry queue
+  | "sla-timers"          // SLA breach monitor across all active inquiries
+  | "rules-builder"       // automation rules engine
+  | "saved-replies"       // saved reply templates for messaging
+  | "vacation-handover"   // reassign workload during absence
+  | "on-call-rotation"    // on-call schedule + escalation config
+  // ── WS-21 Compliance, legal, audit ──────────────────────────────────
+  | "gdpr-export"         // per-data-type GDPR / CCPA export
+  | "consent-log"         // marketing consent log per channel + timestamp
+  | "contract-templates"  // workspace contract template library
+  | "report-content"      // report content / user flow → moderation queue
+  // ── WS-22 Email + transactional comms ───────────────────────────────
+  | "email-templates"     // email template catalog (30+ types)
+  | "email-branding"      // workspace branded email customization
+  | "email-sequences"     // onboarding / dunning / win-back sequence config
+  | "notification-prefs"  // granular notification & email preference center
+  // ── WS-23 Marketing & growth ────────────────────────────────────────
+  | "invite-flow"         // invite talent / client / agency
+  | "referral-dashboard"  // per-referrer dashboard + reward tiers
+  | "calendar-sync"       // iCal URL + Google / Outlook two-way sync
+  | "system-status"       // Tulala public status page + incident log
+  // ── WS-24 Quality & release engineering ─────────────────────────────
+  | "telemetry-dashboard" // prod metrics: errors, Web Vitals, event funnel
+  | "beta-program"        // feature flag cohort enrollment + rollout %
+  // ── WS-25 Bulk operations + migration ───────────────────────────────
+  | "csv-import"          // CSV import for talent / clients with column mapping
+  | "migration-assistant" // AI-assisted Excel / WhatsApp migration
+  // ── WS-26 Brand & creative tools ────────────────────────────────────
+  | "brief-builder"       // client brief authoring: scope, dates, deliverables
+  | "brand-assets"        // workspace brand-asset library
+  | "approval-flow"       // multi-stakeholder brief / booking approval
+  // ── WS-27 Site & page-builder management ────────────────────────────
+  | "site-context-switcher" // multi-context site picker (agency/talent/hub)
+  | "page-scheduler"      // schedule page publish/unpublish
+  // ── WS-28 Casting director ──────────────────────────────────────────
+  | "casting-flow"        // open/closed casting with multi-round callbacks
+  | "callback-tracker"    // per-round talent status + structured feedback
+  // ── WS-29 Production team & multi-discipline bookings ───────────────
+  | "crew-booking"        // multi-resource booking (talent + crew + studio)
+  | "production-timeline" // shoot day call-sheet and timeline
+  // ── WS-30 Image rights & post-booking lifecycle ──────────────────────
+  | "usage-tracker"       // licensed usage per booking: region, media, expiry
+  | "relicense-flow"      // extend or re-license usage after expiry
+  // ── WS-31 Account lifecycle ─────────────────────────────────────────
+  | "ownership-transfer"  // transfer workspace to new owner with audit trail
+  | "minor-account"       // parent/guardian co-pilot account for under-18 talent
+  // ── WS-32 Discovery & marketplace ────────────────────────────────────
+  | "discovery-feed"      // trending talent + editor's picks curation
+  | "avail-search"        // date-aware geo + availability search
+  // ── WS-33 On-set / production-day live ───────────────────────────────
+  | "call-sheet"          // live call sheet with check-in status
+  | "onset-checkin"       // talent/crew check-in for shoot day
+  // ── WS-34 Safety, disputes, incident handling ────────────────────────
+  | "incident-report"     // on-set incident report + whistleblower channel
+  | "dispute-resolution"  // dispute stages: Filed → Mediation → Decision
+  // ── WS-35 Production-feature reconciliation ──────────────────────────
+  | "locations-drawer"    // shoot locations, studios, recurring venues
+  | "ai-workspace"        // AI workspace: provider registry + usage controls
+  // ── Feature controls ─────────────────────────────────────────────────
+  | "feature-controls"    // agency-admin on/off toggles for every platform feature
+  // ── Talent circle ────────────────────────────────────────────────────
+  | "circle-manage"       // talent's personal circle of trusted collaborators
+  | "circle-recommend";   // recommend a circle member into a booking
 
 export type DrawerContext = {
   drawerId: DrawerId | null;
@@ -934,6 +1030,237 @@ export type RichInquiry = {
   shortlistName?: string;
 };
 
+// ═══════════════════════════════════════════════════════════════════════
+// CANONICAL INQUIRY MODEL — the foundation that every shell consumes.
+//
+// Why this exists: the prototype historically grew three parallel models
+// (`RichInquiry` for workspace, `Conversation` for talent/client, plus
+// the offer mocks) and two parallel creation drawers (client-send-inquiry
+// vs admin "New inquiry"). The result was field drift, hand-rolled
+// per-pov panels, and the impossible task of unifying the shell.
+//
+// `Inquiry` is the canonical record. Every shell — workspace, talent,
+// client — renders the same model, only the *face* changes by pov. The
+// same record evolves into the booking shell (status flips to "booked",
+// tab config swaps; data persists).
+//
+// Migration strategy: define here, expose `toInquiry(rich)` adapter so
+// existing UI keeps working unchanged while new UI consumes `Inquiry`
+// directly. We retire `RichInquiry` once the last consumer is migrated.
+// ═══════════════════════════════════════════════════════════════════════
+
+export type InquiryUnitType = "hour" | "day" | "contract" | "event";
+
+export type InquirySourceKind = "client_form" | "workspace_manual" | "hub" | "agency_referral";
+
+export type InquiryStatus =
+  | "draft"             // creator hasn't sent yet
+  | "submitted"         // sent, no coordinator action
+  | "coordinating"      // coordinator working it
+  | "offer_pending"     // offer with client
+  | "offer_countered"   // counter in flight
+  | "approved"          // client approved offer
+  | "booked"            // converted to booking
+  | "wrapped"           // post-shoot
+  | "rejected" | "expired" | "cancelled";
+
+export type InquiryClientRef = {
+  id: string;
+  name: string;             // brand or person name
+  contactName?: string;     // primary contact at the client
+  email?: string;
+  phone?: string;
+  trust?: ClientTrustLevel;
+};
+
+export type InquiryCoordinatorRef = {
+  id: string;
+  name: string;
+  initials: string;
+  role: "owner" | "coordinator";   // owner = workspace admin acting as coord
+  alsoTalentId?: string;            // when a talent is also coordinator
+};
+
+export type InquiryTalentInvite = {
+  talentId: string;
+  name: string;
+  initials: string;
+  state: "invited" | "selected" | "hold" | "confirmed" | "declined" | "withdrawn";
+  // The talent's own private offer row — only visible to that talent,
+  // any coordinator on this inquiry, and workspace admin.
+  myRow?: {
+    unitType: InquiryUnitType;
+    units: number;
+    costRate: number;        // their take-home
+    clientRate: number;      // what client pays for this row
+    notes?: string;
+    status: "pending" | "submitted" | "approved" | "countered" | "declined";
+  };
+};
+
+export type InquirySchedule = {
+  start: string;              // ISO date or human label ("May 6")
+  end?: string;
+  callTime?: string;
+  wrapTime?: string;
+  flexible?: boolean;
+  timezone?: string;
+};
+
+export type InquiryLocation = {
+  mode: "on_site" | "remote" | "travel" | "tbc";
+  city?: string;
+  venue?: string;
+  address?: string;
+  mapUrl?: string;
+};
+
+export type InquiryBrief = {
+  summary: string;            // headline brief — "3 promo models for a beach club launch"
+  notes?: string;             // long-form
+  requirements?: string[];    // wardrobe / language / skill
+  deliverables?: string[];
+  files: { name: string; size: string; addedBy: string; addedAt: string }[];
+};
+
+export type InquiryClientBudget = {
+  amount: number;
+  currency: string;
+  unitType: InquiryUnitType;
+  perPerson?: boolean;        // when true, amount is per-talent, not group total
+  note?: string;
+};
+
+export type InquiryTimelineEvent = {
+  id: string;
+  ts: string;
+  actor: string;
+  body: string;
+  tone?: "default" | "success" | "warn" | "info";
+  /** Set when this same event should also surface as a system message in chat. */
+  surfaceInChat?: boolean;
+  /** Which thread to post into when surfacing. */
+  surfaceThread?: "client" | "talent" | "internal";
+};
+
+export type InquiryRecord = {
+  id: string;
+  source: { kind: InquirySourceKind; label?: string };
+  status: InquiryStatus;
+  createdBy: { id: string; name: string };
+  createdAt: string;
+
+  title: string;              // project name — "Spring lookbook"
+  category?: string;
+  client: InquiryClientRef;
+
+  coordinators: InquiryCoordinatorRef[];   // 1–2 active
+  talent: InquiryTalentInvite[];
+
+  schedule: InquirySchedule;
+  location: InquiryLocation;
+  brief: InquiryBrief;
+
+  budget?: InquiryClientBudget;            // null = no budget given, talent proposes
+  // Aggregated offer state, derived from talent rows + agency fee + coord %.
+  // The detailed shape lives in _messages.tsx alongside OfferTab to keep
+  // commerce concerns there; this is the index pointer.
+  offerStage?:
+    | "no_offer" | "client_budget" | "awaiting_talent" | "talent_submitted"
+    | "coordinator_review" | "sent" | "reviewing" | "countered"
+    | "accepted" | "rejected" | "expired";
+  agencyFee?: number;
+  coordinatorPct?: number;
+  expiresInHours?: number;
+
+  threads: {
+    client: string;             // thread ids → message store
+    talentGroup: string;
+    internal?: string;
+  };
+  timeline: InquiryTimelineEvent[];
+};
+
+/**
+ * Adapter: lift an existing `RichInquiry` into the canonical `Inquiry`
+ * shape so the new shell components can consume both the legacy mocks
+ * and the new model uniformly. Lossy in some legacy cases (e.g. legacy
+ * `requirementGroups` collapse into talent invites); good enough for
+ * the prototype until we retire RichInquiry entirely.
+ */
+export function toInquiry(rich: RichInquiry): InquiryRecord {
+  const talent: InquiryTalentInvite[] = (rich.requirementGroups ?? [])
+    .flatMap((g) => g.talents ?? [])
+    .map((t, i) => ({
+      talentId: `${rich.id}-t-${i}`,
+      name: t.name,
+      initials: t.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase(),
+      state:
+          t.status === "accepted"  ? "confirmed"
+        : t.status === "declined"  ? "declined"
+        : t.status === "superseded" ? "withdrawn"
+        : "invited",
+    }));
+
+  const status: InquiryStatus =
+      rich.stage === "submitted"      ? "submitted"
+    : rich.stage === "coordination"   ? "coordinating"
+    : rich.stage === "offer_pending"  ? "offer_pending"
+    : rich.stage === "approved"       ? "approved"
+    : rich.stage === "booked"         ? "booked"
+    : rich.stage === "rejected"       ? "rejected"
+    : rich.stage === "expired"        ? "expired"
+    : "submitted";
+
+  const coordinators: InquiryCoordinatorRef[] = rich.coordinator
+    ? [{
+        id: rich.coordinator.id,
+        name: rich.coordinator.name,
+        initials: rich.coordinator.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(),
+        role: "coordinator",
+      }]
+    : [];
+
+  return {
+    id: rich.id,
+    source: { kind: rich.source.kind === "hub" ? "hub" : "agency_referral" },
+    status,
+    createdBy: { id: "client", name: rich.clientName },
+    createdAt: `${rich.ageDays}d ago`,
+    title: rich.brief,
+    client: {
+      id: rich.clientName.toLowerCase().replace(/\s+/g, "-"),
+      name: rich.clientName,
+      trust: rich.clientTrust,
+    },
+    coordinators,
+    talent,
+    schedule: { start: rich.date ?? "TBC" },
+    location: rich.location
+      ? { mode: "on_site", city: rich.location.split(" · ")[0], venue: rich.location.split(" · ")[1] }
+      : { mode: "tbc" },
+    brief: { summary: rich.brief, files: [] },
+    budget: rich.offer?.total
+      ? { amount: parseInt(String(rich.offer.total).replace(/\D/g, ""), 10) || 0,
+          currency: "EUR", unitType: "contract" }
+      : undefined,
+    offerStage:
+        rich.stage === "offer_pending" ? "sent"
+      : rich.stage === "approved"      ? "accepted"
+      : rich.stage === "booked"        ? "accepted"
+      : rich.stage === "rejected"      ? "rejected"
+      : rich.stage === "expired"       ? "expired"
+      : "no_offer",
+    threads: { client: `${rich.id}:client`, talentGroup: `${rich.id}:talent` },
+    timeline: (rich.messages ?? []).slice(0, 8).map((m, i) => ({
+      id: `${rich.id}-tl-${i}`,
+      ts: m.ts,
+      actor: m.senderName,
+      body: m.body.slice(0, 120),
+    })),
+  };
+}
+
 /**
  * Helper for rendering the source chip. Returns the short "via …" label
  * the pipeline shows next to the agency name, plus a longer descriptor
@@ -1012,9 +1339,11 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         needed: 3,
         approved: 1,
         talents: [
-          { name: "Marta Reyes",   thumb: "🌸", status: "accepted", lastSaidTs: "Mon 17:22", lastSaidSnippet: "All clear from me — happy to confirm." },
-          { name: "Tomás Navarro", thumb: "🍃", status: "pending",  lastSaidTs: "Tue 10:01", lastSaidSnippet: "Checking my schedule — back in 1h." },
-          { name: "Zara Habib",    thumb: "🌹", status: "pending" },
+          { name: "Marta Reyes",   thumb: "https://i.pravatar.cc/200?img=5", status: "accepted", lastSaidTs: "Mon 17:22", lastSaidSnippet: "All clear from me — happy to confirm." },
+          { name: "Tomás Navarro", thumb: "https://i.pravatar.cc/200?img=12", status: "pending",  lastSaidTs: "Tue 10:01", lastSaidSnippet: "Checking my schedule — back in 1h." },
+          // WS-31.6 demo — Lina is 16 (see ROSTER_AGENCY t4). Inquiry workspace
+          // surfaces MinorProtectionBanner the moment her row is added.
+          { name: "Lina Park",     thumb: "https://i.pravatar.cc/200?img=47", status: "pending" },
         ],
       },
     ],
@@ -1136,8 +1465,8 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         needed: 2,
         approved: 2,
         talents: [
-          { name: "Marta Reyes", thumb: "🌸", status: "accepted" },
-          { name: "Lina Park", thumb: "🌷", status: "accepted" },
+          { name: "Marta Reyes", thumb: "https://i.pravatar.cc/200?img=5", status: "accepted" },
+          { name: "Lina Park", thumb: "https://i.pravatar.cc/200?img=47", status: "accepted" },
         ],
       },
     ],
@@ -1157,9 +1486,9 @@ export const RICH_INQUIRIES: RichInquiry[] = [
       sentAt: "yesterday",
       clientApproval: "pending",
       lineItems: [
-        { talentName: "Marta Reyes", thumb: "🌸", role: "talent", fee: "€3,200", status: "accepted" },
-        { talentName: "Lina Park", thumb: "🌷", role: "talent", fee: "€2,800", status: "accepted" },
-        { talentName: "Yuna Park", thumb: "🌼", role: "talent", fee: "€1,400", status: "pending" },
+        { talentName: "Marta Reyes", thumb: "https://i.pravatar.cc/200?img=5", role: "talent", fee: "€3,200", status: "accepted" },
+        { talentName: "Lina Park", thumb: "https://i.pravatar.cc/200?img=47", role: "talent", fee: "€2,800", status: "accepted" },
+        { talentName: "Yuna Park", thumb: "https://i.pravatar.cc/200?img=20", role: "talent", fee: "€1,400", status: "pending" },
       ],
       history: [
         { version: 1, total: "€5,600", sentAt: "3d ago", note: "Initial offer — Marta solo, 2-day rate" },
@@ -1219,7 +1548,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         role: "talent",
         needed: 1,
         approved: 1,
-        talents: [{ name: "Kai Lin", thumb: "🌊", status: "accepted" }],
+        talents: [{ name: "Kai Lin", thumb: "https://i.pravatar.cc/200?img=14", status: "accepted" }],
       },
     ],
     coordinator: {
@@ -1238,7 +1567,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
       sentAt: "2d ago",
       clientApproval: "accepted",
       lineItems: [
-        { talentName: "Kai Lin", thumb: "🌊", role: "talent", fee: "€8,200", status: "accepted" },
+        { talentName: "Kai Lin", thumb: "https://i.pravatar.cc/200?img=14", role: "talent", fee: "€8,200", status: "accepted" },
       ],
       history: [
         { version: 1, total: "€6,400", sentAt: "6d ago", note: "Initial offer — standard day rate" },
@@ -1309,11 +1638,11 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         needed: 6,
         approved: 4,
         talents: [
-          { name: "Iris Volpe", thumb: "🌺", status: "accepted" },
-          { name: "Léa Mercier", thumb: "🌷", status: "accepted" },
-          { name: "Yuna Park", thumb: "🪷", status: "accepted" },
-          { name: "Ola Brandt", thumb: "🌾", status: "accepted" },
-          { name: "Rafa Ortega", thumb: "🍂", status: "pending" },
+          { name: "Iris Volpe", thumb: "https://i.pravatar.cc/200?img=16", status: "accepted" },
+          { name: "Léa Mercier", thumb: "https://i.pravatar.cc/200?img=47", status: "accepted" },
+          { name: "Yuna Park", thumb: "https://i.pravatar.cc/200?img=44", status: "accepted" },
+          { name: "Ola Brandt", thumb: "https://i.pravatar.cc/200?img=49", status: "accepted" },
+          { name: "Rafa Ortega", thumb: "https://i.pravatar.cc/200?img=53", status: "pending" },
           { name: "—", thumb: "·", status: "pending" },
         ],
       },
@@ -1323,10 +1652,10 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         needed: 4,
         approved: 4,
         talents: [
-          { name: "Marta Reyes", thumb: "🌸", status: "accepted" },
-          { name: "Lina Park", thumb: "🌷", status: "accepted" },
-          { name: "Tomás Navarro", thumb: "🍃", status: "accepted" },
-          { name: "Zara Habib", thumb: "🌹", status: "accepted" },
+          { name: "Marta Reyes", thumb: "https://i.pravatar.cc/200?img=5", status: "accepted" },
+          { name: "Lina Park", thumb: "https://i.pravatar.cc/200?img=47", status: "accepted" },
+          { name: "Tomás Navarro", thumb: "https://i.pravatar.cc/200?img=12", status: "accepted" },
+          { name: "Zara Habib", thumb: "https://i.pravatar.cc/200?img=10", status: "accepted" },
         ],
       },
       {
@@ -1394,7 +1723,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         role: "talent",
         needed: 1,
         approved: 1,
-        talents: [{ name: "Marta Reyes", thumb: "🌸", status: "accepted" }],
+        talents: [{ name: "Marta Reyes", thumb: "https://i.pravatar.cc/200?img=5", status: "accepted" }],
       },
     ],
     coordinator: {
@@ -1413,7 +1742,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
       sentAt: "21d ago",
       clientApproval: "accepted",
       lineItems: [
-        { talentName: "Marta Reyes", thumb: "🌸", role: "talent", fee: "€3,400", status: "accepted" },
+        { talentName: "Marta Reyes", thumb: "https://i.pravatar.cc/200?img=5", role: "talent", fee: "€3,400", status: "accepted" },
       ],
     },
     bookingId: "BK-205",
@@ -1523,8 +1852,8 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         needed: 3,
         approved: 0,
         talents: [
-          { name: "Marta Reyes", thumb: "🌸", status: "declined" },
-          { name: "Zara Habib", thumb: "🌹", status: "declined" },
+          { name: "Marta Reyes", thumb: "https://i.pravatar.cc/200?img=5", status: "declined" },
+          { name: "Zara Habib", thumb: "https://i.pravatar.cc/200?img=10", status: "declined" },
         ],
       },
     ],
@@ -1593,7 +1922,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         role: "talent",
         needed: 1,
         approved: 1,
-        talents: [{ name: "Iris Volpe", thumb: "🌺", status: "accepted" }],
+        talents: [{ name: "Iris Volpe", thumb: "https://i.pravatar.cc/200?img=16", status: "accepted" }],
       },
     ],
     coordinator: {
@@ -1612,7 +1941,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
       sentAt: "18d ago",
       clientApproval: "pending",
       lineItems: [
-        { talentName: "Iris Volpe", thumb: "🌺", role: "talent", fee: "€2,400", status: "accepted" },
+        { talentName: "Iris Volpe", thumb: "https://i.pravatar.cc/200?img=16", role: "talent", fee: "€2,400", status: "accepted" },
       ],
     },
     bookingId: null,
@@ -1671,6 +2000,48 @@ export type TalentProfile = {
    * `exclusive` with the current tenant when missing.
    */
   representation?: RepresentationStatus;
+  /** Primary Talent Type id (matches TaxonomyChild.id). Drives the type chip on cards. */
+  primaryType?: string;
+  /** Profile completeness 0–100. Surfaced on cards in non-published states. */
+  completeness?: number;
+  /** "available" | "busy" | "offline". Drives dot on the card. */
+  availability?: "available" | "busy" | "offline";
+  /** Short last-active string ("2h", "1d", "3d"). */
+  lastActive?: string;
+  // ── WS-31.6 / WS-34.8 Minor protections ────────────────────────────
+  // Talent under 18 carries a guardian + protection block. Surfaced on
+  // every offer, inquiry workspace, and roster card via
+  // `<MinorProtectionBanner>` so coordinators can never miss it. The
+  // protections themselves (working hours, chaperone) are hard
+  // defaults — coordinators don't get to override without the guardian
+  // co-signing through the MinorAccountDrawer.
+  isMinor?: boolean;
+  /** Birth year — used to auto-flip `isMinor` when comparing against
+   *  the current year. Optional so basic fixtures can stay terse. */
+  birthYear?: number;
+  /** Guardian / co-pilot record. Required when `isMinor` is true. */
+  guardian?: {
+    name: string;
+    relation: "parent" | "legal_guardian" | "other";
+    email: string;
+    phone?: string;
+    /** Has the guardian completed verification + consent? */
+    consentVerified: boolean;
+  };
+  /** Hard default protections for minors — agency can request
+   *  variations through the MinorAccountDrawer but defaults bind.
+   *  All times are workspace-local. */
+  minorProtections?: {
+    /** Working-hour window, 24h — applied to ALL bookings. Default 9–17. */
+    workingHourStart: number;
+    workingHourEnd: number;
+    /** Max consecutive on-set hours per day. Default 6. */
+    maxOnSetHoursPerDay: number;
+    /** Must have a designated chaperone present at every booking. */
+    chaperoneRequired: boolean;
+    /** Hours of school per week that the booking schedule must accommodate. */
+    schoolHoursPerWeek: number;
+  };
 };
 
 export const TALENT_STATE_LABEL: Record<TalentProfile["state"], string> = {
@@ -1693,82 +2064,86 @@ export const TALENT_STATE_TONE: Record<
 };
 
 export const ROSTER_FREE: TalentProfile[] = [
-  { id: "t1", name: "Marta Reyes", state: "published", height: "5'9\"", city: "Madrid", thumb: "🌸" },
-  { id: "t2", name: "Kai Lin", state: "awaiting-approval", height: "5'11\"", city: "Berlin", thumb: "🌊" },
-  { id: "t3", name: "Amelia Dorsey", state: "invited", height: "5'8\"", city: "Lisbon", thumb: "🌿" },
+  { id: "t1", name: "Marta Reyes",     state: "published",         height: "5'9\"",  city: "Madrid",    thumb: "https://i.pravatar.cc/200?img=5",  primaryType: "fashion",     completeness: 92, availability: "available", lastActive: "2h" },
+  { id: "t2", name: "Kai Lin",         state: "awaiting-approval", height: "5'11\"", city: "Berlin",    thumb: "https://i.pravatar.cc/200?img=14", primaryType: "commercial",  completeness: 68, availability: "busy",      lastActive: "1d" },
+  { id: "t3", name: "Amelia Dorsey",   state: "invited",           height: "5'8\"",  city: "Lisbon",    thumb: "https://i.pravatar.cc/200?img=23", primaryType: "promotional", completeness: 24, availability: "offline",   lastActive: "—"  },
   // Seeded close to the Free cap (5) so the cap-nudge surfaces in the prototype.
-  { id: "t4", name: "Tomás Navarro", state: "draft", height: "6'0\"", city: "Barcelona", thumb: "🌾" },
+  { id: "t4", name: "Tomás Navarro",   state: "draft",             height: "6'0\"",  city: "Barcelona", thumb: "https://i.pravatar.cc/200?img=49", primaryType: "vip_host",    completeness: 45, availability: "available", lastActive: "5d" },
 ];
 
 export const ROSTER_AGENCY: TalentProfile[] = [
   {
-    id: "t1",
-    name: "Marta Reyes",
-    state: "published",
-    height: "5'9\"",
-    city: "Madrid",
-    thumb: "🌸",
+    id: "t1", name: "Marta Reyes", state: "published",
+    height: "5'9\"", city: "Madrid",
+    thumb: "https://i.pravatar.cc/200?img=5",
     representation: { kind: "exclusive", agencyName: "Acme Models" },
+    primaryType: "fashion", completeness: 92, availability: "available", lastActive: "2h",
   },
   {
-    id: "t2",
-    name: "Kai Lin",
-    state: "published",
-    height: "5'11\"",
-    city: "Berlin",
-    thumb: "🌊",
+    id: "t2", name: "Kai Lin", state: "published",
+    height: "5'11\"", city: "Berlin",
+    thumb: "https://i.pravatar.cc/200?img=14",
     representation: { kind: "exclusive", agencyName: "Acme Models" },
+    primaryType: "commercial", completeness: 88, availability: "available", lastActive: "1d",
   },
   {
-    id: "t3",
-    name: "Tomás Navarro",
-    state: "published",
-    height: "6'1\"",
-    city: "Lisbon",
-    thumb: "🍃",
-    representation: {
-      kind: "non-exclusive",
-      agencyNames: ["Acme Models", "Studio Iberia"],
+    id: "t3", name: "Tomás Navarro", state: "published",
+    height: "6'1\"", city: "Lisbon",
+    thumb: "https://i.pravatar.cc/200?img=12",
+    representation: { kind: "non-exclusive", agencyNames: ["Acme Models", "Studio Iberia"] },
+    primaryType: "vip_host", completeness: 80, availability: "available", lastActive: "3h",
+  },
+  {
+    id: "t4", name: "Lina Park", state: "awaiting-approval",
+    height: "5'7\"", city: "Paris",
+    thumb: "https://i.pravatar.cc/200?img=47",
+    representation: { kind: "exclusive", agencyName: "Acme Models" },
+    primaryType: "fashion", completeness: 64, availability: "available", lastActive: "1d",
+    // WS-31.6 demo seed — Lina is 16, parental co-pilot account. Every
+    // offer/booking surfaces MinorProtectionBanner. School-hour and
+    // working-hour defaults are non-negotiable without guardian re-consent.
+    isMinor: true,
+    birthYear: 2010,
+    guardian: {
+      name: "Min-Jun Park",
+      relation: "parent",
+      email: "min-jun.park@example.com",
+      phone: "+33 6 12 34 56 78",
+      consentVerified: true,
+    },
+    minorProtections: {
+      workingHourStart: 9,
+      workingHourEnd: 17,
+      maxOnSetHoursPerDay: 6,
+      chaperoneRequired: true,
+      schoolHoursPerWeek: 25,
     },
   },
   {
-    id: "t4",
-    name: "Lina Park",
-    state: "awaiting-approval",
-    height: "5'7\"",
-    city: "Paris",
-    thumb: "🌷",
-    representation: { kind: "exclusive", agencyName: "Acme Models" },
-  },
-  {
-    id: "t5",
-    name: "Amelia Dorsey",
-    state: "invited",
-    height: "5'8\"",
-    city: "Lisbon",
-    thumb: "🌿",
+    id: "t5", name: "Amelia Dorsey", state: "invited",
+    height: "5'8\"", city: "Lisbon",
+    thumb: "https://i.pravatar.cc/200?img=23",
     representation: { kind: "freelance" },
+    primaryType: "promotional", completeness: 28, availability: "offline", lastActive: "—",
   },
   {
-    id: "t6",
-    name: "Sven Olafsson",
-    state: "draft",
-    height: "6'0\"",
-    city: "Oslo",
-    thumb: "🌲",
+    id: "t6", name: "Sven Olafsson", state: "draft",
+    height: "6'0\"", city: "Oslo",
+    thumb: "https://i.pravatar.cc/200?img=29",
     representation: { kind: "exclusive", agencyName: "Acme Models" },
+    primaryType: "commercial", completeness: 42, availability: "busy", lastActive: "1w",
   },
   {
-    id: "t7",
-    name: "Zara Habib",
-    state: "published",
-    height: "5'10\"",
-    city: "London",
-    thumb: "🌹",
+    id: "t7", name: "Zara Habib", state: "published",
+    height: "5'10\"", city: "London",
+    thumb: "https://i.pravatar.cc/200?img=10",
     representation: { kind: "exclusive", agencyName: "Acme Models" },
+    primaryType: "fashion", completeness: 95, availability: "busy", lastActive: "2d",
   },
 ];
 
+// Legacy roll-up — kept as `Inquiry` for the few list views that still
+// consume INQUIRIES_AGENCY. New surfaces should consume `InquiryRecord`.
 export type Inquiry = {
   id: string;
   client: string;
@@ -3395,8 +3770,10 @@ export const MY_TALENT_PROFILE: MyTalentProfile = {
   currentLocation: "Playa del Carmen · Mexico",
   availableForWork: true,
   availableToTravel: true,
-  coverPhoto: "🌅",
-  profilePhoto: "🌸",
+  // Real photos for QA. Cover is a wide editorial backdrop; profile is a
+  // headshot. Both swap-tested on the talent profile + identity bar.
+  coverPhoto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=1200&q=80",
+  profilePhoto: "https://i.pravatar.cc/300?img=5",
   showreelThumb: "🎞️",
   showreelDuration: "0:42",
   measurements: {
@@ -4168,13 +4545,46 @@ export type ClientBrand = {
   trustLevel: ClientTrustLevel;
 };
 
-export const MY_CLIENT_BRAND: ClientBrand = {
-  id: "br1",
-  name: "Estudio Solé",
-  initials: "ES",
-  industry: "Fashion · creative studio",
-  trustLevel: "basic",
+// Two client profiles — switchable from the prototype control bar so QA
+// can see how the surface adapts to a business client (logo + brand name)
+// vs a personal client (face + first name). Avatars use real photo URLs.
+export type ClientProfileId = "martina" | "gringo";
+export type ClientProfile = ClientBrand & {
+  contactName: string;
+  /** When set, identity bar shows the photo (square logo for business,
+   * round headshot for person). For business: a logo URL; for person:
+   * a portrait URL. */
+  photoUrl: string;
+  isBusiness: boolean;
 };
+
+export const CLIENT_PROFILES: Record<ClientProfileId, ClientProfile> = {
+  martina: {
+    id: "br-martina",
+    name: "Martina Beach Club",
+    initials: "MB",
+    industry: "Hospitality · beach club",
+    trustLevel: "verified",
+    contactName: "Martina González",
+    photoUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=400&q=80",
+    isBusiness: true,
+  },
+  gringo: {
+    id: "br-gringo",
+    name: "The Gringo",
+    initials: "TG",
+    industry: "Personal client",
+    trustLevel: "basic",
+    contactName: "The Gringo",
+    photoUrl: "https://i.pravatar.cc/300?img=33",
+    isBusiness: false,
+  },
+};
+
+// Default brand identity — points at the business client. The active
+// client profile is read off the proto state's `clientProfile` field;
+// callers should prefer `useProto().activeClientProfile` over this.
+export const MY_CLIENT_BRAND: ClientBrand = CLIENT_PROFILES.martina;
 
 /**
  * Pricing & lead time per trust tier. Verification (Basic → Verified) is the
@@ -4217,22 +4627,1372 @@ export const TRUST_TIER_UPGRADE: Record<
 export type DiscoverTalent = {
   id: string;
   name: string;
+  /** Primary agency (kept for legacy filters; channels[] is the new source of truth) */
   agency: string;
   city: string;
   height: string;
   thumb: string;
   available: boolean;
+  /** Talent category — drives Discover tab filtering */
+  category: "models" | "hosts" | "chefs" | "artists" | "djs" | "photographers" | "performers";
+  /** Specific child taxonomy id (e.g. "fashion", "vip_host"). Drives sub-filter chips on Discover. */
+  subType?: string;
+  /** Trust tier (binding spec): basic / verified / silver / gold. */
+  trust?: "basic" | "verified" | "silver" | "gold";
+  /** Optional bio paragraph shown on profile sheet. */
+  bio?: string;
+  /** Median reply time in minutes (used by SLA chip). Direct talent only. */
+  replyTimeMin?: number;
+  /** If true, talent has a Pro/Portfolio premium page at tulala.digital/t/<slug>. */
+  premiumPage?: boolean;
+  /** Talent slug (used for canonical premium URL). */
+  slug?: string;
+  /** Representation channels the client can choose between when sending an inquiry.
+   *  - "agency"  : agency-routed (talent under an exclusive or non-exclusive contract)
+   *  - "hub"     : routed through a Tulala hub (referrer fee model)
+   *  - "freelance": direct to talent — talent becomes the coordinator themselves
+   *  At least one entry. Most talent have ≥2 channels and the client picks. */
+  channels: { kind: "agency" | "hub" | "freelance"; name: string; commission?: string }[];
 };
 
+// ════════════════════════════════════════════════════════════════════
+// MASTER TAXONOMY — Tulala-owned. Each agency/hub picks a subset.
+// Parents are the major buckets surfaced in Discover and registration.
+// Children are specific talent types under each parent. Plan tier
+// limits how many parent groups an agency can enable simultaneously.
+// ════════════════════════════════════════════════════════════════════
+
+export type TaxonomyParentId =
+  | "models" | "hosts" | "performers" | "music" | "creators"
+  | "chefs" | "wellness" | "hospitality" | "transportation"
+  | "photo_video" | "event_staff" | "security";
+
+/**
+ * A specific bookable Talent Type (the answer to "I need a ___").
+ * Examples: "Fashion model", "VIP host", "Private chef", "Driver".
+ * Specialties refine a Talent Type — Editorial under Fashion model,
+ * Sushi under Private chef. Skills/contexts/locations are separate.
+ */
+export type TaxonomyChild = {
+  id: string;
+  label: string;
+  helper?: string;
+  /** Specialties = refinements (Editorial under Fashion model). */
+  specialties?: string[];
+  /** Whether this type can be a primary booked role (default true). */
+  primaryAllowed?: boolean;
+  /** Whether this type can be a secondary role (default true). */
+  secondaryAllowed?: boolean;
+};
+
+/**
+ * Skill — an ability that makes a profile more valuable but is NOT
+ * the booked role. Cross-category; surfaced as chips on the profile.
+ */
+export const SKILL_CATALOG: { id: string; label: string; group: string }[] = [
+  { id: "luxury_sales",     label: "Luxury sales",        group: "Sales & promo" },
+  { id: "lead_gen",         label: "Lead generation",      group: "Sales & promo" },
+  { id: "guest_interaction",label: "Guest interaction",    group: "Hospitality" },
+  { id: "public_speaking",  label: "Public speaking",      group: "Stage" },
+  { id: "stage_presence",   label: "Stage presence",       group: "Stage" },
+  { id: "runway_walk",      label: "Runway walk",          group: "Modeling" },
+  { id: "posing",           label: "Posing",               group: "Modeling" },
+  { id: "social_content",   label: "Social media content", group: "Creator" },
+  { id: "vendor_negotiation", label: "Vendor negotiation", group: "Operations" },
+  { id: "cash_handling",    label: "Cash handling",        group: "Operations" },
+  { id: "translation",      label: "Translation",          group: "Languages" },
+  { id: "first_aid",        label: "First aid",            group: "Safety" },
+];
+
+/**
+ * Context — where / what kind of situation the talent works best.
+ * NOT a Talent Type; describes setting fit.
+ */
+export const CONTEXT_CATALOG: { id: string; label: string }[] = [
+  { id: "luxury_events",   label: "Luxury events" },
+  { id: "beach_clubs",     label: "Beach clubs" },
+  { id: "hotels",          label: "Hotels" },
+  { id: "restaurants",     label: "Restaurants" },
+  { id: "weddings",        label: "Weddings" },
+  { id: "brand_act",       label: "Brand activations" },
+  { id: "private_villas",  label: "Private villas" },
+  { id: "yachts",          label: "Yachts" },
+  { id: "nightclubs",      label: "Nightclubs" },
+  { id: "photo_shoots",    label: "Photo shoots" },
+  { id: "tourism",         label: "Tourism experiences" },
+];
+
+/**
+ * Language ability — structured. NOT a skill, NOT a Talent Type.
+ * Each row carries a level + role flags (can host / sell / translate).
+ */
+export type LanguageLevel = "native" | "fluent" | "conversational" | "basic";
+export type ProfileLanguage = {
+  language: string;
+  level: LanguageLevel;
+  canHost?: boolean;
+  canSell?: boolean;
+  canTranslate?: boolean;
+  canTeach?: boolean;
+};
+
+/**
+ * Service area — where the talent is based + where they can work.
+ * Mirrored to talent_service_areas in production; the talent_profiles
+ * `location_id` / `destinations` columns are cache only.
+ */
+export type ServiceArea = {
+  /** Home base city (canonical). */
+  homeBase: string;
+  /** Cities the talent will work in without travel logistics. */
+  serviceCities: string[];
+  /** Travel radius from home base in km. 999 = anywhere. */
+  travelKm: number;
+  /** Whether a travel fee may apply outside service cities. */
+  travelFee: boolean;
+  /** True if talent is remote-only (no on-site bookings). */
+  remoteOnly?: boolean;
+  /** Free-text notes (visa, passport, etc.). */
+  notes?: string;
+};
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 4 follow-up — Availability / Rates / Albums / Locale-bio /
+// Verifications. Each is a first-class profile dimension with its own
+// shape so production can map cleanly to dedicated tables.
+// ════════════════════════════════════════════════════════════════════
+
+/** A single calendar cell on the talent's mini-availability grid. */
+export type AvailabilityStatus = "open" | "busy" | "blocked";
+export type AvailabilityCell = {
+  /** ISO date string (YYYY-MM-DD). */
+  date: string;
+  status: AvailabilityStatus;
+  /** Optional note (booking ref, vacation tag, etc.). */
+  note?: string;
+};
+
+/**
+ * Rate unit defaults per parent Talent Type. Models price by day,
+ * DJs by set, drivers by hour, etc. Production maps these via the
+ * taxonomy_terms.metadata column.
+ */
+export type RateUnit = "day" | "hour" | "set" | "event" | "session" | "month";
+export const TYPE_RATE_UNIT: Record<TaxonomyParentId, RateUnit> = {
+  models:         "day",
+  hosts:          "event",
+  performers:     "set",
+  music:          "set",
+  creators:       "event",
+  chefs:          "event",
+  wellness:       "session",
+  hospitality:    "month",
+  transportation: "hour",
+  photo_video:    "day",
+  event_staff:    "hour",
+  security:       "hour",
+};
+
+export type ProfileRate = {
+  /** TaxonomyChild.id this rate applies to (e.g. "fashion"). */
+  typeId: string;
+  /** Numeric amount. */
+  amount: number;
+  /** ISO 4217 (or symbolic). */
+  currency: string;
+  /** Per-{unit}. Derived from the parent type but overridable. */
+  unit: RateUnit;
+  /** Optional rider conditions ("min 4 hours", "+ tax"). */
+  conditions?: string;
+};
+
+/**
+ * Portfolio album — lets talent split media into Editorial /
+ * Lookbook / Behind-the-scenes. Not a hard structure; default is
+ * a single "Main" album.
+ */
+export type ProfileAlbum = {
+  id: string;
+  name: string;
+  /** Image URLs (or blob: refs in the prototype). */
+  photos: string[];
+  /** Optional caption per photo, indexed positionally. */
+  captions?: string[];
+};
+
+/** Locale code (ISO 639-1). */
+export type LocaleCode = "en" | "es" | "fr" | "it" | "pt" | "de";
+export const LOCALE_LABEL: Record<LocaleCode, string> = {
+  en: "English",
+  es: "Spanish",
+  fr: "French",
+  it: "Italian",
+  pt: "Portuguese",
+  de: "German",
+};
+
+export type LocaleBio = { locale: LocaleCode; text: string };
+
+/**
+ * Verification + funded-account signals — drives the trust badge per
+ * the binding spec. Trust is DERIVED, never set manually.
+ */
+export type Verifications = {
+  idSubmitted: boolean;
+  payoutConnected: boolean;
+  bookingsCount: number;
+  hasFundedClient: boolean;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+};
+
+export type TrustTier = "basic" | "verified" | "silver" | "gold";
+
+export function computeTrustTier(v: Verifications): TrustTier {
+  if (v.idSubmitted && v.payoutConnected && v.bookingsCount >= 5 && v.hasFundedClient) return "gold";
+  if (v.idSubmitted && v.payoutConnected && v.bookingsCount >= 1) return "silver";
+  if (v.idSubmitted && v.payoutConnected) return "verified";
+  return "basic";
+}
+
+/** History entry for the diff view (admin reviewing a self-edit submission). */
+export type ProfileChange = {
+  fieldId: string;
+  fieldLabel: string;
+  before: string;
+  after: string;
+  /** ISO timestamp. */
+  changedAt: string;
+};
+
+// ════════════════════════════════════════════════════════════════════
+// Phase 4 +30 — premium profile dimensions.
+// Identity (gender / pronouns / DOB) is intentionally separate from
+// Talent Type per the binding spec. Skills carry proficiency so a
+// "great at" beats a "learning" in directory ranking. Photos carry
+// per-tile metadata (tag + alt + caption). Rates support package
+// bundles and channel-tier variation. Admin gets templates, locks,
+// invite tracking, and bulk operations.
+// ════════════════════════════════════════════════════════════════════
+
+// ── Identity ─────────────────────────────────────────────────────────
+export type Pronouns = "she/her" | "he/him" | "they/them" | "ze/zir" | "custom";
+export type GenderOption = "woman" | "man" | "non_binary" | "other" | "prefer_not_to_say";
+export type AgeDisplayMode = "exact" | "range" | "hidden";
+
+export const PRONOUNS_OPTIONS: { id: Pronouns; label: string }[] = [
+  { id: "she/her",   label: "she / her" },
+  { id: "he/him",    label: "he / him" },
+  { id: "they/them", label: "they / them" },
+  { id: "ze/zir",    label: "ze / zir" },
+  { id: "custom",    label: "custom" },
+];
+
+export const GENDER_OPTIONS: { id: GenderOption; label: string }[] = [
+  { id: "woman",                label: "Woman" },
+  { id: "man",                  label: "Man" },
+  { id: "non_binary",           label: "Non-binary" },
+  { id: "other",                label: "Other" },
+  { id: "prefer_not_to_say",    label: "Prefer not to say" },
+];
+
+export type ProfileIdentity = {
+  stageName: string;
+  /** Admin-only / KYC. Never exposed on the public profile. */
+  legalName: string;
+  /** Phonetic pronunciation aid (e.g. "soh-FEE-ah loo-PO"). */
+  pronunciation: string;
+  pronouns: Pronouns | null;
+  pronounsCustom?: string;
+  gender: GenderOption | null;
+  /** ISO date YYYY-MM-DD. */
+  dob: string | null;
+  ageDisplay: AgeDisplayMode;
+};
+
+export function deriveAge(dob: string | null): number | null {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return age;
+}
+export function ageRangeFor(age: number | null): string | null {
+  if (age == null) return null;
+  const lo = Math.floor(age / 5) * 5;
+  return `${lo}–${lo + 4}`;
+}
+
+// ── Skills with proficiency ──────────────────────────────────────────
+export type SkillProficiency = "great" | "can_do" | "learning";
+export type SkillEntry = { skillId: string; proficiency: SkillProficiency };
+
+export const PROFICIENCY_META: Record<SkillProficiency, { label: string; helper: string; bg: string; fg: string }> = {
+  great:    { label: "I'm great at",      helper: "Stand-out strengths.",         bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E" },
+  can_do:   { label: "I can do",          helper: "Solid + reliable.",            bg: "rgba(91,107,160,0.10)", fg: "#3B4A75" },
+  learning: { label: "I'm learning",      helper: "Open to gigs that train me.",  bg: "rgba(82,96,109,0.10)", fg: "#3A4651" },
+};
+
+// ── Bio tone selector ────────────────────────────────────────────────
+export type BioTone = "editorial" | "friendly" | "professional" | "quirky";
+export const BIO_TONES: { id: BioTone; label: string; emoji: string }[] = [
+  { id: "editorial",    label: "Editorial",    emoji: "✦" },
+  { id: "friendly",     label: "Friendly",     emoji: "🌿" },
+  { id: "professional", label: "Professional", emoji: "🎯" },
+  { id: "quirky",       label: "Quirky",       emoji: "✨" },
+];
+
+// ── Personality fields ───────────────────────────────────────────────
+export type Personality = { loves: string[]; avoids: string[] };
+
+// ── Photo metadata ───────────────────────────────────────────────────
+export type PhotoTag = "headshot" | "full_body" | "in_motion" | "portfolio" | "bts";
+export const PHOTO_TAG_META: Record<PhotoTag, { label: string; emoji: string }> = {
+  headshot:  { label: "Headshot",   emoji: "😊" },
+  full_body: { label: "Full body",  emoji: "🧍" },
+  in_motion: { label: "In motion",  emoji: "💫" },
+  portfolio: { label: "Portfolio",  emoji: "✦" },
+  bts:       { label: "BTS",        emoji: "🎬" },
+};
+export type PhotoMeta = {
+  url: string;
+  tag?: PhotoTag;
+  altText?: string;
+  caption?: string;
+};
+
+// ── Video clips + hello reel ─────────────────────────────────────────
+export type VideoSlot = { url: string; durationSec?: number; caption?: string };
+
+// ── Aspirations (talent type ids the talent wants to grow into) ─────
+// Plain string[] — references TaxonomyChild.id
+
+// ── Seasonal availability ────────────────────────────────────────────
+export type SeasonalWindow = {
+  id: string;
+  city: string;
+  /** 1-12. Inclusive. */
+  startMonth: number;
+  endMonth: number;
+};
+
+// ── Recurring availability + vacation ────────────────────────────────
+export type RecurringPattern = {
+  /** "weekends-only" => only Sat/Sun open. "weekdays-only" => only Mon-Fri. "weekly-busy" => specific dow always busy. */
+  kind: "none" | "weekends-only" | "weekdays-only" | "weekly-busy";
+  /** When kind="weekly-busy", which days (0=Sun..6=Sat) are busy. */
+  busyDays?: number[];
+};
+export type VacationWindow = { start: string; end: string; note?: string };
+
+// ── Package rates (bundles) ─────────────────────────────────────────
+export type PackageRate = {
+  id: string;
+  name: string;
+  description: string;
+  amount: number;
+  currency: string;
+  conditions?: string;
+};
+
+// ── Past clients + testimonials ──────────────────────────────────────
+export type PastClient = {
+  id: string;
+  name: string;
+  testimonial?: string;
+  testimonialBy?: string;
+  /** "Verified booking" badge — true if backed by a funded-account booking on Tulala. */
+  verified?: boolean;
+};
+
+// ── Profile templates (admin tool) ──────────────────────────────────
+export type ProfileTemplate = {
+  id: string;
+  name: string;
+  primaryType: string;
+  secondaryTypes?: string[];
+  serviceArea?: ServiceArea;
+  defaultRates?: ProfileRate[];
+  defaultLanguages?: ProfileLanguage[];
+  contexts?: string[];
+  skills?: SkillEntry[];
+};
+
+export const PROFILE_TEMPLATES: ProfileTemplate[] = [
+  {
+    id: "tpl-promo-model-ws",
+    name: "Promo model · weekend events",
+    primaryType: "promotional",
+    serviceArea: { homeBase: "Madrid", serviceCities: ["Toledo", "Segovia"], travelKm: 100, travelFee: false },
+    defaultLanguages: [
+      { language: "Spanish", level: "native",  canHost: true,  canSell: true },
+      { language: "English", level: "fluent",  canHost: true,  canSell: true },
+    ],
+    contexts: ["luxury_events", "brand_act"],
+    skills: [
+      { skillId: "luxury_sales",      proficiency: "great" },
+      { skillId: "guest_interaction", proficiency: "great" },
+    ],
+  },
+  {
+    id: "tpl-vip-host-rivmaya",
+    name: "VIP host · Riviera Maya",
+    primaryType: "vip_host",
+    serviceArea: { homeBase: "Playa del Carmen", serviceCities: ["Tulum", "Cancun"], travelKm: 80, travelFee: true },
+    defaultLanguages: [
+      { language: "Spanish", level: "native", canHost: true, canSell: true },
+      { language: "English", level: "fluent", canHost: true, canSell: true },
+      { language: "French",  level: "conversational", canHost: true },
+    ],
+    contexts: ["beach_clubs", "hotels", "luxury_events"],
+    skills: [
+      { skillId: "luxury_sales",      proficiency: "great" },
+      { skillId: "stage_presence",    proficiency: "great" },
+      { skillId: "guest_interaction", proficiency: "great" },
+    ],
+  },
+  {
+    id: "tpl-private-chef-villa",
+    name: "Private chef · villa service",
+    primaryType: "private_chef",
+    serviceArea: { homeBase: "Tulum", serviceCities: ["Cancun"], travelKm: 120, travelFee: true },
+    defaultLanguages: [
+      { language: "Spanish", level: "native" },
+      { language: "English", level: "fluent" },
+    ],
+    contexts: ["private_villas", "yachts", "weddings"],
+    skills: [
+      { skillId: "vendor_negotiation", proficiency: "great" },
+    ],
+  },
+];
+
+// ── Field-level lock (admin) ────────────────────────────────────────
+/** Dot-path into ProfileState. e.g. "identity.legalName", "rates.0.amount". */
+export type FieldLockPath = string;
+
+// ── Invite tracking (admin) ─────────────────────────────────────────
+export type InviteStatus = "sent" | "opened" | "claimed" | "expired";
+export type TalentInvite = {
+  id: string;
+  talentName: string;
+  email: string;
+  sentAt: string;
+  openedAt?: string;
+  claimedAt?: string;
+  status: InviteStatus;
+  remindersSent: number;
+};
+
+export const TALENT_INVITES: TalentInvite[] = [
+  { id: "inv-1", talentName: "Amelia Dorsey",     email: "amelia@example.com",  sentAt: "2026-04-25T10:00Z",                                              status: "claimed", openedAt: "2026-04-25T11:32Z", claimedAt: "2026-04-26T08:11Z", remindersSent: 0 },
+  { id: "inv-2", talentName: "Sven Olafsson",      email: "sven@example.com",    sentAt: "2026-04-22T14:00Z", openedAt: "2026-04-22T18:00Z",               status: "opened",  remindersSent: 1 },
+  { id: "inv-3", talentName: "Kai Lin",            email: "kai@example.com",     sentAt: "2026-04-19T09:30Z",                                              status: "sent",    remindersSent: 0 },
+  { id: "inv-4", talentName: "Tomás Navarro",      email: "tomas@example.com",   sentAt: "2026-04-10T16:00Z", openedAt: "2026-04-10T17:00Z",               status: "opened",  remindersSent: 2 },
+  { id: "inv-5", talentName: "Lina Park",          email: "lina@example.com",    sentAt: "2026-03-12T08:00Z",                                              status: "expired", remindersSent: 3 },
+];
+
+
+export type TaxonomyParent = {
+  id: TaxonomyParentId;
+  label: string;
+  emoji: string;
+  helper: string;
+  children: TaxonomyChild[];
+  /** Minimum plan tier required to enable this parent. */
+  minPlan: "free" | "studio" | "agency" | "network";
+};
+
+export const TAXONOMY: TaxonomyParent[] = [
+  {
+    id: "models", label: "Models", emoji: "👤", minPlan: "free",
+    helper: "Fashion, commercial, editorial, fit, content.",
+    children: [
+      { id: "fashion",      label: "Fashion model",     specialties: ["Editorial", "Runway", "High fashion", "Lookbook"] },
+      { id: "promotional",  label: "Promotional model", specialties: ["Brand activation", "Trade show", "Luxury event", "Festival"] },
+      { id: "content",      label: "Content model",     helper: "Per-post or per-campaign content", specialties: ["UGC", "Lifestyle", "Product", "Beauty"] },
+      { id: "commercial",   label: "Commercial model",  specialties: ["Print", "Catalog", "TVC", "Stock"] },
+      { id: "swimwear",     label: "Swimwear / lingerie", specialties: ["Resort", "Editorial", "Catalog"] },
+      { id: "fit",          label: "Fit model",         specialties: ["Womenswear", "Menswear", "Activewear"] },
+      { id: "showroom",     label: "Showroom model",    specialties: ["Buyer presentations", "Wholesale"] },
+    ],
+  },
+  {
+    id: "hosts", label: "Hosts & Promo", emoji: "🎤", minPlan: "free",
+    helper: "Brand ambassadors, MCs, VIP hosts, event hosts.",
+    children: [
+      { id: "vip_host",     label: "VIP host",            specialties: ["Hotel", "Beach club", "Yacht", "Private event"] },
+      { id: "brand_amb",    label: "Brand ambassador",    specialties: ["Activation", "Sampling", "Roadshow", "Pop-up"] },
+      { id: "mc",           label: "Master of ceremonies",specialties: ["Wedding", "Corporate", "Concert"] },
+      { id: "promoter",     label: "Promoter / club host",specialties: ["Nightclub", "Festival", "Bar"] },
+      { id: "trade_show",   label: "Trade-show staff",    specialties: ["Booth host", "Demo", "Lead capture"] },
+      { id: "greeter",      label: "Greeter" },
+    ],
+  },
+  {
+    id: "performers", label: "Performers", emoji: "✨", minPlan: "free",
+    helper: "Dancers, acrobats, fire performers, character acts.",
+    children: [
+      { id: "dancer",       label: "Dancer",            specialties: ["Salsa", "Bachata", "Contemporary", "Ballet", "Hip-hop"] },
+      { id: "belly_dancer", label: "Belly dancer",      specialties: ["Egyptian", "Tribal fusion"] },
+      { id: "fire",         label: "Fire performer",    specialties: ["Poi", "Staff", "Fans", "Hoop"] },
+      { id: "acrobat",      label: "Acrobat / aerial",  specialties: ["Silk", "Hoop", "Trapeze", "Pole"] },
+      { id: "characters",   label: "Character acts",    specialties: ["Mascot", "Living statue", "Theatrical"] },
+      { id: "stilts",       label: "Stilts / circus",   specialties: ["LED stilts", "Costumed"] },
+    ],
+  },
+  {
+    id: "music", label: "Music & DJs", emoji: "🎧", minPlan: "studio",
+    helper: "DJs, singers, bands, musicians.",
+    children: [
+      { id: "dj",           label: "DJ",          specialties: ["House", "Techno", "Hip-hop", "Latin", "Open format"] },
+      { id: "singer",       label: "Singer",      specialties: ["Pop", "Jazz", "Soul", "Latin", "Classical"] },
+      { id: "band",         label: "Band",        specialties: ["Cover band", "Original act", "Acoustic"] },
+      { id: "musician",     label: "Musician",    specialties: ["Pianist", "Saxophonist", "Guitarist", "Violinist"] },
+      { id: "live_act",     label: "Live act",    specialties: ["Live painting", "Live percussion"] },
+    ],
+  },
+  {
+    id: "creators", label: "Creators & Influencers", emoji: "📱", minPlan: "free",
+    helper: "Content creators, influencers, UGC.",
+    children: [
+      { id: "influencer",   label: "Influencer" },
+      { id: "ugc_creator",  label: "UGC creator" },
+      { id: "podcaster",    label: "Podcaster" },
+      { id: "tiktoker",     label: "Short-form creator" },
+    ],
+  },
+  {
+    id: "chefs", label: "Chefs & Culinary", emoji: "👨‍🍳", minPlan: "agency",
+    helper: "Private chefs, mixologists, sommeliers.",
+    children: [
+      { id: "private_chef", label: "Private chef", specialties: ["Sushi", "Italian", "Mexican", "Mediterranean", "Plant-based"] },
+      { id: "mixologist",   label: "Mixologist",   specialties: ["Cocktail menu", "Tasting flight", "Live show"] },
+      { id: "sommelier",    label: "Sommelier",    specialties: ["Wine pairing", "Whisky", "Sake"] },
+      { id: "pastry",       label: "Pastry chef",  specialties: ["Patisserie", "Wedding cake", "Plated dessert"] },
+      { id: "catering",     label: "Catering team", specialties: ["Wedding", "Corporate", "Festival"] },
+    ],
+  },
+  {
+    id: "wellness", label: "Wellness", emoji: "🌿", minPlan: "agency",
+    helper: "Massage, yoga, training, breathwork.",
+    children: [
+      { id: "massage",      label: "Massage therapist", specialties: ["Deep tissue", "Swedish", "Thai", "Sports"] },
+      { id: "yoga",         label: "Yoga instructor",   specialties: ["Hatha", "Vinyasa", "Yin", "Kids"] },
+      { id: "trainer",      label: "Personal trainer",  specialties: ["Strength", "HIIT", "Pilates"] },
+      { id: "breathwork",   label: "Breathwork / sound healing" },
+    ],
+  },
+  {
+    id: "hospitality", label: "Hospitality", emoji: "🏨", minPlan: "agency",
+    helper: "Housekeeping, butlers, villa staff.",
+    children: [
+      { id: "housekeeper",  label: "Housekeeper",     specialties: ["Villa", "Airbnb", "Hotel"] },
+      { id: "butler",       label: "Butler",          specialties: ["Service", "Concierge support"] },
+      { id: "villa_staff",  label: "Villa staff" },
+      { id: "concierge",    label: "Concierge" },
+    ],
+  },
+  {
+    id: "transportation", label: "Transportation", emoji: "🚙", minPlan: "agency",
+    helper: "Drivers, chauffeurs, transfer services.",
+    children: [
+      { id: "chauffeur",    label: "Chauffeur",      specialties: ["VIP", "Wedding", "Long-distance"] },
+      { id: "airport",      label: "Airport transfer" },
+      { id: "shuttle",      label: "Shuttle driver" },
+    ],
+  },
+  {
+    id: "photo_video", label: "Photo & Video", emoji: "📷", minPlan: "studio",
+    helper: "Photographers, videographers, drone operators.",
+    children: [
+      { id: "photographer", label: "Photographer" },
+      { id: "videographer", label: "Videographer" },
+      { id: "drone",        label: "Drone operator" },
+      { id: "editor",       label: "Editor / colorist" },
+    ],
+  },
+  {
+    id: "event_staff", label: "Event Staff", emoji: "✦", minPlan: "agency",
+    helper: "Setup, runners, coordinators, assistants.",
+    children: [
+      { id: "setup",        label: "Event setup crew" },
+      { id: "runner",       label: "Runner" },
+      { id: "coordinator",  label: "Event coordinator" },
+      { id: "stage",        label: "Stage manager" },
+    ],
+  },
+  {
+    id: "security", label: "Security", emoji: "🛡", minPlan: "agency",
+    helper: "Bodyguards, event security, door staff.",
+    children: [
+      { id: "bodyguard",    label: "Bodyguard" },
+      { id: "event_sec",    label: "Event security" },
+      { id: "door",         label: "Door staff" },
+    ],
+  },
+];
+
+export const PLAN_TAXONOMY_LIMITS: Record<"free" | "studio" | "agency" | "network", number> = {
+  free: 3,
+  studio: 8,
+  agency: 999,    // all
+  network: 999,   // all + multi-hub vocabularies
+};
+
+/**
+ * Per-workspace taxonomy settings. Mock for prototype — production
+ * lives in `workspace_taxonomy_settings` keyed by tenant_id.
+ * Each enabled parent has its own visibility + approval rules.
+ */
+export type WorkspaceTaxonomySetting = {
+  parentId: TaxonomyParentId;
+  isEnabled: boolean;
+  showInDirectory: boolean;
+  showInRegistration: boolean;
+  requiresApproval: boolean;
+  customLabel?: string;
+};
+
+/**
+ * Type-specific field schemas. Talent registration shows different
+ * fields per parent category. Production stores these in
+ * `taxonomy_field_schema` with a JSON Schema; the prototype keeps
+ * a flat shape for clarity.
+ */
+export type RegFieldKind = "text" | "number" | "select" | "multiselect" | "chips";
+export type RegField = {
+  id: string;
+  label: string;
+  kind: RegFieldKind;
+  optional?: boolean;
+  placeholder?: string;
+  helper?: string;
+  options?: string[];
+};
+
+export const TAXONOMY_FIELDS: Record<TaxonomyParentId, RegField[]> = {
+  models: [
+    { id: "height",       label: "Height",         kind: "text",   placeholder: "5'9\" / 175 cm" },
+    { id: "bust",         label: "Bust",           kind: "text",   optional: true, placeholder: "85 cm" },
+    { id: "waist",        label: "Waist",          kind: "text",   optional: true, placeholder: "62 cm" },
+    { id: "hips",         label: "Hips",           kind: "text",   optional: true, placeholder: "90 cm" },
+    { id: "shoe",         label: "Shoe size (EU)", kind: "text",   optional: true, placeholder: "39" },
+    { id: "hair",         label: "Hair color",     kind: "select", options: ["Black", "Brown", "Blonde", "Red", "Grey", "Other"] },
+    { id: "eyes",         label: "Eye color",      kind: "select", options: ["Brown", "Blue", "Green", "Hazel", "Grey", "Other"] },
+  ],
+  hosts: [
+    { id: "languages_fluent", label: "Languages spoken", kind: "chips", placeholder: "Add a language…" },
+    { id: "vibe",             label: "Style",            kind: "select", options: ["Energetic", "Polished", "Warm", "Edgy"] },
+    { id: "experience_yrs",   label: "Years hosting",    kind: "number", optional: true, placeholder: "3" },
+  ],
+  performers: [
+    { id: "act_type",      label: "Act type",      kind: "multiselect", options: ["Solo", "Duo", "Group", "Choreographed", "Improv"] },
+    { id: "rig_required",  label: "Rigging needed", kind: "select", options: ["No", "Truss", "Hard point", "Crane / lift"] },
+    { id: "duration_min",  label: "Typical set length", kind: "text", optional: true, placeholder: "20–30 min" },
+  ],
+  music: [
+    { id: "genre",         label: "Primary genres", kind: "chips", placeholder: "Add a genre…" },
+    { id: "set_length",    label: "Set length",     kind: "select", options: ["30 min", "60 min", "90 min", "2 hr", "3 hr+"] },
+    { id: "equipment",     label: "Brings own equipment?", kind: "select", options: ["Full setup", "Partial", "No equipment"] },
+  ],
+  creators: [
+    { id: "platforms",     label: "Platforms",      kind: "multiselect", options: ["Instagram", "TikTok", "YouTube", "Substack", "Twitch", "X"] },
+    { id: "followers",     label: "Audience size",  kind: "select", options: ["< 10k", "10–50k", "50–250k", "250k–1M", "1M+"] },
+    { id: "niche",         label: "Niche",          kind: "chips", placeholder: "Add a niche…" },
+  ],
+  chefs: [
+    { id: "cuisines",      label: "Cuisines",       kind: "chips", placeholder: "Add a cuisine…" },
+    { id: "dietary",       label: "Dietary specialties", kind: "multiselect", options: ["Vegan", "Vegetarian", "Gluten-free", "Kosher", "Halal", "Raw"] },
+    { id: "service_style", label: "Service style",  kind: "select", options: ["Plated", "Family-style", "Tasting menu", "Buffet"] },
+  ],
+  wellness: [
+    { id: "modalities",    label: "Modalities",     kind: "chips", placeholder: "Add a modality…" },
+    { id: "certifications", label: "Certifications", kind: "chips", optional: true, placeholder: "Add a cert…" },
+    { id: "session_min",   label: "Session length", kind: "select", options: ["30 min", "60 min", "90 min", "2 hr"] },
+  ],
+  hospitality: [
+    { id: "languages_fluent", label: "Languages spoken", kind: "chips", placeholder: "Add a language…" },
+    { id: "experience_yrs",   label: "Years experience", kind: "number", optional: true, placeholder: "5" },
+    { id: "uniform",          label: "Uniform owned",   kind: "select", options: ["Black tie", "Whites", "Casual", "None"] },
+  ],
+  transportation: [
+    { id: "vehicle",       label: "Vehicle type",   kind: "select", options: ["Sedan", "SUV", "Van", "Sprinter", "Luxury", "Limo"] },
+    { id: "vehicle_year",  label: "Vehicle year",   kind: "text", optional: true, placeholder: "2024" },
+    { id: "license_class", label: "License class",  kind: "select", options: ["Standard", "Commercial", "Chauffeur"] },
+    { id: "max_pax",       label: "Max passengers", kind: "number", placeholder: "4" },
+  ],
+  photo_video: [
+    { id: "format",        label: "Formats",        kind: "multiselect", options: ["Editorial", "Commercial", "Wedding", "Event", "Documentary", "Fashion"] },
+    { id: "kit",           label: "Kit owned",      kind: "select", options: ["Full studio", "Mobile pro", "Camera + lens only"] },
+    { id: "deliverables",  label: "Typical turnaround", kind: "select", options: ["24h", "3 days", "1 week", "2 weeks+"] },
+  ],
+  event_staff: [
+    { id: "role_focus",    label: "Role focus",     kind: "multiselect", options: ["Setup", "Runner", "Coordinator", "Stage manager", "Crowd control"] },
+    { id: "physical",      label: "Physical lifting OK?", kind: "select", options: ["Up to 10kg", "Up to 25kg", "Heavy lifting OK"] },
+  ],
+  security: [
+    { id: "license",       label: "Security license", kind: "select", options: ["SIA / equivalent", "Armed", "Unarmed", "Pending"] },
+    { id: "training",      label: "Training",       kind: "multiselect", options: ["Close protection", "Crowd control", "First aid", "De-escalation"] },
+    { id: "languages_fluent", label: "Languages spoken", kind: "chips", placeholder: "Add a language…" },
+  ],
+};
+
+/** Default settings for the demo agency (Atelier Roma). Free plan = 3 enabled. */
+export const WORKSPACE_TAXONOMY_DEFAULT: WorkspaceTaxonomySetting[] = [
+  { parentId: "models",     isEnabled: true,  showInDirectory: true, showInRegistration: true, requiresApproval: true },
+  { parentId: "hosts",      isEnabled: true,  showInDirectory: true, showInRegistration: true, requiresApproval: true },
+  { parentId: "performers", isEnabled: true,  showInDirectory: true, showInRegistration: true, requiresApproval: false },
+  { parentId: "music",          isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+  { parentId: "creators",       isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+  { parentId: "chefs",          isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+  { parentId: "wellness",       isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+  { parentId: "hospitality",    isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+  { parentId: "transportation", isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+  { parentId: "photo_video",    isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: false },
+  { parentId: "event_staff",    isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: false },
+  { parentId: "security",       isEnabled: false, showInDirectory: false, showInRegistration: false, requiresApproval: true },
+];
+
 export const DISCOVER_TALENT: DiscoverTalent[] = [
-  { id: "dt1", name: "Marta Reyes", agency: "Acme Models", city: "Madrid", height: "5'9\"", thumb: "🌸", available: true },
-  { id: "dt2", name: "Kai Lin", agency: "Acme Models", city: "Berlin", height: "5'11\"", thumb: "🌊", available: true },
-  { id: "dt3", name: "Tomás Navarro", agency: "Acme Models", city: "Lisbon", height: "6'1\"", thumb: "🍃", available: true },
-  { id: "dt4", name: "Yuna Park", agency: "Praline London", city: "London", height: "5'10\"", thumb: "🪷", available: false },
-  { id: "dt5", name: "Léa Mercier", agency: "Maison Sud", city: "Paris", height: "5'8\"", thumb: "🌷", available: true },
-  { id: "dt6", name: "Ola Brandt", agency: "Nord Talent", city: "Copenhagen", height: "5'11\"", thumb: "🌾", available: true },
-  { id: "dt7", name: "Rafa Ortega", agency: "Acme Models", city: "Madrid", height: "6'0\"", thumb: "🍂", available: false },
-  { id: "dt8", name: "Iris Volpe", agency: "Bottega Roma", city: "Rome", height: "5'9\"", thumb: "🌺", available: true },
+  { id: "dt1", name: "Marta Reyes", agency: "Acme Models", city: "Madrid", height: "5'9\"", thumb: "https://i.pravatar.cc/600?img=5", available: true, category: "models",
+    subType: "fashion", trust: "gold", slug: "marta-reyes", premiumPage: true,
+    bio: "Editorial-leaning fashion model based in Madrid. Eight years with Acme; recent campaigns for Mango, Bvlgari, Loewe.",
+    channels: [
+      { kind: "agency", name: "Acme Models", commission: "20%" },
+      { kind: "agency", name: "Praline London", commission: "20%" },
+      { kind: "freelance", name: "Direct (Marta is your coordinator)" },
+    ] },
+  { id: "dt2", name: "Kai Lin", agency: "Acme Models", city: "Berlin", height: "5'11\"", thumb: "https://i.pravatar.cc/600?img=14", available: true, category: "models",
+    subType: "commercial", trust: "verified", slug: "kai-lin",
+    bio: "Commercial + showroom specialist. Berlin-based, bilingual EN/DE.",
+    channels: [
+      { kind: "agency", name: "Acme Models", commission: "20%" },
+      { kind: "hub", name: "Tulum Hub", commission: "10%" },
+    ] },
+  { id: "dt3", name: "Tomás Navarro", agency: "Acme Models", city: "Lisbon", height: "6'1\"", thumb: "https://i.pravatar.cc/600?img=12", available: true, category: "hosts",
+    subType: "vip_host", trust: "silver", slug: "tomas-navarro", replyTimeMin: 90,
+    bio: "VIP host & MC. Lisbon nightlife scene + Algarve summer residencies.",
+    channels: [
+      { kind: "agency", name: "Acme Models", commission: "20%" },
+      { kind: "freelance", name: "Direct (Tomás is your coordinator)" },
+    ] },
+  { id: "dt4", name: "Yuna Park", agency: "Praline London", city: "London", height: "5'10\"", thumb: "https://i.pravatar.cc/600?img=44", available: false, category: "models",
+    subType: "fashion", trust: "verified", slug: "yuna-park",
+    bio: "Editorial + runway. Exclusive with Praline London since 2023.",
+    channels: [
+      { kind: "agency", name: "Praline London (exclusive)", commission: "22%" },
+    ] },
+  { id: "dt5", name: "Léa Mercier", agency: "Maison Sud", city: "Paris", height: "5'8\"", thumb: "https://i.pravatar.cc/600?img=47", available: true, category: "djs",
+    subType: "dj", trust: "silver", slug: "lea-mercier", replyTimeMin: 45, premiumPage: true,
+    bio: "House + disco DJ. Paris residencies + festival circuit. 90 / 120 / 180 min sets.",
+    channels: [
+      { kind: "agency", name: "Maison Sud", commission: "18%" },
+      { kind: "freelance", name: "Direct (Léa is your coordinator)" },
+    ] },
+  { id: "dt6", name: "Ola Brandt", agency: "Nord Talent", city: "Copenhagen", height: "5'11\"", thumb: "https://i.pravatar.cc/600?img=49", available: true, category: "chefs",
+    subType: "private_chef", trust: "verified", slug: "ola-brandt", replyTimeMin: 30,
+    bio: "Nordic / new-Scandinavian private chef. Tasting menus 6–24 guests.",
+    channels: [
+      { kind: "freelance", name: "Direct (Ola is your coordinator)" },
+    ] },
+  { id: "dt7", name: "Rafa Ortega", agency: "Acme Models", city: "Madrid", height: "6'0\"", thumb: "https://i.pravatar.cc/600?img=53", available: false, category: "performers",
+    subType: "fire", trust: "verified", slug: "rafa-ortega",
+    bio: "Fire performer + acrobat. Festival circuit Spain + Portugal.",
+    channels: [
+      { kind: "agency", name: "Acme Models", commission: "20%" },
+      { kind: "hub", name: "Tulum Hub", commission: "10%" },
+      { kind: "freelance", name: "Direct (Rafa is your coordinator)" },
+    ] },
+  { id: "dt8", name: "Iris Volpe", agency: "Bottega Roma", city: "Rome", height: "5'9\"", thumb: "https://i.pravatar.cc/600?img=16", available: true, category: "artists",
+    subType: "live_act", trust: "basic", slug: "iris-volpe",
+    bio: "Live painting + performance. Multi-day events.",
+    channels: [
+      { kind: "agency", name: "Bottega Roma", commission: "25%" },
+      { kind: "freelance", name: "Direct (Iris is your coordinator)" },
+    ] },
+];
+
+// ════════════════════════════════════════════════════════════════════
+// Talent trust tier — surfaced as a chip on profile sheets and the
+// inquiry workspace. NOT subscription-driven (per binding spec). Driven
+// by verification + funded-account signals on the talent's account.
+// ════════════════════════════════════════════════════════════════════
+
+export const TALENT_TRUST_META: Record<"basic" | "verified" | "silver" | "gold", {
+  label: string; emoji: string; bg: string; fg: string; helper: string;
+}> = {
+  basic:    { label: "Basic",    emoji: "·",  bg: "rgba(11,11,13,0.05)", fg: "rgba(11,11,13,0.55)", helper: "New profile · no verification yet." },
+  verified: { label: "Verified", emoji: "✓",  bg: "rgba(91,107,160,0.10)", fg: "#3B4A75", helper: "ID + payout details verified." },
+  silver:   { label: "Silver",   emoji: "✦",  bg: "rgba(82,96,109,0.12)",  fg: "#3A4651", helper: "Verified + repeat bookings on Tulala." },
+  gold:     { label: "Gold",     emoji: "★",  bg: "rgba(184,135,49,0.14)", fg: "#7A5A1F", helper: "Silver + funded-account top-tier client." },
+};
+
+// ════════════════════════════════════════════════════════════════════
+// TRUST & VERIFICATION SYSTEM (Phase 1)
+//
+// Marketplace trust layer — separate from account/email security.
+// Three concepts:
+//   1. Account Verification (email/phone) — security only, no public badge
+//   2. Profile Claiming — agency creates profile, talent claims it
+//   3. Profile Trust Verification — public/private trust badges
+//
+// MVP verification types: instagram_verified, tulala_verified, agency_confirmed.
+// Future-ready for: business_verified, domain_verified, payment_verified, id_verified.
+//
+// All shapes mirror the production schema (verification_requests,
+// profile_verifications, profile_claim_invitations) so demo state is
+// portable to real persistence.
+// ════════════════════════════════════════════════════════════════════
+
+export type VerificationSubjectType =
+  | "talent_profile"
+  | "client_profile"
+  | "brand_profile"
+  | "agency_profile"
+  | "user_account";
+
+export type VerificationContext = "hub" | "agency" | "studio" | "client" | "platform";
+
+export type VerificationMethod =
+  | "instagram_dm"
+  | "manual_review"
+  | "agency_confirmation"
+  | "domain"
+  | "payment"
+  | "phone"
+  | "email";
+
+export type VerificationType =
+  | "instagram_verified"
+  | "tulala_verified"
+  | "agency_confirmed"
+  | "business_verified"
+  | "domain_verified"
+  | "payment_verified"
+  | "phone_verified"
+  | "id_verified";
+
+export type VerificationRequestStatus =
+  | "draft"
+  | "pending_user_action"
+  | "submitted"
+  | "in_review"
+  | "approved"
+  | "rejected"
+  | "expired"
+  | "cancelled"
+  | "needs_more_info";
+
+export type ProfileClaimStatus =
+  | "unclaimed"
+  | "invite_sent"
+  | "claimed"
+  | "disputed"
+  | "released";
+
+export type VerificationActiveStatus = "active" | "revoked" | "expired";
+
+// ─── Platform-admin verification method registry ────────────────────────
+// Phase 2 — platform admins decide which verification methods are
+// available across the whole platform. Disabled methods disappear from
+// talent CTAs, admin queue tabs, and public badges. Workspace admins
+// cannot override these settings.
+
+export type VerificationReviewMode = "automated" | "manual" | "hybrid";
+export type VerificationVisibility = "public_profile" | "admin_only" | "internal";
+export type VerificationTierGate = "basic" | "pro" | "portfolio" | "all";
+
+export type VerificationMethodConfig = {
+  type: VerificationType;
+  enabled: boolean;
+  reviewMode: VerificationReviewMode;
+  visibleOn: VerificationVisibility[];
+  /** Talent subscription tiers that can use this method. "all" means
+   *  any talent can use it regardless of plan. */
+  availableToTiers: VerificationTierGate[];
+  evidenceRequired: boolean;
+  /** Number of days a badge stays active after approval before it
+   *  expires and must be re-verified. null = never expires. */
+  expiresAfterDays?: number | null;
+};
+
+/** Audit entry for the verification methods console — every toggle
+ *  produces one of these so platform admins can see who changed what. */
+export type VerificationMethodAuditEntry = {
+  id: string;
+  methodType: VerificationType;
+  changedByUserId: string;
+  changeKind: "enabled" | "disabled" | "review_mode" | "visibility" | "tier_gate" | "evidence_required" | "expiry";
+  before: string;
+  after: string;
+  at: string;
+};
+
+/** A single verification attempt — every action by user/agency/admin
+ *  creates one of these. Lifecycle: draft → submitted → in_review →
+ *  approved | rejected | needs_more_info. */
+export type VerificationRequest = {
+  id: string;
+  subjectType: VerificationSubjectType;
+  subjectId: string;
+  /** User who initiated — null when system-created. */
+  requestedByUserId: string | null;
+  context: VerificationContext;
+  agencyId?: string | null;
+  hubId?: string | null;
+  clientId?: string | null;
+  method: VerificationMethod;
+  verificationType: VerificationType;
+  status: VerificationRequestStatus;
+  /** Generated unique code talent must include in their DM. */
+  verificationCode?: string | null;
+  /** What identifier the user is claiming — @handle, domain.com, etc. */
+  claimedIdentifier?: string | null;
+  /** Profile URL etc. */
+  targetUrl?: string | null;
+  /** Talent-provided supporting URL — screenshot of DM, ID document URL,
+   *  invoice, work portfolio link, etc. Visible to admin reviewers. */
+  evidenceUrl?: string | null;
+  /** Free-text evidence note from talent (e.g. "DM sent from
+   *  @marta.studio at 14:02 GMT, screenshot attached"). */
+  evidenceNote?: string | null;
+  /** Public message visible to talent (e.g. rejection reason summary). */
+  publicMessage?: string | null;
+  /** Admin-only notes — never shown to talent. */
+  adminNotes?: string | null;
+  rejectionReason?: string | null;
+  reviewedByUserId?: string | null;
+  reviewedAt?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Approved active verification badge. Created when an admin approves a
+ *  matching VerificationRequest. Rendered as the public badge. */
+export type ProfileVerification = {
+  id: string;
+  subjectType: VerificationSubjectType;
+  subjectId: string;
+  verificationType: VerificationType;
+  /** instagram | tulala | agency | domain | stripe | phone | email */
+  provider: string;
+  /** @handle or agency_id or domain — depends on type. */
+  identifier?: string | null;
+  sourceRequestId: string;
+  status: VerificationActiveStatus;
+  publicBadgeEnabled: boolean;
+  verifiedByUserId?: string | null;
+  verifiedAt: string;
+  expiresAt?: string | null;
+  metadata?: Record<string, unknown>;
+};
+
+/** Profile claim invitation sent by agency/studio/admin to a talent. */
+export type ProfileClaimInvitation = {
+  id: string;
+  profileId: string;
+  profileType: "talent_profile" | "client_profile" | "brand_profile";
+  email?: string;
+  phone?: string;
+  invitedByUserId: string;
+  invitedByAgencyId?: string;
+  tokenHash: string;
+  status: "pending" | "accepted" | "expired" | "revoked" | "disputed";
+  acceptedByUserId?: string | null;
+  acceptedAt?: string | null;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/** Per-verification-type display metadata — labels, tooltips, palette. */
+export const VERIFICATION_TYPE_META: Record<VerificationType, {
+  label: string;
+  shortLabel: string;
+  emoji: string;
+  tooltip: string;
+  bg: string;
+  fg: string;
+  /** Whether this badge should ever appear publicly. */
+  publicEligible: boolean;
+}> = {
+  instagram_verified: {
+    label: "Instagram Verified",
+    shortLabel: "IG Verified",
+    emoji: "📸",
+    tooltip: "Tulala confirmed this profile controls the Instagram account linked here.",
+    bg: "rgba(225,48,108,0.10)",
+    fg: "#C13584",
+    publicEligible: true,
+  },
+  tulala_verified: {
+    label: "Tulala Verified",
+    shortLabel: "Tulala Verified",
+    emoji: "✓",
+    tooltip: "Tulala manually reviewed this profile for authenticity and quality.",
+    bg: "rgba(15,79,62,0.10)",
+    fg: "#0F4F3E",
+    publicEligible: true,
+  },
+  agency_confirmed: {
+    label: "Agency Confirmed",
+    shortLabel: "Agency Confirmed",
+    emoji: "✦",
+    tooltip: "This agency confirmed the profile is part of its roster.",
+    bg: "rgba(91,107,160,0.10)",
+    fg: "#3B4A75",
+    publicEligible: true,
+  },
+  business_verified: {
+    label: "Business Verified",
+    shortLabel: "Business Verified",
+    emoji: "🏢",
+    tooltip: "Tulala verified the business identity behind this brand.",
+    bg: "rgba(184,135,49,0.14)",
+    fg: "#7A5A1F",
+    publicEligible: true,
+  },
+  domain_verified: {
+    label: "Domain Verified",
+    shortLabel: "Domain Verified",
+    emoji: "🌐",
+    tooltip: "This profile controls the domain it's linked from.",
+    bg: "rgba(91,107,160,0.10)",
+    fg: "#3B4A75",
+    publicEligible: true,
+  },
+  payment_verified: {
+    label: "Payment Verified",
+    shortLabel: "Payment Verified",
+    emoji: "💳",
+    tooltip: "This client has a verified payment method on Tulala.",
+    bg: "rgba(15,79,62,0.10)",
+    fg: "#0F4F3E",
+    publicEligible: true,
+  },
+  phone_verified: {
+    label: "Phone Verified",
+    shortLabel: "Phone",
+    emoji: "📱",
+    tooltip: "Phone number confirmed via SMS code.",
+    bg: "rgba(11,11,13,0.05)",
+    fg: "rgba(11,11,13,0.72)",
+    publicEligible: false,
+  },
+  id_verified: {
+    label: "ID Verified",
+    shortLabel: "ID Verified",
+    emoji: "🪪",
+    tooltip: "Government ID confirmed by Tulala review.",
+    bg: "rgba(15,79,62,0.10)",
+    fg: "#0F4F3E",
+    publicEligible: true,
+  },
+};
+
+/** Claim status display metadata. */
+export const PROFILE_CLAIM_META: Record<ProfileClaimStatus, {
+  label: string;
+  shortLabel: string;
+  bg: string;
+  fg: string;
+  helper: string;
+}> = {
+  unclaimed:   { label: "Unclaimed",   shortLabel: "Unclaimed",   bg: "rgba(11,11,13,0.05)",   fg: "rgba(11,11,13,0.55)", helper: "Created by an agency or admin. Talent hasn't claimed it yet." },
+  invite_sent: { label: "Invite sent", shortLabel: "Invite sent", bg: "rgba(82,96,109,0.10)",  fg: "#3A4651",             helper: "Claim invite emailed. Waiting for talent." },
+  claimed:     { label: "Claimed",     shortLabel: "Claimed",     bg: "rgba(15,79,62,0.10)",   fg: "#0F4F3E",             helper: "Talent owns this profile and verified their email." },
+  disputed:    { label: "Disputed",    shortLabel: "Disputed",    bg: "rgba(200,40,40,0.10)",  fg: "#C82828",             helper: "Talent flagged this profile as not theirs. Admin review needed." },
+  released:    { label: "Released",    shortLabel: "Released",    bg: "rgba(11,11,13,0.05)",   fg: "rgba(11,11,13,0.55)", helper: "Talent released ownership back to the agency." },
+};
+
+/** Normalized trust data returned by getTrustSummary — used across all
+ *  surfaces (public profile, roster, admin queue, inquiry, chat headers). */
+export type TrustSummary = {
+  subjectType: VerificationSubjectType;
+  subjectId: string;
+  claimStatus?: ProfileClaimStatus;
+  account?: {
+    emailVerified?: boolean;
+    phoneVerified?: boolean;
+  };
+  badges: Array<{
+    type: VerificationType;
+    label: string;
+    tooltip: string;
+    public: boolean;
+    status: VerificationActiveStatus;
+    identifier?: string | null;
+    /** Phase 2 — false when the platform admin has disabled this method.
+     *  Public surfaces hide such badges; admin surfaces show them with
+     *  a "(method disabled)" annotation so the badge isn't lost. */
+    methodEnabled: boolean;
+  }>;
+  pendingRequests: Array<{
+    verificationType: VerificationType;
+    status: VerificationRequestStatus;
+    method: VerificationMethod;
+  }>;
+};
+
+// ── Mock data ────────────────────────────────────────────────────────
+
+/** Seed verification requests across the Tulala demo dataset. */
+export const SEED_VERIFICATION_REQUESTS: VerificationRequest[] = [
+  // Marta has IG Verified approved + Tulala Verified approved
+  {
+    id: "vr-001", subjectType: "talent_profile", subjectId: "t1",
+    requestedByUserId: "u-marta", context: "agency", agencyId: "a-atelier-roma",
+    method: "instagram_dm", verificationType: "instagram_verified",
+    status: "approved", verificationCode: "TUL-8492", claimedIdentifier: "@martareyesmodel",
+    targetUrl: "https://atelier-roma.tulala.app/marta-reyes",
+    reviewedByUserId: "u-platform-admin", reviewedAt: "2026-04-22T10:00:00Z",
+    createdAt: "2026-04-20T14:32:00Z", updatedAt: "2026-04-22T10:00:00Z",
+  },
+  {
+    id: "vr-002", subjectType: "talent_profile", subjectId: "t1",
+    requestedByUserId: "u-marta", context: "agency", agencyId: "a-atelier-roma",
+    method: "manual_review", verificationType: "tulala_verified",
+    status: "approved", reviewedByUserId: "u-platform-admin",
+    reviewedAt: "2026-04-23T11:00:00Z",
+    createdAt: "2026-04-22T15:00:00Z", updatedAt: "2026-04-23T11:00:00Z",
+  },
+  // Kai Lin has IG submitted, awaiting admin
+  {
+    id: "vr-003", subjectType: "talent_profile", subjectId: "t2",
+    requestedByUserId: "u-kai", context: "agency", agencyId: "a-atelier-roma",
+    method: "instagram_dm", verificationType: "instagram_verified",
+    status: "submitted", verificationCode: "TUL-3318", claimedIdentifier: "@kailin",
+    targetUrl: "https://atelier-roma.tulala.app/kai-lin",
+    evidenceUrl: "https://drive.tulala.app/screens/kai-ig-dm-2026-04-29.png",
+    evidenceNote: "DM sent 2026-04-29 16:28 GMT from @kailin. Screenshot attached.",
+    createdAt: "2026-04-29T16:12:00Z", updatedAt: "2026-04-29T16:30:00Z",
+    expiresAt: "2026-05-02T16:12:00Z",
+  },
+  // Tomás Navarro IG pending — talent hasn't sent the DM yet
+  {
+    id: "vr-004", subjectType: "talent_profile", subjectId: "t3",
+    requestedByUserId: "u-tomas", context: "agency", agencyId: "a-atelier-roma",
+    method: "instagram_dm", verificationType: "instagram_verified",
+    status: "pending_user_action", verificationCode: "TUL-7041", claimedIdentifier: "@tomasnvarro",
+    targetUrl: "https://atelier-roma.tulala.app/tomas-navarro",
+    createdAt: "2026-04-30T09:00:00Z", updatedAt: "2026-04-30T09:00:00Z",
+    expiresAt: "2026-05-03T09:00:00Z",
+  },
+  // Lina Park — needs more info from admin
+  {
+    id: "vr-005", subjectType: "talent_profile", subjectId: "t4",
+    requestedByUserId: "u-lina", context: "agency", agencyId: "a-atelier-roma",
+    method: "manual_review", verificationType: "tulala_verified",
+    status: "needs_more_info",
+    publicMessage: "Add at least 3 portfolio photos before resubmitting.",
+    adminNotes: "Profile is too thin — only 1 photo and no bio. Tulala bar is 3+ photos + bio.",
+    reviewedByUserId: "u-platform-admin", reviewedAt: "2026-04-28T14:00:00Z",
+    createdAt: "2026-04-27T10:00:00Z", updatedAt: "2026-04-28T14:00:00Z",
+  },
+];
+
+/** Seed approved profile verifications — derived from approved requests. */
+export const SEED_PROFILE_VERIFICATIONS: ProfileVerification[] = [
+  {
+    id: "pv-001", subjectType: "talent_profile", subjectId: "t1",
+    verificationType: "instagram_verified", provider: "instagram",
+    identifier: "@martareyesmodel", sourceRequestId: "vr-001",
+    status: "active", publicBadgeEnabled: true,
+    verifiedByUserId: "u-platform-admin", verifiedAt: "2026-04-22T10:00:00Z",
+  },
+  {
+    id: "pv-002", subjectType: "talent_profile", subjectId: "t1",
+    verificationType: "tulala_verified", provider: "tulala",
+    sourceRequestId: "vr-002",
+    status: "active", publicBadgeEnabled: true,
+    verifiedByUserId: "u-platform-admin", verifiedAt: "2026-04-23T11:00:00Z",
+  },
+  // Agency-confirmed for several talents on Atelier Roma
+  {
+    id: "pv-003", subjectType: "talent_profile", subjectId: "t1",
+    verificationType: "agency_confirmed", provider: "agency",
+    identifier: "atelier-roma", sourceRequestId: "system-agency-confirm",
+    status: "active", publicBadgeEnabled: true,
+    verifiedAt: "2026-04-15T00:00:00Z",
+    metadata: { agencyName: "Atelier Roma" },
+  },
+  {
+    id: "pv-004", subjectType: "talent_profile", subjectId: "t2",
+    verificationType: "agency_confirmed", provider: "agency",
+    identifier: "atelier-roma", sourceRequestId: "system-agency-confirm",
+    status: "active", publicBadgeEnabled: true,
+    verifiedAt: "2026-04-15T00:00:00Z",
+    metadata: { agencyName: "Atelier Roma" },
+  },
+  {
+    id: "pv-005", subjectType: "talent_profile", subjectId: "t3",
+    verificationType: "agency_confirmed", provider: "agency",
+    identifier: "atelier-roma", sourceRequestId: "system-agency-confirm",
+    status: "active", publicBadgeEnabled: true,
+    verifiedAt: "2026-04-18T00:00:00Z",
+    metadata: { agencyName: "Atelier Roma" },
+  },
+  // Client-side: Vogue Italia is business verified
+  {
+    id: "pv-006", subjectType: "client_profile", subjectId: "c1",
+    verificationType: "business_verified", provider: "tulala",
+    sourceRequestId: "system-business",
+    status: "active", publicBadgeEnabled: true,
+    verifiedAt: "2026-03-01T00:00:00Z",
+  },
+];
+
+/** Seed claim invitations — Amelia and Kai have outstanding invites. */
+export const SEED_PROFILE_CLAIMS: ProfileClaimInvitation[] = [
+  {
+    id: "pci-001", profileId: "t5", profileType: "talent_profile",
+    email: "amelia.dorsey@example.com",
+    invitedByUserId: "u-marta", invitedByAgencyId: "a-atelier-roma",
+    tokenHash: "hash-001", status: "pending",
+    expiresAt: "2026-05-15T00:00:00Z",
+    createdAt: "2026-04-25T10:00:00Z", updatedAt: "2026-04-25T10:00:00Z",
+  },
+  {
+    // Disputed example — talent says this profile isn't theirs.
+    id: "pci-002", profileId: "t8-disputed", profileType: "talent_profile",
+    email: "lucas.moreno@example.com",
+    invitedByUserId: "u-marta", invitedByAgencyId: "a-atelier-roma",
+    tokenHash: "hash-002", status: "disputed",
+    expiresAt: "2026-05-20T00:00:00Z",
+    createdAt: "2026-04-22T09:30:00Z", updatedAt: "2026-04-28T14:12:00Z",
+  },
+];
+
+/** Per-talent contact gate — controls who can send inquiries.
+ *  Default "open" = anyone can DM. "verified_only" requires client to
+ *  have an active trust badge; "trusted_only" requires score >= 60. */
+export type TalentContactGate = "open" | "verified_only" | "trusted_only";
+export const SEED_TALENT_CONTACT_GATE: Record<string, TalentContactGate> = {
+  t1: "open",
+  t2: "open",
+  t3: "verified_only",
+  t4: "open",
+  t7: "trusted_only",
+};
+
+/** Per-talent claim status — keyed by talent id. Null/undefined means
+ *  the profile was self-created (no claim flow needed). */
+export const SEED_CLAIM_STATUS: Record<string, ProfileClaimStatus> = {
+  t1: "claimed",      // Marta — long-tenured, fully claimed
+  t2: "claimed",      // Kai — claimed, IG pending
+  t3: "claimed",      // Tomás — claimed, IG pending user-action
+  t4: "claimed",      // Lina — claimed, Tulala review needs more info
+  t5: "invite_sent",  // Amelia — agency invited, talent hasn't accepted
+  t6: "unclaimed",    // Sven — agency-managed draft, not yet invited
+  t7: "claimed",      // Zara — claimed
+};
+
+/** Per-user account verification (email/phone). NOT a public badge,
+ *  just account-security state. Keyed by user id. */
+export const SEED_ACCOUNT_VERIFICATION: Record<string, { emailVerified: boolean; phoneVerified: boolean }> = {
+  "u-marta":          { emailVerified: true,  phoneVerified: true  },
+  "u-kai":            { emailVerified: true,  phoneVerified: false },
+  "u-tomas":          { emailVerified: true,  phoneVerified: false },
+  "u-lina":           { emailVerified: true,  phoneVerified: false },
+  "u-amelia":         { emailVerified: false, phoneVerified: false }, // hasn't claimed yet
+  "u-sven":           { emailVerified: false, phoneVerified: false },
+  "u-zara":           { emailVerified: true,  phoneVerified: true  },
+  "u-platform-admin": { emailVerified: true,  phoneVerified: true  },
+};
+
+/** Platform-admin verification-method registry. Source-of-truth for
+ *  which methods are available across Tulala. Phase 1 launched with the
+ *  three methods enabled (Instagram / Tulala / Agency). Phase 2 adds
+ *  five methods that ship disabled by default — platform admin opts
+ *  them in via the Verification Methods console. */
+export const SEED_VERIFICATION_METHOD_CONFIG: VerificationMethodConfig[] = [
+  { type: "instagram_verified", enabled: true,  reviewMode: "manual",    visibleOn: ["public_profile"],            availableToTiers: ["all"],               evidenceRequired: false, expiresAfterDays: null },
+  { type: "tulala_verified",    enabled: true,  reviewMode: "manual",    visibleOn: ["public_profile"],            availableToTiers: ["all"],               evidenceRequired: false, expiresAfterDays: null },
+  { type: "agency_confirmed",   enabled: true,  reviewMode: "automated", visibleOn: ["public_profile"],            availableToTiers: ["all"],               evidenceRequired: false, expiresAfterDays: null },
+  { type: "phone_verified",     enabled: false, reviewMode: "automated", visibleOn: ["admin_only"],                availableToTiers: ["all"],               evidenceRequired: false, expiresAfterDays: 365 },
+  { type: "id_verified",        enabled: false, reviewMode: "manual",    visibleOn: ["admin_only"],                availableToTiers: ["pro", "portfolio"], evidenceRequired: true,  expiresAfterDays: 730 },
+  { type: "business_verified",  enabled: false, reviewMode: "manual",    visibleOn: ["public_profile"],            availableToTiers: ["pro", "portfolio"], evidenceRequired: true,  expiresAfterDays: 365 },
+  { type: "domain_verified",    enabled: false, reviewMode: "automated", visibleOn: ["public_profile"],            availableToTiers: ["portfolio"],         evidenceRequired: false, expiresAfterDays: 90  },
+  { type: "payment_verified",   enabled: false, reviewMode: "automated", visibleOn: ["admin_only"],                availableToTiers: ["all"],               evidenceRequired: false, expiresAfterDays: 365 },
+];
+
+/** Demo audit entries — production wires this to a real audit table. */
+export const SEED_VERIFICATION_METHOD_AUDIT: VerificationMethodAuditEntry[] = [
+  {
+    id: "vma-001", methodType: "instagram_verified", changedByUserId: "u-platform-admin",
+    changeKind: "enabled", before: "false", after: "true",
+    at: "2026-04-01T09:00:00Z",
+  },
+  {
+    id: "vma-002", methodType: "tulala_verified", changedByUserId: "u-platform-admin",
+    changeKind: "enabled", before: "false", after: "true",
+    at: "2026-04-01T09:01:00Z",
+  },
+  {
+    id: "vma-003", methodType: "agency_confirmed", changedByUserId: "u-platform-admin",
+    changeKind: "enabled", before: "false", after: "true",
+    at: "2026-04-01T09:01:30Z",
+  },
+];
+
+/** Map talent profile id → user id (their account). Used for resolving
+ *  account verification state in getTrustSummary. */
+export const TALENT_TO_USER: Record<string, string> = {
+  t1: "u-marta",
+  t2: "u-kai",
+  t3: "u-tomas",
+  t4: "u-lina",
+  t5: "u-amelia",
+  t6: "u-sven",
+  t7: "u-zara",
+};
+
+// ════════════════════════════════════════════════════════════════════
+// Pending talent registrations — Phase H (approval queue).
+// New self-registered talent land here. Admin approves / rejects /
+// requests more info. Counts roll up to a Roster badge.
+// ════════════════════════════════════════════════════════════════════
+
+export type PendingTalent = {
+  id: string;
+  name: string;
+  thumb: string;
+  parentCategory: TaxonomyParentId;
+  childTypes: string[];
+  city: string;
+  submittedAgo: string;
+  photoCount: number;
+  languages: string[];
+  fields: Record<string, string | string[]>;
+};
+
+export const PENDING_TALENT: PendingTalent[] = [
+  {
+    id: "pt1", name: "Sofia Lupo", thumb: "https://i.pravatar.cc/300?img=23",
+    parentCategory: "models", childTypes: ["fashion", "swimwear"],
+    city: "Naples", submittedAgo: "2h", photoCount: 6,
+    languages: ["Italian", "English", "Spanish"],
+    fields: { height: "5'10\"", bust: "85 cm", waist: "62 cm", hips: "90 cm", hair: "Brown", eyes: "Hazel" },
+  },
+  {
+    id: "pt2", name: "Diego Martín", thumb: "https://i.pravatar.cc/300?img=33",
+    parentCategory: "hosts", childTypes: ["vip_host", "mc"],
+    city: "Madrid", submittedAgo: "5h", photoCount: 4,
+    languages: ["Spanish", "English"],
+    fields: { vibe: "Polished", experience_yrs: "6" },
+  },
+  {
+    id: "pt3", name: "Aiyana Storm", thumb: "https://i.pravatar.cc/300?img=20",
+    parentCategory: "performers", childTypes: ["dancer", "belly_dancer"],
+    city: "Tulum", submittedAgo: "1d", photoCount: 5,
+    languages: ["English", "Spanish"],
+    fields: { act_type: ["Solo", "Choreographed"], rig_required: "No", duration_min: "30 min" },
+  },
 ];
 
 export type Shortlist = {
@@ -4246,10 +6006,21 @@ export type Shortlist = {
 };
 
 export const MY_SHORTLISTS: Shortlist[] = [
-  { id: "sl1", name: "Spring lookbook · Estudio Solé SS27", brief: "Editorial · 4 talent", count: 6, updatedAgo: "2h", status: "shared", thumbs: ["🌸","🌊","🍃","🌷"] },
-  { id: "sl2", name: "Bridal capsule", brief: "Lookbook · 3 talent", count: 4, updatedAgo: "1d", status: "draft", thumbs: ["🌷","🪷","🌹"] },
-  { id: "sl3", name: "Press kit launch", brief: "Editorial · 2 talent", count: 3, updatedAgo: "5d", status: "inquiry-sent", thumbs: ["🌸","🍃"] },
-  { id: "sl4", name: "Winter '25 (archived)", brief: "Wrapped · 5 bookings", count: 7, updatedAgo: "4mo", status: "booked", thumbs: ["🌊","🌷","🍃","🌹","🌾"] },
+  { id: "sl1", name: "Spring lookbook · Estudio Solé SS27", brief: "Editorial · 4 talent", count: 6, updatedAgo: "2h", status: "shared", thumbs: [
+    "https://i.pravatar.cc/200?img=5", "https://i.pravatar.cc/200?img=14",
+    "https://i.pravatar.cc/200?img=12", "https://i.pravatar.cc/200?img=47",
+  ] },
+  { id: "sl2", name: "Bridal capsule", brief: "Lookbook · 3 talent", count: 4, updatedAgo: "1d", status: "draft", thumbs: [
+    "https://i.pravatar.cc/200?img=47", "https://i.pravatar.cc/200?img=44", "https://i.pravatar.cc/200?img=10",
+  ] },
+  { id: "sl3", name: "Press kit launch", brief: "Editorial · 2 talent", count: 3, updatedAgo: "5d", status: "inquiry-sent", thumbs: [
+    "https://i.pravatar.cc/200?img=5", "https://i.pravatar.cc/200?img=12",
+  ] },
+  { id: "sl4", name: "Winter '25 (archived)", brief: "Wrapped · 5 bookings", count: 7, updatedAgo: "4mo", status: "booked", thumbs: [
+    "https://i.pravatar.cc/200?img=14", "https://i.pravatar.cc/200?img=47",
+    "https://i.pravatar.cc/200?img=12", "https://i.pravatar.cc/200?img=10",
+    "https://i.pravatar.cc/200?img=49",
+  ] },
 ];
 
 export type ClientInquiry = {
@@ -4533,6 +6304,9 @@ export type ProtoState = {
   // client dimensions
   clientPlan: ClientPlan;
   clientPage: ClientPage;
+  /** Active client identity. "martina" = business (Martina Beach Club);
+   * "gringo" = personal client (The Gringo). Drives identity bar photo. */
+  clientProfile: ClientProfileId;
   // platform dimensions
   hqRole: HqRole;
   platformPage: PlatformPage;
@@ -4611,6 +6385,11 @@ type Ctx = {
   setTalentPage: (p: TalentPage) => void;
   setClientPlan: (p: ClientPlan) => void;
   setClientPage: (p: ClientPage) => void;
+  /** Active client identity (Martina Beach Club business vs The Gringo person). */
+  clientProfile: ClientProfileId;
+  setClientProfile: (p: ClientProfileId) => void;
+  /** Resolved profile object for the active client. */
+  activeClientProfile: ClientProfile;
   setHqRole: (r: HqRole) => void;
   setPlatformPage: (p: PlatformPage) => void;
   startImpersonation: (i: NonNullable<Impersonation>) => void;
@@ -4626,9 +6405,336 @@ type Ctx = {
   toast: (message: string, opts?: { undo?: () => void; action?: ToastAction; tone?: ToastTone }) => void;
   dismissToast: (id: number) => void;
   completeTask: (id: string) => void;
+  // Pending-approvals queue, lifted into proto state so the count is
+  // observable globally (topbar nav badge, mobile nav, settings row).
+  pendingTalent: PendingTalent[];
+  resolveApproval: (id: string) => void;
+  /** CSV bulk-import — append N talent records to the pending queue. Each
+   *  row enters as a draft pending profile so admin can review-then-publish.
+   *  Production wires this to a real INSERT into talent_profiles. */
+  bulkAddTalent: (rows: { firstName: string; lastName: string; email: string; primaryType?: string; city?: string }[]) => number;
+  // WS-25.2 — Bulk client import. Mirrors `bulkAddTalent`. Returns the
+  // number of rows actually created. Validation: name + at least one of
+  // email/contact required.
+  bulkAddClient: (rows: { name: string; contact?: string; email?: string }[]) => number;
+  importedClients: Client[];
+  // Custom workspace fields (Agency tier). Lifted so the Field Catalog
+  // and the Profile Shell are looking at the same list.
+  customFields: WorkspaceCustomField[];
+  addCustomField: (f: Omit<WorkspaceCustomField, "id">) => void;
+  removeCustomField: (id: string) => void;
+  setCustomFieldVisibility: (id: string, vis: FieldVisibility) => void;
+  // Per-workspace overrides on built-in field visibility. Empty by default
+  // (workspace falls back to DEFAULT_FIELD_VISIBILITY).
+  fieldVisibilityOverrides: Partial<Record<ProfileFieldId, FieldVisibility>>;
+  setFieldVisibility: (id: ProfileFieldId, vis: FieldVisibility) => void;
+  /** Resolve effective visibility for any built-in field — overrides win, defaults fall through. */
+  effectiveFieldVisibility: (id: ProfileFieldId) => FieldVisibility;
+
+  // ── Trust & Verification ─────────────────────────────────────────
+  verificationRequests: VerificationRequest[];
+  profileVerifications: ProfileVerification[];
+  profileClaims: ProfileClaimInvitation[];
+  claimStatusByTalent: Record<string, ProfileClaimStatus>;
+  /** Submit a new verification request — returns the created request. */
+  createVerificationRequest: (input: Omit<VerificationRequest, "id" | "status" | "createdAt" | "updatedAt"> & {
+    status?: VerificationRequestStatus;
+  }) => VerificationRequest;
+  /** Move a request through its lifecycle. */
+  updateVerificationRequest: (id: string, patch: Partial<VerificationRequest>) => void;
+  /** Approve a request — marks request approved + creates an active ProfileVerification. */
+  approveVerificationRequest: (id: string) => void;
+  /** Reject a request — marks request rejected with the given reason. */
+  rejectVerificationRequest: (id: string, reason: string, publicMessage?: string) => void;
+  /** Revoke an approved badge (e.g. IG handle changed). */
+  revokeProfileVerification: (id: string) => void;
+  /** Edge case: when a talent changes their Instagram handle, the prior
+   *  Instagram Verified badge is auto-revoked (production sends a notice
+   *  email; prototype just flips the status). Talent must re-verify. */
+  revokeInstagramOnHandleChange: (subjectType: VerificationSubjectType, subjectId: string, newHandle: string) => void;
+  /** Send a claim invite to a talent profile. */
+  sendProfileClaimInvite: (input: Omit<ProfileClaimInvitation, "id" | "status" | "tokenHash" | "createdAt" | "updatedAt">) => void;
+  /** Resolve a disputed claim invitation. Outcome controls what happens
+   *  to the profile-claim status: "release" frees the profile (back to
+   *  unclaimed); "uphold" keeps it with the agency and marks the dispute
+   *  resolved; "remove" deletes the agency-managed profile entirely. */
+  resolveProfileClaimDispute: (claimId: string, outcome: "release" | "uphold" | "remove", adminNotes?: string) => void;
+  /** Resolve all active trust data for a subject — used by every UI surface. */
+  getTrustSummary: (subjectType: VerificationSubjectType, subjectId: string) => TrustSummary;
+
+  // ── Platform-admin verification method registry (Phase 2) ────────
+  /** Full registry — one config per VerificationType. Always all 8 entries. */
+  verificationMethodConfigs: VerificationMethodConfig[];
+  /** Audit trail of platform-admin changes to method configs. */
+  verificationMethodAudit: VerificationMethodAuditEntry[];
+  /** True if the method is enabled platform-wide. UI surfaces gate on this. */
+  isVerificationMethodEnabled: (type: VerificationType) => boolean;
+  /** Lookup the full config for a method. */
+  getVerificationMethodConfig: (type: VerificationType) => VerificationMethodConfig;
+  /** All currently-enabled methods, in registry order. */
+  listEnabledMethods: () => VerificationType[];
+  /** Patch a method's config — emits an audit entry. Platform-admin only. */
+  updateVerificationMethod: (type: VerificationType, patch: Partial<VerificationMethodConfig>) => void;
+
+  // ── Trust filtering / risk score (Phase 2.4) ─────────────────────
+  /** 0-100 heuristic risk/health score for a subject. Internal only —
+   *  never surface to public users. Higher = more trustworthy. */
+  getRiskScore: (subjectType: VerificationSubjectType, subjectId: string) => number;
+  /** Talent's preferred contact gate. */
+  getTalentContactGate: (talentId: string) => TalentContactGate;
+  /** Talent updates their own gate. */
+  setTalentContactGate: (talentId: string, gate: TalentContactGate) => void;
+  /** Returns true if a client (resolved by id or "current") meets
+   *  the talent's gate, false if blocked. */
+  canClientContactTalent: (talentId: string, clientId: string) => boolean;
 };
 
+/** Agency-defined custom field. Renders in Profile Shell's "Profile details"
+ *  section alongside type-specific fields, plus appears as a column in CSV
+ *  exports. Backed by `workspace_custom_fields` in production. */
+export type WorkspaceCustomFieldKind = "Text" | "Number" | "Select" | "Multi-select" | "Date" | "Toggle";
+export type WorkspaceCustomFieldAppliesTo = "Talent" | "Client" | "Booking" | "Inquiry";
+export type WorkspaceCustomField = {
+  id: string;
+  name: string;
+  kind: WorkspaceCustomFieldKind;
+  appliesTo: WorkspaceCustomFieldAppliesTo;
+  required: boolean;
+  helper?: string;
+  /** Where this field is visible. Defaults to "internal" for new custom fields. */
+  visibility?: FieldVisibility;
+};
+
+// ════════════════════════════════════════════════════════════════════
+// FIELD PRIVACY MODEL
+// Every talent profile field has a 3-state visibility per workspace:
+//   public   → shown on the agency's public storefront + Discover
+//   internal → agency admins only (workspace team)
+//   hidden   → disabled by this workspace entirely
+//
+// Tulala always captures the data (network-wide engine); the agency
+// chooses what to expose. Free plan = locked defaults. Studio = can
+// move fields between public ↔ internal. Agency = full control + can
+// hide fields entirely.
+// ════════════════════════════════════════════════════════════════════
+
+export type FieldVisibility = "public" | "internal" | "hidden";
+
+/** Catalog ID for built-in profile fields — stable across all workspaces.
+ *  Custom fields use their own UUID and don't appear in this union. */
+export type ProfileFieldId =
+  // Identity
+  | "stageName" | "legalName" | "pronunciation" | "tagline" | "dob" | "ageDisplay" | "pronouns" | "gender"
+  // Services
+  | "primaryType" | "secondaryTypes" | "specialties"
+  // Location
+  | "homeBase" | "serviceCities" | "travelKm" | "travelFee" | "remoteOnly"
+  // Media
+  | "coverPhoto" | "photos" | "videoLinks" | "albums"
+  // About
+  | "bio"
+  // Languages
+  | "languages"
+  // Refinement
+  | "skills" | "contexts"
+  // Type-specific physical (Models)
+  | "height" | "bust" | "waist" | "hips" | "shoeSize" | "hair" | "eyes"
+  // Contact (always internal by default — never public)
+  | "email" | "phone" | "address"
+  // Money (always internal)
+  | "rates" | "payoutMethod" | "taxId"
+  // Compliance
+  | "passport" | "visa" | "insurance"
+  // Engagement
+  | "availability" | "languageRoleFlags"
+  // Files
+  | "files" | "compCard" | "contracts";
+
+/** Default visibility per built-in field. Defines the "shipped" privacy
+ *  posture — agencies on Studio+ can override these. */
+export const DEFAULT_FIELD_VISIBILITY: Record<ProfileFieldId, FieldVisibility> = {
+  // Identity — name + tagline are public; legal/dob/pronouns are internal by default
+  stageName:     "public",
+  legalName:     "internal",
+  pronunciation: "public",
+  tagline:       "public",
+  dob:           "internal",
+  ageDisplay:    "public",  // "29" or "26-30 range"
+  pronouns:      "public",
+  gender:        "public",
+  // Services
+  primaryType:     "public",
+  secondaryTypes:  "public",
+  specialties:     "public",
+  // Location — home base public, exact address never
+  homeBase:      "public",
+  serviceCities: "public",
+  travelKm:      "public",
+  travelFee:     "internal",
+  remoteOnly:    "public",
+  address:       "hidden",  // never collected for public-facing
+  // Media — gallery public, raw uploads private
+  coverPhoto:    "public",
+  photos:        "public",
+  videoLinks:    "public",
+  albums:        "public",
+  // About
+  bio:           "public",
+  // Languages + refinement — public
+  languages:          "public",
+  languageRoleFlags:  "public",
+  skills:             "public",
+  contexts:           "public",
+  // Physical — Models
+  height: "public",
+  bust:   "internal",
+  waist:  "internal",
+  hips:   "internal",
+  shoeSize: "internal",
+  hair:   "public",
+  eyes:   "public",
+  // Contact — never public by default
+  email:  "internal",
+  phone:  "internal",
+  // Money — always internal
+  rates:        "internal",
+  payoutMethod: "internal",
+  taxId:        "internal",
+  // Compliance
+  passport:  "internal",
+  visa:      "internal",
+  insurance: "internal",
+  // Engagement
+  availability: "internal",  // shown as available/booked, not full calendar
+  // Files
+  files:     "internal",
+  compCard:  "internal",
+  contracts: "internal",
+};
+
+/** Field metadata — display-friendly label + section for the privacy
+ *  settings UI. Mirrors what's in the Field Catalog. */
+export const PROFILE_FIELD_META: Record<ProfileFieldId, { label: string; section: string; description?: string }> = {
+  stageName:     { label: "Stage / professional name", section: "Identity", description: "Public name on storefront." },
+  legalName:     { label: "Legal name",                 section: "Identity", description: "For contracts. Never public." },
+  pronunciation: { label: "Pronunciation",              section: "Identity" },
+  tagline:       { label: "Tagline",                    section: "Identity", description: "One line shown on the directory card." },
+  dob:           { label: "Date of birth",              section: "Identity", description: "Used to compute age. Never public." },
+  ageDisplay:    { label: "Age (display)",              section: "Identity", description: "Shown as exact age or a range." },
+  pronouns:      { label: "Pronouns",                   section: "Identity" },
+  gender:        { label: "Gender",                     section: "Identity" },
+  primaryType:   { label: "Primary Talent Type",        section: "Services" },
+  secondaryTypes:{ label: "Secondary Talent Types",     section: "Services" },
+  specialties:   { label: "Specialties",                section: "Services" },
+  homeBase:      { label: "Home base",                  section: "Location" },
+  serviceCities: { label: "Service areas",              section: "Location" },
+  travelKm:      { label: "Travel radius",              section: "Location" },
+  travelFee:     { label: "Travel fee policy",          section: "Location", description: "Internal — used for quotes." },
+  remoteOnly:    { label: "Remote-only flag",           section: "Location" },
+  address:       { label: "Mailing address",            section: "Location", description: "Tulala doesn't collect this for public profiles." },
+  coverPhoto:    { label: "Cover photo",                section: "Media" },
+  photos:        { label: "Photo gallery",              section: "Media" },
+  videoLinks:    { label: "Video / social links",       section: "Media" },
+  albums:        { label: "Album-grouped photos",       section: "Media" },
+  bio:           { label: "Bio (any locale)",           section: "About" },
+  languages:     { label: "Languages spoken",           section: "Languages" },
+  languageRoleFlags: { label: "Can host / sell / translate", section: "Languages" },
+  skills:        { label: "Skills",                     section: "Refinement" },
+  contexts:      { label: "Best-for contexts",          section: "Refinement" },
+  height:        { label: "Height",                     section: "Physical" },
+  bust:          { label: "Bust",                       section: "Physical" },
+  waist:         { label: "Waist",                      section: "Physical" },
+  hips:          { label: "Hips",                       section: "Physical" },
+  shoeSize:      { label: "Shoe size",                  section: "Physical" },
+  hair:          { label: "Hair color",                 section: "Physical" },
+  eyes:          { label: "Eye color",                  section: "Physical" },
+  email:         { label: "Email",                      section: "Contact",  description: "How clients/agency reach the talent." },
+  phone:         { label: "Phone",                      section: "Contact",  description: "SMS verification + day-of booking comms." },
+  rates:         { label: "Rates + day rate",           section: "Money",    description: "Always internal — never public on storefront." },
+  payoutMethod:  { label: "Payout method",              section: "Money" },
+  taxId:         { label: "Tax ID",                     section: "Money" },
+  passport:      { label: "Passport scan",              section: "Compliance" },
+  visa:          { label: "Visa / work permit",         section: "Compliance" },
+  insurance:     { label: "Insurance certificate",      section: "Compliance" },
+  availability:  { label: "Availability calendar",      section: "Engagement", description: "Shown as available/busy on storefront." },
+  files:         { label: "Files (comp cards, etc.)",   section: "Files" },
+  compCard:      { label: "Comp card",                  section: "Files" },
+  contracts:     { label: "Contracts",                  section: "Files" },
+};
+
+/** What this workspace permits per plan tier. Free = locked, Studio =
+ *  can flip public ↔ internal, Agency = can hide entirely + change
+ *  required-ness + create custom fields. */
+export const FIELD_PRIVACY_PLAN_RULES: Record<"free" | "studio" | "agency" | "network", {
+  canFlipPublicInternal: boolean;
+  canHide: boolean;
+  canCreateCustom: boolean;
+  canSetRequired: boolean;
+}> = {
+  free:    { canFlipPublicInternal: false, canHide: false, canCreateCustom: false, canSetRequired: false },
+  studio:  { canFlipPublicInternal: true,  canHide: false, canCreateCustom: false, canSetRequired: false },
+  agency:  { canFlipPublicInternal: true,  canHide: true,  canCreateCustom: true,  canSetRequired: true  },
+  network: { canFlipPublicInternal: true,  canHide: true,  canCreateCustom: true,  canSetRequired: true  },
+};
+
+/** Hard policy: fields that are NEVER allowed to go public, regardless
+ *  of plan tier or admin override. Financial + compliance + raw-PII data. */
+export const ALWAYS_INTERNAL_FIELDS: ReadonlySet<ProfileFieldId> = new Set<ProfileFieldId>([
+  "legalName",      // contracts only
+  "dob",            // → ageDisplay can be public, raw DOB cannot
+  "address",        // mailing address is never public
+  "email",          // contact channel
+  "phone",          // contact channel
+  "rates",          // pricing is internal
+  "payoutMethod",   // money
+  "taxId",          // money
+  "passport",       // compliance / PII
+  "visa",           // compliance
+  "insurance",      // compliance
+  "contracts",      // legal
+]);
+
+/** Hard policy: fields that are required for a profile to function and
+ *  cannot be hidden. Tulala enforces these regardless of plan. */
+export const ALWAYS_VISIBLE_FIELDS: ReadonlySet<ProfileFieldId> = new Set<ProfileFieldId>([
+  "stageName",   // without name there's no profile
+  "primaryType", // without type clients can't book
+]);
+
+/** Resolve which visibility states are allowed for a given field, given
+ *  the workspace's plan rules. Hard-coded policy beats plan flexibility. */
+export function allowedVisibilities(
+  fieldId: ProfileFieldId,
+  rules: typeof FIELD_PRIVACY_PLAN_RULES[keyof typeof FIELD_PRIVACY_PLAN_RULES],
+): { public: boolean; internal: boolean; hidden: boolean } {
+  const alwaysInternal = ALWAYS_INTERNAL_FIELDS.has(fieldId);
+  const alwaysVisible = ALWAYS_VISIBLE_FIELDS.has(fieldId);
+  return {
+    public:   !alwaysInternal && (rules.canFlipPublicInternal || DEFAULT_FIELD_VISIBILITY[fieldId] === "public"),
+    internal: !alwaysVisible  && (rules.canFlipPublicInternal || DEFAULT_FIELD_VISIBILITY[fieldId] === "internal"),
+    hidden:   !alwaysVisible  && !alwaysInternal && (rules.canHide || DEFAULT_FIELD_VISIBILITY[fieldId] === "hidden"),
+  };
+}
+
 const ProtoContext = createContext<Ctx | null>(null);
+
+// 2026 #6 — Wrap a state mutation in document.startViewTransition() so
+// the browser interpolates DOM changes into a smooth crossfade. Falls
+// back to plain execution on browsers without support (Firefox <125,
+// Safari <18) and is skipped entirely when prefers-reduced-motion is
+// set. Used by openDrawer / closeDrawer to crossfade between drawers.
+function runWithViewTransition(work: () => void): void {
+  if (typeof window === "undefined") { work(); return; }
+  const reduced = typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  type DocWithVT = Document & { startViewTransition?: (cb: () => void) => unknown };
+  const doc = document as DocWithVT;
+  if (reduced || typeof doc.startViewTransition !== "function") {
+    work();
+    return;
+  }
+  doc.startViewTransition(work);
+}
 
 export function ProtoProvider({ children }: { children: ReactNode }) {
   const [surface, setSurface] = useState<Surface>("workspace");
@@ -4643,6 +6749,8 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
   // client
   const [clientPlan, setClientPlan] = useState<ClientPlan>("pro");
   const [clientPage, setClientPage] = useState<ClientPage>("today");
+  const [clientProfile, setClientProfile] = useState<ClientProfileId>("martina");
+  const activeClientProfile = CLIENT_PROFILES[clientProfile];
   // platform
   const [hqRole, setHqRole] = useState<HqRole>("exec");
   const [platformPage, setPlatformPage] = useState<PlatformPage>("today");
@@ -4652,6 +6760,377 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
   const [upgrade, setUpgrade] = useState<UpgradeOffer>({ open: false });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(new Set());
+  // Pending-approvals queue lifted into proto state. Mutating this
+  // updates the topbar Roster nav badge, mobile bottom nav, and the
+  // Settings → Pending approvals row in one shot.
+  const [pendingTalent, setPendingTalent] = useState<PendingTalent[]>(PENDING_TALENT);
+  const resolveApproval = useCallback((id: string) => {
+    setPendingTalent(p => p.filter(x => x.id !== id));
+  }, []);
+  // CSV bulk-import → append valid rows to the pending queue. Returns
+  // the number of rows actually created (skipping any that fail
+  // minimum validation: name + email required).
+  const bulkAddTalent = useCallback((rows: { firstName: string; lastName: string; email: string; primaryType?: string; city?: string }[]) => {
+    const valid = rows.filter(r => r.firstName.trim() && r.email.trim());
+    if (valid.length === 0) return 0;
+    const now = new Date().toISOString();
+    const additions: PendingTalent[] = valid.map((r, i) => ({
+      id: `csv-${Date.now()}-${i}`,
+      name: `${r.firstName.trim()} ${r.lastName.trim()}`.trim(),
+      thumb: `https://i.pravatar.cc/300?img=${(i * 7 + 30) % 70}`,
+      parentCategory: "models",
+      childTypes: r.primaryType ? [r.primaryType] : ["fashion"],
+      city: r.city?.trim() || "—",
+      submittedAgo: "just now",
+      photoCount: 0,
+      languages: ["English"],
+      fields: { _source: "csv-import", _email: r.email.trim(), _createdAt: now },
+    }));
+    setPendingTalent(p => [...additions, ...p]);
+    return valid.length;
+  }, []);
+
+  // WS-25.2 — Client CSV import. Unlike talent which has an approval
+  // queue, client adds go straight in (clients are workspace-internal
+  // records — no off-platform identity to verify on creation).
+  const [importedClients, setImportedClients] = useState<Client[]>([]);
+  const bulkAddClient = useCallback((rows: { name: string; contact?: string; email?: string }[]) => {
+    const valid = rows.filter(r => r.name.trim() && (r.contact?.trim() || r.email?.trim()));
+    if (valid.length === 0) return 0;
+    const additions: Client[] = valid.map((r, i) => ({
+      id: `csv-c-${Date.now()}-${i}`,
+      name: r.name.trim(),
+      contact: r.contact?.trim() || r.email?.trim() || "—",
+      bookingsYTD: 0,
+      status: "active" as const,
+      trust: "basic" as const,
+    }));
+    setImportedClients(p => [...additions, ...p]);
+    return valid.length;
+  }, []);
+
+  // Custom workspace fields. Persisted to localStorage so adds in
+  // Field Catalog survive page reload (the prototype's URL-driven nav
+  // does a full mount on every change).
+  const CUSTOM_FIELDS_KEY = "tulala_custom_fields_v1";
+  const SEED_FIELDS: WorkspaceCustomField[] = [
+    { id: "cf1", name: "Niches",     kind: "Multi-select", appliesTo: "Talent", required: false, helper: "Editorial / Commercial / Runway / Showroom / Lookbook" },
+    { id: "cf2", name: "Brand tier", kind: "Select",       appliesTo: "Client", required: true,  helper: "A — global / B — regional / C — local" },
+    { id: "cf3", name: "Region",     kind: "Select",       appliesTo: "Client", required: false, helper: "EMEA / Americas / APAC" },
+  ];
+  const [customFields, setCustomFields] = useState<WorkspaceCustomField[]>(() => {
+    if (typeof window === "undefined") return SEED_FIELDS;
+    try {
+      const raw = window.localStorage.getItem(CUSTOM_FIELDS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed as WorkspaceCustomField[];
+      }
+    } catch {}
+    return SEED_FIELDS;
+  });
+  const addCustomField = useCallback((f: Omit<WorkspaceCustomField, "id">) => {
+    setCustomFields(cs => {
+      const next = [...cs, { ...f, id: `cf-${Date.now()}` }];
+      try { window.localStorage.setItem(CUSTOM_FIELDS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+  const removeCustomField = useCallback((id: string) => {
+    setCustomFields(cs => {
+      const next = cs.filter(c => c.id !== id);
+      try { window.localStorage.setItem(CUSTOM_FIELDS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+  const setCustomFieldVisibility = useCallback((id: string, vis: FieldVisibility) => {
+    setCustomFields(cs => {
+      const next = cs.map(c => c.id === id ? { ...c, visibility: vis } : c);
+      try { window.localStorage.setItem(CUSTOM_FIELDS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  // Per-workspace overrides on built-in field visibility.
+  const FIELD_VIS_KEY = "tulala_field_visibility_v1";
+  const [fieldVisibilityOverrides, setFieldVisibilityOverrides] = useState<Partial<Record<ProfileFieldId, FieldVisibility>>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(FIELD_VIS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return {};
+  });
+  const setFieldVisibility = useCallback((id: ProfileFieldId, vis: FieldVisibility) => {
+    // Hard-policy enforcement: financial / PII / compliance fields can
+    // never go public. Required fields can never be hidden. Silently
+    // coerces invalid combos so a bad UI/API call can't leak data.
+    if (ALWAYS_INTERNAL_FIELDS.has(id) && vis === "public") return;
+    if (ALWAYS_VISIBLE_FIELDS.has(id) && vis === "hidden") return;
+    setFieldVisibilityOverrides(o => {
+      const next = { ...o };
+      if (DEFAULT_FIELD_VISIBILITY[id] === vis) delete next[id];
+      else next[id] = vis;
+      try { window.localStorage.setItem(FIELD_VIS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+  const effectiveFieldVisibility = useCallback(
+    (id: ProfileFieldId) => fieldVisibilityOverrides[id] ?? DEFAULT_FIELD_VISIBILITY[id],
+    [fieldVisibilityOverrides],
+  );
+
+  // ── Trust & Verification state ──────────────────────────────────
+  const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>(SEED_VERIFICATION_REQUESTS);
+  const [profileVerifications, setProfileVerifications] = useState<ProfileVerification[]>(SEED_PROFILE_VERIFICATIONS);
+  const [profileClaims, setProfileClaims] = useState<ProfileClaimInvitation[]>(SEED_PROFILE_CLAIMS);
+  const [claimStatusByTalent, setClaimStatusByTalent] = useState<Record<string, ProfileClaimStatus>>(SEED_CLAIM_STATUS);
+  const [verificationMethodConfigs, setVerificationMethodConfigs] = useState<VerificationMethodConfig[]>(SEED_VERIFICATION_METHOD_CONFIG);
+  const [verificationMethodAudit, setVerificationMethodAudit] = useState<VerificationMethodAuditEntry[]>(SEED_VERIFICATION_METHOD_AUDIT);
+  const [talentContactGates, setTalentContactGates] = useState<Record<string, TalentContactGate>>(SEED_TALENT_CONTACT_GATE);
+
+  const nowIso = () => new Date().toISOString();
+  const newId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  const createVerificationRequest = useCallback((input: Omit<VerificationRequest, "id" | "status" | "createdAt" | "updatedAt"> & {
+    status?: VerificationRequestStatus;
+  }): VerificationRequest => {
+    // Edge case #9: duplicate guard — reuse any active in-flight request
+    // for the same subject + verification type instead of creating a dup.
+    const existing = verificationRequests.find(r =>
+      r.subjectType === input.subjectType
+      && r.subjectId === input.subjectId
+      && r.verificationType === input.verificationType
+      && (r.status === "pending_user_action" || r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info")
+    );
+    if (existing) return existing;
+    const req: VerificationRequest = {
+      id: newId("vr"),
+      status: input.status ?? "pending_user_action",
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      ...input,
+    };
+    setVerificationRequests(rs => [...rs, req]);
+    return req;
+  }, [verificationRequests]);
+
+  // Edge case #10: expired-code sweep. Once a minute, any pending or
+  // submitted request whose expires_at has passed flips to "expired".
+  // Cheap to run and matches production cron behavior.
+  useEffect(() => {
+    const sweep = () => {
+      const now = Date.now();
+      setVerificationRequests(rs => rs.map(r => {
+        if (!r.expiresAt) return r;
+        if (r.status !== "pending_user_action" && r.status !== "submitted") return r;
+        if (new Date(r.expiresAt).getTime() < now) {
+          return { ...r, status: "expired" as VerificationRequestStatus, updatedAt: nowIso() };
+        }
+        return r;
+      }));
+    };
+    sweep(); // run once on mount
+    const id = window.setInterval(sweep, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Edge case #8: IG handle change → revoke active IG verification.
+  // Exposed as a callable so the talent profile editor can invoke it
+  // when the talent edits their Instagram handle.
+  const revokeInstagramOnHandleChange = useCallback((subjectType: VerificationSubjectType, subjectId: string, newHandle: string) => {
+    setProfileVerifications(pvs => pvs.map(pv => {
+      if (pv.subjectType !== subjectType || pv.subjectId !== subjectId) return pv;
+      if (pv.verificationType !== "instagram_verified") return pv;
+      if (pv.status !== "active") return pv;
+      if (pv.identifier === newHandle) return pv; // same handle, no-op
+      return { ...pv, status: "revoked" as VerificationActiveStatus };
+    }));
+  }, []);
+
+  const updateVerificationRequest = useCallback((id: string, patch: Partial<VerificationRequest>) => {
+    setVerificationRequests(rs => rs.map(r => r.id === id ? { ...r, ...patch, updatedAt: nowIso() } : r));
+  }, []);
+
+  const approveVerificationRequest = useCallback((id: string) => {
+    setVerificationRequests(rs => rs.map(r => {
+      if (r.id !== id) return r;
+      return { ...r, status: "approved" as VerificationRequestStatus, reviewedAt: nowIso(), updatedAt: nowIso() };
+    }));
+    // Create the active ProfileVerification record
+    const req = verificationRequests.find(r => r.id === id);
+    if (req) {
+      const provider =
+        req.method === "instagram_dm" ? "instagram" :
+        req.method === "agency_confirmation" ? "agency" :
+        req.method === "domain" ? "domain" :
+        req.method === "payment" ? "stripe" :
+        req.method === "phone" ? "phone" :
+        "tulala";
+      const pv: ProfileVerification = {
+        id: newId("pv"),
+        subjectType: req.subjectType,
+        subjectId: req.subjectId,
+        verificationType: req.verificationType,
+        provider,
+        identifier: req.claimedIdentifier ?? null,
+        sourceRequestId: req.id,
+        status: "active",
+        publicBadgeEnabled: true,
+        verifiedAt: nowIso(),
+      };
+      setProfileVerifications(pvs => [...pvs, pv]);
+    }
+  }, [verificationRequests]);
+
+  const rejectVerificationRequest = useCallback((id: string, reason: string, publicMessage?: string) => {
+    setVerificationRequests(rs => rs.map(r => r.id === id ? {
+      ...r,
+      status: "rejected" as VerificationRequestStatus,
+      rejectionReason: reason,
+      publicMessage: publicMessage ?? null,
+      reviewedAt: nowIso(),
+      updatedAt: nowIso(),
+    } : r));
+  }, []);
+
+  const revokeProfileVerification = useCallback((id: string) => {
+    setProfileVerifications(pvs => pvs.map(pv => pv.id === id ? { ...pv, status: "revoked" as VerificationActiveStatus } : pv));
+  }, []);
+
+  const sendProfileClaimInvite = useCallback((input: Omit<ProfileClaimInvitation, "id" | "status" | "tokenHash" | "createdAt" | "updatedAt">) => {
+    const inv: ProfileClaimInvitation = {
+      id: newId("pci"),
+      status: "pending",
+      tokenHash: newId("hash"),
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      ...input,
+    };
+    setProfileClaims(cs => [...cs, inv]);
+    // Update claim status on the talent
+    if (input.profileType === "talent_profile") {
+      setClaimStatusByTalent(s => ({ ...s, [input.profileId]: "invite_sent" as ProfileClaimStatus }));
+    }
+  }, []);
+
+  const resolveProfileClaimDispute = useCallback((claimId: string, outcome: "release" | "uphold" | "remove", _adminNotes?: string) => {
+    setProfileClaims(cs => cs.map(c => {
+      if (c.id !== claimId) return c;
+      const nextStatus: ProfileClaimInvitation["status"] =
+        outcome === "release" ? "revoked"
+        : outcome === "remove" ? "revoked"
+        : /* uphold */ "pending";
+      return { ...c, status: nextStatus, updatedAt: nowIso() };
+    }));
+    const claim = profileClaims.find(c => c.id === claimId);
+    if (claim?.profileType === "talent_profile") {
+      setClaimStatusByTalent(s => {
+        const next = { ...s };
+        if (outcome === "release") next[claim.profileId] = "released" as ProfileClaimStatus;
+        else if (outcome === "remove") delete next[claim.profileId];
+        else if (outcome === "uphold") next[claim.profileId] = "invite_sent" as ProfileClaimStatus;
+        return next;
+      });
+    }
+  }, [profileClaims]);
+
+  const getTrustSummary = useCallback((subjectType: VerificationSubjectType, subjectId: string): TrustSummary => {
+    const claimStatus = subjectType === "talent_profile" ? claimStatusByTalent[subjectId] : undefined;
+    const userId = subjectType === "talent_profile" ? TALENT_TO_USER[subjectId] : undefined;
+    const account = userId ? SEED_ACCOUNT_VERIFICATION[userId] : undefined;
+    const badges = profileVerifications
+      .filter(pv => pv.subjectType === subjectType && pv.subjectId === subjectId && pv.status === "active")
+      .map(pv => ({
+        type: pv.verificationType,
+        label: VERIFICATION_TYPE_META[pv.verificationType].label,
+        tooltip: VERIFICATION_TYPE_META[pv.verificationType].tooltip,
+        public: pv.publicBadgeEnabled,
+        status: pv.status,
+        identifier: pv.identifier,
+        methodEnabled: verificationMethodConfigs.find(c => c.type === pv.verificationType)?.enabled ?? true,
+      }));
+    const pendingRequests = verificationRequests
+      .filter(r => r.subjectType === subjectType && r.subjectId === subjectId
+        && (r.status === "pending_user_action" || r.status === "submitted" || r.status === "in_review" || r.status === "needs_more_info"))
+      .map(r => ({ verificationType: r.verificationType, status: r.status, method: r.method }));
+    return { subjectType, subjectId, claimStatus, account, badges, pendingRequests };
+  }, [profileVerifications, verificationRequests, claimStatusByTalent, verificationMethodConfigs]);
+
+  // ── Platform-admin verification method registry ───────────────────
+  const isVerificationMethodEnabled = useCallback((type: VerificationType) => {
+    return verificationMethodConfigs.find(c => c.type === type)?.enabled ?? false;
+  }, [verificationMethodConfigs]);
+  const getVerificationMethodConfig = useCallback((type: VerificationType) => {
+    return verificationMethodConfigs.find(c => c.type === type)
+      ?? { type, enabled: false, reviewMode: "manual" as VerificationReviewMode, visibleOn: ["admin_only"] as VerificationVisibility[], availableToTiers: ["all"] as VerificationTierGate[], evidenceRequired: false, expiresAfterDays: null };
+  }, [verificationMethodConfigs]);
+  const listEnabledMethods = useCallback(() => {
+    return verificationMethodConfigs.filter(c => c.enabled).map(c => c.type);
+  }, [verificationMethodConfigs]);
+  const updateVerificationMethod = useCallback((type: VerificationType, patch: Partial<VerificationMethodConfig>) => {
+    setVerificationMethodConfigs(cs => cs.map(c => {
+      if (c.type !== type) return c;
+      const next = { ...c, ...patch };
+      // Emit one audit entry per changed key.
+      const entries: VerificationMethodAuditEntry[] = [];
+      const stamp = nowIso();
+      const mkEntry = (kind: VerificationMethodAuditEntry["changeKind"], before: unknown, after: unknown) => ({
+        id: newId("vma"), methodType: type, changedByUserId: "u-platform-admin",
+        changeKind: kind, before: String(before), after: String(after), at: stamp,
+      });
+      if ("enabled" in patch && patch.enabled !== c.enabled) entries.push(mkEntry(patch.enabled ? "enabled" : "disabled", c.enabled, patch.enabled));
+      if ("reviewMode" in patch && patch.reviewMode !== c.reviewMode) entries.push(mkEntry("review_mode", c.reviewMode, patch.reviewMode));
+      if ("visibleOn" in patch && JSON.stringify(patch.visibleOn) !== JSON.stringify(c.visibleOn)) entries.push(mkEntry("visibility", c.visibleOn.join(","), (patch.visibleOn ?? []).join(",")));
+      if ("availableToTiers" in patch && JSON.stringify(patch.availableToTiers) !== JSON.stringify(c.availableToTiers)) entries.push(mkEntry("tier_gate", c.availableToTiers.join(","), (patch.availableToTiers ?? []).join(",")));
+      if ("evidenceRequired" in patch && patch.evidenceRequired !== c.evidenceRequired) entries.push(mkEntry("evidence_required", c.evidenceRequired, patch.evidenceRequired));
+      if ("expiresAfterDays" in patch && patch.expiresAfterDays !== c.expiresAfterDays) entries.push(mkEntry("expiry", c.expiresAfterDays ?? "never", patch.expiresAfterDays ?? "never"));
+      if (entries.length > 0) {
+        setVerificationMethodAudit(a => [...entries, ...a]);
+      }
+      return next;
+    }));
+  }, []);
+
+  // ── Risk score (Phase 2.4) — internal-only heuristic ─────────────
+  const getRiskScore = useCallback((subjectType: VerificationSubjectType, subjectId: string): number => {
+    let score = 50; // baseline
+    const summary = profileVerifications
+      .filter(pv => pv.subjectType === subjectType && pv.subjectId === subjectId && pv.status === "active");
+    score += summary.length * 12;
+    const claim = subjectType === "talent_profile" ? claimStatusByTalent[subjectId] : undefined;
+    if (claim === "claimed") score += 10;
+    if (claim === "disputed") score -= 25;
+    const userId = subjectType === "talent_profile" ? TALENT_TO_USER[subjectId] : undefined;
+    const account = userId ? SEED_ACCOUNT_VERIFICATION[userId] : undefined;
+    if (account?.emailVerified) score += 5;
+    if (account?.phoneVerified) score += 5;
+    // Negative: recent expired/rejected requests
+    const recentBad = verificationRequests.filter(r =>
+      r.subjectType === subjectType && r.subjectId === subjectId
+      && (r.status === "rejected" || r.status === "expired")
+    ).length;
+    score -= recentBad * 8;
+    return Math.max(0, Math.min(100, score));
+  }, [profileVerifications, claimStatusByTalent, verificationRequests]);
+
+  const getTalentContactGate = useCallback((talentId: string) => {
+    return talentContactGates[talentId] ?? "open";
+  }, [talentContactGates]);
+  const setTalentContactGate = useCallback((talentId: string, gate: TalentContactGate) => {
+    setTalentContactGates(s => ({ ...s, [talentId]: gate }));
+  }, []);
+  const canClientContactTalent = useCallback((talentId: string, clientId: string) => {
+    const gate = talentContactGates[talentId] ?? "open";
+    if (gate === "open") return true;
+    const trust = profileVerifications.filter(pv => pv.subjectType === "client_profile" && pv.subjectId === clientId && pv.status === "active");
+    if (gate === "verified_only") return trust.length > 0;
+    // trusted_only — needs score ≥ 60
+    let score = 50 + trust.length * 12;
+    const claim = claimStatusByTalent[clientId];
+    if (claim === "claimed") score += 10;
+    return score >= 60;
+  }, [talentContactGates, profileVerifications, claimStatusByTalent]);
   const [density, setDensityState] = useState<Density>("comfortable");
   const [workspaceLayout, setWorkspaceLayoutState] = useState<WorkspaceLayout>("topbar");
   const toastIdRef = useRef(0);
@@ -4692,6 +7171,12 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     };
   }, [density]);
 
+  // Hydration gate — the persist-to-URL effect skips its initial fire
+  // until the URL-read effect below has had a chance to apply the
+  // params. Otherwise the persist effect runs on first paint with
+  // *defaults* and clobbers the user's URL params before they're read.
+  const [urlHydrated, setUrlHydrated] = useState(false);
+
   // Read initial state from URL on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -4718,6 +7203,8 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     if (tpg && TALENT_PAGES.includes(tpg as TalentPage)) setTalentPage(tpg as TalentPage);
     if (cpl && CLIENT_PLANS.includes(cpl as ClientPlan)) setClientPlan(cpl as ClientPlan);
     if (cpg && CLIENT_PAGES.includes(cpg as ClientPage)) setClientPage(cpg as ClientPage);
+    const cprof = params.get("clientProfile");
+    if (cprof === "martina" || cprof === "gringo") setClientProfile(cprof);
     if (hr && HQ_ROLES.includes(hr as HqRole)) setHqRole(hr as HqRole);
     if (ppg && PLATFORM_PAGES.includes(ppg as PlatformPage)) setPlatformPage(ppg as PlatformPage);
     // Drawer is a wide string-literal union (~150 ids); we trust the URL
@@ -4737,11 +7224,18 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       }
       setDrawer({ drawerId: dr as DrawerId, payload });
     }
+    // Open the persistence gate AFTER reading. This sets a flag in the
+    // next render tick, so the persist effect's first fire-with-defaults
+    // is skipped and only fires once state actually reflects the URL.
+    setUrlHydrated(true);
   }, []);
 
   // Persist to URL (replace, not push). Only sync the dimensions relevant to
   // the active surface to keep URLs short and shareable.
   useEffect(() => {
+    // Skip until URL-read has applied. Otherwise the very first paint
+    // writes defaults to the URL and discards whatever the user navigated to.
+    if (!urlHydrated) return;
     const params = new URLSearchParams();
     params.set("surface", surface);
     if (surface === "workspace") {
@@ -4755,6 +7249,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     } else if (surface === "client") {
       params.set("clientPlan", clientPlan);
       params.set("clientPage", clientPage);
+      params.set("clientProfile", clientProfile);
     } else if (surface === "platform") {
       params.set("hqRole", hqRole);
       params.set("platformPage", platformPage);
@@ -4787,9 +7282,11 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     talentPage,
     clientPlan,
     clientPage,
+    clientProfile,
     hqRole,
     platformPage,
     drawer,
+    urlHydrated,
   ]);
 
   // Drawer history stack — supports a "back" affordance in nested
@@ -4799,20 +7296,27 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
   const [drawerStack, setDrawerStack] = useState<DrawerContext[]>([]);
   const openDrawer = useCallback(
     (id: DrawerId, payload?: Record<string, unknown>) => {
-      setDrawer((current) => {
-        // If a drawer is already open and we're switching to a different
-        // one, push the current one onto the back-stack.
-        if (current.drawerId && current.drawerId !== id) {
-          setDrawerStack((s) => [...s, current]);
-        }
-        return { drawerId: id, payload };
+      // 2026 #6 — Wrap drawer mutations in startViewTransition so the
+      // browser crossfades the DOM. Falls back to plain state on
+      // unsupported browsers + skipped under prefers-reduced-motion.
+      runWithViewTransition(() => {
+        setDrawer((current) => {
+          // If a drawer is already open and we're switching to a different
+          // one, push the current one onto the back-stack.
+          if (current.drawerId && current.drawerId !== id) {
+            setDrawerStack((s) => [...s, current]);
+          }
+          return { drawerId: id, payload };
+        });
       });
     },
     [],
   );
   const closeDrawer = useCallback(() => {
-    setDrawer({ drawerId: null });
-    setDrawerStack([]);
+    runWithViewTransition(() => {
+      setDrawer({ drawerId: null });
+      setDrawerStack([]);
+    });
   }, []);
   /**
    * Pop the back-stack and reopen the previous drawer. If the stack is
@@ -4925,6 +7429,7 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
         talentPage,
         clientPlan,
         clientPage,
+        clientProfile,
         hqRole,
         platformPage,
         impersonating,
@@ -4947,6 +7452,9 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       setTalentPage,
       setClientPlan,
       setClientPage,
+      clientProfile,
+      setClientProfile,
+      activeClientProfile,
       setHqRole,
       setPlatformPage,
       startImpersonation,
@@ -4960,6 +7468,41 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       toast,
       dismissToast,
       completeTask,
+      pendingTalent,
+      resolveApproval,
+      bulkAddTalent,
+      bulkAddClient,
+      importedClients,
+      customFields,
+      addCustomField,
+      removeCustomField,
+      setCustomFieldVisibility,
+      fieldVisibilityOverrides,
+      setFieldVisibility,
+      effectiveFieldVisibility,
+      verificationRequests,
+      profileVerifications,
+      profileClaims,
+      claimStatusByTalent,
+      createVerificationRequest,
+      updateVerificationRequest,
+      approveVerificationRequest,
+      rejectVerificationRequest,
+      revokeProfileVerification,
+      revokeInstagramOnHandleChange,
+      sendProfileClaimInvite,
+      resolveProfileClaimDispute,
+      getTrustSummary,
+      verificationMethodConfigs,
+      verificationMethodAudit,
+      isVerificationMethodEnabled,
+      getVerificationMethodConfig,
+      listEnabledMethods,
+      updateVerificationMethod,
+      getRiskScore,
+      getTalentContactGate,
+      setTalentContactGate,
+      canClientContactTalent,
     }),
     [
       surface,
@@ -4995,6 +7538,41 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       toast,
       dismissToast,
       completeTask,
+      pendingTalent,
+      resolveApproval,
+      bulkAddTalent,
+      bulkAddClient,
+      importedClients,
+      customFields,
+      addCustomField,
+      removeCustomField,
+      setCustomFieldVisibility,
+      fieldVisibilityOverrides,
+      setFieldVisibility,
+      effectiveFieldVisibility,
+      verificationRequests,
+      profileVerifications,
+      profileClaims,
+      claimStatusByTalent,
+      createVerificationRequest,
+      updateVerificationRequest,
+      approveVerificationRequest,
+      rejectVerificationRequest,
+      revokeProfileVerification,
+      revokeInstagramOnHandleChange,
+      sendProfileClaimInvite,
+      resolveProfileClaimDispute,
+      getTrustSummary,
+      verificationMethodConfigs,
+      verificationMethodAudit,
+      isVerificationMethodEnabled,
+      getVerificationMethodConfig,
+      listEnabledMethods,
+      updateVerificationMethod,
+      getRiskScore,
+      getTalentContactGate,
+      setTalentContactGate,
+      canClientContactTalent,
     ],
   );
 
@@ -5119,6 +7697,16 @@ export const COLORS = {
   royal: "#5F4B8B",
   royalSoft: "rgba(95,75,139,0.10)",
   royalDeep: "#3D2F61",
+
+  // Fill — replacement for the old "ink-as-background" pattern. Pure black
+  // (#0B0B0D) was being used everywhere as a primary fill (buttons, sent
+  // bubbles, callouts, active toggles) and read as aggressive/oppressive.
+  // This is a soft modern slate — calm, designerly, still high-contrast on
+  // light backgrounds. Use for primary CTAs, active toggles, sent message
+  // bubbles. Ink remains the body-text color; never use it as a fill.
+  fill: "#4D4855",
+  fillSoft: "rgba(77,72,85,0.10)",
+  fillDeep: "#33303A",
 
   // Elevation
   shadow: "0 1px 2px rgba(11,11,13,0.04)",
@@ -5285,3 +7873,15 @@ export function track(event: TrackEvent, props: TrackProps = {}): void {
   //   window.posthog?.capture(event, props);
   //   window.analytics?.track(event, props);
 }
+
+// Window-level event names for the unified BottomActionFab palette.
+// Constants (rather than raw strings) keep producers and listeners in sync.
+//   FAB_PALETTE_OPEN      — anyone can fire this to open the palette (⌘K,
+//                           topbar Search pill, custom triggers).
+//   FAB_PALETTE_CHANGED   — BottomActionFab broadcasts this whenever its
+//                           open state flips; carries `{ open: boolean }`
+//                           in detail. Used by WorkspaceShell to suppress
+//                           global keyboard shortcuts while open.
+export const FAB_PALETTE_OPEN_EVENT = "tulala:open-fab-palette";
+export const FAB_PALETTE_CHANGED_EVENT = "tulala:fab-palette-changed";
+export type FabPaletteChangedDetail = { open: boolean };

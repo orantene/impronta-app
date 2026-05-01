@@ -47,6 +47,7 @@
  */
 
 import {
+  Children,
   createContext,
   useCallback,
   useContext,
@@ -1023,7 +1024,7 @@ export function PlanChip({
       border: `1px solid ${COLORS.border}`,
     },
     solid: {
-      background: COLORS.ink,
+      background: COLORS.fill,
       color: "#fff",
       border: "1px solid transparent",
     },
@@ -1634,7 +1635,7 @@ export function IconChip({
   const map: Record<typeof tone, CSSProperties> = {
     neutral: { background: "rgba(11,11,13,0.04)", color: COLORS.ink },
     warm: { background: COLORS.surfaceAlt, color: COLORS.ink },
-    ink: { background: COLORS.ink, color: "#fff" },
+    ink: { background: COLORS.fill, color: "#fff" },
   };
   return (
     <span
@@ -1913,15 +1914,21 @@ export function PrimaryCard({
   return (
     <CardFrame onClick={onClick} variant={variant} fullHeight={fullHeight}>
       <div
+        data-tulala-primary-card-body
         style={{
-          padding: 20,
-          paddingLeft: hasLeftRule ? 24 : 20,
+          padding: 18,
+          paddingLeft: hasLeftRule ? 22 : 18,
           display: "flex",
           flexDirection: "column",
-          gap: 12,
+          gap: 10,
           height: "100%",
         }}
       >
+        <style>{`
+          @media (max-width: 540px) {
+            [data-tulala-primary-card-body] { padding: 14px !important; gap: 8px !important; }
+          }
+        `}</style>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
           {icon && <IconChip>{icon}</IconChip>}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -2001,7 +2008,12 @@ export function SecondaryCard({
 }) {
   return (
     <CardFrame onClick={onClick} variant={variant} fullHeight={fullHeight}>
-      <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10, height: "100%" }}>
+      <div data-tulala-secondary-card-body style={{ padding: 16, display: "flex", flexDirection: "column", gap: 8, height: "100%" }}>
+        <style>{`
+          @media (max-width: 540px) {
+            [data-tulala-secondary-card-body] { padding: 12px 14px !important; gap: 6px !important; }
+          }
+        `}</style>
         <div>
           <h3
             style={{
@@ -2050,6 +2062,549 @@ export function SecondaryCard({
         )}
       </div>
     </CardFrame>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// StatusStrip — premium 2026 replacement for the 4-up StatusCard grid.
+// Single horizontal row of clickable counts. Used on Roster, Clients,
+// Today, Operations etc. Each item: tone dot · label · big number.
+// ════════════════════════════════════════════════════════════════════
+export type StatusStripItem = {
+  id: string;
+  label: string;
+  value: number | string;
+  tone?: "green" | "amber" | "indigo" | "dim" | "ink" | "red";
+  /** Optional click handler. Disables when count === 0. */
+  onClick?: () => void;
+  /** Active visual when this is the currently-selected filter. */
+  active?: boolean;
+};
+
+export function StatusStrip({
+  items,
+  ariaLabel = "Status overview",
+}: {
+  items: StatusStripItem[];
+  ariaLabel?: string;
+}) {
+  // Resolve tone color
+  const toneColor = (t: StatusStripItem["tone"]) => {
+    if (t === "green")  return COLORS.green;
+    if (t === "amber")  return COLORS.amber;
+    if (t === "indigo") return COLORS.indigoDeep;
+    if (t === "red")    return COLORS.red;
+    if (t === "dim")    return COLORS.inkMuted;
+    return COLORS.ink;
+  };
+  return (
+    <div
+      role="group"
+      aria-label={ariaLabel}
+      style={{
+        display: "flex",
+        alignItems: "stretch",
+        gap: 0,
+        padding: 4,
+        borderRadius: 12,
+        background: "#fff",
+        border: `1px solid ${COLORS.borderSoft}`,
+        boxShadow: "0 1px 2px rgba(11,11,13,0.03)",
+        marginBottom: 14,
+        fontFamily: FONTS.body,
+        overflowX: "auto",
+        scrollbarWidth: "none",
+      }}
+    >
+      {items.map((it, i) => {
+        const isZero = it.value === 0;
+        const clickable = it.onClick && !isZero;
+        const Tag = clickable ? "button" : "div";
+        return (
+          <Tag
+            key={it.id}
+            type={clickable ? "button" : undefined}
+            onClick={clickable ? it.onClick : undefined}
+            disabled={!clickable && Tag === "button"}
+            style={{
+              flex: 1,
+              minWidth: 96,
+              padding: "10px 14px",
+              border: "none",
+              background: it.active ? "rgba(15,79,62,0.06)" : "transparent",
+              borderRadius: 8,
+              cursor: clickable ? "pointer" : "default",
+              opacity: isZero ? 0.5 : 1,
+              textAlign: "left",
+              borderRight: i < items.length - 1 ? `1px solid ${COLORS.borderSoft}` : "none",
+              fontFamily: FONTS.body,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: toneColor(it.tone),
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ fontSize: 11, color: COLORS.inkMuted, fontWeight: 500, whiteSpace: "nowrap" }}>{it.label}</span>
+            </div>
+            <div
+              style={{
+                fontFamily: FONTS.display,
+                fontSize: 22,
+                fontWeight: 500,
+                color: it.active ? COLORS.accentDeep : COLORS.ink,
+                letterSpacing: -0.4,
+                lineHeight: 1,
+              }}
+            >
+              {it.value}
+            </div>
+          </Tag>
+        );
+      })}
+    </div>
+  );
+}
+
+// Plan-locked pill — single canonical chrome for "this is locked behind X plan".
+// Used inline next to features. Click → opens the upgrade flow.
+export function PlanLockPill({
+  plan,
+  onClick,
+  size = "md",
+}: {
+  plan: "studio" | "agency" | "network";
+  onClick?: () => void;
+  size?: "sm" | "md";
+}) {
+  const meta: Record<typeof plan, { label: string; bg: string; fg: string }> = {
+    studio:  { label: "Studio",  bg: "rgba(91,107,160,0.10)",  fg: "#3B4A75" },
+    agency:  { label: "Agency",  bg: "rgba(184,135,49,0.14)",  fg: "#7A5A1F" },
+    network: { label: "Network", bg: "rgba(15,79,62,0.10)",    fg: COLORS.accentDeep },
+  };
+  const m = meta[plan];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: size === "sm" ? "2px 7px" : "3px 9px",
+        borderRadius: 999,
+        border: "none",
+        background: m.bg,
+        color: m.fg,
+        fontFamily: FONTS.body,
+        fontSize: size === "sm" ? 10 : 11,
+        fontWeight: 600,
+        cursor: onClick ? "pointer" : "default",
+        textTransform: "capitalize",
+      }}
+    >
+      <span style={{ fontSize: size === "sm" ? 9 : 10 }}>🔒</span>
+      {m.label}
+    </button>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Trust & Verification primitives
+// ════════════════════════════════════════════════════════════════════
+
+import type { VerificationType, ProfileClaimStatus, TrustSummary } from "./_state";
+import { VERIFICATION_TYPE_META, PROFILE_CLAIM_META } from "./_state";
+
+/** Single verification badge — one row in a TrustBadgeGroup. */
+export function TrustBadge({
+  type,
+  identifier,
+  size = "md",
+  showLabel = true,
+}: {
+  type: VerificationType;
+  identifier?: string | null;
+  size?: "xs" | "sm" | "md";
+  showLabel?: boolean;
+}) {
+  const meta = VERIFICATION_TYPE_META[type];
+  const labelText = type === "agency_confirmed" && identifier
+    ? `Represented by ${identifier === "atelier-roma" ? "Atelier Roma" : identifier}`
+    : meta.shortLabel;
+  const fontSize = size === "xs" ? 10 : size === "sm" ? 10.5 : 11;
+  const padY = size === "xs" ? 2 : 3;
+  const padX = size === "xs" ? 6 : size === "sm" ? 8 : 9;
+  return (
+    <span
+      title={meta.tooltip}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: `${padY}px ${padX}px`,
+        borderRadius: 999,
+        background: meta.bg,
+        color: meta.fg,
+        fontFamily: FONTS.body,
+        fontSize,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span aria-hidden style={{ fontSize: fontSize + 1, lineHeight: 1 }}>{meta.emoji}</span>
+      {showLabel && labelText}
+    </span>
+  );
+}
+
+/** Profile claim status chip — Unclaimed / Invite sent / Claimed / etc. */
+export function ProfileClaimStatusChip({
+  status,
+  size = "md",
+}: {
+  status: ProfileClaimStatus;
+  size?: "xs" | "sm" | "md";
+}) {
+  const meta = PROFILE_CLAIM_META[status];
+  const fontSize = size === "xs" ? 10 : size === "sm" ? 10.5 : 11;
+  return (
+    <span
+      title={meta.helper}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: `${size === "xs" ? 2 : 3}px ${size === "xs" ? 6 : 9}px`,
+        borderRadius: 999,
+        background: meta.bg,
+        color: meta.fg,
+        fontFamily: FONTS.body,
+        fontSize,
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {meta.shortLabel}
+    </span>
+  );
+}
+
+/** Compact trust badge group — selects which badges are appropriate
+ *  for the given surface and renders them. */
+// ════════════════════════════════════════════════════════════════════
+// ProfilePhotoBadgeOverlay — modern corner verified icons (Instagram /
+// X-style checkmarks). Renders 1-2 small badges absolute-positioned in
+// the bottom-right of a profile photo. Uses real brand-recognizable
+// glyphs (IG gradient circle, forest green checkmark).
+//
+// Usage: place inside the photo's positioned container.
+//   <div style={{ position: "relative" }}>
+//     <img ... />
+//     <ProfilePhotoBadgeOverlay trust={...} size="md" />
+//   </div>
+// ════════════════════════════════════════════════════════════════════
+
+const VERIFIED_BADGE_PRIORITY: VerificationType[] = [
+  "tulala_verified",
+  "instagram_verified",
+  "agency_confirmed",
+  "business_verified",
+  "domain_verified",
+  "payment_verified",
+];
+
+export function ProfilePhotoBadgeOverlay({
+  trust,
+  size = "md",
+  max = 2,
+  position = "bottom-right",
+}: {
+  trust: TrustSummary;
+  size?: "xs" | "sm" | "md" | "lg";
+  max?: number;
+  position?: "bottom-right" | "bottom-left" | "top-right";
+}) {
+  // Public-eligible active badges only — corner overlay is a public
+  // signal so it must respect the same visibility rules as the
+  // public surface.
+  const publicBadges = trust.badges
+    .filter(b => b.public && VERIFICATION_TYPE_META[b.type].publicEligible && b.status === "active" && b.methodEnabled !== false)
+    .sort((a, b) => VERIFIED_BADGE_PRIORITY.indexOf(a.type) - VERIFIED_BADGE_PRIORITY.indexOf(b.type))
+    .slice(0, max);
+
+  if (publicBadges.length === 0) return null;
+
+  const dim = size === "xs" ? 14 : size === "sm" ? 18 : size === "lg" ? 28 : 22;
+  const offset = size === "xs" ? 2 : size === "sm" ? 3 : size === "lg" ? 6 : 4;
+  const fontSize = size === "xs" ? 8 : size === "sm" ? 10 : size === "lg" ? 16 : 12;
+
+  const positionStyle: React.CSSProperties = position === "bottom-right" ? { bottom: offset, right: offset }
+    : position === "bottom-left" ? { bottom: offset, left: offset }
+    : { top: offset, right: offset };
+
+  return (
+    <div
+      data-tulala-photo-badges
+      style={{
+        position: "absolute",
+        ...positionStyle,
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: -2,
+        zIndex: 2,
+        pointerEvents: "none",
+      }}
+    >
+      {publicBadges.map((b, i) => (
+        <PhotoBadgeIcon
+          key={b.type}
+          type={b.type}
+          dim={dim}
+          fontSize={fontSize}
+          tooltip={b.tooltip}
+          // Stack overlap when multiple badges
+          marginLeft={i === 0 ? 0 : -dim * 0.3}
+          ringColor="#fff"
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * One verified-style badge icon. Distinctive per type:
+ *   - instagram_verified → Instagram-style gradient circle + white checkmark
+ *   - tulala_verified    → forest-green disc + checkmark (Tulala brand)
+ *   - agency_confirmed   → indigo disc + sparkle
+ *   - business_verified  → gold disc + building icon
+ *   - domain_verified    → indigo disc + globe
+ *   - payment_verified   → green disc + card icon
+ */
+function PhotoBadgeIcon({
+  type, dim, fontSize, tooltip, marginLeft, ringColor,
+}: {
+  type: VerificationType;
+  dim: number;
+  fontSize: number;
+  tooltip: string;
+  marginLeft: number;
+  ringColor: string;
+}) {
+  const ringWidth = dim < 18 ? 1.5 : 2;
+
+  if (type === "instagram_verified") {
+    // Instagram-recognizable gradient: yellow → orange → red → purple
+    return (
+      <span
+        title={tooltip}
+        aria-label="Instagram Verified"
+        style={{
+          width: dim, height: dim, borderRadius: "50%",
+          background: "linear-gradient(135deg, #F09433 0%, #E6683C 25%, #DC2743 50%, #CC2366 75%, #BC1888 100%)",
+          boxShadow: `0 0 0 ${ringWidth}px ${ringColor}, 0 1px 3px rgba(11,11,13,0.20)`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          marginLeft,
+          flexShrink: 0,
+        }}
+      >
+        <svg width={Math.round(dim * 0.55)} height={Math.round(dim * 0.55)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </span>
+    );
+  }
+
+  if (type === "tulala_verified") {
+    // Tulala brand — forest green disc with checkmark. Modeled on Twitter/X
+    // verified visual so users recognize it as "platform-verified"
+    return (
+      <span
+        title={tooltip}
+        aria-label="Tulala Verified"
+        style={{
+          width: dim, height: dim, borderRadius: "50%",
+          background: COLORS.accent,
+          boxShadow: `0 0 0 ${ringWidth}px ${ringColor}, 0 1px 3px rgba(11,11,13,0.20)`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          marginLeft,
+          flexShrink: 0,
+        }}
+      >
+        <svg width={Math.round(dim * 0.62)} height={Math.round(dim * 0.62)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </span>
+    );
+  }
+
+  if (type === "agency_confirmed") {
+    return (
+      <span
+        title={tooltip}
+        aria-label="Agency Confirmed"
+        style={{
+          width: dim, height: dim, borderRadius: "50%",
+          background: "#3B4A75",
+          boxShadow: `0 0 0 ${ringWidth}px ${ringColor}, 0 1px 3px rgba(11,11,13,0.20)`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          fontSize: Math.round(dim * 0.55),
+          fontWeight: 700,
+          marginLeft,
+          flexShrink: 0,
+        }}
+      >✦</span>
+    );
+  }
+
+  if (type === "business_verified") {
+    return (
+      <span
+        title={tooltip}
+        aria-label="Business Verified"
+        style={{
+          width: dim, height: dim, borderRadius: "50%",
+          background: "#7A5A1F",
+          boxShadow: `0 0 0 ${ringWidth}px ${ringColor}, 0 1px 3px rgba(11,11,13,0.20)`,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          fontSize: Math.round(dim * 0.50),
+          marginLeft,
+          flexShrink: 0,
+        }}
+      >🏢</span>
+    );
+  }
+
+  // Generic: emoji + tooltip
+  const meta = VERIFICATION_TYPE_META[type];
+  return (
+    <span
+      title={tooltip}
+      aria-label={meta.label}
+      style={{
+        width: dim, height: dim, borderRadius: "50%",
+        background: meta.fg,
+        boxShadow: `0 0 0 ${ringWidth}px ${ringColor}, 0 1px 3px rgba(11,11,13,0.20)`,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#fff",
+        fontSize: Math.round(dim * 0.55),
+        marginLeft,
+        flexShrink: 0,
+      }}
+    >{meta.emoji}</span>
+  );
+}
+
+/** Risk/health score badge for admin surfaces only — never publicly
+ *  visible. Numeric 0-100 score from getRiskScore, color-coded.
+ *  Higher = more trustworthy. */
+export function RiskScorePill({ score, label = "Trust health" }: { score: number; label?: string }) {
+  const tone =
+    score >= 70 ? { bg: "rgba(15,79,62,0.10)", fg: "#0F4F3E", word: "healthy" }
+    : score >= 40 ? { bg: "rgba(176,135,49,0.14)", fg: "#7A5A1F", word: "watchful" }
+    : { bg: "rgba(176,48,58,0.10)", fg: "#7A1F26", word: "review" };
+  return (
+    <div title={`Internal heuristic — verifications, claim status, account age, recent rejections.`} style={{
+      display: "inline-flex", alignItems: "center", gap: 8,
+      padding: "5px 11px", borderRadius: 999,
+      background: tone.bg, color: tone.fg,
+      fontFamily: "inherit", fontSize: 11.5, fontWeight: 600,
+    }}>
+      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase" }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 700 }}>{score}</span>
+      <span style={{ fontSize: 10.5, opacity: 0.8 }}>· {tone.word}</span>
+    </div>
+  );
+}
+
+export function TrustBadgeGroup({
+  trust,
+  surface,
+  size = "sm",
+  max = 3,
+}: {
+  trust: TrustSummary;
+  surface: "public_profile" | "admin_roster" | "client_inquiry" | "talent_inbox" | "coordinator_workspace" | "chat_header" | "admin_detail";
+  size?: "xs" | "sm" | "md";
+  max?: number;
+}) {
+  // Public surfaces — only public-eligible active badges of methods
+  // currently enabled platform-wide. Method gate is enforced here so a
+  // platform-admin disable instantly hides the badge from storefronts,
+  // Discover, and roster cards (admin views still see it, annotated).
+  const publicBadges = trust.badges.filter(b => b.public && VERIFICATION_TYPE_META[b.type].publicEligible && b.methodEnabled !== false);
+  // Admin surfaces can see everything including pending state
+  const isAdminSurface = surface === "admin_roster" || surface === "admin_detail";
+  const isChatLikeSurface = surface === "chat_header" || surface === "client_inquiry" || surface === "talent_inbox" || surface === "coordinator_workspace";
+
+  const badgesToShow = (isAdminSurface ? trust.badges : publicBadges).slice(0, max);
+
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 4,
+      flexWrap: "wrap",
+    }}>
+      {/* Claim status — only on admin/internal surfaces */}
+      {(isAdminSurface || isChatLikeSurface) && trust.claimStatus && trust.claimStatus !== "claimed" && (
+        <ProfileClaimStatusChip status={trust.claimStatus} size={size} />
+      )}
+      {badgesToShow.map(b => (
+        <span key={b.type} style={{ position: "relative", display: "inline-flex" }}
+          title={b.methodEnabled === false ? `${VERIFICATION_TYPE_META[b.type].label} · method disabled platform-wide (still active until expiry)` : undefined}>
+          <TrustBadge type={b.type} identifier={b.identifier} size={size} showLabel={size !== "xs"} />
+          {isAdminSurface && b.methodEnabled === false && (
+            <span aria-hidden style={{
+              position: "absolute", top: -3, right: -3,
+              width: 8, height: 8, borderRadius: "50%",
+              background: "rgba(11,11,13,0.45)", border: "1.5px solid #fff",
+            }} />
+          )}
+        </span>
+      ))}
+      {/* Pending indicator — admin/internal only */}
+      {isAdminSurface && trust.pendingRequests.length > 0 && (
+        <span
+          title={trust.pendingRequests.map(r => `${VERIFICATION_TYPE_META[r.verificationType].shortLabel} · ${r.status.replace(/_/g, " ")}`).join("\n")}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 3,
+            padding: "3px 8px", borderRadius: 999,
+            background: "rgba(82,96,109,0.10)", color: "#3A4651",
+            fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 600,
+          }}
+        >
+          ◌ {trust.pendingRequests.length} pending
+        </span>
+      )}
+      {/* Empty state for chat-like surfaces — neutral copy */}
+      {isChatLikeSurface && publicBadges.length === 0 && trust.pendingRequests.length === 0 && (
+        <span style={{
+          display: "inline-flex", alignItems: "center",
+          padding: "3px 9px", borderRadius: 999,
+          background: "rgba(11,11,13,0.05)",
+          color: "rgba(11,11,13,0.55)",
+          fontFamily: FONTS.body, fontSize: 10.5, fontWeight: 500,
+        }}>Not yet verified</span>
+      )}
+    </span>
   );
 }
 
@@ -2363,16 +2918,32 @@ export function StarterCard({
 }) {
   return (
     <div
+      data-tulala-starter-card
       style={{
         background: COLORS.surfaceAlt,
         border: `1px solid ${COLORS.border}`,
-        borderRadius: 16,
-        padding: 24,
+        borderRadius: 12,
+        padding: 16,
         position: "relative",
         overflow: "hidden",
         boxShadow: COLORS.shadow,
       }}
     >
+      <style>{`
+        @media (max-width: 540px) {
+          /* On phones the surrounding "card frame" feels heavier than its
+             content. Strip the border + soften the bg so the activation
+             list reads as a simple section, not an island. */
+          [data-tulala-starter-card] {
+            padding: 10px 0 !important;
+            border-radius: 0 !important;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+          }
+          [data-tulala-starter-card] > span[aria-hidden] { display: none !important; }
+        }
+      `}</style>
       {/* Subtle forest-accent strip — keeps the "spotlight / earn this" semantic
           the cream + brass used to carry, without the warm aesthetic. */}
       <span
@@ -2407,12 +2978,12 @@ export function StarterCard({
           <h3
             style={{
               fontFamily: FONTS.display,
-              fontSize: 22,
-              fontWeight: 500,
+              fontSize: 16,
+              fontWeight: 700,
               color: COLORS.ink,
               margin: 0,
-              letterSpacing: -0.3,
-              lineHeight: 1.2,
+              letterSpacing: -0.2,
+              lineHeight: 1.25,
             }}
           >
             {title}
@@ -3103,6 +3674,13 @@ export function RowSkeleton({
   );
 }
 
+/**
+ * 2026 redesign: collapse the "More with {Plan}" section from a big
+ * block on every page into a single discreet pill. The upsell still
+ * lives — it just stops being visual noise. Children (the locked
+ * cards) are counted but not rendered inline; tapping the pill opens
+ * the Plans drawer where they can be browsed properly.
+ */
 export function MoreWithSection({
   plan,
   title,
@@ -3112,34 +3690,47 @@ export function MoreWithSection({
   title?: string;
   children: ReactNode;
 }) {
+  // Count the children for the pill caption.
+  const items = Children.toArray(children);
+  const count = items.length;
+  if (count === 0) return null;
+  const planLabel = PLAN_META[plan].label;
+  const proto = useProto();
   return (
-    <section style={{ marginTop: 28 }}>
-      <div
+    <div style={{ marginTop: 18, marginBottom: 4, display: "flex", justifyContent: "flex-start" }}>
+      <button
+        type="button"
+        onClick={() => proto.openDrawer("plan-billing")}
         style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          marginBottom: 10,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "5px 11px",
+          borderRadius: 999,
+          background: "transparent",
+          border: `1px dashed ${COLORS.borderSoft}`,
+          color: COLORS.inkMuted,
+          fontFamily: FONTS.body,
+          fontSize: 11,
+          fontWeight: 500,
+          textDecoration: "none",
+          cursor: "pointer",
+          transition: `border-color ${TRANSITION.micro}, color ${TRANSITION.micro}`,
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.borderColor = COLORS.border;
+          (e.currentTarget as HTMLElement).style.color = COLORS.ink;
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.borderColor = COLORS.borderSoft;
+          (e.currentTarget as HTMLElement).style.color = COLORS.inkMuted;
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <CapsLabel>{title ?? `More with ${PLAN_META[plan].label}`}</CapsLabel>
-          <PlanChip plan={plan} variant="outline" />
-        </div>
-        <span style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkDim }}>
-          {PLAN_META[plan].theme}
-        </span>
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 10,
-        }}
-      >
-        {children}
-      </div>
-    </section>
+        <span aria-hidden style={{ fontSize: 10 }}>🔒</span>
+        {title ?? `${count} more with ${planLabel}`}
+        <span aria-hidden style={{ marginLeft: 2, fontSize: 11 }}>→</span>
+      </button>
+    </div>
   );
 }
 
@@ -3171,7 +3762,7 @@ export function PrimaryButton({
         ...sizes[size],
         fontFamily: FONTS.body,
         fontWeight: 500,
-        background: COLORS.ink,
+        background: COLORS.fill,
         color: "#fff",
         border: "1px solid transparent",
         borderRadius: 8,
@@ -3337,8 +3928,18 @@ export function DrawerShell({
   // WS-2.1 — drawer size toolbar (compact / half / full) is meaningless
   // on phones because the panel auto-clamps to 96vw regardless. Hide
   // it below 768px to recover header space + reduce noise.
+  //
+  // `useViewport()` returns "desktop" on the server but the actual
+  // viewport on the client. Without the `mounted` gate below, server
+  // renders the toolbar (desktop) while client renders the close button
+  // (phone) → React reports a hydration mismatch and the surrounding
+  // Suspense boundary stays stuck in its hidden SSR shell. Gating on
+  // `mounted` defers the viewport-dependent render to a post-hydration
+  // effect so SSR and first CSR agree.
   const viewport = useViewport();
-  const showSizeToolbar = resizable && viewport !== "phone";
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const showSizeToolbar = mounted && resizable && viewport !== "phone";
 
   // ── Help panel state ────────────────────────────────────────────
   // Auto-look up the help entry for the currently-open drawer. The
@@ -3587,6 +4188,7 @@ export function DrawerShell({
           />
         )}
         <header
+          data-tulala-drawer-header
           style={{
             padding: "16px 22px 14px",
             borderBottom: `1px solid ${COLORS.borderSoft}`,
@@ -3596,6 +4198,33 @@ export function DrawerShell({
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Mobile-only "back" link — sits ABOVE the title so it doesn't
+                eat horizontal space. Tiny arrow + muted "Back" label;
+                whole drawer is the destination, no need for a big pill. */}
+            <button
+              type="button"
+              onClick={onClose}
+              data-tulala-drawer-mobile-back
+              aria-label="Close drawer and return to page"
+              style={{
+                display: "none", // mobile CSS reveals it
+                alignItems: "center",
+                gap: 3,
+                background: "transparent",
+                border: "none",
+                padding: "0 0 6px",
+                cursor: "pointer",
+                fontFamily: FONTS.body,
+                fontSize: 11.5,
+                fontWeight: 500,
+                color: COLORS.inkMuted,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Back
+            </button>
             {previousDrawer && (
               <button
                 type="button"
@@ -4297,7 +4926,7 @@ export function Toggle({
         width: 36,
         height: 20,
         borderRadius: 999,
-        background: on ? COLORS.ink : "rgba(11,11,13,0.16)",
+        background: on ? COLORS.fill : "rgba(11,11,13,0.16)",
         border: "none",
         cursor: "pointer",
         padding: 0,
@@ -4340,15 +4969,24 @@ export function Divider({ label }: { label?: string }) {
     <div
       role="separator"
       aria-label={label}
+      data-tulala-divider-labelled
       style={{
         display: "flex",
-        alignItems: "center",
-        gap: 10,
-        margin: "20px 0 12px",
+        alignItems: "baseline",
+        gap: 8,
+        margin: "16px 0 8px",
       }}
     >
-      <CapsLabel>{label}</CapsLabel>
+      <h2 style={{
+        margin: 0, fontFamily: FONTS.body, fontSize: 13, fontWeight: 600,
+        color: COLORS.ink, letterSpacing: -0.05,
+      }}>{label}</h2>
       <div aria-hidden style={{ flex: 1, height: 1, background: COLORS.borderSoft }} />
+      <style>{`
+        @media (max-width: 540px) {
+          [data-tulala-divider-labelled] { margin: 12px 0 6px !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -4371,7 +5009,7 @@ const TOAST_LIFETIME_MS = 4500;
 
 const TOAST_THEME: Record<ToastTone, { bg: string; shadow: string; iconName: string; progressBg: string }> = {
   default: {
-    bg:          COLORS.ink,
+    bg:          COLORS.fill,
     shadow:      "0 12px 30px -10px rgba(11,11,13,0.5)",
     iconName:    "check",
     progressBg:  "rgba(255,255,255,0.25)",
@@ -4583,6 +5221,47 @@ export function ToastHost({
 }
 
 // ─── Avatar ──────────────────────────────────────────────────────────
+//
+// Real-photo seed: 20+ named talents/coordinators get a stable Pravatar
+// URL keyed off their full name. When `Avatar` is rendered with a
+// `hashSeed` (the convention everywhere — full name as seed), it
+// auto-resolves to a real photo. Falls back to the existing initials +
+// hashed-tone behavior for anyone unknown.
+//
+// Why Pravatar: free, deterministic, no API key, sized at 300px square,
+// served via CDN. Stable img IDs mean the same name always gets the same
+// face — important for QA so the user can tell people apart visually.
+const PHOTO_BY_NAME: Record<string, string> = {
+  // Talent (women)
+  "Marta Reyes":        "https://i.pravatar.cc/300?img=5",
+  "Lina Park":          "https://i.pravatar.cc/300?img=9",
+  "Zara Habib":         "https://i.pravatar.cc/300?img=10",
+  "Zara Hadid":         "https://i.pravatar.cc/300?img=10",
+  "Iris Volpe":         "https://i.pravatar.cc/300?img=16",
+  "Ana Vega":           "https://i.pravatar.cc/300?img=20",
+  "Joana Rivera":       "https://i.pravatar.cc/300?img=23",
+  "Joana R.":           "https://i.pravatar.cc/300?img=23",
+  "Sara Bianchi":       "https://i.pravatar.cc/300?img=25",
+  "Sara Mendez":        "https://i.pravatar.cc/300?img=26",
+  "Sara M.":            "https://i.pravatar.cc/300?img=26",
+  "Francesca Bianchi":  "https://i.pravatar.cc/300?img=29",
+  "Elena Lombardi":     "https://i.pravatar.cc/300?img=32",
+  // Talent (men)
+  "Tomás Navarro":      "https://i.pravatar.cc/300?img=12",
+  "Tomás Núñez":        "https://i.pravatar.cc/300?img=12",
+  "Kai Lin":            "https://i.pravatar.cc/300?img=14",
+  "Mario Rossi":        "https://i.pravatar.cc/300?img=33",
+  "Aaron Park":         "https://i.pravatar.cc/300?img=51",
+  "Daniel Ferrer":      "https://i.pravatar.cc/300?img=52",
+  "Marco Pellegrini":   "https://i.pravatar.cc/300?img=60",
+  "Oran Tene":          "https://i.pravatar.cc/300?img=11",
+  "Orant Tenes":        "https://i.pravatar.cc/300?img=11",
+};
+function photoForName(name: string | undefined): string | undefined {
+  if (!name) return undefined;
+  // Try exact then a normalized lookup (drop trailing punctuation, etc.).
+  return PHOTO_BY_NAME[name] ?? PHOTO_BY_NAME[name.replace(/[.,]+$/g, "")];
+}
 
 export function Avatar({
   initials,
@@ -4624,14 +5303,19 @@ export function Avatar({
   ];
   const tones: Record<Exclude<typeof tone, "auto">, CSSProperties> = {
     neutral: { background: "rgba(11,11,13,0.06)", color: COLORS.ink },
-    ink: { background: COLORS.ink, color: "#fff" },
+    ink: { background: COLORS.fill, color: "#fff" },
     warm: { background: COLORS.surfaceAlt, color: COLORS.ink },
   };
   const resolved =
     tone === "auto"
       ? autoTones[hashString(hashSeed ?? initials ?? emoji ?? "x") % autoTones.length]!
       : tones[tone];
-  if (photoUrl) {
+  // Auto-resolve a real photo from the prototype's name registry when
+  // the caller used `hashSeed=<full name>` (the convention everywhere).
+  // This lets every existing Avatar caller pick up real faces with
+  // zero per-call changes.
+  const resolvedPhoto = photoUrl ?? photoForName(hashSeed);
+  if (resolvedPhoto) {
     return (
       <span
         aria-hidden
@@ -4639,7 +5323,7 @@ export function Avatar({
           width: size,
           height: size,
           borderRadius: "50%",
-          backgroundImage: `url(${photoUrl})`,
+          backgroundImage: `url(${resolvedPhoto})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           flexShrink: 0,
@@ -4976,7 +5660,7 @@ export function BackToTop({ threshold = 600 }: { threshold?: number }) {
         width: 40,
         height: 40,
         borderRadius: "50%",
-        background: COLORS.ink,
+        background: COLORS.fill,
         color: "#fff",
         border: "none",
         boxShadow: "0 4px 12px rgba(11,11,13,0.18)",
@@ -5190,7 +5874,7 @@ export function BulkSelectBar({
         alignItems: "center",
         gap: 12,
         padding: "10px 14px",
-        background: COLORS.ink,
+        background: COLORS.fill,
         color: "#fff",
         borderRadius: 10,
         marginBottom: 12,
@@ -5260,8 +5944,8 @@ export function BulkRowCheckbox({
         width: 18,
         height: 18,
         borderRadius: 5,
-        border: `1.5px solid ${checked ? COLORS.ink : COLORS.borderStrong}`,
-        background: checked ? COLORS.ink : "transparent",
+        border: `1.5px solid ${checked ? COLORS.accent : COLORS.borderStrong}`,
+        background: checked ? COLORS.fill : "transparent",
         color: "#fff",
         cursor: "pointer",
         display: "inline-flex",
@@ -5365,7 +6049,7 @@ export function Popover({
               placement === "top"
                 ? "translate(-50%, calc(-100% - 8px))"
                 : "translate(-50%, 8px)",
-            background: COLORS.ink,
+            background: COLORS.fill,
             color: "#fff",
             fontFamily: FONTS.body,
             fontSize: 11.5,
@@ -5389,7 +6073,7 @@ export function Popover({
               [placement === "top" ? "bottom" : "top"]: -3,
               width: 8,
               height: 8,
-              background: COLORS.ink,
+              background: COLORS.fill,
             }}
           />
         </span>
@@ -5426,7 +6110,7 @@ export function OfflineBanner() {
         top: 0,
         left: 0,
         right: 0,
-        background: COLORS.ink,
+        background: COLORS.fill,
         color: "#fff",
         fontFamily: FONTS.body,
         fontSize: 13,
@@ -5743,52 +6427,157 @@ export function AutoSaveIndicator({ savedAt }: { savedAt: Date | null }) {
 // ─── FloatingFab (#4) ─────────────────────────────────────────────────
 // Fixed "+ New" action button for mobile list pages.
 
+export type FabAction = {
+  id: string;
+  label: string;
+  sub?: string;
+  emoji?: string;
+  onClick: () => void;
+};
+
 export function FloatingFab({
   label,
   onClick,
+  actions,
 }: {
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
+  /** When provided, tapping the FAB opens a bottom-sheet with these actions
+   *  instead of firing onClick. Each action becomes a row in the sheet. */
+  actions?: FabAction[];
 }) {
+  const [open, setOpen] = useState(false);
+  const hasMenu = actions && actions.length > 0;
+  const handleTap = () => {
+    if (hasMenu) setOpen(true);
+    else onClick?.();
+  };
   return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      data-tulala-fab
-      style={{
-        position: "fixed",
-        right: 18,
-        bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
-        width: 52,
-        height: 52,
-        borderRadius: "50%",
-        background: COLORS.accent,
-        color: "#fff",
-        border: "none",
-        cursor: "pointer",
-        display: "none",
-        alignItems: "center",
-        justifyContent: "center",
-        boxShadow: "0 6px 24px rgba(15,79,62,0.36)",
-        zIndex: 400,
-        transition: `transform ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
-        fontFamily: FONTS.body,
-        fontSize: 24,
-        fontWeight: 300,
-        lineHeight: 1,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "scale(1.06)";
-        e.currentTarget.style.boxShadow = "0 8px 28px rgba(15,79,62,0.44)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "scale(1)";
-        e.currentTarget.style.boxShadow = "0 6px 24px rgba(15,79,62,0.36)";
-      }}
-    >
-      +
-    </button>
+    <>
+      <button
+        type="button"
+        aria-label={label}
+        onClick={handleTap}
+        data-tulala-fab
+        style={{
+          position: "fixed",
+          right: 18,
+          bottom: "calc(72px + env(safe-area-inset-bottom, 0px))",
+          width: 52,
+          height: 52,
+          borderRadius: "50%",
+          background: COLORS.accent,
+          color: "#fff",
+          border: "none",
+          cursor: "pointer",
+          display: "none",
+          alignItems: "center",
+          justifyContent: "center",
+          boxShadow: "0 6px 24px rgba(15,79,62,0.36)",
+          zIndex: 400,
+          transition: `transform ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
+          fontFamily: FONTS.body,
+          fontSize: 24,
+          fontWeight: 300,
+          lineHeight: 1,
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.06)";
+          e.currentTarget.style.boxShadow = "0 8px 28px rgba(15,79,62,0.44)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+          e.currentTarget.style.boxShadow = "0 6px 24px rgba(15,79,62,0.36)";
+        }}
+      >
+        +
+      </button>
+      {hasMenu && open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 500,
+            background: "rgba(11,11,13,0.42)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "center",
+            fontFamily: FONTS.body,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 480,
+              background: "#fff",
+              borderRadius: "20px 20px 0 0",
+              padding: "16px 16px max(20px, env(safe-area-inset-bottom)) 16px",
+              boxShadow: "0 -10px 40px -8px rgba(11,11,13,0.30)",
+            }}
+          >
+            <div style={{
+              width: 36, height: 4, borderRadius: 999,
+              background: "rgba(11,11,13,0.10)",
+              margin: "0 auto 14px",
+            }} />
+            <div style={{
+              fontSize: 11, fontWeight: 600, letterSpacing: 0.4,
+              color: COLORS.inkMuted, textTransform: "uppercase",
+              marginBottom: 10, paddingLeft: 4,
+            }}>
+              Create new
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {actions!.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => { setOpen(false); a.onClick(); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    fontFamily: FONTS.body,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.04)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: COLORS.surface,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 18, flexShrink: 0,
+                    }}
+                  >
+                    {a.emoji ?? "+"}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.ink }}>{a.label}</div>
+                    {a.sub && (
+                      <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 1, lineHeight: 1.35 }}>{a.sub}</div>
+                    )}
+                  </div>
+                  <span aria-hidden style={{ color: COLORS.inkDim, fontSize: 16 }}>›</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -6801,163 +7590,12 @@ export function GuidedTour({
           <button
             type="button"
             onClick={() => isLast ? finish(true) : setStepIdx((i) => i + 1)}
-            style={{ background: COLORS.ink, border: "none", borderRadius: RADIUS.md, padding: "5px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#fff", fontFamily: FONTS.body }}
+            style={{ background: COLORS.fill, border: "none", borderRadius: RADIUS.md, padding: "5px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#fff", fontFamily: FONTS.body }}
           >
             {isLast ? "Done ✓" : "Next →"}
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── WS-9.8 App-wide FeedbackButton ─────────────────────────────────────────
-//
-// Floating "Tell us what's wrong with this page" button, anchored to the
-// bottom-right of the viewport. Clicking expands a mini form.
-// Persists feedback to console.log in prototype; real version POSTs to /api/feedback.
-//
-// Excluded from Storybook / screenshot tests via data-tulala-feedback-btn.
-// ─────────────────────────────────────────────────────────────────────────────
-
-export function FeedbackButton() {
-  const [open, setOpen]       = useState(false);
-  const [text, setText]       = useState("");
-  const [sent, setSent]       = useState(false);
-  const [tone, setTone]       = useState<"issue" | "idea" | "praise">("issue");
-
-  const TONE_LABELS = { issue: "🐛 Bug", idea: "💡 Idea", praise: "👏 Praise" };
-
-  const submit = () => {
-    if (!text.trim()) return;
-    // Prototype — just log; real impl POSTs to /api/feedback
-    console.log("[feedback]", { tone, text, page: typeof window !== "undefined" ? window.location.href : "" });
-    setSent(true);
-    setTimeout(() => { setSent(false); setText(""); setOpen(false); }, 1800);
-  };
-
-  return (
-    <div
-      data-tulala-feedback-btn
-      style={{
-        position: "fixed", bottom: 16, right: 16,
-        zIndex:   950,
-        display:  "flex", flexDirection: "column", alignItems: "flex-end", gap: 8,
-      }}
-    >
-      {/* Expanded form */}
-      {open && !sent && (
-        <div style={{
-          background:   COLORS.surface,
-          border:       `1px solid ${COLORS.border}`,
-          borderRadius: RADIUS.xl,
-          boxShadow:    "0 12px 40px rgba(0,0,0,0.15)",
-          padding:      "16px",
-          width:        240,
-          animation:    "tulalaFeedbackIn .18s ease",
-        }}>
-          <style>{`@keyframes tulalaFeedbackIn { from { transform: scale(.96) translateY(6px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }`}</style>
-
-          <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, marginBottom: 10 }}>
-            Send feedback
-          </div>
-
-          {/* Tone picker */}
-          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-            {(Object.keys(TONE_LABELS) as (keyof typeof TONE_LABELS)[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTone(t)}
-                style={{
-                  flex:         1, border: "none", borderRadius: RADIUS.sm,
-                  padding:      "4px 0", fontSize: 10, fontWeight: 600,
-                  cursor:       "pointer", fontFamily: FONTS.body,
-                  background:   tone === t ? COLORS.ink : COLORS.surfaceAlt,
-                  color:        tone === t ? "#fff" : COLORS.inkMuted,
-                  transition:   `background ${TRANSITION.micro}, color ${TRANSITION.micro}`,
-                }}
-              >
-                {TONE_LABELS[t]}
-              </button>
-            ))}
-          </div>
-
-          {/* Text area */}
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="What's on your mind?"
-            rows={3}
-            style={{
-              width:        "100%",
-              border:       `1px solid ${COLORS.border}`,
-              borderRadius: RADIUS.md,
-              padding:      "8px 10px",
-              fontFamily:   FONTS.body,
-              fontSize:     12,
-              color:        COLORS.ink,
-              resize:       "none",
-              outline:      "none",
-              boxSizing:    "border-box",
-              marginBottom: 10,
-            }}
-          />
-
-          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-            <button type="button" onClick={() => setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: COLORS.inkMuted, fontFamily: FONTS.body }}>
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!text.trim()}
-              style={{
-                background:   text.trim() ? COLORS.ink : COLORS.surfaceAlt,
-                color:        text.trim() ? "#fff" : COLORS.inkMuted,
-                border:       "none", borderRadius: RADIUS.md,
-                padding:      "5px 14px", fontSize: 12, fontWeight: 600,
-                cursor:       text.trim() ? "pointer" : "default",
-                fontFamily:   FONTS.body,
-              }}
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Sent confirmation */}
-      {sent && (
-        <div style={{ background: COLORS.ink, color: "#fff", borderRadius: RADIUS.lg, padding: "8px 14px", fontSize: 12, fontWeight: 600, fontFamily: FONTS.body }}>
-          ✓ Thanks for the feedback!
-        </div>
-      )}
-
-      {/* Trigger button */}
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-label="Send feedback"
-        style={{
-          width:        36, height: 36,
-          borderRadius: "50%",
-          background:   COLORS.ink,
-          color:        "#fff",
-          border:       "none",
-          cursor:       "pointer",
-          display:      "flex",
-          alignItems:   "center",
-          justifyContent: "center",
-          fontSize:     16,
-          boxShadow:    "0 4px 16px rgba(0,0,0,0.2)",
-          transition:   `transform ${TRANSITION.micro}`,
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.08)")}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-      >
-        {open ? "×" : "💬"}
-      </button>
     </div>
   );
 }
