@@ -3,13 +3,83 @@
 **Audience:** the engineer(s) translating the clickable prototype into production code.
 **Prototype path:** `web/src/app/prototypes/admin-shell/`
 **Live URL (dev):** `http://localhost:3000/prototypes/admin-shell?surface=workspace&plan=free&role=owner&alsoTalent=true&page=overview`
+**Last updated:** 2026-05-01 (commits `5e0ce66` + `553ef8f`)
 
-This document explains every meaningful design decision, what the building blocks are, and what the production translation looks like. Read it once before touching the code. Cross-reference with `consolidation-map.md` (which surface lives where) and `admin-ux-architecture.md` (the prior strategic write-up).
+This document explains every meaningful design decision, what the building blocks are, and what the production translation looks like. Read it once before touching the code. Cross-reference with `consolidation-map.md` (which surface lives where) and `architecture.md` (the prior strategic write-up).
 
-**Topic-specific deep-dives** — when one section grows past what fits inline, it lives in its own file in `prototypes/admin-shell/`. Currently:
-- **[`TRUST.md`](../../src/app/prototypes/admin-shell/TRUST.md)** — Trust & Verification system (also summarized in §24 below).
-- [`DRAWERS.md`](../../src/app/prototypes/admin-shell/DRAWERS.md) — full drawer reference.
-- [`ROADMAP.md`](../../src/app/prototypes/admin-shell/ROADMAP.md) — workstream sequencing.
+## Master document index
+
+The handoff isn't one file — it's a package. Read in this order. Every link is from this doc's location.
+
+**Tier 1 — read first (required orientation, ~45 min):**
+1. [`README.md`](./README.md) — entry point + navigation through the package.
+2. **This file (`dev-handoff.md`)** — design decisions + production translation, end-to-end.
+3. [`architecture.md`](./architecture.md) — high-level system architecture companion to README.
+4. [`consolidation-map.md`](./consolidation-map.md) — which production surface maps to which prototype pages.
+5. [`production-handoff.md`](./production-handoff.md) — the prototype → production handoff narrative.
+
+**Tier 2 — reference docs (open as you need them):**
+6. [`../../src/app/prototypes/admin-shell/ROADMAP.md`](../../src/app/prototypes/admin-shell/ROADMAP.md) — 32 workstreams, sequencing, dependencies. Tagged ✅/⚠️ per recent sprint.
+7. [`../../src/app/prototypes/admin-shell/DRAWERS.md`](../../src/app/prototypes/admin-shell/DRAWERS.md) — every drawer (149+) with purpose + related drawers + audience.
+8. [`../../src/app/prototypes/admin-shell/TRUST.md`](../../src/app/prototypes/admin-shell/TRUST.md) — Trust & Verification system in full (also summarized in §24 below).
+9. [`../../src/app/prototypes/admin-shell/STYLE.md`](../../src/app/prototypes/admin-shell/STYLE.md) — visual tokens, do/don't list, color decision tree.
+10. [`../../src/app/prototypes/admin-shell/MOTION.md`](../../src/app/prototypes/admin-shell/MOTION.md) — durations, easings, choreography rules.
+11. [`../../src/app/prototypes/admin-shell/A11Y.md`](../../src/app/prototypes/admin-shell/A11Y.md) — keyboard map, ARIA conventions, screen-reader patterns.
+12. [`../../src/app/prototypes/admin-shell/CONTENT.md`](../../src/app/prototypes/admin-shell/CONTENT.md) — voice, tone, capitalization, error/empty-state copy patterns.
+13. [`../../src/app/prototypes/admin-shell/ICONS.md`](../../src/app/prototypes/admin-shell/ICONS.md) — icon registry + when-to-use guidance.
+14. [`../../src/app/prototypes/admin-shell/DESIGN_HANDOFF_TEMPLATE.md`](../../src/app/prototypes/admin-shell/DESIGN_HANDOFF_TEMPLATE.md) — template designers fill out per feature.
+
+**Tier 3 — track-specific deep-dives:**
+15. [`talent-backend-handoff.md`](./talent-backend-handoff.md) — talent surface, backend/data-layer focus.
+16. [`talent-roadmap.md`](./talent-roadmap.md) — talent surface roadmap (separate from main).
+17. [`talent-execution-checklist.md`](./talent-execution-checklist.md) — talent execution master checklist.
+18. [`talent-workspace-improvements.md`](./talent-workspace-improvements.md) — talent + workspace audit + recs.
+19. [`dp-default-positions.md`](./dp-default-positions.md) — decision-point defaults (companion to talent-execution-checklist).
+20. [`mobile-audit.md`](./mobile-audit.md) — 50-item mobile-only audit (real, from screenshots + DOM).
+21. [`qa-plan.md`](./qa-plan.md) — page-by-page design QA structure.
+22. [`qa-tracker.md`](./qa-tracker.md) — live QA tracker.
+
+**Tier 4 — embedded prototype docs (small but important):**
+23. [`../../src/app/prototypes/admin-shell/docs/PR_CHECKLIST.md`](../../src/app/prototypes/admin-shell/docs/PR_CHECKLIST.md) — pre-merge gate (no gold/brass/rust accents, etc).
+24. [`../../src/app/prototypes/admin-shell/docs/MESSAGING_FLOW.md`](../../src/app/prototypes/admin-shell/docs/MESSAGING_FLOW.md) — inquiry messaging flow detail.
+25. [`../../src/app/prototypes/admin-shell/tokens.json`](../../src/app/prototypes/admin-shell/tokens.json) — Style Dictionary token export.
+26. [`../../src/app/prototypes/admin-shell/docs/canonical-flow.json`](../../src/app/prototypes/admin-shell/docs/canonical-flow.json) — pipeline flow definition.
+
+If a doc isn't on this list, it's either obsolete or out-of-scope for the dashboard implementation.
+
+## Recent work timeline (last 14 days)
+
+> Helps a dev opening the handoff cold understand WHEN each decision was made and which docs were updated alongside.
+
+| Date | Commit | Highlight | What it touched |
+|---|---|---|---|
+| 2026-05-01 | `553ef8f` | Handoff prep — sprint changes documented | dev-handoff §25, DRAWERS.md additions, ROADMAP ✅/⚠️ tags |
+| 2026-05-01 | `5e0ce66` | **Modernization sprint** — see §25 | 18 prototype files: WS-1.A wide layout, minor protections, WS-25.2 client CSV, WS-11 advanced, GuidedTour primitive, native popover migration, dead-code removal, WebAuthn + WebGPU + URL route shim |
+| 2026-04-30 | `7570b87` | Master taxonomy + workspace enablement docs locked | docs/taxonomy/ — separate track, not admin-shell |
+| 2026-04-30 | `bc57b56` | Page-builder invariants locked for SaaS refactor | docs/builder/ — separate track |
+| 2026-04-30 | `2ca73bf` `15def15` | header-inspector tab IA + perf + nav rebuild | site-shell track, not admin-shell |
+| 2026-04-29 | `461b0f7` `80fb09f` | header-inspector phase 1 + 2 (premium restraint, undo, validation) | site-shell |
+| 2026-04-29 | `dbdd97f` `7c0f0d9` | edit-chrome Preview toggle into mobile/tablet iframe | edit-chrome (site-builder) |
+| 2026-04-29 | `06d174e` `24a4a77` `9a32af1` | site-shell header drawer system, mobile header, hover-only logo | site-shell |
+| 2026-04-29 | `1e25014` | CMS public-navigation read caching | cms / site-builder |
+| 2026-04-29 | `f0fe619` | Warm-paper input system + indigo accent overhaul | edit-chrome |
+| 2026-04-29 | `8165902` `3b5934a` | edit-chrome Sprint 5 — composition.* mutations through dispatch | edit-chrome |
+| 2026-04-28 | `2da8fff` `c5d141b` | edit-chrome Sprint 5 dispatch foundation + perf | edit-chrome |
+| 2026-04-28 | `903dde5` `13ccfd1` `cb274ee` | edit-chrome Sprint 4 — recommendations, multi-select, outline mode | edit-chrome |
+| 2026-04-28 | `0e436f0` `71005c3` | QA-2 inspector title + content-derived names | edit-chrome |
+| 2026-04-28 | `34355dd` | Big QA pass — broken /account, suffix leak, dup labels, drag/select state | edit-chrome |
+| 2026-04-28 | `f0ced22` | edit-chrome Sprint 3 — iframe device preview replaces clip | edit-chrome **+ touched admin-shell docs** (A11Y/CONTENT/ICONS/MOTION/STYLE/tokens.json updated for parity) |
+| 2026-04-28 | `9d95c77` | **Admin-shell comprehensive redesign batch** | admin-shell — DRAWERS, _drawers, _help, _pages, _primitives, _state, _talent, page.tsx |
+| 2026-04-27 | `a8f73b8` | Mobile filter chip 56px regression + active-tab badge contrast | admin-shell mobile |
+| 2026-04-27 | `219c80f` | **Mobile premium pass: J1–J8 critical + sections A–I** | admin-shell mobile (10 prototype files) |
+| 2026-04-27 | `9367e22` `08b830a` `bacba2d` `6e1b766` `4c6ccc2` `f5ea049` `5d34f6f` | Mobile audit follow-ups — composer polish, identity bar, account menu, earnings ring, talent strips | admin-shell mobile |
+| 2026-04-27 | `fc38708` | **50-item mobile audit doc added** + temp quarantine | mobile-audit.md, _*.tsx.quarantined (later un-quarantined) |
+| 2026-04-27 | `398a645` | Quarantined admin-shell to unblock build | admin-shell page.tsx (later restored) |
+
+**What this tells the dev:**
+- Admin-shell prototype work landed in two big batches: `9d95c77` (2026-04-28 redesign batch) + `5e0ce66` (2026-05-01 modernization sprint). Read those commits' diffs for the full delta.
+- The 2026-04-27 mobile premium pass + 50-item audit (`mobile-audit.md`) is the source of truth for mobile-specific decisions. Cross-reference §22 + §25.7 of this doc.
+- Most last-week commits (edit-chrome, site-shell, header-inspector, page-builder) are for the **page builder / site-shell track**, NOT the admin dashboard. They're tracked in separate doc folders (`docs/builder/`, `docs/taxonomy/`). When implementing the dashboard, leave those alone.
 
 ---
 
@@ -1107,7 +1177,18 @@ Production maps these to a `notification_preferences` table per user with a `qui
 2. **Dead space on list surfaces — PARTIAL.** Original specific surface no longer has the offending status-tabs+filter-card pair. Treat as case-by-case when touching list pages.
 3. **Opaque jargon labels — ADDRESSED for workspace nav.** Sidebar + topbar nav buttons now expose `PAGE_META[p].description` via `title=` and `aria-label=`. First-time admin tour also covers the 4 most-opaque DOM nodes.
 
-### 25.9 What's still open at handoff
+### 25.9 Cross-track context (last 14 days, NOT admin-shell)
+
+These tracks shipped major work in the same week and a dev implementing the dashboard will see commits from them in the log. They are **separate** systems — leave their docs alone unless integration touches them:
+
+- **Edit-chrome / site-builder** (~25 commits 2026-04-28 → 2026-04-29). Sprint 3–5 work: iframe device preview, dispatch-routed composition mutations, contextual SectionPickerPopover, multi-select + auto-scroll, smart section recommendations, Preview toggle bridge, warm-paper input system. Lives in `web/src/app/(dashboard)/admin/site-settings/` + `web/src/app/site-builder/` (out of admin-shell scope). Tracked in `docs/builder/`.
+- **Site-shell header system** (~10 commits 2026-04-29 → 2026-04-30). SiteHeaderInspector drawer + 4 operator-controllable tokens + real mobile header system + token wiring. Lives in `web/src/lib/site-shell/` + `web/src/components/site-shell/`. Out of admin-shell scope.
+- **Header-inspector polish** (~6 commits 2026-04-29 → 2026-04-30). Tab IA reduction, premium restraint pass, undo, validation, Navigation row rebuild, hover-only logo edit. Same site-shell track.
+- **Taxonomy + workspace enablement** (`7570b87` 2026-04-30). Master vocabulary + adaptive registration locked. Lives in `docs/taxonomy/`. Cross-references the prototype's `_taxonomy-loader.ts` but the runtime impl is server-side.
+
+If a commit message starts with `(edit-chrome)`, `(site-shell)`, `(site-builder)`, `(header-inspector)`, `(cms)`, `(saas)`, `(builder)`, or `(taxonomy)` — it's NOT admin-shell. Don't include it in the dashboard rollout.
+
+### 25.10 What's still open at handoff
 
 Tracked in `ROADMAP.md` § 4. Highest-leverage remaining items:
 
