@@ -3,7 +3,7 @@
 **Audience:** the engineer(s) translating the clickable prototype into production code.
 **Prototype path:** `web/src/app/prototypes/admin-shell/`
 **Live URL (dev):** `http://localhost:3000/prototypes/admin-shell?surface=workspace&plan=free&role=owner&alsoTalent=true&page=overview`
-**Last updated:** 2026-05-01 (commits `5e0ce66` + `553ef8f`)
+**Last updated:** 2026-05-01 (commits `5e0ce66` · `553ef8f` · `0522f7d` · `11d8fa0`)
 
 This document explains every meaningful design decision, what the building blocks are, and what the production translation looks like. Read it once before touching the code. Cross-reference with `consolidation-map.md` (which surface lives where) and `architecture.md` (the prior strategic write-up).
 
@@ -53,6 +53,8 @@ If a doc isn't on this list, it's either obsolete or out-of-scope for the dashbo
 
 | Date | Commit | Highlight | What it touched |
 |---|---|---|---|
+| 2026-05-01 | `11d8fa0` | **Polish + bug-fix batch** — see §26 | Scroll-lock recovery (the "stuck Profile page" bug), PrimaryButton black-CTA leak fix (global), talent header compact, Preview-as-client drawer rewrite, MobileInboxTab redesigned, Atelier Roma seed cleanup, 3 pre-existing TS errors fixed |
+| 2026-05-01 | `0522f7d` | Handoff master index + 14-day timeline | This timeline + tier-1/2/3/4 doc index |
 | 2026-05-01 | `553ef8f` | Handoff prep — sprint changes documented | dev-handoff §25, DRAWERS.md additions, ROADMAP ✅/⚠️ tags |
 | 2026-05-01 | `5e0ce66` | **Modernization sprint** — see §25 | 18 prototype files: WS-1.A wide layout, minor protections, WS-25.2 client CSV, WS-11 advanced, GuidedTour primitive, native popover migration, dead-code removal, WebAuthn + WebGPU + URL route shim |
 | 2026-04-30 | `7570b87` | Master taxonomy + workspace enablement docs locked | docs/taxonomy/ — separate track, not admin-shell |
@@ -1200,5 +1202,187 @@ Tracked in `ROADMAP.md` § 4. Highest-leverage remaining items:
 - **WS-28–WS-34** — round-4 industry-depth additions (casting director surface, production team, image rights, account lifecycle, discovery, on-set live, safety/disputes)
 - Mobile-viewport popover re-verify (item 25.7 above)
 - `_state.tsx` context split — file is now ~7,400 lines with a single Context provider holding ~50 cb refs. Splitting into PageContext / DrawerContext / DataContext would reduce re-render cost. Not on the roadmap; recommend adding to WS-13
+
+
+---
+
+## 26. Post-sprint polish + bug-fix batch — 2026-05-01 (commit `11d8fa0`)
+
+A short follow-up landing one infrastructure bug, three design fixes the
+user flagged in QA, and a seed-data cleanup. Read this if you're touching
+overlays, primary CTAs, the talent profile header, or the talent
+preview/inbox surfaces.
+
+### 26.1 Scroll-lock recovery — the "stuck page" bug
+
+**Symptom:** users reported the talent Profile page (and occasionally
+other surfaces) becoming impossible to scroll. Programmatic scroll worked
+fine; only user input was blocked.
+
+**Root cause:** `lockScroll()` / `unlockScroll()` in `_primitives.tsx` use
+a ref-counted `_overlayDepth` to track open drawers/modals/dialogs and
+only release `body.style.overflow` when the count hits zero. Under HMR,
+unmount races, or React strict-mode double-invocation, the counter could
+drift and leave the body locked while no overlay was actually rendered.
+
+**Fix (two layers):**
+
+1. **`unlockScroll()` is now self-healing** — defers a frame and probes
+   the DOM for any `[data-tulala-drawer-panel]`,
+   `[data-tulala-modal-overlay]`, or `[data-tulala-confirm-dialog]`
+   markers. If none are present, force-clears `body.style.overflow`
+   regardless of what the counter thinks. A new `reconcileScrollLock()`
+   helper does the probe.
+2. **`PrototypeRoot` runs a one-shot recovery effect on mount** in
+   `page.tsx`. Same DOM probe; clears the lock if no overlay exists.
+   Catches HMR-leaked locks from prior dev sessions on first paint.
+
+**Pattern to copy:** any future scroll-lock primitive should follow the
+"probe-on-release" model, not just trust the counter. The DOM is the
+source of truth for overlay presence.
+
+### 26.2 PrimaryButton bug — global black-CTA leak
+
+**Symptom:** every primary button across every surface (workspace, talent,
+client, platform, drawer footers) was permanently darkening to pure black
+on first hover and never returning to slate.
+
+**Root cause:** `PrimaryButton`'s `onMouseLeave` handler reset
+`background` to `COLORS.ink` (`#0B0B0D` — pure black) instead of
+`COLORS.fill` (`#4D4855` — slate). The `onMouseEnter` was also using a
+hardcoded `"#1d1d20"` (near-black) instead of the proper `COLORS.fillDeep`.
+
+**Fix (`_primitives.tsx:3739`):**
+- Hover-in now uses `COLORS.fillDeep` (slate-darker, intentional)
+- Mouse-leave resets to `COLORS.fill` (slate, the original idle state)
+
+This silently affected ~100+ buttons app-wide. Verified across workspace
+overview: every primary button now reports `rgb(77, 72, 85)` (= slate)
+post-hover.
+
+The earlier `feedback_admin_aesthetics.md` complaint of "buttons keep
+turning black" was misattributed to color-token drift — the actual
+technical cause was this hover handler bug.
+
+### 26.3 Talent profile header — compact + slate
+
+**`_talent.tsx` MyProfilePage:**
+- Both header buttons (`Preview as client` + `Edit profile`) now
+  `size="sm"` so they read as header actions, not body-level CTAs
+  alongside the h1
+- `Edit profile` gains a `pencil` icon to match `Preview as client`'s
+  external-link icon — visually balanced, both have icon+label
+
+**`_primitives.tsx`:**
+- `Icon` primitive gains `pencil` variant. Path: `M16 3l5 5L8 21H3v-5L16 3z`
+
+### 26.4 Preview-as-client drawer rewritten
+
+**Why:** the previous design tried to fake-render a public-page mockup
+inside a 720px drawer. That broke down — image-URL strings rendered as
+plain text at 56px font (the giant `pravatar.cc/300?...` text the user
+saw). Beyond the bug, a faked mockup never matches the real surface and
+the talent doesn't need a copy — they need links to the actual pages.
+
+**`_talent_drawers.tsx` `TalentPublicPreviewDrawer`:**
+
+The new body has three sections:
+
+1. **Where you appear · {tier}** — list of real distribution surfaces.
+   Each row: surface name + URL one-liner + Copy + Open buttons. Tier-aware:
+   - Basic / Pro: `tulala.digital/t/<slug>` (canonical)
+   - Portfolio: custom domain when verified, OR fallback row that says
+     "active until you connect a custom domain"
+   - Agency roster + hub feeds always shown (distribution is independent
+     of the personal-page subscription per `project_talent_subscriptions`)
+
+2. **What this tier unlocks** — concrete bullet list per tier:
+   - Basic: canonical URL, identity, trust badges, agency+hub distribution
+   - Pro: 3 premium templates, 6 video embeds, press section, no Tulala
+     branding, hub priority
+   - Portfolio: custom domain, all Pro features, Story/About, tour dates,
+     calendar, EPK, FAQ, unlimited embeds, visitor analytics
+
+   Card flips between **ACTIVE** (neutral) and **UPGRADE REQUIRED**
+   (accent badge + soft accent background) based on whether the previewed
+   tier matches `currentTier`.
+
+3. **Hidden until they inquire** — quiet panel listing the data clients
+   never see (full measurements, rate ranges, limits, documents, emergency
+   contact).
+
+**Footer:**
+- `Close` always present
+- `Upgrade to {tier}` only when previewed tier > current (opens
+  `talent-tier-compare`)
+
+The old "Copy public URL" footer button is gone — every distribution
+row has its own Copy now.
+
+**Custom domain = Portfolio.** Per `project_talent_subscriptions.md`
+binding source-of-truth + the `TalentSubscription.customDomain`
+typing comment in `_state.tsx:3567`. Pro adds premium templates
++ featured media but stays on the canonical `tulala.digital/t/<slug>`.
+
+### 26.5 MobileInboxTab redesigned
+
+The pull-tab on the left edge of the talent thread mode (mobile only).
+Iterations during this session:
+
+| Stage | Treatment | Why retired |
+|---|---|---|
+| Original | 32vh slate→black gradient pill with pulse | "Horrible" — too aggressive, dominated viewport |
+| Pure white | 26vh thin pill, white surface, faint border | "Even uglier" — invisible blob |
+| Two-bar handle | 56×28 surfaceAlt, vertical drawer-handle marks | Wrong shape, not handle-like |
+| Final | **16×104 solid slate, white chevron, inset highlights** ✓ | Reads as a physical drawer pull |
+
+**`_messages.tsx`** `MobileInboxTab`:
+- `width: 16, height: 104` — proper drawer-handle ratio (~6.5:1)
+- `background: COLORS.fill` (`#4D4855`, same as primary CTAs — consistent
+  language with the rest of the action surfaces)
+- Inset highlights on the right + top edges (`rgba(255,255,255,0.12 / 0.08)`)
+  give a 3D handle feel (catches light from above-right)
+- Drop shadow `3px 5px 16px -4px rgba(11,11,13,0.30)` suggests the panel
+  hides off-screen behind it
+- Chevron-right SVG (9×15, 1.7 stroke) at center
+- Forest accent dot above the chevron when unread, ringed in slate
+
+### 26.6 Talent seed cleanup
+
+- Renamed `"Acme Models"` → `"Atelier Roma"` to match `TENANT.name`. 67
+  occurrences across `_state.tsx` (62), `_talent.tsx` (4), `_wave2.tsx` (1).
+  Was a stale leftover from the original placeholder name. Now every
+  `primaryAgency`, `agencyName` (on inquiries), and `representation.agencyName`
+  reads consistently.
+- `MOCK_TENANTS` first entry: `id: "acme"` → `id: "atelier-roma"` to
+  match `TENANT.slug`.
+- Profile completeness banner copy `"Set polaroids set (5 naturals)"` →
+  `"Polaroids set (5 naturals)"` (duplicate "set" removed).
+
+### 26.7 Pre-existing TS errors fixed (unblocks `_messages.tsx` commit)
+
+`_messages.tsx` had been sitting untracked in the working tree with 3
+pre-existing type errors blocking commit:
+
+1. **L864-865** — `RichInquiry.location` and `.date` are `string | null`
+   but `ShellHeaderInput` expects `string | undefined`. Coerced via
+   `?? undefined`.
+2. **L3284** — `derivedTalent.state` was `"accepted" as const`, but the
+   canonical `InquiryTalentInvite["state"]` union doesn't include that.
+   Changed to `"confirmed"` (closest semantic for on-lineup talent).
+
+After these fixes the file compiles clean and is now in git as part of
+this commit.
+
+### 26.8 Verification
+
+- `npx tsc --noEmit` → exit 0 (was 3 pre-existing)
+- Browser walkthrough at desktop (1456×821):
+  - Workspace overview: all primary buttons report `rgb(77, 72, 85)`
+    post-hover ✓
+  - Talent profile: header buttons compact + slate ✓
+  - Preview-as-client: tier-aware distribution links + ACTIVE / UPGRADE
+    REQUIRED feature card + working upgrade footer ✓
+  - Profile page scrolls normally ✓
 
 
