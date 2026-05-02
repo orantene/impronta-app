@@ -157,6 +157,10 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<TalentProfi
    ```
 5. Implement `loadWorkspaceRosterForCurrentTenant()` with the exact logic below.
 
+**Schema decision — taxonomy v2 fields are canonical (binding):**
+
+`talent_profile_taxonomy` carries BOTH `is_primary BOOLEAN` (legacy 2025-04 init) and `relationship_type TEXT` (v2 added by `20260801120100_taxonomy_v2_assignments_extend.sql`). `taxonomy_terms` carries BOTH `kind ENUM` (legacy) and `term_type TEXT NOT NULL` (v2 added by `20260801120000_taxonomy_v2_hierarchy_columns.sql`). The v2 migration backfills the new columns from the legacy ones, locks `relationship_type` with a CHECK + trigger validator, and adds a unique index `ux_talent_profile_taxonomy_one_primary` enforcing one `primary_role` per profile. **Phase 1 forward reads canonical v2 fields (`relationship_type`, `term_type`).** The legacy `is_primary` + `kind` are preserved for back-compat with pre-v2 code (`/t/[profileCode]/page.tsx` still reads them — that's stale but works because the migration preserves the columns). Bridge code does NOT mix the two — pick v2 and keep it consistent.
+
 **Exact SQL/join shape (Supabase JS query builder syntax):**
 ```ts
 supabase
@@ -174,8 +178,12 @@ supabase
       height_cm,
       cover_photo_url,
       talent_profile_taxonomy (
-        is_primary,
-        taxonomy_terms ( kind, slug )
+        relationship_type,
+        taxonomy_terms ( term_type, slug )
+      ),
+      talent_service_areas (
+        service_kind,
+        locations ( display_name_en, country_code )
       )
     )
   `)
@@ -191,12 +199,14 @@ supabase
 - `talent_profiles.workflow_status` — drives `published` / `draft` / `invited` lifecycle.
 - `talent_profiles.height_cm` — converted to imperial label `5'9"` to match mock format.
 - `talent_profiles.cover_photo_url` — roster card thumb.
-- `talent_profile_taxonomy.is_primary` + `taxonomy_terms.kind/slug` — primary talent type chip.
+- `talent_profile_taxonomy.relationship_type` + `taxonomy_terms.term_type` + `taxonomy_terms.slug` — primary talent type chip. Filter in JS: `find(t => t.relationship_type === "primary_role")`. The unique index guarantees at most one match per profile.
+- `talent_service_areas.service_kind` filtered to `'home_base'` joined to `locations.display_name_en` — home base city for the roster card. Migration `20260801120150_talent_service_areas.sql` is live in production.
 
 **Mapping helpers (pure functions, defined in same file):**
 - `deriveProfileState(row): TalentProfile["state"]` — see contract below.
 - `deriveDisplayName(profile): string` — `display_name → first+last → "Unnamed talent"`.
-- `derivePrimaryType(profile): string | undefined` — first `taxonomy_terms.slug` where `is_primary && kind='talent_type'`.
+- `derivePrimaryType(profile): string | undefined` — first `taxonomy_terms.slug` where `relationship_type === "primary_role"`. (At most one such row per profile, enforced by `ux_talent_profile_taxonomy_one_primary`.)
+- `deriveCity(profile): string | undefined` — first `talent_service_areas` row where `service_kind === "home_base"`, then `locations.display_name_en`. Talents without a home_base entry render with no city label (the roster card primitive falls back gracefully).
 - `deriveHeightLabel({height_cm}): string | undefined` — cm → `${feet}'${inches}"`.
 
 **State mapping rule (conservative — anything ambiguous falls to `draft`):**
@@ -222,8 +232,10 @@ supabase
 **Database tables involved (read-only):**
 - `agency_talent_roster` (RLS: tenant isolation by membership)
 - `talent_profiles` (global table, joined via FK)
-- `talent_profile_taxonomy` (FK to talent_profile_id)
-- `taxonomy_terms` (joined via FK)
+- `talent_profile_taxonomy` (FK to talent_profile_id; v2 schema with `relationship_type`)
+- `taxonomy_terms` (joined via FK; v2 schema with `term_type`)
+- `talent_service_areas` (FK to talent_profile_id; filter `service_kind='home_base'`)
+- `locations` (joined from `talent_service_areas.location_id`; for `display_name_en`)
 
 **Capability checks involved:** none. RLS handles tenant isolation. The user's session (signed in as Impronta owner) gives them SELECT on their own tenant's roster rows.
 
@@ -319,7 +331,12 @@ effectiveRoster: TalentProfile[];
 **Definition of done:**
 - All 6 manual smokes pass.
 - All 5 QA commands pass.
-- `git diff --stat` shows only the 4 files in `web/src/app/prototypes/admin-shell/`.
+- `git diff --stat` shows ONLY these 5 files inside `web/src/app/prototypes/admin-shell/`:
+  1. `page.tsx` (rewritten — server component)
+  2. `_shell-client.tsx` (renamed from old `page.tsx` + edited)
+  3. `_data-bridge.ts` (NEW)
+  4. `_state.tsx` (Ctx fields + `ProtoProvider` prop + `effectiveRoster` memo)
+  5. `_pages.tsx` (two `getRoster(state.plan)` call-site swaps to `state.effectiveRoster`)
 
 **Dependencies:** P1.1 + P1.2 — same commit.
 
@@ -334,7 +351,7 @@ effectiveRoster: TalentProfile[];
 
 **Steps:**
 1. From `web/`, run all 5 QA commands (typecheck, test:access, check:capability-keys, taxonomy phase 1, taxonomy phase 2). All must pass.
-2. Verify staging discipline: `git diff --cached --stat` lists ONLY the 4 expected prototype files. Nothing in `(dashboard)`, `lib/`, `middleware.ts`, `t/`, `components/edit-chrome/`.
+2. Verify staging discipline: `git diff --cached --stat` lists ONLY the 5 expected prototype files (`page.tsx`, `_shell-client.tsx`, `_data-bridge.ts`, `_state.tsx`, `_pages.tsx` — all under `web/src/app/prototypes/admin-shell/`). Nothing in `(dashboard)`, `lib/`, `middleware.ts`, `t/`, `components/edit-chrome/`.
 3. Commit with message:
    ```
    feat(phase-1): real-data bridge for workspace roster
@@ -561,7 +578,7 @@ effectiveRoster: TalentProfile[];
 |------|------|
 | Migrate callers (P2.1–P2.4) | This phase |
 | Convert legacy modules to re-exports (P2.5) | This phase, last commit |
-| **Delete legacy modules** | **Phase 4** — after Phase 3 promotion is complete and no `(dashboard)/admin/*` survives. Same commit as the last legacy admin route deletion. |
+| **Delete legacy capability modules** (`lib/saas/capabilities.ts`, `lib/site-admin/capabilities.ts`) | **Phase 4 (final commit)** — after every Phase 3 surface has been promoted AND every Phase 4 per-surface deletion has run, so no callers of the deprecated re-exports remain. Verified via `git grep "hasPhase5Capability\|requirePhase5Capability"` returning zero matches. |
 
 **Why not delete now:** other code paths (page builder server modules, structured logging, audit trail) may still pass through the deprecated helpers. Phase 4 is the safe deletion point.
 
@@ -569,7 +586,7 @@ effectiveRoster: TalentProfile[];
 
 # Phase 3 — Surface-by-surface route promotion
 
-**Goal:** promote prototype surfaces to canonical multi-tenant URLs. Each surface = one focused commit. Each surface follows the same shape: bridge (Phase 1 pattern) → server-component wrapper → client tree from prototype → delete legacy in same commit.
+**Goal:** promote prototype surfaces to canonical multi-tenant URLs. Each surface = one focused commit. Each surface follows the same shape: bridge (Phase 1 pattern) → server-component wrapper → client tree from prototype → ship at new route. **Legacy deletion is decoupled into Phase 4 follow-up commits per surface** (see boundary section below).
 
 **Pre-requisite:** Phase 2 must be shipped + accepted. Phase 3 cannot start before `lib/access/` is canonical.
 
@@ -582,9 +599,14 @@ effectiveRoster: TalentProfile[];
 
 **Universal acceptance pattern per surface:**
 1. typecheck + parity tests + capability-keys check pass.
-2. Surface renders against Impronta live data.
-3. Legacy equivalent under `(dashboard)/admin/*` deleted in same commit (per `OPERATING.md` removal policy).
+2. Surface renders against Impronta live data at the new canonical route.
+3. Legacy equivalent under `(dashboard)/admin/*` continues to work unchanged. **Legacy is NOT deleted in Phase 3.** It is deleted in a follow-up Phase 4 commit per surface, after the new route has run for the soak window agreed at promotion time (default: in-session smoke + the next working day's QA pass; longer if the surface is high-stakes like billing or trust).
 4. Public `/t/<slug>` and page builder smoke unchanged.
+
+**Phase 3 ↔ Phase 4 boundary (BINDING):**
+- **Phase 3 promotes and proves** — new route ships, renders real Impronta data, all gates pass. Legacy stays.
+- **Phase 4 deletes per surface** — separate commit per surface. Pre-condition: that surface's Phase 3 promotion has been verified by the founder. The Phase 4 commit removes the legacy directory (e.g. `(dashboard)/admin/talent/`) and adds a 308 redirect from the legacy URL to the new canonical URL.
+- This decoupling protects against a Phase 3 surface shipping with a regression that's only caught after the same-commit deletion would have already destroyed the rollback path. With the split, "revert the Phase 3 promotion" works trivially because the legacy is still there.
 
 ---
 
@@ -605,7 +627,7 @@ effectiveRoster: TalentProfile[];
 | **Capability checks** | `agency.workspace.view` (gates the page) |
 | **Drawers involved** | `addTalent`, `inviteClient`, `inviteTeam`, `upgrade` |
 | **Mock variables to replace** | `ROSTER_FREE`, `ROSTER_AGENCY`, `INQUIRIES_FREE`, `INQUIRIES_AGENCY`, `TEAM_FREE`, `TEAM_AGENCY` |
-| **Legacy to delete same commit** | `web/src/app/(dashboard)/admin/page.tsx` and any `_overview.tsx` partials |
+| **Legacy deletion (Phase 4 follow-up commit)** | `web/src/app/(dashboard)/admin/page.tsx` and any `_overview.tsx` partials |
 | **Page builder impact** | none |
 | **Acceptance** | Owner sees real Impronta counts on `app.tulala.digital/impronta/admin`. Non-staff see 403. |
 | **Rollback** | revert the commit |
@@ -627,7 +649,7 @@ effectiveRoster: TalentProfile[];
 | **Capability checks** | `agency.roster.view`, `agency.roster.edit`, `agency.roster.invite`, `agency.roster.remove` |
 | **Drawers involved** | `talentProfile`, `inviteTalent`, `bulkImport`, `editOverlay`, `representations` |
 | **Mock variables to replace** | `ROSTER_FREE`, `ROSTER_AGENCY`, `PENDING_TALENT` |
-| **Legacy to delete same commit** | `(dashboard)/admin/talent/*` (entire directory) |
+| **Legacy deletion (Phase 4 follow-up commit)** | `(dashboard)/admin/talent/*` (entire directory) |
 | **Page builder impact** | none |
 | **Acceptance** | 29 Impronta talents render with full filters working; talent profile drawer pulls real data; legacy `/admin/talent` 308-redirects to new route. |
 | **Rollback** | revert |
@@ -649,7 +671,7 @@ effectiveRoster: TalentProfile[];
 | **Capability checks** | `agency.work.view`, `agency.work.assign`, `agency.work.send_offer`, `agency.work.create_booking` |
 | **Drawers involved** | `inquiryWorkspace`, `requirementGroup`, `offerEditor`, `coordinatorPicker` |
 | **Mock variables to replace** | `RICH_INQUIRIES`, `INQUIRIES_FREE`, `INQUIRIES_AGENCY` |
-| **Legacy to delete same commit** | `(dashboard)/admin/inquiries/*` |
+| **Legacy deletion (Phase 4 follow-up commit)** | `(dashboard)/admin/inquiries/*` |
 | **Page builder impact** | none |
 | **Acceptance** | Real Impronta inquiries render in pipeline; offer flow works end-to-end; coordinator assignment persists. |
 | **Rollback** | revert |
@@ -671,7 +693,7 @@ effectiveRoster: TalentProfile[];
 | **Capability checks** | `agency.clients.view`, `agency.clients.invite`, `agency.clients.verify`, `agency.clients.contact_gate.edit` |
 | **Drawers involved** | `clientProfile`, `verificationRequest`, `contactGateEditor` |
 | **Mock variables to replace** | `CLIENTS_FREE`, `CLIENTS_AGENCY`, `MOCK_VERIFICATIONS`, `MOCK_TRUST_SUMMARIES` |
-| **Legacy to delete same commit** | `(dashboard)/admin/clients/*` |
+| **Legacy deletion (Phase 4 follow-up commit)** | `(dashboard)/admin/clients/*` |
 | **Page builder impact** | none |
 | **Acceptance** | Trust badges render correctly per client tier; gate toggles persist. |
 | **Rollback** | revert |
@@ -693,7 +715,7 @@ effectiveRoster: TalentProfile[];
 | **Capability checks** | `agency.site_admin.identity.edit/publish`, `.branding.edit/publish`, `.design.edit/publish`, `.navigation.edit/publish`, `.pages.edit/publish`, `.homepage.compose` |
 | **Drawers involved** | identity drawer, branding drawer, theme drawer, page editor (the drawer-style page editor inside the page builder), redirects drawer |
 | **Mock variables to replace** | none — entire site surface is already real |
-| **Legacy to delete same commit** | `(dashboard)/admin/site-settings/*` directory |
+| **Legacy deletion (Phase 4 follow-up commit)** | `(dashboard)/admin/site-settings/*` directory |
 | **Page builder impact** | **DO NOT REWRITE** `web/src/components/edit-chrome/*`. Wrap it in the new shell. Per `page-builder-invariants.md`, the canvas IS the storefront in edit mode; route promotion preserves the existing inspector + token-registry contract. |
 | **Acceptance** | Edit + publish a homepage section, a CMS page, identity, navigation, design tokens — all work identically to before. Smoke against Impronta. |
 | **Rollback** | revert |
@@ -715,7 +737,7 @@ effectiveRoster: TalentProfile[];
 | **Capability checks** | `agency.team.invite/edit/remove`, `agency.plan.upgrade/cancel`, `agency.taxonomy.edit`, `agency.custom_fields.edit`, `agency.audit_log.view` |
 | **Drawers involved** | `inviteTeam`, `changeRole`, `planPicker`, `customFieldEditor`, `taxonomyPicker` |
 | **Mock variables to replace** | `TEAM_FREE`, `TEAM_AGENCY`, `MOCK_AUDIT`, custom fields mocks |
-| **Legacy to delete same commit** | `(dashboard)/admin/team/*`, `(dashboard)/admin/billing/*`, `(dashboard)/admin/fields/*` |
+| **Legacy deletion (Phase 4 follow-up commit)** | `(dashboard)/admin/team/*`, `(dashboard)/admin/billing/*`, `(dashboard)/admin/fields/*` |
 | **Page builder impact** | none |
 | **Acceptance** | Each tab loads + writes; audit log shows real entries. |
 | **Rollback** | revert |
@@ -1112,13 +1134,13 @@ Execution **must stop and escalate to the founder** if any of the following happ
 |---|---|---|
 | S1 | Bridge requires service-role access | STOP. RLS must work. If it doesn't, fix the policy first; do NOT route around it with `lib/supabase/admin.ts`. |
 | S2 | Mock mode breaks on the prototype URL without `?dataSource=live` | STOP. Mock mode must be a no-op default. Revert until restored. |
-| S3 | Legacy `/admin/*` breaks before its replacement is shipped | STOP. Legacy must keep working until the same commit that ships the replacement. |
+| S3 | Legacy `/admin/*` breaks during Phase 3 (before its Phase 4 deletion) | STOP. Legacy must keep working all the way through Phase 3. Phase 3 is "promote and prove"; legacy continues running. Deletion happens in Phase 4 only after that surface's promotion has been verified. |
 | S4 | Public `/t/<slug>` regresses | STOP. Phases 1–3 do not touch this route. Investigate root cause. |
 | S5 | Page builder / edit-chrome regresses | STOP. Per `page-builder-invariants.md` — the page builder is preserved verbatim until explicitly migrated in Phase 3.5 (W5). |
 | S6 | Middleware needs unexpected changes during Phase 1–2 | STOP. Middleware is locked through Phase 2. Phase 3 may add minor route allow-list entries but never restructures host resolution. |
 | S7 | `getTenantScope()` cannot resolve from middleware headers on the QA URL | STOP. The fail-hard log will show in server output. Diagnose `agency_domains` seeding before continuing. |
 | S8 | A capability mapping during Phase 2 is NOT one-to-one | STOP. Document the mismatch in `docs/handoffs/wave-1-prep-audit.md` as a new drift item; founder ratifies the resolution before code change. |
-| S9 | A surface promotion in Phase 3 requires deleting legacy *before* the replacement is shipped | STOP. The rule is delete-on-replacement in the SAME commit. If they cannot be in one commit, restructure the work so they can. |
+| S9 | A Phase 3 surface promotion has bundled-in deletion of legacy `(dashboard)/admin/*` | STOP. Phase 3 ships the new route only. Legacy stays. Deletion is a separate Phase 4 commit per surface, gated on the founder verifying the new route. Restructure the commit to drop the deletion before pushing. |
 | S10 | A migration during Phases 0–3 requires DROP / RENAME / enum reshape | STOP. Per `OPERATING.md`, additive-only until Phase 4. Use a parallel column / new enum value instead. |
 | S11 | The prototype freeze (commit `11d8fa0`) is violated by new feature work in `web/src/app/prototypes/admin-shell/*` | STOP. Per `web/docs/admin-prototype/FREEZE.md` — bug fixes only with explicit acknowledgement. New feature work waits for unfreeze. |
 | S12 | Vercel preview deploy on `phase-1` succeeds in CI but breaks on `impronta.tulala.digital` | STOP. Likely an `agency_domains` row missing or middleware allow-list gap. Check `web/CLAUDE.md` deploy notes; do not promote to prod. |
@@ -1142,7 +1164,7 @@ In order. The first 4 are Phase 1; #5–7 are Phase 2 starter; #8–10 prepare P
 | 7 | **P2.1 (split B)** — migrate site-settings pages CRUD: `pages/page.tsx`, `pages/[id]/page.tsx`, `pages/new/page.tsx`, `pages/actions.ts` | mid | 4 files | typecheck + smoke + page save end-to-end | save action works | P2.1 split A |
 | 8 | **P3.0 — extraction prep**: split `_state.tsx` mocks into a separate file `_state-mocks.tsx` so future Phase 3 commits can delete mocks per surface without touching shared types | senior | `_state.tsx`, `_state-mocks.tsx` (new) | typecheck | all imports stable; mocks isolated | Phase 2 shipped |
 | 9 | **P3.0 — extraction prep**: split `_drawers.tsx` registry from drawer bodies — `_drawer-registry.tsx` (dispatcher) + `_drawer-bodies/` folder | senior | `_drawers.tsx`, new files | typecheck | drawers still render | task #8 |
-| 10 | **P3.W1 — Workspace Overview promotion** — first surface promoted to `(workspace)/[tenantSlug]/admin/page.tsx`. Same commit deletes `(dashboard)/admin/page.tsx`. Bridge pattern from Phase 1 reused. | senior | new files in `(workspace)/`, deletion of legacy `(dashboard)/admin/page.tsx`, `lib/data/workspace-overview.ts` | typecheck + smoke + legacy redirect | new URL serves real Impronta overview; legacy returns 308 | Phase 2 fully shipped |
+| 10 | **P3.W1 — Workspace Overview promotion** — first surface promoted to `(workspace)/[tenantSlug]/admin/page.tsx`. Bridge pattern from Phase 1 reused. **Legacy `(dashboard)/admin/page.tsx` is NOT deleted in this commit** — that's a separate P4.W1 follow-up after the founder verifies the new route. | senior | new files in `(workspace)/`, `lib/data/workspace-overview.ts` (NEW server loader). Legacy `(dashboard)/admin/page.tsx` is untouched. | typecheck + smoke at new URL | new URL serves real Impronta overview; legacy `/admin` still works | Phase 2 fully shipped |
 
 ---
 
