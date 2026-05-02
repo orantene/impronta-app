@@ -4,7 +4,7 @@
 **Frozen as of:** commit `11d8fa0` — `fix(prototype): scroll-lock recovery + black-CTA leak + talent profile polish`
 **Date:** 2026-05-01
 **Tag:** `prototype-freeze-2026-05-01`
-**Phase:** Phase 0 (per [`~/.claude/plans/ancient-gathering-sparkle.md`](../../../docs/handoffs/wave-1-prep-audit.md))
+**Phase:** Phase 0 — see [`docs/handoffs/wave-1-prep-audit.md`](../../../docs/handoffs/wave-1-prep-audit.md) for the drift audit + decisions, and the canonical plan file at `~/.claude/plans/ancient-gathering-sparkle.md` (lives outside the repo)
 
 ---
 
