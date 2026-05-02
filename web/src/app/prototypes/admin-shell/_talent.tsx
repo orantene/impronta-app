@@ -19,7 +19,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
-import { pinNextConversation as pinNextConversationT } from "./_messages";
+import { pinNextConversation as pinNextConversationT, pinNextThreadTab as pinNextThreadTabT, TALENT_RATE_FOR_CONV } from "./_messages";
 import {
   TalentAnalyticsCard,
   TalentFunnelCard,
@@ -566,7 +566,7 @@ function TalentRouter() {
   }
   return (
     <div key={state.talentPage} data-tulala-talent-page-anim style={{ animation: "tulala-page-fade .22s cubic-bezier(.4,0,.2,1)" }}>
-      <style>{`@keyframes tulala-page-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
+      <style>{`@keyframes tulala-page-fade { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-tulala-talent-page-anim] { animation: none !important; } }`}</style>
       {page}
     </div>
   );
@@ -677,49 +677,96 @@ function TalentTodayPage() {
   // First-session checklist persists dismiss only for the session in the
   // prototype. Production wires this to a per-user kv pair.
   const [firstSessionDismissed, setFirstSessionDismissed] = useState(false);
-  const needsAnswer = TALENT_REQUESTS.filter((r) => r.status === "needs-answer");
-  const upcoming = TALENT_BOOKINGS.filter((b) => b.status === "confirmed").slice(0, 3);
+
+  // ── Today's data is derived directly from MOCK_CONVERSATIONS — the
+  //    same source the messages shell reads. One source, one truth.
+  //    Every Today row click pins that exact conversation and lands the
+  //    talent inside the messages shell where they can act on it.
+  // ──
+  // "Needs your reply" — the talent owes the next message: stage is in
+  // an active negotiation (inquiry/hold) and the last message wasn't
+  // from them. Sorted oldest-first so the most overdue surfaces at top.
+  const replyConvs = MOCK_CONVERSATIONS
+    .filter((c) =>
+      (c.stage === "inquiry" || c.stage === "hold") &&
+      c.lastMessage.sender !== "you",
+    )
+    .sort((a, b) => {
+      // Two-tier chronological sort — same model as the inbox so the
+      // Today feed and the messages shell read in the same order:
+      //   Tier 1: unseen (never opened) inquiries first
+      //   Tier 2: everything else — sorted by recency (freshest first)
+      // Lower ageHrs = more recent, so it sits higher in each tier.
+      const aNew = a.seen === false ? 1 : 0;
+      const bNew = b.seen === false ? 1 : 0;
+      if (aNew !== bNew) return bNew - aNew;
+      return a.lastMessage.ageHrs - b.lastMessage.ageHrs;
+    });
+  // "Inquiries you're in" (watching) — same pipeline stages but the
+  // talent has already responded. Now waiting on coordinator/client/
+  // peers. Includes anything in inquiry/hold not already in replyConvs.
+  const replyConvIds = new Set(replyConvs.map((c) => c.id));
+  const watchingConvs = MOCK_CONVERSATIONS.filter((c) =>
+    (c.stage === "inquiry" || c.stage === "hold") && !replyConvIds.has(c.id),
+  );
+
+  // "Next on the calendar" — derived from MOCK_CONVERSATIONS (same
+  // source as the messages shell's Booked filter). The 3 jobs the
+  // talent has actually been booked on appear here, click takes them
+  // straight to the logistics tab inside the messages shell where the
+  // call sheet, transport, hotel, schedule live.
+  const upcoming = MOCK_CONVERSATIONS.filter((c) => c.stage === "booked");
   const paidThisMonth = EARNINGS_ROWS.filter((e) => e.payoutDate.includes("Apr"));
   const paidThisMonthTotal = paidThisMonth.reduce((sum, e) => {
     const num = parseFloat(e.amount.replace(/[^0-9.]/g, ""));
     return sum + (isNaN(num) ? 0 : num);
   }, 0);
   const paidThisMonthCurrency = paidThisMonth[0]?.amount.match(/[€£$]/)?.[0] ?? "€";
-  const mine = myInquiries();
-  const mineNeedsMe = mine.filter((i) => myStatusOn(i) === "pending");
-  const mineInProgress = mine.filter((i) => myStatusOn(i) !== "pending");
-  const pendingCount = mineNeedsMe.length + needsAnswer.length;
-  // Helper: route into MessagesShell with a thread pinned (the new shell
-  // pattern). Falls back to plain navigation if no mapping is available.
-  const openInMessages = (riOrConvId: string) => {
-    const convId = TALENT_INQUIRY_TO_CONV[riOrConvId] ?? riOrConvId;
+  const pendingCount = replyConvs.length;
+
+  // Pin a conversation and route into the messages shell. Single
+  // canonical action — every Today click flows through here so the
+  // talent always lands in the same surface where they can actually
+  // reply, accept the offer, sign the booking, etc.
+  const openInMessages = (convId: string) => {
     pinNextConversationT(convId);
     setTalentPage("messages");
   };
-  // Top 2 pending items as name + click. Routes through new MessagesShell
-  // (no legacy drawer). Names render as inline clickable links in the hero.
-  const pendingTargets: { name: string; onClick: () => void }[] = [
-    ...needsAnswer.map((r) => ({
-      name: r.client,
-      onClick: () => openInMessages(r.inquiryId ?? r.id),
-    })),
-    ...mineNeedsMe.map((i) => ({
-      name: i.clientName,
-      onClick: () => openInMessages(i.id),
-    })),
-  ].slice(0, 2);
+  // Same as openInMessages but also pins the thread tab so the talent
+  // lands on the right surface inside the conversation. Used by Next-
+  // on-the-calendar (→ logistics, where the call sheet lives) and
+  // anywhere else that needs to deep-link into a specific tab.
+  const openInMessagesAt = (convId: string, tabId: string) => {
+    pinNextConversationT(convId);
+    pinNextThreadTabT(tabId);
+    setTalentPage("messages");
+  };
 
-  // Jump to the first pending item when "Reply now" is clicked — one
-  // hop instead of "go to inbox, find the top item, click it."
+  // Top 2 pending names → inline links in the hero copy. The click
+  // pins the exact thread, opens the messages shell, lands on the
+  // thread pane (the pin auto-switches mobile pane to "thread" too).
+  // The `isNew` flag rides along so the hero subline can pick the
+  // right copy ("just landed" vs "latest update").
+  const pendingTargets: { name: string; onClick: () => void; isNew: boolean }[] = replyConvs
+    .slice(0, 2)
+    .map((c) => ({
+      name: c.client,
+      onClick: () => openInMessages(c.id),
+      isNew: c.seen === false,
+    }));
+
+  // "Reply now" CTA: jump to the freshest pending — same conv that
+  // sits at the top of the messages shell inbox.
   const firstPending = pendingTargets[0];
 
   // Day-1 detection mirrors the hero's isDay1 logic — drives whether we
-  // render the first-session checklist.
+  // render the first-session checklist. Now anchored on real
+  // conversations from MOCK_CONVERSATIONS instead of agency-side records.
   const isDay1 =
     upcoming.length === 0 &&
     paidThisMonthTotal === 0 &&
-    mine.length === 0 &&
-    needsAnswer.length === 0;
+    replyConvs.length === 0 &&
+    watchingConvs.length === 0;
 
   return (
     <>
@@ -805,7 +852,7 @@ function TalentTodayPage() {
         pendingCount={pendingCount}
         pendingTargets={pendingTargets}
         upcomingCount={upcoming.length}
-        nextBookingDate={upcoming[0]?.startDate}
+        nextBookingDate={upcoming[0]?.date}
         paidThisMonth={paidThisMonthTotal}
         paidCurrency={paidThisMonthCurrency}
         profileCompleteness={profile.completeness}
@@ -813,16 +860,11 @@ function TalentTodayPage() {
         availableForWork={profile.availableForWork}
         availableToTravel={profile.availableToTravel}
         // Day-1 = no work history at all yet. Hero shifts to welcome tone.
-        isDay1={
-          upcoming.length === 0 &&
-          paidThisMonthTotal === 0 &&
-          mine.length === 0 &&
-          needsAnswer.length === 0
-        }
+        isDay1={isDay1}
         onReplyNow={
           firstPending
             ? firstPending.onClick
-            : () => setTalentPage("inbox")
+            : () => setTalentPage("messages")
         }
         onAvailability={() => openDrawer("talent-block-dates")}
         onOpenProfile={() => openDrawer("talent-profile-edit")}
@@ -833,13 +875,10 @@ function TalentTodayPage() {
       {/* Audit #14 — Today's plan inline banner. Shows today's confirmed
           shoots inline (call time, location). The mock's "today" is May
           6; production reads from real date. Only renders when the next
-          booking literally starts today, so it auto-vanishes off-day. */}
-      {upcoming.length > 0 && upcoming[0]!.startDate.includes("May 6") && (
-        <TodaysPlanBanner
-          bookings={upcoming.filter((b) => b.startDate.includes("May 6")).slice(0, 3)}
-          onOpen={(id) => openDrawer("talent-booking-detail", { id })}
-        />
-      )}
+          booking literally starts today, so it auto-vanishes off-day.
+          Disabled in the conversation-driven Today (none of the booked
+          MOCK_CONVERSATIONS land on May 6 in current mock data). When
+          the real "is today" check goes live this re-enables itself. */}
 
       {/* Order rationale (Tier 2 audit): group temporally.
             Forward-facing first  → Needs reply, Inquiries (in flight), Calendar
@@ -847,23 +886,37 @@ function TalentTodayPage() {
           The eye flows top-to-bottom in the same direction as the data. */}
 
       {/* 1 — Needs reply. The ONLY action-needed feed on the page.
-            Coral edge container; only renders when pending > 0. */}
+            Driven directly from MOCK_CONVERSATIONS so the rows match
+            the talent's actual inbox 1:1. Each row click pins the
+            conversation and opens the messages shell — that's where
+            the talent answers, accepts the offer, signs the booking. */}
       {pendingCount > 0 && (
         <NeedsReplySection
-          requests={needsAnswer}
-          inquiries={mineNeedsMe}
-          onSeeAll={() => setTalentPage("inbox")}
+          conversations={replyConvs}
+          onOpenInMessages={openInMessages}
+          onSeeAll={() => setTalentPage("messages")}
         />
       )}
 
       {/* 2 — Inquiries you're competing in (in-flight pipeline).
-            Promoted directly under Needs-reply per audit feedback —
-            these are kin (both forward-looking, both pipeline state). */}
-      {mineInProgress.length > 0 && <TalentFunnelCard />}
+            Driven from MOCK_CONVERSATIONS — same source as Needs-reply
+            and the messages shell — so the pipeline view is always in
+            sync with what the talent sees in their inbox. */}
+      {watchingConvs.length > 0 && (
+        <TalentFunnelCard
+          conversations={watchingConvs}
+          onOpenInMessages={openInMessages}
+        />
+      )}
 
       <div style={{ height: 12 }} />
 
-      {/* 3 — Calendar (forward-facing). */}
+      {/* 3 — Calendar (forward-facing). Driven from MOCK_CONVERSATIONS
+            (booked stage) so the rows here mirror the Booked filter
+            inside the messages shell 1:1. Click any row → pin the
+            conversation AND pin the Logistics tab — that's where the
+            call sheet / transport / hotel / schedule live. The talent
+            arrives directly on the booking info, not the chat. */}
       <section
         style={{
           background: "#fff",
@@ -877,7 +930,7 @@ function TalentTodayPage() {
           subtitle={
             upcoming.length === 0
               ? "No confirmed bookings yet."
-              : `${upcoming.length} upcoming · ${upcoming[0]?.startDate}`
+              : `${upcoming.length} upcoming · next ${upcoming[0]?.date}`
           }
           actionLabel="See calendar →"
           onAction={() => setTalentPage("calendar")}
@@ -885,8 +938,12 @@ function TalentTodayPage() {
           onSecondaryAction={() => openDrawer("talent-add-event")}
         />
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-          {upcoming.map((b) => (
-            <BookingRow key={b.id} booking={b} />
+          {upcoming.map((c) => (
+            <ConversationCalendarRow
+              key={c.id}
+              conv={c}
+              onOpen={() => openInMessagesAt(c.id, "booking")}
+            />
           ))}
         </div>
       </section>
@@ -1692,7 +1749,7 @@ function TalentTodayHero({
 }: {
   firstName: string;
   pendingCount: number;
-  pendingTargets: { name: string; onClick: () => void }[];
+  pendingTargets: { name: string; onClick: () => void; isNew?: boolean }[];
   upcomingCount: number;
   nextBookingDate?: string;
   paidThisMonth: number;
@@ -1979,7 +2036,7 @@ function ReplyNowSplitButton({
   pendingTargets,
   onPrimary,
 }: {
-  pendingTargets: { name: string; onClick: () => void }[];
+  pendingTargets: { name: string; onClick: () => void; isNew?: boolean }[];
   onPrimary: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -2252,23 +2309,24 @@ function HeroStatDivider() {
  * no completed updates, no analytics. One section, one job.
  */
 function NeedsReplySection({
-  requests,
-  inquiries,
+  conversations,
+  onOpenInMessages,
   onSeeAll,
 }: {
-  requests: TalentRequest[];
-  inquiries: RichInquiry[];
+  conversations: import("./_talent").Conversation[];
+  /** Pin a conversation + route to messages shell. Single canonical action. */
+  onOpenInMessages: (convId: string) => void;
   onSeeAll: () => void;
 }) {
-  const total = requests.length + inquiries.length;
-  const offerCount = requests.filter((r) => r.kind === "offer").length;
-  const holdCount = requests.filter((r) => r.kind === "hold").length;
-  const castingCount = requests.filter((r) => r.kind === "casting").length;
+  // Subtitle counts the kinds of action-needed: inquiry rows ask for
+  // a quote, hold rows ask for a confirmation. Same buckets the
+  // messages shell uses, so the talent reads the same words on both
+  // surfaces.
+  const inquiryCount = conversations.filter((c) => c.stage === "inquiry").length;
+  const holdCount = conversations.filter((c) => c.stage === "hold").length;
   const subtitleParts = [
-    offerCount > 0 && `${offerCount} ${offerCount === 1 ? "offer" : "offers"}`,
-    holdCount  > 0 && `${holdCount} ${holdCount === 1 ? "hold" : "holds"}`,
-    castingCount > 0 && `${castingCount} ${castingCount === 1 ? "casting" : "castings"}`,
-    inquiries.length > 0 && `${inquiries.length} workspace`,
+    inquiryCount > 0 && `${inquiryCount} ${inquiryCount === 1 ? "offer" : "offers"}`,
+    holdCount > 0 && `${holdCount} ${holdCount === 1 ? "hold" : "holds"}`,
   ].filter(Boolean).join(" · ");
   return (
     <section
@@ -2282,19 +2340,150 @@ function NeedsReplySection({
     >
       <SectionHeader
         title="Needs your reply"
-        subtitle={subtitleParts || `${total} waiting · sorted by urgency`}
+        subtitle={subtitleParts || `${conversations.length} waiting · sorted by urgency`}
         actionLabel="Open inbox →"
         onAction={onSeeAll}
       />
       <div style={{ marginTop: 4 }}>
-        {requests.map((r) => (
-          <RequestRow key={r.id} request={r} compact />
-        ))}
-        {inquiries.map((i) => (
-          <InquiryRow key={i.id} inquiry={i} />
+        {conversations.map((c) => (
+          <ConversationReplyRow
+            key={c.id}
+            conv={c}
+            onOpen={() => onOpenInMessages(c.id)}
+          />
         ))}
       </div>
     </section>
+  );
+}
+
+// ── ConversationReplyRow ──
+// One row of "Needs your reply", driven directly by a Conversation.
+// Mirrors RequestRow visually (avatar · client+brief · kind chip · date ·
+// amount · age · hover Reply) but routes every click into the messages
+// shell with the conversation pinned. The talent never has to "find"
+// the thread — they're already in it the moment they click.
+function ConversationReplyRow({
+  conv,
+  onOpen,
+}: {
+  conv: import("./_talent").Conversation;
+  onOpen: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  // Stage → kind chip styling. inquiry = quote requested (coral),
+  // hold = client deciding (amber). Same tone vocabulary as the
+  // messages shell so the chip means the same thing on both surfaces.
+  const km =
+    conv.stage === "inquiry" ? { label: "Offer", tone: "coral" as const }
+    : conv.stage === "hold" ? { label: "Hold", tone: "amber" as const }
+    : { label: "Open", tone: "ink" as const };
+  // Take-home rate the talent earns on this job (talent POV). Looked
+  // up from the same TALENT_RATE_FOR_CONV map the messages shell uses.
+  const rate = TALENT_RATE_FOR_CONV[conv.id];
+  // Age coloring escalates over time — same thresholds as the
+  // existing RequestRow so the urgency cue feels consistent.
+  const ageHrs = conv.lastMessage.ageHrs;
+  const ageLbl = ageHrs < 24 ? `${ageHrs}h ago` : `${Math.floor(ageHrs / 24)}d ago`;
+  const ageColor = ageHrs >= 24 ? COLORS.coralDeep : ageHrs >= 12 ? COLORS.coral : COLORS.inkDim;
+  const ageWeight = ageHrs >= 24 ? 700 : ageHrs >= 12 ? 500 : 400;
+  return (
+    <button
+      onClick={onOpen}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 0",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        textAlign: "left",
+        width: "100%",
+        transition: `background ${TRANSITION.micro}`,
+      }}
+    >
+      <Avatar
+        size={36}
+        tone="auto"
+        hashSeed={conv.client}
+        initials={clientInitialsLocal(conv.client)}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontFamily: FONTS.body,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: COLORS.ink,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {conv.client}
+          <Bullet />
+          <span style={{ color: COLORS.inkMuted, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis" }}>
+            {conv.brief}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 2,
+            fontSize: 11.5,
+          }}
+        >
+          <KindChip label={km.label} tone={km.tone} />
+          <span style={{ color: COLORS.inkMuted }}>
+            {conv.date}
+            {conv.date && rate && " · "}
+            {rate && (
+              <span style={{ color: COLORS.ink, fontWeight: 500 }}>{rate}</span>
+            )}
+          </span>
+        </div>
+      </div>
+      {hover && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "5px 10px",
+            borderRadius: 7,
+            background: COLORS.coralSoft,
+            color: COLORS.coralDeep,
+            fontFamily: FONTS.body,
+            fontSize: 11.5,
+            fontWeight: 600,
+            letterSpacing: -0.05,
+          }}
+        >
+          Reply →
+        </span>
+      )}
+      <span
+        style={{
+          fontFamily: FONTS.body,
+          fontSize: 11.5,
+          color: ageColor,
+          fontWeight: ageWeight,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {ageLbl}
+      </span>
+      <Icon name="chevron-right" size={14} color={COLORS.inkDim} />
+    </button>
   );
 }
 
@@ -2454,6 +2643,108 @@ function RequestRow({
   );
 }
 
+// ── ConversationCalendarRow ──
+// Conversation-driven sibling of BookingRow. Used by Today's "Next on
+// the calendar" feed when the row data comes from MOCK_CONVERSATIONS.
+// Click → pin conversation + pin "logistics" tab → land on the call
+// sheet inside the messages shell.
+function ConversationCalendarRow({
+  conv,
+  onOpen,
+}: {
+  conv: import("./_talent").Conversation;
+  onOpen: () => void;
+}) {
+  // Parse the conversation's date label into a date-block. Handles:
+  //   "Wed, May 14"  →  MAY 14
+  //   "May 14–15"    →  MAY 14
+  //   "Sat, Jun 21"  →  JUN 21
+  //   "Jul 4–5"      →  JUL  4
+  // Falls back to "—" if the format isn't recognized.
+  const dateMatch = conv.date?.match(/([A-Za-z]+)\s+(\d{1,2})/);
+  const month = dateMatch?.[1]?.toUpperCase() ?? "—";
+  const day = dateMatch?.[2] ?? "—";
+  // Take-home rate is the most-scanned numeric for talent on a booked
+  // job. Same source as the messages shell so they always agree.
+  const rate = TALENT_RATE_FOR_CONV[conv.id] ?? "—";
+  // Pull the call time + a short location label from the pinned info
+  // on the conversation. Both surface in the inline meta strip.
+  const callTime = conv.pinned?.callTime ?? null;
+  const locShort = conv.location ? conv.location.split(" · ")[0] : null;
+  return (
+    <button
+      onClick={onOpen}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "12px 0",
+        borderTop: `1px solid ${COLORS.borderSoft}`,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        textAlign: "left",
+        width: "100%",
+        fontFamily: FONTS.body,
+        transition: `background ${TRANSITION.micro}`,
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <DateBlock day={day} month={month} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: COLORS.ink,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          <span>{conv.client}</span>
+          <span style={{ color: COLORS.inkDim }}>·</span>
+          <span style={{ color: COLORS.inkMuted, fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis" }}>
+            {conv.brief}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 2,
+            fontSize: 11.5,
+          }}
+        >
+          <KindChip label="Booked" tone="success" />
+          <span style={{ color: COLORS.inkMuted }}>
+            {[locShort, callTime ? `call ${callTime}` : null].filter(Boolean).join(" · ")}
+          </span>
+        </div>
+      </div>
+      {rate !== "—" && (
+        <span
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: COLORS.ink,
+            fontVariantNumeric: "tabular-nums",
+            flexShrink: 0,
+          }}
+        >
+          {rate}
+        </span>
+      )}
+      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+    </button>
+  );
+}
+
 function BookingRow({ booking }: { booking: TalentBooking }) {
   const { openDrawer } = useProto();
   // Parse "Tue, May 6" or "May 14" → month "MAY", day "6" / "14".
@@ -2561,13 +2852,22 @@ function MyProfilePage() {
         title={p.name}
         subtitle={`${p.measurementsSummary} · ${p.city}`}
         actions={
+          // Header actions are intentionally compact (size="sm"). The
+          // md size is for body-level CTAs; in a header alongside the
+          // h1, md reads as too-chunky. Both buttons match width feel
+          // because they're sized identically and the icon adds the
+          // ~9px the longer label needs to balance.
           <>
-            <SecondaryButton onClick={() => openDrawer("talent-public-preview")}>
+            <SecondaryButton size="sm" onClick={() => openDrawer("talent-public-preview")}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
                 <Icon name="external" size={11} /> Preview as client
               </span>
             </SecondaryButton>
-            <PrimaryButton onClick={() => openDrawer("talent-profile-edit")}>Edit profile</PrimaryButton>
+            <PrimaryButton size="sm" onClick={() => openDrawer("talent-profile-edit")}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <Icon name="pencil" size={11} /> Edit profile
+              </span>
+            </PrimaryButton>
           </>
         }
       />
@@ -3984,6 +4284,33 @@ export type Participant = {
   isTalent?: boolean;
 };
 
+/**
+ * Where the inquiry came from — surfaced as a small chip in the header
+ * so the talent knows who reached them and through which channel.
+ *   - tulala-hub      → Tulala discovery / public roster
+ *   - direct          → Client reached the agency or talent directly
+ *   - agency-referral → Routed by another agency / coordinator
+ *   - instagram-dm    → Inbound IG message (off-platform origin)
+ *   - email           → Cold email
+ */
+export type ConvSource =
+  | { kind: "tulala-hub"; label?: string }
+  | { kind: "direct"; label?: string }
+  | { kind: "agency-referral"; via?: string }
+  | { kind: "instagram-dm" }
+  | { kind: "email"; from?: string };
+
+/** Outcome detail when stage = past or cancelled. Lets the UI tell the
+ *  difference between "completed and paid" vs "client cancelled" vs
+ *  "client never replied" vs "talent declined". */
+export type ConvOutcome =
+  | "completed"           // shoot wrapped, paid in full
+  | "client_cancelled"    // client pulled out
+  | "client_rejected"     // client rejected the offer / countered too low
+  | "client_no_response"  // expired — client ghosted
+  | "talent_declined"     // talent declined the inquiry
+  | "agency_dropped";     // agency couldn't fulfill
+
 export type Conversation = {
   id: string;
   client: string;
@@ -4003,6 +4330,14 @@ export type Conversation = {
   /** Last message preview line — for the conversation list rail. */
   lastMessage: { sender: "you" | "client" | "coordinator" | "agency" | "system"; preview: string; ageHrs: number };
   unreadCount: number;
+  /** True when the current talent (Marta) is the coordinator on this
+   *  job — runs her own workspace, talks to client directly, organizes
+   *  other talents. Drives the talent_coord pov + tab visibility. */
+  iAmCoordinator?: boolean;
+  /** Where the inquiry came from. Surfaces as a chip in the header. */
+  source?: ConvSource;
+  /** Closure detail when stage is past or cancelled. */
+  outcome?: ConvOutcome;
   /** Pinned info cards — what the coordinator/client/agency entered. */
   pinned: {
     transport?: string;
@@ -4010,28 +4345,43 @@ export type Conversation = {
     callTime?: string;
     rate?: { value: string; status: "you-quoted" | "client-budget" | "agreed" };
     coordinatorNote?: string;
+    /** Extras pulled in for richer logistics on booked shoots. */
+    hotel?: string;
+    parking?: string;
   };
+  /** True when the talent has never opened this conversation. Drives a
+   *  distinct row tint + "NEW" pill so brand-new inquiries stand out
+   *  visually from regular unread state. Defaults to true (already
+   *  opened) when omitted, so existing seed data renders unchanged. */
+  seen?: boolean;
 };
 
 export const MOCK_CONVERSATIONS: Conversation[] = [
+  // ──────────────────────────────────────────────────────────────────
+  // c1 — Mango · Spring lookbook · INQUIRY (non-coord, awaiting Marta's rate)
+  // Source: Direct client of Acme Models. Verified client. Coordinator
+  // is asking Marta for a quote — primary action surface.
+  // ──────────────────────────────────────────────────────────────────
   {
     id: "c1",
     client: "Mango",
     clientInitials: "M",
     clientTrust: "verified",
-    brief: "Spring lookbook · Madrid",
+    brief: "Spring lookbook",
     stage: "inquiry",
-    agency: "Acme Models",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "direct", label: "Direct to Acme Models" },
     leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
     participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+      { initials: "CR", name: "Camille Roux", role: "Talent · Acme Models", isTalent: true },
       { initials: "JR", name: "João Ribeiro", role: "Photographer" },
       { initials: "LV", name: "Lia Varga", role: "Stylist · Mango in-house" },
       { initials: "AM", name: "Anaïs Moreau", role: "MUA" },
-      { initials: "CR", name: "Camille Roux", role: "Talent · Acme Models", isTalent: true },
-      { initials: "MV", name: "Marco Vasquez", role: "Talent · Acme Models", isTalent: true },
     ],
     location: "Madrid · Calle de Velázquez 18",
-    date: "May 14",
+    date: "Wed, May 14",
     lastMessage: { sender: "coordinator", preview: "What's your rate for a 1-day Madrid shoot? Mango asking.", ageHrs: 5 },
     unreadCount: 2,
     pinned: {
@@ -4042,6 +4392,12 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
       coordinatorNote: "Mango is keen — they liked your editorial reel. Pricing decision is yours; I'll close once we hear back from them.",
     },
   },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c2 — Bvlgari · Jewelry campaign · HOLD (gold client, exclusive talent)
+  // Source: Tulala Hub. Marta on hold while client decides — hold
+  // deadline is the urgent action.
+  // ──────────────────────────────────────────────────────────────────
   {
     id: "c2",
     client: "Bvlgari",
@@ -4049,12 +4405,14 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     clientTrust: "gold",
     brief: "Editorial · jewelry campaign",
     stage: "hold",
-    agency: "Acme Models",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "tulala-hub", label: "Tulala Hub · Discover" },
     leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
     participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
       { initials: "PM", name: "Paolo Marchetti", role: "Photographer" },
       { initials: "GS", name: "Giulia Sarti", role: "Stylist · Bvlgari in-house" },
-      { initials: "LT", name: "Lia Torres", role: "Talent · Acme Models", isTalent: true },
     ],
     location: "Milan · TBC (likely Studio Verde)",
     date: "May 18–20",
@@ -4068,6 +4426,12 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
       coordinatorNote: "Hold is locked. Confirming budget when call sheet drops.",
     },
   },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c3 — Vogue Italia · Editorial spread · BOOKED (gold, confirmed)
+  // Source: Direct, long-standing relationship. Marta is set day +4 —
+  // logistics, polaroids, contract are the focus now.
+  // ──────────────────────────────────────────────────────────────────
   {
     id: "c3",
     client: "Vogue Italia",
@@ -4075,15 +4439,17 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     clientTrust: "gold",
     brief: "Editorial spread · 2 days",
     stage: "booked",
-    agency: "Acme Models",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "direct", label: "Long-standing client" },
     leader: { name: "Ana Vega", role: "Coordinator · Acme Models", initials: "AV" },
     participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+      { initials: "ER", name: "Emma Ricci", role: "Talent · Praline London", isTalent: true },
       { initials: "MR", name: "Mario Rossi", role: "Photographer" },
       { initials: "FB", name: "Francesca Bianchi", role: "Creative director · Vogue" },
       { initials: "EL", name: "Elena Lombardi", role: "Fashion editor" },
       { initials: "AP", name: "Aaron Park", role: "MUA" },
-      { initials: "SH", name: "Sofia Herrera", role: "Talent · Acme Models", isTalent: true },
-      { initials: "ER", name: "Emma Ricci", role: "Talent · Praline London", isTalent: true },
     ],
     location: "Milan · Studio 5, Via Tortona 27",
     date: "May 14–15",
@@ -4091,33 +4457,49 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     lastMessage: { sender: "coordinator", preview: "Call sheet attached. Hair/makeup at 06:30, on set 07:00. Confirm by EOD?", ageHrs: 4 },
     unreadCount: 1,
     pinned: {
-      transport: "Bus pickup at 06:00 from your hotel · driver name: Marco · WhatsApp +39 333 111 2222",
+      transport: "Bus pickup at 06:00 from your hotel · driver Marco · WhatsApp +39 333 111 2222",
       schedule: "May 14 · call 07:00 · wrap by 19:00 · May 15 · call 08:00 · wrap by 17:00",
       callTime: "07:00",
       rate: { value: "—", status: "agreed" },
+      hotel: "Magna Pars Suites · walk to studio · check-in May 13",
     },
   },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c4 — Stella McCartney · Lookbook · CANCELLED (client cancelled)
+  // Source: Agency referral. Was a hold — got cancelled when Stella
+  // shifted the campaign to next quarter. Outcome captured.
+  // ──────────────────────────────────────────────────────────────────
   {
     id: "c4",
     client: "Stella McCartney",
     clientInitials: "SM",
     clientTrust: "verified",
     brief: "Lookbook · single day",
-    stage: "hold",
-    agency: "Acme Models",
+    stage: "cancelled",
+    outcome: "client_cancelled",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "agency-referral", via: "Praline London (sister agency)" },
     leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
     participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
       { initials: "JD", name: "Julien Dubois", role: "Photographer" },
       { initials: "AB", name: "Anna Bernard", role: "Stylist · Stella in-house" },
     ],
     location: "Paris · TBC",
     date: "May 14",
-    lastMessage: { sender: "system", preview: "Hold conflict with Vogue Italia (May 14). Resolve via Calendar.", ageHrs: 4 },
+    lastMessage: { sender: "system", preview: "Stella McCartney cancelled — campaign moved to Q3. Hold released.", ageHrs: 36 },
     unreadCount: 0,
     pinned: {
-      coordinatorNote: "Conflicts with Vogue Italia. We'd love to keep this if you can resolve dates with the client.",
+      coordinatorNote: "Stella's team apologized — they're shifting their summer campaign to Q3 due to a designer change. They asked to keep you on the shortlist for Aug.",
     },
   },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c5 — Loewe · Capsule editorial · WRAPPED (past, paid in full)
+  // Source: Direct. Successful shoot, paid out, selects delivered.
+  // ──────────────────────────────────────────────────────────────────
   {
     id: "c5",
     client: "Loewe",
@@ -4125,13 +4507,17 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
     clientTrust: "gold",
     brief: "Capsule editorial · 2 talent · 1 day",
     stage: "past",
-    agency: "Acme Models",
+    outcome: "completed",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "direct", label: "Direct to Acme Models" },
     leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
     participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+      { initials: "LO", name: "Lucia Ortiz", role: "Talent · Acme Models", isTalent: true },
       { initials: "DA", name: "Diego Álvarez", role: "Photographer" },
       { initials: "RC", name: "Rocío Castro", role: "Art director · Loewe" },
       { initials: "AM", name: "Anaïs Moreau", role: "MUA" },
-      { initials: "LO", name: "Lucia Ortiz", role: "Talent · Acme Models", isTalent: true },
     ],
     location: "Madrid · ESTUDIO ROCA",
     date: "Apr 18",
@@ -4144,7 +4530,444 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
       rate: { value: "—", status: "agreed" },
     },
   },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c6 — Martina Beach Club · Sunday models series · INQUIRY (host job)
+  // Source: Tulala Hub (new client). Verified. Brief just landed —
+  // primary action is Marta's rate.
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: "c6",
+    client: "Martina Beach Club & Restaurant",
+    clientInitials: "MB",
+    clientTrust: "verified",
+    brief: "Sunday models · summer pool series",
+    stage: "inquiry",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "tulala-hub", label: "Tulala Hub · Hospitality vertical" },
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+      { initials: "JT", name: "Julia Tenes", role: "Photographer" },
+      { initials: "RA", name: "Rafa Aragón", role: "Creative director · Martina" },
+    ],
+    location: "Tulum · Beach Club lobby",
+    date: "Sun, Jun 8",
+    lastMessage: { sender: "coordinator", preview: "Brief just landed — they want a sunset series. €2,800/day plus hotel. Open?", ageHrs: 1 },
+    unreadCount: 3,
+    pinned: {
+      transport: "Hotel covered (1 night) · Uber to set reimbursed",
+      schedule: "Jun 8 · call 14:00 · golden hour shoot · wrap by 21:00",
+      callTime: "14:00",
+      coordinatorNote: "Martina is a new client but the GM is a friend of the agency — let's make this a great first impression.",
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c7 — Solstice Festival · Fire dance closing · BOOKED — Marta is
+  // the COORDINATOR. She runs her own free workspace ("Reyes Movement
+  // Studio"), invited Cleo Vega as co-coordinator. 3 fire dancers
+  // booked for the festival closing performance.
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: "c7",
+    client: "Solstice Festival · Production Co.",
+    clientInitials: "SF",
+    clientTrust: "silver",
+    brief: "Fire dance · festival closing performance",
+    stage: "booked",
+    agency: "Reyes Movement Studio",
+    iAmCoordinator: true,
+    source: { kind: "direct", label: "Direct via your portfolio" },
+    leader: { name: "Marta Reyes", role: "Coordinator · Reyes Movement Studio", initials: "MR" },
+    participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Coordinator + Talent", isTalent: true },
+      { initials: "CV", name: "Cleo Vega", role: "Co-coordinator · invited" },
+      { initials: "TJ", name: "Tariq Joubert", role: "Fire dancer", isTalent: true },
+      { initials: "AN", name: "Anouk Naseri", role: "Fire dancer", isTalent: true },
+      { initials: "JL", name: "Joaquín Lima", role: "Stage manager · Solstice" },
+      { initials: "BV", name: "Bea Velasco", role: "Producer · Solstice" },
+    ],
+    location: "Ibiza · Cala Llonga main stage",
+    date: "Sat, Jun 21",
+    amountToYou: "€2,400 (your dancer fee · plus 12% agency margin to your studio)",
+    lastMessage: { sender: "client", preview: "Confirmed insurance & rider. Need updated bios + portrait shots for the program by Jun 14.", ageHrs: 2 },
+    unreadCount: 4,
+    pinned: {
+      transport: "Boat transfer from Marina Botafoch · 18:00 · group ride · driver Iván",
+      schedule: "Jun 21 · sound check 19:00 · stage 22:30 · 8 min set",
+      callTime: "19:00",
+      rate: { value: "—", status: "agreed" },
+      hotel: "Hostal del Mar · 2 nights · check-in Jun 20",
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c8 — Adidas · Dance commercial spec · CANCELLED (client rejected)
+  // Source: Tulala Hub. Client wanted lower rate, agency held firm,
+  // client went elsewhere. Outcome captured.
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: "c8",
+    client: "Adidas Originals · Spec dance reel",
+    clientInitials: "AO",
+    clientTrust: "verified",
+    brief: "Dance commercial spec · 1 day",
+    stage: "cancelled",
+    outcome: "client_rejected",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "tulala-hub", label: "Tulala Hub · Featured dancers" },
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+      { initials: "RV", name: "Riku Vesa", role: "Director" },
+    ],
+    location: "Berlin · Holzmarkt",
+    date: "Apr 30",
+    lastMessage: { sender: "system", preview: "Adidas declined the v3 counter — their max was €1,400 + buyout. Closed.", ageHrs: 96 },
+    unreadCount: 0,
+    pinned: {
+      rate: { value: "€2,400 → countered to €1,800 → declined", status: "agreed" },
+      coordinatorNote: "We held the line at €1,800 — their counter at €1,400 was too low for the usage scope (12-month global). They went with another agency. Worth keeping their producer on file.",
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c9 — Lyra Skincare · Pop-up launch · CANCELLED (client ghosted)
+  // Source: Email cold inbound. Client never responded after offer
+  // was sent. Auto-expired after 14 days.
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: "c9",
+    client: "Lyra Skincare · Pop-up launch event",
+    clientInitials: "LS",
+    clientTrust: "basic",
+    brief: "Hostess · product launch · 4 hours",
+    stage: "cancelled",
+    outcome: "client_no_response",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "email", from: "events@lyraskincare.com" },
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+    ],
+    location: "Barcelona · Passeig de Gràcia (TBC)",
+    date: "May 22",
+    lastMessage: { sender: "system", preview: "Inquiry expired — no client response in 14 days. Auto-closed.", ageHrs: 240 },
+    unreadCount: 0,
+    pinned: {
+      coordinatorNote: "Cold inbound — they reached out unverified. Sent a v1 offer at €600 for 4h. Heard nothing back. Common with first-time event clients.",
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c10 — Atelier Noir · Bridal campaign · BOOKED — Marta is the
+  // COORDINATOR (her own workspace). NDA workflow: client sent NDA,
+  // Marta organized the dancer team to sign and uploaded back to
+  // Files. Real "dispatch the team" coordinator pattern.
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: "c10",
+    client: "Atelier Noir Bridal Collective",
+    clientInitials: "AN",
+    clientTrust: "gold",
+    brief: "Bridal SS27 campaign · 2 talent · 2 days",
+    stage: "booked",
+    agency: "Reyes Movement Studio",
+    iAmCoordinator: true,
+    source: { kind: "direct", label: "Returning workspace client" },
+    leader: { name: "Marta Reyes", role: "Coordinator · Reyes Movement Studio", initials: "MR" },
+    participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Coordinator + Talent", isTalent: true },
+      { initials: "NK", name: "Nadia Köhler", role: "Talent · Reyes Movement Studio", isTalent: true },
+      { initials: "ES", name: "Elise Sandoval", role: "Photographer" },
+      { initials: "VM", name: "Valeria Moss", role: "Creative director · Atelier Noir" },
+      { initials: "HB", name: "Henrietta Bloom", role: "Wardrobe · Atelier Noir" },
+    ],
+    location: "Lisbon · Convento da Cartuxa",
+    date: "Jul 4–5",
+    amountToYou: "€2,800/day · 2 days · €5,600 total",
+    lastMessage: { sender: "you", preview: "NDA + model release uploaded — all 2 talents signed. We're set for Lisbon.", ageHrs: 6 },
+    unreadCount: 0,
+    pinned: {
+      transport: "Flights covered · BCN→LIS · group transfer to convento",
+      schedule: "Jul 4 · call 06:30 · golden hour open · Jul 5 · indoor dawn light",
+      callTime: "06:30",
+      rate: { value: "—", status: "agreed" },
+      hotel: "Pousada do Convento · check-in Jul 3 evening",
+      coordinatorNote: "Returning client — Atelier shot with us last year. NDA stricter this time (couture pieces). All paperwork must clear before fitting.",
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c11 — Aesop · BRAND-NEW INQUIRY (just landed, never opened by Marta).
+  // Tulala Hub direct, beauty/wellness vertical. seen: false drives the
+  // "NEW" tint + pill in the inbox row.
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: "c11",
+    client: "Aesop",
+    clientInitials: "A",
+    clientTrust: "verified",
+    brief: "Beauty editorial · skincare campaign · 1 day",
+    stage: "inquiry",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "tulala-hub", label: "Tulala Hub · Beauty vertical" },
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+      { initials: "HD", name: "Hilde Dorn", role: "Photographer" },
+      { initials: "EI", name: "Eun-jin Im", role: "Creative director · Aesop" },
+    ],
+    location: "Berlin · TBC (likely Studio Mitte)",
+    date: "Mon, May 26",
+    lastMessage: { sender: "coordinator", preview: "Aesop just reached out — beauty editorial, single day, Berlin. Strong fit for your editorial reel. Open?", ageHrs: 0.4 },
+    unreadCount: 2,
+    seen: false,
+    pinned: {
+      schedule: "May 26 · single day · call TBC · 8h shoot",
+      coordinatorNote: "Brand-new client via the Hub — Aesop's marketing team specifically asked for editorial-trained talent. Worth a strong yes.",
+    },
+  },
+
+  // ──────────────────────────────────────────────────────────────────
+  // c12 — Lacoste · BRAND-NEW INQUIRY (just landed, never opened).
+  // Direct via Acme's roster page, sportswear lookbook, 2-day Lisbon.
+  // ──────────────────────────────────────────────────────────────────
+  {
+    id: "c12",
+    client: "Lacoste",
+    clientInitials: "L",
+    clientTrust: "silver",
+    brief: "Lookbook · SS27 sportswear · 2 days",
+    stage: "inquiry",
+    agency: "Atelier Roma",
+    iAmCoordinator: false,
+    source: { kind: "direct", label: "Acme Models roster page" },
+    leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+    participants: [
+      { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+      { initials: "JR", name: "Joana Rivera", role: "Brand manager · Lacoste" },
+      { initials: "PT", name: "Pedro Teixeira", role: "Photographer" },
+    ],
+    location: "Lisbon · Belém riverside",
+    date: "Jun 3–4",
+    lastMessage: { sender: "client", preview: "Saw your Mango lookbook — would love to put you on our SS27 shortlist. 2-day Lisbon, June. Open to a chat?", ageHrs: 0.15 },
+    unreadCount: 3,
+    seen: false,
+    pinned: {
+      schedule: "Jun 3–4 · 2 days · call TBC",
+      coordinatorNote: "Lacoste came in directly via the roster page — first inbound from them in 18 months. Quote at the top of your range; they came pre-qualified.",
+    },
+  },
 ];
+
+// ════════════════════════════════════════════════════════════════════
+// Client-side mock conversations
+//
+// The client surface impersonates a single brand at a time (configured
+// via clientProfile = "martina" | "gringo"). Each profile gets its own
+// portfolio of projects — what THEY commissioned, not the agency or
+// talent's full inbox.
+//
+// Where the talent or admin see "Mango / Bvlgari / Vogue Italia" jobs,
+// a client (e.g. "Martina") sees only Martina's own commissioned work.
+// One inquiry reused as c6 (so threads stay consistent across talent +
+// client roles), plus a handful of client-only projects across stages.
+// ════════════════════════════════════════════════════════════════════
+
+export const CLIENT_MOCK_CONVERSATIONS_BY_PROFILE: Record<string, Conversation[]> = {
+  martina: [
+    // m1 — Sunday Models pool series (active inquiry — same job Marta
+    // sees as c6, but framed from Martina's POV: she's the client who
+    // briefed it). Different conv id so threads don't collide.
+    {
+      id: "m1",
+      client: "Martina Beach Club & Restaurant",
+      clientInitials: "MB",
+      clientTrust: "verified",
+      brief: "Sunday models · summer pool series",
+      stage: "inquiry",
+      agency: "Atelier Roma",
+      iAmCoordinator: false,
+      source: { kind: "tulala-hub", label: "Tulala Hub · Hospitality vertical" },
+      leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+      participants: [
+        { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+        { initials: "JT", name: "Julia Tenes", role: "Photographer" },
+      ],
+      location: "Tulum · Beach Club lobby",
+      date: "Sun, Jun 8",
+      lastMessage: { sender: "coordinator", preview: "Sara: Sending you Marta's polaroids + 2 alternates today.", ageHrs: 1 },
+      unreadCount: 2,
+      pinned: {
+        coordinatorNote: "Welcome — we'll handle talent + production end-to-end. You only see ${clientName} POV; lineup mechanics stay agency-side.",
+      },
+    },
+    // m2 — Cocktail bar reopening (booked with a different agency)
+    {
+      id: "m2",
+      client: "Martina Beach Club & Restaurant",
+      clientInitials: "MB",
+      clientTrust: "verified",
+      brief: "Cocktail bar reopening · 2 hosts · 4h evening",
+      stage: "booked",
+      agency: "Praline London",
+      iAmCoordinator: false,
+      source: { kind: "agency-referral", via: "Atelier Roma" },
+      leader: { name: "Theo Marsh", role: "Coordinator · Praline London", initials: "TM" },
+      participants: [
+        { initials: "ZA", name: "Zara Habib", role: "Talent · Praline London", isTalent: true },
+        { initials: "TN", name: "Tomás Navarro", role: "Talent · Praline London", isTalent: true },
+        { initials: "VS", name: "Vincenzo Sera", role: "Bar manager · Martina" },
+      ],
+      location: "Tulum · Lobby bar",
+      date: "Fri, Jun 13",
+      amountToYou: "€1,800 (paid via card on file)",
+      lastMessage: { sender: "coordinator", preview: "Theo: Call sheet attached. Hosts arrive at 18:30 · uniform from your wardrobe team.", ageHrs: 6 },
+      unreadCount: 1,
+      pinned: {
+        schedule: "Jun 13 · 19:00–23:00 · floor + meet-and-greet",
+        callTime: "18:30",
+        coordinatorNote: "Both hosts have served at hospitality events for us before. They know Tulum hours.",
+      },
+    },
+    // m3 — Influencer takeover weekend (wrapped, paid)
+    {
+      id: "m3",
+      client: "Martina Beach Club & Restaurant",
+      clientInitials: "MB",
+      clientTrust: "verified",
+      brief: "Influencer takeover · 3 creators · weekend",
+      stage: "past",
+      outcome: "completed",
+      agency: "Self-managed",
+      iAmCoordinator: false,
+      source: { kind: "instagram-dm" },
+      leader: { name: "Lucia Ortiz", role: "Influencer manager · Self-managed", initials: "LO" },
+      participants: [
+        { initials: "LO", name: "Lucia Ortiz", role: "Creator", isTalent: true },
+        { initials: "DA", name: "Diego Álvarez", role: "Creator", isTalent: true },
+        { initials: "CR", name: "Camille Roux", role: "Creator", isTalent: true },
+      ],
+      location: "Tulum · Pool deck + bar",
+      date: "May 10–11",
+      amountToYou: "€4,200 (paid May 18 via transfer)",
+      lastMessage: { sender: "system", preview: "Wrapped · 47 posts published · paid in full.", ageHrs: 480 },
+      unreadCount: 0,
+      pinned: {
+        schedule: "May 10–11 · open weekend · creators set their own pace",
+      },
+    },
+    // m4 — Fire dancer act for closing party (HOLD — pending decision)
+    {
+      id: "m4",
+      client: "Martina Beach Club & Restaurant",
+      clientInitials: "MB",
+      clientTrust: "verified",
+      brief: "Fire dance act · summer closing party",
+      stage: "hold",
+      agency: "Reyes Movement Studio",
+      iAmCoordinator: false,
+      source: { kind: "direct", label: "Direct via portfolio" },
+      leader: { name: "Marta Reyes", role: "Coordinator · Reyes Movement Studio", initials: "MR" },
+      participants: [
+        { initials: "MR", name: "Marta Reyes", role: "Coordinator + Talent", isTalent: true },
+        { initials: "TJ", name: "Tariq Joubert", role: "Fire dancer", isTalent: true },
+        { initials: "AN", name: "Anouk Naseri", role: "Fire dancer", isTalent: true },
+      ],
+      location: "Tulum · Beach Club main deck",
+      date: "Sat, Sep 6",
+      lastMessage: { sender: "coordinator", preview: "Marta: Holding Sep 6 for you. Need a yes by Friday so we can lock the dancers' calendars.", ageHrs: 26 },
+      unreadCount: 1,
+      pinned: {
+        rate: { value: "€7,500 total · 3 dancers · 12-min set", status: "client-budget" },
+        coordinatorNote: "Same crew as Solstice Festival closing. Insurance + rider already cleared with Solstice — we can reuse for you.",
+      },
+    },
+    // m5 — Press launch hostess (CANCELLED — client had to pull)
+    {
+      id: "m5",
+      client: "Martina Beach Club & Restaurant",
+      clientInitials: "MB",
+      clientTrust: "verified",
+      brief: "Press launch · 2 hostesses · single evening",
+      stage: "cancelled",
+      outcome: "client_cancelled",
+      agency: "Atelier Roma",
+      iAmCoordinator: false,
+      source: { kind: "tulala-hub", label: "Tulala Hub · Hospitality vertical" },
+      leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+      participants: [
+        { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+        { initials: "ZH", name: "Zara Habib", role: "Talent · Praline London", isTalent: true },
+      ],
+      location: "Mexico City · Roma Norte popup",
+      date: "Apr 28",
+      lastMessage: { sender: "you", preview: "You: Cancelling the launch — venue pulled out. Will reach out for the next one.", ageHrs: 192 },
+      unreadCount: 0,
+      pinned: {
+        coordinatorNote: "Cancelled with 2 weeks' notice — Acme waived the cancellation fee per our 8-bookings relationship.",
+      },
+    },
+  ],
+
+  gringo: [
+    // g1 — Birthday yacht charter (active inquiry)
+    {
+      id: "g1",
+      client: "The Gringo",
+      clientInitials: "TG",
+      clientTrust: "basic",
+      brief: "Birthday charter · 4 hostesses · day-trip yacht",
+      stage: "inquiry",
+      agency: "Atelier Roma",
+      iAmCoordinator: false,
+      source: { kind: "instagram-dm" },
+      leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+      participants: [
+        { initials: "MR", name: "Marta Reyes", role: "Talent · Acme Models", isTalent: true },
+      ],
+      location: "Ibiza · Marina Botafoch",
+      date: "Sat, Jul 26",
+      lastMessage: { sender: "coordinator", preview: "Sara: Verification pending — once funded the deal moves fast. Confirm card on file?", ageHrs: 4 },
+      unreadCount: 2,
+      pinned: {
+        coordinatorNote: "Personal client (Basic trust). Marta's contact policy is set to allow Basic-tier with verified card. Card upload + identity check is the unlock.",
+      },
+    },
+    // g2 — Past dinner party (one wrapped)
+    {
+      id: "g2",
+      client: "The Gringo",
+      clientInitials: "TG",
+      clientTrust: "basic",
+      brief: "Private dinner · 2 hostesses · 3h",
+      stage: "past",
+      outcome: "completed",
+      agency: "Atelier Roma",
+      iAmCoordinator: false,
+      source: { kind: "instagram-dm" },
+      leader: { name: "Sara Mendez", role: "Coordinator · Acme Models", initials: "SM" },
+      participants: [
+        { initials: "ZA", name: "Zara Habib", role: "Talent · Praline London", isTalent: true },
+        { initials: "AN", name: "Anouk Naseri", role: "Talent · Acme Models", isTalent: true },
+      ],
+      location: "Ibiza · Private villa",
+      date: "Mar 15",
+      amountToYou: "€1,200 (paid Mar 20 via card)",
+      lastMessage: { sender: "system", preview: "Wrapped · paid in full.", ageHrs: 1200 },
+      unreadCount: 0,
+      pinned: {
+        coordinatorNote: "Smooth booking. Both talents reported a good experience — green-light for repeat bookings.",
+      },
+    },
+  ],
+};
 
 export type Msg =
   | { id: string; kind: "text"; sender: ConvSender; body: string; ts: string; readBy?: ConvSender[] }
@@ -4184,21 +5007,218 @@ export const MOCK_THREAD: Record<string, Msg[]> = {
     { id: "c3m1", kind: "system", body: "Booking confirmed · May 14–15 · Vogue Italia", ts: "Apr 12 · 14:00" },
     { id: "c3m2", kind: "text", sender: "coordinator", body: "Booked! Two days at Studio 5 in Milan. Locked rate, locked usage. You're seeing your take-home only — full offer is between Vogue and us.", ts: "Apr 12 · 14:01", readBy: ["you"] },
     { id: "c3m3", kind: "contract-sign", ts: "Apr 12 · 14:02", filename: "Vogue_Italia_Editorial_May14-15.pdf", resolved: true },
-    { id: "c3m4", kind: "polaroid-request", ts: "Apr 14 · 09:00", resolved: 6 },
-    { id: "c3m5", kind: "location", sender: "coordinator", label: "Studio 5 · Via Tortona 27, Milan", ts: "May 1 · 11:00" },
-    { id: "c3m6", kind: "file", sender: "coordinator", filename: "Vogue_callsheet_v2.pdf", sizeKB: 412, ts: "5h ago" },
-    { id: "c3m7", kind: "text", sender: "coordinator", body: "Call sheet attached. Hair/makeup at 06:30, on set 07:00. Confirm by EOD?", ts: "5h ago" },
-    { id: "c3m8", kind: "action-confirm", label: "Confirm call sheet", ts: "5h ago" },
+    { id: "c3m4", kind: "text", sender: "you", body: "Signed and sent. Excited for this one.", ts: "Apr 12 · 17:48", readBy: ["coordinator"] },
+    { id: "c3m5", kind: "text", sender: "coordinator", body: "Polaroids by Friday so the team can pre-approve the look. Any haircolor/length change since the last shoot?", ts: "Apr 13 · 10:14", readBy: ["you"] },
+    { id: "c3m6", kind: "polaroid-request", ts: "Apr 14 · 09:00", resolved: 6 },
+    { id: "c3m7", kind: "text", sender: "you", body: "Just sent 6 polaroids. Hair is the same length, slightly cooler tone after the Loewe shoot.", ts: "Apr 14 · 09:02", readBy: ["coordinator"] },
+    { id: "c3m8", kind: "text", sender: "coordinator", body: "Perfect. Vogue approved the look — they're cool with the cooler tone, suits the wardrobe better.", ts: "Apr 14 · 14:30", readBy: ["you"] },
+    { id: "c3m9", kind: "image", sender: "coordinator", caption: "Wardrobe direction from Francesca (Vogue Creative Director) — 12 looks across 2 days.", count: 8, ts: "Apr 22 · 11:20" },
+    { id: "c3m10", kind: "text", sender: "coordinator", body: "Heads-up — Day 2 wraps later than expected. Vogue added a beach scene at golden hour. Wrap pushed to 19:00.", ts: "Apr 28 · 16:45", readBy: ["you"] },
+    { id: "c3m11", kind: "text", sender: "you", body: "Got it. I'll move my flight to Friday morning then.", ts: "Apr 28 · 17:05", readBy: ["coordinator"] },
+    { id: "c3m12", kind: "calendar-invite", ts: "Apr 30 · 10:00", title: "Vogue Italia · Editorial · Day 1", date: "May 14 · 07:00–19:00", resolved: "yes" },
+    { id: "c3m13", kind: "calendar-invite", ts: "Apr 30 · 10:00", title: "Vogue Italia · Editorial · Day 2", date: "May 15 · 08:00–17:00", resolved: "yes" },
+    { id: "c3m14", kind: "location", sender: "coordinator", label: "Studio 5 · Via Tortona 27, Milan", ts: "May 1 · 11:00" },
+    { id: "c3m15", kind: "text", sender: "coordinator", body: "Travel: Vogue's covering the hotel (Magna Pars, walking distance from Studio 5). Train tickets Madrid→Milan Friday — booked under your name. I'll forward the confirmation.", ts: "May 5 · 09:30", readBy: ["you"] },
+    { id: "c3m16", kind: "file", sender: "coordinator", filename: "Train_Madrid_Milan_May13.pdf", sizeKB: 184, ts: "May 5 · 09:31" },
+    { id: "c3m17", kind: "file", sender: "coordinator", filename: "Hotel_Magna_Pars_confirmation.pdf", sizeKB: 96, ts: "May 5 · 09:32" },
+    { id: "c3m18", kind: "text", sender: "you", body: "Both received. Thanks Ana.", ts: "May 5 · 12:18", readBy: ["coordinator"] },
+    { id: "c3m19", kind: "text", sender: "coordinator", body: "Tomorrow's the day. Driver Marco picks you up at 06:00 from the hotel — he has your number. WhatsApp him if anything changes.", ts: "May 13 · 18:40", readBy: ["you"] },
+    { id: "c3m20", kind: "file", sender: "coordinator", filename: "Vogue_callsheet_v2.pdf", sizeKB: 412, ts: "5h ago" },
+    { id: "c3m21", kind: "text", sender: "coordinator", body: "Final call sheet attached. Hair/makeup at 06:30, on set 07:00. Confirm by EOD?", ts: "5h ago" },
+    { id: "c3m22", kind: "action-confirm", label: "Confirm call sheet", ts: "5h ago" },
   ],
+  // c4 — Stella McCartney CANCELLED (client cancelled the campaign)
   c4: [
-    { id: "c4m1", kind: "text", sender: "client", body: "Holding for Stella McCartney lookbook on May 14 in Paris. Will confirm by Wednesday.", ts: "Apr 25 · 16:00", readBy: ["coordinator", "you"] },
-    { id: "c4m2", kind: "system", body: "Hold conflict detected with Vogue Italia (May 14). Resolve via Calendar.", ts: "4h ago" },
+    { id: "c4m1", kind: "system", body: "Hold opened · May 14 · Stella McCartney lookbook · referred by Praline London", ts: "Apr 18 · 10:00" },
+    { id: "c4m2", kind: "text", sender: "client", body: "Hi all — holding May 14 in Paris for the SS27 lookbook. Single day. Will lock by next Wednesday.", ts: "Apr 18 · 10:04", readBy: ["coordinator", "you"] },
+    { id: "c4m3", kind: "text", sender: "you", body: "Held. Lookbook scope is comfortable for me — happy to confirm once dates lock.", ts: "Apr 18 · 11:30", readBy: ["coordinator"] },
+    { id: "c4m4", kind: "text", sender: "coordinator", body: "Stella's team is working through wardrobe + creative direction this week. We'll know by Wednesday.", ts: "Apr 22 · 09:18", readBy: ["you"] },
+    { id: "c4m5", kind: "system", body: "Stella McCartney cancelled — campaign moved to Q3. Hold released.", ts: "1d 12h ago" },
+    { id: "c4m6", kind: "text", sender: "coordinator", body: "Bad news — Stella's just shifted the SS27 campaign to Q3 (designer change). They asked us to keep you on the shortlist for August. Will re-engage when they have firm dates.", ts: "1d 12h ago" },
+    { id: "c4m7", kind: "text", sender: "you", body: "Disappointing but understood. Thanks for the heads-up — let me know in August.", ts: "1d 11h ago", readBy: ["coordinator"] },
   ],
+
+  // c6 — Martina Beach Club INQUIRY (new client via Tulala Hub)
+  c6: [
+    { id: "c6m1", kind: "system", body: "Inquiry created · via Tulala Hub · Hospitality vertical", ts: "1h ago" },
+    { id: "c6m2", kind: "text", sender: "coordinator", body: "Hi Marta — new client just reached out via the Hub: Martina Beach Club & Restaurant in Tulum. They're launching a 'Sunday models' summer pool series. 4 dates over 2 months — this Sunday Jun 8 is the first.", ts: "1h ago" },
+    { id: "c6m3", kind: "image", sender: "coordinator", caption: "Reference looks they sent — relaxed swimwear, sunset golden hour.", count: 5, ts: "1h ago" },
+    { id: "c6m4", kind: "text", sender: "coordinator", body: "Brief just landed — they want a sunset series. €2,800/day plus hotel. Open?", ts: "1h ago" },
+    { id: "c6m5", kind: "action-rate", ts: "1h ago" },
+  ],
+
+  // c5 — Loewe WRAPPED (paid in full)
   c5: [
     { id: "c5m1", kind: "system", body: "Booking confirmed · Apr 18 · Loewe", ts: "Apr 8 · 11:00" },
     { id: "c5m2", kind: "text", sender: "coordinator", body: "Loewe Capsule editorial. 2 talent, 1 day, ESTUDIO ROCA. You drove yourself — fuel + tolls reimbursed.", ts: "Apr 8 · 11:02" },
-    { id: "c5m3", kind: "system", body: "Wrapped · selects shared", ts: "Apr 18 · 17:30" },
-    { id: "c5m4", kind: "payment-receipt", ts: "Apr 25 · 09:14", amount: "€3,600", method: "Transfer" },
+    { id: "c5m3", kind: "text", sender: "you", body: "Set up smoothly. Diego was easy to work with — usual ESTUDIO ROCA setup.", ts: "Apr 18 · 17:00", readBy: ["coordinator"] },
+    { id: "c5m4", kind: "system", body: "Wrapped · selects shared", ts: "Apr 18 · 17:30" },
+    { id: "c5m5", kind: "image", sender: "coordinator", caption: "Loewe selects — final 4 frames they're using.", count: 4, ts: "Apr 22 · 14:00" },
+    { id: "c5m6", kind: "text", sender: "coordinator", body: "Selects approved. Invoice cleared today — payout en route.", ts: "Apr 24 · 10:00", readBy: ["you"] },
+    { id: "c5m7", kind: "payment-receipt", ts: "Apr 25 · 09:14", amount: "€3,600", method: "Transfer" },
+  ],
+
+  // c7 — Solstice Festival · Marta is COORDINATOR
+  // Booking-team thread + a private client thread (Marta sees both).
+  // Demonstrates: Marta invited Cleo Vega as co-coordinator; she's
+  // organizing 3 fire dancers (including herself).
+  "c7:talent": [
+    { id: "c7tm1", kind: "system", body: "Crew booked · Cleo Vega added as co-coordinator", ts: "May 28 · 09:00" },
+    { id: "c7tm2", kind: "text", sender: "coordinator", body: "Team — Solstice Festival closing performance is locked. Three dancers: me, Tariq, Anouk. Cleo is helping me coordinate. 8-min set, Sat Jun 21, Cala Llonga main stage.", ts: "May 28 · 09:05", readBy: ["you"] },
+    { id: "c7tm3", kind: "text", sender: "you", body: "Boat transfer at 18:00 from Marina Botafoch — Iván is driving. Bring your usual kit + a backup costume. Production will provide fuel for the props.", ts: "May 28 · 09:08", readBy: ["coordinator"] },
+    { id: "c7tm4", kind: "text", sender: "agency", body: "Tariq here — locked. I'll bring my poi + a backup pair.", ts: "May 28 · 11:42" },
+    { id: "c7tm5", kind: "text", sender: "agency", body: "Anouk: confirmed. Choreo finalised — sending the music cue list tonight.", ts: "May 28 · 14:20" },
+    { id: "c7tm6", kind: "file", sender: "agency", filename: "Solstice_set_cuelist.pdf", sizeKB: 142, ts: "May 28 · 22:14" },
+    { id: "c7tm7", kind: "text", sender: "coordinator", body: "Got the cue list — uploading to Files. Cleo will run through it Friday afternoon at the rehearsal.", ts: "May 29 · 08:00", readBy: ["you"] },
+    { id: "c7tm8", kind: "text", sender: "client", body: "Joaquín (stage manager) — need updated bios + portrait shots for the program. By Jun 14 please.", ts: "2h ago" },
+    { id: "c7tm9", kind: "text", sender: "coordinator", body: "Sending out a request to the team — please drop your latest bio + a clean portrait into Files this week.", ts: "2h ago", readBy: ["you"] },
+  ],
+  "c7:client": [
+    { id: "c7cm1", kind: "system", body: "Direct booking · via your portfolio site", ts: "May 25 · 11:00" },
+    { id: "c7cm2", kind: "text", sender: "client", body: "Marta — Bea here from Solstice. Saw your reel and the fire-dance work. We need a 6–10 min closing performance, Sat Jun 21. Three dancers ideally. Budget €7,500 total.", ts: "May 25 · 11:04" },
+    { id: "c7cm3", kind: "text", sender: "you", body: "Hi Bea — happy to put a crew together. €7,500 works for 3 dancers + my coordination. I'll have Tariq Joubert and Anouk Naseri locked in — both have festival closer experience.", ts: "May 25 · 12:30", readBy: ["client"] },
+    { id: "c7cm4", kind: "text", sender: "client", body: "Perfect. Send me bios + 30s clips for each so I can clear them with the festival director.", ts: "May 25 · 14:00" },
+    { id: "c7cm5", kind: "file", sender: "you", filename: "Solstice_crew_bios.pdf", sizeKB: 1840, ts: "May 26 · 18:20" },
+    { id: "c7cm6", kind: "text", sender: "client", body: "Approved — locking the booking. Insurance + rider attached. Need updated bios + portrait shots for the program by Jun 14.", ts: "May 28 · 09:00" },
+    { id: "c7cm7", kind: "file", sender: "client", filename: "Solstice_insurance_rider.pdf", sizeKB: 220, ts: "May 28 · 09:01" },
+    { id: "c7cm8", kind: "text", sender: "you", body: "Got it. Crew is briefed — bios + portraits coming this week.", ts: "May 28 · 09:30", readBy: ["client"] },
+  ],
+
+  // c8 — Adidas spec CANCELLED (client rejected the offer)
+  c8: [
+    { id: "c8m1", kind: "system", body: "Inquiry created · via Tulala Hub · Featured dancers", ts: "Apr 14 · 09:00" },
+    { id: "c8m2", kind: "text", sender: "coordinator", body: "Hi Marta — Adidas Originals Berlin team is putting together a dance reel spec. 1 day shoot, looking for 3–4 dancers, looking at your reel.", ts: "Apr 14 · 09:05", readBy: ["you"] },
+    { id: "c8m3", kind: "text", sender: "you", body: "Open. What's the usage?", ts: "Apr 14 · 11:42", readBy: ["coordinator"] },
+    { id: "c8m4", kind: "text", sender: "coordinator", body: "Global, 12 months, all digital + paid social. Quoted you at €2,400.", ts: "Apr 14 · 13:00", readBy: ["you"] },
+    { id: "c8m5", kind: "text", sender: "client", body: "Riku here. Love the reel. Our budget is tighter than expected — can you do €1,500?", ts: "Apr 16 · 14:30" },
+    { id: "c8m6", kind: "text", sender: "coordinator", body: "Marta — they came in low. Counter-offered €1,800, holding the line on global usage.", ts: "Apr 16 · 14:45", readBy: ["you"] },
+    { id: "c8m7", kind: "text", sender: "client", body: "€1,800 is over our cap. Best we can do is €1,400 + buyout option down the road.", ts: "Apr 18 · 10:00" },
+    { id: "c8m8", kind: "system", body: "Adidas declined the v3 counter — their max was €1,400 + buyout. Closed.", ts: "4d ago" },
+    { id: "c8m9", kind: "text", sender: "coordinator", body: "Closing this — €1,400 for global usage doesn't pencil. They went with another agency. Worth keeping Riku on file though, his next project might pay better.", ts: "4d ago", readBy: ["you"] },
+  ],
+
+  // c9 — Lyra Skincare EXPIRED (client never responded)
+  c9: [
+    { id: "c9m1", kind: "system", body: "Inquiry created · cold email · events@lyraskincare.com", ts: "Apr 18 · 16:00" },
+    { id: "c9m2", kind: "text", sender: "coordinator", body: "Heads-up — got a cold email for a 4h hostess slot at a Lyra Skincare pop-up launch in BCN. Brand is unverified, small team. They asked for a quote.", ts: "Apr 18 · 16:05", readBy: ["you"] },
+    { id: "c9m3", kind: "text", sender: "you", body: "What's their budget? Hostess work isn't my usual lane but I can do 4h for the right number.", ts: "Apr 18 · 17:30", readBy: ["coordinator"] },
+    { id: "c9m4", kind: "text", sender: "coordinator", body: "Sent them €600 for 4h with travel. Standard rate. Will let you know if they reply.", ts: "Apr 19 · 09:00", readBy: ["you"] },
+    { id: "c9m5", kind: "system", body: "Reminder sent — no client reply in 7 days.", ts: "Apr 26 · 10:00" },
+    { id: "c9m6", kind: "system", body: "Inquiry expired — no client response in 14 days. Auto-closed.", ts: "10d ago" },
+  ],
+
+  // c10 — Atelier Noir BOOKED · Marta is COORDINATOR · NDA workflow
+  // Booking-team thread shows Marta dispatching the NDA to Nadia,
+  // collecting signed copies, and uploading them to Files. Client
+  // thread shows Marta + Valeria working through the brief.
+  "c10:talent": [
+    { id: "c10tm1", kind: "system", body: "Crew confirmed · Marta + Nadia · Atelier Noir SS27", ts: "Jun 12 · 10:00" },
+    { id: "c10tm2", kind: "text", sender: "coordinator", body: "Hi Nadia — Atelier Noir locked us for Jul 4–5 in Lisbon. €2,800/day · 2 days. Same rate I quoted them.", ts: "Jun 12 · 10:02", readBy: ["you"] },
+    { id: "c10tm3", kind: "text", sender: "agency", body: "Locked. Excited — couture pieces are my thing.", ts: "Jun 12 · 10:18" },
+    { id: "c10tm4", kind: "text", sender: "client", body: "Valeria here — passing through. Atelier's NDA is stricter this round (couture exclusivity). Both talents must sign before fitting day.", ts: "Jun 14 · 09:00" },
+    { id: "c10tm5", kind: "file", sender: "client", filename: "Atelier_Noir_NDA_v2.pdf", sizeKB: 280, ts: "Jun 14 · 09:01" },
+    { id: "c10tm6", kind: "text", sender: "coordinator", body: "Nadia — Atelier sent the NDA. Sign and send back when you can. I'll do mine tonight.", ts: "Jun 14 · 11:00", readBy: ["you"] },
+    { id: "c10tm7", kind: "file", sender: "you", filename: "Marta_Reyes_NDA_signed.pdf", sizeKB: 290, ts: "Jun 14 · 22:30" },
+    { id: "c10tm8", kind: "file", sender: "agency", filename: "Nadia_Kohler_NDA_signed.pdf", sizeKB: 285, ts: "Jun 15 · 14:42" },
+    { id: "c10tm9", kind: "text", sender: "coordinator", body: "Both signed. Uploading the bundle to Files and forwarding to Valeria.", ts: "Jun 15 · 15:00", readBy: ["you"] },
+    { id: "c10tm10", kind: "text", sender: "you", body: "NDA + model release uploaded — all 2 talents signed. We're set for Lisbon.", ts: "6h ago", readBy: ["agency"] },
+  ],
+  "c10:client": [
+    { id: "c10cm1", kind: "system", body: "Direct booking · returning workspace client", ts: "Jun 8 · 14:00" },
+    { id: "c10cm2", kind: "text", sender: "client", body: "Marta — Valeria here. Want to lock you for SS27 again. 2 days, Jul 4–5, Convento da Cartuxa near Lisbon. Couture pieces this time. Need 2 talents, you choose.", ts: "Jun 8 · 14:04" },
+    { id: "c10cm3", kind: "text", sender: "you", body: "Hi Valeria — pleasure to be back. €2,800/day per talent works (same as last year, +5%). I'll bring Nadia Köhler. Can confirm by tomorrow.", ts: "Jun 8 · 16:18", readBy: ["client"] },
+    { id: "c10cm4", kind: "text", sender: "client", body: "€2,800/day approved. Sending the booking confirmation through Atelier.", ts: "Jun 9 · 10:00" },
+    { id: "c10cm5", kind: "contract-sign", ts: "Jun 10 · 11:00", filename: "Atelier_Noir_SS27_Booking.pdf", resolved: true },
+    { id: "c10cm6", kind: "text", sender: "client", body: "One more thing — the NDA. Couture exclusivity, both talents must sign before fitting. Sending v2 to your booking-team thread so Nadia can sign too.", ts: "Jun 14 · 09:00" },
+    { id: "c10cm7", kind: "text", sender: "you", body: "On it. Will get both signed by end of week.", ts: "Jun 14 · 11:30", readBy: ["client"] },
+    { id: "c10cm8", kind: "file", sender: "you", filename: "Atelier_Noir_NDA_signed_bundle.zip", sizeKB: 580, ts: "Jun 15 · 15:30" },
+    { id: "c10cm9", kind: "text", sender: "client", body: "Both NDAs received and filed. See you in Lisbon!", ts: "Jun 15 · 16:00" },
+  ],
+
+  // ──────────────────────────────────────────────────────────────────
+  // c11 — Aesop · BRAND-NEW INQUIRY (never opened by Marta).
+  // Just landed via Tulala Hub beauty vertical. The thread shows the
+  // initial pitch + brand outreach + Sara's framing. Marta hasn't
+  // responded yet — the action-rate CTA is live at the bottom.
+  // ──────────────────────────────────────────────────────────────────
+  c11: [
+    { id: "c11m1", kind: "system", body: "Inquiry created · via Tulala Hub · Beauty vertical", ts: "30m ago" },
+    { id: "c11m2", kind: "text", sender: "client", body: "Hi — Eun-jin from Aesop. We're shooting a single-day skincare editorial in Berlin late May. Looking for editorial-trained talent with strong skin presence. Budget €3,200 for the day, full editorial usage.", ts: "28m ago" },
+    { id: "c11m3", kind: "image", sender: "client", caption: "Reference visuals — minimalist, clean light, close beauty crops.", count: 4, ts: "27m ago" },
+    { id: "c11m4", kind: "text", sender: "coordinator", body: "Hi Marta — Aesop just came in via the Hub. Strong fit for your editorial reel, single day in Berlin (May 26). Their team specifically asked for editorial-trained talent. Open?", ts: "25m ago" },
+    { id: "c11m5", kind: "text", sender: "coordinator", body: "Aesop's a verified Hub client (gold tier locally) — I'd quote at the top of your range. They've been good with usage clearance in the past.", ts: "25m ago" },
+    { id: "c11m6", kind: "action-rate", ts: "25m ago" },
+  ],
+
+  // ──────────────────────────────────────────────────────────────────
+  // c12 — Lacoste · BRAND-NEW INQUIRY (never opened by Marta).
+  // Direct via Acme's roster page — Joana saw Marta's Mango lookbook
+  // and reached out. 2-day Lisbon SS27 sportswear shoot, June.
+  // ──────────────────────────────────────────────────────────────────
+  c12: [
+    { id: "c12m1", kind: "system", body: "Inquiry created · direct via Acme Models roster page", ts: "10m ago" },
+    { id: "c12m2", kind: "text", sender: "client", body: "Hi Marta — Joana here from Lacoste. Saw your Mango lookbook last week, would love to put you on our SS27 shortlist. 2 days in Lisbon (Jun 3–4), Belém riverside, sportswear with editorial leaning.", ts: "10m ago" },
+    { id: "c12m3", kind: "text", sender: "client", body: "Budget is €2,400/day per talent + travel + hotel. Open to a chat?", ts: "10m ago" },
+    { id: "c12m4", kind: "text", sender: "coordinator", body: "Marta — Lacoste came in directly. First inbound from them in 18 months and they came pre-qualified (knew your work). I'd quote at the top of your range — they expect it.", ts: "9m ago" },
+    { id: "c12m5", kind: "image", sender: "client", caption: "Brief deck — locations, mood, looks per day.", count: 6, ts: "9m ago" },
+    { id: "c12m6", kind: "action-rate", ts: "9m ago" },
+  ],
+
+  // ──────────────────────────────────────────────────────────────────
+  // CLIENT-SIDE THREADS — Martina Beach Club POV
+  // The "client thread" tab in the client shell shows the conversation
+  // between the brand contact (Martina González) and the agency
+  // coordinator. Talent-group thread stays locked for client.
+  // ──────────────────────────────────────────────────────────────────
+  m1: [
+    { id: "m1m1", kind: "system", body: "Inquiry sent · routed via Tulala Hub · Hospitality vertical", ts: "May 30 · 09:14" },
+    { id: "m1m2", kind: "text", sender: "you", body: "Hi — we're launching a 'Sunday models' summer pool series. 4 dates, this Sunday Jun 8 is the first. Looking for one editorial-leaning talent. Budget €2,800/day plus hotel.", ts: "May 30 · 09:14" },
+    { id: "m1m3", kind: "text", sender: "coordinator", body: "Hi Martina — Sara from Acme Models. We have Marta Reyes available — strong editorial portfolio, hospitality experience. Sending mood reference + her portfolio link.", ts: "May 30 · 11:42", readBy: ["you"] },
+    { id: "m1m4", kind: "text", sender: "coordinator", body: "Sending you Marta's polaroids + 2 alternates today.", ts: "1h ago" },
+    { id: "m1m5", kind: "image", sender: "coordinator", caption: "Marta's recent editorial work + 2 alternate options.", count: 6, ts: "1h ago" },
+  ],
+  m2: [
+    { id: "m2m1", kind: "system", body: "Booking confirmed · Jun 13 · cocktail bar reopening", ts: "May 22 · 10:00" },
+    { id: "m2m2", kind: "text", sender: "coordinator", body: "Booked Zara + Tomás for Friday Jun 13. Both have served at Tulum hospitality events for us before. Uniform from your wardrobe team.", ts: "May 22 · 10:02", readBy: ["you"] },
+    { id: "m2m3", kind: "text", sender: "you", body: "Great. We'll have Vincenzo (bar manager) brief them on the cocktail menu before doors open.", ts: "May 22 · 11:15", readBy: ["coordinator"] },
+    { id: "m2m4", kind: "file", sender: "coordinator", filename: "Cocktail_bar_callsheet_jun13.pdf", sizeKB: 224, ts: "6h ago" },
+    { id: "m2m5", kind: "text", sender: "coordinator", body: "Call sheet attached. Hosts arrive at 18:30 · uniform from your wardrobe team.", ts: "6h ago" },
+  ],
+  m3: [
+    { id: "m3m1", kind: "system", body: "Direct booking · 3 creators · weekend takeover", ts: "Apr 28 · 14:00" },
+    { id: "m3m2", kind: "text", sender: "you", body: "Hi all — confirming Lucia, Diego, Camille for May 10–11 weekend. Open content brief, vibe-driven.", ts: "Apr 28 · 14:02" },
+    { id: "m3m3", kind: "text", sender: "coordinator", body: "All 3 confirmed. They'll arrange travel themselves — you cover hotel + meals at the club.", ts: "Apr 28 · 14:10", readBy: ["you"] },
+    { id: "m3m4", kind: "system", body: "Weekend wrapped · 47 posts published across 3 creators", ts: "May 12 · 18:00" },
+    { id: "m3m5", kind: "payment-receipt", ts: "May 18 · 09:00", amount: "€4,200", method: "Transfer" },
+    { id: "m3m6", kind: "text", sender: "coordinator", body: "Final analytics report attached — 2.4M reach, 18% engagement on Camille's grid posts. Strong return.", ts: "May 20 · 11:30" },
+  ],
+  m4: [
+    { id: "m4m1", kind: "system", body: "Direct booking · via Reyes Movement Studio portfolio", ts: "May 28 · 10:00" },
+    { id: "m4m2", kind: "text", sender: "you", body: "Hi Marta — saw your Solstice Festival reel. We want a fire-dance act for our summer closing party, Sat Sep 6. Same crew if possible.", ts: "May 28 · 10:04" },
+    { id: "m4m3", kind: "text", sender: "coordinator", body: "Hi Martina — same crew (me, Tariq, Anouk) is doable for Sep 6. €7,500 total · 3 dancers · 12-min set. Insurance + rider already cleared with Solstice — we can reuse for you.", ts: "May 28 · 11:30", readBy: ["you"] },
+    { id: "m4m4", kind: "text", sender: "coordinator", body: "Holding Sep 6 for you. Need a yes by Friday so we can lock the dancers' calendars.", ts: "1d 2h ago" },
+  ],
+  m5: [
+    { id: "m5m1", kind: "system", body: "Inquiry sent · press launch · Mexico City", ts: "Mar 30 · 09:00" },
+    { id: "m5m2", kind: "text", sender: "you", body: "Need 2 hostesses for our Mexico City pop-up press launch on Apr 28.", ts: "Mar 30 · 09:01" },
+    { id: "m5m3", kind: "text", sender: "coordinator", body: "Booked Marta + Zara. Single evening, 6h. Confirmation + call sheet incoming.", ts: "Apr 5 · 14:00", readBy: ["you"] },
+    { id: "m5m4", kind: "text", sender: "you", body: "Cancelling the launch — venue pulled out. Will reach out for the next one.", ts: "Apr 14 · 16:30", readBy: ["coordinator"] },
+    { id: "m5m5", kind: "text", sender: "coordinator", body: "Understood. We'll waive the cancellation fee given the relationship. Hope to hear from you soon.", ts: "Apr 14 · 17:00", readBy: ["you"] },
+    { id: "m5m6", kind: "system", body: "Booking cancelled · fee waived", ts: "Apr 14 · 17:01" },
+  ],
+
+  // CLIENT-SIDE THREADS — The Gringo POV
+  g1: [
+    { id: "g1m1", kind: "system", body: "Inquiry sent · via Instagram DM · referral from past hire", ts: "May 24 · 22:14" },
+    { id: "g1m2", kind: "text", sender: "you", body: "Hey — need 4 hostesses for my birthday charter on Sat Jul 26. Day-trip yacht out of Marina Botafoch.", ts: "May 24 · 22:14" },
+    { id: "g1m3", kind: "text", sender: "coordinator", body: "Hi — Sara from Acme Models. We can pull a crew. To send proposals, we'll need ID verification + a card on file (standard for personal clients on a Basic trust tier). Takes 5 min.", ts: "May 25 · 10:00" },
+    { id: "g1m4", kind: "text", sender: "coordinator", body: "Verification pending — once funded the deal moves fast. Confirm card on file?", ts: "4h ago" },
+  ],
+  g2: [
+    { id: "g2m1", kind: "system", body: "Direct booking · 2 hostesses · 3h", ts: "Mar 8 · 14:00" },
+    { id: "g2m2", kind: "text", sender: "coordinator", body: "Booked Zara + Anouk for Mar 15 private dinner. Card on file charged · €1,200.", ts: "Mar 8 · 14:02", readBy: ["you"] },
+    { id: "g2m3", kind: "system", body: "Wrapped · paid in full", ts: "Mar 15 · 23:00" },
+    { id: "g2m4", kind: "payment-receipt", ts: "Mar 20 · 09:00", amount: "€1,200", method: "Card on file" },
   ],
 };
 
@@ -6278,7 +7298,7 @@ function MessageBubble({ msg, stage, isFirstOfGroup = true }: { msg: Msg; stage:
     ? msg.sender === "coordinator"
       ? "Sara · Coordinator"
       : msg.sender === "agency"
-        ? "Acme Models"
+        ? "Atelier Roma"
         : msg.sender === "client"
           ? "Client"
           : ""
@@ -12460,6 +13480,30 @@ function EarningsTile({
   const sparkMax = Math.max(...EARNINGS_SPARKLINE);
   const width = 180, height = 44;
 
+  // Pending = booked-but-not-yet-wrapped conversations × their take-
+  // home rate. Surfaces "money in flight" so the headline doesn't
+  // pretend the month is over when the talent has 3 paydays coming.
+  // Same source as the messages shell — single truth.
+  const pendingConvs = MOCK_CONVERSATIONS.filter((c) => c.stage === "booked");
+  const pendingTotal = pendingConvs.reduce((sum, c) => {
+    const raw = TALENT_RATE_FOR_CONV[c.id];
+    if (!raw || raw === "—") return sum;
+    const num = parseFloat(raw.replace(/[^0-9.]/g, ""));
+    return sum + (isNaN(num) ? 0 : num);
+  }, 0);
+  const pendingCurrency = (() => {
+    for (const c of pendingConvs) {
+      const m = TALENT_RATE_FOR_CONV[c.id]?.match(/[€£$]/);
+      if (m) return m[0];
+    }
+    return currency;
+  })();
+  // Trend signal — flat green bullet when month is stronger than the
+  // 6-month average, amber when below. Tiny but it makes the tile feel
+  // alive: the same number rendered as a chart already moves the eye.
+  const sparkAvg = EARNINGS_SPARKLINE.reduce((s, v) => s + v, 0) / EARNINGS_SPARKLINE.length;
+  const trendUp = monthTotal >= sparkAvg;
+
   const points = EARNINGS_SPARKLINE.map((v, i) => {
     const x = (i / (EARNINGS_SPARKLINE.length - 1)) * width;
     const y = height - (v / sparkMax) * (height - 4) - 2;
@@ -12476,8 +13520,29 @@ function EarningsTile({
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: COLORS.inkDim, fontFamily: FONTS.body, marginBottom: 4 }}>
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: COLORS.inkDim,
+            fontFamily: FONTS.body, marginBottom: 4,
+          }}>
             Earnings
+            {/* Trend bullet — green = above 6-mo avg, amber = below.
+                Tiny visual but adds a sense of momentum to the tile. */}
+            <span aria-label={trendUp ? "Trending up vs 6-month average" : "Trending down vs 6-month average"} style={{
+              display: "inline-flex", alignItems: "center", gap: 3,
+              padding: "1px 6px", borderRadius: 999,
+              background: trendUp ? COLORS.successSoft : `${COLORS.amber}18`,
+              color: trendUp ? (COLORS.successDeep ?? COLORS.success) : COLORS.amber,
+              fontSize: 9, fontWeight: 700, letterSpacing: 0.3,
+            }}>
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                {trendUp
+                  ? <path d="M1 6l3-3 3 3M4 3v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                  : <path d="M1 2l3 3 3-3M4 5V1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>}
+              </svg>
+              {trendUp ? "Up" : "Down"}
+            </span>
           </div>
           <div style={{ fontSize: 26, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body, letterSpacing: "-0.5px" }}>
             {currency}{(data.total).toLocaleString()}
@@ -12544,6 +13609,51 @@ function EarningsTile({
         />
       </svg>
 
+      {/* Pending payouts strip — money already booked, not yet paid.
+          Sourced from MOCK_CONVERSATIONS (booked stage) so it always
+          mirrors the messages shell. Empty state hidden. */}
+      {pendingTotal > 0 && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "8px 10px", marginBottom: 10,
+          background: `linear-gradient(135deg, ${COLORS.accentSoft} 0%, ${COLORS.surfaceAlt} 100%)`,
+          border: `1px solid rgba(15,79,62,0.16)`,
+          borderRadius: RADIUS.md,
+        }}>
+          <span aria-hidden style={{
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            width: 26, height: 26, borderRadius: 8,
+            background: "#fff", color: COLORS.accentDeep,
+            border: `1px solid rgba(15,79,62,0.18)`,
+            flexShrink: 0,
+          }}>
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M7 4v3l2 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 9.5, fontWeight: 700, letterSpacing: 0.4,
+              textTransform: "uppercase", color: COLORS.accentDeep,
+              fontFamily: FONTS.body,
+            }}>
+              In flight
+            </div>
+            <div style={{
+              fontSize: 13, fontWeight: 700, color: COLORS.ink,
+              fontFamily: FONTS.body, marginTop: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}>
+              {pendingCurrency}{Math.round(pendingTotal).toLocaleString()}
+              <span style={{ fontWeight: 500, color: COLORS.inkMuted, marginLeft: 6 }}>
+                · {pendingConvs.length} booked job{pendingConvs.length === 1 ? "" : "s"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Recent rows */}
       <div style={{ marginBottom: 10 }}>
         {EARNINGS_ROWS.slice(0, 3).map((e) => (
@@ -12582,20 +13692,9 @@ function EarningsTile({
 }
 
 // ════════════════════════════════════════════════════════════════════
-// WS-8.4 This-week rhythm strip
+// WS-8.4 This-week rhythm strip — driven from MOCK_CONVERSATIONS so the
+// booked/hold cells map to real conversations the talent can click into.
 // ════════════════════════════════════════════════════════════════════
-
-const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-// Mock data: each day carries a status and an optional label
-const THIS_WEEK: { day: string; status: "booked" | "hold" | "available" | "blocked" | "today"; label?: string }[] = [
-  { day: "Mon", status: "booked",    label: "Mango · SS26" },
-  { day: "Tue", status: "booked",    label: "Mango · SS26" },
-  { day: "Wed", status: "available" },
-  { day: "Thu", status: "today",     label: "Available" },
-  { day: "Fri", status: "hold",      label: "Vogue · hold" },
-  { day: "Sat", status: "blocked",   label: "Personal" },
-  { day: "Sun", status: "available" },
-];
 
 const DAY_COLORS: Record<string, { bg: string; label: string; border: string }> = {
   booked:    { bg: COLORS.accentSoft, label: COLORS.accent,    border: COLORS.accent },
@@ -12605,8 +13704,75 @@ const DAY_COLORS: Record<string, { bg: string; label: string; border: string }> 
   today:     { bg: COLORS.accent,    label: "#fff",          border: COLORS.accent },
 };
 
+// Parse a conversation date label into the day-of-month it covers.
+// Handles "Wed, May 14" / "May 14–15" / "Sat, Jun 21" / "Jul 4–5" etc.
+// Returns the *first* day of the range when multi-day; null if unparsed.
+function convFirstDay(label?: string): { month: string; day: number } | null {
+  if (!label) return null;
+  const m = label.match(/([A-Za-z]+)\s+(\d{1,2})/);
+  if (!m) return null;
+  const day = parseInt(m[2]!, 10);
+  return isNaN(day) ? null : { month: m[1]!, day };
+}
+
 function WeekRhythmStrip() {
   const { setTalentPage } = useProto();
+  // "Today" in the prototype's mock world is May 6 (anchored to align
+  // with TALENT_BOOKINGS[0] / dashboard demo). Production reads the
+  // actual Date.now(). Build a Mon-Sun strip starting from the most
+  // recent Monday on or before "today".
+  // Compute the 7 days of the current week (Mon → Sun). Mock today =
+  // May 6 (Tue) → strip is May 5 (Mon) → May 11 (Sun). Real prod would
+  // pull from Date.now(); here we keep it deterministic for demos.
+  const todayDate = new Date(2026, 4, 6); // May 6, 2026 (year matches mock)
+  const todayDow = todayDate.getDay(); // 0=Sun..6=Sat
+  const offsetToMon = todayDow === 0 ? -6 : 1 - todayDow;
+  const weekStart = new Date(todayDate);
+  weekStart.setDate(todayDate.getDate() + offsetToMon);
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    return d;
+  });
+
+  // For each day in the strip, find the first booked/hold conversation
+  // whose date covers it. Returns the first match — multi-talent days
+  // are rare and a single chip + click is cleaner than stacking.
+  const cellFor = (date: Date) => {
+    const dayNum = date.getDate();
+    const monthShort = date.toLocaleString("en-US", { month: "short" });
+    for (const c of MOCK_CONVERSATIONS) {
+      if (c.stage !== "booked" && c.stage !== "hold") continue;
+      const parsed = convFirstDay(c.date);
+      if (!parsed) continue;
+      // Match if the conversation's month + day equals the cell's
+      // month + day. Multi-day shoots are matched on their first day
+      // only; future improvement: span dashes across all matching cells.
+      if (parsed.month.slice(0, 3).toLowerCase() === monthShort.toLowerCase() && parsed.day === dayNum) {
+        return c;
+      }
+      // Multi-day range — match if the cell's day falls inside the
+      // start–end span (same month).
+      const range = c.date?.match(/([A-Za-z]+)\s+(\d{1,2})[–-](\d{1,2})/);
+      if (range) {
+        const rangeMonth = range[1]!.slice(0, 3).toLowerCase();
+        const startDay = parseInt(range[2]!, 10);
+        const endDay = parseInt(range[3]!, 10);
+        if (rangeMonth === monthShort.toLowerCase() && dayNum >= startDay && dayNum <= endDay) {
+          return c;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Pin + open the conversation in the messages shell on the Booking tab.
+  const openConv = (convId: string) => {
+    pinNextConversationT(convId);
+    pinNextThreadTabT("booking");
+    setTalentPage("messages");
+  };
+
   return (
     <section style={{
       background: "#fff",
@@ -12616,9 +13782,14 @@ function WeekRhythmStrip() {
       marginBottom: 0,
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
-          This week
-        </span>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+            This week
+          </div>
+          <div style={{ fontSize: 10.5, color: COLORS.inkMuted, fontFamily: FONTS.body, marginTop: 1 }}>
+            {weekDays[0]!.toLocaleString("en-US", { month: "short", day: "numeric" })} – {weekDays[6]!.toLocaleString("en-US", { month: "short", day: "numeric" })}
+          </div>
+        </div>
         <button
           type="button"
           onClick={() => setTalentPage("calendar")}
@@ -12628,12 +13799,28 @@ function WeekRhythmStrip() {
         </button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
-        {THIS_WEEK.map((d) => {
-          const theme = DAY_COLORS[d.status];
+        {weekDays.map((date, i) => {
+          const conv = cellFor(date);
+          const isToday = date.toDateString() === todayDate.toDateString();
+          const status: keyof typeof DAY_COLORS =
+            isToday ? "today"
+            : conv?.stage === "booked" ? "booked"
+            : conv?.stage === "hold" ? "hold"
+            : "available";
+          const theme = DAY_COLORS[status]!;
+          const dayShort = date.toLocaleString("en-US", { weekday: "short" });
+          const dayNum = date.getDate();
+          const label = conv ? `${conv.client.split(" ")[0]} · ${conv.brief.split(" ").slice(0, 3).join(" ")}` : null;
+          const Tag = conv ? "button" : "div";
           return (
-            <div
-              key={d.day}
-              title={d.label ?? d.status}
+            <Tag
+              key={i}
+              {...(conv ? {
+                onClick: () => openConv(conv.id),
+                title: `${conv.client} · ${conv.brief}`,
+                "aria-label": `${dayShort} ${dayNum} — ${conv.client}, open booking`,
+                type: "button" as const,
+              } : { title: status })}
               style={{
                 background:   theme.bg,
                 border:       `1px solid ${theme.border}`,
@@ -12641,21 +13828,57 @@ function WeekRhythmStrip() {
                 padding:      "6px 4px",
                 textAlign:    "center",
                 minHeight:    52,
+                cursor:       conv ? "pointer" : "default",
+                fontFamily:   FONTS.body,
+                transition:   `transform ${TRANSITION.micro}, box-shadow ${TRANSITION.micro}`,
+                ...(conv ? {
+                  // Subtle lift on hover — signals interactivity without
+                  // being noisy. Touch devices ignore the hover.
+                } : {}),
               }}
+              {...(conv ? {
+                onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
+                  e.currentTarget.style.boxShadow = "0 2px 6px rgba(11,11,13,0.10)";
+                },
+                onMouseLeave: (e: React.MouseEvent<HTMLElement>) => {
+                  e.currentTarget.style.boxShadow = "none";
+                },
+              } : {})}
             >
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: theme.label, fontFamily: FONTS.body, marginBottom: 3 }}>
-                {d.day}
+              <div style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: "0.05em",
+                textTransform: "uppercase", color: theme.label,
+                fontFamily: FONTS.body, marginBottom: 1,
+              }}>
+                {dayShort}
               </div>
-              {d.label ? (
-                <div style={{ fontSize: 9, color: theme.label, fontFamily: FONTS.body, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", wordBreak: "break-word" }}>
-                  {d.label}
+              <div style={{
+                fontSize: 13, fontWeight: 700, color: theme.label,
+                fontFamily: FONTS.body, lineHeight: 1, marginBottom: 3,
+                fontVariantNumeric: "tabular-nums",
+              }}>
+                {dayNum}
+              </div>
+              {label ? (
+                <div style={{
+                  fontSize: 9, color: theme.label, fontFamily: FONTS.body,
+                  lineHeight: 1.25, overflow: "hidden", textOverflow: "ellipsis",
+                  wordBreak: "break-word",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2 as unknown as string,
+                  WebkitBoxOrient: "vertical",
+                }}>
+                  {label}
                 </div>
               ) : (
-                <div style={{ fontSize: 9, color: theme.label, fontFamily: FONTS.body, opacity: 0.6 }}>
-                  {d.status === "available" ? "Free" : d.status}
+                <div style={{
+                  fontSize: 9, color: theme.label, fontFamily: FONTS.body,
+                  opacity: 0.6,
+                }}>
+                  {isToday ? "Today" : "Free"}
                 </div>
               )}
-            </div>
+            </Tag>
           );
         })}
       </div>

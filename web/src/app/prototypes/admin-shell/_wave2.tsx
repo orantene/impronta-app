@@ -49,6 +49,8 @@ import {
   TextArea,
   FieldRow,
 } from "./_primitives";
+import { pinNextConversation } from "./_messages";
+import { MOCK_CONVERSATIONS } from "./_talent";
 
 // ════════════════════════════════════════════════════════════════════
 // #9 — InboxSnippetsDrawer
@@ -156,9 +158,7 @@ export function InboxSnippetsDrawer() {
               fontFamily: FONTS.body,
               fontSize: 11,
               fontWeight: 600,
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
+                            color: COLORS.inkMuted,
             }}
           >
             Library — {snippets.length}
@@ -320,9 +320,7 @@ export function NotificationsPrefsDrawer() {
       borderTop: `1px solid ${COLORS.borderSoft}`,
       fontSize: 10,
       fontWeight: 700,
-      letterSpacing: 0.6,
-      textTransform: "uppercase",
-      color: COLORS.inkMuted,
+            color: COLORS.inkMuted,
     }}>
       {label}
     </div>
@@ -395,9 +393,7 @@ export function NotificationsPrefsDrawer() {
               fontFamily: FONTS.body,
               fontSize: 10.5,
               fontWeight: 700,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
+                            color: COLORS.inkMuted,
               alignItems: "center",
             }}
           >
@@ -882,7 +878,7 @@ export function AuditLogDrawer() {
 // ════════════════════════════════════════════════════════════════════
 
 const MOCK_TENANTS = [
-  { id: "acme", name: "Acme Models", role: "Owner", initials: "A" },
+  { id: "atelier-roma", name: "Atelier Roma", role: "Owner", initials: "A" },
   { id: "northcoast", name: "North Coast Talent", role: "Coordinator", initials: "N" },
   { id: "vela", name: "Vela Hub", role: "Admin", initials: "V" },
 ];
@@ -940,9 +936,7 @@ export function TenantSwitcherDrawer() {
                   style={{
                     fontSize: 9.5,
                     fontWeight: 600,
-                    letterSpacing: 0.5,
-                    textTransform: "uppercase",
-                    padding: "3px 7px",
+                                        padding: "3px 7px",
                     background: "rgba(15,79,62,0.18)",
                     color: COLORS.accentDeep,
                     borderRadius: 999,
@@ -1168,9 +1162,7 @@ function NotifRow({
                   fontFamily: FONTS.body,
                   fontSize: 9.5,
                   fontWeight: 700,
-                  letterSpacing: 0.4,
-                  textTransform: "uppercase",
-                  flexShrink: 0,
+                                    flexShrink: 0,
                 }}
               >
                 @ you
@@ -1406,7 +1398,7 @@ export function TalentNotificationsDrawer() {
                   alignItems: "center",
                   gap: 6,
                   padding: "5px 11px",
-                  background: active ? COLORS.ink : "transparent",
+                  background: active ? COLORS.fill : "transparent",
                   border: "none",
                   borderRadius: 999,
                   cursor: "pointer",
@@ -1473,9 +1465,7 @@ export function TalentNotificationsDrawer() {
                   style={{
                     fontSize: 10.5,
                     fontWeight: 600,
-                    letterSpacing: 0.6,
-                    textTransform: "uppercase",
-                    color: COLORS.inkMuted,
+                                        color: COLORS.inkMuted,
                   }}
                 >
                   {meta.label} · {items.length}
@@ -1614,9 +1604,7 @@ export function TalentNotificationsDrawer() {
               background: "rgba(11,11,13,0.02)",
               fontSize: 10.5,
               fontWeight: 600,
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-              color: COLORS.inkMuted,
+                            color: COLORS.inkMuted,
             }}
           >
             <span>Event</span>
@@ -1722,7 +1710,7 @@ export function TalentShareCardDrawer() {
               style={{
                 marginTop: 12,
                 padding: "8px 14px",
-                background: COLORS.ink,
+                background: COLORS.fill,
                 color: "#fff",
                 border: "none",
                 borderRadius: 8,
@@ -1869,11 +1857,28 @@ function Stat({ value, label, trend }: { value: string; label: string; trend?: s
   );
 }
 
-/** #27 — TalentFunnelCard. Pipeline-view from the talent perspective. */
-export function TalentFunnelCard() {
-  // Pull a few inquiries that involve this talent (mock — using rich
-  // inquiries that exist in mock state).
-  const myInquiries = RICH_INQUIRIES.slice(0, 3);
+/** #27 — TalentFunnelCard. Pipeline-view from the talent perspective.
+ *
+ * When `conversations` is passed, the card renders rows driven directly
+ * by MOCK_CONVERSATIONS — same source the messages shell reads. Click
+ * any row → the conversation pins and the messages shell opens on it.
+ *
+ * When omitted, falls back to the legacy RICH_INQUIRIES path so other
+ * surfaces that haven't been migrated to the conversation-driven model
+ * keep working unchanged. */
+export function TalentFunnelCard({
+  conversations,
+  onOpenInMessages,
+}: {
+  conversations?: import("./_talent").Conversation[];
+  onOpenInMessages?: (convId: string) => void;
+} = {}) {
+  // Prefer conversation-driven rendering when the caller provides them.
+  // Falls back to legacy RICH_INQUIRIES so unmigrated surfaces keep
+  // their behavior (no breaking change).
+  const useConvs = !!(conversations && conversations.length > 0 && onOpenInMessages);
+  const myInquiries = useConvs ? [] : RICH_INQUIRIES.slice(0, 3);
+  const convs = useConvs ? conversations! : [];
   return (
     <section
       style={{
@@ -1897,9 +1902,7 @@ export function TalentFunnelCard() {
           style={{
             fontSize: 9.5,
             fontWeight: 700,
-            letterSpacing: 0.6,
-            textTransform: "uppercase",
-            color: COLORS.inkMuted,
+                        color: COLORS.inkMuted,
             background: "rgba(11,11,13,0.06)",
             padding: "2px 6px",
             borderRadius: 999,
@@ -1912,11 +1915,164 @@ export function TalentFunnelCard() {
         Who else you're up against, and where each is in the pipeline.
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 0, marginTop: 12 }}>
-        {myInquiries.map((inq, i) => (
-          <FunnelRow key={inq.id} inquiry={inq} idx={i} />
-        ))}
+        {useConvs
+          ? convs.map((c, i) => (
+              <ConversationFunnelRow
+                key={c.id}
+                conv={c}
+                idx={i}
+                onOpen={() => onOpenInMessages!(c.id)}
+              />
+            ))
+          : myInquiries.map((inq, i) => (
+              <FunnelRow key={inq.id} inquiry={inq} idx={i} />
+            ))
+        }
       </div>
     </section>
+  );
+}
+
+// ── ConversationFunnelRow ──
+// Conversation-driven sibling of FunnelRow. Same visual language —
+// avatar with trust badge, client+brief title, status dot + descriptive
+// pipeline state, peer count. Click pins the conversation and routes
+// straight into the messages shell where the talent can act on it.
+function ConversationFunnelRow({
+  conv,
+  idx,
+  onOpen,
+}: {
+  conv: import("./_talent").Conversation;
+  idx: number;
+  onOpen: () => void;
+}) {
+  // Map conversation stage → descriptive pipeline copy + tone. Same
+  // vocabulary as deriveInquiryStatus so both data paths feel like one.
+  const status: { copy: string; tone: "indigo" | "amber" | "success" | "coral" } =
+    conv.stage === "inquiry" && conv.lastMessage.sender === "you"
+      ? { copy: "Quote sent · awaiting client", tone: "indigo" }
+      : conv.stage === "inquiry"
+        ? { copy: "Coordinator picking talent", tone: "amber" }
+        : conv.stage === "hold" && conv.lastMessage.sender === "you"
+          ? { copy: "Hold confirmed · client deciding", tone: "indigo" }
+          : conv.stage === "hold"
+            ? { copy: "On hold · client deciding", tone: "indigo" }
+            : conv.stage === "booked"
+              ? { copy: "Booked", tone: "success" }
+              : conv.stage === "past"
+                ? { copy: "Wrapped", tone: "success" }
+                : { copy: "Closed", tone: "amber" };
+  const statusFg = {
+    success: COLORS.green,
+    indigo: COLORS.indigo,
+    amber: COLORS.amber,
+    coral: COLORS.coral,
+  }[status.tone];
+  const summary = conv.brief.length > 40 ? `${conv.brief.slice(0, 38)}…` : conv.brief;
+  // Peer count derived from participants where isTalent is true. Honest
+  // reflection of the lineup the talent is competing in.
+  const peers = (conv.participants ?? []).filter((p) => p.isTalent && p.name !== "Marta Reyes").length;
+  return (
+    <button
+      type="button"
+      data-tulala-row
+      onClick={onOpen}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 0",
+        borderTop: idx === 0 ? "none" : `1px solid rgba(24,24,27,0.06)`,
+        background: "transparent",
+        border: "none",
+        borderTopColor: idx === 0 ? "transparent" : "rgba(24,24,27,0.06)",
+        borderTopStyle: "solid",
+        borderTopWidth: idx === 0 ? 0 : 1,
+        width: "100%",
+        cursor: "pointer",
+        fontFamily: FONTS.body,
+        textAlign: "left",
+        transition: "background .12s",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(11,11,13,0.02)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <div style={{ position: "relative", flexShrink: 0 }}>
+        <Avatar
+          size={36}
+          tone="auto"
+          hashSeed={conv.client}
+          initials={clientInitials(conv.client)}
+        />
+        <ClientTrustBadge level={conv.clientTrust} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 13.5,
+            fontWeight: 500,
+            color: COLORS.ink,
+          }}
+        >
+          <span
+            style={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+            }}
+          >
+            {conv.client}{" "}
+            <span style={{ color: COLORS.inkDim, fontWeight: 400 }}>·</span>{" "}
+            <span style={{ color: COLORS.inkMuted, fontWeight: 400 }}>{summary}</span>
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginTop: 2,
+            fontSize: 11.5,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              color: statusFg,
+              fontWeight: 500,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: "50%",
+                background: statusFg,
+                flexShrink: 0,
+              }}
+            />
+            {status.copy}
+          </span>
+          {peers > 0 && (
+            <>
+              <span style={{ color: COLORS.inkDim }}>·</span>
+              <span style={{ color: COLORS.inkMuted }}>
+                You + {peers} {peers === 1 ? "other" : "others"}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+      <Icon name="chevron-right" size={13} color={COLORS.inkDim} />
+    </button>
   );
 }
 
@@ -1977,7 +2133,8 @@ function clientInitials(name: string): string {
 function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
   // Anonymized peer count + stage. Mock — in production read from the
   // inquiry's lineup.
-  const { openDrawer } = useProto();
+  const { openDrawer, setTalentPage, state } = useProto();
+  const onTalentSurface = state.surface === "talent";
   const peers = idx === 0 ? 3 : idx === 1 ? 2 : 4;
   const acceptedPeers = idx === 0 ? 1 : idx === 1 ? 0 : 2;
   const summary = inquiry.brief.length > 40 ? `${inquiry.brief.slice(0, 38)}…` : inquiry.brief;
@@ -1992,9 +2149,25 @@ function FunnelRow({ inquiry, idx }: { inquiry: RichInquiry; idx: number }) {
     <button
       type="button"
       data-tulala-row
-      onClick={() =>
-        openDrawer("inquiry-workspace", { inquiryId: inquiry.id, pov: "talent" })
-      }
+      onClick={() => {
+        // On talent surface: route into the unified Messages shell — same
+        // place "My jobs" lives. We map the rich-inquiry to its matching
+        // talent conversation by client name (the proto's adapter pattern).
+        // On admin/preview surfaces: keep the workspace drawer for now.
+        if (onTalentSurface) {
+          const matching = MOCK_CONVERSATIONS.find(c =>
+            c.client.toLowerCase() === inquiry.clientName.toLowerCase()
+            || inquiry.clientName.toLowerCase().includes(c.client.toLowerCase())
+            || c.client.toLowerCase().includes(inquiry.clientName.toLowerCase())
+          );
+          if (matching) {
+            pinNextConversation(matching.id);
+            setTalentPage("messages");
+            return;
+          }
+        }
+        openDrawer("inquiry-workspace", { inquiryId: inquiry.id, pov: "talent" });
+      }}
       style={{
         display: "flex",
         alignItems: "center",
@@ -2766,9 +2939,7 @@ export function SavedViewsBar<T>({
         style={{
           fontSize: 11,
           fontWeight: 600,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          color: COLORS.inkMuted,
+                    color: COLORS.inkMuted,
           marginRight: 4,
         }}
       >
@@ -3187,7 +3358,7 @@ export function QuickReplyButtons({
 function quickReplyStyle(tone: "ink" | "ghost" | "red"): React.CSSProperties {
   const palette =
     tone === "ink"
-      ? { bg: COLORS.ink, fg: "#fff", border: COLORS.ink }
+      ? { bg: COLORS.fill, fg: "#fff", border: COLORS.fill }
       : tone === "red"
         ? { bg: "transparent", fg: COLORS.red, border: "rgba(176,48,58,0.30)" }
         : { bg: "#fff", fg: COLORS.ink, border: COLORS.border };

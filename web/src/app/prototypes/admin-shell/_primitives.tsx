@@ -94,14 +94,40 @@ import {
 // Tracks how many overlays (drawers + modals) are open so we only
 // release body scroll when ALL of them have closed. Prevents the bug
 // where closing drawer A releases scroll even though modal B is still open.
+//
+// The depth tracker is reconciled against an actual DOM probe: each
+// unlock checks whether ANY overlay is still rendered before clearing
+// `body.style.overflow`. This makes scroll-lock self-healing across:
+//   - HMR cycles that lose effect cleanups
+//   - Unmount races where cleanup runs after the next mount
+//   - Stale provider-tree teardowns during navigation
+// If overlays aren't actually rendered, scroll is restored regardless
+// of what the counter thinks.
 let _overlayDepth = 0;
+const OVERLAY_QUERY = '[data-tulala-drawer-panel],[data-tulala-modal-overlay],[data-tulala-confirm-dialog]';
+function reconcileScrollLock() {
+  if (typeof document === "undefined") return;
+  const stillOpen = document.querySelectorAll(OVERLAY_QUERY).length > 0;
+  if (!stillOpen) {
+    _overlayDepth = 0;
+    document.body.style.overflow = "";
+  }
+}
 function lockScroll() {
   _overlayDepth++;
   if (typeof document !== "undefined") document.body.style.overflow = "hidden";
 }
 function unlockScroll() {
   _overlayDepth = Math.max(0, _overlayDepth - 1);
-  if (_overlayDepth === 0 && typeof document !== "undefined") document.body.style.overflow = "";
+  if (_overlayDepth === 0 && typeof document !== "undefined") {
+    document.body.style.overflow = "";
+  }
+  // Defer one frame so the closing overlay's unmount has propagated to
+  // the DOM, then reconcile. Catches the HMR-leak case where the
+  // counter is wrong but no overlays are actually visible.
+  if (typeof requestAnimationFrame !== "undefined") {
+    requestAnimationFrame(reconcileScrollLock);
+  }
 }
 
 // ─── Inline icons (kept tiny + neutral) ──────────────────────────────
@@ -140,7 +166,8 @@ export function Icon({
     | "bell"
     | "moon"
     | "map-pin"
-    | "archive";
+    | "archive"
+    | "pencil";
   size?: number;
   stroke?: number;
   color?: string;
@@ -341,6 +368,12 @@ export function Icon({
         <svg {...common}>
           <path d="M3 6h18M5 6v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6M9 11h6" />
           <rect x="3" y="3" width="18" height="4" rx="1" />
+        </svg>
+      );
+    case "pencil":
+      return (
+        <svg {...common}>
+          <path d="M16 3l5 5L8 21H3v-5L16 3z" />
         </svg>
       );
   }
@@ -3772,10 +3805,15 @@ export function PrimaryButton({
         transition: `background ${TRANSITION.sm}, transform ${TRANSITION.micro}`,
       }}
       onMouseEnter={(e) => {
-        if (!disabled) e.currentTarget.style.background = "#1d1d20";
+        // Hover deepens the slate. Was "#1d1d20" (near-black) — flagged
+        // repeatedly in feedback_admin_aesthetics as too-aggressive.
+        if (!disabled) e.currentTarget.style.background = COLORS.fillDeep;
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = COLORS.ink;
+        // Reset to the slate fill, NOT to COLORS.ink. Earlier this
+        // reset to ink (#0B0B0D — pure black) which meant any hover
+        // permanently turned the button black across the app.
+        e.currentTarget.style.background = COLORS.fill;
         e.currentTarget.style.transform = "scale(1)";
       }}
       onMouseDown={(e) => { if (!disabled) e.currentTarget.style.transform = "scale(0.98)"; }}
@@ -5320,12 +5358,17 @@ export function Avatar({
       <span
         aria-hidden
         style={{
+          // display: inline-block — without this, span collapses to 0x0
+          // because <span> is inline by default, which ignores width/height.
+          // Was rendering empty rings everywhere a photo was supplied.
+          display: "inline-block",
           width: size,
           height: size,
           borderRadius: "50%",
           backgroundImage: `url(${resolvedPhoto})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
+          backgroundColor: COLORS.surfaceAlt,
           flexShrink: 0,
         }}
       />

@@ -54,6 +54,7 @@ import {
   summarizeLanguages,
   tierAllows,
   useProto,
+  TENANT,
   type TalentContactPolicy,
   type TalentCredit,
   type TalentLink,
@@ -5764,35 +5765,152 @@ export function TalentEmergencyContactDrawer() {
 }
 
 // ─── Public preview ─────────────────────────────────────────────
+//
+// Talent's view of "where am I visible right now and what would change
+// if I upgraded?". Each tier tab shows:
+//   1. **Distribution links** — the actual surfaces the public can see
+//      this talent on at the selected tier. Copy + Open per row.
+//   2. **What this tier unlocks** — concrete features added vs. the
+//      previous tier. Always shown for context, even on Basic.
+//
+// We do NOT try to render a faked-mockup of the public page inside the
+// drawer — that's brittle (image rendering issues) and never matches
+// the real surface. Better: link them out to the live URLs.
 
 export function TalentPublicPreviewDrawer() {
-  const { state, closeDrawer, toast, openDrawer, getTrustSummary } = useProto();
+  const { state, closeDrawer, toast, openDrawer } = useProto();
   const open = state.drawer.drawerId === "talent-public-preview";
   const p = MY_TALENT_PROFILE;
-  // Demo: prototype talent maps to roster id t1 (Marta) for trust lookup.
-  const trust = getTrustSummary("talent_profile", "t1");
+  const slug = p.subscription.personalPageUrl.replace(/^.*\/t\//, "").trim() || "marta-reyes";
   const currentTier = p.subscription.tier;
   const [previewTier, setPreviewTier] = useState<TalentSubscriptionTier>(currentTier);
-  const showEmbeds = previewTier !== "basic";
-  const showPress = previewTier !== "basic";
-  const showPortfolioExtras = previewTier === "portfolio";
+
+  // ── Build the distribution-links list for the previewed tier ──
+  type LinkRow = {
+    id: string;
+    label: string;
+    sub: string;
+    url: string;
+    icon: string;
+    primary?: boolean;
+  };
+  const links: LinkRow[] = (() => {
+    const rows: LinkRow[] = [];
+
+    // Tulala personal page — always present. Custom domain only on
+    // Portfolio (and only if verified).
+    const hasCustomDomain = previewTier === "portfolio" && p.subscription.customDomain && p.subscription.customDomainStatus === "verified";
+    if (hasCustomDomain) {
+      rows.push({
+        id: "personal-custom",
+        label: "Your custom domain",
+        sub: "Portfolio tier · your own URL, no Tulala branding",
+        url: `https://${p.subscription.customDomain}`,
+        icon: "globe",
+        primary: true,
+      });
+    } else {
+      rows.push({
+        id: "personal-tulala",
+        label: previewTier === "portfolio" ? "Tulala personal page (fallback)" : "Tulala personal page",
+        sub: previewTier === "portfolio"
+          ? "Active until you connect a custom domain"
+          : `${TALENT_TIER_META[previewTier].label} tier · canonical URL`,
+        url: `https://tulala.digital/t/${slug}`,
+        icon: "globe",
+        primary: previewTier !== "portfolio",
+      });
+    }
+
+    // Agency-roster page — shown for all tiers because the agency
+    // page is independent of the talent's personal-page subscription.
+    if (p.primaryAgency) {
+      rows.push({
+        id: "agency",
+        label: `${p.primaryAgency} roster`,
+        sub: `${TENANT.customDomain || TENANT.domain} · agency-controlled`,
+        url: `https://${TENANT.customDomain || TENANT.domain}/talent/${slug}`,
+        icon: "team",
+      });
+    }
+
+    // Hub listings — same independence rule. Show 1-2 representative
+    // hubs the talent appears on. (Production wires this to real
+    // hub_memberships rows.)
+    rows.push({
+      id: "hub-discover",
+      label: "Tulala Hub · Discover",
+      sub: "Cross-agency hub feed · search-ranked",
+      url: "https://tulala.network/hub/discover",
+      icon: "search",
+    });
+    rows.push({
+      id: "hub-vertical",
+      label: "Tulala Hub · Hospitality vertical",
+      sub: "Vertical-specific hub the talent is listed on",
+      url: "https://tulala.network/hub/hospitality",
+      icon: "briefcase",
+    });
+
+    return rows;
+  })();
+
+  // ── Tier feature lists ──
+  // Each list is what THIS tier unlocks ON TOP of the tier below it.
+  // Drives the "what this tier gives you" panel.
+  const tierFeatures: Record<TalentSubscriptionTier, { headline: string; bullets: string[] }> = {
+    basic: {
+      headline: "Default canonical page on Tulala",
+      bullets: [
+        `Canonical URL: tulala.digital/t/${slug}`,
+        "Identity, measurements, languages, track record",
+        "Trust badges (verified email / IG / Tulala review)",
+        "Distribution: agency roster + Tulala hubs",
+      ],
+    },
+    pro: {
+      headline: "Premium templates + featured media",
+      bullets: [
+        "3 premium page templates (Editorial / Studio / Roster)",
+        "Featured media — embed up to 6 videos / IG / TikTok / YouTube",
+        "Press section — show 6 magazine clippings",
+        "Removes Tulala branding from your personal page footer",
+        "Priority on hub search results",
+      ],
+    },
+    portfolio: {
+      headline: "Custom domain + full personal site",
+      bullets: [
+        "Connect your own domain (e.g. your-name.com)",
+        "All Pro features included",
+        "Story / About long-form section",
+        "Tour dates, show calendar, EPK download, FAQ",
+        "Unlimited media embeds",
+        "Custom analytics: visitor count, top referrers",
+      ],
+    },
+  };
+
+  const features = tierFeatures[previewTier];
+  const tierAheadOfCurrent = (
+    previewTier === "portfolio" && currentTier !== "portfolio"
+  ) || (previewTier === "pro" && currentTier === "basic");
 
   return (
     <DrawerShell
       open={open}
       onClose={closeDrawer}
       title="Preview as a client"
-      description="What an unverified visitor sees on your personal page. Use the tier toggle to see how your page changes if you upgrade."
+      description="Where you appear right now, plus what each tier unlocks. Tap a tier to see its distribution + feature set."
       width={720}
       footer={
         <>
-          <SecondaryButton onClick={() => toast("Public URL copied")}>Copy public URL</SecondaryButton>
-          {previewTier !== currentTier && (
+          <SecondaryButton onClick={closeDrawer}>Close</SecondaryButton>
+          {tierAheadOfCurrent && (
             <PrimaryButton onClick={() => { closeDrawer(); openDrawer("talent-tier-compare"); }}>
               Upgrade to {TALENT_TIER_META[previewTier].label}
             </PrimaryButton>
           )}
-          {previewTier === currentTier && <PrimaryButton onClick={closeDrawer}>Close preview</PrimaryButton>}
         </>
       }
     >
@@ -5849,186 +5967,148 @@ export function TalentPublicPreviewDrawer() {
           );
         })}
       </div>
-      <div
-        style={{
-          background: "#fff",
-          border: `1px solid ${COLORS.borderSoft}`,
-          borderRadius: 12,
-          overflow: "hidden",
-        }}
-      >
-        {/* Cover */}
-        <div
-          style={{
-            height: 120,
-            background: `linear-gradient(135deg, ${COLORS.surfaceAlt} 0%, #fff 100%)`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 56,
-          }}
-        >
-          {p.coverPhoto}
-        </div>
-        {/* Identity */}
-        <div style={{ padding: "14px 18px", display: "flex", alignItems: "flex-start", gap: 14, position: "relative" }}>
-          <div style={{ position: "relative", marginTop: -36, flexShrink: 0 }}>
-            <div
+
+      {/* ── Distribution links ─────────────────────────────────────
+          The actual surfaces a client can see this talent on. Copy +
+          Open per row. Custom domain only appears on Portfolio when
+          verified — otherwise the canonical Tulala URL is the active
+          one. */}
+      <div style={{
+        fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+        color: COLORS.inkMuted, marginBottom: 8,
+      }}>
+        Where you appear · {TALENT_TIER_META[previewTier].label}
+      </div>
+      <div style={{
+        display: "flex", flexDirection: "column", gap: 8,
+        marginBottom: 18,
+      }}>
+        {links.map((row) => (
+          <div key={row.id} style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 12px",
+            background: row.primary ? COLORS.accentSoft : "#fff",
+            border: `1px solid ${row.primary ? "rgba(15,79,62,0.24)" : COLORS.borderSoft}`,
+            borderRadius: 10,
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, fontFamily: FONTS.body }}>
+                {row.label}
+              </div>
+              <div style={{
+                fontSize: 11.5, color: COLORS.inkMuted, fontFamily: FONTS.body,
+                marginTop: 1,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {row.url.replace(/^https?:\/\//, "")} · {row.sub}
+              </div>
+            </div>
+            <button type="button"
+              onClick={() => {
+                if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  navigator.clipboard.writeText(row.url).catch(() => {});
+                }
+                toast(`Copied ${row.url.replace(/^https?:\/\//, "")}`);
+              }}
               style={{
-                width: 72,
-                height: 72,
-                borderRadius: "50%",
-                background: COLORS.surfaceAlt,
-                border: `3px solid #fff`,
-                boxShadow: "0 1px 4px rgba(11,11,13,0.08)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 32,
+                padding: "6px 10px", borderRadius: 7,
+                background: "transparent",
+                border: `1px solid ${COLORS.borderSoft}`,
+                color: COLORS.inkMuted,
+                fontSize: 11.5, fontWeight: 500, cursor: "pointer",
+                fontFamily: FONTS.body,
+              }}
+            >Copy</button>
+            <a href={row.url} target="_blank" rel="noreferrer"
+              onClick={(e) => {
+                // Prototype: don't actually navigate, surface a toast.
+                e.preventDefault();
+                toast(`Open ${row.url.replace(/^https?:\/\//, "")}`);
+              }}
+              style={{
+                padding: "6px 10px", borderRadius: 7,
+                background: COLORS.fill, color: "#fff",
+                border: "none",
+                fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                fontFamily: FONTS.body,
+                textDecoration: "none",
+                display: "inline-flex", alignItems: "center", gap: 4,
               }}
             >
-              {p.profilePhoto}
-            </div>
-            <ProfilePhotoBadgeOverlay trust={trust} size="md" />
+              Open
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-hidden>
+                <path d="M2 7l5-5M3 2h4v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </a>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink, lineHeight: 1.2 }}>{p.name}</div>
-            <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, marginTop: 4 }}>
-              {p.pronouns} · {p.measurementsSummary} · {p.city.split(" ·")[0]}
-            </div>
-            <TrustBadgeGroup trust={trust} surface="public_profile" max={3} />
+        ))}
+      </div>
 
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-              {p.specialties.slice(0, 4).map((s) => (
-                <span
-                  key={s}
-                  style={{
-                    padding: "3px 9px",
-                    background: COLORS.surfaceAlt,
-                    border: `1px solid rgba(15,79,62,0.24)`,
-                    borderRadius: 999,
-                    fontFamily: FONTS.body,
-                    fontSize: 11,
-                    color: COLORS.ink,
-                  }}
-                >
-                  {TALENT_SPECIALTY_LABEL[s]}
-                </span>
-              ))}
-            </div>
+      {/* ── What this tier unlocks ─────────────────────────────────
+          Always shown — drives the upsell when the previewed tier is
+          ahead of `currentTier`. Footer CTA flips to "Upgrade to X"
+          in that case. */}
+      <div style={{
+        padding: 14,
+        background: previewTier === currentTier ? "#fff" : COLORS.accentSoft,
+        border: `1px solid ${previewTier === currentTier ? COLORS.borderSoft : "rgba(15,79,62,0.24)"}`,
+        borderRadius: 12,
+      }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.ink, fontFamily: FONTS.body }}>
+            {features.headline}
           </div>
-          <button
-            onClick={() => toast("Inquiry form — coming soon")}
-            style={{
-              background: COLORS.fill,
-              color: "#fff",
-              border: "none",
-              padding: "8px 14px",
-              borderRadius: 8,
-              fontFamily: FONTS.body,
-              fontSize: 12.5,
-              fontWeight: 500,
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
-          >
-            Send inquiry
-          </button>
+          {previewTier !== currentTier && tierAheadOfCurrent && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+              color: COLORS.accentDeep, background: "#fff",
+              padding: "2px 7px", borderRadius: 999,
+            }}>
+              Upgrade required
+            </span>
+          )}
+          {previewTier === currentTier && (
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+              color: COLORS.successDeep,
+            }}>
+              Active
+            </span>
+          )}
         </div>
-        {/* Body */}
-        <div style={{ padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
-          <Divider label="What's public" />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-            <PreviewKv label="Languages" value={summarizeLanguages(p.languages)} />
-            <PreviewKv label="Travel" value="Global · 2 wk lead" />
-            <PreviewKv label="Track record" value={`${p.bookingStats.completedBookings} bookings · ${p.bookingStats.onTimeRate}% on time`} />
-            <PreviewKv label="Verified" value={`${p.badges.length} badges`} />
-          </div>
-          {/* Pro+ — embeds */}
-          {showEmbeds && p.subscription.embeds.length > 0 && (
-            <>
-              <Divider label="Featured media" />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-                {p.subscription.embeds.slice(0, 3).map((e) => (
-                  <div
-                    key={e.id}
-                    style={{
-                      aspectRatio: "1 / 1",
-                      background: COLORS.surfaceAlt,
-                      border: `1px solid ${COLORS.borderSoft}`,
-                      borderRadius: 8,
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <span style={{ fontSize: 28 }}>{e.thumb}</span>
-                    <span style={{ fontFamily: FONTS.body, fontSize: 10.5, color: COLORS.inkMuted, textTransform: "capitalize" }}>
-                      {e.kind}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {/* Pro+ — press */}
-          {showPress && p.subscription.press.length > 0 && (
-            <>
-              <Divider label="Press" />
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {p.subscription.press.slice(0, 2).map((c) => (
-                  <div
-                    key={c.id}
-                    style={{
-                      padding: "8px 10px",
-                      background: "rgba(11,11,13,0.02)",
-                      border: `1px solid ${COLORS.borderSoft}`,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <div style={{ fontFamily: FONTS.body, fontSize: 11, fontWeight: 600, color: COLORS.accentDeep, letterSpacing: 0.4, textTransform: "uppercase" }}>
-                      {c.outlet}
-                    </div>
-                    <div style={{ fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, marginTop: 2 }}>
-                      {c.headline}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {/* Portfolio — extra sections hint */}
-          {showPortfolioExtras && (
-            <>
-              <Divider label="Portfolio sections" />
-              <div
-                style={{
-                  padding: "10px 12px",
-                  background: COLORS.fill,
-                  color: "#fff",
-                  borderRadius: 10,
-                  fontFamily: FONTS.body,
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                }}
-              >
-                <strong style={{ letterSpacing: 0.4 }}>+ Story / About · Tour dates · Show calendar · EPK download · FAQ.</strong>
-                <div style={{ opacity: 0.7, marginTop: 4 }}>
-                  Custom domain: marta-reyes.com (replaces tulala.digital/t/marta-reyes).
-                </div>
-              </div>
-            </>
-          )}
-          <Divider label="What's hidden until they inquire" />
-          <ul style={{ margin: 0, paddingLeft: 18, fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.inkMuted, lineHeight: 1.7 }}>
-            <li>Full measurements (private — agency-controlled)</li>
-            <li>Rate ranges (rate card visibility = {p.rateCard.visibility})</li>
-            <li>Limits and wardrobe constraints</li>
-            <li>Documents, emergency contact, agency-internal notes</li>
-          </ul>
+        <ul style={{
+          margin: "8px 0 0", paddingLeft: 18,
+          fontFamily: FONTS.body, fontSize: 12.5, color: COLORS.ink, lineHeight: 1.6,
+        }}>
+          {features.bullets.map((b, i) => (
+            <li key={i} style={{ marginBottom: 2 }}>{b}</li>
+          ))}
+        </ul>
+      </div>
+
+      {/* ── What's hidden until they inquire ─────────────────────────
+          Useful context kept from the previous design — answers
+          "what data does the client NOT see?". Quiet styling. */}
+      <div style={{
+        marginTop: 14, padding: "10px 12px",
+        background: "rgba(11,11,13,0.02)", border: `1px solid ${COLORS.borderSoft}`,
+        borderRadius: 10,
+      }}>
+        <div style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase",
+          color: COLORS.inkMuted, marginBottom: 6,
+        }}>
+          Hidden until they inquire
         </div>
+        <ul style={{
+          margin: 0, paddingLeft: 18,
+          fontFamily: FONTS.body, fontSize: 12, color: COLORS.inkMuted, lineHeight: 1.55,
+        }}>
+          <li>Full measurements (private — agency-controlled)</li>
+          <li>Rate ranges (rate card visibility = {p.rateCard.visibility})</li>
+          <li>Limits and wardrobe constraints</li>
+          <li>Documents, emergency contact, agency-internal notes</li>
+        </ul>
       </div>
     </DrawerShell>
   );

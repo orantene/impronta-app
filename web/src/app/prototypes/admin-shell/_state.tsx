@@ -1085,6 +1085,9 @@ export type InquiryTalentInvite = {
   talentId: string;
   name: string;
   initials: string;
+  /** Photo URL — for showing the actual face in lineup strips +
+   *  drawers. Falls back to initials in Avatar when absent. */
+  photoUrl?: string;
   state: "invited" | "selected" | "hold" | "confirmed" | "declined" | "withdrawn";
   // The talent's own private offer row — only visible to that talent,
   // any coordinator on this inquiry, and workspace admin.
@@ -1195,6 +1198,7 @@ export function toInquiry(rich: RichInquiry): InquiryRecord {
       talentId: `${rich.id}-t-${i}`,
       name: t.name,
       initials: t.name.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase(),
+      photoUrl: t.thumb,
       state:
           t.status === "accepted"  ? "confirmed"
         : t.status === "declined"  ? "declined"
@@ -1318,7 +1322,7 @@ export function describeSource(s: InquirySource): { short: string; long: string;
 export const RICH_INQUIRIES: RichInquiry[] = [
   {
     id: "RI-201",
-    agencyName: "Acme Models",
+    agencyName: "Atelier Roma",
     clientName: "Mango",
     clientTrust: "gold",
     brief: "Spring lookbook · 3 talent · 1 day",
@@ -1444,7 +1448,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
   },
   {
     id: "RI-202",
-    agencyName: "Acme Models",
+    agencyName: "Atelier Roma",
     clientName: "Vogue Italia",
     clientTrust: "gold",
     brief: "Editorial spread · 2 talent · 2 days",
@@ -1528,7 +1532,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
   },
   {
     id: "RI-203",
-    agencyName: "Acme Models",
+    agencyName: "Atelier Roma",
     clientName: "Bvlgari",
     clientTrust: "silver",
     brief: "Jewelry campaign · 1 talent · multi-day",
@@ -1548,7 +1552,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         role: "talent",
         needed: 1,
         approved: 1,
-        talents: [{ name: "Kai Lin", thumb: "https://i.pravatar.cc/200?img=14", status: "accepted" }],
+        talents: [{ name: "Marta Reyes", thumb: "https://i.pravatar.cc/200?img=5", status: "accepted" }],
       },
     ],
     coordinator: {
@@ -1567,7 +1571,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
       sentAt: "2d ago",
       clientApproval: "accepted",
       lineItems: [
-        { talentName: "Kai Lin", thumb: "https://i.pravatar.cc/200?img=14", role: "talent", fee: "€8,200", status: "accepted" },
+        { talentName: "Marta Reyes", thumb: "https://i.pravatar.cc/200?img=5", role: "talent", fee: "€8,200", status: "accepted" },
       ],
       history: [
         { version: 1, total: "€6,400", sentAt: "6d ago", note: "Initial offer — standard day rate" },
@@ -1591,7 +1595,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         senderName: "Daniel Ferrer",
         senderInitials: "DF",
         senderRole: "coordinator",
-        body: "Kai — Bvlgari is a YES. Locking the booking now. Call sheet by EOD.",
+        body: "Marta — Bvlgari is a YES. Locking the booking now. Call sheet by EOD.",
         ts: "Today 12:00",
         isYou: true,
       },
@@ -1601,7 +1605,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
         senderName: "System",
         senderInitials: "—",
         senderRole: "system",
-        body: "Payment receiver set to Kai Lin. Kai will distribute the agency commission off-platform.",
+        body: "Payment receiver set to Marta Reyes. Marta will distribute the agency commission off-platform.",
         ts: "Today 12:01",
       },
       {
@@ -1617,7 +1621,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
   },
   {
     id: "RI-204",
-    agencyName: "Acme Models",
+    agencyName: "Atelier Roma",
     clientName: "Estudio Roca",
     clientTrust: "verified",
     brief: "Brand gala · 6 hosts + 4 models + 2 promoters",
@@ -1703,7 +1707,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
   },
   {
     id: "RI-205",
-    agencyName: "Acme Models",
+    agencyName: "Atelier Roma",
     clientName: "Net-a-Porter",
     clientTrust: "silver",
     brief: "Editorial · 1 talent · 1 day",
@@ -1780,7 +1784,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
   // ── RI-206: submitted — just came in, no coordinator yet ─────────
   {
     id: "RI-206",
-    agencyName: "Acme Models",
+    agencyName: "Atelier Roma",
     clientName: "Valentino",
     clientTrust: "gold",
     brief: "SS26 campaign · 2 talent · 3 days",
@@ -1831,7 +1835,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
   // ── RI-207: rejected — turned down, schedule conflict ──────────────
   {
     id: "RI-207",
-    agencyName: "Acme Models",
+    agencyName: "Atelier Roma",
     clientName: "H&M",
     clientTrust: "verified",
     brief: "Online catalogue · 3 talent · 2 days",
@@ -1902,7 +1906,7 @@ export const RICH_INQUIRIES: RichInquiry[] = [
   // ── RI-208: expired — client never replied to offer ────────────────
   {
     id: "RI-208",
-    agencyName: "Acme Models",
+    agencyName: "Atelier Roma",
     clientName: "Massimo Dutti",
     clientTrust: "verified",
     brief: "AW collection · 1 talent · 1 day",
@@ -2076,28 +2080,28 @@ export const ROSTER_AGENCY: TalentProfile[] = [
     id: "t1", name: "Marta Reyes", state: "published",
     height: "5'9\"", city: "Madrid",
     thumb: "https://i.pravatar.cc/200?img=5",
-    representation: { kind: "exclusive", agencyName: "Acme Models" },
+    representation: { kind: "exclusive", agencyName: "Atelier Roma" },
     primaryType: "fashion", completeness: 92, availability: "available", lastActive: "2h",
   },
   {
     id: "t2", name: "Kai Lin", state: "published",
     height: "5'11\"", city: "Berlin",
     thumb: "https://i.pravatar.cc/200?img=14",
-    representation: { kind: "exclusive", agencyName: "Acme Models" },
+    representation: { kind: "exclusive", agencyName: "Atelier Roma" },
     primaryType: "commercial", completeness: 88, availability: "available", lastActive: "1d",
   },
   {
     id: "t3", name: "Tomás Navarro", state: "published",
     height: "6'1\"", city: "Lisbon",
     thumb: "https://i.pravatar.cc/200?img=12",
-    representation: { kind: "non-exclusive", agencyNames: ["Acme Models", "Studio Iberia"] },
+    representation: { kind: "non-exclusive", agencyNames: ["Atelier Roma", "Studio Iberia"] },
     primaryType: "vip_host", completeness: 80, availability: "available", lastActive: "3h",
   },
   {
     id: "t4", name: "Lina Park", state: "awaiting-approval",
     height: "5'7\"", city: "Paris",
     thumb: "https://i.pravatar.cc/200?img=47",
-    representation: { kind: "exclusive", agencyName: "Acme Models" },
+    representation: { kind: "exclusive", agencyName: "Atelier Roma" },
     primaryType: "fashion", completeness: 64, availability: "available", lastActive: "1d",
     // WS-31.6 demo seed — Lina is 16, parental co-pilot account. Every
     // offer/booking surfaces MinorProtectionBanner. School-hour and
@@ -2130,14 +2134,14 @@ export const ROSTER_AGENCY: TalentProfile[] = [
     id: "t6", name: "Sven Olafsson", state: "draft",
     height: "6'0\"", city: "Oslo",
     thumb: "https://i.pravatar.cc/200?img=29",
-    representation: { kind: "exclusive", agencyName: "Acme Models" },
+    representation: { kind: "exclusive", agencyName: "Atelier Roma" },
     primaryType: "commercial", completeness: 42, availability: "busy", lastActive: "1w",
   },
   {
     id: "t7", name: "Zara Habib", state: "published",
     height: "5'10\"", city: "London",
     thumb: "https://i.pravatar.cc/200?img=10",
-    representation: { kind: "exclusive", agencyName: "Acme Models" },
+    representation: { kind: "exclusive", agencyName: "Atelier Roma" },
     primaryType: "fashion", completeness: 95, availability: "busy", lastActive: "2d",
   },
 ];
@@ -2627,7 +2631,7 @@ export type WorkspacePayout = {
 export const WORKSPACE_PAYOUT: WorkspacePayout = {
   defaultReceiver: {
     kind: "agency-owner",
-    displayName: "Acme Models",
+    displayName: "Atelier Roma",
     legalName: "Acme Models S.L.",
     initials: "A",
     status: "connected-bank",
@@ -2665,7 +2669,7 @@ export function getWorkspacePayout(plan: Plan): WorkspacePayout {
 export const PAYOUT_RECEIVER_CANDIDATES: PayoutReceiver[] = [
   {
     kind: "agency-owner",
-    displayName: "Acme Models",
+    displayName: "Atelier Roma",
     legalName: "Acme Models S.L.",
     initials: "A",
     status: "connected-bank",
@@ -2721,7 +2725,7 @@ export const PAYMENT_SUMMARIES: Record<string, PaymentSummary> = {
     pricedOnPlan: "agency",
     receiver: {
       kind: "agency-owner",
-      displayName: "Acme Models",
+      displayName: "Atelier Roma",
       legalName: "Acme Models S.L.",
       initials: "A",
       status: "connected-bank",
@@ -2770,7 +2774,7 @@ export const PAYMENT_SUMMARIES: Record<string, PaymentSummary> = {
     pricedOnPlan: "agency",
     receiver: {
       kind: "agency-owner",
-      displayName: "Acme Models",
+      displayName: "Atelier Roma",
       legalName: "Acme Models S.L.",
       initials: "A",
       status: "connected-bank",
@@ -2818,7 +2822,7 @@ export const WORKSPACE_PAYMENTS: WorkspacePaymentRow[] = [
     total: "€3,400",
     fee: "€119",
     netPayout: "€3,281",
-    receiverName: "Acme Models",
+    receiverName: "Atelier Roma",
     status: "payout-sent",
     date: "Apr 11",
   },
@@ -2842,7 +2846,7 @@ export const WORKSPACE_PAYMENTS: WorkspacePaymentRow[] = [
     total: "€7,400",
     fee: "€259",
     netPayout: "€7,141",
-    receiverName: "Acme Models",
+    receiverName: "Atelier Roma",
     status: "ready",
     date: "Yesterday",
   },
@@ -2854,7 +2858,7 @@ export const WORKSPACE_PAYMENTS: WorkspacePaymentRow[] = [
     total: "€2,000",
     fee: "€70",
     netPayout: "€1,930",
-    receiverName: "Acme Models",
+    receiverName: "Atelier Roma",
     status: "payout-sent",
     date: "Apr 4",
   },
@@ -3104,7 +3108,7 @@ export const TENANT: {
   initials: string;
   entityType: EntityType;
 } = {
-  // "Atelier Roma" reads as a real boutique agency. Was "Acme Models" —
+  // "Atelier Roma" reads as a real boutique agency. Was "Atelier Roma" —
   // generic placeholder triggered "this is a demo" pattern-match.
   slug: "atelier-roma",
   name: "Atelier Roma",
@@ -3914,8 +3918,8 @@ export const MY_TALENT_PROFILE: MyTalentProfile = {
     relation: "Mother",
     phone: "+34 ••• ••• 412",
   },
-  primaryAgency: "Acme Models",
-  representation: { kind: "exclusive", agencyName: "Acme Models" },
+  primaryAgency: "Atelier Roma",
+  representation: { kind: "exclusive", agencyName: "Atelier Roma" },
   contactPolicy: { ...DEFAULT_CONTACT_POLICY },
   publishedAt: "Apr 12, 2026",
   profileViews7d: 142,
@@ -3926,7 +3930,7 @@ export const MY_TALENT_PROFILE: MyTalentProfile = {
   missing: [
     "Add 3 portfolio shots from 2026",
     "W-8BEN tax form",
-    "Set polaroids set (5 naturals)",
+    "Polaroids set (5 naturals)",
   ],
   publicUrl: "acme-models.com/talent/marta-reyes",
   subscription: {
@@ -4029,7 +4033,7 @@ export type TalentAgency = {
 };
 
 export const MY_AGENCIES: TalentAgency[] = [
-  { id: "ag1", name: "Acme Models", slug: "acme-models", joinedAt: "Mar 2024", isPrimary: true, status: "exclusive", bookingsYTD: 6, planTier: "agency", commissionRate: 0.18 },
+  { id: "ag1", name: "Atelier Roma", slug: "acme-models", joinedAt: "Mar 2024", isPrimary: true, status: "exclusive", bookingsYTD: 6, planTier: "agency", commissionRate: 0.18 },
   { id: "ag2", name: "Praline London", slug: "praline-london", joinedAt: "Jan 2025", isPrimary: false, status: "non-exclusive", bookingsYTD: 2, planTier: "studio", commissionRate: 0.12 },
   // Friend-on-free case — demonstrates the "free plan, no exclusivity, no
   // commission" tier per the agency-exclusivity spec.
@@ -4057,16 +4061,16 @@ export type TalentRequest = {
 };
 
 export const TALENT_REQUESTS: TalentRequest[] = [
-  { id: "rq1", kind: "offer",   agency: "Acme Models",    client: "Mango",          clientTrust: "gold",     brief: "Lookbook · spring capsule · 1 day",        date: "Tue · May 6",  amount: "€1,800",      ageHrs: 5,   status: "needs-answer", inquiryId: "RI-201" },
-  { id: "rq2", kind: "hold",    agency: "Acme Models",    client: "Bvlgari",         clientTrust: "silver",   brief: "Editorial · jewelry campaign",             date: "May 18–20",    amount: "€4,000–6,000", ageHrs: 18,  status: "needs-answer", inquiryId: "RI-203" },
+  { id: "rq1", kind: "offer",   agency: "Atelier Roma",    client: "Mango",          clientTrust: "gold",     brief: "Lookbook · spring capsule · 1 day",        date: "Tue · May 6",  amount: "€1,800",      ageHrs: 5,   status: "needs-answer", inquiryId: "RI-201" },
+  { id: "rq2", kind: "hold",    agency: "Atelier Roma",    client: "Bvlgari",         clientTrust: "silver",   brief: "Editorial · jewelry campaign",             date: "May 18–20",    amount: "€4,000–6,000", ageHrs: 18,  status: "needs-answer", inquiryId: "RI-203" },
   { id: "rq3", kind: "casting", agency: "Praline London", client: "Net-a-Porter",    clientTrust: "silver",   brief: "Casting call · video lookbook",            date: "Apr 30",       amount: "TBC",          ageHrs: 36,  status: "viewed" },
-  { id: "rq4", kind: "offer",   agency: "Acme Models",    client: "Vogue Italia",    clientTrust: "gold",     brief: "Editorial spread · 2 day shoot",           date: "May 14–15",    amount: "€3,200",       ageHrs: 60,  status: "accepted",    inquiryId: "RI-202" },
+  { id: "rq4", kind: "offer",   agency: "Atelier Roma",    client: "Vogue Italia",    clientTrust: "gold",     brief: "Editorial spread · 2 day shoot",           date: "May 14–15",    amount: "€3,200",       ageHrs: 60,  status: "accepted",    inquiryId: "RI-202" },
   // Conflicted hold — overlaps with confirmed bk2 (Vogue Italia · May 14–15).
   // Surfaces the conflict-resolution UI on the calendar so Marta sees the
   // collision before either party expects her to commit.
-  { id: "rq5", kind: "hold",    agency: "Acme Models",    client: "Stella McCartney", clientTrust: "verified", brief: "Lookbook · single day",                   date: "May 14",       amount: "€2,200",       ageHrs: 4,   status: "needs-answer" },
+  { id: "rq5", kind: "hold",    agency: "Atelier Roma",    client: "Stella McCartney", clientTrust: "verified", brief: "Lookbook · single day",                   date: "May 14",       amount: "€2,200",       ageHrs: 4,   status: "needs-answer" },
   // Declined / fell-through inquiries — surface in the "Past" section.
-  { id: "rq6", kind: "casting", agency: "Acme Models",    client: "H&M",             clientTrust: "verified", brief: "Online catalogue · 3 talent shortlist",    date: "Apr 24",       amount: "€900",         ageHrs: 96,  status: "declined",    inquiryId: "RI-207" },
+  { id: "rq6", kind: "casting", agency: "Atelier Roma",    client: "H&M",             clientTrust: "verified", brief: "Online catalogue · 3 talent shortlist",    date: "Apr 24",       amount: "€900",         ageHrs: 96,  status: "declined",    inquiryId: "RI-207" },
   { id: "rq7", kind: "hold",    agency: "Praline London", client: "Topshop",         clientTrust: "basic",    brief: "Pop-up activation · weekend",              date: "Apr 12",       amount: "£600",         ageHrs: 240, status: "expired" },
 ];
 
@@ -4094,12 +4098,12 @@ export type TalentBooking = {
 };
 
 export const TALENT_BOOKINGS: TalentBooking[] = [
-  { id: "bk1", inquiryId: "RI-201", agency: "Acme Models",    client: "Mango",        brief: "Lookbook · spring capsule",     startDate: "Tue, May 6",         location: "Madrid · ESTUDIO ROCA",    amount: "€1,800", status: "confirmed", call: "08:30" },
-  { id: "bk2", inquiryId: "RI-202", agency: "Acme Models",    client: "Vogue Italia", brief: "Editorial spread",              startDate: "May 14", endDate: "May 15", location: "Milan · Studio 5",    amount: "€3,200", status: "confirmed", call: "07:00" },
+  { id: "bk1", inquiryId: "RI-201", agency: "Atelier Roma",    client: "Mango",        brief: "Lookbook · spring capsule",     startDate: "Tue, May 6",         location: "Madrid · ESTUDIO ROCA",    amount: "€1,800", status: "confirmed", call: "08:30" },
+  { id: "bk2", inquiryId: "RI-202", agency: "Atelier Roma",    client: "Vogue Italia", brief: "Editorial spread",              startDate: "May 14", endDate: "May 15", location: "Milan · Studio 5",    amount: "€3,200", status: "confirmed", call: "07:00" },
   { id: "bk3",                      agency: "Praline London", client: "Burberry",     brief: "Lookbook",                      startDate: "Apr 18",              location: "London · Hackney",          amount: "£2,400", status: "wrapped",   call: "—"    },
-  { id: "bk4",                      agency: "Acme Models",    client: "Zara",         brief: "Capsule lookbook",              startDate: "Mar 28",              location: "Madrid",                    amount: "€2,000", status: "paid",      call: "—"    },
+  { id: "bk4",                      agency: "Atelier Roma",    client: "Zara",         brief: "Capsule lookbook",              startDate: "Mar 28",              location: "Madrid",                    amount: "€2,000", status: "paid",      call: "—"    },
   // Cancellation examples — surface in the "Cancelled" calendar filter.
-  { id: "bk5",                      agency: "Acme Models",    client: "Hugo Boss",    brief: "AW campaign",                   startDate: "May 9",               location: "Berlin · Studio Mitte",     amount: "€2,400", status: "cancelled", call: "08:00", cancelledBy: "client", cancelReason: "Client postponed campaign · no kill fee due",   cancelTiming: "3d before shoot"   },
+  { id: "bk5",                      agency: "Atelier Roma",    client: "Hugo Boss",    brief: "AW campaign",                   startDate: "May 9",               location: "Berlin · Studio Mitte",     amount: "€2,400", status: "cancelled", call: "08:00", cancelledBy: "client", cancelReason: "Client postponed campaign · no kill fee due",   cancelTiming: "3d before shoot"   },
   { id: "bk6",                      agency: "Praline London", client: "Selfridges",   brief: "Editorial · summer spread",     startDate: "Apr 22",              location: "London · Studio 2C",        amount: "£1,800", status: "cancelled", call: "—",    cancelledBy: "talent", cancelReason: "Travel conflict · settled with hold-day fee",    cancelTiming: "day before shoot"  },
 ];
 
@@ -4212,12 +4216,12 @@ export const EARNINGS_ROWS: EarningsRow[] = [
   // Mix of payment methods seeded so the Past calendar / earnings views
   // can showcase the full method taxonomy: transfer (default), card,
   // cash (efectivo — common in Latin America), in-kind (gifts / products).
-  { id: "e1", workDate: "Mar 28, 2026", payoutDate: "Apr 4, 2026", agency: "Acme Models", client: "Zara", amount: "€2,000", status: "paid", source: { kind: "agency" }, paymentMethod: "transfer" },
+  { id: "e1", workDate: "Mar 28, 2026", payoutDate: "Apr 4, 2026", agency: "Atelier Roma", client: "Zara", amount: "€2,000", status: "paid", source: { kind: "agency" }, paymentMethod: "transfer" },
   { id: "e2", workDate: "Mar 10, 2026", payoutDate: "Mar 21, 2026", agency: "Praline London", client: "Burberry", amount: "£2,400", status: "paid", source: { kind: "agency" }, paymentMethod: "transfer" },
-  { id: "e3", workDate: "Mar 1, 2026", payoutDate: "Mar 12, 2026", agency: "Acme Models", client: "Vogue Italia", amount: "€2,800", status: "paid", source: { kind: "agency" }, paymentMethod: "mixed", paymentNote: "Transfer + Vogue editorial credit" },
+  { id: "e3", workDate: "Mar 1, 2026", payoutDate: "Mar 12, 2026", agency: "Atelier Roma", client: "Vogue Italia", amount: "€2,800", status: "paid", source: { kind: "agency" }, paymentMethod: "mixed", paymentNote: "Transfer + Vogue editorial credit" },
   // Mango paid in product (clothing capsule) — tax-relevant in-kind example.
-  { id: "e4", workDate: "Feb 14, 2026", payoutDate: "Feb 28, 2026", agency: "Acme Models", client: "Mango", amount: "€1,600", status: "paid", source: { kind: "agency" }, paymentMethod: "in-kind", paymentNote: "Capsule wardrobe · est. value" },
-  { id: "e5", workDate: "Jan 30, 2026", payoutDate: "Feb 14, 2026", agency: "Acme Models", client: "Net-a-Porter", amount: "€3,400", status: "paid", source: { kind: "agency" }, paymentMethod: "transfer" },
+  { id: "e4", workDate: "Feb 14, 2026", payoutDate: "Feb 28, 2026", agency: "Atelier Roma", client: "Mango", amount: "€1,600", status: "paid", source: { kind: "agency" }, paymentMethod: "in-kind", paymentNote: "Capsule wardrobe · est. value" },
+  { id: "e5", workDate: "Jan 30, 2026", payoutDate: "Feb 14, 2026", agency: "Atelier Roma", client: "Net-a-Porter", amount: "€3,400", status: "paid", source: { kind: "agency" }, paymentMethod: "transfer" },
 ];
 
 /**
@@ -4359,7 +4363,7 @@ export const TALENT_CHANNELS: ChannelEntry[] = [
   {
     id: "ch-agency-acme",
     kind: "agency",
-    name: "Acme Models",
+    name: "Atelier Roma",
     url: "acme-models.tulala.app",
     status: "published",
     views7d: 22,
@@ -5358,26 +5362,26 @@ export const WORKSPACE_TAXONOMY_DEFAULT: WorkspaceTaxonomySetting[] = [
 ];
 
 export const DISCOVER_TALENT: DiscoverTalent[] = [
-  { id: "dt1", name: "Marta Reyes", agency: "Acme Models", city: "Madrid", height: "5'9\"", thumb: "https://i.pravatar.cc/600?img=5", available: true, category: "models",
+  { id: "dt1", name: "Marta Reyes", agency: "Atelier Roma", city: "Madrid", height: "5'9\"", thumb: "https://i.pravatar.cc/600?img=5", available: true, category: "models",
     subType: "fashion", trust: "gold", slug: "marta-reyes", premiumPage: true,
     bio: "Editorial-leaning fashion model based in Madrid. Eight years with Acme; recent campaigns for Mango, Bvlgari, Loewe.",
     channels: [
-      { kind: "agency", name: "Acme Models", commission: "20%" },
+      { kind: "agency", name: "Atelier Roma", commission: "20%" },
       { kind: "agency", name: "Praline London", commission: "20%" },
       { kind: "freelance", name: "Direct (Marta is your coordinator)" },
     ] },
-  { id: "dt2", name: "Kai Lin", agency: "Acme Models", city: "Berlin", height: "5'11\"", thumb: "https://i.pravatar.cc/600?img=14", available: true, category: "models",
+  { id: "dt2", name: "Kai Lin", agency: "Atelier Roma", city: "Berlin", height: "5'11\"", thumb: "https://i.pravatar.cc/600?img=14", available: true, category: "models",
     subType: "commercial", trust: "verified", slug: "kai-lin",
     bio: "Commercial + showroom specialist. Berlin-based, bilingual EN/DE.",
     channels: [
-      { kind: "agency", name: "Acme Models", commission: "20%" },
+      { kind: "agency", name: "Atelier Roma", commission: "20%" },
       { kind: "hub", name: "Tulum Hub", commission: "10%" },
     ] },
-  { id: "dt3", name: "Tomás Navarro", agency: "Acme Models", city: "Lisbon", height: "6'1\"", thumb: "https://i.pravatar.cc/600?img=12", available: true, category: "hosts",
+  { id: "dt3", name: "Tomás Navarro", agency: "Atelier Roma", city: "Lisbon", height: "6'1\"", thumb: "https://i.pravatar.cc/600?img=12", available: true, category: "hosts",
     subType: "vip_host", trust: "silver", slug: "tomas-navarro", replyTimeMin: 90,
     bio: "VIP host & MC. Lisbon nightlife scene + Algarve summer residencies.",
     channels: [
-      { kind: "agency", name: "Acme Models", commission: "20%" },
+      { kind: "agency", name: "Atelier Roma", commission: "20%" },
       { kind: "freelance", name: "Direct (Tomás is your coordinator)" },
     ] },
   { id: "dt4", name: "Yuna Park", agency: "Praline London", city: "London", height: "5'10\"", thumb: "https://i.pravatar.cc/600?img=44", available: false, category: "models",
@@ -5399,11 +5403,11 @@ export const DISCOVER_TALENT: DiscoverTalent[] = [
     channels: [
       { kind: "freelance", name: "Direct (Ola is your coordinator)" },
     ] },
-  { id: "dt7", name: "Rafa Ortega", agency: "Acme Models", city: "Madrid", height: "6'0\"", thumb: "https://i.pravatar.cc/600?img=53", available: false, category: "performers",
+  { id: "dt7", name: "Rafa Ortega", agency: "Atelier Roma", city: "Madrid", height: "6'0\"", thumb: "https://i.pravatar.cc/600?img=53", available: false, category: "performers",
     subType: "fire", trust: "verified", slug: "rafa-ortega",
     bio: "Fire performer + acrobat. Festival circuit Spain + Portugal.",
     channels: [
-      { kind: "agency", name: "Acme Models", commission: "20%" },
+      { kind: "agency", name: "Atelier Roma", commission: "20%" },
       { kind: "hub", name: "Tulum Hub", commission: "10%" },
       { kind: "freelance", name: "Direct (Rafa is your coordinator)" },
     ] },
@@ -6042,16 +6046,16 @@ export type ClientInquiry = {
 
 export const CLIENT_INQUIRIES: ClientInquiry[] = [
   // ci1 + ci2 are per-talent line items from the same RI-201 (Mango spring lookbook).
-  { id: "ci1", shortlistName: "Spring lookbook", agency: "Acme Models",    brief: "Marta Reyes · 1 day",    ageDays: 1, stage: "agency-replied", amount: "€1,800", date: "Tue · May 6",  inquiryId: "RI-201" },
-  { id: "ci2", shortlistName: "Spring lookbook", agency: "Acme Models",    brief: "Tomás Navarro · 1 day",  ageDays: 1, stage: "negotiating",    amount: "€2,400", date: "Tue · May 6",  inquiryId: "RI-201" },
+  { id: "ci1", shortlistName: "Spring lookbook", agency: "Atelier Roma",    brief: "Marta Reyes · 1 day",    ageDays: 1, stage: "agency-replied", amount: "€1,800", date: "Tue · May 6",  inquiryId: "RI-201" },
+  { id: "ci2", shortlistName: "Spring lookbook", agency: "Atelier Roma",    brief: "Tomás Navarro · 1 day",  ageDays: 1, stage: "negotiating",    amount: "€2,400", date: "Tue · May 6",  inquiryId: "RI-201" },
   // ci3 maps to RI-203 (Bvlgari / Kai Lin). Client stage "confirmed" = workspace stage "approved" (both sides said yes).
-  { id: "ci3", shortlistName: "Press kit launch",agency: "Acme Models",    brief: "Kai Lin · 2 day",         ageDays: 5, stage: "confirmed",      amount: "€3,200", date: "May 14–15",    inquiryId: "RI-203" },
+  { id: "ci3", shortlistName: "Press kit launch",agency: "Atelier Roma",    brief: "Kai Lin · 2 day",         ageDays: 5, stage: "confirmed",      amount: "€3,200", date: "May 14–15",    inquiryId: "RI-203" },
   // ci4 is a fresh client-side draft with no workspace counterpart yet.
   { id: "ci4", shortlistName: "Bridal capsule",  agency: "Maison Sud",      brief: "Léa Mercier · 1 day",    ageDays: 0, stage: "draft" },
   // ci5 is a declined line item — Yuna Park turned down for the Spring lookbook.
   { id: "ci5", shortlistName: "Spring lookbook", agency: "Praline London",  brief: "Yuna Park · 1 day",       ageDays: 3, stage: "declined",       amount: "£2,400",                       inquiryId: "RI-201" },
   // ci6 — new inquiry just submitted to Valentino; workspace RI-206 = submitted stage.
-  { id: "ci6", shortlistName: "SS26 campaign",   agency: "Acme Models",     brief: "2 talent · 3 days",       ageDays: 0, stage: "sent",                             date: "Apr 29",      inquiryId: "RI-206" },
+  { id: "ci6", shortlistName: "SS26 campaign",   agency: "Atelier Roma",     brief: "2 talent · 3 days",       ageDays: 0, stage: "sent",                             date: "Apr 29",      inquiryId: "RI-206" },
 ];
 
 export type ClientBookingPostStatus =
@@ -6080,11 +6084,11 @@ export type ClientBooking = {
 
 export const CLIENT_BOOKINGS: ClientBooking[] = [
   // cb1 → RI-201 (Mango spring lookbook, Marta Reyes's slot).
-  { id: "cb1", shortlistName: "Spring lookbook",  agency: "Acme Models", talent: "Marta Reyes",    date: "Tue, May 6",    location: "Madrid · Estudio Roca", amount: "€1,800", status: "confirmed", postStatus: "call-sheet-sent",  inquiryId: "RI-201" },
+  { id: "cb1", shortlistName: "Spring lookbook",  agency: "Atelier Roma", talent: "Marta Reyes",    date: "Tue, May 6",    location: "Madrid · Estudio Roca", amount: "€1,800", status: "confirmed", postStatus: "call-sheet-sent",  inquiryId: "RI-201" },
   // cb2 → RI-203 (Bvlgari jewelry campaign, Kai Lin). Workspace stage "approved" = client postStatus "contract-pending".
-  { id: "cb2", shortlistName: "Press kit launch", agency: "Acme Models", talent: "Kai Lin",         date: "May 18–20",     location: "Rome · Cinecittà 7",    amount: "€8,200", status: "confirmed", postStatus: "contract-pending", inquiryId: "RI-203" },
+  { id: "cb2", shortlistName: "Press kit launch", agency: "Atelier Roma", talent: "Kai Lin",         date: "May 18–20",     location: "Rome · Cinecittà 7",    amount: "€8,200", status: "confirmed", postStatus: "contract-pending", inquiryId: "RI-203" },
   // cb3 — closed booking, no open inquiry.
-  { id: "cb3", shortlistName: "Winter '25",        agency: "Acme Models", talent: "Tomás Navarro", date: "Feb 22, 2026",  location: "Madrid",                amount: "€2,400", status: "invoiced",  postStatus: "paid" },
+  { id: "cb3", shortlistName: "Winter '25",        agency: "Atelier Roma", talent: "Tomás Navarro", date: "Feb 22, 2026",  location: "Madrid",                amount: "€2,400", status: "invoiced",  postStatus: "paid" },
 ];
 
 /** Client Q2 budget — for the budget-vs-actual strip (C15) */
@@ -6100,7 +6104,7 @@ export type AgencyReliability = {
 };
 
 export const AGENCY_RELIABILITY: AgencyReliability[] = [
-  { agencyName: "Acme Models", bookingsCompleted: 12, onTimeRate: 100, cancellations: 0, repeatBookings: 9 },
+  { agencyName: "Atelier Roma", bookingsCompleted: 12, onTimeRate: 100, cancellations: 0, repeatBookings: 9 },
   { agencyName: "Praline London", bookingsCompleted: 3, onTimeRate: 100, cancellations: 0, repeatBookings: 1 },
   { agencyName: "Maison Sud", bookingsCompleted: 1, onTimeRate: 100, cancellations: 0, repeatBookings: 0 },
 ];
@@ -6125,7 +6129,7 @@ export type PlatformTenant = {
 };
 
 export const PLATFORM_TENANTS: PlatformTenant[] = [
-  { id: "tn1", name: "Acme Models", slug: "acme-models", plan: "agency", entityType: "agency", seats: 8, talentCount: 47, mrr: "$149", health: "healthy", signupAt: "Jan 2025", lastActivity: "2m ago" },
+  { id: "tn1", name: "Atelier Roma", slug: "acme-models", plan: "agency", entityType: "agency", seats: 8, talentCount: 47, mrr: "$149", health: "healthy", signupAt: "Jan 2025", lastActivity: "2m ago" },
   { id: "tn2", name: "Praline London", slug: "praline-london", plan: "agency", entityType: "agency", seats: 12, talentCount: 84, mrr: "$149", health: "healthy", signupAt: "Sep 2024", lastActivity: "12m ago" },
   { id: "tn3", name: "Maison Sud", slug: "maison-sud", plan: "studio", entityType: "agency", seats: 3, talentCount: 18, mrr: "$79", health: "healthy", signupAt: "Mar 2026", lastActivity: "1h ago" },
   { id: "tn4", name: "Nord Talent", slug: "nord-talent", plan: "studio", entityType: "agency", seats: 5, talentCount: 22, mrr: "$79", health: "at-risk", signupAt: "Nov 2025", lastActivity: "11d ago" },
@@ -6146,10 +6150,10 @@ export type PlatformUser = {
 };
 
 export const PLATFORM_USERS: PlatformUser[] = [
-  { id: "pu1", name: "Oran Tene", email: "oran@acme-models.com", primaryTenant: "Acme Models", tenants: 1, isTalent: false, signupAt: "Jan 2025", lastSeen: "now" },
-  { id: "pu2", name: "Marta Reyes", email: "marta@reyes.studio", primaryTenant: "Acme Models", tenants: 2, isTalent: true, signupAt: "Mar 2024", lastSeen: "1h ago" },
+  { id: "pu1", name: "Oran Tene", email: "oran@acme-models.com", primaryTenant: "Atelier Roma", tenants: 1, isTalent: false, signupAt: "Jan 2025", lastSeen: "now" },
+  { id: "pu2", name: "Marta Reyes", email: "marta@reyes.studio", primaryTenant: "Atelier Roma", tenants: 2, isTalent: true, signupAt: "Mar 2024", lastSeen: "1h ago" },
   { id: "pu3", name: "Sara Bianchi", email: "sara@vogueitalia.com", primaryTenant: "(client) Vogue Italia", tenants: 1, isTalent: false, signupAt: "Feb 2026", lastSeen: "12m ago" },
-  { id: "pu4", name: "Kai Lin", email: "kai@lin.studio", primaryTenant: "Acme Models", tenants: 1, isTalent: true, signupAt: "Jun 2024", lastSeen: "3h ago" },
+  { id: "pu4", name: "Kai Lin", email: "kai@lin.studio", primaryTenant: "Atelier Roma", tenants: 1, isTalent: true, signupAt: "Jun 2024", lastSeen: "3h ago" },
   { id: "pu5", name: "Helena Ross", email: "helena@netaporter.com", primaryTenant: "(client) Net-a-Porter", tenants: 1, isTalent: false, signupAt: "Apr 2026", lastSeen: "2d ago" },
 ];
 
@@ -6163,11 +6167,11 @@ export type HubSubmission = {
 };
 
 export const HUB_SUBMISSIONS: HubSubmission[] = [
-  { id: "hs1", talentName: "Marta Reyes", agency: "Acme Models", submittedAt: "2h ago", status: "pending" },
+  { id: "hs1", talentName: "Marta Reyes", agency: "Atelier Roma", submittedAt: "2h ago", status: "pending" },
   { id: "hs2", talentName: "Yuna Park", agency: "Praline London", submittedAt: "5h ago", status: "pending" },
   { id: "hs3", talentName: "Léa Mercier", agency: "Maison Sud", submittedAt: "1d ago", status: "featured" },
   { id: "hs4", talentName: "Ola Brandt", agency: "Nord Talent", submittedAt: "2d ago", status: "pending" },
-  { id: "hs5", talentName: "Rafa Ortega", agency: "Acme Models", submittedAt: "3d ago", status: "declined", reason: "Profile under-developed" },
+  { id: "hs5", talentName: "Rafa Ortega", agency: "Atelier Roma", submittedAt: "3d ago", status: "declined", reason: "Profile under-developed" },
 ];
 
 export type PlatformInvoice = {
@@ -6180,7 +6184,7 @@ export type PlatformInvoice = {
 };
 
 export const PLATFORM_INVOICES: PlatformInvoice[] = [
-  { id: "inv1", tenant: "Acme Models", amount: "$149", date: "Apr 12, 2026", plan: "agency", status: "paid" },
+  { id: "inv1", tenant: "Atelier Roma", amount: "$149", date: "Apr 12, 2026", plan: "agency", status: "paid" },
   { id: "inv2", tenant: "Praline London", amount: "$149", date: "Apr 9, 2026", plan: "agency", status: "paid" },
   { id: "inv3", tenant: "Tokyo Faces", amount: "$899", date: "Apr 8, 2026", plan: "network", status: "paid" },
   { id: "inv4", tenant: "Maison Sud", amount: "$79", date: "Apr 4, 2026", plan: "studio", status: "paid" },

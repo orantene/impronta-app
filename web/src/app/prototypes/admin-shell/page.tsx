@@ -205,6 +205,25 @@ function PrototypeRoot() {
       });
   }, []);
 
+  // Scroll-lock recovery — defends against the "stuck page" bug.
+  //
+  // The lockScroll helper in `_primitives.tsx` ref-counts open overlays
+  // (drawers, modals, confirm dialogs) and clears `body.style.overflow`
+  // only when all close. Under HMR, unmount races, or React strict-mode
+  // double-invocation, the counter can drift and leave the body locked.
+  //
+  // This effect runs once on mount and clears `body.style.overflow` if
+  // no overlay is actually rendered in the DOM. Cheap, idempotent, and
+  // hit on every page transition (since this component remounts when
+  // the prototype reloads).
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const stillOpen = document.querySelectorAll(
+      '[data-tulala-drawer-panel],[data-tulala-modal-overlay],[data-tulala-confirm-dialog]'
+    ).length > 0;
+    if (!stillOpen) document.body.style.overflow = "";
+  }, []);
+
   return (
     <>
       <ProtoProviderInnerOriginal showDevBar={showDevBar} />
@@ -1241,8 +1260,44 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
           /* Small tablet / large phone: one main column; tighter padding;
              topbars wrap into two rows; ControlBar shrinks. */
           @media (max-width: 720px) {
+            /* Hard root clamp — every ancestor in the chain that could
+               carry a runaway-wide child gets max-width:100vw + clip.
+               Without this a single child with min-width / explicit
+               width / unbreakable text bubbles up: html → body → shell
+               → surface-main → page content all stretch wider than the
+               viewport, and the user sees right-edge clipping (bell
+               icon, tab labels, take-home rates, the "Today" tab in
+               the bottom nav). overflow-x: clip is preferred over
+               hidden because clip doesn't establish a scroll container,
+               so it doesn't accidentally enable horizontal scroll. */
+            html, body {
+              max-width: 100vw !important;
+              overflow-x: clip !important;
+            }
             .tulala-shell {
-              overflow-x: hidden;
+              max-width: 100vw !important;
+              overflow-x: clip !important;
+            }
+            /* Every direct child of the shell — surface wrappers,
+               topbars, identity bar, fixed-position layers — capped at
+               viewport width. box-sizing:border-box so padding can't
+               push beyond. */
+            .tulala-shell > * {
+              max-width: 100vw !important;
+              box-sizing: border-box !important;
+            }
+            /* Defensive set for the surfaces that have historically
+               carried wide grids or absolute children: explicit
+               max-width + min-width:0 (so flex children can shrink) +
+               overflow-x:clip (last line of defense). */
+            .tulala-shell [data-tulala-surface-main],
+            .tulala-shell [data-tulala-app-topbar],
+            .tulala-shell [data-tulala-identity-bar],
+            .tulala-shell [data-tulala-workspace-grid] {
+              max-width: 100vw !important;
+              min-width: 0 !important;
+              box-sizing: border-box !important;
+              overflow-x: clip !important;
             }
             /* Surface main padding compresses */
             .tulala-shell [data-tulala-surface-main] {
@@ -1310,12 +1365,20 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               display: none !important;
             }
           }
-          /* Page-transition fade-up — used by both talent + workspace
+          /* Page-transition fade — used by both talent + workspace
              routers. Lives at root scope so the keyframe is available
-             everywhere inside .tulala-shell. */
+             everywhere inside .tulala-shell.
+             IMPORTANT: must NOT use transform on the wrapper. Any
+             non-none transform on an ancestor becomes the containing
+             block for position:fixed descendants — which would make
+             the messages shell (position:fixed left:0 right:0) render
+             relative to the page-fade wrapper instead of the viewport,
+             clipping content past the wrapper edges on mobile. Opacity
+             alone keeps the fade entry while preserving the fixed-
+             positioning chain anchored to the viewport. */
           @keyframes tulala-page-fade {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; }
+            to { opacity: 1; }
           }
           @media (prefers-reduced-motion: reduce) {
             [data-tulala-talent-page-anim],
@@ -1549,18 +1612,53 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
               max-height: calc(100dvh - var(--proto-cbar, 50px) - 56px - 52px - var(--proto-kb, 0px)) !important;
               min-height: 0 !important;
             }
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-thread-pane],
+            /* 2026-style native-app slide transition between list and
+               thread. Both panes are stacked via grid (same row + col)
+               and animated via transform — much smoother than display
+               toggling, GPU-accelerated, no layout thrash. The active
+               pane sits at translateX(0); the inactive pane sits off
+               the right edge and slides in. iOS push-navigation feel. */
+            .tulala-shell [data-tulala-messages-shell] {
+              grid-template-columns: 1fr !important;
+            }
+            .tulala-shell [data-tulala-messages-shell] [data-tulala-list-pane],
+            .tulala-shell [data-tulala-messages-shell] [data-tulala-thread-pane] {
+              grid-row: 1 !important;
+              grid-column: 1 !important;
+              transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1) !important;
+              will-change: transform;
+              backface-visibility: hidden;
+            }
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-list-pane] {
+              transform: translateX(0);
+              z-index: 2;
+            }
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-thread-pane] {
+              transform: translateX(100%);
+              z-index: 1;
+              pointer-events: none;
+            }
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-list-pane] {
+              transform: translateX(-30%);
+              z-index: 1;
+              pointer-events: none;
+              opacity: 0.4;
+              filter: brightness(0.92);
+            }
+            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-thread-pane] {
+              transform: translateX(0);
+              z-index: 2;
+              box-shadow: -8px 0 24px -8px rgba(11,11,13,0.18);
+            }
             .tulala-shell [data-tulala-messages-shell][data-mobile-pane="list"] [data-tulala-thread-info-sidebar] {
               display: none !important;
             }
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] [data-tulala-list-pane] {
-              display: none !important;
-            }
-            /* Single-pane: thread fills viewport, no right info sidebar
-               by default — ensure thread pane spans full width when
-               sidebar isn't collapsed yet via the toggle. */
-            .tulala-shell [data-tulala-messages-shell][data-mobile-pane="thread"] {
-              grid-template-columns: 1fr !important;
+            /* Respect reduced-motion preference. */
+            @media (prefers-reduced-motion: reduce) {
+              .tulala-shell [data-tulala-messages-shell] [data-tulala-list-pane],
+              .tulala-shell [data-tulala-messages-shell] [data-tulala-thread-pane] {
+                transition: none !important;
+              }
             }
             /* Inner thread+info grid (1fr 320px desktop) collapses to a
                single column at mobile — the info sidebar slides up as a
@@ -1604,6 +1702,12 @@ function ProtoProviderInnerOriginal({ showDevBar }: { showDevBar: boolean }) {
             }
             /* Mobile back button reveals at narrow widths */
             .tulala-shell .tulala-mobile-back {
+              display: inline-flex !important;
+            }
+            /* Mobile inbox tab — door pattern. Visible only ≤720px while
+               the user is in the thread pane. Tap to slide the inbox
+               open; selecting a row auto-closes back to the thread. */
+            .tulala-shell [data-tulala-mobile-inbox-tab] {
               display: inline-flex !important;
             }
             /* Workspace messages WhatsApp-style header: show back arrow,
