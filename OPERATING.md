@@ -251,6 +251,25 @@ When working on the dashboard restructure (Track B.5), any new inspector surface
 
 When working on the dashboard restructure (Track B.5), the talent surface (`/talent/*`), or any inquiry / roster / visibility / payment / pricing surface — read these docs first.
 
+## 12a. Active execution plan
+
+The canonical 5-phase execution plan supersedes the prior "Track B.x" framing.
+
+- **Plan file:** `~/.claude/plans/ancient-gathering-sparkle.md`
+- **Phase 0 audit:** [`docs/handoffs/wave-1-prep-audit.md`](docs/handoffs/wave-1-prep-audit.md) — drift register (D1–D7) with founder-ratified decisions; locks the foundational rule that the prototype is the UX source of truth and the live admin/backend is the data/auth/tenant source of truth until each surface is safely promoted.
+
+Phase order:
+
+```
+Phase 0  Stabilization and truth audit         (docs only)
+Phase 1  Real-data bridge inside prototype     (one surface, opt-in dataSource=live)
+Phase 2  Capability unification                (lib/access/ canonical)
+Phase 3  Route promotion begins                (surface by surface)
+Phase 4  Replace old admin modules             (delete-on-replacement)
+```
+
+Page builder (`web/src/components/edit-chrome/`) is wrapped, never replaced, per `docs/page-builder-invariants.md`.
+
 ## 13. Where to find more
 
 - [`AGENTS.md`](AGENTS.md) — agent operating contract (read on every change)
