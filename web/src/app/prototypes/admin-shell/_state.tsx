@@ -5272,6 +5272,9 @@ export type WorkspaceTaxonomySetting = {
  * a flat shape for clarity.
  */
 export type RegFieldKind = "text" | "number" | "select" | "multiselect" | "chips";
+/** Visibility channel for a talent profile field. Used by _field-catalog.ts
+ *  to express who can see a given field by default. Talent can override. */
+export type RegFieldChannel = "public" | "agency" | "platform" | "private";
 export type RegField = {
   id: string;
   label: string;
