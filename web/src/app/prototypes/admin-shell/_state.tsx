@@ -11,6 +11,10 @@ import {
   type ReactNode,
 } from "react";
 import type { ToastTone } from "./_primitives";
+// Type-only import — `_data-bridge.ts` is a server-only module guarded
+// by `import "server-only"`. The `import type` form is erased at compile
+// time and emits no runtime JS, so the client bundle stays clean.
+import type { BridgeData } from "./_data-bridge";
 
 // ─── Surface dimensions ──────────────────────────────────────────────
 
@@ -6491,6 +6495,27 @@ type Ctx = {
   /** Returns true if a client (resolved by id or "current") meets
    *  the talent's gate, false if blocked. */
   canClientContactTalent: (talentId: string, clientId: string) => boolean;
+
+  // ── Phase 1 real-data bridge ─────────────────────────────────────
+  /**
+   * Live workspace roster pre-fetched by the server-component wrapper
+   * (`./page.tsx`) when the URL carries `?dataSource=live`. `null` means
+   * "live mode was not requested — surfaces should fall back to the
+   * per-plan mock arrays via `getRoster(plan)`". An empty array means
+   * "live mode was requested but the tenant has zero rostered talent
+   * (or scope/query failed) — render the empty state, NOT the mock".
+   *
+   * Surfaces that read roster data should use `effectiveRoster` instead
+   * of calling `getRoster(plan)` directly so the bridge is honoured
+   * without each call site having to know about it.
+   */
+  bridgeRoster: TalentProfile[] | null;
+  /**
+   * `bridgeRoster ?? getRoster(plan)` — the rule the workspace surface
+   * should follow. Stable identity (memoised in the provider) so it can
+   * be consumed inside hooks without re-render churn.
+   */
+  effectiveRoster: TalentProfile[];
 };
 
 /** Agency-defined custom field. Renders in Profile Shell's "Profile details"
@@ -6740,7 +6765,18 @@ function runWithViewTransition(work: () => void): void {
   doc.startViewTransition(work);
 }
 
-export function ProtoProvider({ children }: { children: ReactNode }) {
+export function ProtoProvider({
+  children,
+  initialBridgeData = null,
+}: {
+  children: ReactNode;
+  /**
+   * Phase 1 real-data bridge payload pre-fetched server-side. `null` (the
+   * default) preserves the original 100% mock behaviour. See
+   * `_data-bridge.ts` and `./page.tsx` for the server boundary.
+   */
+  initialBridgeData?: BridgeData | null;
+}) {
   const [surface, setSurface] = useState<Surface>("workspace");
   // workspace
   const [plan, setPlan] = useState<Plan>("free");
@@ -7421,6 +7457,19 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
     setDrawer({ drawerId: null });
   }, []);
 
+  // Phase 1 real-data bridge — pre-fetched payload from `./page.tsx`.
+  // `bridgeRoster` is null when the URL did not request live mode (the
+  // default); in that case `effectiveRoster` falls back to the mock
+  // arrays via `getRoster(plan)`. When live mode is requested,
+  // `bridgeRoster` carries the result of the server-side query and
+  // overrides the per-plan mock — even if it's an empty array (which
+  // we render as the standard empty state, NOT silent mock fallback).
+  const bridgeRoster = initialBridgeData?.roster ?? null;
+  const effectiveRoster = useMemo<TalentProfile[]>(
+    () => bridgeRoster ?? getRoster(plan),
+    [bridgeRoster, plan],
+  );
+
   const value: Ctx = useMemo(
     () => ({
       state: {
@@ -7507,6 +7556,12 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       getTalentContactGate,
       setTalentContactGate,
       canClientContactTalent,
+      // Phase 1 real-data bridge fields. `bridgeRoster` is the raw
+      // server-fetched payload (or null in mock mode); `effectiveRoster`
+      // is the resolved `bridgeRoster ?? getRoster(plan)` that surfaces
+      // should consume.
+      bridgeRoster,
+      effectiveRoster,
     }),
     [
       surface,
@@ -7577,6 +7632,8 @@ export function ProtoProvider({ children }: { children: ReactNode }) {
       getTalentContactGate,
       setTalentContactGate,
       canClientContactTalent,
+      bridgeRoster,
+      effectiveRoster,
     ],
   );
 

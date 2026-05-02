@@ -2912,14 +2912,19 @@ function OverviewPage() {
 }
 
 function OverviewFree() {
-  const { state, setPage, openDrawer, openUpgrade, completeTask, toast } = useProto();
+  const { state, setPage, openDrawer, openUpgrade, completeTask, toast, effectiveRoster } = useProto();
 
   // Live signals that prove a step is "really done" — overrides the
   // user-confirmed Set. Order: real state first, manual confirmation
   // second. This way a returning user with 3 talents already on roster
   // sees "Add your first talent" pre-checked, even if they never clicked
   // the row in this prototype session.
-  const liveRoster = getRoster(state.plan);
+  //
+  // `effectiveRoster` is `bridgeRoster ?? getRoster(plan)` — Phase 1
+  // real-data bridge (set by `?dataSource=live` server pre-fetch). When
+  // the bridge is null (default mock mode) it transparently falls back
+  // to the per-plan mock arrays; when present it overrides them.
+  const liveRoster = effectiveRoster;
   const livePublished = liveRoster.filter((t) => t.state === "published").length;
   const liveInquiries = getInquiries(state.plan);
   const liveTeam = getTeam(state.plan);
@@ -4795,8 +4800,12 @@ function nextPlanForRoster(plan: Plan): Plan | null {
 // ════════════════════════════════════════════════════════════════════
 
 function TalentPage() {
-  const { state, openDrawer, openUpgrade, toast, pendingTalent } = useProto();
-  const roster = getRoster(state.plan);
+  const { state, openDrawer, openUpgrade, toast, pendingTalent, effectiveRoster } = useProto();
+  // Phase 1 real-data bridge: when `?dataSource=live` is set on the URL,
+  // the server pre-fetches Impronta's roster and `effectiveRoster` is
+  // those rows. When absent, this falls back to `getRoster(plan)` per
+  // the existing mock behaviour — same shape, same code path.
+  const roster = effectiveRoster;
   const canEdit = meetsRole(state.role, "editor");
   const isFree = state.plan === "free";
 
