@@ -1912,6 +1912,79 @@ export function ClientInquiryDetailDrawer() {
   );
 }
 
+// #18 — Review drawer. Three-axis rating after a wrapped booking.
+// Private to the platform — drives talent/coordinator trust scores.
+export function ClientReviewDrawer() {
+  const { state, closeDrawer, toast } = useProto();
+  const open = state.drawer.drawerId === "client-review";
+  const talentName = (state.drawer.payload?.talent as string) ?? "the talent";
+  const [scores, setScores] = useState({ responsive: 0, professional: 0, fit: 0 });
+  const [comment, setComment] = useState("");
+  const submit = () => {
+    toast(`Thanks — your review of ${talentName} has been recorded.`);
+    closeDrawer();
+  };
+  const axes = [
+    { id: "responsive" as const,    label: "Responsiveness",  desc: "How quickly did they reply and confirm?" },
+    { id: "professional" as const,  label: "Professionalism", desc: "On-time, prepared, kept the brief in mind." },
+    { id: "fit" as const,           label: "Fit",             desc: "Right vibe for your event or shoot." },
+  ];
+  return (
+    <DrawerShell
+      open={open}
+      onClose={closeDrawer}
+      title={`Review ${talentName}`}
+      description="Rate three axes. Private to Tulala — drives talent trust scores."
+      footer={
+        <>
+          <SecondaryButton onClick={closeDrawer}>Skip</SecondaryButton>
+          <PrimaryButton onClick={submit}>Submit review</PrimaryButton>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, fontFamily: FONTS.body }}>
+        {axes.map(a => (
+          <div key={a.id}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: COLORS.ink }}>{a.label}</div>
+            <div style={{ fontSize: 11.5, color: COLORS.inkMuted, marginTop: 2 }}>{a.desc}</div>
+            <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
+              {[1, 2, 3, 4, 5].map(n => {
+                const filled = scores[a.id] >= n;
+                return (
+                  <button key={n} type="button" onClick={() => setScores(s => ({ ...s, [a.id]: n }))} aria-label={`${n} stars`} style={{
+                    background: "transparent", border: "none", cursor: "pointer",
+                    padding: 4, color: filled ? COLORS.amber : COLORS.inkDim,
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+                      <path d="M11 2l2.6 6L20 9l-5 4.5L16.5 20 11 16.5 5.5 20 7 13.5 2 9l6.4-1z"/>
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        <label style={{ display: "block" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>Comment <span style={{ color: COLORS.inkDim, fontWeight: 500 }}>(optional)</span></div>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="What stood out? What could be better?"
+            rows={3}
+            style={{
+              width: "100%", boxSizing: "border-box", padding: "10px 12px",
+              borderRadius: 8, border: `1px solid ${COLORS.border}`,
+              background: "rgba(11,11,13,0.025)",
+              fontFamily: FONTS.body, fontSize: 13, color: COLORS.ink,
+              outline: "none", resize: "vertical",
+            }}
+          />
+        </label>
+      </div>
+    </DrawerShell>
+  );
+}
+
 // WS-8.10  Counter-offer diff view — side-by-side current vs proposed
 export function ClientCounterOfferDrawer() {
   const { state, closeDrawer, toast } = useProto();
