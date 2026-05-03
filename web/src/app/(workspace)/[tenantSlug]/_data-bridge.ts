@@ -312,3 +312,116 @@ export async function loadWorkspaceInquiries(
     return [];
   }
 }
+
+// ─── Clients ─────────────────────────────────────────────────────────────────
+
+export type WorkspaceClientRow = {
+  /** user_id from auth */
+  id: string;
+  /** Display name from profiles table */
+  name: string;
+  /** Company / business name from client_profiles */
+  company: string | null;
+  /** Account status from profiles (registered / active / suspended) */
+  accountStatus: string | null;
+  /** Total inquiries submitted to this tenant */
+  inquiryCount: number;
+};
+
+/**
+ * Load the client list for a tenant. Scoped via inquiries.client_user_id —
+ * only returns clients who have placed at least one inquiry with this tenant.
+ * Ordered by most-recent-inquiry descending.
+ *
+ * Returns [] on error. Never falls back to mock data.
+ */
+export async function loadWorkspaceClients(
+  tenantId: string,
+): Promise<WorkspaceClientRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    // Step 1: Get distinct client user IDs + inquiry counts for this tenant.
+    const { data: inquiryAggRows, error: inquiryErr } = await supabase
+      .from("inquiries")
+      .select("client_user_id, created_at")
+      .eq("tenant_id", tenantId)
+      .not("client_user_id", "is", null)
+      .order("created_at", { ascending: false });
+
+    if (inquiryErr) {
+      logServerError("workspace.loadClients.inquiries", inquiryErr);
+      return [];
+    }
+
+    // Aggregate: count + track latest per client
+    const clientStats = new Map<string, { count: number; latestAt: string }>();
+    for (const row of inquiryAggRows ?? []) {
+      const uid = (row as { client_user_id: string | null }).client_user_id;
+      if (!uid) continue;
+      const existing = clientStats.get(uid);
+      const createdAt = (row as { created_at: string }).created_at;
+      if (!existing) {
+        clientStats.set(uid, { count: 1, latestAt: createdAt });
+      } else {
+        clientStats.set(uid, { count: existing.count + 1, latestAt: existing.latestAt });
+      }
+    }
+
+    const userIds = [...clientStats.keys()];
+    if (userIds.length === 0) return [];
+
+    // Step 2: Fetch client_profiles + profiles for those users.
+    const { data: profileRows, error: profileErr } = await supabase
+      .from("client_profiles")
+      .select(
+        "user_id, company_name, profiles!inner(display_name, account_status)",
+      )
+      .in("user_id", userIds);
+
+    if (profileErr) {
+      logServerError("workspace.loadClients.profiles", profileErr);
+      return [];
+    }
+
+    type ClientProfileRow = {
+      user_id: string;
+      company_name: string | null;
+      profiles:
+        | { display_name: string | null; account_status: string | null }
+        | { display_name: string | null; account_status: string | null }[]
+        | null;
+    };
+
+    const profileByUserId = new Map<string, ClientProfileRow>();
+    for (const row of (profileRows ?? []) as unknown as ClientProfileRow[]) {
+      profileByUserId.set(row.user_id, row);
+    }
+
+    // Step 3: Assemble output, sorted by most-recent inquiry desc
+    const out: WorkspaceClientRow[] = [];
+    const sorted = [...clientStats.entries()].sort(
+      ([, a], [, b]) => new Date(b.latestAt).getTime() - new Date(a.latestAt).getTime(),
+    );
+
+    for (const [uid, stats] of sorted) {
+      const row = profileByUserId.get(uid);
+      const profileJoin = row?.profiles;
+      const profile = Array.isArray(profileJoin) ? profileJoin[0] : profileJoin;
+      const name = profile?.display_name?.trim() || uid.slice(0, 8);
+      out.push({
+        id: uid,
+        name,
+        company: row?.company_name ?? null,
+        accountStatus: profile?.account_status ?? null,
+        inquiryCount: stats.count,
+      });
+    }
+
+    return out;
+  } catch (err) {
+    logServerError("workspace.loadClients", err);
+    return [];
+  }
+}
