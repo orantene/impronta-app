@@ -421,7 +421,7 @@ export function SettingsClientShell({
                 desc="Categories and specialties used to classify your roster"
                 action={
                   <a
-                    href={`/admin/taxonomy`}
+                    href={`/${tenantSlug}/admin/site-settings/fields`}
                     style={{ fontSize: 12, color: C.accent, fontFamily: FONT, fontWeight: 600, textDecoration: "none" }}
                   >
                     Open taxonomy →
@@ -442,7 +442,7 @@ export function SettingsClientShell({
                 desc="Add, edit, and reorder profile fields"
                 action={
                   <a
-                    href={`/admin/fields`}
+                    href={`/${tenantSlug}/admin/site-settings/fields`}
                     style={{ fontSize: 12, color: C.accent, fontFamily: FONT, fontWeight: 600, textDecoration: "none" }}
                   >
                     Open field catalog →
