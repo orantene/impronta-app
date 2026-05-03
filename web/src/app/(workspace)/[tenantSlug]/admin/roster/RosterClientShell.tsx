@@ -946,6 +946,62 @@ function BulkActionBar({
   );
 }
 
+// ─── Type filter chips ────────────────────────────────────────────────────────
+
+function TypeChips({
+  types,
+  active,
+  onSelect,
+}: {
+  types: string[];
+  active: string;
+  onSelect: (t: string) => void;
+}) {
+  if (types.length === 0) return null;
+
+  const chips = ["all", ...types];
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        flexWrap: "wrap",
+        marginBottom: 14,
+      }}
+    >
+      {chips.map((chip) => {
+        const isActive = active === chip;
+        return (
+          <button
+            key={chip}
+            type="button"
+            onClick={() => onSelect(chip)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              height: 28,
+              padding: "0 11px",
+              borderRadius: 999,
+              border: `1px solid ${isActive ? C.greenDeep : C.border}`,
+              background: isActive ? C.greenSoft : "transparent",
+              color: isActive ? C.greenDeep : C.inkMuted,
+              fontSize: 12,
+              fontWeight: isActive ? 600 : 500,
+              fontFamily: FONT,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: "background 0.1s, border-color 0.1s, color 0.1s",
+            }}
+          >
+            {chip === "all" ? "All types" : chip}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
 export function RosterClientShell({
@@ -959,12 +1015,18 @@ export function RosterClientShell({
 }) {
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [view, setView] = useState<ViewMode>("grid");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Unique non-empty type labels actually present in the roster
+  const usedTypes = Array.from(
+    new Set(roster.map((r) => r.primaryTypeLabel).filter((t): t is string => !!t))
+  ).sort();
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -984,6 +1046,7 @@ export function RosterClientShell({
 
   const filteredRoster = roster
     .filter((p) => stateFilter === "all" || p.state === stateFilter)
+    .filter((p) => typeFilter === "all" || p.primaryTypeLabel === typeFilter)
     .filter((p) => {
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
@@ -1015,7 +1078,7 @@ export function RosterClientShell({
     showToast(`Exported ${filteredRoster.length} rows to CSV`);
   };
 
-  const isSearching = !!search.trim() || stateFilter !== "all";
+  const isSearching = !!search.trim() || stateFilter !== "all" || typeFilter !== "all";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -1212,6 +1275,13 @@ export function RosterClientShell({
         onFilter={(f) => setStateFilter((cur) => (cur === f ? "all" : f))}
       />
 
+      {/* ── Type filter chips ── */}
+      <TypeChips
+        types={usedTypes}
+        active={typeFilter}
+        onSelect={(t) => setTypeFilter((cur) => (cur === t ? "all" : t))}
+      />
+
       {/* ── Filter bar ── */}
       <FilterBar
         search={search}
@@ -1243,6 +1313,7 @@ export function RosterClientShell({
           onClear={() => {
             setSearch("");
             setStateFilter("all");
+            setTypeFilter("all");
           }}
         />
       ) : view === "grid" ? (

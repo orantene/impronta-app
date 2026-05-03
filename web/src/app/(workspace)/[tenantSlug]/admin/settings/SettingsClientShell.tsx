@@ -235,7 +235,7 @@ function SettingsRow({
 
 // ─── Main shell ───────────────────────────────────────────────────────────────
 
-type SettingsTab = "workspace" | "team" | "plan" | "advanced";
+type SettingsTab = "workspace" | "roster" | "team" | "plan" | "advanced";
 
 export function SettingsClientShell({
   summary,
@@ -265,10 +265,11 @@ export function SettingsClientShell({
   const planChip = PLAN_CHIP[summary?.plan ?? "free"] ?? PLAN_CHIP.free;
 
   const TABS: { id: SettingsTab; label: string; emoji: string }[] = [
-    { id: "workspace", label: "Workspace",    emoji: "🏛" },
-    { id: "team",      label: "Team",         emoji: "👥" },
-    { id: "plan",      label: "Plan",         emoji: "💳" },
-    { id: "advanced",  label: "Advanced",     emoji: "⚙" },
+    { id: "workspace", label: "Workspace",           emoji: "🏛" },
+    { id: "roster",    label: "Roster",              emoji: "🎯" },
+    { id: "team",      label: "Team & legal",        emoji: "👥" },
+    { id: "plan",      label: "Plan & integrations", emoji: "💳" },
+    { id: "advanced",  label: "Advanced",            emoji: "⚙" },
   ];
 
   return (
@@ -405,6 +406,53 @@ export function SettingsClientShell({
           </>
         )}
 
+        {/* ── Roster tab ── */}
+        {activeTab === "roster" && (
+          <>
+            <AccordionItem
+              id="talent-types"
+              label="Talent types"
+              desc="Manage categories, specialties, and taxonomy for your roster."
+              open={openSections.has("talent-types")}
+              onToggle={() => toggleSection("talent-types")}
+            >
+              <SettingsRow
+                title="Manage talent types"
+                desc="Categories and specialties used to classify your roster"
+                action={
+                  <a
+                    href={`/admin/taxonomy`}
+                    style={{ fontSize: 12, color: C.accent, fontFamily: FONT, fontWeight: 600, textDecoration: "none" }}
+                  >
+                    Open taxonomy →
+                  </a>
+                }
+              />
+            </AccordionItem>
+
+            <AccordionItem
+              id="custom-fields"
+              label="Custom fields"
+              desc="Extra fields on talent profiles — height, measurements, languages, and more."
+              open={openSections.has("custom-fields")}
+              onToggle={() => toggleSection("custom-fields")}
+            >
+              <SettingsRow
+                title="Manage fields"
+                desc="Add, edit, and reorder profile fields"
+                action={
+                  <a
+                    href={`/admin/fields`}
+                    style={{ fontSize: 12, color: C.accent, fontFamily: FONT, fontWeight: 600, textDecoration: "none" }}
+                  >
+                    Open field catalog →
+                  </a>
+                }
+              />
+            </AccordionItem>
+          </>
+        )}
+
         {/* ── Team tab ── */}
         {activeTab === "team" && (
           <AccordionItem
@@ -478,7 +526,7 @@ export function SettingsClientShell({
             {canManageTeam && (
               <div style={{ marginTop: 12 }}>
                 <a
-                  href={`/admin/settings`}
+                  href={`/${tenantSlug}/admin/settings`}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -494,7 +542,7 @@ export function SettingsClientShell({
                     textDecoration: "none",
                   }}
                 >
-                  Manage team in workspace settings →
+                  Invite & manage team →
                 </a>
               </div>
             )}
@@ -556,7 +604,7 @@ export function SettingsClientShell({
               </div>
 
               <a
-                href={`/admin/settings`}
+                href={`/${tenantSlug}/admin/account`}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -593,56 +641,38 @@ export function SettingsClientShell({
         {activeTab === "advanced" && (
           <>
             <AccordionItem
-              id="fields"
-              label="Field catalog"
-              desc="Custom fields for talent, clients, and bookings."
-              open={openSections.has("fields")}
-              onToggle={() => toggleSection("fields")}
+              id="features"
+              label="Feature controls"
+              desc="Turn platform features on or off for your workspace."
+              open={openSections.has("features")}
+              onToggle={() => toggleSection("features")}
             >
-              <SettingsRow
-                title="Manage fields"
-                desc="Add, edit, and reorder profile fields"
-                action={
-                  <a
-                    href="/admin/fields"
-                    style={{ fontSize: 12, color: C.accent, fontFamily: FONT, fontWeight: 600, textDecoration: "none" }}
-                  >
-                    Open in admin →
-                  </a>
-                }
-              />
-            </AccordionItem>
-
-            <AccordionItem
-              id="taxonomy"
-              label="Taxonomy"
-              desc="Talent types, categories, and specialties."
-              open={openSections.has("taxonomy")}
-              onToggle={() => toggleSection("taxonomy")}
-            >
-              <SettingsRow
-                title="Manage types"
-                desc="Categories, specialties, and skills"
-                action={
-                  <a
-                    href="/admin/taxonomy"
-                    style={{ fontSize: 12, color: C.accent, fontFamily: FONT, fontWeight: 600, textDecoration: "none" }}
-                  >
-                    Open in admin →
-                  </a>
-                }
-              />
+              <div style={{ padding: "8px 0", color: C.inkMuted, fontSize: 12.5, fontFamily: FONT, lineHeight: 1.5 }}>
+                Feature controls available in future platform releases.
+              </div>
             </AccordionItem>
 
             <AccordionItem
               id="compliance"
-              label="Compliance"
+              label="Compliance & legal"
               desc="Legal agreements, data export, and deletion requests."
               open={openSections.has("compliance")}
               onToggle={() => toggleSection("compliance")}
             >
               <div style={{ color: C.inkMuted, fontSize: 12.5, fontFamily: FONT, lineHeight: 1.5 }}>
-                Compliance settings available in your workspace account settings.
+                Data export and account deletion requests — contact support.
+              </div>
+            </AccordionItem>
+
+            <AccordionItem
+              id="danger"
+              label="Danger zone"
+              desc="Irreversible operations — proceed with care."
+              open={openSections.has("danger")}
+              onToggle={() => toggleSection("danger")}
+            >
+              <div style={{ padding: "8px 0", color: "#DC2626", fontSize: 12.5, fontFamily: FONT, lineHeight: 1.5 }}>
+                Workspace deletion and data wipe — contact support to proceed.
               </div>
             </AccordionItem>
           </>
