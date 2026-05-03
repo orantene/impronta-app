@@ -142,19 +142,8 @@ function ToolRow({
         borderTop: "1px solid transparent",
         textDecoration: "none",
         cursor: href ? "pointer" : "default",
-        transition: "background 0.12s",
         opacity: comingSoon ? 0.6 : 1,
       }}
-      onMouseEnter={
-        href
-          ? (e) => (e.currentTarget.style.background = "rgba(11,11,13,0.025)")
-          : undefined
-      }
-      onMouseLeave={
-        href
-          ? (e) => (e.currentTarget.style.background = "transparent")
-          : undefined
-      }
     >
       {/* Icon badge */}
       <div

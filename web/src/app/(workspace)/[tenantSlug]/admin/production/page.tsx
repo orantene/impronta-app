@@ -117,24 +117,7 @@ function FeatureCard({
         textDecoration: "none",
         cursor: href ? "pointer" : "default",
         opacity: href ? 1 : 0.6,
-        transition: "border-color 0.12s, box-shadow 0.12s",
       }}
-      onMouseEnter={
-        href
-          ? (e) => {
-              e.currentTarget.style.borderColor = "rgba(15,79,62,0.25)";
-              e.currentTarget.style.boxShadow = "0 2px 8px rgba(11,11,13,0.06)";
-            }
-          : undefined
-      }
-      onMouseLeave={
-        href
-          ? (e) => {
-              e.currentTarget.style.borderColor = "rgba(24,24,27,0.06)";
-              e.currentTarget.style.boxShadow = "none";
-            }
-          : undefined
-      }
     >
       <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
       <div>
