@@ -21,6 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import {
+  ADMIN_PROTOTYPE_BASE,
   ADMIN_PROTOTYPE_NAV,
   flattenPrototypeNavWithOrder,
   prototypeNavItemMap,
@@ -58,11 +59,33 @@ const PROTOTYPE_NAV_FLAT_ORDER = flattenPrototypeNavWithOrder(ADMIN_PROTOTYPE_NA
 const KNOWN_PROTOTYPE_NAV_IDS = new Set(PROTOTYPE_NAV_FLAT_ORDER.map(({ item }) => item.id));
 const ALL_PROTOTYPE_GROUP_IDS = ADMIN_PROTOTYPE_NAV.map((g) => g.id);
 
+/**
+ * Rewrite a nav item href for a different base path or path override.
+ * Used by the workspace shell to prefix `/admin/…` hrefs with `/{tenantSlug}/admin/…`
+ * and to remap promoted paths (e.g. `/admin/talent` → `/admin/roster`).
+ *
+ * @param href    Original nav item href (e.g. "/admin/talent")
+ * @param navBase Replacement for ADMIN_PROTOTYPE_BASE (e.g. "/impronta/admin")
+ * @param overrides Map of original path → new path (before navBase substitution)
+ */
+function rewriteNavHref(
+  href: string,
+  navBase?: string,
+  overrides?: Record<string, string>,
+): string {
+  // Apply path override first (operates on the /admin-prefixed path)
+  const pathKey = href.split("?")[0] ?? href;
+  const overridden = overrides?.[pathKey] ?? href;
+  if (!navBase) return overridden;
+  return overridden.replace(ADMIN_PROTOTYPE_BASE, navBase);
+}
+
 function findActivePrototypeGroupId(
   pathname: string,
   searchParams: ReadonlyURLSearchParams | URLSearchParams | null,
+  nav: typeof ADMIN_PROTOTYPE_NAV = ADMIN_PROTOTYPE_NAV,
 ): string | null {
-  for (const group of ADMIN_PROTOTYPE_NAV) {
+  for (const group of nav) {
     if (
       group.items.some((item) => isPrototypeNavActive(pathname, item.href, searchParams))
     ) {
@@ -143,6 +166,8 @@ function PrototypeNavSections({
   onToggleShortcut,
   expandAllGroups,
   navBadges,
+  navBase,
+  navPathOverrides,
 }: {
   collapsed: boolean;
   onNavigate?: () => void;
@@ -153,6 +178,18 @@ function PrototypeNavSections({
   /** Mobile sheet: show every section open without accordion chrome. */
   expandAllGroups?: boolean;
   navBadges?: Record<string, number>;
+  /**
+   * When the shell is mounted at `/{tenantSlug}/admin/…`, pass
+   * `navBase="/{tenantSlug}/admin"` to prefix all nav hrefs.
+   * Legacy admin layout leaves this undefined → hrefs stay at `/admin/…`.
+   */
+  navBase?: string;
+  /**
+   * Map of original `/admin/…` path → replacement `/admin/…` path, applied
+   * before navBase substitution. Use to remap promoted routes that changed
+   * path segment (e.g. `/admin/talent` → `/admin/roster`).
+   */
+  navPathOverrides?: Record<string, string>;
 }) {
   const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
@@ -160,8 +197,20 @@ function PrototypeNavSections({
   const shortcutSet = useMemo(() => new Set(shortcutIds), [shortcutIds]);
   const useAccordion = !collapsed && !expandAllGroups;
 
+  // Rewrite ADMIN_PROTOTYPE_NAV hrefs for navBase / navPathOverrides.
+  const effectiveNav = useMemo(() => {
+    if (!navBase && !navPathOverrides) return ADMIN_PROTOTYPE_NAV;
+    return ADMIN_PROTOTYPE_NAV.map((group) => ({
+      ...group,
+      items: group.items.map((item) => ({
+        ...item,
+        href: rewriteNavHref(item.href, navBase, navPathOverrides),
+      })),
+    }));
+  }, [navBase, navPathOverrides]);
+
   const [expandedGroupIds, setExpandedGroupIds] = useState<Set<string>>(() => {
-    const active = findActivePrototypeGroupId(pathname, searchParams);
+    const active = findActivePrototypeGroupId(pathname, searchParams, effectiveNav);
     return new Set([active ?? "dashboard"]);
   });
 
@@ -175,12 +224,12 @@ function PrototypeNavSections({
     if (stored && stored.size > 0) {
       setExpandedGroupIds(stored);
     }
-     
+
   }, []);
 
   useEffect(() => {
     if (!useAccordion) return;
-    const active = findActivePrototypeGroupId(pathname, searchParams);
+    const active = findActivePrototypeGroupId(pathname, searchParams, effectiveNav);
     if (!active) return;
     setExpandedGroupIds((prev) => {
       if (prev.has(active)) return prev;
@@ -189,7 +238,7 @@ function PrototypeNavSections({
       persistExpandedGroupIds(next);
       return next;
     });
-  }, [pathname, searchParams, useAccordion]);
+  }, [pathname, searchParams, useAccordion, effectiveNav]);
 
   const toggleGroup = useCallback((groupId: string) => {
     setExpandedGroupIds((prev) => {
@@ -396,7 +445,7 @@ function PrototypeNavSections({
   return (
     <div className="px-2 py-1">
       {pinnedBlock}
-      {ADMIN_PROTOTYPE_NAV.map((group, groupIndex) => {
+      {effectiveNav.map((group, groupIndex) => {
         const visibleItems = group.items.filter((item) => !pinnedSet.has(item.id));
         if (visibleItems.length === 0) return null;
 
@@ -513,6 +562,20 @@ export type AdminDashboardShellProps = {
    * dropdown on the top bar. Optional; falls back to "Unknown".
    */
   userEmail?: string | null;
+  /**
+   * Override the base path for all sidebar nav links.
+   * Pass `"/{tenantSlug}/admin"` from the workspace layout so sidebar links
+   * resolve to the canonical multi-tenant URL structure.
+   * Omit (default) to keep legacy `/admin/…` hrefs unchanged.
+   */
+  navBase?: string;
+  /**
+   * Path-level overrides applied before `navBase` substitution.
+   * Keys are the original `/admin/…` paths; values are the replacement paths.
+   * Used to remap promoted pages that moved to a different segment
+   * (e.g. `{ "/admin/talent": "/admin/roster", "/admin/inquiries": "/admin/work" }`).
+   */
+  navPathOverrides?: Record<string, string>;
 };
 
 export function AdminDashboardShell({
@@ -523,6 +586,8 @@ export function AdminDashboardShell({
   activeTenantId = null,
   workspace = null,
   userEmail = null,
+  navBase,
+  navPathOverrides,
 }: AdminDashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -657,6 +722,8 @@ export function AdminDashboardShell({
               onTogglePin={onTogglePin}
               onToggleShortcut={onToggleShortcut}
               navBadges={navBadges}
+              navBase={navBase}
+              navPathOverrides={navPathOverrides}
             />
           </nav>
           <div
@@ -752,6 +819,8 @@ export function AdminDashboardShell({
                 onTogglePin={onTogglePin}
                 onToggleShortcut={onToggleShortcut}
                 navBadges={navBadges}
+                navBase={navBase}
+                navPathOverrides={navPathOverrides}
               />
             </div>
             <div className="border-t border-[var(--admin-gold-border)] px-4 py-3 sm:hidden">

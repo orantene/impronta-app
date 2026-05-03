@@ -86,6 +86,14 @@ export default async function WorkspaceAdminLayout({
           activeTenantId={scope.tenantId}
           workspace={workspaceSummary}
           userEmail={session.user.email ?? null}
+          navBase={`/${tenantSlug}/admin`}
+          navPathOverrides={{
+            // Promoted Phase 3 pages use different path segments
+            "/admin/talent": "/admin/roster",
+            "/admin/inquiries": "/admin/work",
+            // Settings and team fold into the settings hub
+            "/admin/users": "/admin/settings",
+          }}
         >
           <AdminWorkspaceShell pulseCounts={pulseCounts}>
             {children}
