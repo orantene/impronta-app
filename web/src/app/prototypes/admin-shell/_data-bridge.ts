@@ -77,7 +77,6 @@ type RosterRow = {
     last_name: string | null;
     workflow_status: string | null;
     height_cm: number | null;
-    cover_photo_url: string | null;
     talent_profile_taxonomy:
       | {
           relationship_type: string | null;
@@ -214,7 +213,6 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
           last_name,
           workflow_status,
           height_cm,
-          cover_photo_url,
           talent_profile_taxonomy (
             relationship_type,
             taxonomy_terms ( term_type, slug )
@@ -246,7 +244,11 @@ export async function loadWorkspaceRosterForCurrentTenant(): Promise<
         state: deriveProfileState(row),
         height: deriveHeightLabel(profile),
         city: deriveCity(profile),
-        thumb: profile.cover_photo_url ?? undefined,
+        // `thumb` maps to the talent's cover/profile image. The schema stores
+        // photos in the `media_assets` table (not a column on talent_profiles).
+        // Wiring a joined photo fetch is Phase 3 work. For Phase 1 the field
+        // is omitted — roster cards render a deterministic tint+initial fallback
+        // when `thumb` is undefined, per the existing primitive behavior.
         primaryType: derivePrimaryType(profile),
         // `completeness`, `availability`, `lastActive` are derived UI
         // hints not yet wired in the live schema. Leaving them undefined
