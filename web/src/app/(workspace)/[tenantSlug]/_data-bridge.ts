@@ -131,7 +131,11 @@ type RosterRow = {
     talent_profile_taxonomy:
       | {
           relationship_type: string | null;
-          taxonomy_terms: { term_type: string | null; slug: string | null } | null;
+          taxonomy_terms: {
+            term_type: string | null;
+            slug: string | null;
+            name_en: string | null;
+          } | null;
         }[]
       | null;
     talent_service_areas:
@@ -141,6 +145,19 @@ type RosterRow = {
         }[]
       | null;
   } | null;
+};
+
+// ─── Enriched roster item (used by canonical workspace roster page) ───────────
+
+export type WorkspaceRosterItem = {
+  id: string;
+  name: string;
+  state: "published" | "draft" | "invited" | "awaiting-approval" | "claimed";
+  primaryType?: string;        // taxonomy term slug
+  primaryTypeLabel?: string;   // human-readable label from taxonomy_terms.name_en
+  city?: string;
+  height?: string;
+  thumb?: string;
 };
 
 function deriveProfileState(row: RosterRow): TalentProfile["state"] {
@@ -165,6 +182,14 @@ function derivePrimaryType(p: NonNullable<RosterRow["talent_profiles"]>): string
       .find((t) => t.relationship_type === "primary_role")
       ?.taxonomy_terms?.slug ?? undefined
   );
+}
+
+function derivePrimaryTypeLabel(p: NonNullable<RosterRow["talent_profiles"]>): string | undefined {
+  return (
+    (p.talent_profile_taxonomy ?? [])
+      .find((t) => t.relationship_type === "primary_role")
+      ?.taxonomy_terms?.name_en ?? undefined
+  ) || undefined;
 }
 
 function deriveCity(p: NonNullable<RosterRow["talent_profiles"]>): string | undefined {
@@ -211,7 +236,7 @@ export async function loadWorkspaceRosterForTenant(
           height_cm,
           talent_profile_taxonomy (
             relationship_type,
-            taxonomy_terms ( term_type, slug )
+            taxonomy_terms ( term_type, slug, name_en )
           ),
           talent_service_areas (
             service_kind,
@@ -246,6 +271,74 @@ export async function loadWorkspaceRosterForTenant(
     return out;
   } catch (err) {
     logServerError("workspace.loadRosterForTenant", err);
+    return [];
+  }
+}
+
+/**
+ * Enriched roster for the canonical workspace roster page.
+ * Same query as loadWorkspaceRosterForTenant but returns WorkspaceRosterItem[]
+ * with primaryTypeLabel included (from taxonomy_terms.name_en).
+ */
+export async function loadWorkspaceRosterEnriched(
+  tenantId: string,
+): Promise<WorkspaceRosterItem[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("agency_talent_roster")
+      .select(
+        `
+        status,
+        agency_visibility,
+        talent_profile_id,
+        talent_profiles!talent_profile_id (
+          id,
+          display_name,
+          first_name,
+          last_name,
+          workflow_status,
+          height_cm,
+          talent_profile_taxonomy (
+            relationship_type,
+            taxonomy_terms ( term_type, slug, name_en )
+          ),
+          talent_service_areas (
+            service_kind,
+            locations ( display_name_en, country_code )
+          )
+        )
+        `,
+      )
+      .eq("tenant_id", tenantId)
+      .neq("status", "removed")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      logServerError("workspace.loadRosterEnriched", error);
+      return [];
+    }
+
+    const rows = (data ?? []) as unknown as RosterRow[];
+    const out: WorkspaceRosterItem[] = [];
+    for (const row of rows) {
+      const profile = row.talent_profiles;
+      if (!profile) continue;
+      out.push({
+        id: profile.id,
+        name: deriveDisplayName(profile),
+        state: deriveProfileState(row),
+        height: deriveHeightLabel(profile),
+        city: deriveCity(profile),
+        primaryType: derivePrimaryType(profile),
+        primaryTypeLabel: derivePrimaryTypeLabel(profile),
+      });
+    }
+    return out;
+  } catch (err) {
+    logServerError("workspace.loadRosterEnriched", err);
     return [];
   }
 }
