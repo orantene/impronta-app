@@ -336,12 +336,12 @@ export default async function WorkspaceSitePage({
           }}
         >
           <SiteTile
-            href={`/${tenantSlug}/admin/site-settings/pages`}
+            href={`/admin/site-settings/pages`}
             label="Pages"
             description="CMS pages, posts, and landing content"
           />
           <SiteTile
-            href={`/${tenantSlug}/admin/site-settings/navigation`}
+            href={`/admin/site-settings/navigation`}
             label="Navigation"
             description="Header links, footer links, and menus"
           />
@@ -359,13 +359,13 @@ export default async function WorkspaceSitePage({
           }}
         >
           <SiteTile
-            href={`/${tenantSlug}/admin/site-settings/design`}
+            href={`/admin/site-settings/design`}
             label="Design & theme"
             description="Colours, fonts, and layout style"
             locked={!canManage}
           />
           <SiteTile
-            href={`/${tenantSlug}/admin/site-settings/branding`}
+            href={`/admin/site-settings/branding`}
             label="Branding"
             description="Logo, favicon, and brand assets"
             locked={!canManage}
@@ -384,13 +384,13 @@ export default async function WorkspaceSitePage({
           }}
         >
           <SiteTile
-            href={`/${tenantSlug}/admin/site-settings/seo`}
+            href={`/admin/site-settings/seo`}
             label="SEO"
             description="Page titles, descriptions, and social sharing"
             locked={!canManage}
           />
           <SiteTile
-            href={`/${tenantSlug}/admin/site-settings/identity`}
+            href={`/admin/site-settings/identity`}
             label="Agency identity"
             description="Public name, contact info, and social links"
             locked={!canManage}
@@ -411,13 +411,13 @@ export default async function WorkspaceSitePage({
             }}
           >
             <AdvancedRow
-              href={`/${tenantSlug}/admin/site-settings/sections`}
+              href={`/admin/site-settings/sections`}
               label="Section templates"
               description="Reusable page-builder section layouts"
             />
             <div style={{ height: 1, background: C.borderSoft, margin: "0 16px" }} />
             <AdvancedRow
-              href={`/${tenantSlug}/admin/site-settings/system`}
+              href={`/admin/site-settings/system`}
               label="System settings"
               description="Locale, redirects, and technical configuration"
             />
