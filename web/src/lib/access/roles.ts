@@ -74,8 +74,9 @@ export const TENANT_ROLES: Record<TenantRoleKey, TenantRoleDef> = {
 // ── Role → capability matrix (additive, mirrors current behavior) ─────
 
 const VIEWER_CAPS: readonly CapabilityKey[] = [
-  // Phase 3 — workspace surface gate
+  // Phase 3 — workspace + roster surface gates
   "agency.workspace.view",
+  "agency.roster.view",
   "view_dashboard",
   "view_talent_roster",
   "view_client_list",
@@ -84,6 +85,7 @@ const VIEWER_CAPS: readonly CapabilityKey[] = [
 
 const EDITOR_CAPS: readonly CapabilityKey[] = [
   ...VIEWER_CAPS,
+  "agency.roster.edit",
   "edit_talent_overlay",
   "edit_client_relationship",
   "edit_cms_pages",
@@ -98,6 +100,7 @@ const EDITOR_CAPS: readonly CapabilityKey[] = [
 
 const COORDINATOR_CAPS: readonly CapabilityKey[] = [
   ...EDITOR_CAPS,
+  "agency.roster.invite",
   "view_private_client_data",
   "manage_talent_roster",
   "publish_talent_to_storefront",
@@ -119,6 +122,7 @@ const COORDINATOR_CAPS: readonly CapabilityKey[] = [
 
 const ADMIN_CAPS: readonly CapabilityKey[] = [
   ...COORDINATOR_CAPS,
+  "agency.roster.remove",
   "delete_client_relationship",
   "edit_branding",
   "edit_storefront_layout",

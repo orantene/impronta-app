@@ -461,6 +461,40 @@ export const CAPABILITIES = {
     deprecated: false,
   }),
 
+  // ── Phase 3 roster surface ───────────────────────────────────────────
+  "agency.roster.view": define({
+    key: "agency.roster.view",
+    displayName: "View roster",
+    description: "See all talent on this workspace's roster.",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.roster.edit": define({
+    key: "agency.roster.edit",
+    displayName: "Edit roster entry",
+    description: "Edit overlay data (visibility, notes, availability) for a rostered talent.",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.roster.invite": define({
+    key: "agency.roster.invite",
+    displayName: "Invite talent to roster",
+    description: "Send an invite link to add a new talent to this roster.",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
+  "agency.roster.remove": define({
+    key: "agency.roster.remove",
+    displayName: "Remove talent from roster",
+    description: "Remove a talent from this workspace's roster (sets status to 'removed').",
+    category: "talent",
+    scope: "tenant",
+    deprecated: false,
+  }),
+
   // ── Agency-side roster + settings (role-granted) ─────────────────────
   "agency.settings.edit_join_mode": define({
     key: "agency.settings.edit_join_mode",
