@@ -6,6 +6,11 @@ import { logServerError } from "@/lib/server/safe-error";
 // Type-only import — `_state.tsx` is "use client"; import type is erased.
 import type { TalentProfile } from "@/app/prototypes/admin-shell/_state";
 
+// Site-admin helpers used by loadWebsiteData.
+import { listPagesForStaff } from "@/lib/site-admin/server/pages-reads";
+import { loadIdentityForStaff } from "@/lib/site-admin/server/reads";
+import { getTenantPreviewOrigin } from "@/lib/site-admin/server/tenant-hosts";
+
 /**
  * _data-bridge.ts — Phase 3 workspace server-side data bridge.
  *
@@ -990,6 +995,112 @@ export async function loadCalendarEvents(
   }
 }
 
+// ─── Website data ────────────────────────────────────────────────────────────
+
+export type WebsitePageItem = {
+  id: string;
+  slug: string;
+  title: string;
+  status: string; // 'published' | 'draft' | 'scheduled'
+  updatedAt: string | null;
+  updatedBy: string | null;
+};
+
+export type WebsitePostItem = {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  updatedAt: string | null;
+};
+
+export type WebsiteRedirectItem = {
+  id: string;
+  oldPath: string;
+  newPath: string;
+  statusCode: number;
+  active: boolean;
+};
+
+export type WebsiteData = {
+  pages: WebsitePageItem[];
+  posts: WebsitePostItem[];
+  redirects: WebsiteRedirectItem[];
+  seoTitle: string | null;
+  seoDescription: string | null;
+  /** Fully-qualified storefront URL, e.g. "https://impronta.tulala.digital" */
+  liveUrl: string | null;
+};
+
+/**
+ * Load all data needed for the canonical workspace Website page:
+ * CMS pages, posts, redirects, SEO identity, and the live storefront URL.
+ *
+ * Returns a safe empty state on any error — the page renders gracefully.
+ */
+export async function loadWebsiteData(tenantId: string): Promise<WebsiteData> {
+  const empty: WebsiteData = {
+    pages: [], posts: [], redirects: [],
+    seoTitle: null, seoDescription: null, liveUrl: null,
+  };
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return empty;
+
+    const [pagesRaw, postsRes, redirectsRes, identity, liveUrl] = await Promise.all([
+      listPagesForStaff(supabase, tenantId).catch(() => []),
+      supabase
+        .from("cms_posts")
+        .select("id, slug, title, status, updated_at")
+        .eq("tenant_id", tenantId)
+        .order("updated_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("cms_redirects")
+        .select("id, old_path, new_path, status_code, active, updated_at")
+        .eq("tenant_id", tenantId)
+        .order("updated_at", { ascending: false })
+        .limit(50),
+      loadIdentityForStaff(supabase, tenantId).catch(() => null),
+      getTenantPreviewOrigin(supabase, tenantId).catch(() => null),
+    ]);
+
+    type PostRow = { id: string; slug: string; title: string; status: string; updated_at: string | null };
+    type RedirectRow = { id: string; old_path: string; new_path: string; status_code: number; active: boolean };
+
+    return {
+      pages: pagesRaw.map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        title: p.title,
+        status: p.status,
+        updatedAt: (p as unknown as { updated_at: string | null }).updated_at ?? null,
+        updatedBy: (p as unknown as { updated_by: string | null }).updated_by ?? null,
+      })),
+      posts: ((postsRes.data ?? []) as unknown as PostRow[]).map((p) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        status: p.status,
+        updatedAt: p.updated_at,
+      })),
+      redirects: ((redirectsRes.data ?? []) as unknown as RedirectRow[]).map((r) => ({
+        id: r.id,
+        oldPath: r.old_path,
+        newPath: r.new_path,
+        statusCode: r.status_code,
+        active: r.active,
+      })),
+      seoTitle: identity?.seo_default_title ?? null,
+      seoDescription: identity?.seo_default_description ?? null,
+      liveUrl,
+    };
+  } catch (err) {
+    logServerError("workspace.loadWebsiteData", err);
+    return empty;
+  }
+}
+
 // ─── Recent activity feed ─────────────────────────────────────────────────────
 
 export type RecentActivityItem = {
@@ -1074,6 +1185,266 @@ export async function loadRecentActivity(
       }));
   } catch (err) {
     logServerError("workspace.loadRecentActivity", err);
+    return [];
+  }
+}
+
+// ─── Talent self-dashboard data ───────────────────────────────────────────────
+
+export type TalentSelfProfile = {
+  /** talent_profiles.id */
+  id: string;
+  displayName: string;
+  /** Primary talent type label (e.g. "Fashion Model") */
+  primaryTypeLabel: string | null;
+  /** Home city display name */
+  homeCity: string | null;
+  /** workflow_status: draft | published | invited */
+  workflowStatus: string;
+  /** Roster status: active | pending | paused */
+  rosterStatus: string;
+  /** The talent's public profile URL code (profile_code) */
+  profileCode: string | null;
+  /** Display name of the agency they're viewing this in context of */
+  agencyName: string;
+};
+
+/**
+ * Load the talent's own profile + verify they're rostered in this agency.
+ * Returns null if not found or not rostered.
+ */
+export async function loadTalentSelfProfile(
+  userId: string,
+  tenantId: string,
+): Promise<TalentSelfProfile | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return null;
+
+    // Step 1: Get the talent's profile
+    const { data: profileRow, error: profileErr } = await supabase
+      .from("talent_profiles")
+      .select(`
+        id,
+        display_name,
+        first_name,
+        last_name,
+        workflow_status,
+        profile_code,
+        talent_profile_taxonomy (
+          relationship_type,
+          taxonomy_terms ( name_en )
+        ),
+        talent_service_areas (
+          service_kind,
+          locations ( display_name_en )
+        )
+      `)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (profileErr || !profileRow) {
+      if (profileErr) logServerError("talent.loadSelfProfile.profile", profileErr);
+      return null;
+    }
+
+    type ProfileRaw = {
+      id: string;
+      display_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
+      workflow_status: string | null;
+      profile_code: string | null;
+      talent_profile_taxonomy: { relationship_type: string | null; taxonomy_terms: { name_en: string | null } | null }[] | null;
+      talent_service_areas: { service_kind: string | null; locations: { display_name_en: string | null } | null }[] | null;
+    };
+
+    const p = profileRow as unknown as ProfileRaw;
+
+    // Step 2: Verify the talent is rostered in this tenant
+    const { data: rosterRow, error: rosterErr } = await supabase
+      .from("agency_talent_roster")
+      .select("status, agencies!tenant_id ( display_name )")
+      .eq("talent_profile_id", p.id)
+      .eq("tenant_id", tenantId)
+      .neq("status", "removed")
+      .maybeSingle();
+
+    if (rosterErr || !rosterRow) return null;
+
+    type RosterRaw = {
+      status: string;
+      agencies: { display_name: string } | { display_name: string }[] | null;
+    };
+
+    const roster = rosterRow as unknown as RosterRaw;
+    const agencyRow = Array.isArray(roster.agencies) ? roster.agencies[0] : roster.agencies;
+
+    const displayName =
+      p.display_name?.trim() ||
+      `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
+      "Unnamed";
+
+    const primaryTypeLabel =
+      (p.talent_profile_taxonomy ?? [])
+        .find((t) => t.relationship_type === "primary_role")
+        ?.taxonomy_terms?.name_en ?? null;
+
+    const homeCity =
+      (p.talent_service_areas ?? [])
+        .find((a) => a.service_kind === "home_base")
+        ?.locations?.display_name_en ?? null;
+
+    return {
+      id: p.id,
+      displayName,
+      primaryTypeLabel,
+      homeCity,
+      workflowStatus: p.workflow_status ?? "draft",
+      rosterStatus: roster.status,
+      profileCode: p.profile_code ?? null,
+      agencyName: agencyRow?.display_name ?? "Agency",
+    };
+  } catch (err) {
+    logServerError("talent.loadSelfProfile", err);
+    return null;
+  }
+}
+
+export type TalentInquiryRow = {
+  id: string;
+  status: string;
+  contact_name: string;
+  company: string | null;
+  event_date: string | null;
+  event_location: string | null;
+  created_at: string;
+  /** participant status: invited | accepted | declined | pending */
+  participantStatus: string;
+};
+
+/**
+ * Load the talent's inquiries via inquiry_participants.
+ * Shows all inquiries where the talent is a participant.
+ */
+export async function loadTalentInquiries(
+  talentProfileId: string,
+  tenantId: string,
+): Promise<TalentInquiryRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("inquiry_participants")
+      .select(`
+        status,
+        inquiries!inner (
+          id,
+          status,
+          contact_name,
+          company,
+          event_date,
+          event_location,
+          created_at,
+          tenant_id
+        )
+      `)
+      .eq("talent_profile_id", talentProfileId)
+      .eq("inquiries.tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      logServerError("talent.loadInquiries", error);
+      return [];
+    }
+
+    type PartRow = {
+      status: string;
+      inquiries: {
+        id: string;
+        status: string;
+        contact_name: string;
+        company: string | null;
+        event_date: string | null;
+        event_location: string | null;
+        created_at: string;
+      } | null;
+    };
+
+    return ((data ?? []) as unknown as PartRow[])
+      .filter((r) => r.inquiries)
+      .map((r) => ({
+        id: r.inquiries!.id,
+        status: r.inquiries!.status,
+        contact_name: r.inquiries!.contact_name,
+        company: r.inquiries!.company,
+        event_date: r.inquiries!.event_date,
+        event_location: r.inquiries!.event_location,
+        created_at: r.inquiries!.created_at,
+        participantStatus: r.status,
+      }));
+  } catch (err) {
+    logServerError("talent.loadInquiries", err);
+    return [];
+  }
+}
+
+export type TalentAgencyRow = {
+  id: string;
+  agencyName: string;
+  agencySlug: string;
+  rosterStatus: string;
+  plan: string;
+  addedAt: string;
+};
+
+/**
+ * Load all agency relationships for a talent (across all tenants).
+ */
+export async function loadTalentAgencies(
+  talentProfileId: string,
+): Promise<TalentAgencyRow[]> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("agency_talent_roster")
+      .select(`
+        status,
+        created_at,
+        agencies!tenant_id ( id, display_name, slug, plan_tier )
+      `)
+      .eq("talent_profile_id", talentProfileId)
+      .neq("status", "removed")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      logServerError("talent.loadAgencies", error);
+      return [];
+    }
+
+    type RosterRow2 = {
+      status: string;
+      created_at: string;
+      agencies: { id: string; display_name: string; slug: string; plan_tier: string | null } | { id: string; display_name: string; slug: string; plan_tier: string | null }[] | null;
+    };
+
+    return ((data ?? []) as unknown as RosterRow2[]).map((row) => {
+      const agency = Array.isArray(row.agencies) ? row.agencies[0] : row.agencies;
+      return {
+        id: agency?.id ?? row.created_at,
+        agencyName: agency?.display_name ?? "Unknown agency",
+        agencySlug: agency?.slug ?? "",
+        rosterStatus: row.status,
+        plan: agency?.plan_tier ?? "free",
+        addedAt: row.created_at,
+      };
+    });
+  } catch (err) {
+    logServerError("talent.loadAgencies", err);
     return [];
   }
 }
